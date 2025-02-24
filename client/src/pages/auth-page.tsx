@@ -49,13 +49,13 @@ export default function AuthPage() {
     try {
       if (isLogin) {
         await login({
-          username: formData.get("email") as string, // Use email as username
+          username: formData.get("email") as string, // Use email as username for login
           password: formData.get("password") as string,
         });
       } else {
         await register({
-          username: formData.get("email") as string, // Use email as username
-          email: formData.get("email") as string,
+          username: formData.get("username") as string, // Separate username field
+          email: formData.get("email") as string, // Email field
           password: formData.get("password") as string,
           organizationName: formData.get("organizationName") as string,
         });
@@ -86,14 +86,26 @@ export default function AuthPage() {
             <form onSubmit={handleAuth}>
               <div className="space-y-4">
                 {!isLogin && (
-                  <div>
-                    <Label htmlFor="organizationName">Organization Name</Label>
-                    <Input 
-                      id="organizationName" 
-                      name="organizationName" 
-                      required 
-                    />
-                  </div>
+                  <>
+                    <div>
+                      <Label htmlFor="organizationName">Organization Name</Label>
+                      <Input 
+                        id="organizationName" 
+                        name="organizationName" 
+                        required 
+                        placeholder="Enter your organization name"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="username">Username</Label>
+                      <Input 
+                        id="username" 
+                        name="username" 
+                        required 
+                        placeholder="Choose a username"
+                      />
+                    </div>
+                  </>
                 )}
                 <div>
                   <Label htmlFor="email">Email</Label>
@@ -102,6 +114,7 @@ export default function AuthPage() {
                     name="email" 
                     type="email"
                     required 
+                    placeholder={isLogin ? "Enter your email" : "Enter your work email"}
                   />
                 </div>
                 <div>
@@ -111,6 +124,7 @@ export default function AuthPage() {
                     name="password" 
                     type="password" 
                     required 
+                    placeholder="Enter your password"
                   />
                 </div>
                 {!isLogin && (
@@ -122,6 +136,7 @@ export default function AuthPage() {
                       type="password" 
                       required 
                       className={!passwordMatch ? "border-red-500" : ""}
+                      placeholder="Re-enter your password"
                     />
                   </div>
                 )}
