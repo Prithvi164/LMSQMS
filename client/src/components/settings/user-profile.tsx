@@ -116,7 +116,7 @@ export function UserProfile() {
               <Avatar className="h-24 w-24">
                 {user.avatarUrl ? (
                   <AvatarImage 
-                    src={`${user.avatarUrl}?${Date.now()}`} // Add cache-busting query param
+                    src={`${user.avatarUrl}?${Date.now()}`}
                     onError={handleAvatarError}
                   />
                 ) : null}
@@ -128,7 +128,7 @@ export function UserProfile() {
                 <DialogTrigger asChild>
                   <Button 
                     variant="outline" 
-                    className="mt-4 w-full"
+                    className="mt-4"
                   >
                     Change Avatar
                   </Button>
