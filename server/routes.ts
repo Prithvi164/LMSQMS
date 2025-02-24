@@ -57,8 +57,10 @@ app.patch("/api/organizations/:id/settings", async (req, res) => {
 
   try {
     const orgId = parseInt(req.params.id);
+
+    // Check if user belongs to the organization they're trying to modify
     if (req.user.organizationId !== orgId) {
-      return res.status(403).json({ message: "Forbidden" });
+      return res.status(403).json({ message: "You can only modify your own organization's settings" });
     }
 
     const { type, value } = req.body;
@@ -96,7 +98,7 @@ app.patch("/api/organizations/:id/settings", async (req, res) => {
     // Update organization with new settings
     const updatedOrg = await storage.updateOrganization(orgId, organization);
     res.json(updatedOrg);
-  } catch (err) {
+  } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
 });
