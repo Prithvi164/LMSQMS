@@ -281,6 +281,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  app.post("/api/reset-db", async (req, res) => {
+    try {
+      // Truncate tables in correct order due to foreign key constraints
+      await sql`
+        TRUNCATE TABLE "user_progress" CASCADE;
+        TRUNCATE TABLE "learning_path_courses" CASCADE;
+        TRUNCATE TABLE "learning_paths" CASCADE;
+        TRUNCATE TABLE "courses" CASCADE;
+        TRUNCATE TABLE "users" CASCADE;
+        TRUNCATE TABLE "organizations" CASCADE;
+      `;
+
+      res.json({ message: "Database truncated successfully" });
+    } catch (error) {
+      console.error("Truncate error:", error);
+      res.status(500).json({ message: "Failed to truncate database", error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
