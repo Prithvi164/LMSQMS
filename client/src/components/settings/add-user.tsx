@@ -281,7 +281,7 @@ export function AddUser({
               </div>
               <div>
                 <Label htmlFor="role">Role</Label>
-                <Select 
+                <Select
                   value={newUserData.role}
                   onValueChange={(value) => setNewUserData(prev => ({
                     ...prev,
@@ -345,7 +345,7 @@ export function AddUser({
                           onClick={() => {
                             if (newProcess) {
                               updateOrgSettingsMutation.mutate({
-                                type: "processes",
+                                type: "processNames",
                                 value: newProcess,
                               });
                               setNewProcess("");
@@ -373,7 +373,7 @@ export function AddUser({
                       <SelectValue placeholder="Select batch" />
                     </SelectTrigger>
                     <SelectContent>
-                      {orgSettings?.batches.map((batch: OrganizationBatch) => (
+                      {orgSettings?.batches.map((batch) => (
                         <SelectItem key={batch.id} value={batch.id.toString()}>
                           {batch.name}
                         </SelectItem>
@@ -402,7 +402,7 @@ export function AddUser({
                           onClick={() => {
                             if (newBatch) {
                               updateOrgSettingsMutation.mutate({
-                                type: "batches",
+                                type: "batchNames",
                                 value: newBatch,
                               });
                               setNewBatch("");
@@ -430,7 +430,7 @@ export function AddUser({
                       <SelectValue placeholder="Select location" />
                     </SelectTrigger>
                     <SelectContent>
-                      {orgSettings?.locations.map((location: OrganizationLocation) => (
+                      {orgSettings?.locations.map((location) => (
                         <SelectItem key={location.id} value={location.id.toString()}>
                           {location.name}
                         </SelectItem>
@@ -473,10 +473,11 @@ export function AddUser({
                   </Dialog>
                 </div>
               </div>
+
               {user.role === "admin" && (
                 <div>
                   <Label htmlFor="managerId">Manager</Label>
-                  <Select 
+                  <Select
                     value={newUserData.managerId}
                     onValueChange={(value) => setNewUserData(prev => ({
                       ...prev,
