@@ -102,6 +102,12 @@ export function setupAuth(app: Express) {
         return res.status(400).json({ message: "Username already exists" });
       }
 
+      // Check if organization name already exists
+      const existingOrg = await storage.getOrganizationByName(data.organizationName);
+      if (existingOrg) {
+        return res.status(400).json({ message: "Organization name already exists" });
+      }
+
       // Create organization and admin user
       const organization = await storage.createOrganization({
         name: data.organizationName,
