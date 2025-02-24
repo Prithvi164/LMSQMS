@@ -86,7 +86,9 @@ export function UserProfile() {
         title: "Success",
         description: "Avatar updated successfully",
       });
+      // Invalidate both user and avatar queries to refresh the data
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${user.id}/avatar`] });
     },
     onError: (error: Error) => {
       toast({
@@ -97,6 +99,12 @@ export function UserProfile() {
     },
   });
 
+  // Handle avatar image error by showing fallback
+  const handleAvatarError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    const img = e.target as HTMLImageElement;
+    img.style.display = 'none'; // Hide the broken image
+  };
+
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Profile Settings</h1>
@@ -106,7 +114,12 @@ export function UserProfile() {
           <div className="flex items-start gap-6">
             <div className="relative group">
               <Avatar className="h-24 w-24">
-                <AvatarImage src={user.avatarUrl} />
+                {user.avatarUrl ? (
+                  <AvatarImage 
+                    src={`${user.avatarUrl}?${Date.now()}`} // Add cache-busting query param
+                    onError={handleAvatarError}
+                  />
+                ) : null}
                 <AvatarFallback className="text-2xl bg-[#E9D5FF] text-[#6B21A8]">
                   {displayName.substring(0, 2).toUpperCase()}
                 </AvatarFallback>
