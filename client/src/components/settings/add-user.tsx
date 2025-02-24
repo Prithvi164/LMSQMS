@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,9 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Download, Upload, Plus } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import type { User, Organization } from "@shared/schema";
+import type { User, Organization, OrganizationProcess, OrganizationBatch, OrganizationLocation } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import {
   Dialog,
@@ -39,12 +39,12 @@ export function AddUser({
     fullName: "",
     employeeId: "",
     role: "trainee",
-    location: "",
+    locationId: "",
     email: "",
     phoneNumber: "",
-    processName: "",
+    processId: "",
     education: "",
-    batchName: "",
+    batchId: "",
     dateOfJoining: "",
     dateOfBirth: "",
     managerId: "",
@@ -54,6 +54,18 @@ export function AddUser({
   const [newProcess, setNewProcess] = useState("");
   const [newBatch, setNewBatch] = useState("");
   const [newLocation, setNewLocation] = useState("");
+
+  // Fetch organization settings
+  const { data: orgSettings, isLoading } = useQuery({
+    queryKey: [`/api/organizations/${organization?.id}/settings`],
+    queryFn: async () => {
+      if (!organization?.id) return null;
+      const res = await fetch(`/api/organizations/${organization.id}/settings`);
+      if (!res.ok) throw new Error('Failed to fetch organization settings');
+      return res.json();
+    },
+    enabled: !!organization?.id,
+  });
 
   const createUserMutation = useMutation({
     mutationFn: async (data: typeof newUserData) => {
@@ -72,12 +84,12 @@ export function AddUser({
         fullName: "",
         employeeId: "",
         role: "trainee",
-        location: "",
+        locationId: "",
         email: "",
         phoneNumber: "",
-        processName: "",
+        processId: "",
         education: "",
-        batchName: "",
+        batchId: "",
         dateOfJoining: "",
         dateOfBirth: "",
         managerId: "",
@@ -127,7 +139,7 @@ export function AddUser({
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/organization"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
       toast({
         title: "Success",
         description: "Settings updated successfully",
@@ -143,7 +155,7 @@ export function AddUser({
   });
 
   // Ensure we have access to current organization's data
-  if (!organization) {
+  if (!organization || isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
         <p>Loading organization settings...</p>
@@ -210,7 +222,6 @@ export function AddUser({
             className="space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
-              // Ensure organizationId is set when creating user
               createUserMutation.mutate({
                 ...newUserData,
                 organizationId: organization.id,
@@ -292,22 +303,22 @@ export function AddUser({
                 </Select>
               </div>
               <div>
-                <Label htmlFor="processName">Process Name</Label>
+                <Label htmlFor="processId">Process Name</Label>
                 <div className="flex gap-2">
                   <Select
-                    value={newUserData.processName}
+                    value={newUserData.processId}
                     onValueChange={(value) => setNewUserData(prev => ({
                       ...prev,
-                      processName: value
+                      processId: value
                     }))}
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select process" />
                     </SelectTrigger>
                     <SelectContent>
-                      {organization.processNames.map((process) => (
-                        <SelectItem key={process} value={process}>
-                          {process}
+                      {orgSettings?.processes.map((process: OrganizationProcess) => (
+                        <SelectItem key={process.id} value={process.id.toString()}>
+                          {process.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -334,7 +345,7 @@ export function AddUser({
                           onClick={() => {
                             if (newProcess) {
                               updateOrgSettingsMutation.mutate({
-                                type: "processNames",
+                                type: "processes",
                                 value: newProcess,
                               });
                               setNewProcess("");
@@ -349,22 +360,22 @@ export function AddUser({
                 </div>
               </div>
               <div>
-                <Label htmlFor="batchName">Batch Name</Label>
+                <Label htmlFor="batchId">Batch Name</Label>
                 <div className="flex gap-2">
                   <Select
-                    value={newUserData.batchName}
+                    value={newUserData.batchId}
                     onValueChange={(value) => setNewUserData(prev => ({
                       ...prev,
-                      batchName: value
+                      batchId: value
                     }))}
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select batch" />
                     </SelectTrigger>
                     <SelectContent>
-                      {organization.batchNames.map((batch) => (
-                        <SelectItem key={batch} value={batch}>
-                          {batch}
+                      {orgSettings?.batches.map((batch: OrganizationBatch) => (
+                        <SelectItem key={batch.id} value={batch.id.toString()}>
+                          {batch.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -391,7 +402,7 @@ export function AddUser({
                           onClick={() => {
                             if (newBatch) {
                               updateOrgSettingsMutation.mutate({
-                                type: "batchNames",
+                                type: "batches",
                                 value: newBatch,
                               });
                               setNewBatch("");
@@ -406,22 +417,22 @@ export function AddUser({
                 </div>
               </div>
               <div>
-                <Label htmlFor="location">Location</Label>
+                <Label htmlFor="locationId">Location</Label>
                 <div className="flex gap-2">
                   <Select
-                    value={newUserData.location}
+                    value={newUserData.locationId}
                     onValueChange={(value) => setNewUserData(prev => ({
                       ...prev,
-                      location: value
+                      locationId: value
                     }))}
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select location" />
                     </SelectTrigger>
                     <SelectContent>
-                      {organization.locations.map((location) => (
-                        <SelectItem key={location} value={location}>
-                          {location}
+                      {orgSettings?.locations.map((location: OrganizationLocation) => (
+                        <SelectItem key={location.id} value={location.id.toString()}>
+                          {location.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
