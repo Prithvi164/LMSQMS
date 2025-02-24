@@ -8,10 +8,14 @@ export function UserProfile() {
 
   if (!user) return null;
 
+  // Safely handle null values for fullName
+  const firstName = user.fullName?.split(' ')[0] || user.username;
+  const lastName = user.fullName?.split(' ').slice(1).join(' ') || '';
+
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Profile Settings</h1>
-      
+
       <Card>
         <CardContent className="pt-6">
           <div className="flex items-start gap-6">
@@ -20,9 +24,9 @@ export function UserProfile() {
                 {user.username.substring(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            
+
             <div className="space-y-1">
-              <h2 className="text-2xl font-semibold">{user.fullName}</h2>
+              <h2 className="text-2xl font-semibold">{user.username}</h2>
               <p className="text-muted-foreground">{user.email}</p>
               <div className="flex gap-2 mt-4">
                 <Button variant="outline">Change Avatar</Button>
@@ -41,11 +45,11 @@ export function UserProfile() {
           <div className="grid grid-cols-2 gap-x-12 gap-y-6">
             <div>
               <label className="text-sm text-muted-foreground">First Name</label>
-              <p className="text-lg">{user.fullName.split(' ')[0]}</p>
+              <p className="text-lg">{firstName}</p>
             </div>
             <div>
               <label className="text-sm text-muted-foreground">Last Name</label>
-              <p className="text-lg">{user.fullName.split(' ').slice(1).join(' ') || '-'}</p>
+              <p className="text-lg">{lastName || '-'}</p>
             </div>
             <div>
               <label className="text-sm text-muted-foreground">Email ID</label>
