@@ -309,7 +309,7 @@ export default function Settings() {
                   <div>
                     <h3 className="text-lg font-medium">Bulk Upload Users</h3>
                     <p className="text-sm text-muted-foreground">
-                      Upload multiple users using Excel file
+                      Upload multiple users using CSV file
                     </p>
                   </div>
                   <div className="space-x-2">

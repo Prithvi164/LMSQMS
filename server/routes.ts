@@ -182,7 +182,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     const csvContent = headers + '\n' + example + instructions;
 
-    // Send file
     res.setHeader('Content-Disposition', 'attachment; filename=users-template.csv');
     res.setHeader('Content-Type', 'text/csv');
     res.send(csvContent);
