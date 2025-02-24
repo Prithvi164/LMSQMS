@@ -53,6 +53,8 @@ export function setupAuth(app: Express) {
     cookie: {
       secure: process.env.NODE_ENV === "production",
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      sameSite: 'lax',
+      path: '/',
     },
   };
 
@@ -64,11 +66,16 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
-        // Find user by email
         const user = await storage.getUserByUsername(username);
-        if (!user || !(await comparePasswords(password, user.password))) {
+        if (!user) {
           return done(null, false, { message: "Invalid username or password" });
         }
+
+        const isValidPassword = await comparePasswords(password, user.password);
+        if (!isValidPassword) {
+          return done(null, false, { message: "Invalid username or password" });
+        }
+
         return done(null, user);
       } catch (err) {
         return done(err);
@@ -76,10 +83,16 @@ export function setupAuth(app: Express) {
     }),
   );
 
-  passport.serializeUser((user, done) => done(null, user.id));
+  passport.serializeUser((user, done) => {
+    done(null, user.id);
+  });
+
   passport.deserializeUser(async (id: number, done) => {
     try {
       const user = await storage.getUser(id);
+      if (!user) {
+        return done(null, false);
+      }
       done(null, user);
     } catch (err) {
       done(err);
@@ -91,8 +104,8 @@ export function setupAuth(app: Express) {
       const data = registrationSchema.parse(req.body);
 
       // Check if username already exists
-      const existingUserByUsername = await storage.getUserByUsername(data.username);
-      if (existingUserByUsername) {
+      const existingUser = await storage.getUserByUsername(data.username);
+      if (existingUser) {
         return res.status(400).json({ message: "Username already exists" });
       }
 
@@ -107,12 +120,16 @@ export function setupAuth(app: Express) {
         name: data.organizationName,
       });
 
+      const hashedPassword = await hashPassword(data.password);
       const user = await storage.createUser({
         username: data.username,
         email: data.email,
-        password: await hashPassword(data.password),
+        password: hashedPassword,
         organizationId: organization.id,
         role: "admin",
+        fullName: data.username, // Default to username
+        employeeId: `EMP${Date.now()}`, // Generate a unique employee ID
+        phoneNumber: "", // Empty string for optional fields
       });
 
       req.login(user, (err) => {
@@ -124,8 +141,21 @@ export function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/login", passport.authenticate("local"), (req, res) => {
-    res.status(200).json(req.user);
+  app.post("/api/login", (req, res, next) => {
+    passport.authenticate("local", (err, user, info) => {
+      if (err) {
+        return next(err);
+      }
+      if (!user) {
+        return res.status(401).json({ message: info?.message || "Invalid credentials" });
+      }
+      req.login(user, (err) => {
+        if (err) {
+          return next(err);
+        }
+        return res.json(user);
+      });
+    })(req, res, next);
   });
 
   app.post("/api/logout", (req, res, next) => {
@@ -136,7 +166,9 @@ export function setupAuth(app: Express) {
   });
 
   app.get("/api/user", (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
     res.json(req.user);
   });
 }
