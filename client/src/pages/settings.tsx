@@ -555,23 +555,40 @@ export default function Settings() {
                               onSubmit={(e) => {
                                 e.preventDefault();
                                 const formData = new FormData(e.currentTarget);
-                                // Merge existing user data with updates
-                                const data = {
-                                  fullName: formData.get("fullName") as string || u.fullName,
-                                  employeeId: formData.get("employeeId") as string || u.employeeId,
-                                  location: formData.get("location") as string || u.location,
-                                  email: formData.get("email") as string || u.email,
-                                  phoneNumber: formData.get("phoneNumber") as string || u.phoneNumber,
-                                  processName: formData.get("processName") as string || u.processName,
-                                  education: formData.get("education") as string || u.education,
-                                  batchName: formData.get("batchName") as string || u.batchName,
-                                  dateOfJoining: formData.get("dateOfJoining") as string || u.dateOfJoining,
-                                  dateOfBirth: formData.get("dateOfBirth") as string || u.dateOfBirth,
-                                  ...(user.role === "admin" && {
-                                    role: formData.get("role") as string || u.role,
-                                  }),
+                                const updates: Partial<User> = {};
+
+                                // Helper to check if value has changed and is not empty
+                                const hasChanged = (key: keyof User, value: FormDataEntryValue | null) => {
+                                  if (!value || value === '') return false;
+                                  const currentValue = u[key];
+                                  if (key === 'dateOfJoining' || key === 'dateOfBirth') {
+                                    return value !== currentValue?.split('T')[0];
+                                  }
+                                  return value !== currentValue;
                                 };
-                                updateUserMutation.mutate({ id: u.id, data });
+
+                                // Process each field
+                                const fields: (keyof User)[] = [
+                                  'fullName', 'employeeId', 'location', 'email',
+                                  'phoneNumber', 'processName', 'education',
+                                  'batchName', 'dateOfJoining', 'dateOfBirth'
+                                ];
+
+                                if (user.role === "admin") {
+                                  fields.push('role');
+                                }
+
+                                fields.forEach(field => {
+                                  const value = formData.get(field);
+                                  if (hasChanged(field, value)) {
+                                    updates[field] = value as string;
+                                  }
+                                });
+
+                                // Only update if there are changes
+                                if (Object.keys(updates).length > 0) {
+                                  updateUserMutation.mutate({ id: u.id, data: updates });
+                                }
                               }}
                               className="space-y-4"
                             >
@@ -589,7 +606,6 @@ export default function Settings() {
                                     id="fullName"
                                     name="fullName"
                                     defaultValue={u.fullName || ""}
-                                    required
                                   />
                                 </div>
                                 <div>
@@ -598,7 +614,6 @@ export default function Settings() {
                                     id="employeeId"
                                     name="employeeId"
                                     defaultValue={u.employeeId || ""}
-                                    required
                                   />
                                 </div>
                                 {user.role === "admin" && (
@@ -626,7 +641,7 @@ export default function Settings() {
                                     defaultValue={u.location || ""}
                                   >
                                     <SelectTrigger>
-                                      <SelectValue />
+                                      <SelectValue placeholder="Select location" />
                                     </SelectTrigger>
                                     <SelectContent>
                                       {organization?.locations.map(location => (
@@ -644,7 +659,6 @@ export default function Settings() {
                                     name="email"
                                     type="email"
                                     defaultValue={u.email || ""}
-                                    required
                                   />
                                 </div>
                                 <div>
@@ -653,8 +667,8 @@ export default function Settings() {
                                     id="phoneNumber"
                                     name="phoneNumber"
                                     defaultValue={u.phoneNumber || ""}
-                                    required
                                     pattern="\d{10}"
+                                    title="Phone number must be 10 digits"
                                   />
                                 </div>
                                 <div>
@@ -664,7 +678,7 @@ export default function Settings() {
                                     defaultValue={u.processName || ""}
                                   >
                                     <SelectTrigger>
-                                      <SelectValue />
+                                      <SelectValue placeholder="Select process" />
                                     </SelectTrigger>
                                     <SelectContent>
                                       {organization?.processNames.map(process => (
@@ -682,7 +696,7 @@ export default function Settings() {
                                     defaultValue={u.education || ""}
                                   >
                                     <SelectTrigger>
-                                      <SelectValue />
+                                      <SelectValue placeholder="Select education" />
                                     </SelectTrigger>
                                     <SelectContent>
                                       {organization?.educationOptions.map(option => (
@@ -700,7 +714,7 @@ export default function Settings() {
                                     defaultValue={u.batchName || ""}
                                   >
                                     <SelectTrigger>
-                                      <SelectValue />
+                                      <SelectValue placeholder="Select batch" />
                                     </SelectTrigger>
                                     <SelectContent>
                                       {organization?.batchNames.map(batch => (
