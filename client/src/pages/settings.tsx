@@ -38,8 +38,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Edit2, Trash2, Download, Upload } from "lucide-react";
+import { Edit2, Trash2, Download, Upload, Users, Settings as SettingsIcon, type Icon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
+
+// Import existing components
+import { UserManagement } from "@/components/settings/user-management";
+import { UserProfile } from "@/components/settings/user-profile";
+import { AddUser } from "@/components/settings/add-user";
+
+type SettingsTab = "profile" | "users";
+type UsersSubTab = "add" | "manage";
 
 export default function Settings() {
   const { user } = useAuth();
@@ -203,684 +212,91 @@ export default function Settings() {
     }
   });
 
+  const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
+  const [activeUserTab, setActiveUserTab] = useState<UsersSubTab>("manage");
 
   if (!user) return null;
 
+  const NavButton = ({
+    active,
+    icon: Icon,
+    children,
+    onClick
+  }: {
+    active: boolean;
+    icon: any;
+    children: React.ReactNode;
+    onClick: () => void;
+  }) => (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-2 w-full p-2 rounded-lg text-left transition-colors",
+        active ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+      )}
+    >
+      <Icon className="h-5 w-5" />
+      <span>{children}</span>
+    </button>
+  );
+
   return (
-    <div className="p-8">
-      <h1 className="text-3xl font-bold mb-8">Account Settings</h1>
+    <div className="flex h-[calc(100vh-4rem)]">
+      {/* Left Sidebar */}
+      <div className="w-64 border-r p-4 space-y-4">
+        <h2 className="font-semibold mb-4 px-2">Settings</h2>
+        <div className="space-y-2">
+          <NavButton
+            active={activeTab === "profile"}
+            icon={User}
+            onClick={() => setActiveTab("profile")}
+          >
+            Profile
+          </NavButton>
+          <NavButton
+            active={activeTab === "users"}
+            icon={Users}
+            onClick={() => setActiveTab("users")}
+          >
+            Users
+          </NavButton>
 
-      <Tabs defaultValue="profile">
-        <TabsList>
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="addUser">Add User</TabsTrigger>
-          <TabsTrigger value="userDetails">User Details</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="profile">
-          <Card>
-            <CardHeader>
-              <CardTitle>Profile Information</CardTitle>
-              <CardDescription>View your profile settings</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <Label>Username</Label>
-                  <Input value={user.username} disabled />
-                </div>
-                <div>
-                  <Label>Full Name</Label>
-                  <Input value={user.fullName} disabled />
-                </div>
-                <div>
-                  <Label>Employee ID</Label>
-                  <Input value={user.employeeId} disabled />
-                </div>
-                <div>
-                  <Label>Role</Label>
-                  <Input value={user.role} className="capitalize" disabled />
-                </div>
-                <div>
-                  <Label>Location</Label>
-                  <Input value={user.location} disabled />
-                </div>
-                <div>
-                  <Label>Email</Label>
-                  <Input value={user.email} disabled />
-                </div>
-                <div>
-                  <Label>Phone Number</Label>
-                  <Input value={user.phoneNumber} disabled />
-                </div>
-                <div>
-                  <Label>Process Name</Label>
-                  <Input value={user.processName || "N/A"} disabled />
-                </div>
-                <div>
-                  <Label>Education</Label>
-                  <Input value={user.education || "N/A"} disabled />
-                </div>
-                <div>
-                  <Label>Batch Name</Label>
-                  <Input value={user.batchName || "N/A"} disabled />
-                </div>
-                <div>
-                  <Label>Date of Joining</Label>
-                  <Input
-                    value={user.dateOfJoining ? new Date(user.dateOfJoining).toLocaleDateString() : "N/A"}
-                    disabled
-                  />
-                </div>
-                <div>
-                  <Label>Date of Birth</Label>
-                  <Input
-                    value={user.dateOfBirth ? new Date(user.dateOfBirth).toLocaleDateString() : "N/A"}
-                    disabled
-                  />
-                </div>
-                {user.managerId && (
-                  <div>
-                    <Label>Manager</Label>
-                    <Input
-                      value={users.find(u => u.id === user.managerId)?.username || ""}
-                      disabled
-                    />
-                  </div>
+          {/* Show user sub-tabs only when users tab is active */}
+          {activeTab === "users" && (
+            <div className="pl-6 space-y-2 mt-2">
+              <button
+                onClick={() => setActiveUserTab("manage")}
+                className={cn(
+                  "w-full text-left p-2 rounded-lg transition-colors",
+                  activeUserTab === "manage" ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"
                 )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="addUser">
-          <Card>
-            <CardHeader>
-              <CardTitle>Add New User</CardTitle>
-              <CardDescription>
-                {user.role === "admin"
-                  ? "Create new managers, trainers, or trainees for your organization"
-                  : "Create new trainee accounts"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-medium">Bulk Upload Users</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Upload multiple users using CSV file
-                    </p>
-                  </div>
-                  <div className="space-x-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        window.location.href = '/api/users/template';
-                      }}
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Download CSV Template
-                    </Button>
-                    <Label htmlFor="csv-upload" className="cursor-pointer">
-                      <div className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2">
-                        <Upload className="mr-2 h-4 w-4" />
-                        Upload CSV
-                      </div>
-                    </Label>
-                    <Input
-                      id="csv-upload"
-                      type="file"
-                      className="hidden"
-                      accept=".csv"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          uploadUsersMutation.mutate(file);
-                        }
-                      }}
-                    />
-                  </div>
-                </div>
-                {uploadUsersMutation.isPending && (
-                  <div className="flex items-center justify-center p-4">
-                    <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
-                  </div>
+              >
+                Manage Users
+              </button>
+              <button
+                onClick={() => setActiveUserTab("add")}
+                className={cn(
+                  "w-full text-left p-2 rounded-lg transition-colors",
+                  activeUserTab === "add" ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"
                 )}
-              </div>
-              <Separator className="my-6" />
-              <div>
-                <h3 className="text-lg font-medium mb-4">Add Single User</h3>
-                <form
-                  className="space-y-4"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    createUserMutation.mutate(newUserData);
-                  }}
-                >
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="username">Username</Label>
-                      <Input
-                        id="username"
-                        value={newUserData.username}
-                        onChange={(e) => setNewUserData(prev => ({
-                          ...prev,
-                          username: e.target.value
-                        }))}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="password">Password</Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        value={newUserData.password}
-                        onChange={(e) => setNewUserData(prev => ({
-                          ...prev,
-                          password: e.target.value
-                        }))}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="fullName">Full Name</Label>
-                      <Input
-                        id="fullName"
-                        value={newUserData.fullName}
-                        onChange={(e) => setNewUserData(prev => ({
-                          ...prev,
-                          fullName: e.target.value
-                        }))}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="employeeId">Employee ID</Label>
-                      <Input
-                        id="employeeId"
-                        value={newUserData.employeeId}
-                        onChange={(e) => setNewUserData(prev => ({
-                          ...prev,
-                          employeeId: e.target.value
-                        }))}
-                        required
-                      />
-                    </div>
-                    {user.role === "admin" && (
-                      <div>
-                        <Label htmlFor="role">Role</Label>
-                        <Select
-                          value={newUserData.role}
-                          onValueChange={(value) => setNewUserData(prev => ({
-                            ...prev,
-                            role: value,
-                            managerId: value === "trainee" ? prev.managerId : ""
-                          }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select role" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="manager">Manager</SelectItem>
-                            <SelectItem value="trainer">Trainer</SelectItem>
-                            <SelectItem value="trainee">Trainee</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                    <div>
-                      <Label htmlFor="location">Location</Label>
-                      <Select
-                        value={newUserData.location}
-                        onValueChange={(value) => setNewUserData(prev => ({
-                          ...prev,
-                          location: value
-                        }))}
-                        required
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select location" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {organization?.locations.map(location => (
-                            <SelectItem key={location} value={location}>
-                              {location}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={newUserData.email}
-                        onChange={(e) => setNewUserData(prev => ({
-                          ...prev,
-                          email: e.target.value
-                        }))}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="phoneNumber">Phone Number</Label>
-                      <Input
-                        id="phoneNumber"
-                        value={newUserData.phoneNumber}
-                        onChange={(e) => setNewUserData(prev => ({
-                          ...prev,
-                          phoneNumber: e.target.value
-                        }))}
-                        required
-                        pattern="\d{10}"
-                        title="Phone number must be 10 digits"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="processName">Process Name</Label>
-                      <Select
-                        value={newUserData.processName}
-                        onValueChange={(value) => setNewUserData(prev => ({
-                          ...prev,
-                          processName: value
-                        }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select process" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {organization?.processNames.map(process => (
-                            <SelectItem key={process} value={process}>
-                              {process}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="education">Education</Label>
-                      <Select
-                        value={newUserData.education}
-                        onValueChange={(value) => setNewUserData(prev => ({
-                          ...prev,
-                          education: value
-                        }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select education" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {organization?.educationOptions.map(option => (
-                            <SelectItem key={option} value={option}>
-                              {option}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="batchName">Batch Name</Label>
-                      <Select
-                        value={newUserData.batchName}
-                        onValueChange={(value) => setNewUserData(prev => ({
-                          ...prev,
-                          batchName: value
-                        }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select batch" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {organization?.batchNames.map(batch => (
-                            <SelectItem key={batch} value={batch}>
-                              {batch}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="dateOfJoining">Date of Joining</Label>
-                      <Input
-                        id="dateOfJoining"
-                        type="date"
-                        value={newUserData.dateOfJoining}
-                        onChange={(e) => setNewUserData(prev => ({
-                          ...prev,
-                          dateOfJoining: e.target.value
-                        }))}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                      <Input
-                        id="dateOfBirth"
-                        type="date"
-                        value={newUserData.dateOfBirth}
-                        onChange={(e) => setNewUserData(prev => ({
-                          ...prev,
-                          dateOfBirth: e.target.value
-                        }))}
-                      />
-                    </div>
-                    {(newUserData.role === "trainee" || newUserData.role === "trainer") && (
-                      <div>
-                        <Label htmlFor="manager">Reporting Person</Label>
-                        <Select
-                          value={newUserData.managerId}
-                          onValueChange={(value) => setNewUserData(prev => ({
-                            ...prev,
-                            managerId: value
-                          }))}
-                          required
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select reporting person" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {potentialManagers.map(manager => (
-                              <SelectItem key={manager.id} value={manager.id.toString()}>
-                                {manager.username}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                  </div>
-                  <Button
-                    type="submit"
-                    className="w-full mt-6"
-                    disabled={createUserMutation.isPending}
-                  >
-                    Create User
-                  </Button>
-                </form>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+              >
+                Add User
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
 
-        <TabsContent value="userDetails">
-          <Card>
-            <CardHeader>
-              <CardTitle>User Management</CardTitle>
-              <CardDescription>View and manage all users in your organization</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Username</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Full Name</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.map((u) => (
-                    <TableRow key={u.id}>
-                      <TableCell>{u.username}</TableCell>
-                      <TableCell>{u.email}</TableCell>
-                      <TableCell>{u.fullName}</TableCell>
-                      <TableCell>
-                        <Badge>{u.role}</Badge>
-                      </TableCell>
-                      <TableCell>{u.location}</TableCell>
-                      <TableCell className="space-x-2">
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button variant="outline" size="icon">
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-4xl">
-                            <DialogHeader>
-                              <DialogTitle>Edit User</DialogTitle>
-                              <DialogDescription>
-                                Update user information for {u.username}
-                              </DialogDescription>
-                            </DialogHeader>
-                            <form
-                              onSubmit={(e) => {
-                                e.preventDefault();
-                                const formData = new FormData(e.currentTarget);
-                                const updates: Partial<User> = {};
-
-                                // Helper to check if value has changed and is not empty
-                                const hasChanged = (key: keyof User, value: FormDataEntryValue | null) => {
-                                  if (!value || value === '') return false;
-                                  const currentValue = u[key];
-                                  if (key === 'dateOfJoining' || key === 'dateOfBirth') {
-                                    return value !== currentValue?.split('T')[0];
-                                  }
-                                  return value !== currentValue;
-                                };
-
-                                // Process each field
-                                const fields: (keyof User)[] = [
-                                  'fullName', 'employeeId', 'location', 'email',
-                                  'phoneNumber', 'processName', 'education',
-                                  'batchName', 'dateOfJoining', 'dateOfBirth'
-                                ];
-
-                                if (user.role === "admin") {
-                                  fields.push('role');
-                                }
-
-                                fields.forEach(field => {
-                                  const value = formData.get(field);
-                                  if (hasChanged(field, value)) {
-                                    updates[field] = value as string;
-                                  }
-                                });
-
-                                // Only update if there are changes
-                                if (Object.keys(updates).length > 0) {
-                                  updateUserMutation.mutate({ id: u.id, data: updates });
-                                }
-                              }}
-                              className="space-y-4"
-                            >
-                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <Label>Username</Label>
-                                  <Input
-                                    value={u.username}
-                                    disabled
-                                  />
-                                </div>
-                                <div>
-                                  <Label htmlFor="fullName">Full Name</Label>
-                                  <Input
-                                    id="fullName"
-                                    name="fullName"
-                                    defaultValue={u.fullName || ""}
-                                  />
-                                </div>
-                                <div>
-                                  <Label htmlFor="employeeId">Employee ID</Label>
-                                  <Input
-                                    id="employeeId"
-                                    name="employeeId"
-                                    defaultValue={u.employeeId || ""}
-                                  />
-                                </div>
-                                {user.role === "admin" && (
-                                  <div>
-                                    <Label htmlFor="role">Role</Label>
-                                    <Select
-                                      name="role"
-                                      defaultValue={u.role}
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="manager">Manager</SelectItem>
-                                        <SelectItem value="trainer">Trainer</SelectItem>
-                                        <SelectItem value="trainee">Trainee</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                )}
-                                <div>
-                                  <Label htmlFor="location">Location</Label>
-                                  <Select
-                                    name="location"
-                                    defaultValue={u.location || ""}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select location" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {organization?.locations.map(location => (
-                                        <SelectItem key={location} value={location}>
-                                          {location}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <div>
-                                  <Label htmlFor="email">Email</Label>
-                                  <Input
-                                    id="email"
-                                    name="email"
-                                    type="email"
-                                    defaultValue={u.email || ""}
-                                  />
-                                </div>
-                                <div>
-                                  <Label htmlFor="phoneNumber">Phone Number</Label>
-                                  <Input
-                                    id="phoneNumber"
-                                    name="phoneNumber"
-                                    defaultValue={u.phoneNumber || ""}
-                                    pattern="\d{10}"
-                                    title="Phone number must be 10 digits"
-                                  />
-                                </div>
-                                <div>
-                                  <Label htmlFor="processName">Process Name</Label>
-                                  <Select
-                                    name="processName"
-                                    defaultValue={u.processName || ""}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select process" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {organization?.processNames.map(process => (
-                                        <SelectItem key={process} value={process}>
-                                          {process}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <div>
-                                  <Label htmlFor="education">Education</Label>
-                                  <Select
-                                    name="education"
-                                    defaultValue={u.education || ""}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select education" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {organization?.educationOptions.map(option => (
-                                        <SelectItem key={option} value={option}>
-                                          {option}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <div>
-                                  <Label htmlFor="batchName">Batch Name</Label>
-                                  <Select
-                                    name="batchName"
-                                    defaultValue={u.batchName || ""}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select batch" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {organization?.batchNames.map(batch => (
-                                        <SelectItem key={batch} value={batch}>
-                                          {batch}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <div>
-                                  <Label htmlFor="dateOfJoining">Date of Joining</Label>
-                                  <Input
-                                    id="dateOfJoining"
-                                    name="dateOfJoining"
-                                    type="date"
-                                    defaultValue={u.dateOfJoining?.split('T')[0] || ""}
-                                  />
-                                </div>
-                                <div>
-                                  <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                                  <Input
-                                    id="dateOfBirth"
-                                    name="dateOfBirth"
-                                    type="date"
-                                    defaultValue={u.dateOfBirth?.split('T')[0] || ""}
-                                  />
-                                </div>
-                              </div>
-                              <Button type="submit" className="w-full">
-                                Update User
-                              </Button>
-                            </form>
-                          </DialogContent>
-                        </Dialog>
-
-                        {user.role === "admin" && u.id !== user.id && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="outline" size="icon">
-                                <Trash2 className="h-4 w-4 text-red-500" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete User</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete this user? This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => deleteUserMutation.mutate(u.id)}
-                                  className="bg-red-500 hover:bg-red-600"
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      {/* Main Content */}
+      <div className="flex-1 p-8 overflow-y-auto">
+        {activeTab === "profile" && <UserProfile user={user} />}
+        {activeTab === "users" && (
+          <>
+            {activeUserTab === "manage" && <UserManagement users={users} user={user} updateUserMutation={updateUserMutation} deleteUserMutation={deleteUserMutation} />}
+            {activeUserTab === "add" && <AddUser createUserMutation={createUserMutation} users={users} user={user} organization={organization} potentialManagers={potentialManagers} newUserData={newUserData} setNewUserData={setNewUserData} uploadUsersMutation={uploadUsersMutation}/>}
+          </>
+        )}
+      </div>
     </div>
   );
 }
