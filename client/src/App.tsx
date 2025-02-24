@@ -8,8 +8,10 @@ import AuthPage from "@/pages/auth-page";
 import Dashboard from "@/pages/dashboard";
 import LearningPaths from "@/pages/learning-paths";
 import Performance from "@/pages/performance";
+import Settings from "@/pages/settings";
 import { ProtectedRoute } from "./lib/protected-route";
 import { SidebarNav } from "./components/sidebar-nav";
+import { UserProfile } from "./components/user-profile";
 
 function Router() {
   return (
@@ -18,6 +20,7 @@ function Router() {
       <ProtectedRoute path="/" component={Dashboard} />
       <ProtectedRoute path="/learning-paths" component={LearningPaths} />
       <ProtectedRoute path="/performance" component={Performance} />
+      <ProtectedRoute path="/settings" component={Settings} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -30,6 +33,9 @@ function App() {
         <div className="flex">
           <SidebarNav />
           <main className="flex-1">
+            <div className="p-4 border-b flex justify-end">
+              <UserProfile />
+            </div>
             <Router />
           </main>
         </div>

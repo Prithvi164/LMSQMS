@@ -129,32 +129,47 @@ export function setupAuth(app: Express) {
     res.json(req.user);
   });
 
-  // Admin-only route to create new users (managers/trainers)
+  // Admin-only route to create new users (managers/trainers/trainees)
   app.post("/api/users", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
-    if (req.user.role !== "admin") return res.status(403).json({ message: "Forbidden" });
 
     try {
       const { username, password, role, managerId } = req.body;
+      const user = req.user;
 
-      // Validate role hierarchy
+      // Validate role-based permissions
       if (role === "admin") {
         return res.status(400).json({ message: "Cannot create additional admin users" });
       }
 
-      if (role === "trainer" && !managerId) {
-        return res.status(400).json({ message: "Trainer must be assigned to a manager" });
+      if (user.role === "admin") {
+        // Admin can create any role except admin
+        if (!["manager", "trainer", "trainee"].includes(role)) {
+          return res.status(400).json({ message: "Invalid role" });
+        }
+      } else if (["manager", "trainer"].includes(user.role)) {
+        // Managers and Trainers can only create trainees
+        if (role !== "trainee") {
+          return res.status(403).json({ message: "You can only create trainee accounts" });
+        }
+      } else {
+        return res.status(403).json({ message: "Forbidden" });
       }
 
-      const user = await storage.createUser({
+      // Validate manager assignment
+      if (role === "trainee" && !managerId) {
+        return res.status(400).json({ message: "Trainee must be assigned to a manager or trainer" });
+      }
+
+      const newUser = await storage.createUser({
         username,
         password: await hashPassword(password),
-        organizationId: req.user.organizationId,
+        organizationId: user.organizationId,
         role,
-        managerId: role === "trainer" ? managerId : null,
+        managerId: ["trainee", "trainer"].includes(role) ? managerId : null,
       });
 
-      res.status(201).json(user);
+      res.status(201).json(newUser);
     } catch (err) {
       res.status(400).json({ message: err.message });
     }

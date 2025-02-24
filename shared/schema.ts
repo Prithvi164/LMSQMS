@@ -3,8 +3,8 @@ import { createInsertSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
 
-// Role enum
-export const roleEnum = pgEnum('role', ['admin', 'manager', 'trainer']);
+// Update the role enum to include trainee
+export const roleEnum = pgEnum('role', ['admin', 'manager', 'trainer', 'trainee']);
 
 // Organizations table
 export const organizations = pgTable("organizations", {
