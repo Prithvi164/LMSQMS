@@ -10,6 +10,7 @@ import LearningPaths from "@/pages/learning-paths";
 import Performance from "@/pages/performance";
 import Settings from "@/pages/settings";
 import { ProtectedRoute } from "./lib/protected-route";
+import { SidebarNav } from "./components/sidebar-nav";
 import { UserProfile } from "./components/user-profile";
 
 function Router() {
@@ -29,7 +30,8 @@ function AppContent() {
   const { user } = useAuth();
   return (
     <div className="flex">
-      <main className="w-full">
+      {user && <SidebarNav />}
+      <main className={`${user ? "flex-1" : "w-full"}`}>
         {user && (
           <div className="p-4 border-b flex justify-end">
             <UserProfile />
