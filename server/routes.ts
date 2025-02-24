@@ -8,7 +8,7 @@ import path from "path";
 import { insertUserSchema } from "@shared/schema";
 
 // Configure multer for handling file uploads
-const upload = multer({ 
+const upload = multer({
   storage: multer.memoryStorage(),
   fileFilter: (_req, file, cb) => {
     try {
@@ -234,8 +234,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Create CSV content
     const headers = [
-      'Username*', 'Password*', 'Full Name*', 'Employee ID*', 'Role*', 
-      'Location*', 'Email*', 'Phone Number*', 'Process Name', 'Education', 
+      'Username*', 'Password*', 'Full Name*', 'Employee ID*', 'Role*',
+      'Location*', 'Email*', 'Phone Number*', 'Process Name', 'Education',
       'Batch Name', 'Date of Joining', 'Date of Birth', 'Manager Username'
     ].join(',');
 
