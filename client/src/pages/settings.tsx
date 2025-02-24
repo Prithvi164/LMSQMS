@@ -19,7 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { 
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -220,24 +220,24 @@ export default function Settings() {
                 </div>
                 <div>
                   <Label>Date of Joining</Label>
-                  <Input 
-                    value={user.dateOfJoining ? new Date(user.dateOfJoining).toLocaleDateString() : "N/A"} 
-                    disabled 
+                  <Input
+                    value={user.dateOfJoining ? new Date(user.dateOfJoining).toLocaleDateString() : "N/A"}
+                    disabled
                   />
                 </div>
                 <div>
                   <Label>Date of Birth</Label>
-                  <Input 
-                    value={user.dateOfBirth ? new Date(user.dateOfBirth).toLocaleDateString() : "N/A"} 
-                    disabled 
+                  <Input
+                    value={user.dateOfBirth ? new Date(user.dateOfBirth).toLocaleDateString() : "N/A"}
+                    disabled
                   />
                 </div>
                 {user.managerId && (
                   <div>
                     <Label>Manager</Label>
-                    <Input 
-                      value={users.find(u => u.id === user.managerId)?.username || ""} 
-                      disabled 
+                    <Input
+                      value={users.find(u => u.id === user.managerId)?.username || ""}
+                      disabled
                     />
                   </div>
                 )}
@@ -251,13 +251,13 @@ export default function Settings() {
             <CardHeader>
               <CardTitle>Add New User</CardTitle>
               <CardDescription>
-                {user.role === "admin" 
+                {user.role === "admin"
                   ? "Create new managers, trainers, or trainees for your organization"
                   : "Create new trainee accounts"}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form 
+              <form
                 className="space-y-4"
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -497,8 +497,8 @@ export default function Settings() {
                     </div>
                   )}
                 </div>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="w-full mt-6"
                   disabled={createUserMutation.isPending}
                 >
@@ -520,6 +520,7 @@ export default function Settings() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Username</TableHead>
+                    <TableHead>Email</TableHead>
                     <TableHead>Full Name</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Location</TableHead>
@@ -530,6 +531,7 @@ export default function Settings() {
                   {users.map((u) => (
                     <TableRow key={u.id}>
                       <TableCell>{u.username}</TableCell>
+                      <TableCell>{u.email}</TableCell>
                       <TableCell>{u.fullName}</TableCell>
                       <TableCell>
                         <Badge>{u.role}</Badge>
@@ -542,11 +544,11 @@ export default function Settings() {
                               <Edit2 className="h-4 w-4" />
                             </Button>
                           </DialogTrigger>
-                          <DialogContent>
+                          <DialogContent className="max-w-4xl">
                             <DialogHeader>
                               <DialogTitle>Edit User</DialogTitle>
                               <DialogDescription>
-                                Update user information
+                                Update user information for {u.username}
                               </DialogDescription>
                             </DialogHeader>
                             <form
@@ -562,6 +564,8 @@ export default function Settings() {
                                   processName: formData.get("processName") as string,
                                   education: formData.get("education") as string,
                                   batchName: formData.get("batchName") as string,
+                                  dateOfJoining: formData.get("dateOfJoining") as string,
+                                  dateOfBirth: formData.get("dateOfBirth") as string,
                                   ...(user.role === "admin" && {
                                     role: formData.get("role") as string,
                                   }),
@@ -571,6 +575,13 @@ export default function Settings() {
                               className="space-y-4"
                             >
                               <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label>Username</Label>
+                                  <Input
+                                    value={u.username}
+                                    disabled
+                                  />
+                                </div>
                                 <div>
                                   <Label htmlFor="fullName">Full Name</Label>
                                   <Input
@@ -698,6 +709,24 @@ export default function Settings() {
                                       ))}
                                     </SelectContent>
                                   </Select>
+                                </div>
+                                <div>
+                                  <Label htmlFor="dateOfJoining">Date of Joining</Label>
+                                  <Input
+                                    id="dateOfJoining"
+                                    name="dateOfJoining"
+                                    type="date"
+                                    defaultValue={u.dateOfJoining?.split('T')[0] || ""}
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                                  <Input
+                                    id="dateOfBirth"
+                                    name="dateOfBirth"
+                                    type="date"
+                                    defaultValue={u.dateOfBirth?.split('T')[0] || ""}
+                                  />
                                 </div>
                               </div>
                               <Button type="submit" className="w-full">
