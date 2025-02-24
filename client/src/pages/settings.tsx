@@ -555,19 +555,20 @@ export default function Settings() {
                               onSubmit={(e) => {
                                 e.preventDefault();
                                 const formData = new FormData(e.currentTarget);
+                                // Merge existing user data with updates
                                 const data = {
-                                  fullName: formData.get("fullName") as string,
-                                  employeeId: formData.get("employeeId") as string,
-                                  location: formData.get("location") as string,
-                                  email: formData.get("email") as string,
-                                  phoneNumber: formData.get("phoneNumber") as string,
-                                  processName: formData.get("processName") as string,
-                                  education: formData.get("education") as string,
-                                  batchName: formData.get("batchName") as string,
-                                  dateOfJoining: formData.get("dateOfJoining") as string,
-                                  dateOfBirth: formData.get("dateOfBirth") as string,
+                                  fullName: formData.get("fullName") as string || u.fullName,
+                                  employeeId: formData.get("employeeId") as string || u.employeeId,
+                                  location: formData.get("location") as string || u.location,
+                                  email: formData.get("email") as string || u.email,
+                                  phoneNumber: formData.get("phoneNumber") as string || u.phoneNumber,
+                                  processName: formData.get("processName") as string || u.processName,
+                                  education: formData.get("education") as string || u.education,
+                                  batchName: formData.get("batchName") as string || u.batchName,
+                                  dateOfJoining: formData.get("dateOfJoining") as string || u.dateOfJoining,
+                                  dateOfBirth: formData.get("dateOfBirth") as string || u.dateOfBirth,
                                   ...(user.role === "admin" && {
-                                    role: formData.get("role") as string,
+                                    role: formData.get("role") as string || u.role,
                                   }),
                                 };
                                 updateUserMutation.mutate({ id: u.id, data });
