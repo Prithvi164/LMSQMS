@@ -4,7 +4,6 @@ import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { Router } from "express";
 import multer from "multer";
-import * as XLSX from "xlsx";
 import path from "path";
 import { insertUserSchema } from "@shared/schema";
 
@@ -24,9 +23,9 @@ const upload = multer({
       const ext = path.extname(file.originalname).toLowerCase();
       console.log('File extension:', ext);
 
-      if (ext !== '.xlsx' && ext !== '.xls') {
+      if (ext !== '.csv') {
         console.error('Invalid file type:', ext);
-        cb(new Error('Only Excel files (.xlsx, .xls) are allowed'));
+        cb(new Error('Only CSV files (.csv) are allowed'));
         return;
       }
 
@@ -153,45 +152,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.status(201).json(progress);
   });
 
-  // Excel template download route
+  // Template download route
   app.get("/api/users/template", (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
-    // Create workbook and worksheet
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet([
-      ['Username*', 'Password*', 'Full Name*', 'Employee ID*', 'Role*', 'Location*', 'Email*', 'Phone Number*', 
-       'Process Name', 'Education', 'Batch Name', 'Date of Joining', 'Date of Birth', 'Manager Username'],
-      // Example row
-      ['john.doe', 'password123', 'John Doe', 'EMP001', 'trainee', 'New York', 'john@example.com', '1234567890',
-       'Sales', 'Bachelor', 'Batch-2023', '2023-01-01', '1990-01-01', 'manager.username']
-    ]);
+    // Create CSV content
+    const headers = [
+      'Username*', 'Password*', 'Full Name*', 'Employee ID*', 'Role*', 
+      'Location*', 'Email*', 'Phone Number*', 'Process Name', 'Education', 
+      'Batch Name', 'Date of Joining', 'Date of Birth', 'Manager Username'
+    ].join(',');
 
-    // Add instructions in the second sheet
-    const instructionsWs = XLSX.utils.aoa_to_sheet([
-      ['Instructions for filling the Excel template:'],
-      ['1. Fields marked with * are mandatory'],
-      ['2. Role must be one of: trainee, trainer, manager'],
-      ['3. Password must be at least 6 characters'],
-      ['4. Phone number must be 10 digits'],
-      ['5. Email must be valid format'],
-      ['6. Dates should be in YYYY-MM-DD format'],
-      ['7. Manager Username is required for trainee and trainer roles']
-    ]);
+    const example = [
+      'john.doe', 'password123', 'John Doe', 'EMP001', 'trainee',
+      'New York', 'john@example.com', '1234567890', 'Sales', 'Bachelor',
+      'Batch-2023', '2023-01-01', '1990-01-01', 'manager.username'
+    ].join(',');
 
-    XLSX.utils.book_append_sheet(wb, ws, "Users Template");
-    XLSX.utils.book_append_sheet(wb, instructionsWs, "Instructions");
+    const instructions = [
+      '\n\nInstructions:',
+      '1. Fields marked with * are mandatory',
+      '2. Role must be one of: trainee, trainer, manager',
+      '3. Password must be at least 6 characters',
+      '4. Phone number must be 10 digits',
+      '5. Email must be valid format',
+      '6. Dates should be in YYYY-MM-DD format',
+      '7. Manager Username is required for trainee and trainer roles'
+    ].join('\n');
 
-    // Generate buffer
-    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    const csvContent = headers + '\n' + example + instructions;
 
     // Send file
-    res.setHeader('Content-Disposition', 'attachment; filename=users-template.xlsx');
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.send(buf);
+    res.setHeader('Content-Disposition', 'attachment; filename=users-template.csv');
+    res.setHeader('Content-Type', 'text/csv');
+    res.send(csvContent);
   });
 
-  // Excel upload route
+  // CSV upload route
   app.post("/api/users/upload", (req, res) => {
     console.log('Received upload request');
 
@@ -213,26 +210,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         console.log('Processing file:', req.file.originalname);
 
-        const workbook = XLSX.read(req.file.buffer);
-        if (!workbook.SheetNames.length) {
-          return res.status(400).json({ message: "Excel file is empty" });
-        }
+        // Parse CSV content
+        const csvContent = req.file.buffer.toString('utf-8');
+        const lines = csvContent.split('\n');
+        const headers = lines[0].split(',');
 
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const data = XLSX.utils.sheet_to_json(worksheet);
-
-        if (!data.length) {
-          return res.status(400).json({ message: "No data found in Excel file" });
-        }
-
+        // Process data rows (skip header)
         const results = {
           success: 0,
           failures: [] as { row: number; error: string }[]
         };
 
-        for (let i = 0; i < data.length; i++) {
-          const row = data[i] as any;
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue; // Skip empty lines
+
           try {
+            const values = line.split(',');
+            const row = Object.fromEntries(
+              headers.map((header, index) => [header.trim(), values[index]?.trim()])
+            );
+
             // Find manager if specified
             let managerId: number | undefined;
             if (row['Manager Username']) {
@@ -270,7 +268,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             results.success++;
           } catch (error: any) {
             results.failures.push({
-              row: i + 2, // Add 2 to account for header row and 1-based indexing
+              row: i + 1, // Add 1 for 1-based row numbering
               error: error.message
             });
           }
@@ -278,7 +276,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         res.json(results);
       } catch (error: any) {
-        console.error('Excel upload error:', error);
+        console.error('CSV upload error:', error);
         res.status(400).json({ message: error.message || 'Upload failed' });
       }
     });
