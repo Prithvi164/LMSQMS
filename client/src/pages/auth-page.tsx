@@ -22,11 +22,12 @@ export default function AuthPage() {
   const handleAuth = async (
     username: string, 
     password: string, 
-    isRegister: boolean
+    isRegister: boolean,
+    organizationName?: string
   ) => {
     try {
       if (isRegister) {
-        await register({ username, password });
+        await register({ username, password, organizationName: organizationName! });
       } else {
         await login({ username, password });
       }
@@ -54,7 +55,7 @@ export default function AuthPage() {
             <Tabs defaultValue="login">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login">Login</TabsTrigger>
-                <TabsTrigger value="register">Register</TabsTrigger>
+                <TabsTrigger value="register">Register as Admin</TabsTrigger>
               </TabsList>
 
               <TabsContent value="login">
@@ -102,10 +103,19 @@ export default function AuthPage() {
                   handleAuth(
                     formData.get("username") as string,
                     formData.get("password") as string,
-                    true
+                    true,
+                    formData.get("organizationName") as string
                   );
                 }}>
                   <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="org-name">Organization Name</Label>
+                      <Input 
+                        id="org-name" 
+                        name="organizationName" 
+                        required 
+                      />
+                    </div>
                     <div>
                       <Label htmlFor="reg-username">Username</Label>
                       <Input 
@@ -127,7 +137,7 @@ export default function AuthPage() {
                       type="submit" 
                       className="w-full"
                     >
-                      Register
+                      Register Organization
                     </Button>
                   </div>
                 </form>

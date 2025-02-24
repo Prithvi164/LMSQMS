@@ -1,13 +1,28 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
+
+// Role enum
+export const roleEnum = pgEnum('role', ['admin', 'manager', 'trainer']);
+
+// Organizations table
+export const organizations = pgTable("organizations", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
 
 // Users table
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id),
+  role: roleEnum("role").notNull(),
+  managerId: integer("manager_id")
+    .references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -41,7 +56,7 @@ export const learningPaths = pgTable("learning_paths", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Learning Path Courses (Junction table for many-to-many relationship)
+// Learning Path Courses (Junction table)
 export const learningPathCourses = pgTable("learning_path_courses", {
   learningPathId: integer("learning_path_id")
     .notNull()
@@ -51,7 +66,7 @@ export const learningPathCourses = pgTable("learning_path_courses", {
     .references(() => courses.id),
 });
 
-// User Progress table - keeping userId as text for now to avoid migration issues
+// User Progress table
 export const userProgress = pgTable("user_progress", {
   id: serial("id").primaryKey(),
   userId: text("user_id").notNull(),
@@ -65,7 +80,20 @@ export const userProgress = pgTable("user_progress", {
 });
 
 // Define relations
-export const usersRelations = relations(users, ({ many }) => ({
+export const organizationsRelations = relations(organizations, ({ many }) => ({
+  users: many(users),
+}));
+
+export const usersRelations = relations(users, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [users.organizationId],
+    references: [organizations.id],
+  }),
+  manager: one(users, {
+    fields: [users.managerId],
+    references: [users.id],
+  }),
+  subordinates: many(users, { relationName: "manager_subordinates" }),
   progress: many(userProgress),
 }));
 
@@ -79,12 +107,15 @@ export const learningPathsRelations = relations(learningPaths, ({ many }) => ({
 }));
 
 // Create insert schemas
+export const insertOrganizationSchema = createInsertSchema(organizations).omit({ id: true, createdAt: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertCourseSchema = createInsertSchema(courses);
 export const insertLearningPathSchema = createInsertSchema(learningPaths);
 export const insertUserProgressSchema = createInsertSchema(userProgress);
 
 // Export types
+export type Organization = typeof organizations.$inferSelect;
+export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Course = typeof courses.$inferSelect;

@@ -1,6 +1,13 @@
 import { eq } from "drizzle-orm";
 import { db } from "./db";
-import { users, type User, type InsertUser } from "@shared/schema";
+import {
+  users,
+  organizations,
+  type User,
+  type InsertUser,
+  type Organization,
+  type InsertOrganization,
+} from "@shared/schema";
 import {
   courses,
   learningPaths,
@@ -14,9 +21,15 @@ import {
 } from "@shared/schema";
 
 export interface IStorage {
+  // User operations
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+
+  // Organization operations
+  getOrganization(id: number): Promise<Organization | undefined>;
+  createOrganization(org: InsertOrganization): Promise<Organization>;
+
   // Course operations
   getCourse(id: number): Promise<Course | undefined>;
   createCourse(course: InsertCourse): Promise<Course>;
@@ -49,6 +62,17 @@ export class DatabaseStorage implements IStorage {
   async createUser(user: InsertUser): Promise<User> {
     const [newUser] = await db.insert(users).values(user).returning();
     return newUser;
+  }
+
+  // Organization operations
+  async getOrganization(id: number): Promise<Organization | undefined> {
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, id));
+    return org;
+  }
+
+  async createOrganization(org: InsertOrganization): Promise<Organization> {
+    const [newOrg] = await db.insert(organizations).values(org).returning();
+    return newOrg;
   }
 
   // Course operations
