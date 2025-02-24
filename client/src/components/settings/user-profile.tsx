@@ -2,20 +2,12 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 
 export function UserProfile() {
   const { user } = useAuth();
@@ -58,53 +50,6 @@ export function UserProfile() {
     },
   });
 
-  const uploadAvatarMutation = useMutation({
-    mutationFn: async (file: File) => {
-      try {
-        const formData = new FormData();
-        formData.append('avatar', file);
-        const res = await apiRequest("POST", `/api/users/${user.id}/avatar`, formData);
-
-        // Check if response is ok before trying to parse JSON
-        if (!res.ok) {
-          throw new Error(`Upload failed: ${res.statusText}`);
-        }
-
-        // For image uploads, the response might be empty or not JSON
-        if (res.headers.get("content-type")?.includes("application/json")) {
-          return res.json();
-        }
-
-        return { success: true };
-      } catch (error) {
-        console.error('Avatar upload error:', error);
-        throw new Error('Failed to upload avatar. Please try again.');
-      }
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Avatar updated successfully",
-      });
-      // Invalidate both user and avatar queries to refresh the data
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-      queryClient.invalidateQueries({ queryKey: [`/api/users/${user.id}/avatar`] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Handle avatar image error by showing fallback
-  const handleAvatarError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    const img = e.target as HTMLImageElement;
-    img.style.display = 'none'; // Hide the broken image
-  };
-
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Profile Settings</h1>
@@ -112,47 +57,21 @@ export function UserProfile() {
       <Card>
         <CardContent className="pt-6">
           <div className="flex items-start gap-6">
-            <div className="relative group">
-              <Avatar className="h-24 w-24">
-                {user.avatarUrl ? (
-                  <AvatarImage 
-                    src={`${user.avatarUrl}?${Date.now()}`}
-                    onError={handleAvatarError}
-                  />
-                ) : null}
+            <Avatar className="h-24 w-24">
+              {user.avatarUrl ? (
+                <AvatarImage 
+                  src={`${user.avatarUrl}?${Date.now()}`}
+                  onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+                    const img = e.target as HTMLImageElement;
+                    img.style.display = 'none';
+                  }}
+                />
+              ) : (
                 <AvatarFallback className="text-2xl bg-[#E9D5FF] text-[#6B21A8]">
                   {displayName.substring(0, 2).toUpperCase()}
                 </AvatarFallback>
-              </Avatar>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    className="mt-4"
-                  >
-                    Change Avatar
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Update Profile Picture</DialogTitle>
-                    <DialogDescription>
-                      Upload a new profile picture. Recommended dimensions: 256x256 pixels.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        uploadAvatarMutation.mutate(file);
-                      }
-                    }}
-                  />
-                </DialogContent>
-              </Dialog>
-            </div>
+              )}
+            </Avatar>
 
             <div className="space-y-1">
               <h2 className="text-2xl font-semibold">{displayName}</h2>
