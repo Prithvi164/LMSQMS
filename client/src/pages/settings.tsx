@@ -163,7 +163,10 @@ export default function Settings() {
       const formData = new FormData();
       formData.append('file', file);
       const res = await apiRequest("POST", "/api/users/upload", formData, {
-        headers: {}
+        headers: {
+          // Remove Content-Type header to let the browser set it with boundary
+          'Content-Type': undefined
+        }
       });
       return res.json();
     },

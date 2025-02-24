@@ -12,11 +12,19 @@ import { insertUserSchema } from "@shared/schema";
 const upload = multer({ 
   storage: multer.memoryStorage(),
   fileFilter: (_req, file, cb) => {
+    if (!file) {
+      cb(new Error('No file uploaded'));
+      return;
+    }
     const ext = path.extname(file.originalname);
     if (ext !== '.xlsx' && ext !== '.xls') {
-      return cb(new Error('Only Excel files are allowed'));
+      cb(new Error('Only Excel files are allowed'));
+      return;
     }
     cb(null, true);
+  },
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
   }
 });
 
@@ -172,13 +180,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Excel upload route
   app.post("/api/users/upload", upload.single('file'), async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
-
     try {
+      if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+      if (!req.file || !req.file.buffer) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
       const workbook = XLSX.read(req.file.buffer);
+      if (!workbook.SheetNames.length) {
+        return res.status(400).json({ message: "Excel file is empty" });
+      }
+
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const data = XLSX.utils.sheet_to_json(worksheet);
+
+      if (!data.length) {
+        return res.status(400).json({ message: "No data found in Excel file" });
+      }
 
       const results = {
         success: 0,
@@ -204,7 +222,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             password: row['Password'],
             fullName: row['Full Name'],
             employeeId: row['Employee ID'],
-            role: row['Role'].toLowerCase(),
+            role: row['Role']?.toLowerCase(),
             location: row['Location'],
             email: row['Email'],
             phoneNumber: row['Phone Number'],
@@ -233,6 +251,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(results);
     } catch (error: any) {
+      console.error('Excel upload error:', error);
       res.status(400).json({ message: error.message });
     }
   });
