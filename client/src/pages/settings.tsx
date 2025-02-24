@@ -160,14 +160,26 @@ export default function Settings() {
 
   const uploadUsersMutation = useMutation({
     mutationFn: async (file: File) => {
+      // Validate file before upload
+      if (!file) {
+        throw new Error('Please select a file');
+      }
+
       const formData = new FormData();
       formData.append('file', file);
+
       const res = await apiRequest("POST", "/api/users/upload", formData, {
+        // Important: Don't set Content-Type, let browser handle it
         headers: {
-          // Remove Content-Type header to let the browser set it with boundary
-          'Content-Type': undefined
+          'Accept': 'application/json',
         }
       });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Upload failed');
+      }
+
       return res.json();
     },
     onSuccess: (data) => {

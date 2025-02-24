@@ -12,16 +12,29 @@ import { insertUserSchema } from "@shared/schema";
 const upload = multer({ 
   storage: multer.memoryStorage(),
   fileFilter: (_req, file, cb) => {
-    if (!file) {
-      cb(new Error('No file uploaded'));
-      return;
+    try {
+      console.log('Processing file upload:', file.originalname);
+
+      if (!file) {
+        console.error('No file received');
+        cb(new Error('No file uploaded'));
+        return;
+      }
+
+      const ext = path.extname(file.originalname).toLowerCase();
+      console.log('File extension:', ext);
+
+      if (ext !== '.xlsx' && ext !== '.xls') {
+        console.error('Invalid file type:', ext);
+        cb(new Error('Only Excel files (.xlsx, .xls) are allowed'));
+        return;
+      }
+
+      cb(null, true);
+    } catch (error) {
+      console.error('File upload error:', error);
+      cb(error as Error);
     }
-    const ext = path.extname(file.originalname);
-    if (ext !== '.xlsx' && ext !== '.xls') {
-      cb(new Error('Only Excel files are allowed'));
-      return;
-    }
-    cb(null, true);
   },
   limits: {
     fileSize: 5 * 1024 * 1024 // 5MB limit
@@ -179,81 +192,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Excel upload route
-  app.post("/api/users/upload", upload.single('file'), async (req, res) => {
-    try {
-      if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-      if (!req.file || !req.file.buffer) {
-        return res.status(400).json({ message: "No file uploaded" });
-      }
+  app.post("/api/users/upload", (req, res) => {
+    console.log('Received upload request');
 
-      const workbook = XLSX.read(req.file.buffer);
-      if (!workbook.SheetNames.length) {
-        return res.status(400).json({ message: "Excel file is empty" });
-      }
-
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const data = XLSX.utils.sheet_to_json(worksheet);
-
-      if (!data.length) {
-        return res.status(400).json({ message: "No data found in Excel file" });
-      }
-
-      const results = {
-        success: 0,
-        failures: [] as { row: number; error: string }[]
-      };
-
-      for (let i = 0; i < data.length; i++) {
-        const row = data[i] as any;
-        try {
-          // Find manager if specified
-          let managerId: number | undefined;
-          if (row['Manager Username']) {
-            const manager = await storage.getUserByUsername(row['Manager Username']);
-            if (!manager) {
-              throw new Error('Manager not found');
-            }
-            managerId = manager.id;
-          }
-
-          // Prepare user data
-          const userData = {
-            username: row['Username'],
-            password: row['Password'],
-            fullName: row['Full Name'],
-            employeeId: row['Employee ID'],
-            role: row['Role']?.toLowerCase(),
-            location: row['Location'],
-            email: row['Email'],
-            phoneNumber: row['Phone Number'],
-            processName: row['Process Name'],
-            education: row['Education'],
-            batchName: row['Batch Name'],
-            dateOfJoining: row['Date of Joining'],
-            dateOfBirth: row['Date of Birth'],
-            organizationId: req.user.organizationId,
-            managerId
-          };
-
-          // Validate data
-          insertUserSchema.parse(userData);
-
-          // Create user
-          await storage.createUser(userData);
-          results.success++;
-        } catch (error: any) {
-          results.failures.push({
-            row: i + 2, // Add 2 to account for header row and 1-based indexing
-            error: error.message
-          });
+    upload.single('file')(req, res, async (err) => {
+      try {
+        if (err) {
+          console.error('Multer error:', err);
+          return res.status(400).json({ message: err.message });
         }
-      }
 
-      res.json(results);
-    } catch (error: any) {
-      console.error('Excel upload error:', error);
-      res.status(400).json({ message: error.message });
-    }
+        if (!req.user) {
+          return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        if (!req.file || !req.file.buffer) {
+          console.error('No file in request');
+          return res.status(400).json({ message: "No file uploaded" });
+        }
+
+        console.log('Processing file:', req.file.originalname);
+
+        const workbook = XLSX.read(req.file.buffer);
+        if (!workbook.SheetNames.length) {
+          return res.status(400).json({ message: "Excel file is empty" });
+        }
+
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json(worksheet);
+
+        if (!data.length) {
+          return res.status(400).json({ message: "No data found in Excel file" });
+        }
+
+        const results = {
+          success: 0,
+          failures: [] as { row: number; error: string }[]
+        };
+
+        for (let i = 0; i < data.length; i++) {
+          const row = data[i] as any;
+          try {
+            // Find manager if specified
+            let managerId: number | undefined;
+            if (row['Manager Username']) {
+              const manager = await storage.getUserByUsername(row['Manager Username']);
+              if (!manager) {
+                throw new Error('Manager not found');
+              }
+              managerId = manager.id;
+            }
+
+            // Prepare user data
+            const userData = {
+              username: row['Username'],
+              password: row['Password'],
+              fullName: row['Full Name'],
+              employeeId: row['Employee ID'],
+              role: row['Role']?.toLowerCase(),
+              location: row['Location'],
+              email: row['Email'],
+              phoneNumber: row['Phone Number'],
+              processName: row['Process Name'],
+              education: row['Education'],
+              batchName: row['Batch Name'],
+              dateOfJoining: row['Date of Joining'],
+              dateOfBirth: row['Date of Birth'],
+              organizationId: req.user.organizationId,
+              managerId
+            };
+
+            // Validate data
+            insertUserSchema.parse(userData);
+
+            // Create user
+            await storage.createUser(userData);
+            results.success++;
+          } catch (error: any) {
+            results.failures.push({
+              row: i + 2, // Add 2 to account for header row and 1-based indexing
+              error: error.message
+            });
+          }
+        }
+
+        res.json(results);
+      } catch (error: any) {
+        console.error('Excel upload error:', error);
+        res.status(400).json({ message: error.message || 'Upload failed' });
+      }
+    });
   });
 
   const httpServer = createServer(app);
