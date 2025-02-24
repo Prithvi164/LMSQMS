@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useLocation } from "wouter";
 import { 
   Card,
@@ -10,31 +9,27 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AuthPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { login, register } = useAuth();
+  const { login, user } = useAuth();
 
-  const handleAuth = async (
-    username: string, 
-    password: string, 
-    isRegister: boolean,
-    organizationName?: string
-  ) => {
+  // Redirect if already logged in
+  if (user) {
+    navigate("/");
+    return null;
+  }
+
+  const handleLogin = async (username: string, password: string) => {
     try {
-      if (isRegister) {
-        await register({ username, password, organizationName: organizationName! });
-      } else {
-        await login({ username, password });
-      }
+      await login({ username, password });
       navigate("/");
     } catch (error: any) {
       toast({
-        title: isRegister ? "Registration failed" : "Login failed",
+        title: "Login failed",
         description: error.message,
         variant: "destructive"
       });
@@ -52,97 +47,40 @@ export default function AuthPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="login">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login">Login</TabsTrigger>
-                <TabsTrigger value="register">Register as Admin</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="login">
-                <form onSubmit={(e) => {
-                  e.preventDefault();
-                  const formData = new FormData(e.currentTarget);
-                  handleAuth(
-                    formData.get("username") as string,
-                    formData.get("password") as string,
-                    false
-                  );
-                }}>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="username">Username</Label>
-                      <Input 
-                        id="username" 
-                        name="username" 
-                        required 
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="password">Password</Label>
-                      <Input 
-                        id="password" 
-                        name="password" 
-                        type="password" 
-                        required 
-                      />
-                    </div>
-                    <Button 
-                      type="submit" 
-                      className="w-full"
-                    >
-                      Login
-                    </Button>
-                  </div>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="register">
-                <form onSubmit={(e) => {
-                  e.preventDefault();
-                  const formData = new FormData(e.currentTarget);
-                  handleAuth(
-                    formData.get("username") as string,
-                    formData.get("password") as string,
-                    true,
-                    formData.get("organizationName") as string
-                  );
-                }}>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="org-name">Organization Name</Label>
-                      <Input 
-                        id="org-name" 
-                        name="organizationName" 
-                        required 
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="reg-username">Username</Label>
-                      <Input 
-                        id="reg-username" 
-                        name="username" 
-                        required 
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="reg-password">Password</Label>
-                      <Input 
-                        id="reg-password" 
-                        name="password" 
-                        type="password" 
-                        required 
-                      />
-                    </div>
-                    <Button 
-                      type="submit" 
-                      className="w-full"
-                    >
-                      Register Organization
-                    </Button>
-                  </div>
-                </form>
-              </TabsContent>
-            </Tabs>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              handleLogin(
+                formData.get("username") as string,
+                formData.get("password") as string
+              );
+            }}>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="username">Username</Label>
+                  <Input 
+                    id="username" 
+                    name="username" 
+                    required 
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="password">Password</Label>
+                  <Input 
+                    id="password" 
+                    name="password" 
+                    type="password" 
+                    required 
+                  />
+                </div>
+                <Button 
+                  type="submit" 
+                  className="w-full"
+                >
+                  Login
+                </Button>
+              </div>
+            </form>
           </CardContent>
         </Card>
       </div>

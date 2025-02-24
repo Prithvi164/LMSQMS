@@ -25,7 +25,7 @@ export function UserProfile() {
           </AvatarFallback>
         </Avatar>
         <div className="text-sm text-right hidden md:block">
-          <p className="font-medium">{user.username}</p>
+          <p className="font-bold uppercase">{user.username}</p>
           <p className="text-muted-foreground capitalize">{user.role}</p>
         </div>
       </DropdownMenuTrigger>

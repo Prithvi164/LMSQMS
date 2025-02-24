@@ -2,7 +2,7 @@ import { Switch, Route } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
-import { AuthProvider } from "@/hooks/use-auth";
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import Dashboard from "@/pages/dashboard";
@@ -26,19 +26,28 @@ function Router() {
   );
 }
 
+function AppContent() {
+  const { user } = useAuth();
+  return (
+    <div className="flex">
+      {user && <SidebarNav />}
+      <main className={`${user ? "flex-1" : "w-full"}`}>
+        {user && (
+          <div className="p-4 border-b flex justify-end">
+            <UserProfile />
+          </div>
+        )}
+        <Router />
+      </main>
+    </div>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <div className="flex">
-          <SidebarNav />
-          <main className="flex-1">
-            <div className="p-4 border-b flex justify-end">
-              <UserProfile />
-            </div>
-            <Router />
-          </main>
-        </div>
+        <AppContent />
         <Toaster />
       </AuthProvider>
     </QueryClientProvider>
