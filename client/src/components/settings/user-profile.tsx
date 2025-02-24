@@ -1,16 +1,85 @@
+import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 export function UserProfile() {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedUser, setEditedUser] = useState({
+    fullName: user?.fullName || "",
+    location: user?.location || "",
+    phoneNumber: user?.phoneNumber || "",
+  });
 
   if (!user) return null;
 
   // Safely handle null values for fullName
   const firstName = user.fullName?.split(' ')[0] || user.username;
   const lastName = user.fullName?.split(' ').slice(1).join(' ') || '';
+
+  // First letter capitalized for display
+  const displayName = user.username.charAt(0).toUpperCase() + user.username.slice(1);
+
+  const updateProfileMutation = useMutation({
+    mutationFn: async (data: typeof editedUser) => {
+      const res = await apiRequest("PATCH", `/api/users/${user.id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Profile updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      setIsEditing(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const uploadAvatarMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      const res = await apiRequest("POST", `/api/users/${user.id}/avatar`, formData);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Avatar updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   return (
     <div className="space-y-6">
@@ -19,18 +88,53 @@ export function UserProfile() {
       <Card>
         <CardContent className="pt-6">
           <div className="flex items-start gap-6">
-            <Avatar className="h-24 w-24">
-              <AvatarFallback className="text-2xl">
-                {user.username.substring(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+            <div className="relative group">
+              <Avatar className="h-24 w-24">
+                <AvatarImage src={user.avatarUrl} />
+                <AvatarFallback className="text-2xl bg-[#E9D5FF] text-[#6B21A8]">
+                  {displayName.substring(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className="mt-4 w-full"
+                  >
+                    Change Avatar
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Update Profile Picture</DialogTitle>
+                    <DialogDescription>
+                      Upload a new profile picture. Recommended dimensions: 256x256 pixels.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        uploadAvatarMutation.mutate(file);
+                      }
+                    }}
+                  />
+                </DialogContent>
+              </Dialog>
+            </div>
 
             <div className="space-y-1">
-              <h2 className="text-2xl font-semibold">{user.username}</h2>
+              <h2 className="text-2xl font-semibold">{displayName}</h2>
               <p className="text-muted-foreground">{user.email}</p>
               <div className="flex gap-2 mt-4">
-                <Button variant="outline">Change Avatar</Button>
-                <Button variant="outline">Edit Profile</Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsEditing(!isEditing)}
+                >
+                  {isEditing ? "Cancel" : "Edit Profile"}
+                </Button>
               </div>
             </div>
           </div>
@@ -42,32 +146,102 @@ export function UserProfile() {
           <CardTitle>Personal Information</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-x-12 gap-y-6">
-            <div>
-              <label className="text-sm text-muted-foreground">First Name</label>
-              <p className="text-lg">{firstName}</p>
+          {isEditing ? (
+            <form
+              className="space-y-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                updateProfileMutation.mutate(editedUser);
+              }}
+            >
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="fullName">Full Name</Label>
+                  <Input
+                    id="fullName"
+                    value={editedUser.fullName}
+                    onChange={(e) => setEditedUser(prev => ({
+                      ...prev,
+                      fullName: e.target.value
+                    }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="email">Email ID</Label>
+                  <Input
+                    id="email"
+                    value={user.email}
+                    disabled
+                    className="bg-muted"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="location">Location</Label>
+                  <Input
+                    id="location"
+                    value={editedUser.location}
+                    onChange={(e) => setEditedUser(prev => ({
+                      ...prev,
+                      location: e.target.value
+                    }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="phoneNumber">Phone Number</Label>
+                  <Input
+                    id="phoneNumber"
+                    value={editedUser.phoneNumber}
+                    onChange={(e) => setEditedUser(prev => ({
+                      ...prev,
+                      phoneNumber: e.target.value
+                    }))}
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsEditing(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={updateProfileMutation.isPending}
+                >
+                  Save Changes
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <div className="grid grid-cols-2 gap-x-12 gap-y-6">
+              <div>
+                <Label className="text-sm text-muted-foreground">First Name</Label>
+                <p className="text-lg">{firstName}</p>
+              </div>
+              <div>
+                <Label className="text-sm text-muted-foreground">Last Name</Label>
+                <p className="text-lg">{lastName || '-'}</p>
+              </div>
+              <div>
+                <Label className="text-sm text-muted-foreground">Email ID</Label>
+                <p className="text-lg">{user.email}</p>
+              </div>
+              <div>
+                <Label className="text-sm text-muted-foreground">Role</Label>
+                <p className="text-lg capitalize">{user.role}</p>
+              </div>
+              <div>
+                <Label className="text-sm text-muted-foreground">Location</Label>
+                <p className="text-lg">{user.location || 'Not specified'}</p>
+              </div>
+              <div>
+                <Label className="text-sm text-muted-foreground">Phone Number</Label>
+                <p className="text-lg">{user.phoneNumber || 'Not specified'}</p>
+              </div>
             </div>
-            <div>
-              <label className="text-sm text-muted-foreground">Last Name</label>
-              <p className="text-lg">{lastName || '-'}</p>
-            </div>
-            <div>
-              <label className="text-sm text-muted-foreground">Email ID</label>
-              <p className="text-lg">{user.email}</p>
-            </div>
-            <div>
-              <label className="text-sm text-muted-foreground">Language</label>
-              <p className="text-lg">English</p>
-            </div>
-            <div>
-              <label className="text-sm text-muted-foreground">Country/Region</label>
-              <p className="text-lg">{user.location || 'Not specified'}</p>
-            </div>
-            <div>
-              <label className="text-sm text-muted-foreground">Time zone</label>
-              <p className="text-lg">(GMT +05:30) India Standard Time (Asia/Kolkata)</p>
-            </div>
-          </div>
+          )}
         </CardContent>
       </Card>
     </div>
