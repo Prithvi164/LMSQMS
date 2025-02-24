@@ -1,3 +1,4 @@
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -99,7 +100,7 @@ export function UserManagement() {
                             Update user information for {u.username}
                           </DialogDescription>
                         </DialogHeader>
-                        {/* Edit form content remains the same */}
+                        {/* Edit form content */}
                       </DialogContent>
                     </Dialog>
 

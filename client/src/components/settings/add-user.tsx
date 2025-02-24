@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,29 +7,104 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Download, Upload } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import type { User, Organization } from "@shared/schema";
-import { UseMutationResult } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
 interface AddUserProps {
-  createUserMutation: UseMutationResult<any, Error, any>;
   users: User[];
   user: User;
   organization: Organization | undefined;
   potentialManagers: User[];
-  newUserData: any;
-  setNewUserData: (data: any) => void;
-  uploadUsersMutation: UseMutationResult<any, Error, File>;
 }
 
 export function AddUser({
-  createUserMutation,
   users,
   user,
   organization,
   potentialManagers,
-  newUserData,
-  setNewUserData,
-  uploadUsersMutation
 }: AddUserProps) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [newUserData, setNewUserData] = useState({
+    username: "",
+    password: "",
+    fullName: "",
+    employeeId: "",
+    role: "trainee",
+    location: "",
+    email: "",
+    phoneNumber: "",
+    processName: "",
+    education: "",
+    batchName: "",
+    dateOfJoining: "",
+    dateOfBirth: "",
+    managerId: "",
+  });
+
+  const createUserMutation = useMutation({
+    mutationFn: async (data: typeof newUserData) => {
+      const res = await apiRequest("POST", "/api/users", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "User created successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      setNewUserData({
+        username: "",
+        password: "",
+        fullName: "",
+        employeeId: "",
+        role: "trainee",
+        location: "",
+        email: "",
+        phoneNumber: "",
+        processName: "",
+        education: "",
+        batchName: "",
+        dateOfJoining: "",
+        dateOfBirth: "",
+        managerId: "",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const uploadUsersMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await apiRequest("POST", "/api/users/upload", formData);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Upload Complete",
+        description: `Successfully added ${data.success} users. ${data.failures.length > 0 ?
+          `Failed to add ${data.failures.length} users.` : ''}`,
+        variant: data.failures.length > 0 ? "destructive" : "default"
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Upload Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
   return (
     <Card>
       <CardHeader>
@@ -120,8 +196,135 @@ export function AddUser({
                   required
                 />
               </div>
-              {/* Add more form fields similar to the original form */}
-              {/* This includes fields for fullName, employeeId, role (for admin), location, etc. */}
+              <div>
+                <Label htmlFor="fullName">Full Name</Label>
+                <Input
+                  id="fullName"
+                  value={newUserData.fullName}
+                  onChange={(e) => setNewUserData(prev => ({ ...prev, fullName: e.target.value }))}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="employeeId">Employee ID</Label>
+                <Input
+                  id="employeeId"
+                  value={newUserData.employeeId}
+                  onChange={(e) => setNewUserData(prev => ({ ...prev, employeeId: e.target.value }))}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="role">Role</Label>
+                <Select value={newUserData.role}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="trainee">Trainee</SelectItem>
+                    {user.role === "admin" && (
+                      <>
+                        <SelectItem value="manager">Manager</SelectItem>
+                        <SelectItem value="trainer">Trainer</SelectItem>
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="location">Location</Label>
+                <Input
+                  id="location"
+                  value={newUserData.location}
+                  onChange={(e) => setNewUserData(prev => ({ ...prev, location: e.target.value }))}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={newUserData.email}
+                  onChange={(e) => setNewUserData(prev => ({ ...prev, email: e.target.value }))}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="phoneNumber">Phone Number</Label>
+                <Input
+                  id="phoneNumber"
+                  value={newUserData.phoneNumber}
+                  onChange={(e) => setNewUserData(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                  required
+                />
+              </div>
+              {user.role === "admin" && (
+                <>
+                  <div>
+                    <Label htmlFor="managerId">Manager</Label>
+                    <Select value={newUserData.managerId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select manager" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {potentialManagers.map((manager) => (
+                          <SelectItem key={manager.id} value={manager.id}>
+                            {manager.fullName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
+              <div>
+                <Label htmlFor="processName">Process Name</Label>
+                <Input
+                  id="processName"
+                  value={newUserData.processName}
+                  onChange={(e) => setNewUserData(prev => ({ ...prev, processName: e.target.value }))}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="education">Education</Label>
+                <Input
+                  id="education"
+                  value={newUserData.education}
+                  onChange={(e) => setNewUserData(prev => ({ ...prev, education: e.target.value }))}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="batchName">Batch Name</Label>
+                <Input
+                  id="batchName"
+                  value={newUserData.batchName}
+                  onChange={(e) => setNewUserData(prev => ({ ...prev, batchName: e.target.value }))}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="dateOfJoining">Date of Joining</Label>
+                <Input
+                  id="dateOfJoining"
+                  type="date"
+                  value={newUserData.dateOfJoining}
+                  onChange={(e) => setNewUserData(prev => ({ ...prev, dateOfJoining: e.target.value }))}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                <Input
+                  id="dateOfBirth"
+                  type="date"
+                  value={newUserData.dateOfBirth}
+                  onChange={(e) => setNewUserData(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+                  required
+                />
+              </div>
             </div>
             <Button
               type="submit"
