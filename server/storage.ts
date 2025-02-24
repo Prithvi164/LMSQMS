@@ -34,6 +34,7 @@ export interface IStorage {
   getOrganization(id: number): Promise<Organization | undefined>;
   createOrganization(org: InsertOrganization): Promise<Organization>;
   getOrganizationByName(name: string): Promise<Organization | undefined>;
+  updateOrganization(id: number, org: Partial<Organization>): Promise<Organization>;
 
   // Course operations
   getCourse(id: number): Promise<Course | undefined>;
@@ -111,6 +112,15 @@ export class DatabaseStorage implements IStorage {
       .from(organizations)
       .where(eq(organizations.name, name));
     return org;
+  }
+
+  async updateOrganization(id: number, org: Partial<Organization>): Promise<Organization> {
+    const [updatedOrg] = await db
+      .update(organizations)
+      .set(org)
+      .where(eq(organizations.id, id))
+      .returning();
+    return updatedOrg;
   }
 
   // Course operations

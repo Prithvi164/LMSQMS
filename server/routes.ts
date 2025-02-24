@@ -51,6 +51,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(organization);
   });
 
+  // Add this new route after the existing GET /api/organization route
+app.patch("/api/organizations/:id/settings", async (req, res) => {
+  if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+  try {
+    const orgId = parseInt(req.params.id);
+    if (req.user.organizationId !== orgId) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const { type, value } = req.body;
+    if (!type || !value) {
+      return res.status(400).json({ message: "Missing type or value" });
+    }
+
+    // Get current organization
+    const organization = await storage.getOrganization(orgId);
+    if (!organization) {
+      return res.status(404).json({ message: "Organization not found" });
+    }
+
+    // Update the appropriate array based on type
+    switch (type) {
+      case "processNames":
+        if (!organization.processNames.includes(value)) {
+          organization.processNames.push(value);
+        }
+        break;
+      case "batchNames":
+        if (!organization.batchNames.includes(value)) {
+          organization.batchNames.push(value);
+        }
+        break;
+      case "locations":
+        if (!organization.locations.includes(value)) {
+          organization.locations.push(value);
+        }
+        break;
+      default:
+        return res.status(400).json({ message: "Invalid settings type" });
+    }
+
+    // Update organization with new settings
+    const updatedOrg = await storage.updateOrganization(orgId, organization);
+    res.json(updatedOrg);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
   // User management routes
   app.get("/api/users", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
