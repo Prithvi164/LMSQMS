@@ -14,16 +14,21 @@ export function UserProfile() {
 
   if (!user) return null;
 
+  // Get the first letter of the full name, fallback to username
+  const avatarLetter = user.fullName 
+    ? user.fullName.charAt(0).toUpperCase()
+    : user.username.charAt(0).toUpperCase();
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="flex items-center gap-3 outline-none">
         <div className="text-sm">
-          <span className="text-muted-foreground">Welcome </span>
-          <span className="font-medium">{user.username}</span>
+          <span className="text-muted-foreground mr-1">Welcome</span>
+          <span className="font-semibold text-foreground">{user.username}</span>
         </div>
-        <Avatar className="h-8 w-8 bg-primary text-primary-foreground">
-          <AvatarFallback>
-            {user.username.substring(0, 1).toUpperCase()}
+        <Avatar className="h-8 w-8 bg-[#E9D5FF] text-[#6B21A8]">
+          <AvatarFallback className="font-medium">
+            {avatarLetter}
           </AvatarFallback>
         </Avatar>
       </DropdownMenuTrigger>
