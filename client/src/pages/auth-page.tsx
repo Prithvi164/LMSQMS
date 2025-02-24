@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
+  const [passwordMatch, setPasswordMatch] = useState(true);
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { login, register, user } = useAuth();
@@ -29,15 +30,32 @@ export default function AuthPage() {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
+    // For registration, check if passwords match
+    if (!isLogin) {
+      const password = formData.get("password") as string;
+      const confirmPassword = formData.get("confirmPassword") as string;
+
+      if (password !== confirmPassword) {
+        setPasswordMatch(false);
+        toast({
+          title: "Password Mismatch",
+          description: "The passwords you entered do not match.",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
     try {
       if (isLogin) {
         await login({
-          username: formData.get("username") as string,
+          username: formData.get("email") as string, // Use email as username
           password: formData.get("password") as string,
         });
       } else {
         await register({
-          username: formData.get("username") as string,
+          username: formData.get("email") as string, // Use email as username
+          email: formData.get("email") as string,
           password: formData.get("password") as string,
           organizationName: formData.get("organizationName") as string,
         });
@@ -78,10 +96,11 @@ export default function AuthPage() {
                   </div>
                 )}
                 <div>
-                  <Label htmlFor="username">Username</Label>
+                  <Label htmlFor="email">Email</Label>
                   <Input 
-                    id="username" 
-                    name="username" 
+                    id="email" 
+                    name="email" 
+                    type="email"
                     required 
                   />
                 </div>
@@ -94,6 +113,18 @@ export default function AuthPage() {
                     required 
                   />
                 </div>
+                {!isLogin && (
+                  <div>
+                    <Label htmlFor="confirmPassword">Confirm Password</Label>
+                    <Input 
+                      id="confirmPassword" 
+                      name="confirmPassword" 
+                      type="password" 
+                      required 
+                      className={!passwordMatch ? "border-red-500" : ""}
+                    />
+                  </div>
+                )}
                 <Button 
                   type="submit" 
                   className="w-full"
@@ -105,7 +136,10 @@ export default function AuthPage() {
                   <button
                     type="button"
                     className="text-primary hover:underline"
-                    onClick={() => setIsLogin(!isLogin)}
+                    onClick={() => {
+                      setIsLogin(!isLogin);
+                      setPasswordMatch(true);
+                    }}
                   >
                     {isLogin ? "Register here" : "Login here"}
                   </button>
