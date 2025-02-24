@@ -23,8 +23,8 @@ export function UserProfile() {
     <DropdownMenu>
       <DropdownMenuTrigger className="flex items-center gap-3 outline-none">
         <div className="text-sm flex flex-col items-end">
-          <span className="text-muted-foreground text-xs">Welcome</span>
-          <span className="font-semibold text-foreground">{user.username}</span>
+          <span className="text-muted-foreground text-[13px]">Welcome</span>
+          <span className="font-semibold text-[15px] leading-tight">{user.username}</span>
         </div>
         <Avatar className="h-8 w-8">
           <AvatarFallback className="font-medium bg-[#E9D5FF] text-[#6B21A8]">
