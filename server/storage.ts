@@ -3,10 +3,19 @@ import { db } from "./db";
 import {
   users,
   organizations,
+  organizationProcesses,
+  organizationBatches,
+  organizationLocations,
   type User,
   type InsertUser,
   type Organization,
   type InsertOrganization,
+  type OrganizationProcess,
+  type InsertOrganizationProcess,
+  type OrganizationBatch,
+  type InsertOrganizationBatch,
+  type OrganizationLocation,
+  type InsertOrganizationLocation,
 } from "@shared/schema";
 import {
   courses,
@@ -35,6 +44,14 @@ export interface IStorage {
   createOrganization(org: InsertOrganization): Promise<Organization>;
   getOrganizationByName(name: string): Promise<Organization | undefined>;
   updateOrganization(id: number, org: Partial<Organization>): Promise<Organization>;
+
+  // Organization settings operations
+  createProcess(process: InsertOrganizationProcess): Promise<OrganizationProcess>;
+  createBatch(batch: InsertOrganizationBatch): Promise<OrganizationBatch>;
+  createLocation(location: InsertOrganizationLocation): Promise<OrganizationLocation>;
+  listProcesses(organizationId: number): Promise<OrganizationProcess[]>;
+  listBatches(organizationId: number): Promise<OrganizationBatch[]>;
+  listLocations(organizationId: number): Promise<OrganizationLocation[]>;
 
   // Course operations
   getCourse(id: number): Promise<Course | undefined>;
@@ -121,6 +138,43 @@ export class DatabaseStorage implements IStorage {
       .where(eq(organizations.id, id))
       .returning();
     return updatedOrg;
+  }
+
+  // Organization settings operations
+  async createProcess(process: InsertOrganizationProcess): Promise<OrganizationProcess> {
+    const [newProcess] = await db.insert(organizationProcesses).values(process).returning();
+    return newProcess;
+  }
+
+  async createBatch(batch: InsertOrganizationBatch): Promise<OrganizationBatch> {
+    const [newBatch] = await db.insert(organizationBatches).values(batch).returning();
+    return newBatch;
+  }
+
+  async createLocation(location: InsertOrganizationLocation): Promise<OrganizationLocation> {
+    const [newLocation] = await db.insert(organizationLocations).values(location).returning();
+    return newLocation;
+  }
+
+  async listProcesses(organizationId: number): Promise<OrganizationProcess[]> {
+    return await db
+      .select()
+      .from(organizationProcesses)
+      .where(eq(organizationProcesses.organizationId, organizationId));
+  }
+
+  async listBatches(organizationId: number): Promise<OrganizationBatch[]> {
+    return await db
+      .select()
+      .from(organizationBatches)
+      .where(eq(organizationBatches.organizationId, organizationId));
+  }
+
+  async listLocations(organizationId: number): Promise<OrganizationLocation[]> {
+    return await db
+      .select()
+      .from(organizationLocations)
+      .where(eq(organizationLocations.organizationId, organizationId));
   }
 
   // Course operations

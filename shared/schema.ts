@@ -6,33 +6,56 @@ import { z } from "zod";
 // Role enum
 export const roleEnum = pgEnum('role', ['admin', 'manager', 'trainer', 'trainee']);
 
-// Organizations table
+// Organizations table - remove JSON arrays
 export const organizations = pgTable("organizations", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  // Add customizable options
-  locations: jsonb("locations").notNull().default(['default']).$type<string[]>(),
-  processNames: jsonb("process_names").notNull().default(['default']).$type<string[]>(),
-  educationOptions: jsonb("education_options").notNull().default(['default']).$type<string[]>(),
-  batchNames: jsonb("batch_names").notNull().default(['default']).$type<string[]>(),
 });
 
-// Users table
+// New tables for organization settings
+export const organizationProcesses = pgTable("organization_processes", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const organizationBatches = pgTable("organization_batches", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const organizationLocations = pgTable("organization_locations", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Keep existing Users table
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
-  fullName: text("full_name"),  // Make optional for existing records
-  employeeId: text("employee_id"),  // Make optional for existing records
+  fullName: text("full_name"),
+  employeeId: text("employee_id"),
   role: roleEnum("role").notNull(),
-  batchName: text("batch_name"),
-  location: text("location"),  // Make optional for existing records
-  email: text("email"),  // Make optional for existing records
-  processName: text("process_name"),
+  batchId: integer("batch_id").references(() => organizationBatches.id),
+  locationId: integer("location_id").references(() => organizationLocations.id),
+  email: text("email").notNull(),
+  processId: integer("process_id").references(() => organizationProcesses.id),
   education: text("education"),
   dateOfJoining: date("date_of_joining"),
-  phoneNumber: text("phone_number"),  // Make optional for existing records
+  phoneNumber: text("phone_number"),
   dateOfBirth: date("date_of_birth"),
   organizationId: integer("organization_id")
     .references(() => organizations.id),
@@ -97,9 +120,33 @@ export const userProgress = pgTable("user_progress", {
 // Define relations
 export const organizationsRelations = relations(organizations, ({ many }) => ({
   users: many(users),
+  processes: many(organizationProcesses),
+  batches: many(organizationBatches),
+  locations: many(organizationLocations),
 }));
 
-export const usersRelations = relations(users, ({ one, many }) => ({
+export const organizationProcessesRelations = relations(organizationProcesses, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [organizationProcesses.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
+export const organizationBatchesRelations = relations(organizationBatches, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [organizationBatches.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
+export const organizationLocationsRelations = relations(organizationLocations, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [organizationLocations.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
+export const usersRelations = relations(users, ({ one }) => ({
   organization: one(organizations, {
     fields: [users.organizationId],
     references: [organizations.id],
@@ -108,8 +155,19 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     fields: [users.managerId],
     references: [users.id],
   }),
-  subordinates: many(users, { relationName: "manager_subordinates" }),
-  progress: many(userProgress),
+  batch: one(organizationBatches, {
+    fields: [users.batchId],
+    references: [organizationBatches.id],
+  }),
+  location: one(organizationLocations, {
+    fields: [users.locationId],
+    references: [organizationLocations.id],
+  }),
+  process: one(organizationProcesses, {
+    fields: [users.processId],
+    references: [organizationProcesses.id],
+  }),
+
 }));
 
 export const coursesRelations = relations(courses, ({ many }) => ({
@@ -121,25 +179,48 @@ export const learningPathsRelations = relations(learningPaths, ({ many }) => ({
   courses: many(learningPathCourses),
 }));
 
-// Create insert schemas
+
+// Create insert schemas for new tables
+export const insertOrganizationProcessSchema = createInsertSchema(organizationProcesses).omit({ 
+  id: true, 
+  createdAt: true 
+});
+
+export const insertOrganizationBatchSchema = createInsertSchema(organizationBatches).omit({ 
+  id: true, 
+  createdAt: true 
+});
+
+export const insertOrganizationLocationSchema = createInsertSchema(organizationLocations).omit({ 
+  id: true, 
+  createdAt: true 
+});
+
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({ id: true, createdAt: true });
 export const insertUserSchema = createInsertSchema(users)
   .omit({ id: true, createdAt: true })
   .extend({
     fullName: z.string().min(1, "Full name is required"),
     employeeId: z.string().min(1, "Employee ID is required"),
-    location: z.string().min(1, "Location is required"),
     email: z.string().email("Invalid email format"),
     phoneNumber: z.string().regex(/^\d{10}$/, "Phone number must be 10 digits"),
     dateOfJoining: z.string().optional(),
     dateOfBirth: z.string().optional(),
-    batchName: z.string().optional(),
-    processName: z.string().optional(),
     education: z.string().optional(),
   });
 export const insertCourseSchema = createInsertSchema(courses);
 export const insertLearningPathSchema = createInsertSchema(learningPaths);
 export const insertUserProgressSchema = createInsertSchema(userProgress);
+
+// Export types for new tables
+export type OrganizationProcess = typeof organizationProcesses.$inferSelect;
+export type InsertOrganizationProcess = z.infer<typeof insertOrganizationProcessSchema>;
+
+export type OrganizationBatch = typeof organizationBatches.$inferSelect;
+export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
+
+export type OrganizationLocation = typeof organizationLocations.$inferSelect;
+export type InsertOrganizationLocation = z.infer<typeof insertOrganizationLocationSchema>;
 
 // Export types
 export type Organization = typeof organizations.$inferSelect;
