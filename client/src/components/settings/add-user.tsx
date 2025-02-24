@@ -117,14 +117,14 @@ export function AddUser({
       </CardHeader>
       <CardContent>
         <div className="mb-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
               <h3 className="text-lg font-medium">Bulk Upload Users</h3>
               <p className="text-sm text-muted-foreground">
                 Upload multiple users using CSV file
               </p>
             </div>
-            <div className="space-x-2">
+            <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 onClick={() => {
