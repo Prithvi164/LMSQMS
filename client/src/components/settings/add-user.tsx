@@ -142,6 +142,20 @@ export function AddUser({
     },
   });
 
+  // Ensure we have access to current organization's data
+  if (!organization) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <p>Loading organization settings...</p>
+      </div>
+    );
+  }
+
+  // Filter potential managers to only show those from the same organization
+  const organizationManagers = potentialManagers.filter(
+    manager => manager.organizationId === organization.id
+  );
+
   return (
     <Card>
       <CardHeader>
@@ -196,7 +210,11 @@ export function AddUser({
             className="space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
-              createUserMutation.mutate(newUserData);
+              // Ensure organizationId is set when creating user
+              createUserMutation.mutate({
+                ...newUserData,
+                organizationId: organization.id,
+              });
             }}
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -287,7 +305,7 @@ export function AddUser({
                       <SelectValue placeholder="Select process" />
                     </SelectTrigger>
                     <SelectContent>
-                      {organization?.processNames.map((process) => (
+                      {organization.processNames.map((process) => (
                         <SelectItem key={process} value={process}>
                           {process}
                         </SelectItem>
@@ -302,7 +320,7 @@ export function AddUser({
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Add New Process</DialogTitle>
+                        <DialogTitle>Add New Process for {organization.name}</DialogTitle>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
                         <div className="space-y-2">
@@ -344,7 +362,7 @@ export function AddUser({
                       <SelectValue placeholder="Select batch" />
                     </SelectTrigger>
                     <SelectContent>
-                      {organization?.batchNames.map((batch) => (
+                      {organization.batchNames.map((batch) => (
                         <SelectItem key={batch} value={batch}>
                           {batch}
                         </SelectItem>
@@ -359,7 +377,7 @@ export function AddUser({
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Add New Batch</DialogTitle>
+                        <DialogTitle>Add New Batch for {organization.name}</DialogTitle>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
                         <div className="space-y-2">
@@ -401,7 +419,7 @@ export function AddUser({
                       <SelectValue placeholder="Select location" />
                     </SelectTrigger>
                     <SelectContent>
-                      {organization?.locations.map((location) => (
+                      {organization.locations.map((location) => (
                         <SelectItem key={location} value={location}>
                           {location}
                         </SelectItem>
@@ -416,7 +434,7 @@ export function AddUser({
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Add New Location</DialogTitle>
+                        <DialogTitle>Add New Location for {organization.name}</DialogTitle>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
                         <div className="space-y-2">
@@ -458,7 +476,7 @@ export function AddUser({
                       <SelectValue placeholder="Select manager" />
                     </SelectTrigger>
                     <SelectContent>
-                      {potentialManagers.map((manager) => (
+                      {organizationManagers.map((manager) => (
                         <SelectItem key={manager.id} value={manager.id.toString()}>
                           {manager.fullName}
                         </SelectItem>
