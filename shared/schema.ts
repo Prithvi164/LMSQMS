@@ -1,9 +1,9 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, pgEnum, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
 
-// Update the role enum to include trainee
+// Role enum
 export const roleEnum = pgEnum('role', ['admin', 'manager', 'trainer', 'trainee']);
 
 // Organizations table
@@ -11,6 +11,11 @@ export const organizations = pgTable("organizations", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  // Add customizable options
+  locations: jsonb("locations").notNull().default(['default']).$type<string[]>(),
+  processNames: jsonb("process_names").notNull().default(['default']).$type<string[]>(),
+  educationOptions: jsonb("education_options").notNull().default(['default']).$type<string[]>(),
+  batchNames: jsonb("batch_names").notNull().default(['default']).$type<string[]>(),
 });
 
 // Users table
@@ -18,9 +23,19 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  fullName: text("full_name"),  // Make optional for existing records
+  employeeId: text("employee_id"),  // Make optional for existing records
+  role: roleEnum("role").notNull(),
+  batchName: text("batch_name"),
+  location: text("location"),  // Make optional for existing records
+  email: text("email"),  // Make optional for existing records
+  processName: text("process_name"),
+  education: text("education"),
+  dateOfJoining: date("date_of_joining"),
+  phoneNumber: text("phone_number"),  // Make optional for existing records
+  dateOfBirth: date("date_of_birth"),
   organizationId: integer("organization_id")
     .references(() => organizations.id),
-  role: roleEnum("role").notNull(),
   managerId: integer("manager_id")
     .references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -108,7 +123,20 @@ export const learningPathsRelations = relations(learningPaths, ({ many }) => ({
 
 // Create insert schemas
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({ id: true, createdAt: true });
-export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
+export const insertUserSchema = createInsertSchema(users)
+  .omit({ id: true, createdAt: true })
+  .extend({
+    fullName: z.string().min(1, "Full name is required"),
+    employeeId: z.string().min(1, "Employee ID is required"),
+    location: z.string().min(1, "Location is required"),
+    email: z.string().email("Invalid email format"),
+    phoneNumber: z.string().regex(/^\d{10}$/, "Phone number must be 10 digits"),
+    dateOfJoining: z.string().optional(),
+    dateOfBirth: z.string().optional(),
+    batchName: z.string().optional(),
+    processName: z.string().optional(),
+    education: z.string().optional(),
+  });
 export const insertCourseSchema = createInsertSchema(courses);
 export const insertLearningPathSchema = createInsertSchema(learningPaths);
 export const insertUserProgressSchema = createInsertSchema(userProgress);

@@ -7,6 +7,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes (/api/register, /api/login, /api/logout, /api/user)
   setupAuth(app);
 
+  // Organization routes
+  app.get("/api/organization", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    const organization = await storage.getOrganization(req.user.organizationId);
+    res.json(organization);
+  });
+
   // Course routes
   app.get("/api/courses", async (_req, res) => {
     const courses = await storage.listCourses();
