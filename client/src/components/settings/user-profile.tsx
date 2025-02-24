@@ -60,10 +60,26 @@ export function UserProfile() {
 
   const uploadAvatarMutation = useMutation({
     mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append('avatar', file);
-      const res = await apiRequest("POST", `/api/users/${user.id}/avatar`, formData);
-      return res.json();
+      try {
+        const formData = new FormData();
+        formData.append('avatar', file);
+        const res = await apiRequest("POST", `/api/users/${user.id}/avatar`, formData);
+
+        // Check if response is ok before trying to parse JSON
+        if (!res.ok) {
+          throw new Error(`Upload failed: ${res.statusText}`);
+        }
+
+        // For image uploads, the response might be empty or not JSON
+        if (res.headers.get("content-type")?.includes("application/json")) {
+          return res.json();
+        }
+
+        return { success: true };
+      } catch (error) {
+        console.error('Avatar upload error:', error);
+        throw new Error('Failed to upload avatar. Please try again.');
+      }
     },
     onSuccess: () => {
       toast({
