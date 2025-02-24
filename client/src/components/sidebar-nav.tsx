@@ -11,7 +11,7 @@ import { useAuth } from '@/hooks/use-auth';
 
 export function SidebarNav() {
   const [location] = useLocation();
-  const { logoutMutation } = useAuth();
+  const { logout } = useAuth();
 
   const navItems = [
     { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -47,7 +47,7 @@ export function SidebarNav() {
       <Button 
         variant="ghost" 
         className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent/50"
-        onClick={() => logoutMutation.mutate()}
+        onClick={() => logout()}
       >
         <LogOut className="h-4 w-4 mr-3" />
         Logout

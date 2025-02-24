@@ -17,7 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function AuthPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { loginMutation, registerMutation } = useAuth();
+  const { login, register } = useAuth();
 
   const handleAuth = async (
     username: string, 
@@ -26,9 +26,9 @@ export default function AuthPage() {
   ) => {
     try {
       if (isRegister) {
-        await registerMutation.mutateAsync({ username, password });
+        await register({ username, password });
       } else {
-        await loginMutation.mutateAsync({ username, password });
+        await login({ username, password });
       }
       navigate("/");
     } catch (error: any) {
@@ -88,7 +88,6 @@ export default function AuthPage() {
                     <Button 
                       type="submit" 
                       className="w-full"
-                      disabled={loginMutation.isPending}
                     >
                       Login
                     </Button>
@@ -127,7 +126,6 @@ export default function AuthPage() {
                     <Button 
                       type="submit" 
                       className="w-full"
-                      disabled={registerMutation.isPending}
                     >
                       Register
                     </Button>
