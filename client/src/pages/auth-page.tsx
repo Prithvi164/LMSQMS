@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { 
   Card,
@@ -13,9 +14,10 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AuthPage() {
+  const [isLogin, setIsLogin] = useState(true);
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { login, user } = useAuth();
+  const { login, register, user } = useAuth();
 
   // Redirect if already logged in
   if (user) {
@@ -23,13 +25,27 @@ export default function AuthPage() {
     return null;
   }
 
-  const handleLogin = async (username: string, password: string) => {
+  const handleAuth = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+
     try {
-      await login({ username, password });
+      if (isLogin) {
+        await login({
+          username: formData.get("username") as string,
+          password: formData.get("password") as string,
+        });
+      } else {
+        await register({
+          username: formData.get("username") as string,
+          password: formData.get("password") as string,
+          organizationName: formData.get("organizationName") as string,
+        });
+      }
       navigate("/");
     } catch (error: any) {
       toast({
-        title: "Login failed",
+        title: isLogin ? "Login failed" : "Registration failed",
         description: error.message,
         variant: "destructive"
       });
@@ -43,19 +59,24 @@ export default function AuthPage() {
           <CardHeader>
             <CardTitle>Welcome to CloudLMS</CardTitle>
             <CardDescription>
-              Your contact center training platform
+              {isLogin ? 
+                "Login to your account" : 
+                "Register a new organization"}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              handleLogin(
-                formData.get("username") as string,
-                formData.get("password") as string
-              );
-            }}>
+            <form onSubmit={handleAuth}>
               <div className="space-y-4">
+                {!isLogin && (
+                  <div>
+                    <Label htmlFor="organizationName">Organization Name</Label>
+                    <Input 
+                      id="organizationName" 
+                      name="organizationName" 
+                      required 
+                    />
+                  </div>
+                )}
                 <div>
                   <Label htmlFor="username">Username</Label>
                   <Input 
@@ -77,8 +98,18 @@ export default function AuthPage() {
                   type="submit" 
                   className="w-full"
                 >
-                  Login
+                  {isLogin ? "Login" : "Register"}
                 </Button>
+                <p className="text-center text-sm text-muted-foreground">
+                  {isLogin ? "Don't have an account? " : "Already have an account? "}
+                  <button
+                    type="button"
+                    className="text-primary hover:underline"
+                    onClick={() => setIsLogin(!isLogin)}
+                  >
+                    {isLogin ? "Register here" : "Login here"}
+                  </button>
+                </p>
               </div>
             </form>
           </CardContent>
