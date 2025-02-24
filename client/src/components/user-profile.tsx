@@ -19,12 +19,15 @@ export function UserProfile() {
     ? user.fullName.charAt(0).toUpperCase()
     : user.username.charAt(0).toUpperCase();
 
+  // Capitalize the first letter of the username
+  const displayName = user.username.charAt(0).toUpperCase() + user.username.slice(1);
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="flex items-center gap-3 outline-none">
         <div className="text-sm flex flex-col items-end">
           <span className="text-muted-foreground text-[13px]">Welcome</span>
-          <span className="font-semibold text-[15px] leading-tight">{user.username}</span>
+          <span className="font-semibold text-[15px] leading-tight">{displayName}</span>
         </div>
         <Avatar className="h-8 w-8">
           <AvatarFallback className="font-medium bg-[#E9D5FF] text-[#6B21A8]">
