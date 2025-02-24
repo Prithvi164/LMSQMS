@@ -10,6 +10,35 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import type { User, Organization } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Edit2, Trash2 } from "lucide-react";
 
 export default function Settings() {
   const { user } = useAuth();
@@ -87,6 +116,47 @@ export default function Settings() {
     },
   });
 
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      await apiRequest("DELETE", `/api/users/${userId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "User deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateUserMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<User> }) => {
+      const res = await apiRequest("PATCH", `/api/users/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "User updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   if (!user) return null;
 
   return (
@@ -97,6 +167,7 @@ export default function Settings() {
         <TabsList>
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="addUser">Add User</TabsTrigger>
+          <TabsTrigger value="userDetails">User Details</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile">
@@ -434,6 +505,239 @@ export default function Settings() {
                   Create User
                 </Button>
               </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="userDetails">
+          <Card>
+            <CardHeader>
+              <CardTitle>User Management</CardTitle>
+              <CardDescription>View and manage all users in your organization</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Username</TableHead>
+                    <TableHead>Full Name</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {users.map((u) => (
+                    <TableRow key={u.id}>
+                      <TableCell>{u.username}</TableCell>
+                      <TableCell>{u.fullName}</TableCell>
+                      <TableCell>
+                        <Badge>{u.role}</Badge>
+                      </TableCell>
+                      <TableCell>{u.location}</TableCell>
+                      <TableCell className="space-x-2">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="icon">
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Edit User</DialogTitle>
+                              <DialogDescription>
+                                Update user information
+                              </DialogDescription>
+                            </DialogHeader>
+                            <form
+                              onSubmit={(e) => {
+                                e.preventDefault();
+                                const formData = new FormData(e.currentTarget);
+                                const data = {
+                                  fullName: formData.get("fullName") as string,
+                                  employeeId: formData.get("employeeId") as string,
+                                  location: formData.get("location") as string,
+                                  email: formData.get("email") as string,
+                                  phoneNumber: formData.get("phoneNumber") as string,
+                                  processName: formData.get("processName") as string,
+                                  education: formData.get("education") as string,
+                                  batchName: formData.get("batchName") as string,
+                                  ...(user.role === "admin" && {
+                                    role: formData.get("role") as string,
+                                  }),
+                                };
+                                updateUserMutation.mutate({ id: u.id, data });
+                              }}
+                              className="space-y-4"
+                            >
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label htmlFor="fullName">Full Name</Label>
+                                  <Input
+                                    id="fullName"
+                                    name="fullName"
+                                    defaultValue={u.fullName || ""}
+                                    required
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor="employeeId">Employee ID</Label>
+                                  <Input
+                                    id="employeeId"
+                                    name="employeeId"
+                                    defaultValue={u.employeeId || ""}
+                                    required
+                                  />
+                                </div>
+                                {user.role === "admin" && (
+                                  <div>
+                                    <Label htmlFor="role">Role</Label>
+                                    <Select
+                                      name="role"
+                                      defaultValue={u.role}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="manager">Manager</SelectItem>
+                                        <SelectItem value="trainer">Trainer</SelectItem>
+                                        <SelectItem value="trainee">Trainee</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                )}
+                                <div>
+                                  <Label htmlFor="location">Location</Label>
+                                  <Select
+                                    name="location"
+                                    defaultValue={u.location || ""}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {organization?.locations.map(location => (
+                                        <SelectItem key={location} value={location}>
+                                          {location}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div>
+                                  <Label htmlFor="email">Email</Label>
+                                  <Input
+                                    id="email"
+                                    name="email"
+                                    type="email"
+                                    defaultValue={u.email || ""}
+                                    required
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor="phoneNumber">Phone Number</Label>
+                                  <Input
+                                    id="phoneNumber"
+                                    name="phoneNumber"
+                                    defaultValue={u.phoneNumber || ""}
+                                    required
+                                    pattern="\d{10}"
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor="processName">Process Name</Label>
+                                  <Select
+                                    name="processName"
+                                    defaultValue={u.processName || ""}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {organization?.processNames.map(process => (
+                                        <SelectItem key={process} value={process}>
+                                          {process}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div>
+                                  <Label htmlFor="education">Education</Label>
+                                  <Select
+                                    name="education"
+                                    defaultValue={u.education || ""}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {organization?.educationOptions.map(option => (
+                                        <SelectItem key={option} value={option}>
+                                          {option}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div>
+                                  <Label htmlFor="batchName">Batch Name</Label>
+                                  <Select
+                                    name="batchName"
+                                    defaultValue={u.batchName || ""}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {organization?.batchNames.map(batch => (
+                                        <SelectItem key={batch} value={batch}>
+                                          {batch}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                              <Button type="submit" className="w-full">
+                                Update User
+                              </Button>
+                            </form>
+                          </DialogContent>
+                        </Dialog>
+
+                        {user.role === "admin" && u.id !== user.id && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="outline" size="icon">
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete User</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete this user? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteUserMutation.mutate(u.id)}
+                                  className="bg-red-500 hover:bg-red-600"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </TabsContent>
