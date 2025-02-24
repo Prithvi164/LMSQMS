@@ -18,9 +18,6 @@ import {
   type InsertOrganizationLocation,
 } from "@shared/schema";
 
-export { db } from "./db";
-export { users } from "@shared/schema";
-
 export interface IStorage {
   // User operations
   getUser(id: number): Promise<User | undefined>;

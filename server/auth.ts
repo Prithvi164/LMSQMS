@@ -8,7 +8,6 @@ import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
 import connectPg from "connect-pg-simple";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
 
 const PostgresSessionStore = connectPg(session);
 const scryptAsync = promisify(scrypt);
@@ -65,15 +64,10 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
-        // Find user by email or username
-        const [user] = await storage.db
-          .select()
-          .from(storage.users)
-          .where(eq(storage.users.email, username))
-          .limit(1);
-
+        // Find user by email
+        const user = await storage.getUserByUsername(username);
         if (!user || !(await comparePasswords(password, user.password))) {
-          return done(null, false, { message: "Invalid email or password" });
+          return done(null, false, { message: "Invalid username or password" });
         }
         return done(null, user);
       } catch (err) {
@@ -95,17 +89,6 @@ export function setupAuth(app: Express) {
   app.post("/api/register", async (req, res, next) => {
     try {
       const data = registrationSchema.parse(req.body);
-
-      // Check if email already exists
-      const [existingUserByEmail] = await storage.db
-        .select()
-        .from(storage.users)
-        .where(eq(storage.users.email, data.email))
-        .limit(1);
-
-      if (existingUserByEmail) {
-        return res.status(400).json({ message: "Email already exists" });
-      }
 
       // Check if username already exists
       const existingUserByUsername = await storage.getUserByUsername(data.username);
