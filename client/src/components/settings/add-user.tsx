@@ -116,43 +116,35 @@ export function AddUser({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="mb-6 space-y-4">
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <h3 className="text-lg font-medium">Bulk Upload Users</h3>
-              <p className="text-sm text-muted-foreground">
-                Upload multiple users using CSV file
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  window.location.href = '/api/users/template';
-                }}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Download CSV Template
-              </Button>
-              <Label htmlFor="csv-upload" className="cursor-pointer">
-                <div className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2">
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload CSV
-                </div>
-              </Label>
-              <Input
-                id="csv-upload"
-                type="file"
-                className="hidden"
-                accept=".csv"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    uploadUsersMutation.mutate(file);
-                  }
-                }}
-              />
-            </div>
+        <div className="mb-6">
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                window.location.href = '/api/users/template';
+              }}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Download CSV Template
+            </Button>
+            <Label htmlFor="csv-upload" className="cursor-pointer">
+              <div className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2">
+                <Upload className="mr-2 h-4 w-4" />
+                Upload CSV
+              </div>
+            </Label>
+            <Input
+              id="csv-upload"
+              type="file"
+              className="hidden"
+              accept=".csv"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  uploadUsersMutation.mutate(file);
+                }
+              }}
+            />
           </div>
           {uploadUsersMutation.isPending && (
             <div className="flex items-center justify-center p-4">
