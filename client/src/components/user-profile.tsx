@@ -22,12 +22,12 @@ export function UserProfile() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="flex items-center gap-3 outline-none">
-        <div className="text-sm">
-          <span className="text-muted-foreground mr-1">Welcome</span>
+        <div className="text-sm flex flex-col items-end">
+          <span className="text-muted-foreground text-xs">Welcome</span>
           <span className="font-semibold text-foreground">{user.username}</span>
         </div>
-        <Avatar className="h-8 w-8 bg-[#E9D5FF] text-[#6B21A8]">
-          <AvatarFallback className="font-medium">
+        <Avatar className="h-8 w-8">
+          <AvatarFallback className="font-medium bg-[#E9D5FF] text-[#6B21A8]">
             {avatarLetter}
           </AvatarFallback>
         </Avatar>
