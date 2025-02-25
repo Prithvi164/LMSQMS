@@ -123,6 +123,16 @@ export function UserManagement() {
   // Function to toggle user status
   const toggleUserStatus = async (userId: number, currentStatus: boolean, userRole: string) => {
     try {
+      // Cannot toggle owner status
+      if (userRole === "owner") {
+        toast({
+          title: "Error",
+          description: "Owner status cannot be changed",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // Only owner can toggle admin status
       if (userRole === "admin" && user?.role !== "owner") {
         toast({
@@ -132,6 +142,7 @@ export function UserManagement() {
         });
         return;
       }
+
       await updateUserMutation.mutateAsync({
         id: userId,
         data: { active: !currentStatus }
@@ -328,8 +339,8 @@ export function UserManagement() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Role</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
+                      <Select
+                        onValueChange={field.onChange}
                         value={field.value}
                         disabled={user?.role !== "owner" && editUser.role === "admin"}
                       >
@@ -662,7 +673,7 @@ export function UserManagement() {
                     <Switch
                       checked={u.active}
                       onCheckedChange={(checked) => toggleUserStatus(u.id, u.active, u.role)}
-                      disabled={u.role === "admin"}
+                      disabled={u.role === "owner"} // Disable toggle for owner role
                     />
                   </TableCell>
                   <TableCell className="space-x-2">
