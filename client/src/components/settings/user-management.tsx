@@ -211,10 +211,10 @@ export function UserManagement() {
         employeeId: editUser.employeeId || "",
         role: editUser.role,
         phoneNumber: editUser.phoneNumber || "",
-        locationId: editUser.locationId?.toString() || null,
-        processId: editUser.processId?.toString() || null,
-        batchId: editUser.batchId?.toString() || null,
-        managerId: editUser.managerId?.toString() || null,
+        locationId: editUser.locationId?.toString() || "none",
+        processId: editUser.processId?.toString() || "none",
+        batchId: editUser.batchId?.toString() || "none",
+        managerId: editUser.managerId?.toString() || "none",
         dateOfJoining: editUser.dateOfJoining || "",
         dateOfBirth: editUser.dateOfBirth || "",
         education: editUser.education || "",
@@ -241,10 +241,10 @@ export function UserManagement() {
                 id: editUser.id,
                 data: {
                   ...data,
-                  locationId: data.locationId ? parseInt(data.locationId) : null,
-                  processId: data.processId ? parseInt(data.processId) : null,
-                  batchId: data.batchId ? parseInt(data.batchId) : null,
-                  managerId: data.managerId ? parseInt(data.managerId) : null,
+                  locationId: data.locationId === "none" ? null : parseInt(data.locationId),
+                  processId: data.processId === "none" ? null : parseInt(data.processId),
+                  batchId: data.batchId === "none" ? null : parseInt(data.batchId),
+                  managerId: data.managerId === "none" ? null : parseInt(data.managerId),
                 }
               });
             })} className="space-y-4">
@@ -334,14 +334,14 @@ export function UserManagement() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Location</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select location" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">No Location</SelectItem>
+                          <SelectItem value="none">No Location</SelectItem>
                           {orgSettings?.locations.map((location: OrganizationLocation) => (
                             <SelectItem key={location.id} value={location.id.toString()}>
                               {location.name}
@@ -359,14 +359,14 @@ export function UserManagement() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Process</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select process" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">No Process</SelectItem>
+                          <SelectItem value="none">No Process</SelectItem>
                           {orgSettings?.processes.map((process: OrganizationProcess) => (
                             <SelectItem key={process.id} value={process.id.toString()}>
                               {process.name}
@@ -384,14 +384,14 @@ export function UserManagement() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Batch</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select batch" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">No Batch</SelectItem>
+                          <SelectItem value="none">No Batch</SelectItem>
                           {orgSettings?.batches.map((batch: OrganizationBatch) => (
                             <SelectItem key={batch.id} value={batch.id.toString()}>
                               {batch.name}
@@ -409,14 +409,14 @@ export function UserManagement() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Manager</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select manager" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">No Manager</SelectItem>
+                          <SelectItem value="none">No Manager</SelectItem>
                           {uniqueManagers.map((manager) => (
                             <SelectItem key={manager.id} value={manager.id.toString()}>
                               {manager.name}
