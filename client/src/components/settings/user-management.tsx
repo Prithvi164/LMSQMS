@@ -30,6 +30,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Switch } from "@/components/ui/switch";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { insertUserSchema } from "@shared/schema";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
 export function UserManagement() {
   const { user } = useAuth();
@@ -75,6 +80,43 @@ export function UserManagement() {
     },
   });
 
+  const updateUserMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<User> }) => {
+      const response = await apiRequest("PATCH", `/api/users/${id}`, data);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update user");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "User updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Function to toggle user active status
+  const toggleUserStatus = async (userId: number, currentStatus: boolean) => {
+    try {
+      await updateUserMutation.mutateAsync({
+        id: userId,
+        data: { active: !currentStatus }
+      });
+    } catch (error) {
+      console.error('Error toggling user status:', error);
+    }
+  };
+
   // Find manager name for a user
   const getManagerName = (managerId: number | null) => {
     if (!managerId) return "No Manager";
@@ -102,14 +144,14 @@ export function UserManagement() {
 
   // Filter users based on search term and filters
   const filteredUsers = users.filter(u => {
-    const matchesSearch = searchTerm === "" || 
+    const matchesSearch = searchTerm === "" ||
       u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (u.fullName?.toLowerCase() || "").includes(searchTerm.toLowerCase());
 
     const matchesRole = roleFilter === "all" || u.role === roleFilter;
 
-    const matchesManager = managerFilter === "all" || 
+    const matchesManager = managerFilter === "all" ||
       (managerFilter === "none" && !u.managerId) ||
       (u.managerId?.toString() === managerFilter);
 
@@ -173,12 +215,13 @@ export function UserManagement() {
                 <TableHead>Role</TableHead>
                 <TableHead>Manager</TableHead>
                 <TableHead>Location</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredUsers.map((u) => (
-                <TableRow key={u.id}>
+                <TableRow key={u.id} className={!u.active ? "opacity-60" : ""}>
                   <TableCell>{u.username}</TableCell>
                   <TableCell>{u.email}</TableCell>
                   <TableCell>{u.fullName}</TableCell>
@@ -187,6 +230,12 @@ export function UserManagement() {
                   </TableCell>
                   <TableCell>{getManagerName(u.managerId)}</TableCell>
                   <TableCell>{getLocationName(u.locationId)}</TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={u.active}
+                      onCheckedChange={(checked) => toggleUserStatus(u.id, u.active)}
+                    />
+                  </TableCell>
                   <TableCell className="space-x-2">
                     <Dialog>
                       <DialogTrigger asChild>
@@ -198,13 +247,103 @@ export function UserManagement() {
                         <DialogHeader>
                           <DialogTitle>Edit User</DialogTitle>
                           <DialogDescription>
-                            Update user information for {u.username}
+                            Update information for {u.username}
                           </DialogDescription>
                         </DialogHeader>
-                        {/* Edit form content */}
+                        <Form
+                          key={u.id}
+                          defaultValues={{
+                            fullName: u.fullName || "",
+                            email: u.email,
+                            phoneNumber: u.phoneNumber || "",
+                            role: u.role,
+                            locationId: u.locationId?.toString() || "",
+                            processId: u.processId?.toString() || "",
+                            batchId: u.batchId?.toString() || "",
+                            managerId: u.managerId?.toString() || "",
+                          }}
+                          onSubmit={async (data) => {
+                            await updateUserMutation.mutateAsync({
+                              id: u.id,
+                              data: {
+                                ...data,
+                                locationId: data.locationId ? Number(data.locationId) : null,
+                                processId: data.processId ? Number(data.processId) : null,
+                                batchId: data.batchId ? Number(data.batchId) : null,
+                                managerId: data.managerId ? Number(data.managerId) : null,
+                              }
+                            });
+                          }}
+                        >
+                          <div className="grid grid-cols-2 gap-4">
+                            <FormField
+                              name="fullName"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Full Name</FormLabel>
+                                  <FormControl>
+                                    <Input {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              name="email"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Email</FormLabel>
+                                  <FormControl>
+                                    <Input {...field} type="email" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              name="phoneNumber"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Phone Number</FormLabel>
+                                  <FormControl>
+                                    <Input {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              name="role"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Role</FormLabel>
+                                  <Select
+                                    value={field.value}
+                                    onValueChange={field.onChange}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="trainee">Trainee</SelectItem>
+                                      <SelectItem value="trainer">Trainer</SelectItem>
+                                      <SelectItem value="manager">Manager</SelectItem>
+                                      {user?.role === "admin" && (
+                                        <SelectItem value="admin">Admin</SelectItem>
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          <Button type="submit" className="mt-4">
+                            Save Changes
+                          </Button>
+                        </Form>
                       </DialogContent>
                     </Dialog>
-
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="outline" size="icon" className="text-destructive">

@@ -61,6 +61,7 @@ export const users = pgTable("users", {
     .references(() => organizations.id),
   managerId: integer("manager_id")
     .references(() => users.id),
+  active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

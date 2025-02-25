@@ -180,9 +180,9 @@ export function AddUser({
     );
   }
 
-  // Filter potential managers to only show those from the same organization
+  // Filter potential managers to only show active users from the same organization
   const organizationManagers = potentialManagers.filter(
-    manager => manager.organizationId === organization.id
+    manager => manager.organizationId === organization.id && manager.active
   );
 
   return (

@@ -83,6 +83,12 @@ export function setupAuth(app: Express) {
           return done(null, false, { message: "Invalid username or password" });
         }
 
+        // Check if user is active
+        if (!user.active) {
+          console.log("User account is inactive");
+          return done(null, false, { message: "Account is inactive. Please contact your administrator." });
+        }
+
         const isValidPassword = await comparePasswords(password, user.password);
         console.log("Password validation result:", isValidPassword);
 
