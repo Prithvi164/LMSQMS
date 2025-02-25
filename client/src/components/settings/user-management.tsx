@@ -282,7 +282,7 @@ export function UserManagement() {
                           <SelectItem value="trainer">Trainer</SelectItem>
                           <SelectItem value="manager">Manager</SelectItem>
                           <SelectItem value="advisor">Advisor</SelectItem>
-                          <SelectItem value="teamlead">Team Lead</SelectItem>
+                          <SelectItem value="team_lead">Team Lead</SelectItem>
                           {user?.role === "admin" && (
                             <SelectItem value="admin">Admin</SelectItem>
                           )}
@@ -331,7 +331,7 @@ export function UserManagement() {
                   <SelectItem value="trainer">Trainer</SelectItem>
                   <SelectItem value="trainee">Trainee</SelectItem>
                   <SelectItem value="advisor">Advisor</SelectItem>
-                  <SelectItem value="teamlead">Team Lead</SelectItem>
+                  <SelectItem value="team_lead">Team Lead</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={managerFilter} onValueChange={setManagerFilter}>

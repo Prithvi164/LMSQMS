@@ -315,7 +315,7 @@ export function AddUser({
                         <SelectItem value="manager">Manager</SelectItem>
                         <SelectItem value="trainer">Trainer</SelectItem>
                         <SelectItem value="advisor">Advisor</SelectItem>
-                        <SelectItem value="teamlead">Team Lead</SelectItem>
+                        <SelectItem value="team_lead">Team Lead</SelectItem>
                       </>
                     )}
                   </SelectContent>
