@@ -56,7 +56,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update the registration route to handle owner role
   app.post("/api/register", async (req, res, next) => {
     try {
-      const { username, password, role, organizationName, ...userData } = req.body;
+      const { username, password, organizationName, ...userData } = req.body;
 
       // Check if organization exists
       let organization = await storage.getOrganizationByName(organizationName);
@@ -91,23 +91,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // If organization exists, check if there's already an owner
         const hasOwner = await storage.hasOrganizationOwner(organization.id);
 
-        if (role === 'owner' && hasOwner) {
-          return res.status(400).json({ message: "Organization already has an owner" });
+        if (hasOwner) {
+          // Create the user with trainee role for existing org
+          const user = await storage.createUser({
+            ...userData,
+            username,
+            password: await hashPassword(password),
+            role: 'trainee', // Default to trainee for subsequent users
+            organizationId: organization.id
+          });
+
+          req.login(user, (err) => {
+            if (err) return next(err);
+            res.status(201).json(user);
+          });
+        } else {
+          // Organization exists but has no owner, make this user the owner
+          const user = await storage.createUser({
+            ...userData,
+            username,
+            password: await hashPassword(password),
+            role: 'owner',
+            organizationId: organization.id
+          });
+
+          req.login(user, (err) => {
+            if (err) return next(err);
+            res.status(201).json(user);
+          });
         }
-
-        // Create the user with specified role or default to trainee
-        const user = await storage.createUser({
-          ...userData,
-          username,
-          password: await hashPassword(password),
-          role: role || 'trainee', // Default to trainee if no role specified for existing org
-          organizationId: organization.id
-        });
-
-        req.login(user, (err) => {
-          if (err) return next(err);
-          res.status(201).json(user);
-        });
       }
     } catch (error: any) {
       console.error("Registration error:", error);
