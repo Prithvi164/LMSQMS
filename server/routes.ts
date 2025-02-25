@@ -61,66 +61,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if organization exists
       let organization = await storage.getOrganizationByName(organizationName);
 
+      // Create user with owner role regardless of what role was sent in the request
+      const userToCreate = {
+        ...userData,
+        username,
+        password: await hashPassword(password),
+        role: 'owner', // Force role to be owner for new registrations
+        organizationId: organization ? organization.id : undefined
+      };
+
       if (!organization) {
-        // If organization doesn't exist, create it and make user an owner
+        // If organization doesn't exist, create it first
         organization = await storage.createOrganization({
           name: organizationName
         });
 
-        // Create the user as owner for new organization
-        const user = await storage.createUser({
-          ...userData,
-          username,
-          password: await hashPassword(password),
-          role: 'owner', // Always make first user an owner
-          organizationId: organization.id
-        });
+        // Update the organizationId after creating organization
+        userToCreate.organizationId = organization.id;
+      } else {
+        // If organization exists, check if it already has an owner
+        const hasOwner = await storage.hasOrganizationOwner(organization.id);
+        if (hasOwner) {
+          // If organization already has an owner, make this user a trainee
+          userToCreate.role = 'trainee';
+        }
+      }
 
-        // Create default role permissions for the new organization
+      // Create the user with the determined role
+      const user = await storage.createUser(userToCreate);
+
+      // If this is a new organization's owner, set up their permissions
+      if (userToCreate.role === 'owner') {
         await storage.updateRolePermissions(
           organization.id,
           'owner',
           permissionEnum.enumValues // Owner gets all permissions
         );
-
-        req.login(user, (err) => {
-          if (err) return next(err);
-          res.status(201).json(user);
-        });
-      } else {
-        // If organization exists, check if there's already an owner
-        const hasOwner = await storage.hasOrganizationOwner(organization.id);
-
-        if (hasOwner) {
-          // Create the user with trainee role for existing org
-          const user = await storage.createUser({
-            ...userData,
-            username,
-            password: await hashPassword(password),
-            role: 'trainee', // Default to trainee for subsequent users
-            organizationId: organization.id
-          });
-
-          req.login(user, (err) => {
-            if (err) return next(err);
-            res.status(201).json(user);
-          });
-        } else {
-          // Organization exists but has no owner, make this user the owner
-          const user = await storage.createUser({
-            ...userData,
-            username,
-            password: await hashPassword(password),
-            role: 'owner',
-            organizationId: organization.id
-          });
-
-          req.login(user, (err) => {
-            if (err) return next(err);
-            res.status(201).json(user);
-          });
-        }
       }
+
+      req.login(user, (err) => {
+        if (err) return next(err);
+        res.status(201).json(user);
+      });
     } catch (error: any) {
       console.error("Registration error:", error);
       res.status(400).json({ message: error.message });
