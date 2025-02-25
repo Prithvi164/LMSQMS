@@ -57,6 +57,13 @@ export function UserManagement() {
     },
   });
 
+  // Find manager name for a user
+  const getManagerName = (managerId: number | null) => {
+    if (!managerId) return "No Manager";
+    const manager = users.find(u => u.id === managerId);
+    return manager ? (manager.fullName || manager.username) : "Unknown Manager";
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -72,6 +79,7 @@ export function UserManagement() {
                 <TableHead>Email</TableHead>
                 <TableHead>Full Name</TableHead>
                 <TableHead>Role</TableHead>
+                <TableHead>Manager</TableHead>
                 <TableHead>Location</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -85,6 +93,7 @@ export function UserManagement() {
                   <TableCell>
                     <Badge>{u.role}</Badge>
                   </TableCell>
+                  <TableCell>{getManagerName(u.managerId)}</TableCell>
                   <TableCell>{u.location}</TableCell>
                   <TableCell className="space-x-2">
                     <Dialog>
