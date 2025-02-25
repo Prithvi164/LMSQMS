@@ -1,9 +1,15 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -12,8 +18,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CreateBatchForm } from "./create-batch-form";
 
 export function BatchDetail() {
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [batches] = useState([
     {
       id: 1,
@@ -67,7 +75,10 @@ export function BatchDetail() {
             </div>
             <div className="flex gap-2">
               <Button variant="outline">Filter</Button>
-              <Button className="gap-2">
+              <Button 
+                className="gap-2"
+                onClick={() => setIsCreateDialogOpen(true)}
+              >
                 <Plus className="h-4 w-4" />
                 Create New Batch
               </Button>
@@ -75,6 +86,16 @@ export function BatchDetail() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Create Batch Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New Batch</DialogTitle>
+          </DialogHeader>
+          <CreateBatchForm />
+        </DialogContent>
+      </Dialog>
 
       {/* Batch List Section */}
       <Card>
@@ -131,7 +152,11 @@ export function BatchDetail() {
                 <p className="mb-4 mt-2 text-sm text-muted-foreground">
                   You haven't created any batches yet. Start by creating a new batch.
                 </p>
-                <Button size="sm" className="relative">
+                <Button 
+                  size="sm" 
+                  className="relative"
+                  onClick={() => setIsCreateDialogOpen(true)}
+                >
                   <Plus className="mr-2 h-4 w-4" />
                   Create New Batch
                 </Button>
