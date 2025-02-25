@@ -120,13 +120,14 @@ export function UserManagement() {
     },
   });
 
-  // Function to toggle user active status
+  // Function to toggle user status
   const toggleUserStatus = async (userId: number, currentStatus: boolean, userRole: string) => {
     try {
-      if (userRole === "admin") {
+      // Only owner can toggle admin status
+      if (userRole === "admin" && user?.role !== "owner") {
         toast({
           title: "Error",
-          description: "Admin users cannot be deactivated",
+          description: "Only owners can deactivate admin users",
           variant: "destructive",
         });
         return;
@@ -226,6 +227,17 @@ export function UserManagement() {
       }
     });
 
+    // Determine if the current user can edit this user
+    const canEdit = user?.role === "owner" || (user?.role === "admin" && editUser.role !== "admin");
+
+    if (!canEdit) {
+      return (
+        <Button variant="outline" size="icon" disabled title="You don't have permission to edit this user">
+          <Edit2 className="h-4 w-4" />
+        </Button>
+      );
+    }
+
     return (
       <Dialog>
         <DialogTrigger asChild>
@@ -316,20 +328,36 @@ export function UserManagement() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Role</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        value={field.value}
+                        disabled={user?.role !== "owner" && editUser.role === "admin"}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select role" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="trainee">Trainee</SelectItem>
-                          <SelectItem value="trainer">Trainer</SelectItem>
-                          <SelectItem value="manager">Manager</SelectItem>
-                          <SelectItem value="advisor">Advisor</SelectItem>
-                          <SelectItem value="team_lead">Team Lead</SelectItem>
-                          {user?.role === "admin" && (
-                            <SelectItem value="admin">Admin</SelectItem>
+                          {user?.role === "owner" ? (
+                            // Owner can assign any role
+                            <>
+                              <SelectItem value="admin">Admin</SelectItem>
+                              <SelectItem value="trainee">Trainee</SelectItem>
+                              <SelectItem value="manager">Manager</SelectItem>
+                              <SelectItem value="trainer">Trainer</SelectItem>
+                              <SelectItem value="advisor">Advisor</SelectItem>
+                              <SelectItem value="team_lead">Team Lead</SelectItem>
+                            </>
+                          ) : (
+                            // Admin can't modify admin roles
+                            <>
+                              <SelectItem value="trainee">Trainee</SelectItem>
+                              <SelectItem value="manager">Manager</SelectItem>
+                              <SelectItem value="trainer">Trainer</SelectItem>
+                              <SelectItem value="advisor">Advisor</SelectItem>
+                              <SelectItem value="team_lead">Team Lead</SelectItem>
+                            </>
                           )}
                         </SelectContent>
                       </Select>
