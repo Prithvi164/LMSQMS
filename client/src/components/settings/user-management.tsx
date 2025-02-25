@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import type { User, Organization, OrganizationLocation } from "@shared/schema";
+import type { User, Organization, OrganizationLocation, InsertUser } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -81,7 +81,7 @@ export function UserManagement() {
   });
 
   const updateUserMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<User> }) => {
+    mutationFn: async ({ id, data }: { id: number; data: Partial<InsertUser> }) => {
       const response = await apiRequest("PATCH", `/api/users/${id}`, data);
       if (!response.ok) {
         const errorData = await response.json();
@@ -166,6 +166,125 @@ export function UserManagement() {
     return matchesSearch && matchesRole && matchesManager;
   });
 
+  // Create EditUserDialog component to handle the form properly
+  const EditUserDialog = ({ user: editUser }: { user: User }) => {
+    const form = useForm<InsertUser>({
+      resolver: zodResolver(insertUserSchema),
+      defaultValues: {
+        username: editUser.username,
+        fullName: editUser.fullName || "",
+        email: editUser.email,
+        employeeId: editUser.employeeId || "",
+        role: editUser.role,
+        phoneNumber: editUser.phoneNumber || "",
+        locationId: editUser.locationId?.toString() || "",
+        processId: editUser.processId?.toString() || "",
+        batchId: editUser.batchId?.toString() || "",
+        managerId: editUser.managerId?.toString() || "",
+      }
+    });
+
+    return (
+      <Dialog>
+        <DialogTrigger asChild>
+          <Button variant="outline" size="icon">
+            <Edit2 className="h-4 w-4" />
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>
+              Update information for {editUser.username}
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(async (data) => {
+              await updateUserMutation.mutateAsync({
+                id: editUser.id,
+                data: {
+                  ...data,
+                  locationId: data.locationId ? Number(data.locationId) : null,
+                  processId: data.processId ? Number(data.processId) : null,
+                  batchId: data.batchId ? Number(data.batchId) : null,
+                  managerId: data.managerId ? Number(data.managerId) : null,
+                }
+              });
+            })} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="fullName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Full Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="email" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="phoneNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone Number</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Role</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="trainee">Trainee</SelectItem>
+                          <SelectItem value="trainer">Trainer</SelectItem>
+                          <SelectItem value="manager">Manager</SelectItem>
+                          {user?.role === "admin" && (
+                            <SelectItem value="admin">Admin</SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <Button type="submit">Save Changes</Button>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -246,113 +365,7 @@ export function UserManagement() {
                     />
                   </TableCell>
                   <TableCell className="space-x-2">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="icon">
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-4xl">
-                        <DialogHeader>
-                          <DialogTitle>Edit User</DialogTitle>
-                          <DialogDescription>
-                            Update information for {u.username}
-                          </DialogDescription>
-                        </DialogHeader>
-                        <Form
-                          key={u.id}
-                          defaultValues={{
-                            fullName: u.fullName || "",
-                            email: u.email,
-                            phoneNumber: u.phoneNumber || "",
-                            role: u.role,
-                            locationId: u.locationId?.toString() || "",
-                            processId: u.processId?.toString() || "",
-                            batchId: u.batchId?.toString() || "",
-                            managerId: u.managerId?.toString() || "",
-                          }}
-                          onSubmit={async (data) => {
-                            await updateUserMutation.mutateAsync({
-                              id: u.id,
-                              data: {
-                                ...data,
-                                locationId: data.locationId ? Number(data.locationId) : null,
-                                processId: data.processId ? Number(data.processId) : null,
-                                batchId: data.batchId ? Number(data.batchId) : null,
-                                managerId: data.managerId ? Number(data.managerId) : null,
-                              }
-                            });
-                          }}
-                        >
-                          <div className="grid grid-cols-2 gap-4">
-                            <FormField
-                              name="fullName"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Full Name</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              name="email"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Email</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} type="email" />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              name="phoneNumber"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Phone Number</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              name="role"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Role</FormLabel>
-                                  <Select
-                                    value={field.value}
-                                    onValueChange={field.onChange}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="trainee">Trainee</SelectItem>
-                                      <SelectItem value="trainer">Trainer</SelectItem>
-                                      <SelectItem value="manager">Manager</SelectItem>
-                                      {user?.role === "admin" && (
-                                        <SelectItem value="admin">Admin</SelectItem>
-                                      )}
-                                    </SelectContent>
-                                  </Select>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                          <Button type="submit" className="mt-4">
-                            Save Changes
-                          </Button>
-                        </Form>
-                      </DialogContent>
-                    </Dialog>
+                    <EditUserDialog user={u} />
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="outline" size="icon" className="text-destructive">
