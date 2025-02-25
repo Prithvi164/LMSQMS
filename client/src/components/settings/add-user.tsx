@@ -312,8 +312,15 @@ export function AddUser({
                   </SelectTrigger>
                   <SelectContent>
                     {user.role === "owner" ? (
-                      // Owner can only create admin users
-                      <SelectItem value="admin">Admin</SelectItem>
+                      // Owner can create all roles including admin
+                      <>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="trainee">Trainee</SelectItem>
+                        <SelectItem value="manager">Manager</SelectItem>
+                        <SelectItem value="trainer">Trainer</SelectItem>
+                        <SelectItem value="advisor">Advisor</SelectItem>
+                        <SelectItem value="team_lead">Team Lead</SelectItem>
+                      </>
                     ) : user.role === "admin" ? (
                       // Admin can create these roles
                       <>
