@@ -7,6 +7,8 @@ import multer from "multer";
 import path from "path";
 import { insertUserSchema } from "@shared/schema";
 import { z } from "zod";
+import { scrypt, randomBytes } from "crypto";
+import { promisify } from "util";
 
 // Configure multer for handling file uploads
 const upload = multer({
@@ -40,6 +42,14 @@ const upload = multer({
     fileSize: 5 * 1024 * 1024 // 5MB limit
   }
 });
+
+const scryptAsync = promisify(scrypt);
+
+async function hashPassword(password: string) {
+  const salt = randomBytes(16).toString("hex");
+  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+  return `${buf.toString("hex")}.${salt}`;
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes (/api/register, /api/login, /api/logout, /api/user)
@@ -144,9 +154,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
+      // Hash the password before creating the user
+      const hashedPassword = await hashPassword(req.body.password);
+
       // Validate the request body
       const userData = {
         ...req.body,
+        password: hashedPassword,
         role: req.body.role.toLowerCase(), // Ensure role is lowercase
         organizationId: req.user.organizationId, // Use req.user.organizationId for security
       };
@@ -160,8 +174,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-
-  // Update user route - add before the reset-db route
+  // Update user route
   app.patch("/api/users/:id", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -177,6 +190,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // If password is being updated, hash it
+      if (updateData.password) {
+        updateData.password = await hashPassword(updateData.password);
+      }
+
       const updatedUser = await storage.updateUser(userId, updateData);
       res.json(updatedUser);
     } catch (error: any) {
@@ -184,6 +202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ message: error.message || "Failed to update user" });
     }
   });
+
 
   // Template download route
   app.get("/api/users/template", (req, res) => {
@@ -251,6 +270,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             headers.map((header, index) => [header.trim(), values[index]?.trim()])
           );
 
+          // Hash the password
+          const hashedPassword = await hashPassword(userData['Password']);
+
           // Find manager if specified
           let managerId: number | undefined;
           if (userData['Manager Username']) {
@@ -264,7 +286,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Create user with validated data
           await storage.createUser({
             username: userData['Username'],
-            password: userData['Password'],
+            password: hashedPassword,
             fullName: userData['Full Name'],
             employeeId: userData['Employee ID'],
             role: userData['Role'].toLowerCase(),
