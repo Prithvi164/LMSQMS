@@ -161,18 +161,26 @@ export function setupAuth(app: Express) {
         name: data.organizationName,
       });
 
-      // Create admin user
+      // Create owner user
       const hashedPassword = await hashPassword(data.password);
       const user = await storage.createUser({
         username: data.username,
         email: data.email,
         password: hashedPassword,
         organizationId: organization.id,
-        role: "admin",
+        role: "owner", // Changed from admin to owner
         fullName: data.username, // Default to username
         employeeId: `EMP${Date.now()}`, // Generate a unique employee ID
         phoneNumber: "", // Empty string for optional fields
+        active: true
       });
+
+      // Set up initial permissions for owner
+      await storage.updateRolePermissions(
+        organization.id,
+        'owner',
+        permissionEnum.enumValues // Owner gets all permissions
+      );
 
       // Log the user in
       req.login(user, (err) => {
