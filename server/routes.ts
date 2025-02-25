@@ -242,7 +242,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      // Owner can edit and deactivate any user including admins
+      // Check if the user is updating their own profile
+      const isOwnProfile = req.user.id === userId;
+
+      // If it's own profile update, allow location and other basic info updates
+      if (isOwnProfile) {
+        // Filter allowed fields for self-update
+        const allowedSelfUpdateFields = [
+          'fullName',
+          'email',
+          'phoneNumber',
+          'locationId',
+          'dateOfBirth',
+          'education'
+        ];
+        const filteredUpdateData = Object.keys(updateData)
+          .filter(key => allowedSelfUpdateFields.includes(key))
+          .reduce((obj, key) => {
+            obj[key] = updateData[key];
+            return obj;
+          }, {});
+
+        const updatedUser = await storage.updateUser(userId, filteredUpdateData);
+        return res.json(updatedUser);
+      }
+
+      // For owner role, allow all updates including email and role changes
       if (req.user.role === 'owner') {
         const updatedUser = await storage.updateUser(userId, updateData);
         return res.json(updatedUser);
@@ -258,13 +283,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only owners can deactivate users" });
       }
 
-      const updatedUser = await storage.updateUser(userId, updateData);
+      // For other roles, restrict certain fields
+      const allowedFields = ['fullName', 'phoneNumber', 'locationId', 'dateOfBirth', 'education'];
+      const filteredUpdateData = Object.keys(updateData)
+        .filter(key => allowedFields.includes(key))
+        .reduce((obj, key) => {
+          obj[key] = updateData[key];
+          return obj;
+        }, {});
+
+      const updatedUser = await storage.updateUser(userId, filteredUpdateData);
       res.json(updatedUser);
     } catch (error: any) {
       console.error("User update error:", error);
       res.status(400).json({ message: error.message || "Failed to update user" });
     }
   });
+
 
 
   // Permissions routes
