@@ -8,7 +8,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Trash2, Search } from "lucide-react";
+import { Edit2, Trash2, Search, FileDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -154,12 +154,20 @@ export function UserManagement() {
     return location ? location.name : "Unknown Location";
   };
 
+  // Add this function after getLocationName
+  const getProcessName = (processId: number | null) => {
+    if (!processId || !orgSettings?.processes) return "No Process";
+    const process = orgSettings.processes.find((p: OrganizationProcess) => p.id === processId);
+    return process ? process.name : "Unknown Process";
+  };
+
   // Find batch name for a user
   const getBatchName = (batchId: number | null) => {
     if (!batchId || !orgSettings?.batches) return "No Batch";
     const batch = orgSettings.batches.find((b: OrganizationBatch) => b.id === batchId);
     return batch ? batch.name : "Unknown Batch";
   };
+
 
   // Get unique managers for filter dropdown, removing duplicates
   const uniqueManagers = Array.from(
@@ -481,6 +489,59 @@ export function UserManagement() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Manage Users</h1>
+        <Button
+          onClick={() => {
+            // Create CSV content
+            const headers = [
+              'Username',
+              'Full Name',
+              'Email',
+              'Employee ID',
+              'Role',
+              'Phone Number',
+              'Location',
+              'Process',
+              'Batch',
+              'Manager',
+              'Date of Joining',
+              'Date of Birth',
+              'Education',
+              'Status'
+            ].join(',');
+
+            const rows = users.map(u => [
+              u.username,
+              u.fullName || '',
+              u.email,
+              u.employeeId || '',
+              u.role,
+              u.phoneNumber || '',
+              getLocationName(u.locationId),
+              getProcessName(u.processId),
+              getBatchName(u.batchId),
+              getManagerName(u.managerId),
+              u.dateOfJoining || '',
+              u.dateOfBirth || '',
+              u.education || '',
+              u.active ? 'Active' : 'Inactive'
+            ].join(','));
+
+            const csvContent = [headers, ...rows].join('\n');
+
+            // Create a blob and download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute('download', `users_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }}
+          className="mb-4"
+        >
+          <FileDown className="h-4 w-4 mr-2" />
+          Download Users
+        </Button>
       </div>
 
       <Card>
@@ -550,6 +611,7 @@ export function UserManagement() {
                 <TableHead>Role</TableHead>
                 <TableHead>Manager</TableHead>
                 <TableHead>Location</TableHead>
+                <TableHead>Process</TableHead>
                 <TableHead>Batch</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
@@ -566,6 +628,7 @@ export function UserManagement() {
                   </TableCell>
                   <TableCell>{getManagerName(u.managerId)}</TableCell>
                   <TableCell>{getLocationName(u.locationId)}</TableCell>
+                  <TableCell>{getProcessName(u.processId)}</TableCell>
                   <TableCell>{getBatchName(u.batchId)}</TableCell>
                   <TableCell>
                     <Switch
