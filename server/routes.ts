@@ -236,17 +236,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = parseInt(req.params.id);
       const updateData = req.body;
 
-      // Check if trying to deactivate an admin
-      if ('active' in updateData && !updateData.active) {
-        const userToUpdate = await storage.getUser(userId);
-        if (userToUpdate?.role === 'admin') {
-          return res.status(403).json({ message: "Admin users cannot be deactivated" });
-        }
+      // Get the user to be updated
+      const userToUpdate = await storage.getUser(userId);
+      if (!userToUpdate) {
+        return res.status(404).json({ message: "User not found" });
       }
 
-      // If password is being updated, hash it
-      if (updateData.password) {
-        updateData.password = await hashPassword(updateData.password);
+      // Owner can edit and deactivate any user including admins
+      if (req.user.role === 'owner') {
+        const updatedUser = await storage.updateUser(userId, updateData);
+        return res.json(updatedUser);
+      }
+
+      // Admin users can only be modified by owners
+      if (userToUpdate.role === 'admin') {
+        return res.status(403).json({ message: "Only owners can modify admin users" });
+      }
+
+      // Check if trying to deactivate while not being an owner
+      if ('active' in updateData && !updateData.active) {
+        return res.status(403).json({ message: "Only owners can deactivate users" });
       }
 
       const updatedUser = await storage.updateUser(userId, updateData);
