@@ -343,7 +343,7 @@ export function UserManagement() {
                       <Select
                         onValueChange={field.onChange}
                         value={field.value}
-                        disabled={user?.role !== "owner" && editUser.role === "admin"}
+                        disabled={editUser.role === "owner"} // Disable if user is owner
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -373,6 +373,11 @@ export function UserManagement() {
                           )}
                         </SelectContent>
                       </Select>
+                      {editUser.role === "owner" && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Owner role cannot be changed
+                        </p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
