@@ -12,6 +12,14 @@ import { z } from "zod";
 const PostgresSessionStore = connectPg(session);
 const scryptAsync = promisify(scrypt);
 
+// Registration validation schema
+const registrationSchema = z.object({
+  username: z.string().min(3, "Username must be at least 3 characters"),
+  email: z.string().email("Invalid email format"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  organizationName: z.string().min(2, "Organization name must be at least 2 characters"),
+});
+
 declare global {
   namespace Express {
     interface User extends SelectUser {}
@@ -103,6 +111,59 @@ export function setupAuth(app: Express) {
       done(null, user);
     } catch (err) {
       done(err);
+    }
+  });
+
+  // Add registration endpoint
+  app.post("/api/register", async (req, res) => {
+    try {
+      // Validate registration data
+      const data = registrationSchema.parse(req.body);
+
+      // Check if username already exists
+      const existingUser = await storage.getUserByUsername(data.username);
+      if (existingUser) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+
+      // Check if email already exists
+      const existingEmail = await storage.getUserByEmail(data.email);
+      if (existingEmail) {
+        return res.status(400).json({ message: "Email already exists" });
+      }
+
+      // Create organization first
+      const organization = await storage.createOrganization({
+        name: data.organizationName,
+      });
+
+      // Create admin user
+      const hashedPassword = await hashPassword(data.password);
+      const user = await storage.createUser({
+        username: data.username,
+        email: data.email,
+        password: hashedPassword,
+        organizationId: organization.id,
+        role: "admin",
+        fullName: data.username, // Default to username
+        employeeId: `EMP${Date.now()}`, // Generate a unique employee ID
+        phoneNumber: "", // Empty string for optional fields
+      });
+
+      // Log the user in
+      req.login(user, (err) => {
+        if (err) {
+          console.error("Login error after registration:", err);
+          return res.status(500).json({ message: "Error logging in after registration" });
+        }
+        return res.status(201).json(user);
+      });
+    } catch (error) {
+      console.error("Registration error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      return res.status(500).json({ message: "Registration failed" });
     }
   });
 
