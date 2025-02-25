@@ -38,7 +38,7 @@ export function AddUser({
     password: "",
     fullName: "",
     employeeId: "",
-    role: "TRAINEE", // Changed to uppercase
+    role: "trainee",
     locationId: "",
     email: "",
     phoneNumber: "",
@@ -100,7 +100,7 @@ export function AddUser({
         password: "",
         fullName: "",
         employeeId: "",
-        role: "TRAINEE",
+        role: "trainee",
         locationId: "",
         email: "",
         phoneNumber: "",
@@ -309,11 +309,11 @@ export function AddUser({
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="TRAINEE">Trainee</SelectItem>
-                    {user.role === "ADMIN" && (
+                    <SelectItem value="trainee">Trainee</SelectItem>
+                    {user.role === "admin" && (
                       <>
-                        <SelectItem value="MANAGER">Manager</SelectItem>
-                        <SelectItem value="TRAINER">Trainer</SelectItem>
+                        <SelectItem value="manager">Manager</SelectItem>
+                        <SelectItem value="trainer">Trainer</SelectItem>
                       </>
                     )}
                   </SelectContent>
@@ -491,7 +491,7 @@ export function AddUser({
                 </div>
               </div>
 
-              {user.role === "ADMIN" && (
+              {user.role === "admin" && (
                 <div>
                   <Label htmlFor="managerId">Manager</Label>
                   <Select

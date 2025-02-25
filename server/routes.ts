@@ -147,8 +147,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate the request body
       const userData = {
         ...req.body,
-        role: req.body.role.toUpperCase(), // Ensure role is uppercase
-        organizationId: req.user.organizationId,
+        organizationId: req.user.organizationId, // Use req.user.organizationId for security
       };
 
       // Create the user
