@@ -1,26 +1,361 @@
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Plus } from "lucide-react";
 
+const processFormSchema = z.object({
+  name: z.string().min(1, "Process name is required"),
+  inductionDays: z.number().min(1, "Induction days must be at least 1"),
+  trainingDays: z.number().min(1, "Training days must be at least 1"),
+  certificationDays: z.number().min(1, "Certification days must be at least 1"),
+  ojtDays: z.number().min(0, "OJT days cannot be negative"),
+  ojtCertificationDays: z.number().min(0, "OJT certification days cannot be negative"),
+  lineOfBusiness: z.string().min(1, "Line of business is required"),
+  locationId: z.string().min(1, "Location is required"),
+});
+
 export function ProcessDetail() {
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Fetch locations for the dropdown
+  const { data: locations } = useQuery({
+    queryKey: ['/api/organizations/settings'],
+    select: (data) => data?.locations || [],
+  });
+
+  const form = useForm<z.infer<typeof processFormSchema>>({
+    resolver: zodResolver(processFormSchema),
+    defaultValues: {
+      inductionDays: 1,
+      trainingDays: 1,
+      certificationDays: 1,
+      ojtDays: 0,
+      ojtCertificationDays: 0,
+    },
+  });
+
+  // Fetch existing processes
+  const { data: processes, isLoading } = useQuery({
+    queryKey: ['/api/organizations/settings'],
+    select: (data) => data?.processes || [],
+  });
+
+  const createProcessMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof processFormSchema>) => {
+      const response = await fetch('/api/organizations/settings', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'processNames',
+          value: {
+            ...data,
+            locationId: parseInt(data.locationId, 10),
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create process');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/organizations/settings'] });
+      toast({
+        title: "Success",
+        description: "Process created successfully",
+      });
+      setIsCreateDialogOpen(false);
+      form.reset();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmit = async (data: z.infer<typeof processFormSchema>) => {
+    try {
+      await createProcessMutation.mutateAsync(data);
+    } catch (error) {
+      console.error("Error creating process:", error);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold">Process Details</h2>
-        <Button>
+        <Button onClick={() => setIsCreateDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Add New Process
         </Button>
       </div>
-      
+
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create New Process</DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Process Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter process name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="lineOfBusiness"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Line of Business</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select LOB" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="customer-support">Customer Support</SelectItem>
+                          <SelectItem value="technical-support">Technical Support</SelectItem>
+                          <SelectItem value="sales">Sales</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="locationId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Location</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Location" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {locations?.map((location) => (
+                            <SelectItem key={location.id} value={location.id.toString()}>
+                              {location.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="inductionDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Induction Days</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="trainingDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Training Days</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="certificationDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Certification Days</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="ojtDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>OJT Days</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="ojtCertificationDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>OJT Certification Days</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="flex justify-end gap-4">
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => setIsCreateDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={createProcessMutation.isPending}>
+                  {createProcessMutation.isPending ? "Creating..." : "Create Process"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
       <Card>
         <CardHeader>
           <CardTitle>Current Processes</CardTitle>
         </CardHeader>
         <CardContent>
-          {/* Process list will be implemented here */}
-          <p className="text-muted-foreground">No processes found. Create a new process to get started.</p>
+          {isLoading ? (
+            <p className="text-muted-foreground">Loading processes...</p>
+          ) : processes?.length > 0 ? (
+            <div className="space-y-4">
+              {processes.map((process) => (
+                <Card key={process.id}>
+                  <CardContent className="pt-6">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="font-medium">Process Name</p>
+                        <p className="text-muted-foreground">{process.name}</p>
+                      </div>
+                      <div>
+                        <p className="font-medium">Line of Business</p>
+                        <p className="text-muted-foreground">{process.lineOfBusiness}</p>
+                      </div>
+                      <div>
+                        <p className="font-medium">Location</p>
+                        <p className="text-muted-foreground">
+                          {locations?.find(l => l.id === process.locationId)?.name}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="font-medium">Schedule Duration</p>
+                        <p className="text-muted-foreground">
+                          Induction: {process.inductionDays} days
+                          <br />
+                          Training: {process.trainingDays} days
+                          <br />
+                          Certification: {process.certificationDays} days
+                          <br />
+                          OJT: {process.ojtDays} days
+                          <br />
+                          OJT Certification: {process.ojtCertificationDays} days
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground">No processes found. Create a new process to get started.</p>
+          )}
         </CardContent>
       </Card>
     </div>

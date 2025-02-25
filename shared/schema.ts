@@ -65,6 +65,15 @@ export type Organization = InferSelectModel<typeof organizations>;
 export const organizationProcesses = pgTable("organization_processes", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  inductionDays: integer("induction_days").notNull(),
+  trainingDays: integer("training_days").notNull(),
+  certificationDays: integer("certification_days").notNull(),
+  ojtDays: integer("ojt_days").notNull(),
+  ojtCertificationDays: integer("ojt_certification_days").notNull(),
+  lineOfBusiness: text("line_of_business").notNull(),
+  locationId: integer("location_id")
+    .references(() => organizationLocations.id)
+    .notNull(),
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
@@ -316,10 +325,20 @@ export const learningPathsRelations = relations(learningPaths, ({ many }) => ({
 
 
 // Create insert schemas for new tables
-export const insertOrganizationProcessSchema = createInsertSchema(organizationProcesses).omit({
-  id: true,
-  createdAt: true
-});
+export const insertOrganizationProcessSchema = createInsertSchema(organizationProcesses)
+  .omit({
+    id: true,
+    createdAt: true
+  })
+  .extend({
+    inductionDays: z.number().min(1, "Induction days must be at least 1"),
+    trainingDays: z.number().min(1, "Training days must be at least 1"),
+    certificationDays: z.number().min(1, "Certification days must be at least 1"),
+    ojtDays: z.number().min(0, "OJT days cannot be negative"),
+    ojtCertificationDays: z.number().min(0, "OJT certification days cannot be negative"),
+    lineOfBusiness: z.string().min(1, "Line of business is required"),
+    locationId: z.number().min(1, "Location is required"),
+  });
 
 // Update insert schema for organization batches
 export const insertOrganizationBatchSchema = createInsertSchema(organizationBatches)

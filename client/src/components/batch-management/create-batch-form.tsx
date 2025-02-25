@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { format, addDays } from "date-fns";
+import { CalendarIcon, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
 import { Button } from "@/components/ui/button";
@@ -44,36 +44,86 @@ const formSchema = z.object({
   trainerId: z.string().min(1, "Trainer selection is required"),
   managerId: z.string().min(1, "Manager selection is required"),
   locationId: z.string().min(1, "Location is required"),
-  batchNumber: z.string().min(1, "Batch Number is required"),
   status: z.enum(["planned", "ongoing", "completed"]),
   participantCount: z.number().min(1, "Participant count must be at least 1"),
   capacityLimit: z.number().min(1, "Capacity limit must be at least 1"),
   inductionStartDate: z.date(),
-  inductionEndDate: z.date(),
-  trainingStartDate: z.date(),
-  trainingEndDate: z.date(),
-  certificationStartDate: z.date(),
-  certificationEndDate: z.date(),
-  recertificationStartDate: z.date().optional(),
-  recertificationEndDate: z.date().optional(),
 });
 
 export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [selectedProcess, setSelectedProcess] = useState<any>(null);
+  const [selectedTrainer, setSelectedTrainer] = useState<any>(null);
+  const [batchNumber, setBatchNumber] = useState("");
+
+  // Fetch processes
+  const { data: processes, isLoading: processesLoading } = useQuery({
+    queryKey: ['/api/organizations/settings'],
+    select: (data) => data?.processes || [],
+  });
+
+  // Fetch trainers (users with trainer role)
+  const { data: trainers, isLoading: trainersLoading } = useQuery({
+    queryKey: ['/api/users'],
+    select: (data) => data?.filter((user: any) => user.role === 'trainer') || [],
+  });
+
+  // Fetch locations
+  const { data: locations, isLoading: locationsLoading } = useQuery({
+    queryKey: ['/api/organizations/settings'],
+    select: (data) => data?.locations || [],
+  });
+
+  // Generate batch number
+  useEffect(() => {
+    const generateBatchNumber = () => {
+      const date = new Date();
+      const year = date.getFullYear();
+      const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+      return `B${year}-${random}`;
+    };
+    setBatchNumber(generateBatchNumber());
+  }, []);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       status: "planned",
       participantCount: 1,
-      capacityLimit: 1
+      capacityLimit: 1,
     },
   });
 
+  // Update dates when process is selected
+  useEffect(() => {
+    if (selectedProcess && form.getValues('inductionStartDate')) {
+      const startDate = form.getValues('inductionStartDate');
+
+      // Calculate all dates based on process days
+      const inductionEndDate = addDays(startDate, selectedProcess.inductionDays);
+      const trainingStartDate = addDays(inductionEndDate, 1);
+      const trainingEndDate = addDays(trainingStartDate, selectedProcess.trainingDays);
+      const certificationStartDate = addDays(trainingEndDate, 1);
+      const certificationEndDate = addDays(certificationStartDate, selectedProcess.certificationDays);
+
+      form.setValue('inductionEndDate', inductionEndDate);
+      form.setValue('trainingStartDate', trainingStartDate);
+      form.setValue('trainingEndDate', trainingEndDate);
+      form.setValue('certificationStartDate', certificationStartDate);
+      form.setValue('certificationEndDate', certificationEndDate);
+    }
+  }, [selectedProcess, form.watch('inductionStartDate')]);
+
+  // Update manager when trainer is selected
+  useEffect(() => {
+    if (selectedTrainer) {
+      form.setValue('managerId', selectedTrainer.managerId.toString());
+    }
+  }, [selectedTrainer]);
+
   const createBatchMutation = useMutation({
     mutationFn: async (values: z.infer<typeof formSchema>) => {
-      // Transform the form data to match the API expectations
       const formatDate = (date: Date | undefined) => {
         if (!date) return undefined;
         return format(date, "yyyy-MM-dd'T'HH:mm:ss.SSSxxx");
@@ -81,7 +131,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
 
       const data = {
         name: values.name,
-        batchNumber: values.batchNumber,
+        batchNumber,
         status: values.status,
         lineOfBusiness: values.lineOfBusiness,
         processId: parseInt(values.processId, 10),
@@ -91,13 +141,11 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
         participantCount: values.participantCount,
         capacityLimit: values.capacityLimit,
         inductionStartDate: formatDate(values.inductionStartDate),
-        inductionEndDate: formatDate(values.inductionEndDate),
-        trainingStartDate: formatDate(values.trainingStartDate),
-        trainingEndDate: formatDate(values.trainingEndDate),
-        certificationStartDate: formatDate(values.certificationStartDate),
-        certificationEndDate: formatDate(values.certificationEndDate),
-        recertificationStartDate: formatDate(values.recertificationStartDate),
-        recertificationEndDate: formatDate(values.recertificationEndDate),
+        inductionEndDate: formatDate(form.getValues("inductionEndDate")),
+        trainingStartDate: formatDate(form.getValues("trainingStartDate")),
+        trainingEndDate: formatDate(form.getValues("trainingEndDate")),
+        certificationStartDate: formatDate(form.getValues("certificationStartDate")),
+        certificationEndDate: formatDate(form.getValues("certificationEndDate")),
       };
 
       const response = await fetch('/api/batches', {
@@ -140,6 +188,8 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     }
   };
 
+  if(processesLoading || trainersLoading || locationsLoading) return <div>Loading...</div>
+
   return (
     <div className="space-y-6">
       <Form {...form}>
@@ -165,22 +215,35 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                   )}
                 />
 
+                <div>
+                  <FormLabel>Batch Number</FormLabel>
+                  <Input value={batchNumber} disabled />
+                </div>
+
                 <FormField
                   control={form.control}
-                  name="lineOfBusiness"
+                  name="processId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Line of Business</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormLabel>Process Name</FormLabel>
+                      <Select 
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          setSelectedProcess(processes?.find(p => p.id.toString() === value));
+                        }} 
+                        value={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select LOB" />
+                            <SelectValue placeholder="Select Process" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="customer-support">Customer Support</SelectItem>
-                          <SelectItem value="technical-support">Technical Support</SelectItem>
-                          <SelectItem value="sales">Sales</SelectItem>
+                          {processes?.map((process) => (
+                            <SelectItem key={process.id} value={process.id.toString()}>
+                              {process.name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -190,22 +253,13 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
 
                 <FormField
                   control={form.control}
-                  name="processId"
+                  name="lineOfBusiness"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Process Name</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Process" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="1">Onboarding</SelectItem>
-                          <SelectItem value="2">Customer Service</SelectItem>
-                          <SelectItem value="3">Technical Support</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>Line of Business</FormLabel>
+                      <FormControl>
+                        <Input value={selectedProcess?.lineOfBusiness || ''} disabled />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -217,15 +271,24 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Select Trainer</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select 
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          setSelectedTrainer(trainers?.find(t => t.id.toString() === value));
+                        }}
+                        value={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select Trainer" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="1">John Doe</SelectItem>
-                          <SelectItem value="2">Jane Smith</SelectItem>
+                          {trainers?.map((trainer) => (
+                            <SelectItem key={trainer.id} value={trainer.id.toString()}>
+                              {trainer.name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -239,17 +302,9 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Select Manager</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Manager" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="1">Alice Johnson</SelectItem>
-                          <SelectItem value="2">Bob Wilson</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Input value={selectedTrainer?.manager?.name || ''} disabled />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -261,16 +316,18 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Location</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select Location" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="1">San Francisco</SelectItem>
-                          <SelectItem value="2">New York</SelectItem>
-                          <SelectItem value="3">London</SelectItem>
+                          {locations?.map((location) => (
+                            <SelectItem key={location.id} value={location.id.toString()}>
+                              {location.name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -288,20 +345,6 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
             </CardHeader>
             <CardContent className="grid gap-6">
               <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="batchNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Batch Number</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter batch number" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
                 <FormField
                   control={form.control}
                   name="status"
@@ -371,83 +414,58 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
             <CardHeader>
               <CardTitle>Training & Certification Schedule</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-6">
-              <div className="grid grid-cols-2 gap-4">
-                {[
-                  {
-                    label: "Induction Start Date",
-                    name: "inductionStartDate" as const,
-                  },
-                  {
-                    label: "Induction End Date",
-                    name: "inductionEndDate" as const,
-                  },
-                  {
-                    label: "Training Start Date",
-                    name: "trainingStartDate" as const,
-                  },
-                  {
-                    label: "Training End Date",
-                    name: "trainingEndDate" as const,
-                  },
-                  {
-                    label: "Certification Start Date",
-                    name: "certificationStartDate" as const,
-                  },
-                  {
-                    label: "Certification End Date",
-                    name: "certificationEndDate" as const,
-                  },
-                  {
-                    label: "Recertification Start Date (Optional)",
-                    name: "recertificationStartDate" as const,
-                  },
-                  {
-                    label: "Recertification End Date (Optional)",
-                    name: "recertificationEndDate" as const,
-                  },
-                ].map((dateField) => (
-                  <FormField
-                    key={dateField.name}
-                    control={form.control}
-                    name={dateField.name}
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>{dateField.label}</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant={"outline"}
-                                className={cn(
-                                  "w-full pl-3 text-left font-normal",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                              >
-                                {field.value ? (
-                                  format(field.value, "PPP")
-                                ) : (
-                                  <span>Pick a date</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              initialFocus
-                              disabled={(date) => date < new Date()}
-                            />
-                          </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                ))}
+            <CardContent>
+              <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="inductionStartDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Induction Start Date</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            disabled={(date) => date < new Date()}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {selectedProcess && form.watch('inductionStartDate') && (
+                  <div className="space-y-2">
+                    <p className="font-medium">Schedule Preview:</p>
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      <p>Induction: {format(form.getValues('inductionStartDate'), "PPP")} to {format(form.getValues('inductionEndDate'), "PPP")}</p>
+                      <p>Training: {format(form.getValues('trainingStartDate'), "PPP")} to {format(form.getValues('trainingEndDate'), "PPP")}</p>
+                      <p>Certification: {format(form.getValues('certificationStartDate'), "PPP")} to {format(form.getValues('certificationEndDate'), "PPP")}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -467,7 +485,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
             >
               {createBatchMutation.isPending ? (
                 <>
-                  <CalendarIcon className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Creating...
                 </>
               ) : (
