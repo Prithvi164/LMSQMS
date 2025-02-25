@@ -29,7 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 
 const processFormSchema = z.object({
   name: z.string().min(1, "Process name is required"),
@@ -42,16 +42,23 @@ const processFormSchema = z.object({
   locationId: z.string().min(1, "Location is required"),
 });
 
+const lineOfBusinessOptions = [
+  { value: "customer-support", label: "Customer Support" },
+  { value: "technical-support", label: "Technical Support" },
+  { value: "sales", label: "Sales" }
+];
+
 export function ProcessDetail() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch locations for the dropdown
-  const { data: locations } = useQuery({
+  // Fetch organization data (includes locations)
+  const { data: organizationData, isLoading: organizationLoading } = useQuery({
     queryKey: ['/api/organizations/settings'],
-    select: (data) => data?.locations || [],
   });
+
+  const locations = organizationData?.locations || [];
 
   const form = useForm<z.infer<typeof processFormSchema>>({
     resolver: zodResolver(processFormSchema),
@@ -65,7 +72,7 @@ export function ProcessDetail() {
   });
 
   // Fetch existing processes
-  const { data: processes, isLoading } = useQuery({
+  const { data: processes, isLoading: processesLoading } = useQuery({
     queryKey: ['/api/organizations/settings'],
     select: (data) => data?.processes || [],
   });
@@ -119,6 +126,14 @@ export function ProcessDetail() {
     }
   };
 
+  if (organizationLoading || processesLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -164,9 +179,11 @@ export function ProcessDetail() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="customer-support">Customer Support</SelectItem>
-                          <SelectItem value="technical-support">Technical Support</SelectItem>
-                          <SelectItem value="sales">Sales</SelectItem>
+                          {lineOfBusinessOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -312,9 +329,7 @@ export function ProcessDetail() {
           <CardTitle>Current Processes</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <p className="text-muted-foreground">Loading processes...</p>
-          ) : processes?.length > 0 ? (
+          {processes?.length > 0 ? (
             <div className="space-y-4">
               {processes.map((process) => (
                 <Card key={process.id}>
