@@ -46,22 +46,22 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   // User operations
   async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
+    const [user] = await db.select().from(users).where(eq(users.id, id)) as User[];
     return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
+    const [user] = await db.select().from(users).where(eq(users.username, username)) as User[];
     return user;
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
+    const [user] = await db.select().from(users).where(eq(users.email, email)) as User[];
     return user;
   }
 
   async createUser(user: InsertUser): Promise<User> {
-    const [newUser] = await db.insert(users).values(user).returning();
+    const [newUser] = await db.insert(users).values(user).returning() as User[];
     return newUser;
   }
 
@@ -70,7 +70,7 @@ export class DatabaseStorage implements IStorage {
       .update(users)
       .set(user)
       .where(eq(users.id, id))
-      .returning();
+      .returning() as User[];
     return updatedUser;
   }
 
@@ -82,17 +82,17 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(users)
-      .where(eq(users.organizationId, organizationId));
+      .where(eq(users.organizationId, organizationId)) as User[];
   }
 
   // Organization operations
   async getOrganization(id: number): Promise<Organization | undefined> {
-    const [org] = await db.select().from(organizations).where(eq(organizations.id, id));
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, id)) as Organization[];
     return org;
   }
 
   async createOrganization(org: InsertOrganization): Promise<Organization> {
-    const [newOrg] = await db.insert(organizations).values(org).returning();
+    const [newOrg] = await db.insert(organizations).values(org).returning() as Organization[];
     return newOrg;
   }
 
@@ -100,7 +100,7 @@ export class DatabaseStorage implements IStorage {
     const [org] = await db
       .select()
       .from(organizations)
-      .where(eq(organizations.name, name));
+      .where(eq(organizations.name, name)) as Organization[];
     return org;
   }
 
@@ -109,23 +109,23 @@ export class DatabaseStorage implements IStorage {
       .update(organizations)
       .set(org)
       .where(eq(organizations.id, id))
-      .returning();
+      .returning() as Organization[];
     return updatedOrg;
   }
 
   // Organization settings operations
   async createProcess(process: InsertOrganizationProcess): Promise<OrganizationProcess> {
-    const [newProcess] = await db.insert(organizationProcesses).values(process).returning();
+    const [newProcess] = await db.insert(organizationProcesses).values(process).returning() as OrganizationProcess[];
     return newProcess;
   }
 
   async createBatch(batch: InsertOrganizationBatch): Promise<OrganizationBatch> {
-    const [newBatch] = await db.insert(organizationBatches).values(batch).returning();
+    const [newBatch] = await db.insert(organizationBatches).values(batch).returning() as OrganizationBatch[];
     return newBatch;
   }
 
   async createLocation(location: InsertOrganizationLocation): Promise<OrganizationLocation> {
-    const [newLocation] = await db.insert(organizationLocations).values(location).returning();
+    const [newLocation] = await db.insert(organizationLocations).values(location).returning() as OrganizationLocation[];
     return newLocation;
   }
 
@@ -133,21 +133,21 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(organizationProcesses)
-      .where(eq(organizationProcesses.organizationId, organizationId));
+      .where(eq(organizationProcesses.organizationId, organizationId)) as OrganizationProcess[];
   }
 
   async listBatches(organizationId: number): Promise<OrganizationBatch[]> {
     return await db
       .select()
       .from(organizationBatches)
-      .where(eq(organizationBatches.organizationId, organizationId));
+      .where(eq(organizationBatches.organizationId, organizationId)) as OrganizationBatch[];
   }
 
   async listLocations(organizationId: number): Promise<OrganizationLocation[]> {
     return await db
       .select()
       .from(organizationLocations)
-      .where(eq(organizationLocations.organizationId, organizationId));
+      .where(eq(organizationLocations.organizationId, organizationId)) as OrganizationLocation[];
   }
 }
 

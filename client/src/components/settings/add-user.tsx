@@ -69,7 +69,15 @@ export function AddUser({
 
   const createUserMutation = useMutation({
     mutationFn: async (data: typeof newUserData) => {
-      const res = await apiRequest("POST", "/api/users", data);
+      const payload = {
+        ...data,
+        processId: data.processId ? parseInt(data.processId) : null,
+        batchId: data.batchId ? parseInt(data.batchId) : null,
+        locationId: data.locationId ? parseInt(data.locationId) : null,
+        managerId: data.managerId ? parseInt(data.managerId) : null,
+        organizationId: organization?.id || null,
+      };
+      const res = await apiRequest("POST", "/api/users", payload);
       return res.json();
     },
     onSuccess: () => {
