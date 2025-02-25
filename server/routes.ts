@@ -226,7 +226,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/users/template", (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
-    // Create CSV content with clear column names
+    // Create CSV content with clear column names and proper date format examples
     const headers = [
       'Username*',
       'Password*',
@@ -249,8 +249,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'trainee',
       'john@example.com',
       '1234567890',
-      '2023-01-01',
-      '1990-01-01',
+      '2023-01-01',  // YYYY-MM-DD format
+      '1990-01-01',  // YYYY-MM-DD format
       'Bachelors',
       'manager.username'
     ].join(',');
@@ -270,7 +270,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       '3. Password must be at least 6 characters',
       '4. Phone number must be 10 digits',
       '5. Email must be valid format',
-      '6. Dates should be in YYYY-MM-DD format',
+      '6. Dates must be in YYYY-MM-DD format (e.g., 2023-01-01)',
       '7. ManagerUsername is optional - leave blank if no manager'
     ].join('\n');
 
@@ -292,6 +292,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
+      // Function to format date string to PostgreSQL format
+      const formatDate = (dateStr: string) => {
+        if (!dateStr) return null;
+        // Check if date is already in YYYY-MM-DD format
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+
+        // Try to parse other date formats
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return null;
+
+        return date.toISOString().split('T')[0];
+      };
+
       const csvContent = req.file.buffer.toString('utf-8');
       const lines = csvContent.split('\n');
       const headers = lines[0].split(',').map(h => h.trim().replace(/[\r\n*]/g, ''));
@@ -309,7 +322,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const values = line.split(',').map(v => v.trim());
           if (values.length !== headers.length) {
-            throw new Error('Invalid number of columns');
+            throw new Error(`Invalid number of columns. Expected ${headers.length}, got ${values.length}`);
           }
 
           const userData: Record<string, string> = {};
@@ -331,6 +344,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             managerId = manager.id;
           }
 
+          // Format dates properly
+          const dateOfJoining = formatDate(userData.dateofjoining);
+          const dateOfBirth = formatDate(userData.dateofbirth);
+
           // Hash the password
           const hashedPassword = await hashPassword(userData.password);
 
@@ -343,14 +360,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             role: userData.role.toLowerCase(),
             email: userData.email,
             phoneNumber: userData.phonenumber,
-            dateOfJoining: userData.dateofjoining || null,
-            dateOfBirth: userData.dateofbirth || null,
+            dateOfJoining,
+            dateOfBirth,
             education: userData.education || null,
             organizationId: req.user.organizationId,
-            managerId: managerId,
+            managerId,
             active: true
           };
 
+          console.log('Creating user:', { ...newUser, password: '[REDACTED]' });
           await storage.createUser(newUser);
           results.success++;
         } catch (error: any) {
