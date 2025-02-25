@@ -12,7 +12,6 @@ import { UserManagement } from "@/components/settings/user-management";
 import { UserProfile } from "@/components/settings/user-profile";
 import { AddUser } from "@/components/settings/add-user";
 import { RolePermissions } from "@/components/settings/role-permissions";
-import { PermissionGuard } from "@/hooks/use-permissions";
 
 type SettingsTab = "profile" | "users" | "permissions";
 type UsersSubTab = "add" | "manage";
@@ -36,7 +35,7 @@ export default function Settings() {
   // Filter potential managers based on user's role
   const potentialManagers = users.filter(u => {
     if (user?.role === "admin") {
-      return ["manager", "trainer"].includes(u.role);
+      return ["admin", "manager", "trainer"].includes(u.role);
     } else {
       return u.id === user?.id; // Non-admin can only assign themselves as manager
     }
@@ -68,13 +67,13 @@ export default function Settings() {
   );
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
+    <div className="flex min-h-screen">
       {/* Left Sidebar */}
-      <div className="w-64 border-r">
+      <div className="w-64 border-r bg-background">
         <div className="p-4 border-b">
           <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
             <ChevronLeft className="h-5 w-5" />
-            <span>Settings</span>
+            <span>Back to Dashboard</span>
           </Link>
         </div>
         <div className="p-4 space-y-4">
@@ -87,49 +86,45 @@ export default function Settings() {
               Profile
             </NavButton>
 
-            <PermissionGuard permission="manage_users">
-              <NavButton
-                active={activeTab === "users"}
-                icon={Users}
-                onClick={() => setActiveTab("users")}
-              >
-                Users
-              </NavButton>
+            <NavButton
+              active={activeTab === "users"}
+              icon={Users}
+              onClick={() => setActiveTab("users")}
+            >
+              Users
+            </NavButton>
 
-              {/* Show user sub-tabs only when users tab is active */}
-              {activeTab === "users" && (
-                <div className="pl-6 space-y-2 mt-2">
-                  <button
-                    onClick={() => setActiveUserTab("manage")}
-                    className={cn(
-                      "w-full text-left p-2 rounded-lg transition-colors",
-                      activeUserTab === "manage" ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    Manage Users
-                  </button>
-                  <button
-                    onClick={() => setActiveUserTab("add")}
-                    className={cn(
-                      "w-full text-left p-2 rounded-lg transition-colors",
-                      activeUserTab === "add" ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    Add User
-                  </button>
-                </div>
-              )}
-            </PermissionGuard>
+            {/* Show user sub-tabs only when users tab is active */}
+            {activeTab === "users" && (
+              <div className="pl-6 space-y-2 mt-2">
+                <button
+                  onClick={() => setActiveUserTab("manage")}
+                  className={cn(
+                    "w-full text-left p-2 rounded-lg transition-colors",
+                    activeUserTab === "manage" ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Manage Users
+                </button>
+                <button
+                  onClick={() => setActiveUserTab("add")}
+                  className={cn(
+                    "w-full text-left p-2 rounded-lg transition-colors",
+                    activeUserTab === "add" ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Add User
+                </button>
+              </div>
+            )}
 
-            <PermissionGuard permission="manage_organization">
-              <NavButton
-                active={activeTab === "permissions"}
-                icon={Shield}
-                onClick={() => setActiveTab("permissions")}
-              >
-                Roles & Permissions
-              </NavButton>
-            </PermissionGuard>
+            <NavButton
+              active={activeTab === "permissions"}
+              icon={Shield}
+              onClick={() => setActiveTab("permissions")}
+            >
+              Roles & Permissions
+            </NavButton>
           </div>
         </div>
       </div>
@@ -138,7 +133,7 @@ export default function Settings() {
       <div className="flex-1 p-8 overflow-y-auto">
         {activeTab === "profile" && <UserProfile />}
         {activeTab === "users" && (
-          <PermissionGuard permission="manage_users">
+          <>
             {activeUserTab === "manage" && <UserManagement />}
             {activeUserTab === "add" && (
               <AddUser
@@ -148,13 +143,9 @@ export default function Settings() {
                 potentialManagers={potentialManagers}
               />
             )}
-          </PermissionGuard>
+          </>
         )}
-        {activeTab === "permissions" && (
-          <PermissionGuard permission="manage_organization">
-            <RolePermissions />
-          </PermissionGuard>
-        )}
+        {activeTab === "permissions" && <RolePermissions />}
       </div>
     </div>
   );

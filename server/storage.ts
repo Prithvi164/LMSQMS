@@ -6,6 +6,7 @@ import {
   organizationProcesses,
   organizationBatches,
   organizationLocations,
+  rolePermissions,
   type User,
   type InsertUser,
   type Organization,
@@ -16,6 +17,7 @@ import {
   type InsertOrganizationBatch,
   type OrganizationLocation,
   type InsertOrganizationLocation,
+  type RolePermission,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -42,6 +44,11 @@ export interface IStorage {
   listProcesses(organizationId: number): Promise<OrganizationProcess[]>;
   listBatches(organizationId: number): Promise<OrganizationBatch[]>;
   listLocations(organizationId: number): Promise<OrganizationLocation[]>;
+
+  // Role Permissions operations
+  listRolePermissions(organizationId: number): Promise<RolePermission[]>;
+  getRolePermissions(organizationId: number, role: string): Promise<RolePermission | undefined>;
+  updateRolePermissions(organizationId: number, role: string, permissions: string[]): Promise<RolePermission>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -156,6 +163,48 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(organizationLocations)
       .where(eq(organizationLocations.organizationId, organizationId)) as OrganizationLocation[];
+  }
+
+  // Role Permissions operations
+  async listRolePermissions(organizationId: number): Promise<RolePermission[]> {
+    return await db
+      .select()
+      .from(rolePermissions)
+      .where(eq(rolePermissions.organizationId, organizationId)) as RolePermission[];
+  }
+
+  async getRolePermissions(organizationId: number, role: string): Promise<RolePermission | undefined> {
+    const [permission] = await db
+      .select()
+      .from(rolePermissions)
+      .where(eq(rolePermissions.organizationId, organizationId))
+      .where(eq(rolePermissions.role, role)) as RolePermission[];
+    return permission;
+  }
+
+  async updateRolePermissions(organizationId: number, role: string, permissions: string[]): Promise<RolePermission> {
+    const existingPermission = await this.getRolePermissions(organizationId, role);
+
+    if (existingPermission) {
+      // Update existing permissions
+      const [updated] = await db
+        .update(rolePermissions)
+        .set({ permissions, updatedAt: new Date() })
+        .where(eq(rolePermissions.id, existingPermission.id))
+        .returning() as RolePermission[];
+      return updated;
+    } else {
+      // Create new permissions
+      const [created] = await db
+        .insert(rolePermissions)
+        .values({
+          role,
+          permissions,
+          organizationId,
+        })
+        .returning() as RolePermission[];
+      return created;
+    }
   }
 }
 

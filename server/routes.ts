@@ -222,6 +222,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
+  // Permissions routes
+  app.get("/api/permissions", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
+
+    try {
+      const rolePermissions = await storage.listRolePermissions(req.user.organizationId);
+      res.json(rolePermissions);
+    } catch (error: any) {
+      console.error("Error fetching permissions:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/permissions/:role", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
+
+    try {
+      const rolePermission = await storage.getRolePermissions(req.user.organizationId, req.params.role);
+      if (!rolePermission) {
+        return res.status(404).json({ message: "Role permissions not found" });
+      }
+      res.json(rolePermission);
+    } catch (error: any) {
+      console.error("Error fetching role permissions:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/permissions/:role", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
+    if (req.user.role !== "admin") return res.status(403).json({ message: "Only admins can modify permissions" });
+
+    try {
+      const { permissions } = req.body;
+      if (!Array.isArray(permissions)) {
+        return res.status(400).json({ message: "Permissions must be an array" });
+      }
+
+      const rolePermission = await storage.updateRolePermissions(
+        req.user.organizationId,
+        req.params.role,
+        permissions
+      );
+
+      res.json(rolePermission);
+    } catch (error: any) {
+      console.error("Error updating permissions:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Template download route - update to match CSV upload expectations
   app.get("/api/users/template", (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
