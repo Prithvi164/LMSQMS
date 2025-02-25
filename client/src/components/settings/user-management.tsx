@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import type { User, Organization, OrganizationLocation, InsertUser } from "@shared/schema";
+import type { User, Organization, OrganizationLocation, InsertUser, OrganizationBatch, OrganizationProcess } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,9 @@ type UserFormData = {
   processId: string | null;
   batchId: string | null;
   managerId: string | null;
+  dateOfJoining: string;
+  dateOfBirth: string;
+  education: string;
 };
 
 export function UserManagement() {
@@ -56,13 +59,14 @@ export function UserManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [managerFilter, setManagerFilter] = useState<string>("all");
+  const [batchFilter, setBatchFilter] = useState<string>("all");
 
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
     enabled: !!user,
   });
 
-  // Fetch organization settings to get locations
+  // Fetch organization settings to get locations, batches, etc.
   const { data: orgSettings } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/settings`],
     queryFn: async () => {
@@ -153,16 +157,28 @@ export function UserManagement() {
     return location ? location.name : "Unknown Location";
   };
 
-  // Get unique managers for filter dropdown
-  const uniqueManagers = Array.from(new Set(
-    users.map(u => u.managerId)
-      .filter((id): id is number => id !== null)
-      .map(id => {
-        const manager = users.find(u => u.id === id);
-        return manager ? { id, name: manager.fullName || manager.username } : null;
-      })
-      .filter((manager): manager is { id: number; name: string } => manager !== null)
-  ));
+  // Find batch name for a user
+  const getBatchName = (batchId: number | null) => {
+    if (!batchId || !orgSettings?.batches) return "No Batch";
+    const batch = orgSettings.batches.find((b: OrganizationBatch) => b.id === batchId);
+    return batch ? batch.name : "Unknown Batch";
+  };
+
+  // Get unique managers for filter dropdown, removing duplicates
+  const uniqueManagers = Array.from(
+    new Map(
+      users
+        .filter(u => u.managerId !== null)
+        .map(u => {
+          const manager = users.find(m => m.id === u.managerId);
+          return manager ? [manager.id, { id: manager.id, name: manager.fullName || manager.username }] : null;
+        })
+        .filter((item): item is [number, { id: number; name: string }] => item !== null)
+    ).values()
+  );
+
+  // Get unique batches for filter dropdown
+  const uniqueBatches = orgSettings?.batches || [];
 
   // Filter users based on search term and filters
   const filteredUsers = users.filter(u => {
@@ -177,7 +193,11 @@ export function UserManagement() {
       (managerFilter === "none" && !u.managerId) ||
       (u.managerId?.toString() === managerFilter);
 
-    return matchesSearch && matchesRole && matchesManager;
+    const matchesBatch = batchFilter === "all" ||
+      (batchFilter === "none" && !u.batchId) ||
+      (u.batchId?.toString() === batchFilter);
+
+    return matchesSearch && matchesRole && matchesManager && matchesBatch;
   });
 
   // Create EditUserDialog component to handle the form properly
@@ -195,6 +215,9 @@ export function UserManagement() {
         processId: editUser.processId?.toString() || null,
         batchId: editUser.batchId?.toString() || null,
         managerId: editUser.managerId?.toString() || null,
+        dateOfJoining: editUser.dateOfJoining || "",
+        dateOfBirth: editUser.dateOfBirth || "",
+        education: editUser.education || "",
       }
     });
 
@@ -205,7 +228,7 @@ export function UserManagement() {
             <Edit2 className="h-4 w-4" />
           </Button>
         </DialogTrigger>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
             <DialogDescription>
@@ -267,6 +290,19 @@ export function UserManagement() {
                 />
                 <FormField
                   control={form.control}
+                  name="employeeId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Employee ID</FormLabel>
+                      <FormControl>
+                        <Input {...field} value={field.value || ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
                   name="role"
                   render={({ field }) => (
                     <FormItem>
@@ -288,6 +324,145 @@ export function UserManagement() {
                           )}
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="locationId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Location</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ''}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select location" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="">No Location</SelectItem>
+                          {orgSettings?.locations.map((location: OrganizationLocation) => (
+                            <SelectItem key={location.id} value={location.id.toString()}>
+                              {location.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="processId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Process</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ''}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select process" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="">No Process</SelectItem>
+                          {orgSettings?.processes.map((process: OrganizationProcess) => (
+                            <SelectItem key={process.id} value={process.id.toString()}>
+                              {process.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="batchId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Batch</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ''}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select batch" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="">No Batch</SelectItem>
+                          {orgSettings?.batches.map((batch: OrganizationBatch) => (
+                            <SelectItem key={batch.id} value={batch.id.toString()}>
+                              {batch.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="managerId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Manager</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ''}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select manager" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="">No Manager</SelectItem>
+                          {uniqueManagers.map((manager) => (
+                            <SelectItem key={manager.id} value={manager.id.toString()}>
+                              {manager.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="dateOfJoining"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date of Joining</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" value={field.value || ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="dateOfBirth"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date of Birth</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" value={field.value || ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="education"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Education</FormLabel>
+                      <FormControl>
+                        <Input {...field} value={field.value || ''} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -348,6 +523,20 @@ export function UserManagement() {
                   ))}
                 </SelectContent>
               </Select>
+              <Select value={batchFilter} onValueChange={setBatchFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by batch" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Batches</SelectItem>
+                  <SelectItem value="none">No Batch</SelectItem>
+                  {uniqueBatches.map((batch) => (
+                    <SelectItem key={batch.id} value={batch.id.toString()}>
+                      {batch.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -360,6 +549,7 @@ export function UserManagement() {
                 <TableHead>Role</TableHead>
                 <TableHead>Manager</TableHead>
                 <TableHead>Location</TableHead>
+                <TableHead>Batch</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -375,6 +565,7 @@ export function UserManagement() {
                   </TableCell>
                   <TableCell>{getManagerName(u.managerId)}</TableCell>
                   <TableCell>{getLocationName(u.locationId)}</TableCell>
+                  <TableCell>{getBatchName(u.batchId)}</TableCell>
                   <TableCell>
                     <Switch
                       checked={u.active}
