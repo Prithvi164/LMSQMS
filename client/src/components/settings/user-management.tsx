@@ -670,11 +670,20 @@ export function UserManagement() {
                   <TableCell>{getProcessName(u.processId)}</TableCell>
                   <TableCell>{getBatchName(u.batchId)}</TableCell>
                   <TableCell>
-                    <Switch
-                      checked={u.active}
-                      onCheckedChange={(checked) => toggleUserStatus(u.id, u.active, u.role)}
-                      disabled={u.role === "owner"} // Disable toggle for owner role
-                    />
+                    {u.role === "owner" ? (
+                      <div className="flex items-center" title="Owner status cannot be changed">
+                        <Switch
+                          checked={true}
+                          disabled={true}
+                          className="opacity-50 cursor-not-allowed"
+                        />
+                      </div>
+                    ) : (
+                      <Switch
+                        checked={u.active}
+                        onCheckedChange={(checked) => toggleUserStatus(u.id, u.active, u.role)}
+                      />
+                    )}
                   </TableCell>
                   <TableCell className="space-x-2">
                     <EditUserDialog user={u} />
