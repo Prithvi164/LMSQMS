@@ -284,13 +284,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Admin users can only be modified by owners
-      if (userToUpdate.role === 'admin') {
+      if (userToUpdate.role === 'admin' && req.user.role !== 'owner') {
         return res.status(403).json({ message: "Only owners can modify admin users" });
       }
 
-      // Check if trying to deactivate while not being an owner
-      if ('active' in updateData && !updateData.active) {
-        return res.status(403).json({ message: "Only owners can deactivate users" });
+      // Allow admins to change active status for non-owner users
+      if (req.user.role === 'admin' && 'active' in updateData) {
+        if (userToUpdate.role === 'owner') {
+          return res.status(403).json({ message: "Cannot change owner's active status" });
+        }
+        const updatedUser = await storage.updateUser(userId, { active: updateData.active });
+        return res.json(updatedUser);
       }
 
       // For other roles, restrict certain fields
