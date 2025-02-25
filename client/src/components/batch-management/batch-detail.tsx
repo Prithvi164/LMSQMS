@@ -32,7 +32,23 @@ export function BatchDetail() {
       endDate: "2024-03-31",
       participants: 25,
       lineOfBusiness: "Customer Support",
-      location: "San Francisco"
+      location: "San Francisco",
+      processName: "Customer Service",
+      manager: "Alice Johnson",
+      batchNumber: "B2024-01",
+      inductionDates: {
+        start: "2024-01-01",
+        end: "2024-01-07"
+      },
+      trainingDates: {
+        start: "2024-01-08",
+        end: "2024-02-28"
+      },
+      certificationDates: {
+        start: "2024-03-01",
+        end: "2024-03-15"
+      },
+      capacityLimit: 30
     },
     {
       id: 2,
@@ -43,7 +59,23 @@ export function BatchDetail() {
       endDate: "2024-06-30",
       participants: 30,
       lineOfBusiness: "Technical Support",
-      location: "New York"
+      location: "New York",
+      processName: "Technical Troubleshooting",
+      manager: "Bob Wilson",
+      batchNumber: "B2024-02",
+      inductionDates: {
+        start: "2024-04-01",
+        end: "2024-04-07"
+      },
+      trainingDates: {
+        start: "2024-04-08",
+        end: "2024-05-31"
+      },
+      certificationDates: {
+        start: "2024-06-01",
+        end: "2024-06-15"
+      },
+      capacityLimit: 35
     },
   ]);
 
@@ -93,7 +125,7 @@ export function BatchDetail() {
           <DialogHeader>
             <DialogTitle>Create New Batch</DialogTitle>
           </DialogHeader>
-          <CreateBatchForm />
+          <CreateBatchForm onClose={() => setIsCreateDialogOpen(false)} />
         </DialogContent>
       </Dialog>
 
@@ -108,10 +140,12 @@ export function BatchDetail() {
                     <TableHead>Batch Name</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Line of Business</TableHead>
+                    <TableHead>Process</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead>Trainer</TableHead>
-                    <TableHead>Duration</TableHead>
-                    <TableHead>Participants</TableHead>
+                    <TableHead>Manager</TableHead>
+                    <TableHead>Batch Number</TableHead>
+                    <TableHead>Capacity</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -125,16 +159,14 @@ export function BatchDetail() {
                         </Badge>
                       </TableCell>
                       <TableCell>{batch.lineOfBusiness}</TableCell>
+                      <TableCell>{batch.processName}</TableCell>
                       <TableCell>{batch.location}</TableCell>
                       <TableCell>{batch.trainer}</TableCell>
+                      <TableCell>{batch.manager}</TableCell>
+                      <TableCell>{batch.batchNumber}</TableCell>
                       <TableCell>
-                        <div className="text-sm">
-                          <div>{batch.startDate}</div>
-                          <div className="text-muted-foreground">to</div>
-                          <div>{batch.endDate}</div>
-                        </div>
+                        {batch.participants}/{batch.capacityLimit}
                       </TableCell>
-                      <TableCell>{batch.participants}</TableCell>
                       <TableCell className="text-right">
                         <Button variant="outline" size="sm">
                           View Details
