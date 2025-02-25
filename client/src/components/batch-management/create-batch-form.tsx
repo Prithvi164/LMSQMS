@@ -74,6 +74,11 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
   const createBatchMutation = useMutation({
     mutationFn: async (values: z.infer<typeof formSchema>) => {
       // Transform the form data to match the API expectations
+      const formatDate = (date: Date | undefined) => {
+        if (!date) return undefined;
+        return format(date, "yyyy-MM-dd'T'HH:mm:ss.SSSxxx");
+      };
+
       const data = {
         name: values.name,
         batchNumber: values.batchNumber,
@@ -85,14 +90,14 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
         locationId: parseInt(values.locationId, 10),
         participantCount: values.participantCount,
         capacityLimit: values.capacityLimit,
-        inductionStartDate: values.inductionStartDate.toISOString(),
-        inductionEndDate: values.inductionEndDate.toISOString(),
-        trainingStartDate: values.trainingStartDate.toISOString(),
-        trainingEndDate: values.trainingEndDate.toISOString(),
-        certificationStartDate: values.certificationStartDate.toISOString(),
-        certificationEndDate: values.certificationEndDate.toISOString(),
-        recertificationStartDate: values.recertificationStartDate?.toISOString(),
-        recertificationEndDate: values.recertificationEndDate?.toISOString(),
+        inductionStartDate: formatDate(values.inductionStartDate),
+        inductionEndDate: formatDate(values.inductionEndDate),
+        trainingStartDate: formatDate(values.trainingStartDate),
+        trainingEndDate: formatDate(values.trainingEndDate),
+        certificationStartDate: formatDate(values.certificationStartDate),
+        certificationEndDate: formatDate(values.certificationEndDate),
+        recertificationStartDate: formatDate(values.recertificationStartDate),
+        recertificationEndDate: formatDate(values.recertificationEndDate),
       };
 
       const response = await fetch('/api/batches', {
