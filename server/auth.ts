@@ -46,16 +46,18 @@ async function comparePasswords(supplied: string, stored: string) {
 
 export function setupAuth(app: Express) {
   const sessionSecret = randomBytes(32).toString("hex");
+  const sessionStore = new PostgresSessionStore({
+    conObject: {
+      connectionString: process.env.DATABASE_URL,
+    },
+    createTableIfMissing: true,
+  });
+
   const sessionSettings: session.SessionOptions = {
     secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
-    store: new PostgresSessionStore({
-      conObject: {
-        connectionString: process.env.DATABASE_URL,
-      },
-      createTableIfMissing: true,
-    }),
+    store: sessionStore,
     cookie: {
       secure: process.env.NODE_ENV === "production",
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
@@ -64,7 +66,7 @@ export function setupAuth(app: Express) {
     },
   };
 
-  app.set("trust proxy", 1);
+  // Important: Set up session before passport
   app.use(session(sessionSettings));
   app.use(passport.initialize());
   app.use(passport.session());
@@ -127,12 +129,6 @@ export function setupAuth(app: Express) {
         return res.status(400).json({ message: "Username already exists" });
       }
 
-      // Check if organization name already exists
-      const existingOrg = await storage.getOrganizationByName(data.organizationName);
-      if (existingOrg) {
-        return res.status(400).json({ message: "Organization name already exists" });
-      }
-
       // Create organization and admin user
       const organization = await storage.createOrganization({
         name: data.organizationName,
@@ -179,14 +175,17 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/logout", (req, res, next) => {
-    // Destroy session first
+    if (!req.session) {
+      return res.status(200).json({ message: "Already logged out" });
+    }
+
     req.session.destroy((err) => {
-      if (err) return next(err);
-      // Then logout
-      req.logout((err) => {
-        if (err) return next(err);
-        res.sendStatus(200);
-      });
+      if (err) {
+        console.error("Session destruction error:", err);
+        return next(err);
+      }
+      res.clearCookie('connect.sid');
+      res.status(200).json({ message: "Logged out successfully" });
     });
   });
 
