@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -53,17 +54,24 @@ export function ProcessDetail() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
-  // Fetch locations for the dropdown
-  const { data: locationsData, isLoading: locationsLoading } = useQuery({
-    queryKey: ['/api/organizations/locations'],
-    select: (data) => data?.locations || [],
+  // Fetch organization data first
+  const { data: organization, isLoading: orgLoading } = useQuery({
+    queryKey: ["/api/organization"],
+    enabled: !!user,
   });
 
-  // Fetch existing processes
-  const { data: processes, isLoading: processesLoading } = useQuery({
-    queryKey: ['/api/organizations/settings'],
-    select: (data) => data?.processes || [],
+  // Then fetch organization settings which includes locations and processes
+  const { data: orgSettings, isLoading: settingsLoading } = useQuery({
+    queryKey: [`/api/organizations/${organization?.id}/settings`],
+    queryFn: async () => {
+      if (!organization?.id) return null;
+      const res = await fetch(`/api/organizations/${organization.id}/settings`);
+      if (!res.ok) throw new Error('Failed to fetch organization settings');
+      return res.json();
+    },
+    enabled: !!organization?.id,
   });
 
   const form = useForm<z.infer<typeof processFormSchema>>({
@@ -79,7 +87,7 @@ export function ProcessDetail() {
 
   const createProcessMutation = useMutation({
     mutationFn: async (data: z.infer<typeof processFormSchema>) => {
-      const response = await fetch('/api/organizations/settings', {
+      const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -101,7 +109,7 @@ export function ProcessDetail() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/organizations/settings'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
       toast({
         title: "Success",
         description: "Process created successfully",
@@ -126,7 +134,7 @@ export function ProcessDetail() {
     }
   };
 
-  if (locationsLoading || processesLoading) {
+  if (orgLoading || settingsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -134,7 +142,9 @@ export function ProcessDetail() {
     );
   }
 
-  const hasLocations = locationsData && locationsData.length > 0;
+  const locations = orgSettings?.locations || [];
+  const processes = orgSettings?.processes || [];
+  const hasLocations = locations.length > 0;
 
   return (
     <div className="space-y-4">
@@ -208,7 +218,7 @@ export function ProcessDetail() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Location</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select Location" />
@@ -216,7 +226,7 @@ export function ProcessDetail() {
                         </FormControl>
                         <SelectContent>
                           {hasLocations ? (
-                            locationsData.map((location) => (
+                            locations.map((location) => (
                               <SelectItem key={location.id} value={location.id.toString()}>
                                 {location.name}
                               </SelectItem>
@@ -363,7 +373,7 @@ export function ProcessDetail() {
                       <div>
                         <p className="font-medium">Location</p>
                         <p className="text-muted-foreground">
-                          {locationsData?.find(l => l.id === process.locationId)?.name}
+                          {locations?.find(l => l.id === process.locationId)?.name}
                         </p>
                       </div>
                       <div>
