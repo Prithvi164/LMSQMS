@@ -235,6 +235,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'Role*',
       'Email*',
       'PhoneNumber*',
+      'Location',
+      'ProcessName',
+      'BatchName',
       'DateOfJoining',
       'DateOfBirth',
       'Education',
@@ -249,6 +252,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'trainee',
       'john@example.com',
       '1234567890',
+      'New York',
+      'Customer Support',
+      'Batch A - 2025',
       '2023-01-01',  // YYYY-MM-DD format
       '1990-01-01',  // YYYY-MM-DD format
       'Bachelors',
@@ -271,7 +277,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       '4. Phone number must be 10 digits',
       '5. Email must be valid format',
       '6. Dates must be in YYYY-MM-DD format (e.g., 2023-01-01)',
-      '7. ManagerUsername is optional - leave blank if no manager'
+      '7. ManagerUsername is optional - leave blank if no manager',
+      '8. Location, ProcessName, and BatchName must match existing values in your organization'
     ].join('\n');
 
     const csvContent = headers + '\n' + example + instructions;
@@ -327,6 +334,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         failures: [] as { row: number; error: string }[]
       };
 
+      // Fetch organization settings first
+      const [processes, batches, locations] = await Promise.all([
+        storage.listProcesses(req.user.organizationId),
+        storage.listBatches(req.user.organizationId),
+        storage.listLocations(req.user.organizationId),
+      ]);
+
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
@@ -377,6 +391,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log(`Found manager with ID: ${managerId}`);
           }
 
+          // Find location if specified
+          let locationId: number | null = null;
+          if (userData.location) {
+            const location = locations.find(l => l.name.toLowerCase() === userData.location.toLowerCase());
+            if (!location) {
+              throw new Error(`Location not found: ${userData.location}`);
+            }
+            locationId = location.id;
+          }
+
+          // Find process if specified
+          let processId: number | null = null;
+          if (userData.processname) {
+            const process = processes.find(p => p.name.toLowerCase() === userData.processname.toLowerCase());
+            if (!process) {
+              throw new Error(`Process not found: ${userData.processname}`);
+            }
+            processId = process.id;
+          }
+
+          // Find batch if specified
+          let batchId: number | null = null;
+          if (userData.batchname) {
+            const batch = batches.find(b => b.name.toLowerCase() === userData.batchname.toLowerCase());
+            if (!batch) {
+              throw new Error(`Batch not found: ${userData.batchname}`);
+            }
+            batchId = batch.id;
+          }
+
           // Format dates properly
           const dateOfJoining = formatDate(userData.dateofjoining);
           const dateOfBirth = formatDate(userData.dateofbirth);
@@ -404,6 +448,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             education: userData.education || null,
             organizationId: req.user.organizationId,
             managerId,
+            locationId,
+            processId,
+            batchId,
             active: true
           };
 
@@ -423,7 +470,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(results);
     } catch (error: any) {
       console.error('CSV upload error:', error);
-      res.status(400).json({ 
+      res.status(400).json({
         message: error.message,
         details: 'Please ensure the CSV file matches the template format'
       });
