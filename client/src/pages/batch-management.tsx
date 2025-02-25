@@ -5,20 +5,27 @@ import { ProcessDetail } from "@/components/batch-management/process-detail";
 
 export default function BatchManagement() {
   return (
-    <div className="container py-6">
-      <h1 className="text-2xl font-bold mb-6">Batch Management</h1>
+    <div className="flex-1 space-y-4 p-4 md:p-8">
+      <div className="flex items-center justify-between space-y-2">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Batch Management</h2>
+          <p className="text-muted-foreground">
+            Manage training batches and process details
+          </p>
+        </div>
+      </div>
 
-      <Tabs defaultValue="batch-detail" className="w-full">
-        <TabsList className="mb-4">
+      <Tabs defaultValue="batch-detail" className="space-y-4">
+        <TabsList>
           <TabsTrigger value="batch-detail">Batch Detail</TabsTrigger>
           <TabsTrigger value="process-detail">Process Detail</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="batch-detail" className="mt-6">
+        <TabsContent value="batch-detail" className="space-y-4">
           <BatchDetail />
         </TabsContent>
 
-        <TabsContent value="process-detail" className="mt-6">
+        <TabsContent value="process-detail" className="space-y-4">
           <ProcessDetail />
         </TabsContent>
       </Tabs>
