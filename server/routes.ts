@@ -307,12 +307,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Function to normalize role string
       const normalizeRole = (role: string) => {
-        return role.toLowerCase().replace(/\s+/g, '_');
+        const normalized = role.toLowerCase().replace(/\s+/g, '_');
+        const validRoles = ['admin', 'manager', 'trainer', 'trainee', 'advisor', 'team_lead'];
+        if (!validRoles.includes(normalized)) {
+          throw new Error(`Invalid role: ${role}. Must be one of: ${validRoles.join(', ')}`);
+        }
+        return normalized;
       };
 
       const csvContent = req.file.buffer.toString('utf-8');
       const lines = csvContent.split('\n');
       const headers = lines[0].split(',').map(h => h.trim().replace(/[\r\n*]/g, ''));
+
+      console.log('Processing CSV with headers:', headers);
 
       // Process data rows (skip header)
       const results = {
@@ -325,6 +332,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!line) continue;
 
         try {
+          console.log(`\nProcessing row ${i}:`);
+
           const values = line.split(',').map(v => v.trim());
           if (values.length !== headers.length) {
             throw new Error(`Invalid number of columns. Expected ${headers.length}, got ${values.length}`);
@@ -339,6 +348,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             userData[fieldName] = values[index];
           });
 
+          console.log('Parsed user data:', { ...userData, password: '[REDACTED]' });
+
+          // Basic validation
+          if (!userData.username) throw new Error('Username is required');
+          if (!userData.password) throw new Error('Password is required');
+          if (!userData.fullname) throw new Error('Full Name is required');
+          if (!userData.employeeid) throw new Error('Employee ID is required');
+          if (!userData.email) throw new Error('Email is required');
+          if (!userData.role) throw new Error('Role is required');
+          if (!userData.phonenumber) throw new Error('Phone Number is required');
+
           // Check if username already exists
           const existingUser = await storage.getUserByUsername(userData.username);
           if (existingUser) {
@@ -348,19 +368,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Find manager if specified
           let managerId: number | null = null;
           if (userData.managerusername) {
+            console.log(`Looking up manager: ${userData.managerusername}`);
             const manager = await storage.getUserByUsername(userData.managerusername);
             if (!manager) {
               throw new Error(`Manager not found: ${userData.managerusername}`);
             }
             managerId = manager.id;
+            console.log(`Found manager with ID: ${managerId}`);
           }
 
           // Format dates properly
           const dateOfJoining = formatDate(userData.dateofjoining);
           const dateOfBirth = formatDate(userData.dateofbirth);
 
+          console.log('Formatted dates:', { dateOfJoining, dateOfBirth });
+
           // Hash the password
           const hashedPassword = await hashPassword(userData.password);
+
+          // Normalize and validate role
+          const normalizedRole = normalizeRole(userData.role);
+          console.log('Normalized role:', normalizedRole);
 
           // Create user with validated data
           const newUser = {
@@ -368,7 +396,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             password: hashedPassword,
             fullName: userData.fullname,
             employeeId: userData.employeeid,
-            role: normalizeRole(userData.role),
+            role: normalizedRole,
             email: userData.email,
             phoneNumber: userData.phonenumber,
             dateOfJoining,
@@ -381,6 +409,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           console.log('Creating user:', { ...newUser, password: '[REDACTED]' });
           await storage.createUser(newUser);
+          console.log('User created successfully');
           results.success++;
         } catch (error: any) {
           console.error(`Row ${i} processing error:`, error);
