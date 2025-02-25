@@ -35,23 +35,20 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { insertUserSchema } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { z } from "zod";
 
-// Type for form data
-type UserFormData = {
-  username: string;
-  fullName: string;
-  email: string;
-  employeeId: string;
-  role: string;
-  phoneNumber: string;
-  locationId: string | null;
-  processId: string | null;
-  batchId: string | null;
-  managerId: string | null;
-  dateOfJoining: string;
-  dateOfBirth: string;
-  education: string;
-};
+// Extend the insertUserSchema for the edit form
+const editUserSchema = insertUserSchema.extend({
+  locationId: z.string().optional(),
+  processId: z.string().optional(),
+  batchId: z.string().optional(),
+  managerId: z.string().optional(),
+  dateOfJoining: z.string().optional(),
+  dateOfBirth: z.string().optional(),
+  education: z.string().optional(),
+}).partial();
+
+type UserFormData = z.infer<typeof editUserSchema>;
 
 export function UserManagement() {
   const { user } = useAuth();
@@ -203,7 +200,7 @@ export function UserManagement() {
   // Create EditUserDialog component to handle the form properly
   const EditUserDialog = ({ user: editUser }: { user: User }) => {
     const form = useForm<UserFormData>({
-      resolver: zodResolver(insertUserSchema),
+      resolver: zodResolver(editUserSchema),
       defaultValues: {
         username: editUser.username,
         fullName: editUser.fullName || "",
@@ -237,16 +234,20 @@ export function UserManagement() {
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(async (data) => {
-              await updateUserMutation.mutateAsync({
-                id: editUser.id,
-                data: {
-                  ...data,
-                  locationId: data.locationId === "none" ? null : parseInt(data.locationId),
-                  processId: data.processId === "none" ? null : parseInt(data.processId),
-                  batchId: data.batchId === "none" ? null : parseInt(data.batchId),
-                  managerId: data.managerId === "none" ? null : parseInt(data.managerId),
-                }
-              });
+              try {
+                await updateUserMutation.mutateAsync({
+                  id: editUser.id,
+                  data: {
+                    ...data,
+                    locationId: data.locationId === "none" ? null : parseInt(data.locationId!),
+                    processId: data.processId === "none" ? null : parseInt(data.processId!),
+                    batchId: data.batchId === "none" ? null : parseInt(data.batchId!),
+                    managerId: data.managerId === "none" ? null : parseInt(data.managerId!),
+                  }
+                });
+              } catch (error) {
+                console.error('Error updating user:', error);
+              }
             })} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <FormField
@@ -334,7 +335,7 @@ export function UserManagement() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Location</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select location" />
@@ -342,7 +343,7 @@ export function UserManagement() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="none">No Location</SelectItem>
-                          {orgSettings?.locations.map((location: OrganizationLocation) => (
+                          {orgSettings?.locations?.map((location: OrganizationLocation) => (
                             <SelectItem key={location.id} value={location.id.toString()}>
                               {location.name}
                             </SelectItem>
@@ -359,7 +360,7 @@ export function UserManagement() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Process</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select process" />
@@ -367,7 +368,7 @@ export function UserManagement() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="none">No Process</SelectItem>
-                          {orgSettings?.processes.map((process: OrganizationProcess) => (
+                          {orgSettings?.processes?.map((process: OrganizationProcess) => (
                             <SelectItem key={process.id} value={process.id.toString()}>
                               {process.name}
                             </SelectItem>
@@ -384,7 +385,7 @@ export function UserManagement() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Batch</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select batch" />
@@ -392,7 +393,7 @@ export function UserManagement() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="none">No Batch</SelectItem>
-                          {orgSettings?.batches.map((batch: OrganizationBatch) => (
+                          {orgSettings?.batches?.map((batch: OrganizationBatch) => (
                             <SelectItem key={batch.id} value={batch.id.toString()}>
                               {batch.name}
                             </SelectItem>
@@ -409,7 +410,7 @@ export function UserManagement() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Manager</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select manager" />
