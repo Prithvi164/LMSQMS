@@ -18,14 +18,6 @@ declare global {
   }
 }
 
-// Registration validation schema
-const registrationSchema = z.object({
-  username: z.string().min(3),
-  email: z.string().email(),
-  password: z.string().min(6),
-  organizationName: z.string().min(2),
-});
-
 async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
   const buf = (await scryptAsync(password, salt, 64)) as Buffer;
@@ -53,7 +45,7 @@ export function setupAuth(app: Express) {
     createTableIfMissing: true,
   });
 
-  const sessionSettings: session.SessionOptions = {
+  app.use(session({
     secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
@@ -61,13 +53,9 @@ export function setupAuth(app: Express) {
     cookie: {
       secure: process.env.NODE_ENV === "production",
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite: 'lax',
-      path: '/',
     },
-  };
+  }));
 
-  // Important: Set up session before passport
-  app.use(session(sessionSettings));
   app.use(passport.initialize());
   app.use(passport.session());
 
@@ -75,9 +63,8 @@ export function setupAuth(app: Express) {
     new LocalStrategy(async (username, password, done) => {
       try {
         console.log("Attempting login for:", username);
-
-        // Try to find user by username first, then by email
         let user = await storage.getUserByUsername(username);
+
         if (!user) {
           console.log("User not found by username, trying email...");
           user = await storage.getUserByEmail(username);
@@ -119,47 +106,11 @@ export function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/register", async (req, res, next) => {
-    try {
-      const data = registrationSchema.parse(req.body);
-
-      // Check if username already exists
-      const existingUser = await storage.getUserByUsername(data.username);
-      if (existingUser) {
-        return res.status(400).json({ message: "Username already exists" });
-      }
-
-      // Create organization and admin user
-      const organization = await storage.createOrganization({
-        name: data.organizationName,
-      });
-
-      const hashedPassword = await hashPassword(data.password);
-      const user = await storage.createUser({
-        username: data.username,
-        email: data.email,
-        password: hashedPassword,
-        organizationId: organization.id,
-        role: "admin",
-        fullName: data.username, // Default to username
-        employeeId: `EMP${Date.now()}`, // Generate a unique employee ID
-        phoneNumber: "", // Empty string for optional fields
-      });
-
-      req.login(user, (err) => {
-        if (err) return next(err);
-        res.status(201).json(user);
-      });
-    } catch (err) {
-      next(err);
-    }
-  });
-
   app.post("/api/login", (req, res, next) => {
     passport.authenticate("local", (err, user, info) => {
       if (err) {
         console.error("Login error:", err);
-        return next(err);
+        return res.status(500).json({ message: "Internal server error" });
       }
       if (!user) {
         return res.status(401).json({ message: info?.message || "Invalid credentials" });
@@ -167,22 +118,21 @@ export function setupAuth(app: Express) {
       req.login(user, (err) => {
         if (err) {
           console.error("Login session error:", err);
-          return next(err);
+          return res.status(500).json({ message: "Session error" });
         }
         return res.json(user);
       });
     })(req, res, next);
   });
 
-  app.post("/api/logout", (req, res, next) => {
+  app.post("/api/logout", (req, res) => {
     if (!req.session) {
       return res.status(200).json({ message: "Already logged out" });
     }
-
     req.session.destroy((err) => {
       if (err) {
-        console.error("Session destruction error:", err);
-        return next(err);
+        console.error("Logout error:", err);
+        return res.status(500).json({ message: "Logout failed" });
       }
       res.clearCookie('connect.sid');
       res.status(200).json({ message: "Logged out successfully" });

@@ -71,14 +71,18 @@ export function AddUser({
     mutationFn: async (data: typeof newUserData) => {
       const payload = {
         ...data,
-        processId: data.processId ? parseInt(data.processId) : null,
-        batchId: data.batchId ? parseInt(data.batchId) : null,
-        locationId: data.locationId ? parseInt(data.locationId) : null,
-        managerId: data.managerId ? parseInt(data.managerId) : null,
+        processId: data.processId ? Number(data.processId) : null,
+        batchId: data.batchId ? Number(data.batchId) : null,
+        locationId: data.locationId ? Number(data.locationId) : null,
+        managerId: data.managerId ? Number(data.managerId) : null,
         organizationId: organization?.id || null,
       };
-      const res = await apiRequest("POST", "/api/users", payload);
-      return res.json();
+      const response = await apiRequest("POST", "/api/users", payload);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to create user");
+      }
+      return response.json();
     },
     onSuccess: () => {
       toast({
@@ -86,6 +90,7 @@ export function AddUser({
         description: "User created successfully",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      // Reset form
       setNewUserData({
         username: "",
         password: "",
@@ -496,9 +501,10 @@ export function AddUser({
                       <SelectValue placeholder="Select manager" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="">No Manager</SelectItem>
                       {organizationManagers.map((manager) => (
-                        <SelectItem key={manager.id} value={manager.id.toString()}>
-                          {manager.fullName}
+                        <SelectItem key={manager.id} value={String(manager.id)}>
+                          {manager.fullName || manager.username}
                         </SelectItem>
                       ))}
                     </SelectContent>
