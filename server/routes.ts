@@ -222,32 +222,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
-  // Template download route
+  // Template download route - update to match CSV upload expectations
   app.get("/api/users/template", (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
-    // Create CSV content
+    // Create CSV content with clear column names
     const headers = [
-      'Username*', 'Password*', 'Full Name*', 'Employee ID*', 'Role*',
-      'Location*', 'Email*', 'Phone Number*', 'Process Name', 'Education',
-      'Batch Name', 'Date of Joining', 'Date of Birth', 'Manager Username'
+      'Username*',
+      'Password*',
+      'FullName*',
+      'EmployeeID*',
+      'Role*',
+      'Email*',
+      'PhoneNumber*',
+      'DateOfJoining',
+      'DateOfBirth',
+      'Education',
+      'ManagerUsername'
     ].join(',');
 
     const example = [
-      'john.doe', 'password123', 'John Doe', 'EMP001', 'trainee',
-      'New York', 'john@example.com', '1234567890', 'Sales', 'Bachelor',
-      'Batch-2023', '2023-01-01', '1990-01-01', 'manager.username'
+      'john.doe',
+      'password123',
+      'John Doe',
+      'EMP001',
+      'trainee',
+      'john@example.com',
+      '1234567890',
+      '2023-01-01',
+      '1990-01-01',
+      'Bachelors',
+      'manager.username'
     ].join(',');
+
+    const validRoles = [
+      'trainee',
+      'trainer',
+      'manager',
+      'advisor',
+      'team_lead'
+    ].join(', ');
 
     const instructions = [
       '\n\nInstructions:',
       '1. Fields marked with * are mandatory',
-      '2. Role must be one of: trainee, trainer, manager',
+      `2. Role must be one of: ${validRoles}`,
       '3. Password must be at least 6 characters',
       '4. Phone number must be 10 digits',
       '5. Email must be valid format',
       '6. Dates should be in YYYY-MM-DD format',
-      '7. Manager Username is required for trainee and trainer roles'
+      '7. ManagerUsername is optional - leave blank if no manager'
     ].join('\n');
 
     const csvContent = headers + '\n' + example + instructions;
@@ -270,7 +294,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const csvContent = req.file.buffer.toString('utf-8');
       const lines = csvContent.split('\n');
-      const headers = lines[0].split(',');
+      const headers = lines[0].split(',').map(h => h.trim().replace(/[\r\n*]/g, ''));
 
       // Process data rows (skip header)
       const results = {
@@ -283,45 +307,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!line) continue;
 
         try {
-          const values = line.split(',');
-          const userData = Object.fromEntries(
-            headers.map((header, index) => [header.trim(), values[index]?.trim()])
-          );
+          const values = line.split(',').map(v => v.trim());
+          if (values.length !== headers.length) {
+            throw new Error('Invalid number of columns');
+          }
 
-          // Hash the password
-          const hashedPassword = await hashPassword(userData['Password']);
+          const userData: Record<string, string> = {};
+          headers.forEach((header, index) => {
+            // Map CSV headers to database fields
+            const fieldName = header.toLowerCase()
+              .replace(/\s+/g, '')
+              .replace('*', '');
+            userData[fieldName] = values[index];
+          });
 
           // Find manager if specified
-          let managerId: number | undefined;
-          if (userData['Manager Username']) {
-            const manager = await storage.getUserByUsername(userData['Manager Username']);
+          let managerId: number | null = null;
+          if (userData.managerusername) {
+            const manager = await storage.getUserByUsername(userData.managerusername);
             if (!manager) {
-              throw new Error('Manager not found');
+              throw new Error(`Manager not found: ${userData.managerusername}`);
             }
             managerId = manager.id;
           }
 
-          // Create user with validated data
-          await storage.createUser({
-            username: userData['Username'],
-            password: hashedPassword,
-            fullName: userData['Full Name'],
-            employeeId: userData['Employee ID'],
-            role: userData['Role'].toLowerCase(),
-            email: userData['Email'],
-            phoneNumber: userData['Phone Number'],
-            dateOfJoining: userData['Date of Joining'],
-            dateOfBirth: userData['Date of Birth'],
-            education: userData['Education'],
-            organizationId: req.user.organizationId,
-            managerId,
-          });
+          // Hash the password
+          const hashedPassword = await hashPassword(userData.password);
 
+          // Create user with validated data
+          const newUser = {
+            username: userData.username,
+            password: hashedPassword,
+            fullName: userData.fullname,
+            employeeId: userData.employeeid,
+            role: userData.role.toLowerCase(),
+            email: userData.email,
+            phoneNumber: userData.phonenumber,
+            dateOfJoining: userData.dateofjoining || null,
+            dateOfBirth: userData.dateofbirth || null,
+            education: userData.education || null,
+            organizationId: req.user.organizationId,
+            managerId: managerId,
+            active: true
+          };
+
+          await storage.createUser(newUser);
           results.success++;
         } catch (error: any) {
+          console.error('Row processing error:', error);
           results.failures.push({
-            row: i + 1,
-            error: error.message
+            row: i,
+            error: error.message || 'Unknown error occurred'
           });
         }
       }
@@ -329,7 +365,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(results);
     } catch (error: any) {
       console.error('CSV upload error:', error);
-      res.status(400).json({ message: error.message });
+      res.status(400).json({ 
+        message: error.message,
+        details: 'Please ensure the CSV file matches the template format'
+      });
     }
   });
 
