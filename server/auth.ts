@@ -35,12 +35,23 @@ async function hashPassword(password: string) {
 async function comparePasswords(supplied: string, stored: string) {
   try {
     if (!stored || !stored.includes(".")) {
-      console.error("Invalid stored password format");
+      console.error("Invalid stored password format:", stored);
       return false;
     }
     const [hashed, salt] = stored.split(".");
+    console.log("Password comparison details:");
+    console.log("- Salt:", salt);
+    console.log("- Stored hash length:", hashed.length);
+    console.log("- Stored hash:", hashed);
+
     const hashedBuf = Buffer.from(hashed, "hex");
     const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+    const suppliedHex = suppliedBuf.toString("hex");
+
+    console.log("- Supplied password length:", supplied.length);
+    console.log("- Generated hash:", suppliedHex);
+    console.log("- Generated hash length:", suppliedBuf.length);
+
     return timingSafeEqual(hashedBuf, suppliedBuf);
   } catch (error) {
     console.error("Password comparison error:", error);
@@ -92,6 +103,9 @@ export function setupAuth(app: Express) {
           console.log("User account is inactive");
           return done(null, false, { message: "Account is inactive. Please contact your administrator." });
         }
+
+        console.log("Found user:", user.username, "role:", user.role);
+        console.log("Stored password format:", user.password);
 
         const isValidPassword = await comparePasswords(password, user.password);
         console.log("Password validation result:", isValidPassword);

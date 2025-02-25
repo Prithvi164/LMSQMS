@@ -15,8 +15,6 @@ const upload = multer({
   storage: multer.memoryStorage(),
   fileFilter: (_req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
     try {
-      console.log('Processing file upload:', file.originalname);
-
       if (!file) {
         console.error('No file received');
         cb(new Error('No file uploaded'));
@@ -54,6 +52,26 @@ async function hashPassword(password: string) {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes (/api/register, /api/login, /api/logout, /api/user)
   setupAuth(app);
+
+  // Test route to hash a specific user's password
+  app.post("/api/admin/hash-password", async (req, res) => {
+    if (!req.user || req.user.role !== "admin") {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const { email, password } = req.body;
+      const hashedPassword = await hashPassword(password);
+
+      // Update the user's password
+      await storage.updateUserPassword(email, hashedPassword);
+
+      res.json({ message: "Password hashed successfully" });
+    } catch (error: any) {
+      console.error("Password hashing error:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
 
   // Organization routes
   app.get("/api/organization", async (req, res) => {
