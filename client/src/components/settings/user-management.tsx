@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import type { User } from "@shared/schema";
+import type { User, Organization, OrganizationLocation } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,18 @@ export function UserManagement() {
     enabled: !!user,
   });
 
+  // Fetch organization settings to get locations
+  const { data: orgSettings } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/settings`],
+    queryFn: async () => {
+      if (!user?.organizationId) return null;
+      const res = await fetch(`/api/organizations/${user.organizationId}/settings`);
+      if (!res.ok) throw new Error('Failed to fetch organization settings');
+      return res.json();
+    },
+    enabled: !!user?.organizationId,
+  });
+
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: number) => {
       await apiRequest("DELETE", `/api/users/${userId}`);
@@ -68,6 +80,13 @@ export function UserManagement() {
     if (!managerId) return "No Manager";
     const manager = users.find(u => u.id === managerId);
     return manager ? (manager.fullName || manager.username) : "Unknown Manager";
+  };
+
+  // Find location name for a user
+  const getLocationName = (locationId: number | null) => {
+    if (!locationId || !orgSettings?.locations) return "No Location";
+    const location = orgSettings.locations.find((l: OrganizationLocation) => l.id === locationId);
+    return location ? location.name : "Unknown Location";
   };
 
   // Get unique managers for filter dropdown
@@ -167,7 +186,7 @@ export function UserManagement() {
                     <Badge>{u.role}</Badge>
                   </TableCell>
                   <TableCell>{getManagerName(u.managerId)}</TableCell>
-                  <TableCell>{u.locationId}</TableCell>
+                  <TableCell>{getLocationName(u.locationId)}</TableCell>
                   <TableCell className="space-x-2">
                     <Dialog>
                       <DialogTrigger asChild>
