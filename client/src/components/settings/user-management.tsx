@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -35,6 +35,20 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { insertUserSchema } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+
+// Type for form data
+type UserFormData = {
+  username: string;
+  fullName: string;
+  email: string;
+  employeeId: string;
+  role: string;
+  phoneNumber: string;
+  locationId: string | null;
+  processId: string | null;
+  batchId: string | null;
+  managerId: string | null;
+};
 
 export function UserManagement() {
   const { user } = useAuth();
@@ -168,7 +182,7 @@ export function UserManagement() {
 
   // Create EditUserDialog component to handle the form properly
   const EditUserDialog = ({ user: editUser }: { user: User }) => {
-    const form = useForm<InsertUser>({
+    const form = useForm<UserFormData>({
       resolver: zodResolver(insertUserSchema),
       defaultValues: {
         username: editUser.username,
@@ -177,10 +191,10 @@ export function UserManagement() {
         employeeId: editUser.employeeId || "",
         role: editUser.role,
         phoneNumber: editUser.phoneNumber || "",
-        locationId: editUser.locationId?.toString() || "",
-        processId: editUser.processId?.toString() || "",
-        batchId: editUser.batchId?.toString() || "",
-        managerId: editUser.managerId?.toString() || "",
+        locationId: editUser.locationId?.toString() || null,
+        processId: editUser.processId?.toString() || null,
+        batchId: editUser.batchId?.toString() || null,
+        managerId: editUser.managerId?.toString() || null,
       }
     });
 
@@ -204,10 +218,10 @@ export function UserManagement() {
                 id: editUser.id,
                 data: {
                   ...data,
-                  locationId: data.locationId ? Number(data.locationId) : null,
-                  processId: data.processId ? Number(data.processId) : null,
-                  batchId: data.batchId ? Number(data.batchId) : null,
-                  managerId: data.managerId ? Number(data.managerId) : null,
+                  locationId: data.locationId ? parseInt(data.locationId) : null,
+                  processId: data.processId ? parseInt(data.processId) : null,
+                  batchId: data.batchId ? parseInt(data.batchId) : null,
+                  managerId: data.managerId ? parseInt(data.managerId) : null,
                 }
               });
             })} className="space-y-4">
@@ -219,7 +233,7 @@ export function UserManagement() {
                     <FormItem>
                       <FormLabel>Full Name</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input {...field} value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -232,7 +246,7 @@ export function UserManagement() {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input {...field} type="email" />
+                        <Input {...field} type="email" value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -245,7 +259,7 @@ export function UserManagement() {
                     <FormItem>
                       <FormLabel>Phone Number</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input {...field} value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -260,7 +274,7 @@ export function UserManagement() {
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue />
+                            <SelectValue placeholder="Select role" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
