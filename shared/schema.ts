@@ -4,7 +4,7 @@ import { relations } from "drizzle-orm";
 import { z } from "zod";
 
 // Role enum
-export const roleEnum = pgEnum('role', ['admin', 'manager', 'trainer', 'trainee']);
+export const roleEnum = pgEnum('role', ['admin', 'manager', 'trainer', 'trainee', 'advisor', 'teamlead']);
 
 // Organizations table - remove JSON arrays
 export const organizations = pgTable("organizations", {
