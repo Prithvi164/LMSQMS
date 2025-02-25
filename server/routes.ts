@@ -10,7 +10,7 @@ import { insertUserSchema } from "@shared/schema";
 // Configure multer for handling file uploads
 const upload = multer({
   storage: multer.memoryStorage(),
-  fileFilter: (_req, file, cb) => {
+  fileFilter: (_req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
     try {
       console.log('Processing file upload:', file.originalname);
 
@@ -47,6 +47,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Organization routes
   app.get("/api/organization", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
     const organization = await storage.getOrganization(req.user.organizationId);
     res.json(organization);
   });
@@ -130,84 +131,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User management routes
   app.get("/api/users", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
     const users = await storage.listUsers(req.user.organizationId);
     res.json(users);
-  });
-
-
-  // Template download route
-  app.get("/api/users/template", (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    // Create CSV content
-    const headers = [
-      'Username*', 'Password*', 'Full Name*', 'Employee ID*', 'Role*',
-      'Location*', 'Email*', 'Phone Number*', 'Process Name', 'Education',
-      'Batch Name', 'Date of Joining', 'Date of Birth', 'Manager Username'
-    ].join(',');
-
-    const example = [
-      'john.doe', 'password123', 'John Doe', 'EMP001', 'trainee',
-      'New York', 'john@example.com', '1234567890', 'Sales', 'Bachelor',
-      'Batch-2023', '2023-01-01', '1990-01-01', 'manager.username'
-    ].join(',');
-
-    const instructions = [
-      '\n\nInstructions:',
-      '1. Fields marked with * are mandatory',
-      '2. Role must be one of: trainee, trainer, manager',
-      '3. Password must be at least 6 characters',
-      '4. Phone number must be 10 digits',
-      '5. Email must be valid format',
-      '6. Dates should be in YYYY-MM-DD format',
-      '7. Manager Username is required for trainee and trainer roles'
-    ].join('\n');
-
-    const csvContent = headers + '\n' + example + instructions;
-
-    res.setHeader('Content-Disposition', 'attachment; filename=users-template.csv');
-    res.setHeader('Content-Type', 'text/csv');
-    res.send(csvContent);
-  });
-
-  // Course routes
-  app.get("/api/courses", async (_req, res) => {
-    const courses = await storage.listCourses();
-    res.json(courses);
-  });
-
-  app.get("/api/courses/:id", async (req, res) => {
-    const course = await storage.getCourse(parseInt(req.params.id));
-    if (!course) return res.status(404).json({ message: "Course not found" });
-    res.json(course);
-  });
-
-  // Learning path routes
-  app.get("/api/learning-paths", async (_req, res) => {
-    const paths = await storage.listLearningPaths();
-    res.json(paths);
-  });
-
-  app.get("/api/learning-paths/:id", async (req, res) => {
-    const path = await storage.getLearningPath(parseInt(req.params.id));
-    if (!path) return res.status(404).json({ message: "Learning path not found" });
-    res.json(path);
-  });
-
-  // User progress routes
-  app.get("/api/progress", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-    const progress = await storage.listUserProgress(req.user.id.toString());
-    res.json(progress);
-  });
-
-  app.post("/api/progress", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-    const progress = await storage.createUserProgress({
-      ...req.body,
-      userId: req.user.id.toString()
-    });
-    res.status(201).json(progress);
   });
 
   // Template download route
@@ -246,97 +172,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // CSV upload route
-  app.post("/api/users/upload", (req, res) => {
-    console.log('Received upload request');
-
-    upload.single('file')(req, res, async (err) => {
-      try {
-        if (err) {
-          console.error('Multer error:', err);
-          return res.status(400).json({ message: err.message });
-        }
-
-        if (!req.user) {
-          return res.status(401).json({ message: "Unauthorized" });
-        }
-
-        if (!req.file || !req.file.buffer) {
-          console.error('No file in request');
-          return res.status(400).json({ message: "No file uploaded" });
-        }
-
-        console.log('Processing file:', req.file.originalname);
-
-        // Parse CSV content
-        const csvContent = req.file.buffer.toString('utf-8');
-        const lines = csvContent.split('\n');
-        const headers = lines[0].split(',');
-
-        // Process data rows (skip header)
-        const results = {
-          success: 0,
-          failures: [] as { row: number; error: string }[]
-        };
-
-        for (let i = 1; i < lines.length; i++) {
-          const line = lines[i].trim();
-          if (!line) continue; // Skip empty lines
-
-          try {
-            const values = line.split(',');
-            const row = Object.fromEntries(
-              headers.map((header, index) => [header.trim(), values[index]?.trim()])
-            );
-
-            // Find manager if specified
-            let managerId: number | undefined;
-            if (row['Manager Username']) {
-              const manager = await storage.getUserByUsername(row['Manager Username']);
-              if (!manager) {
-                throw new Error('Manager not found');
-              }
-              managerId = manager.id;
-            }
-
-            // Prepare user data
-            const userData = {
-              username: row['Username'],
-              password: row['Password'],
-              fullName: row['Full Name'],
-              employeeId: row['Employee ID'],
-              role: row['Role']?.toLowerCase(),
-              location: row['Location'],
-              email: row['Email'],
-              phoneNumber: row['Phone Number'],
-              processName: row['Process Name'],
-              education: row['Education'],
-              batchName: row['Batch Name'],
-              dateOfJoining: row['Date of Joining'],
-              dateOfBirth: row['Date of Birth'],
-              organizationId: req.user.organizationId,
-              managerId
-            };
-
-            // Validate data
-            insertUserSchema.parse(userData);
-
-            // Create user
-            await storage.createUser(userData);
-            results.success++;
-          } catch (error: any) {
-            results.failures.push({
-              row: i + 1, // Add 1 for 1-based row numbering
-              error: error.message
-            });
-          }
-        }
-
-        res.json(results);
-      } catch (error: any) {
-        console.error('CSV upload error:', error);
-        res.status(400).json({ message: error.message || 'Upload failed' });
+  app.post("/api/users/upload", upload.single('file'), async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
-    });
+
+      if (!req.file?.buffer) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const csvContent = req.file.buffer.toString('utf-8');
+      const lines = csvContent.split('\n');
+      const headers = lines[0].split(',');
+
+      // Process data rows (skip header)
+      const results = {
+        success: 0,
+        failures: [] as { row: number; error: string }[]
+      };
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        try {
+          const values = line.split(',');
+          const userData = Object.fromEntries(
+            headers.map((header, index) => [header.trim(), values[index]?.trim()])
+          );
+
+          // Find manager if specified
+          let managerId: number | undefined;
+          if (userData['Manager Username']) {
+            const manager = await storage.getUserByUsername(userData['Manager Username']);
+            if (!manager) {
+              throw new Error('Manager not found');
+            }
+            managerId = manager.id;
+          }
+
+          // Create user with validated data
+          await storage.createUser({
+            username: userData['Username'],
+            password: userData['Password'],
+            fullName: userData['Full Name'],
+            employeeId: userData['Employee ID'],
+            role: userData['Role'].toLowerCase(),
+            email: userData['Email'],
+            phoneNumber: userData['Phone Number'],
+            dateOfJoining: userData['Date of Joining'],
+            dateOfBirth: userData['Date of Birth'],
+            education: userData['Education'],
+            organizationId: req.user.organizationId,
+            managerId,
+          });
+
+          results.success++;
+        } catch (error: any) {
+          results.failures.push({
+            row: i + 1,
+            error: error.message
+          });
+        }
+      }
+
+      res.json(results);
+    } catch (error: any) {
+      console.error('CSV upload error:', error);
+      res.status(400).json({ message: error.message });
+    }
   });
 
   app.post("/api/reset-db", async (req, res) => {
