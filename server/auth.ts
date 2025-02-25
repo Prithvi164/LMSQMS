@@ -80,7 +80,7 @@ export function setupAuth(app: Express) {
       } catch (err) {
         return done(err);
       }
-    }),
+    })
   );
 
   passport.serializeUser((user, done) => {
@@ -159,9 +159,14 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/logout", (req, res, next) => {
-    req.logout((err) => {
+    // Destroy session first
+    req.session.destroy((err) => {
       if (err) return next(err);
-      res.sendStatus(200);
+      // Then logout
+      req.logout((err) => {
+        if (err) return next(err);
+        res.sendStatus(200);
+      });
     });
   });
 

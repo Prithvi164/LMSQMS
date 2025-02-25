@@ -134,58 +134,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(users);
   });
 
-  app.patch("/api/users/:id", async (req, res) => {
+
+  // Template download route
+  app.get("/api/users/template", (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-    try {
-      const userId = parseInt(req.params.id);
-      const user = await storage.getUser(userId);
 
-      // Check if user exists and belongs to same organization
-      if (!user || user.organizationId !== req.user.organizationId) {
-        return res.status(404).json({ message: "User not found" });
-      }
+    // Create CSV content
+    const headers = [
+      'Username*', 'Password*', 'Full Name*', 'Employee ID*', 'Role*',
+      'Location*', 'Email*', 'Phone Number*', 'Process Name', 'Education',
+      'Batch Name', 'Date of Joining', 'Date of Birth', 'Manager Username'
+    ].join(',');
 
-      // Don't allow role changes for non-admin users
-      if (req.user.role !== "admin" && req.body.role) {
-        return res.status(403).json({ message: "Only admins can change roles" });
-      }
+    const example = [
+      'john.doe', 'password123', 'John Doe', 'EMP001', 'trainee',
+      'New York', 'john@example.com', '1234567890', 'Sales', 'Bachelor',
+      'Batch-2023', '2023-01-01', '1990-01-01', 'manager.username'
+    ].join(',');
 
-      const updatedUser = await storage.updateUser(userId, req.body);
-      res.json(updatedUser);
-    } catch (err) {
-      res.status(400).json({ message: err.message });
-    }
-  });
+    const instructions = [
+      '\n\nInstructions:',
+      '1. Fields marked with * are mandatory',
+      '2. Role must be one of: trainee, trainer, manager',
+      '3. Password must be at least 6 characters',
+      '4. Phone number must be 10 digits',
+      '5. Email must be valid format',
+      '6. Dates should be in YYYY-MM-DD format',
+      '7. Manager Username is required for trainee and trainer roles'
+    ].join('\n');
 
-  app.delete("/api/users/:id", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-    if (req.user.role !== "admin") {
-      return res.status(403).json({ message: "Only admins can delete users" });
-    }
+    const csvContent = headers + '\n' + example + instructions;
 
-    try {
-      const userId = parseInt(req.params.id);
-      const user = await storage.getUser(userId);
-
-      // Check if user exists and belongs to same organization
-      if (!user || user.organizationId !== req.user.organizationId) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      // Don't allow deleting the last admin
-      if (user.role === "admin") {
-        const admins = await storage.listUsers(req.user.organizationId);
-        const adminCount = admins.filter(u => u.role === "admin").length;
-        if (adminCount <= 1) {
-          return res.status(400).json({ message: "Cannot delete the last admin" });
-        }
-      }
-
-      await storage.deleteUser(userId);
-      res.sendStatus(200);
-    } catch (err) {
-      res.status(400).json({ message: err.message });
-    }
+    res.setHeader('Content-Disposition', 'attachment; filename=users-template.csv');
+    res.setHeader('Content-Type', 'text/csv');
+    res.send(csvContent);
   });
 
   // Course routes
