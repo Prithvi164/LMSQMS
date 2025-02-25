@@ -688,7 +688,7 @@ export function UserManagement() {
                       <Switch
                         checked={u.active}
                         onCheckedChange={(checked) => toggleUserStatus(u.id, u.active, u.role)}
-                        disabled={u.role === "admin" && user?.role !== "owner"} // Only owners can toggle admin status
+                        disabled={false} // Remove the admin-only restriction
                       />
                     )}
                   </TableCell>
