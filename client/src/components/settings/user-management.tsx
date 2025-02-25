@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -7,7 +8,9 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Trash2 } from "lucide-react";
+import { Edit2, Trash2, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -31,6 +34,9 @@ import {
 export function UserManagement() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("");
+  const [managerFilter, setManagerFilter] = useState<string>("");
 
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
@@ -64,6 +70,33 @@ export function UserManagement() {
     return manager ? (manager.fullName || manager.username) : "Unknown Manager";
   };
 
+  // Get unique managers for filter dropdown
+  const uniqueManagers = Array.from(new Set(
+    users.map(u => u.managerId)
+      .filter((id): id is number => id !== null)
+      .map(id => {
+        const manager = users.find(u => u.id === id);
+        return manager ? { id, name: manager.fullName || manager.username } : null;
+      })
+      .filter((manager): manager is { id: number; name: string } => manager !== null)
+  ));
+
+  // Filter users based on search term and filters
+  const filteredUsers = users.filter(u => {
+    const matchesSearch = searchTerm === "" || 
+      u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (u.fullName?.toLowerCase() || "").includes(searchTerm.toLowerCase());
+
+    const matchesRole = roleFilter === "" || u.role === roleFilter;
+
+    const matchesManager = managerFilter === "" || 
+      (managerFilter === "none" && !u.managerId) ||
+      (u.managerId?.toString() === managerFilter);
+
+    return matchesSearch && matchesRole && matchesManager;
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -72,6 +105,46 @@ export function UserManagement() {
 
       <Card>
         <CardContent className="pt-6">
+          <div className="flex flex-col gap-4 mb-6">
+            <div className="flex items-center gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, email..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Roles</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="trainer">Trainer</SelectItem>
+                  <SelectItem value="trainee">Trainee</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={managerFilter} onValueChange={setManagerFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by manager" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Managers</SelectItem>
+                  <SelectItem value="none">No Manager</SelectItem>
+                  {uniqueManagers.map((manager) => (
+                    <SelectItem key={manager.id} value={manager.id.toString()}>
+                      {manager.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <Table>
             <TableHeader>
               <TableRow>
@@ -85,7 +158,7 @@ export function UserManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((u) => (
+              {filteredUsers.map((u) => (
                 <TableRow key={u.id}>
                   <TableCell>{u.username}</TableCell>
                   <TableCell>{u.email}</TableCell>
@@ -94,7 +167,7 @@ export function UserManagement() {
                     <Badge>{u.role}</Badge>
                   </TableCell>
                   <TableCell>{getManagerName(u.managerId)}</TableCell>
-                  <TableCell>{u.location}</TableCell>
+                  <TableCell>{u.locationId}</TableCell>
                   <TableCell className="space-x-2">
                     <Dialog>
                       <DialogTrigger asChild>
