@@ -305,6 +305,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return date.toISOString().split('T')[0];
       };
 
+      // Function to normalize role string
+      const normalizeRole = (role: string) => {
+        return role.toLowerCase().replace(/\s+/g, '_');
+      };
+
       const csvContent = req.file.buffer.toString('utf-8');
       const lines = csvContent.split('\n');
       const headers = lines[0].split(',').map(h => h.trim().replace(/[\r\n*]/g, ''));
@@ -334,6 +339,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             userData[fieldName] = values[index];
           });
 
+          // Check if username already exists
+          const existingUser = await storage.getUserByUsername(userData.username);
+          if (existingUser) {
+            throw new Error(`Username '${userData.username}' already exists`);
+          }
+
           // Find manager if specified
           let managerId: number | null = null;
           if (userData.managerusername) {
@@ -357,7 +368,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             password: hashedPassword,
             fullName: userData.fullname,
             employeeId: userData.employeeid,
-            role: userData.role.toLowerCase(),
+            role: normalizeRole(userData.role),
             email: userData.email,
             phoneNumber: userData.phonenumber,
             dateOfJoining,
@@ -372,7 +383,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.createUser(newUser);
           results.success++;
         } catch (error: any) {
-          console.error('Row processing error:', error);
+          console.error(`Row ${i} processing error:`, error);
           results.failures.push({
             row: i,
             error: error.message || 'Unknown error occurred'
