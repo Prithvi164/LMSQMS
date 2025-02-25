@@ -106,8 +106,16 @@ export function UserManagement() {
   });
 
   // Function to toggle user active status
-  const toggleUserStatus = async (userId: number, currentStatus: boolean) => {
+  const toggleUserStatus = async (userId: number, currentStatus: boolean, userRole: string) => {
     try {
+      if (userRole === "admin") {
+        toast({
+          title: "Error",
+          description: "Admin users cannot be deactivated",
+          variant: "destructive",
+        });
+        return;
+      }
       await updateUserMutation.mutateAsync({
         id: userId,
         data: { active: !currentStatus }
@@ -233,7 +241,8 @@ export function UserManagement() {
                   <TableCell>
                     <Switch
                       checked={u.active}
-                      onCheckedChange={(checked) => toggleUserStatus(u.id, u.active)}
+                      onCheckedChange={(checked) => toggleUserStatus(u.id, u.active, u.role)}
+                      disabled={u.role === "admin"}
                     />
                   </TableCell>
                   <TableCell className="space-x-2">

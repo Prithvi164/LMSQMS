@@ -161,6 +161,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
+  // Update user route - add before the reset-db route
+  app.patch("/api/users/:id", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const userId = parseInt(req.params.id);
+      const updateData = req.body;
+
+      // Check if trying to deactivate an admin
+      if ('active' in updateData && !updateData.active) {
+        const userToUpdate = await storage.getUser(userId);
+        if (userToUpdate?.role === 'admin') {
+          return res.status(403).json({ message: "Admin users cannot be deactivated" });
+        }
+      }
+
+      const updatedUser = await storage.updateUser(userId, updateData);
+      res.json(updatedUser);
+    } catch (error: any) {
+      console.error("User update error:", error);
+      res.status(400).json({ message: error.message || "Failed to update user" });
+    }
+  });
+
   // Template download route
   app.get("/api/users/template", (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
