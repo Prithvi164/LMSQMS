@@ -53,12 +53,17 @@ export function ProcessDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch organization data (includes locations)
-  const { data: organizationData, isLoading: organizationLoading } = useQuery({
-    queryKey: ['/api/organizations/settings'],
+  // Fetch locations for the dropdown
+  const { data: locationsData, isLoading: locationsLoading } = useQuery({
+    queryKey: ['/api/organizations/locations'],
+    select: (data) => data?.locations || [],
   });
 
-  const locations = organizationData?.locations || [];
+  // Fetch existing processes
+  const { data: processes, isLoading: processesLoading } = useQuery({
+    queryKey: ['/api/organizations/settings'],
+    select: (data) => data?.processes || [],
+  });
 
   const form = useForm<z.infer<typeof processFormSchema>>({
     resolver: zodResolver(processFormSchema),
@@ -69,12 +74,6 @@ export function ProcessDetail() {
       ojtDays: 0,
       ojtCertificationDays: 0,
     },
-  });
-
-  // Fetch existing processes
-  const { data: processes, isLoading: processesLoading } = useQuery({
-    queryKey: ['/api/organizations/settings'],
-    select: (data) => data?.processes || [],
   });
 
   const createProcessMutation = useMutation({
@@ -126,7 +125,7 @@ export function ProcessDetail() {
     }
   };
 
-  if (organizationLoading || processesLoading) {
+  if (locationsLoading || processesLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -204,11 +203,17 @@ export function ProcessDetail() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {locations?.map((location) => (
-                            <SelectItem key={location.id} value={location.id.toString()}>
-                              {location.name}
+                          {locationsData && locationsData.length > 0 ? (
+                            locationsData.map((location) => (
+                              <SelectItem key={location.id} value={location.id.toString()}>
+                                {location.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="" disabled>
+                              No locations available
                             </SelectItem>
-                          ))}
+                          )}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -346,7 +351,7 @@ export function ProcessDetail() {
                       <div>
                         <p className="font-medium">Location</p>
                         <p className="text-muted-foreground">
-                          {locations?.find(l => l.id === process.locationId)?.name}
+                          {locationsData?.find(l => l.id === process.locationId)?.name}
                         </p>
                       </div>
                       <div>
