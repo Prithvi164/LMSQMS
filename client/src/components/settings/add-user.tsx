@@ -190,7 +190,9 @@ export function AddUser({
       <CardHeader>
         <CardTitle>Add New User</CardTitle>
         <CardDescription>
-          {user.role === "admin"
+          {user.role === "owner"
+            ? "Create new administrators for your organization"
+            : user.role === "admin"
             ? "Create new managers, trainers, or trainees for your organization"
             : "Create new trainee accounts"}
         </CardDescription>
@@ -309,14 +311,21 @@ export function AddUser({
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="trainee">Trainee</SelectItem>
-                    {user.role === "admin" && (
+                    {user.role === "owner" ? (
+                      // Owner can only create admin users
+                      <SelectItem value="admin">Admin</SelectItem>
+                    ) : user.role === "admin" ? (
+                      // Admin can create these roles
                       <>
+                        <SelectItem value="trainee">Trainee</SelectItem>
                         <SelectItem value="manager">Manager</SelectItem>
                         <SelectItem value="trainer">Trainer</SelectItem>
                         <SelectItem value="advisor">Advisor</SelectItem>
                         <SelectItem value="team_lead">Team Lead</SelectItem>
                       </>
+                    ) : (
+                      // Other roles can only create trainees
+                      <SelectItem value="trainee">Trainee</SelectItem>
                     )}
                   </SelectContent>
                 </Select>
