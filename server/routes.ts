@@ -242,6 +242,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
+      // Prevent changing owner role
+      if (userToUpdate.role === 'owner' && updateData.role && updateData.role !== 'owner') {
+        return res.status(403).json({ message: "Cannot change the role of an owner" });
+      }
+
+      // Prevent assigning owner role
+      if (updateData.role === 'owner') {
+        return res.status(403).json({ message: "Cannot assign owner role through update" });
+      }
+
       // Check if the user is updating their own profile
       const isOwnProfile = req.user.id === userId;
 
@@ -267,7 +277,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(updatedUser);
       }
 
-      // For owner role, allow all updates including email and role changes
+      // For owner role, allow all updates except role changes to/from owner
       if (req.user.role === 'owner') {
         const updatedUser = await storage.updateUser(userId, updateData);
         return res.json(updatedUser);
@@ -299,7 +309,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ message: error.message || "Failed to update user" });
     }
   });
-
 
 
   // Permissions routes
