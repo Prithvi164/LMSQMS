@@ -69,20 +69,25 @@ export function AddUser({
 
   const createUserMutation = useMutation({
     mutationFn: async (data: typeof newUserData) => {
-      const payload = {
-        ...data,
-        processId: data.processId ? Number(data.processId) : null,
-        batchId: data.batchId ? Number(data.batchId) : null,
-        locationId: data.locationId ? Number(data.locationId) : null,
-        managerId: data.managerId === "null" ? null : data.managerId ? Number(data.managerId) : null,
-        organizationId: organization?.id || null,
-      };
-      const response = await apiRequest("POST", "/api/users", payload);
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to create user");
+      try {
+        const payload = {
+          ...data,
+          processId: data.processId ? Number(data.processId) : null,
+          batchId: data.batchId ? Number(data.batchId) : null,
+          locationId: data.locationId ? Number(data.locationId) : null,
+          managerId: data.managerId === "null" ? null : data.managerId ? Number(data.managerId) : null,
+          organizationId: organization?.id || null,
+        };
+
+        const response = await apiRequest("POST", "/api/users", payload);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Failed to create user");
+        }
+        return response.json();
+      } catch (error: any) {
+        throw new Error(error.message || "An unexpected error occurred");
       }
-      return response.json();
     },
     onSuccess: () => {
       toast({
@@ -90,7 +95,6 @@ export function AddUser({
         description: "User created successfully",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      // Reset form
       setNewUserData({
         username: "",
         password: "",

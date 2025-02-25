@@ -6,6 +6,7 @@ import { Router } from "express";
 import multer from "multer";
 import path from "path";
 import { insertUserSchema } from "@shared/schema";
+import { z } from "zod";
 
 // Configure multer for handling file uploads
 const upload = multer({
@@ -135,6 +136,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const users = await storage.listUsers(req.user.organizationId);
     res.json(users);
   });
+
+  // User routes
+  app.post("/api/users", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      // Validate the request body
+      const userData = {
+        ...req.body,
+        organizationId: req.user.organizationId, // Use req.user.organizationId for security
+      };
+
+      // Create the user
+      const user = await storage.createUser(userData);
+      res.status(201).json(user);
+    } catch (error: any) {
+      console.error("User creation error:", error);
+      res.status(400).json({ message: error.message || "Failed to create user" });
+    }
+  });
+
 
   // Template download route
   app.get("/api/users/template", (req, res) => {
