@@ -45,8 +45,9 @@ async function comparePasswords(supplied: string, stored: string) {
 }
 
 export function setupAuth(app: Express) {
+  const sessionSecret = randomBytes(32).toString("hex");
   const sessionSettings: session.SessionOptions = {
-    secret: randomBytes(32).toString("hex"),
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     store: new PostgresSessionStore({
