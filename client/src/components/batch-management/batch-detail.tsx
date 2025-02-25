@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { useQuery } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
   DialogContent,
@@ -22,62 +24,15 @@ import { CreateBatchForm } from "./create-batch-form";
 
 export function BatchDetail() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [batches] = useState([
-    {
-      id: 1,
-      name: "Batch 2024-Q1",
-      status: "ongoing",
-      trainer: "John Doe",
-      startDate: "2024-01-01",
-      endDate: "2024-03-31",
-      participants: 25,
-      lineOfBusiness: "Customer Support",
-      location: "San Francisco",
-      processName: "Customer Service",
-      manager: "Alice Johnson",
-      batchNumber: "B2024-01",
-      inductionDates: {
-        start: "2024-01-01",
-        end: "2024-01-07"
-      },
-      trainingDates: {
-        start: "2024-01-08",
-        end: "2024-02-28"
-      },
-      certificationDates: {
-        start: "2024-03-01",
-        end: "2024-03-15"
-      },
-      capacityLimit: 30
-    },
-    {
-      id: 2,
-      name: "Batch 2024-Q2",
-      status: "planned",
-      trainer: "Jane Smith",
-      startDate: "2024-04-01",
-      endDate: "2024-06-30",
-      participants: 30,
-      lineOfBusiness: "Technical Support",
-      location: "New York",
-      processName: "Technical Troubleshooting",
-      manager: "Bob Wilson",
-      batchNumber: "B2024-02",
-      inductionDates: {
-        start: "2024-04-01",
-        end: "2024-04-07"
-      },
-      trainingDates: {
-        start: "2024-04-08",
-        end: "2024-05-31"
-      },
-      certificationDates: {
-        start: "2024-06-01",
-        end: "2024-06-15"
-      },
-      capacityLimit: 35
-    },
-  ]);
+  const { toast } = useToast();
+
+  const {
+    data: batches,
+    isLoading,
+    error
+  } = useQuery({
+    queryKey: ['/api/batches'],
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -91,6 +46,22 @@ export function BatchDetail() {
         return 'bg-gray-100 text-gray-800';
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px] text-destructive">
+        Error loading batches. Please try again.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -132,7 +103,7 @@ export function BatchDetail() {
       {/* Batch List Section */}
       <Card>
         <CardContent className="pt-6">
-          {batches.length > 0 ? (
+          {batches && batches.length > 0 ? (
             <div className="rounded-md border">
               <Table>
                 <TableHeader>

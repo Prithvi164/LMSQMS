@@ -9,6 +9,7 @@ import { insertUserSchema, permissionEnum } from "@shared/schema"; // Import per
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
+import { insertOrganizationBatchSchema } from "@shared/schema";
 
 // Configure multer for handling file uploads
 const upload = multer({
@@ -640,6 +641,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Truncate error:", error);
       res.status(500).json({ message: "Failed to truncate database", error: error.message });
+    }
+  });
+
+  // Batch Management Routes
+  app.post("/api/batches", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const batchData = {
+        ...req.body,
+        organizationId: req.user.organizationId,
+      };
+
+      const validatedData = insertOrganizationBatchSchema.parse(batchData);
+      const batch = await storage.createBatch(validatedData);
+      res.status(201).json(batch);
+    } catch (error: any) {
+      console.error("Batch creation error:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/batches", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
+
+    try {
+      const batches = await storage.listBatches(req.user.organizationId);
+      res.json(batches);
+    } catch (error: any) {
+      console.error("Error fetching batches:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/batches/:id", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const batch = await storage.getBatch(parseInt(req.params.id));
+      if (!batch) {
+        return res.status(404).json({ message: "Batch not found" });
+      }
+      if (batch.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      res.json(batch);
+    } catch (error: any) {
+      console.error("Error fetching batch:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/batches/:id", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const batch = await storage.getBatch(parseInt(req.params.id));
+      if (!batch) {
+        return res.status(404).json({ message: "Batch not found" });
+      }
+      if (batch.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const updatedBatch = await storage.updateBatch(parseInt(req.params.id), req.body);
+      res.json(updatedBatch);
+    } catch (error: any) {
+      console.error("Error updating batch:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/batches/:id", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const batch = await storage.getBatch(parseInt(req.params.id));
+      if (!batch) {
+        return res.status(404).json({ message: "Batch not found" });
+      }
+      if (batch.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      await storage.deleteBatch(parseInt(req.params.id));
+      res.sendStatus(204);
+    } catch (error: any) {
+      console.error("Error deleting batch:", error);
+      res.status(500).json({ message: error.message });
     }
   });
 

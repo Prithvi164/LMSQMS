@@ -50,6 +50,11 @@ export interface IStorage {
   listRolePermissions(organizationId: number): Promise<RolePermission[]>;
   getRolePermissions(organizationId: number, role: string): Promise<RolePermission | undefined>;
   updateRolePermissions(organizationId: number, role: string, permissions: string[]): Promise<RolePermission>;
+
+  // Batch Management operations
+  getBatch(id: number): Promise<OrganizationBatch | undefined>;
+  updateBatch(id: number, batch: Partial<InsertOrganizationBatch>): Promise<OrganizationBatch>;
+  deleteBatch(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -213,6 +218,29 @@ export class DatabaseStorage implements IStorage {
         .returning() as RolePermission[];
       return created;
     }
+  }
+
+  async getBatch(id: number): Promise<OrganizationBatch | undefined> {
+    const [batch] = await db
+      .select()
+      .from(organizationBatches)
+      .where(eq(organizationBatches.id, id)) as OrganizationBatch[];
+    return batch;
+  }
+
+  async updateBatch(id: number, batch: Partial<InsertOrganizationBatch>): Promise<OrganizationBatch> {
+    const [updatedBatch] = await db
+      .update(organizationBatches)
+      .set(batch)
+      .where(eq(organizationBatches.id, id))
+      .returning() as OrganizationBatch[];
+    return updatedBatch;
+  }
+
+  async deleteBatch(id: number): Promise<void> {
+    await db
+      .delete(organizationBatches)
+      .where(eq(organizationBatches.id, id));
   }
 }
 

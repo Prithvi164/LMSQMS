@@ -5,6 +5,8 @@ import * as z from "zod";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -62,6 +64,9 @@ const formSchema = z.object({
 });
 
 export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -69,11 +74,43 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     },
   });
 
+  const createBatchMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof formSchema>) => {
+      const response = await fetch('/api/batches', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create batch');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['batches'] });
+      toast({
+        title: "Success",
+        description: "Batch created successfully",
+      });
+      onClose();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = async (data: z.infer<typeof formSchema>) => {
     try {
-      console.log(data);
-      // TODO: Implement form submission logic here
-      onClose();
+      await createBatchMutation.mutateAsync(data);
     } catch (error) {
       console.error("Error creating batch:", error);
     }
@@ -271,11 +308,11 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                     <FormItem>
                       <FormLabel>Participant Count</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
+                        <Input
+                          type="number"
                           placeholder="Enter participant count"
                           {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value))}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
                         />
                       </FormControl>
                       <FormMessage />
@@ -290,11 +327,11 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                     <FormItem>
                       <FormLabel>Capacity Limit</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
+                        <Input
+                          type="number"
                           placeholder="Enter capacity limit"
                           {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value))}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
                         />
                       </FormControl>
                       <FormMessage />
@@ -312,7 +349,6 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
             </CardHeader>
             <CardContent className="grid gap-6">
               <div className="grid grid-cols-2 gap-4">
-                {/* Date picker fields */}
                 {[
                   {
                     label: "Induction Start Date",
@@ -393,10 +429,27 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
           </Card>
 
           <div className="flex justify-end gap-4">
-            <Button variant="outline" type="button" onClick={onClose}>
+            <Button
+              variant="outline"
+              type="button"
+              onClick={onClose}
+              disabled={createBatchMutation.isPending}
+            >
               Cancel
             </Button>
-            <Button type="submit">Create Batch</Button>
+            <Button
+              type="submit"
+              disabled={createBatchMutation.isPending}
+            >
+              {createBatchMutation.isPending ? (
+                <>
+                  <CalendarIcon className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create Batch"
+              )}
+            </Button>
           </div>
         </form>
       </Form>
