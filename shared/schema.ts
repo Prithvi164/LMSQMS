@@ -1,6 +1,6 @@
 import { pgTable, text, serial, integer, boolean, timestamp, jsonb, pgEnum, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
-import { relations } from "drizzle-orm";
+import { relations, type InferSelectModel } from "drizzle-orm";
 import { z } from "zod";
 
 // Role enum - update to include owner
@@ -49,6 +49,106 @@ export const permissionEnum = pgEnum('permission', [
   'export_reports'
 ]);
 
+// Batch status enum
+export const batchStatusEnum = pgEnum('batch_status', ['planned', 'ongoing', 'completed', 'cancelled']);
+
+// Organizations table - base table
+export const organizations = pgTable("organizations", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type Organization = InferSelectModel<typeof organizations>;
+
+// Organization Processes table
+export const organizationProcesses = pgTable("organization_processes", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type OrganizationProcess = InferSelectModel<typeof organizationProcesses>;
+
+// Organization Locations table
+export const organizationLocations = pgTable("organization_locations", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type OrganizationLocation = InferSelectModel<typeof organizationLocations>;
+
+// Users table
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+  fullName: text("full_name"),
+  employeeId: text("employee_id"),
+  role: roleEnum("role").notNull(),
+  batchId: integer("batch_id"),
+  locationId: integer("location_id").references(() => organizationLocations.id),
+  email: text("email").notNull(),
+  processId: integer("process_id").references(() => organizationProcesses.id),
+  education: text("education"),
+  dateOfJoining: date("date_of_joining"),
+  phoneNumber: text("phone_number"),
+  dateOfBirth: date("date_of_birth"),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id),
+  managerId: integer("manager_id")
+    .references(() => users.id),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type User = InferSelectModel<typeof users>;
+
+// Organization Batches table
+export const organizationBatches = pgTable("organization_batches", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  batchNumber: text("batch_number").notNull(),
+  status: batchStatusEnum("status").default('planned').notNull(),
+  lineOfBusiness: text("line_of_business").notNull(),
+  processId: integer("process_id")
+    .references(() => organizationProcesses.id)
+    .notNull(),
+  trainerId: integer("trainer_id")
+    .references(() => users.id)
+    .notNull(),
+  managerId: integer("manager_id")
+    .references(() => users.id)
+    .notNull(),
+  locationId: integer("location_id")
+    .references(() => organizationLocations.id)
+    .notNull(),
+  participantCount: integer("participant_count").notNull(),
+  capacityLimit: integer("capacity_limit").notNull(),
+  inductionStartDate: timestamp("induction_start_date").notNull(),
+  inductionEndDate: timestamp("induction_end_date").notNull(),
+  trainingStartDate: timestamp("training_start_date").notNull(),
+  trainingEndDate: timestamp("training_end_date").notNull(),
+  certificationStartDate: timestamp("certification_start_date").notNull(),
+  certificationEndDate: timestamp("certification_end_date").notNull(),
+  recertificationStartDate: timestamp("recertification_start_date"),
+  recertificationEndDate: timestamp("recertification_end_date"),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type OrganizationBatch = InferSelectModel<typeof organizationBatches>;
+
 // Role Permissions table
 export const rolePermissions = pgTable("role_permissions", {
   id: serial("id").primaryKey(),
@@ -80,64 +180,6 @@ export const insertRolePermissionSchema = createInsertSchema(rolePermissions).om
 export type RolePermission = typeof rolePermissions.$inferSelect;
 export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
 
-// Organizations table - remove JSON arrays
-export const organizations = pgTable("organizations", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-// New tables for organization settings
-export const organizationProcesses = pgTable("organization_processes", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const organizationBatches = pgTable("organization_batches", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const organizationLocations = pgTable("organization_locations", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-// Keep existing Users table
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  fullName: text("full_name"),
-  employeeId: text("employee_id"),
-  role: roleEnum("role").notNull(),
-  batchId: integer("batch_id").references(() => organizationBatches.id),
-  locationId: integer("location_id").references(() => organizationLocations.id),
-  email: text("email").notNull(),
-  processId: integer("process_id").references(() => organizationProcesses.id),
-  education: text("education"),
-  dateOfJoining: date("date_of_joining"),
-  phoneNumber: text("phone_number"),
-  dateOfBirth: date("date_of_birth"),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id),
-  managerId: integer("manager_id")
-    .references(() => users.id),
-  active: boolean("active").notNull().default(true),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
 
 // Course table
 export const courses = pgTable("courses", {
@@ -192,7 +234,7 @@ export const userProgress = pgTable("user_progress", {
   lastAccessed: timestamp("last_accessed").defaultNow().notNull(),
 });
 
-// Define relations
+// Relations
 export const organizationsRelations = relations(organizations, ({ many }) => ({
   users: many(users),
   processes: many(organizationProcesses),
@@ -208,11 +250,28 @@ export const organizationProcessesRelations = relations(organizationProcesses, (
   }),
 }));
 
-export const organizationBatchesRelations = relations(organizationBatches, ({ one }) => ({
+export const organizationBatchesRelations = relations(organizationBatches, ({ one, many }) => ({
   organization: one(organizations, {
     fields: [organizationBatches.organizationId],
     references: [organizations.id],
   }),
+  process: one(organizationProcesses, {
+    fields: [organizationBatches.processId],
+    references: [organizationProcesses.id],
+  }),
+  trainer: one(users, {
+    fields: [organizationBatches.trainerId],
+    references: [users.id],
+  }),
+  manager: one(users, {
+    fields: [organizationBatches.managerId],
+    references: [users.id],
+  }),
+  location: one(organizationLocations, {
+    fields: [organizationBatches.locationId],
+    references: [organizationLocations.id],
+  }),
+  users: many(users),
 }));
 
 export const organizationLocationsRelations = relations(organizationLocations, ({ one }) => ({
@@ -262,10 +321,25 @@ export const insertOrganizationProcessSchema = createInsertSchema(organizationPr
   createdAt: true
 });
 
-export const insertOrganizationBatchSchema = createInsertSchema(organizationBatches).omit({
-  id: true,
-  createdAt: true
-});
+// Update insert schema for organization batches
+export const insertOrganizationBatchSchema = createInsertSchema(organizationBatches)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    inductionStartDate: z.string().min(1, "Induction start date is required"),
+    inductionEndDate: z.string().min(1, "Induction end date is required"),
+    trainingStartDate: z.string().min(1, "Training start date is required"),
+    trainingEndDate: z.string().min(1, "Training end date is required"),
+    certificationStartDate: z.string().min(1, "Certification start date is required"),
+    certificationEndDate: z.string().min(1, "Certification end date is required"),
+    recertificationStartDate: z.string().optional(),
+    recertificationEndDate: z.string().optional(),
+    participantCount: z.number().min(1, "Participant count must be at least 1"),
+    capacityLimit: z.number().min(1, "Capacity limit must be at least 1"),
+  });
 
 export const insertOrganizationLocationSchema = createInsertSchema(organizationLocations).omit({
   id: true,
@@ -289,23 +363,23 @@ export const insertLearningPathSchema = createInsertSchema(learningPaths);
 export const insertUserProgressSchema = createInsertSchema(userProgress);
 
 // Export types for new tables
-export type OrganizationProcess = typeof organizationProcesses.$inferSelect;
+export type OrganizationProcess = InferSelectModel<typeof organizationProcesses>;
 export type InsertOrganizationProcess = z.infer<typeof insertOrganizationProcessSchema>;
 
-export type OrganizationBatch = typeof organizationBatches.$inferSelect;
+export type OrganizationBatch = InferSelectModel<typeof organizationBatches>;
 export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
 
-export type OrganizationLocation = typeof organizationLocations.$inferSelect;
+export type OrganizationLocation = InferSelectModel<typeof organizationLocations>;
 export type InsertOrganizationLocation = z.infer<typeof insertOrganizationLocationSchema>;
 
 // Export types
-export type Organization = typeof organizations.$inferSelect;
+export type Organization = InferSelectModel<typeof organizations>;
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
-export type User = typeof users.$inferSelect;
+export type User = InferSelectModel<typeof users>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
-export type Course = typeof courses.$inferSelect;
+export type Course = InferSelectModel<typeof courses>;
 export type InsertCourse = z.infer<typeof insertCourseSchema>;
-export type LearningPath = typeof learningPaths.$inferSelect;
+export type LearningPath = InferSelectModel<typeof learningPaths>;
 export type InsertLearningPath = z.infer<typeof insertLearningPathSchema>;
-export type UserProgress = typeof userProgress.$inferSelect;
+export type UserProgress = InferSelectModel<typeof userProgress>;
 export type InsertUserProgress = z.infer<typeof insertUserProgressSchema>;

@@ -32,7 +32,9 @@ function Router() {
           <ProtectedRoute path="/" component={Dashboard} />
           <ProtectedRoute path="/learning-paths" component={LearningPaths} />
           <ProtectedRoute path="/performance" component={Performance} />
-          <ProtectedRoute path="/settings" component={Settings} />
+          <ProtectedRoute path="/settings">
+            {() => user ? <Settings /> : <div>Loading...</div>}
+          </ProtectedRoute>
           <Route component={NotFound} />
         </Switch>
       </main>

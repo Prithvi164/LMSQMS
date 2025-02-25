@@ -47,16 +47,17 @@ export default function AuthPage() {
     }
 
     try {
+      const credentials = {
+        username: formData.get("email") as string,
+        password: formData.get("password") as string,
+      };
+
       if (isLogin) {
-        await login({
-          username: formData.get("email") as string, // Use email as username for login
-          password: formData.get("password") as string,
-        });
+        await login(credentials);
       } else {
         await register({
-          username: formData.get("username") as string, // Separate username field
-          email: formData.get("email") as string, // Email field
-          password: formData.get("password") as string,
+          ...credentials,
+          email: formData.get("email") as string,
           organizationName: formData.get("organizationName") as string,
         });
       }
