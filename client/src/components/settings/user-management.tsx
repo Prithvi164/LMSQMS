@@ -133,16 +133,6 @@ export function UserManagement() {
         return;
       }
 
-      // Only owner can toggle admin status
-      if (userRole === "admin" && user?.role !== "owner") {
-        toast({
-          title: "Error",
-          description: "Only owners can deactivate admin users",
-          variant: "destructive",
-        });
-        return;
-      }
-
       await updateUserMutation.mutateAsync({
         id: userId,
         data: { active: !currentStatus }
@@ -301,8 +291,19 @@ export function UserManagement() {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input {...field} type="email" value={field.value || ''} />
+                        <Input
+                          {...field}
+                          type="email"
+                          value={field.value || ''}
+                          disabled={editUser.role === "owner"}
+                          className={editUser.role === "owner" ? "bg-muted cursor-not-allowed" : ""}
+                        />
                       </FormControl>
+                      {editUser.role === "owner" && (
+                        <p className="text-sm text-muted-foreground">
+                          Email cannot be changed for owner accounts
+                        </p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -682,6 +683,7 @@ export function UserManagement() {
                       <Switch
                         checked={u.active}
                         onCheckedChange={(checked) => toggleUserStatus(u.id, u.active, u.role)}
+                        disabled={u.role === "admin" && user?.role !== "owner"} // Only owners can toggle admin status
                       />
                     )}
                   </TableCell>
