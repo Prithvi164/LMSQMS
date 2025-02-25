@@ -74,7 +74,7 @@ export function AddUser({
         processId: data.processId ? Number(data.processId) : null,
         batchId: data.batchId ? Number(data.batchId) : null,
         locationId: data.locationId ? Number(data.locationId) : null,
-        managerId: data.managerId ? Number(data.managerId) : null,
+        managerId: data.managerId === "null" ? null : data.managerId ? Number(data.managerId) : null,
         organizationId: organization?.id || null,
       };
       const response = await apiRequest("POST", "/api/users", payload);
@@ -501,7 +501,7 @@ export function AddUser({
                       <SelectValue placeholder="Select manager" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No Manager</SelectItem>
+                      <SelectItem value="null">No Manager</SelectItem>
                       {organizationManagers.map((manager) => (
                         <SelectItem key={manager.id} value={String(manager.id)}>
                           {manager.fullName || manager.username}
