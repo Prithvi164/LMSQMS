@@ -12,11 +12,19 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 export function RolePermissions() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [selectedRole, setSelectedRole] = useState<string>(roleEnum.enumValues[0]);
+  const [selectedRole, setSelectedRole] = useState<string>(roleEnum.enumValues[1]); // Start with 'admin'
 
   const { data: rolePermissions } = useQuery<RolePermission[]>({
     queryKey: ["/api/permissions"],
     enabled: !!user,
+  });
+
+  // Filter out owner from role selection if user is not an owner
+  const availableRoles = roleEnum.enumValues.filter(role => {
+    if (user?.role !== 'owner') {
+      return role !== 'owner'; // Only owner can see/modify owner permissions
+    }
+    return true;
   });
 
   const updatePermissionMutation = useMutation({
@@ -75,7 +83,7 @@ export function RolePermissions() {
       <Card className="p-6">
         <div className="space-y-6">
           <div className="flex gap-2">
-            {roleEnum.enumValues.map((role) => (
+            {availableRoles.map((role) => (
               <Badge
                 key={role}
                 variant={selectedRole === role ? "default" : "outline"}
@@ -108,6 +116,7 @@ export function RolePermissions() {
                             permission
                           )}
                           onCheckedChange={() => handlePermissionToggle(permission)}
+                          disabled={selectedRole === 'owner' && user?.role !== 'owner'} // Only owner can modify owner permissions
                         />
                       </div>
                     ))}

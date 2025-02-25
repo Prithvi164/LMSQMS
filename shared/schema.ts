@@ -3,11 +3,17 @@ import { createInsertSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
 
-// Role enum - keep existing roles
-export const roleEnum = pgEnum('role', ['admin', 'manager', 'trainer', 'trainee', 'advisor', 'team_lead']);
+// Role enum - update to include owner
+export const roleEnum = pgEnum('role', ['owner', 'admin', 'manager', 'trainer', 'trainee', 'advisor', 'team_lead']);
 
 // Define permissions enum for different features
 export const permissionEnum = pgEnum('permission', [
+  // Owner Management
+  'manage_billing',
+  'manage_subscription',
+  'create_admin',
+  'manage_organization_settings',
+
   // User Management
   'manage_users',
   'view_users',

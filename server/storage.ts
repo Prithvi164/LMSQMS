@@ -36,6 +36,7 @@ export interface IStorage {
   createOrganization(org: InsertOrganization): Promise<Organization>;
   getOrganizationByName(name: string): Promise<Organization | undefined>;
   updateOrganization(id: number, org: Partial<Organization>): Promise<Organization>;
+  hasOrganizationOwner(organizationId: number): Promise<boolean>;
 
   // Organization settings operations
   createProcess(process: InsertOrganizationProcess): Promise<OrganizationProcess>;
@@ -128,6 +129,15 @@ export class DatabaseStorage implements IStorage {
     return updatedOrg;
   }
 
+  async hasOrganizationOwner(organizationId: number): Promise<boolean> {
+    const [owner] = await db
+      .select()
+      .from(users)
+      .where(eq(users.organizationId, organizationId))
+      .where(eq(users.role, 'owner')) as User[];
+    return !!owner;
+  }
+
   // Organization settings operations
   async createProcess(process: InsertOrganizationProcess): Promise<OrganizationProcess> {
     const [newProcess] = await db.insert(organizationProcesses).values(process).returning() as OrganizationProcess[];
@@ -186,7 +196,6 @@ export class DatabaseStorage implements IStorage {
     const existingPermission = await this.getRolePermissions(organizationId, role);
 
     if (existingPermission) {
-      // Update existing permissions
       const [updated] = await db
         .update(rolePermissions)
         .set({ permissions, updatedAt: new Date() })
@@ -194,7 +203,6 @@ export class DatabaseStorage implements IStorage {
         .returning() as RolePermission[];
       return updated;
     } else {
-      // Create new permissions
       const [created] = await db
         .insert(rolePermissions)
         .values({

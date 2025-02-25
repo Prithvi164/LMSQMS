@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { Router } from "express";
 import multer from "multer";
 import path from "path";
-import { insertUserSchema } from "@shared/schema";
+import { insertUserSchema, permissionEnum } from "@shared/schema"; // Import permissionEnum from schema
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
@@ -52,6 +52,55 @@ async function hashPassword(password: string) {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes (/api/register, /api/login, /api/logout, /api/user)
   setupAuth(app);
+
+  // Update the registration route to handle owner role
+  app.post("/api/register", async (req, res, next) => {
+    try {
+      const { username, password, role, organizationName, ...userData } = req.body;
+
+      // Check if organization exists
+      let organization = await storage.getOrganizationByName(organizationName);
+
+      if (!organization) {
+        // If organization doesn't exist, create it and assign user as owner
+        organization = await storage.createOrganization({
+          name: organizationName
+        });
+
+        // Create default role permissions for the new organization
+        await storage.updateRolePermissions(
+          organization.id,
+          'owner',
+          permissionEnum.enumValues // Owner gets all permissions
+        );
+      } else {
+        // If organization exists, check if there's already an owner
+        const existingUsers = await storage.listUsers(organization.id);
+        const hasOwner = existingUsers.some(u => u.role === 'owner');
+
+        if (hasOwner && role === 'owner') {
+          return res.status(400).json({ message: "Organization already has an owner" });
+        }
+      }
+
+      // Create the user
+      const user = await storage.createUser({
+        ...userData,
+        username,
+        password: await hashPassword(password),
+        role: organization && !req.body.role ? 'trainee' : role, // Default to trainee if org exists and no role specified
+        organizationId: organization.id
+      });
+
+      req.login(user, (err) => {
+        if (err) return next(err);
+        res.status(201).json(user);
+      });
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
 
   // Test route to hash a specific user's password
   app.post("/api/admin/hash-password", async (req, res) => {
