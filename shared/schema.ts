@@ -3,8 +3,76 @@ import { createInsertSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
 
-// Role enum
+// Role enum - keep existing roles
 export const roleEnum = pgEnum('role', ['admin', 'manager', 'trainer', 'trainee', 'advisor', 'team_lead']);
+
+// Define permissions enum for different features
+export const permissionEnum = pgEnum('permission', [
+  // User Management
+  'manage_users',
+  'view_users',
+  'edit_users',
+  'delete_users',
+  'upload_users',
+
+  // Course Management
+  'manage_courses',
+  'view_courses',
+  'edit_courses',
+  'delete_courses',
+  'create_courses',
+
+  // Learning Path Management
+  'manage_learning_paths',
+  'view_learning_paths',
+  'edit_learning_paths',
+  'delete_learning_paths',
+  'create_learning_paths',
+
+  // Organization Management
+  'manage_organization',
+  'view_organization',
+  'edit_organization',
+  'manage_locations',
+  'manage_processes',
+  'manage_batches',
+
+  // Performance Management
+  'view_performance',
+  'manage_performance',
+  'export_reports'
+]);
+
+// Role Permissions table
+export const rolePermissions = pgTable("role_permissions", {
+  id: serial("id").primaryKey(),
+  role: roleEnum("role").notNull(),
+  permissions: jsonb("permissions").notNull().$type<string[]>(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Keep existing tables and add relations
+export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [rolePermissions.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
+// Add new insert schema for role permissions
+export const insertRolePermissionSchema = createInsertSchema(rolePermissions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Export types for role permissions
+export type RolePermission = typeof rolePermissions.$inferSelect;
+export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
 
 // Organizations table - remove JSON arrays
 export const organizations = pgTable("organizations", {
@@ -124,6 +192,7 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   processes: many(organizationProcesses),
   batches: many(organizationBatches),
   locations: many(organizationLocations),
+  rolePermissions: many(rolePermissions),
 }));
 
 export const organizationProcessesRelations = relations(organizationProcesses, ({ one }) => ({
@@ -182,19 +251,19 @@ export const learningPathsRelations = relations(learningPaths, ({ many }) => ({
 
 
 // Create insert schemas for new tables
-export const insertOrganizationProcessSchema = createInsertSchema(organizationProcesses).omit({ 
-  id: true, 
-  createdAt: true 
+export const insertOrganizationProcessSchema = createInsertSchema(organizationProcesses).omit({
+  id: true,
+  createdAt: true
 });
 
-export const insertOrganizationBatchSchema = createInsertSchema(organizationBatches).omit({ 
-  id: true, 
-  createdAt: true 
+export const insertOrganizationBatchSchema = createInsertSchema(organizationBatches).omit({
+  id: true,
+  createdAt: true
 });
 
-export const insertOrganizationLocationSchema = createInsertSchema(organizationLocations).omit({ 
-  id: true, 
-  createdAt: true 
+export const insertOrganizationLocationSchema = createInsertSchema(organizationLocations).omit({
+  id: true,
+  createdAt: true
 });
 
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({ id: true, createdAt: true });
