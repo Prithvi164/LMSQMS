@@ -109,26 +109,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Test route to hash a specific user's password
-  app.post("/api/admin/hash-password", async (req, res) => {
-    if (!req.user || req.user.role !== "admin") {
-      return res.status(403).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const { email, password } = req.body;
-      const hashedPassword = await hashPassword(password);
-
-      // Update the user's password
-      await storage.updateUserPassword(email, hashedPassword);
-
-      res.json({ message: "Password hashed successfully" });
-    } catch (error: any) {
-      console.error("Password hashing error:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
   // Organization routes
   app.get("/api/organization", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
