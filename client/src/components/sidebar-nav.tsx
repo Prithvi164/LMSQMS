@@ -5,6 +5,7 @@ import {
   LayoutDashboard, 
   GraduationCap, 
   BarChart2, 
+  Users,
   LogOut 
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
@@ -15,6 +16,7 @@ export function SidebarNav() {
 
   const navItems = [
     { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/batch-management', label: 'Batch Management', icon: Users },
     { href: '/learning-paths', label: 'Learning Paths', icon: GraduationCap },
     { href: '/performance', label: 'Performance', icon: BarChart2 },
   ];
