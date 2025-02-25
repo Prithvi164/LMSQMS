@@ -38,21 +38,16 @@ interface CreateBatchFormProps {
 }
 
 const formSchema = z.object({
-  // Account Details
+  name: z.string().min(1, "Batch name is required"),
   lineOfBusiness: z.string().min(1, "Line of Business is required"),
-  processName: z.string().min(1, "Process Name is required"),
+  processId: z.string().min(1, "Process Name is required"),
   trainerId: z.string().min(1, "Trainer selection is required"),
   managerId: z.string().min(1, "Manager selection is required"),
   locationId: z.string().min(1, "Location is required"),
-
-  // Batch Details
-  batchName: z.string().min(1, "Batch Name is required"),
-  batchStatus: z.enum(["planned", "ongoing", "completed"]),
   batchNumber: z.string().min(1, "Batch Number is required"),
+  status: z.enum(["planned", "ongoing", "completed"]),
   participantCount: z.number().min(1, "Participant count must be at least 1"),
   capacityLimit: z.number().min(1, "Capacity limit must be at least 1"),
-
-  // Training Schedule
   inductionStartDate: z.date(),
   inductionEndDate: z.date(),
   trainingStartDate: z.date(),
@@ -70,12 +65,36 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      batchStatus: "planned",
+      status: "planned",
+      participantCount: 1,
+      capacityLimit: 1
     },
   });
 
   const createBatchMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof formSchema>) => {
+    mutationFn: async (values: z.infer<typeof formSchema>) => {
+      // Transform the form data to match the API expectations
+      const data = {
+        name: values.name,
+        batchNumber: values.batchNumber,
+        status: values.status,
+        lineOfBusiness: values.lineOfBusiness,
+        processId: parseInt(values.processId, 10),
+        trainerId: parseInt(values.trainerId, 10),
+        managerId: parseInt(values.managerId, 10),
+        locationId: parseInt(values.locationId, 10),
+        participantCount: values.participantCount,
+        capacityLimit: values.capacityLimit,
+        inductionStartDate: values.inductionStartDate.toISOString(),
+        inductionEndDate: values.inductionEndDate.toISOString(),
+        trainingStartDate: values.trainingStartDate.toISOString(),
+        trainingEndDate: values.trainingEndDate.toISOString(),
+        certificationStartDate: values.certificationStartDate.toISOString(),
+        certificationEndDate: values.certificationEndDate.toISOString(),
+        recertificationStartDate: values.recertificationStartDate?.toISOString(),
+        recertificationEndDate: values.recertificationEndDate?.toISOString(),
+      };
+
       const response = await fetch('/api/batches', {
         method: 'POST',
         headers: {
@@ -92,7 +111,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['batches'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/batches'] });
       toast({
         title: "Success",
         description: "Batch created successfully",
@@ -129,6 +148,20 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Batch Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter batch name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
                   name="lineOfBusiness"
                   render={({ field }) => (
                     <FormItem>
@@ -152,7 +185,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
 
                 <FormField
                   control={form.control}
-                  name="processName"
+                  name="processId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Process Name</FormLabel>
@@ -163,9 +196,9 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="onboarding">Onboarding</SelectItem>
-                          <SelectItem value="customer-service">Customer Service</SelectItem>
-                          <SelectItem value="technical-support">Technical Support</SelectItem>
+                          <SelectItem value="1">Onboarding</SelectItem>
+                          <SelectItem value="2">Customer Service</SelectItem>
+                          <SelectItem value="3">Technical Support</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -252,12 +285,12 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="batchName"
+                  name="batchNumber"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Batch Name</FormLabel>
+                      <FormLabel>Batch Number</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter batch name" {...field} />
+                        <Input placeholder="Enter batch number" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -266,7 +299,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
 
                 <FormField
                   control={form.control}
-                  name="batchStatus"
+                  name="status"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Batch Status</FormLabel>
@@ -282,20 +315,6 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                           <SelectItem value="completed">Completed</SelectItem>
                         </SelectContent>
                       </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="batchNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Batch Number</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter batch number" {...field} />
-                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
