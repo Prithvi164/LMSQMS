@@ -22,12 +22,15 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
   const [activeUserTab, setActiveUserTab] = useState<UsersSubTab>("manage");
 
-  const { data: users = [] } = useQuery<User[]>({
+  // Add console log to debug
+  console.log("Settings page rendering", { user, activeTab, activeUserTab });
+
+  const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ["/api/users"],
     enabled: !!user,
   });
 
-  const { data: organization } = useQuery<Organization>({
+  const { data: organization, isLoading: orgLoading } = useQuery<Organization>({
     queryKey: ["/api/organization"],
     enabled: !!user,
   });
@@ -131,21 +134,27 @@ export default function Settings() {
 
       {/* Main Content */}
       <div className="flex-1 p-8 overflow-y-auto">
-        {activeTab === "profile" && <UserProfile />}
-        {activeTab === "users" && (
+        {usersLoading || orgLoading ? (
+          <div>Loading...</div>
+        ) : (
           <>
-            {activeUserTab === "manage" && <UserManagement />}
-            {activeUserTab === "add" && (
-              <AddUser
-                users={users}
-                user={user}
-                organization={organization}
-                potentialManagers={potentialManagers}
-              />
+            {activeTab === "profile" && <UserProfile />}
+            {activeTab === "users" && (
+              <>
+                {activeUserTab === "manage" && <UserManagement />}
+                {activeUserTab === "add" && (
+                  <AddUser
+                    users={users}
+                    user={user}
+                    organization={organization}
+                    potentialManagers={potentialManagers}
+                  />
+                )}
+              </>
             )}
+            {activeTab === "permissions" && <RolePermissions />}
           </>
         )}
-        {activeTab === "permissions" && <RolePermissions />}
       </div>
     </div>
   );

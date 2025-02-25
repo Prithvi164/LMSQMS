@@ -21,9 +21,9 @@ function Router() {
 
   return (
     <div className="flex">
-      {user && !location.startsWith("/settings") && <SidebarNav />}
+      {user && !location.startsWith("/auth") && <SidebarNav />}
       <main className={`${user ? "flex-1" : "w-full"}`}>
-        {user && !location.startsWith("/settings") && (
+        {user && !location.startsWith("/auth") && (
           <div className="p-4 border-b flex justify-end">
             <UserProfile />
           </div>
@@ -34,9 +34,7 @@ function Router() {
           <ProtectedRoute path="/learning-paths" component={LearningPaths} />
           <ProtectedRoute path="/performance" component={Performance} />
           <ProtectedRoute path="/batch-management" component={BatchManagement} />
-          <ProtectedRoute path="/settings">
-            {() => user ? <Settings /> : <div>Loading...</div>}
-          </ProtectedRoute>
+          <ProtectedRoute path="/settings" component={Settings} />
           <Route component={NotFound} />
         </Switch>
       </main>
