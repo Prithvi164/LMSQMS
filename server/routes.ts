@@ -62,9 +62,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let organization = await storage.getOrganizationByName(organizationName);
 
       if (!organization) {
-        // If organization doesn't exist, create it and assign user as owner
+        // If organization doesn't exist, create it and make user an owner
         organization = await storage.createOrganization({
           name: organizationName
+        });
+
+        // Create the user as owner for new organization
+        const user = await storage.createUser({
+          ...userData,
+          username,
+          password: await hashPassword(password),
+          role: 'owner', // Always make first user an owner
+          organizationId: organization.id
         });
 
         // Create default role permissions for the new organization
@@ -73,29 +82,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
           'owner',
           permissionEnum.enumValues // Owner gets all permissions
         );
+
+        req.login(user, (err) => {
+          if (err) return next(err);
+          res.status(201).json(user);
+        });
       } else {
         // If organization exists, check if there's already an owner
-        const existingUsers = await storage.listUsers(organization.id);
-        const hasOwner = existingUsers.some(u => u.role === 'owner');
+        const hasOwner = await storage.hasOrganizationOwner(organization.id);
 
-        if (hasOwner && role === 'owner') {
+        if (role === 'owner' && hasOwner) {
           return res.status(400).json({ message: "Organization already has an owner" });
         }
+
+        // Create the user with specified role or default to trainee
+        const user = await storage.createUser({
+          ...userData,
+          username,
+          password: await hashPassword(password),
+          role: role || 'trainee', // Default to trainee if no role specified for existing org
+          organizationId: organization.id
+        });
+
+        req.login(user, (err) => {
+          if (err) return next(err);
+          res.status(201).json(user);
+        });
       }
-
-      // Create the user
-      const user = await storage.createUser({
-        ...userData,
-        username,
-        password: await hashPassword(password),
-        role: organization && !req.body.role ? 'trainee' : role, // Default to trainee if org exists and no role specified
-        organizationId: organization.id
-      });
-
-      req.login(user, (err) => {
-        if (err) return next(err);
-        res.status(201).json(user);
-      });
     } catch (error: any) {
       console.error("Registration error:", error);
       res.status(400).json({ message: error.message });
