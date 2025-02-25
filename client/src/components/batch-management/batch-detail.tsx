@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -54,21 +54,7 @@ export function BatchDetail() {
 
   return (
     <div className="space-y-6">
-      {/* Header Section */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Batch Details</h2>
-          <p className="text-muted-foreground">
-            Manage and monitor your training batches
-          </p>
-        </div>
-        <Button className="w-full md:w-auto" size="lg">
-          <Plus className="mr-2 h-4 w-4" />
-          Create New Batch
-        </Button>
-      </div>
-
-      {/* Search and Filter Section */}
+      {/* Search and Actions Section */}
       <Card className="border-dashed">
         <CardContent className="pt-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center">
@@ -81,7 +67,10 @@ export function BatchDetail() {
             </div>
             <div className="flex gap-2">
               <Button variant="outline">Filter</Button>
-              <Button variant="outline">Export</Button>
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                Create New Batch
+              </Button>
             </div>
           </div>
         </CardContent>
@@ -89,13 +78,7 @@ export function BatchDetail() {
 
       {/* Batch List Section */}
       <Card>
-        <CardHeader>
-          <CardTitle>Current Batches</CardTitle>
-          <CardDescription>
-            A comprehensive list of all training batches and their current status
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           {batches.length > 0 ? (
             <div className="rounded-md border">
               <Table>
