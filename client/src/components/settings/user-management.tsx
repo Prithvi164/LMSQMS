@@ -35,8 +35,8 @@ export function UserManagement() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
-  const [roleFilter, setRoleFilter] = useState<string>("");
-  const [managerFilter, setManagerFilter] = useState<string>("");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [managerFilter, setManagerFilter] = useState<string>("all");
 
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
@@ -88,9 +88,9 @@ export function UserManagement() {
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (u.fullName?.toLowerCase() || "").includes(searchTerm.toLowerCase());
 
-    const matchesRole = roleFilter === "" || u.role === roleFilter;
+    const matchesRole = roleFilter === "all" || u.role === roleFilter;
 
-    const matchesManager = managerFilter === "" || 
+    const matchesManager = managerFilter === "all" || 
       (managerFilter === "none" && !u.managerId) ||
       (u.managerId?.toString() === managerFilter);
 
@@ -121,7 +121,7 @@ export function UserManagement() {
                   <SelectValue placeholder="Filter by role" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Roles</SelectItem>
+                  <SelectItem value="all">All Roles</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="manager">Manager</SelectItem>
                   <SelectItem value="trainer">Trainer</SelectItem>
@@ -133,7 +133,7 @@ export function UserManagement() {
                   <SelectValue placeholder="Filter by manager" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Managers</SelectItem>
+                  <SelectItem value="all">All Managers</SelectItem>
                   <SelectItem value="none">No Manager</SelectItem>
                   {uniqueManagers.map((manager) => (
                     <SelectItem key={manager.id} value={manager.id.toString()}>
