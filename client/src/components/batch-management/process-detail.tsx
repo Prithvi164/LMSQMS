@@ -29,7 +29,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const processFormSchema = z.object({
   name: z.string().min(1, "Process name is required"),
@@ -133,15 +134,26 @@ export function ProcessDetail() {
     );
   }
 
+  const hasLocations = locationsData && locationsData.length > 0;
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold">Process Details</h2>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
+        <Button onClick={() => setIsCreateDialogOpen(true)} disabled={!hasLocations}>
           <Plus className="h-4 w-4 mr-2" />
           Add New Process
         </Button>
       </div>
+
+      {!hasLocations && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            No locations are available. Please add locations first before creating a process.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="max-w-2xl">
@@ -203,15 +215,15 @@ export function ProcessDetail() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {locationsData && locationsData.length > 0 ? (
+                          {hasLocations ? (
                             locationsData.map((location) => (
                               <SelectItem key={location.id} value={location.id.toString()}>
                                 {location.name}
                               </SelectItem>
                             ))
                           ) : (
-                            <SelectItem value="" disabled>
-                              No locations available
+                            <SelectItem value="no-locations" disabled>
+                              Please add locations first
                             </SelectItem>
                           )}
                         </SelectContent>
