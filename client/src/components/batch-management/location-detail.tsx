@@ -212,8 +212,7 @@ export function LocationDetail() {
           },
           body: JSON.stringify({
             type: 'locations',
-            operation: 'delete',
-            id: selectedLocation.id
+            value: selectedLocation.id
           }),
         });
 
