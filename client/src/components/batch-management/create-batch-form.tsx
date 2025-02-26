@@ -8,30 +8,7 @@ import { cn } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
-import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+// ... (keep existing imports)
 
 interface CreateBatchFormProps {
   onClose: () => void;
@@ -106,7 +83,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     setBatchNumber(generateBatchNumber());
   }, []);
 
-  // Initialize form with default values
+  // Initialize form
   const form = useForm<BatchFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -116,19 +93,29 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     },
   });
 
-  // Fetch settings with stale time and caching
-  const { data: settings, isLoading: isSettingsLoading } = useQuery<Settings>({
+  // Fetch settings
+  const { 
+    data: settings, 
+    isLoading: isSettingsLoading,
+    error: settingsError
+  } = useQuery<Settings>({
     queryKey: ['/api/organizations/settings'],
-    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
-    cacheTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    retry: 1,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 10, // 10 minutes
   });
 
-  // Fetch trainers with role filtering and caching
-  const { data: trainers, isLoading: isTrainersLoading } = useQuery<Trainer[]>({
-    queryKey: ['/api/users'],
-    select: (data) => data?.filter((user: any) => user.role === 'trainer') || [],
-    staleTime: 5 * 60 * 1000,
-    cacheTime: 10 * 60 * 1000,
+  // Fetch trainers
+  const {
+    data: trainers = [], // Provide default empty array
+    isLoading: isTrainersLoading,
+    error: trainersError
+  } = useQuery<Trainer[]>({
+    queryKey: ['/api/users', { role: 'trainer' }],
+    retry: 1,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 10,
+    select: (data: any) => data?.filter((user: any) => user.role === 'trainer') || [],
   });
 
   // Filter processes when LOB changes
@@ -144,12 +131,11 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     }
   }, [form.watch('lineOfBusiness'), settings?.processes]);
 
-  // Update dates when process is selected
+  // Update dates when process changes
   useEffect(() => {
     if (selectedProcess && form.getValues('inductionStartDate')) {
       const startDate = form.getValues('inductionStartDate');
 
-      // Calculate all dates based on process days
       const inductionEndDate = addDays(startDate, selectedProcess.inductionDays);
       const trainingStartDate = addDays(inductionEndDate, 1);
       const trainingEndDate = addDays(trainingStartDate, selectedProcess.trainingDays);
@@ -164,7 +150,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     }
   }, [selectedProcess, form.watch('inductionStartDate')]);
 
-  // Update manager when trainer is selected
+  // Update manager when trainer changes
   useEffect(() => {
     if (selectedTrainer?.managerId) {
       form.setValue('managerId', selectedTrainer.managerId.toString());
@@ -178,31 +164,29 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
         return format(date, "yyyy-MM-dd'T'HH:mm:ss.SSSxxx");
       };
 
-      const data = {
-        name: values.name,
-        batchNumber,
-        status: values.status,
-        lineOfBusiness: values.lineOfBusiness,
-        processId: parseInt(values.processId, 10),
-        trainerId: parseInt(values.trainerId, 10),
-        managerId: parseInt(values.managerId, 10),
-        locationId: parseInt(values.locationId, 10),
-        participantCount: values.participantCount,
-        capacityLimit: values.capacityLimit,
-        inductionStartDate: formatDate(values.inductionStartDate),
-        inductionEndDate: formatDate(values.inductionEndDate),
-        trainingStartDate: formatDate(values.trainingStartDate),
-        trainingEndDate: formatDate(values.trainingEndDate),
-        certificationStartDate: formatDate(values.certificationStartDate),
-        certificationEndDate: formatDate(values.certificationEndDate),
-      };
-
       const response = await fetch('/api/batches', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          name: values.name,
+          batchNumber,
+          status: values.status,
+          lineOfBusiness: values.lineOfBusiness,
+          processId: parseInt(values.processId, 10),
+          trainerId: parseInt(values.trainerId, 10),
+          managerId: parseInt(values.managerId, 10),
+          locationId: parseInt(values.locationId, 10),
+          participantCount: values.participantCount,
+          capacityLimit: values.capacityLimit,
+          inductionStartDate: formatDate(values.inductionStartDate),
+          inductionEndDate: formatDate(values.inductionEndDate),
+          trainingStartDate: formatDate(values.trainingStartDate),
+          trainingEndDate: formatDate(values.trainingEndDate),
+          certificationStartDate: formatDate(values.certificationStartDate),
+          certificationEndDate: formatDate(values.certificationEndDate),
+        }),
       });
 
       if (!response.ok) {
@@ -237,7 +221,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     }
   };
 
-  // Show loading spinner only during initial data fetch
+  // Handle loading states
   if (isSettingsLoading || isTrainersLoading) {
     return (
       <div className="flex items-center justify-center p-6">
@@ -247,11 +231,22 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     );
   }
 
-  // Ensure required data is available
-  if (!settings || !trainers) {
+  // Handle API errors
+  if (settingsError || trainersError) {
+    console.error("Settings Error:", settingsError);
+    console.error("Trainers Error:", trainersError);
     return (
-      <div className="flex items-center justify-center p-6 text-destructive">
-        Error loading form data. Please try again.
+      <div className="flex items-center justify-center p-6">
+        <span className="text-destructive">Error loading data. Please try again.</span>
+      </div>
+    );
+  }
+
+  // Handle missing data
+  if (!settings?.processes || !settings?.locations) {
+    return (
+      <div className="flex items-center justify-center p-6">
+        <span>Required data is not available. Please check your connection.</span>
       </div>
     );
   }
