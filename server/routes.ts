@@ -313,6 +313,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add these routes after the existing process routes
+  // Line of Business Routes
+  app.post("/api/organizations/:id/line-of-businesses", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.id);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only create LOBs in your own organization" });
+      }
+
+      const lobData = {
+        ...req.body,
+        organizationId: orgId,
+      };
+
+      const lob = await storage.createLineOfBusiness(lobData);
+      res.status(201).json(lob);
+    } catch (error: any) {
+      console.error("LOB creation error:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/organizations/:id/line-of-businesses", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.id);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only view LOBs in your own organization" });
+      }
+
+      const lobs = await storage.listLineOfBusinesses(orgId);
+      res.json(lobs);
+    } catch (error: any) {
+      console.error("Error fetching LOBs:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/organizations/:orgId/line-of-businesses/:lobId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const lobId = parseInt(req.params.lobId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only update LOBs in your own organization" });
+      }
+
+      // Get the existing LOB
+      const existingLob = await storage.getLineOfBusiness(lobId);
+      if (!existingLob) {
+        return res.status(404).json({ message: "Line of Business not found" });
+      }
+
+      // Update the LOB
+      const updatedLob = await storage.updateLineOfBusiness(lobId, {
+        ...req.body,
+        organizationId: orgId
+      });
+
+      res.json(updatedLob);
+    } catch (err: any) {
+      console.error("LOB update error:", err);
+      res.status(500).json({ message: err.message || "Failed to update LOB" });
+    }
+  });
+
+  app.delete("/api/organizations/:orgId/line-of-businesses/:lobId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const lobId = parseInt(req.params.lobId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only delete LOBs in your own organization" });
+      }
+
+      // Get the existing LOB
+      const existingLob = await storage.getLineOfBusiness(lobId);
+      if (!existingLob) {
+        return res.status(404).json({ message: "Line of Business not found" });
+      }
+
+      // Delete the LOB
+      await storage.deleteLineOfBusiness(lobId);
+      res.status(200).json({ message: "Line of Business deleted successfully" });
+    } catch (err: any) {
+      console.error("LOB deletion error:", err);
+      res.status(500).json({ message: err.message || "Failed to delete LOB" });
+    }
+  });
 
   // User management routes
   app.get("/api/users", async (req, res) => {
