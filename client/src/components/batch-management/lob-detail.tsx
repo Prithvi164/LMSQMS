@@ -39,9 +39,7 @@ const lobFormSchema = z.object({
 });
 
 const deleteConfirmationSchema = z.object({
-  confirmText: z.string().refine((val) => val === `delete-${Date.now()}`, {
-    message: "Please type the confirmation text exactly as shown above"
-  })
+  confirmText: z.string()
 });
 
 export function LobDetail() {
@@ -223,7 +221,7 @@ export function LobDetail() {
 
   const handleDelete = (lob: any) => {
     setSelectedLob(lob);
-    setDeleteConfirmationText(`delete-${Date.now()}`);
+    setDeleteConfirmationText(`delete-${lob.name}`);
     setIsDeleteDialogOpen(true);
   };
 
@@ -449,7 +447,7 @@ export function LobDetail() {
             </Button>
             <Button
               variant="destructive"
-              disabled={deleteForm.formState.isValid === false || deleteLobMutation.isPending}
+              disabled={deleteForm.watch("confirmText") !== deleteConfirmationText || deleteLobMutation.isPending}
               onClick={async () => {
                 try {
                   await deleteLobMutation.mutateAsync();
