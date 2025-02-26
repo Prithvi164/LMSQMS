@@ -151,8 +151,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           break;
         case "locations":
+          // Ensure value is an object with all required fields
+          if (typeof value !== 'object') {
+            return res.status(400).json({ message: "Location data must be an object with required fields" });
+          }
+
+          const { name, address, city, state, country } = value;
+          if (!name || !address || !city || !state || !country) {
+            return res.status(400).json({ 
+              message: "Missing required location fields. Required: name, address, city, state, country" 
+            });
+          }
+
           result = await storage.createLocation({
-            name: value,
+            name,
+            address,
+            city,
+            state,
+            country,
             organizationId: orgId,
           });
           break;
