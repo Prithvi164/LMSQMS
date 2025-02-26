@@ -210,24 +210,48 @@ export class DatabaseStorage implements IStorage {
   }
 
   async listProcesses(organizationId: number): Promise<OrganizationProcess[]> {
-    return await db
-      .select()
-      .from(organizationProcesses)
-      .where(eq(organizationProcesses.organizationId, organizationId)) as OrganizationProcess[];
+    try {
+      console.log(`Fetching processes for organization ${organizationId}`);
+      const processes = await db
+        .select()
+        .from(organizationProcesses)
+        .where(eq(organizationProcesses.organizationId, organizationId)) as OrganizationProcess[];
+      console.log(`Found ${processes.length} processes`);
+      return processes;
+    } catch (error) {
+      console.error('Error fetching processes:', error);
+      throw new Error('Failed to fetch processes');
+    }
   }
 
   async listBatches(organizationId: number): Promise<OrganizationBatch[]> {
-    return await db
-      .select()
-      .from(organizationBatches)
-      .where(eq(organizationBatches.organizationId, organizationId)) as OrganizationBatch[];
+    try {
+      console.log(`Fetching batches for organization ${organizationId}`);
+      const batches = await db
+        .select()
+        .from(organizationBatches)
+        .where(eq(organizationBatches.organizationId, organizationId)) as OrganizationBatch[];
+      console.log(`Found ${batches.length} batches`);
+      return batches;
+    } catch (error) {
+      console.error('Error fetching batches:', error);
+      throw new Error('Failed to fetch batches');
+    }
   }
 
   async listLocations(organizationId: number): Promise<OrganizationLocation[]> {
-    return await db
-      .select()
-      .from(organizationLocations)
-      .where(eq(organizationLocations.organizationId, organizationId)) as OrganizationLocation[];
+    try {
+      console.log(`Fetching locations for organization ${organizationId}`);
+      const locations = await db
+        .select()
+        .from(organizationLocations)
+        .where(eq(organizationLocations.organizationId, organizationId)) as OrganizationLocation[];
+      console.log(`Found ${locations.length} locations`);
+      return locations;
+    } catch (error) {
+      console.error('Error fetching locations:', error);
+      throw new Error('Failed to fetch locations');
+    }
   }
 
   // Role Permissions operations

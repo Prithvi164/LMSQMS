@@ -55,6 +55,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes (/api/register, /api/login, /api/logout, /api/user)
   setupAuth(app);
 
+  // User routes - Add logging for debugging
+  app.get("/api/user", (req, res) => {
+    console.log("GET /api/user - Current user:", req.user);
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    res.json(req.user);
+  });
+
   // Update the registration route to handle owner role
   app.post("/api/register", async (req, res, next) => {
     try {
@@ -177,7 +186,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add routes to get organization settings
+  // Organization settings route - Update with proper debugging
+  app.get("/api/organizations/:id/settings", async (req, res) => {
+    console.log("GET /api/organizations/:id/settings - Request params:", req.params);
+    console.log("GET /api/organizations/:id/settings - Current user:", req.user);
+
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const orgId = parseInt(req.params.id);
+      if (!orgId) {
+        return res.status(400).json({ message: "Invalid organization ID" });
+      }
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only view your own organization's settings" });
+      }
+
+      // Fetch all required data
+      const [processes, batches, locations] = await Promise.all([
+        storage.listProcesses(orgId),
+        storage.listBatches(orgId),
+        storage.listLocations(orgId),
+      ]);
+
+      // Ensure we have arrays
+      const response = {
+        processes: Array.isArray(processes) ? processes : [],
+        batches: Array.isArray(batches) ? batches : [],
+        locations: Array.isArray(locations) ? locations : [],
+      };
+
+      // Log response for debugging
+      console.log('Organization settings response:', {
+        orgId,
+        processCount: response.processes.length,
+        batchCount: response.batches.length,
+        locationCount: response.locations.length
+      });
+
+      return res.json(response);
+    } catch (err: any) {
+      console.error("Error fetching organization settings:", err);
+      return res.status(500).json({
+        message: "Failed to fetch organization settings",
+        error: err.message
+      });
+    }
+  });
+
+  // Organization settings route to fetch all required data for batch creation
   app.get("/api/organizations/:id/settings", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -189,43 +250,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only view your own organization's settings" });
       }
 
-      // Fetch all required data with proper error handling
+      console.log(`Fetching settings for organization ${orgId}`);
+
+      // Fetch all required data
       const [processes, batches, locations] = await Promise.all([
-        storage.listProcesses(orgId).catch(err => {
-          console.error('Error fetching processes:', err);
-          return [];
-        }),
-        storage.listBatches(orgId).catch(err => {
-          console.error('Error fetching batches:', err);
-          return [];
-        }),
-        storage.listLocations(orgId).catch(err => {
-          console.error('Error fetching locations:', err);
-          return [];
-        }),
+        storage.listProcesses(orgId),
+        storage.listBatches(orgId),
+        storage.listLocations(orgId),
       ]);
 
-      // Ensure we have the minimum required data
-      if (!processes || !locations) {
-        return res.status(500).json({
-          message: "Failed to fetch required data",
-          details: "Some required data is missing"
-        });
-      }
-
+      // Ensure processes and locations are arrays
       const response = {
-        processes: processes || [],
-        batches: batches || [],
-        locations: locations || [],
+        processes: Array.isArray(processes) ? processes : [],
+        batches: Array.isArray(batches) ? batches : [],
+        locations: Array.isArray(locations) ? locations : [],
       };
 
-      console.log('Sending organization settings:', response);
-      res.json(response);
+      // Log response data for debugging
+      console.log('Organization settings response:', {
+        processCount: response.processes.length,
+        batchCount: response.batches.length,
+        locationCount: response.locations.length,
+        processes: response.processes,
+      });
+
+      return res.json(response);
     } catch (err: any) {
-      console.error("Error in /api/organizations/settings:", err);
-      res.status(500).json({
-        message: "Internal server error",
-        details: err.message
+      console.error("Error fetching organization settings:", err);
+      return res.status(500).json({
+        message: "Failed to fetch organization settings",
+        error: err.message
       });
     }
   });
@@ -859,7 +913,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             row: i,
             error: error.message || 'Unknown error occurred'
           });
-                }
+        }
       }
 
       res.json(results);

@@ -96,6 +96,39 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
   const [batchNumber, setBatchNumber] = useState("");
   const [filteredProcesses, setFilteredProcesses] = useState<Process[]>([]);
 
+  // First, get the current user's organization ID
+  const { data: currentUser } = useQuery({
+    queryKey: ['/api/user'],
+    retry: false
+  });
+
+  // Then fetch settings using the organization ID
+  const {
+    data: settings,
+    isLoading: isSettingsLoading,
+    error: settingsError
+  } = useQuery({
+    queryKey: [`/api/organizations/${currentUser?.organizationId}/settings`],
+    enabled: !!currentUser?.organizationId,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 10, // 10 minutes
+    retry: 1
+  });
+
+  // Fetch trainers with error handling
+  const {
+    data: trainers = [],
+    isLoading: isTrainersLoading,
+    error: trainersError
+  } = useQuery({
+    queryKey: ['/api/users'],
+    enabled: !!currentUser?.organizationId,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 10,
+    retry: 1,
+    select: (data: any) => data?.filter((user: any) => user.role === 'trainer') || []
+  });
+
   // Generate batch number
   useEffect(() => {
     const generateBatchNumber = () => {
@@ -115,55 +148,6 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
       participantCount: 1,
       capacityLimit: 1,
     },
-  });
-
-  // Fetch settings with error handling
-  const {
-    data: settings,
-    isLoading: isSettingsLoading,
-    error: settingsError
-  } = useQuery({
-    queryKey: ['/api/organizations/settings'],
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    gcTime: 1000 * 60 * 10, // 10 minutes
-    retry: 3,
-    refetchOnWindowFocus: false,
-    onError: (error: any) => {
-      console.error('Settings fetch error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load settings. Please try again.",
-        variant: "destructive",
-      });
-    }
-  });
-
-  // Fetch trainers with error handling
-  const {
-    data: trainers,
-    isLoading: isTrainersLoading,
-    error: trainersError
-  } = useQuery({
-    queryKey: ['/api/users'],
-    staleTime: 1000 * 60 * 5,
-    gcTime: 1000 * 60 * 10,
-    retry: 3,
-    refetchOnWindowFocus: false,
-    select: (data: any) => {
-      if (!Array.isArray(data)) {
-        console.error('Trainers data is not an array:', data);
-        return [];
-      }
-      return data.filter(user => user.role === 'trainer') || [];
-    },
-    onError: (error: any) => {
-      console.error('Trainers fetch error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load trainers. Please try again.",
-        variant: "destructive",
-      });
-    }
   });
 
   // Filter processes when LOB changes
@@ -270,6 +254,17 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     }
   };
 
+  // Show loading state while waiting for user data
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center p-6">
+        <Loader2 className="h-6 w-6 animate-spin" />
+        <span className="ml-2">Loading user data...</span>
+      </div>
+    );
+  }
+
+  // Show loading state while fetching required data
   if (isSettingsLoading || isTrainersLoading) {
     return (
       <div className="flex items-center justify-center p-6">
@@ -279,6 +274,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     );
   }
 
+  // Handle API errors
   if (settingsError || trainersError) {
     console.error("Settings Error:", settingsError);
     console.error("Trainers Error:", trainersError);
@@ -287,7 +283,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
         <Button 
           variant="outline" 
           onClick={() => {
-            queryClient.invalidateQueries({ queryKey: ['/api/organizations/settings'] });
+            queryClient.invalidateQueries({ queryKey: [`/api/organizations/${currentUser.organizationId}/settings`] });
             queryClient.invalidateQueries({ queryKey: ['/api/users'] });
           }}
         >
