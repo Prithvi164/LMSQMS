@@ -37,7 +37,36 @@ interface CreateBatchFormProps {
   onClose: () => void;
 }
 
-// Extended form schema to include all date fields
+// Define interfaces for API data
+interface Process {
+  id: number;
+  name: string;
+  lineOfBusiness: string;
+  inductionDays: number;
+  trainingDays: number;
+  certificationDays: number;
+}
+
+interface Trainer {
+  id: number;
+  name: string;
+  managerId: number;
+  manager?: {
+    id: number;
+    name: string;
+  };
+}
+
+interface Location {
+  id: number;
+  name: string;
+}
+
+interface Settings {
+  processes: Process[];
+  locations: Location[];
+}
+
 const formSchema = z.object({
   name: z.string().min(1, "Batch name is required"),
   lineOfBusiness: z.string().min(1, "Line of Business is required"),
@@ -61,26 +90,20 @@ type BatchFormValues = z.infer<typeof formSchema>;
 export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [selectedProcess, setSelectedProcess] = useState<any>(null);
-  const [selectedTrainer, setSelectedTrainer] = useState<any>(null);
+  const [selectedProcess, setSelectedProcess] = useState<Process | null>(null);
+  const [selectedTrainer, setSelectedTrainer] = useState<Trainer | null>(null);
   const [batchNumber, setBatchNumber] = useState("");
-  const [filteredProcesses, setFilteredProcesses] = useState<any[]>([]);
+  const [filteredProcesses, setFilteredProcesses] = useState<Process[]>([]);
 
   // Fetch all settings including processes and LOBs
-  const { data: settings, isLoading: settingsLoading } = useQuery({
+  const { data: settings } = useQuery<Settings>({
     queryKey: ['/api/organizations/settings'],
   });
 
   // Fetch trainers (users with trainer role)
-  const { data: trainers, isLoading: trainersLoading } = useQuery({
+  const { data: trainers } = useQuery<Trainer[]>({
     queryKey: ['/api/users'],
     select: (data) => data?.filter((user: any) => user.role === 'trainer') || [],
-  });
-
-  // Fetch locations
-  const { data: locations, isLoading: locationsLoading } = useQuery({
-    queryKey: ['/api/organizations/settings'],
-    select: (data) => data?.locations || [],
   });
 
   // Generate batch number
@@ -108,11 +131,12 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     const selectedLOB = form.watch('lineOfBusiness');
     if (selectedLOB && settings?.processes) {
       const filtered = settings.processes.filter(
-        (process: any) => process.lineOfBusiness === selectedLOB
+        (process) => process.lineOfBusiness === selectedLOB
       );
       setFilteredProcesses(filtered);
       // Reset process selection when LOB changes
       form.setValue('processId', '');
+      setSelectedProcess(null);
     }
   }, [form.watch('lineOfBusiness'), settings?.processes]);
 
@@ -209,7 +233,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     }
   };
 
-  if(settingsLoading || trainersLoading || locationsLoading) {
+  if (!settings || !trainers) {
     return (
       <div className="flex items-center justify-center p-6">
         <Loader2 className="h-6 w-6 animate-spin" />
@@ -218,7 +242,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     );
   }
 
-  const uniqueLOBs = [...new Set(settings?.processes?.map((p: any) => p.lineOfBusiness) || [])];
+  const uniqueLOBs = Array.from(new Set(settings.processes.map(p => p.lineOfBusiness)));
 
   return (
     <div className="space-y-6">
@@ -263,7 +287,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {uniqueLOBs.map((lob: string) => (
+                          {uniqueLOBs.map((lob) => (
                             <SelectItem key={lob} value={lob}>
                               {lob}
                             </SelectItem>
@@ -284,9 +308,11 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                       <Select 
                         onValueChange={(value) => {
                           field.onChange(value);
-                          setSelectedProcess(filteredProcesses.find(p => p.id.toString() === value));
+                          const process = filteredProcesses.find(p => p.id.toString() === value);
+                          setSelectedProcess(process || null);
                         }} 
                         value={field.value}
+                        disabled={!form.getValues('lineOfBusiness')}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -315,7 +341,8 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                       <Select 
                         onValueChange={(value) => {
                           field.onChange(value);
-                          setSelectedTrainer(trainers?.find(t => t.id.toString() === value));
+                          const trainer = trainers.find(t => t.id.toString() === value);
+                          setSelectedTrainer(trainer || null);
                         }}
                         value={field.value}
                       >
@@ -325,7 +352,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {trainers?.map((trainer) => (
+                          {trainers.map((trainer) => (
                             <SelectItem key={trainer.id} value={trainer.id.toString()}>
                               {trainer.name}
                             </SelectItem>
@@ -368,7 +395,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {locations?.map((location) => (
+                          {settings.locations?.map((location) => (
                             <SelectItem key={location.id} value={location.id.toString()}>
                               {location.name}
                             </SelectItem>
