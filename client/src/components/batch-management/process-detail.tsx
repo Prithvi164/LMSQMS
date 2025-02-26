@@ -5,6 +5,7 @@ import * as z from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { SiReact } from "react-icons/si";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -289,6 +290,11 @@ export function ProcessDetail() {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center space-x-2 mb-6">
+        <SiReact className="h-8 w-8 text-blue-500" />
+        <h1 className="text-2xl font-semibold">Manage Process</h1>
+      </div>
+
       <Card className="overflow-hidden border-none shadow-lg">
         <CardContent className="p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center mb-6">
