@@ -215,16 +215,8 @@ export function LocationDetail() {
           },
           body: JSON.stringify({
             type: 'locations',
-            action: 'delete',
-            value: {
-              id: selectedLocation.id,
-              name: selectedLocation.name || 'temp',
-              address: selectedLocation.address || 'temp',
-              city: selectedLocation.city || 'temp',
-              state: selectedLocation.state || 'temp',
-              country: selectedLocation.country || 'temp',
-              organizationId: organization?.id
-            }
+            operation: 'delete',
+            locationId: selectedLocation.id
           }),
         });
 
