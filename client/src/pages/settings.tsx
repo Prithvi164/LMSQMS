@@ -66,6 +66,14 @@ export default function Settings() {
     </button>
   );
 
+  const getPageTitle = () => {
+    if (activeTab === "profile") return "Profile Settings";
+    if (activeTab === "users") {
+      return activeUserTab === "manage" ? "Manage Users" : "Add New User";
+    }
+    return "Roles & Permissions";
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="flex">
@@ -130,11 +138,9 @@ export default function Settings() {
 
         {/* Main Content */}
         <div className="flex-1">
-          <div className="p-4 border-b flex justify-end">
-            <UserProfile />
-          </div>
           <div className="p-8">
-            <div className="max-w-4xl mx-auto">
+            <h1 className="text-2xl font-semibold mb-6">{getPageTitle()}</h1>
+            <div className="max-w-4xl">
               {usersLoading || orgLoading ? (
                 <div>Loading...</div>
               ) : (
