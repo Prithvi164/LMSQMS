@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { SiReact } from "react-icons/si";
 import {
   Dialog,
   DialogContent,
@@ -65,6 +66,12 @@ export function BatchDetail() {
 
   return (
     <div className="space-y-6">
+      {/* Header Section */}
+      <div className="flex items-center space-x-2 mb-6">
+        <SiReact className="h-8 w-8 text-blue-500" />
+        <h1 className="text-2xl font-semibold">Manage Batch</h1>
+      </div>
+
       {/* Search and Actions Section */}
       <Card className="border-dashed">
         <CardContent className="pt-6">
