@@ -30,6 +30,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Plus, Loader2, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -56,13 +64,11 @@ export function ProcessDetail() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  // Fetch organization data first
   const { data: organization, isLoading: orgLoading } = useQuery({
     queryKey: ["/api/organization"],
     enabled: !!user,
   });
 
-  // Then fetch organization settings which includes locations and processes
   const { data: orgSettings, isLoading: settingsLoading } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/settings`],
     queryFn: async () => {
@@ -357,43 +363,37 @@ export function ProcessDetail() {
         </CardHeader>
         <CardContent>
           {processes?.length > 0 ? (
-            <div className="space-y-4">
-              {processes.map((process) => (
-                <Card key={process.id}>
-                  <CardContent className="pt-6">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="font-medium">Process Name</p>
-                        <p className="text-muted-foreground">{process.name}</p>
-                      </div>
-                      <div>
-                        <p className="font-medium">Line of Business</p>
-                        <p className="text-muted-foreground">{process.lineOfBusiness}</p>
-                      </div>
-                      <div>
-                        <p className="font-medium">Location</p>
-                        <p className="text-muted-foreground">
-                          {locations?.find(l => l.id === process.locationId)?.name}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="font-medium">Schedule Duration</p>
-                        <p className="text-muted-foreground">
-                          Induction: {process.inductionDays} days
-                          <br />
-                          Training: {process.trainingDays} days
-                          <br />
-                          Certification: {process.certificationDays} days
-                          <br />
-                          OJT: {process.ojtDays} days
-                          <br />
-                          OJT Certification: {process.ojtCertificationDays} days
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="relative overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Process Name</TableHead>
+                    <TableHead>Line of Business</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Induction Days</TableHead>
+                    <TableHead>Training Days</TableHead>
+                    <TableHead>Certification Days</TableHead>
+                    <TableHead>OJT Days</TableHead>
+                    <TableHead>OJT Certification Days</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {processes.map((process) => (
+                    <TableRow key={process.id}>
+                      <TableCell className="font-medium">{process.name}</TableCell>
+                      <TableCell>{process.lineOfBusiness}</TableCell>
+                      <TableCell>
+                        {locations?.find(l => l.id === process.locationId)?.name}
+                      </TableCell>
+                      <TableCell>{process.inductionDays}</TableCell>
+                      <TableCell>{process.trainingDays}</TableCell>
+                      <TableCell>{process.certificationDays}</TableCell>
+                      <TableCell>{process.ojtDays}</TableCell>
+                      <TableCell>{process.ojtCertificationDays}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           ) : (
             <p className="text-muted-foreground">No processes found. Create a new process to get started.</p>
