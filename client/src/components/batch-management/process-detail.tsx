@@ -152,7 +152,8 @@ export function ProcessDetail() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-semibold tracking-tight">Manage Process</h2>
         <Button 
           onClick={() => setIsCreateDialogOpen(true)}
           className="bg-purple-600 hover:bg-purple-700"
@@ -163,13 +164,13 @@ export function ProcessDetail() {
       </div>
 
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Create Process</DialogTitle>
+            <DialogTitle>Add New Process</DialogTitle>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="space-y-4">
+              <div className="grid gap-4">
                 <FormField
                   control={form.control}
                   name="name"
@@ -179,6 +180,45 @@ export function ProcessDetail() {
                       <FormControl>
                         <Input placeholder="Enter process name" {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="lineOfBusiness"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Line of Business</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter line of business" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="locationId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Location</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Location" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {locations.map((location) => (
+                            <SelectItem key={location.id} value={location.id.toString()}>
+                              {location.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -273,45 +313,6 @@ export function ProcessDetail() {
                     </FormItem>
                   )}
                 />
-
-                <FormField
-                  control={form.control}
-                  name="lineOfBusiness"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Line of Business</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter line of business" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="locationId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Location</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Location" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {locations.map((location) => (
-                            <SelectItem key={location.id} value={location.id.toString()}>
-                              {location.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
 
               <div className="flex justify-end">
@@ -336,7 +337,7 @@ export function ProcessDetail() {
       </Dialog>
 
       <Card>
-        <CardContent>
+        <CardContent className="p-6">
           {processes?.length > 0 ? (
             <div className="relative overflow-x-auto">
               <Table>
