@@ -50,7 +50,7 @@ const processFormSchema = z.object({
   certificationDays: z.number().min(0, "Certification days cannot be negative"),
   ojtDays: z.number().min(0, "OJT days cannot be negative"),
   ojtCertificationDays: z.number().min(0, "OJT certification days cannot be negative"),
-  lineOfBusiness: z.string().min(1, "Line of business is required"),
+  lineOfBusinessId: z.string().min(1, "Line of business is required"),
   locationId: z.string().min(1, "Location is required"),
 });
 
@@ -83,6 +83,19 @@ export function ProcessDetail() {
     enabled: !!organization?.id,
   });
 
+  // Fetch organization's line of businesses
+  const { data: lineOfBusinesses } = useQuery({
+    queryKey: [`/api/organizations/${organization?.id}/line-of-businesses`],
+    queryFn: async () => {
+      if (!organization?.id) return null;
+      const res = await fetch(`/api/organizations/${organization.id}/line-of-businesses`);
+      if (!res.ok) throw new Error('Failed to fetch line of businesses');
+      return res.json();
+    },
+    enabled: !!organization?.id,
+  });
+
+
   const form = useForm<z.infer<typeof processFormSchema>>({
     resolver: zodResolver(processFormSchema),
     defaultValues: {
@@ -91,6 +104,8 @@ export function ProcessDetail() {
       certificationDays: 0,
       ojtDays: 0,
       ojtCertificationDays: 0,
+      lineOfBusinessId: "",
+      locationId: "",
     },
   });
 
@@ -112,7 +127,7 @@ export function ProcessDetail() {
             certificationDays: data.certificationDays,
             ojtDays: data.ojtDays,
             ojtCertificationDays: data.ojtCertificationDays,
-            lineOfBusiness: data.lineOfBusiness,
+            lineOfBusinessId: parseInt(data.lineOfBusinessId, 10),
             locationId: parseInt(data.locationId, 10),
           }),
         }
@@ -182,7 +197,7 @@ export function ProcessDetail() {
           certificationDays: data.certificationDays,
           ojtDays: data.ojtDays,
           ojtCertificationDays: data.ojtCertificationDays,
-          lineOfBusiness: data.lineOfBusiness,
+          lineOfBusinessId: parseInt(data.lineOfBusinessId, 10),
           locationId: parseInt(data.locationId, 10),
         }),
       });
@@ -250,7 +265,7 @@ export function ProcessDetail() {
     setSelectedProcess(process);
     editForm.reset({
       name: process.name,
-      lineOfBusiness: process.lineOfBusiness,
+      lineOfBusinessId: process.lineOfBusinessId.toString(),
       locationId: process.locationId.toString(),
       inductionDays: process.inductionDays,
       trainingDays: process.trainingDays,
@@ -277,7 +292,7 @@ export function ProcessDetail() {
     const searchStr = searchQuery.toLowerCase();
     return (
       process.name.toLowerCase().includes(searchStr) ||
-      process.lineOfBusiness.toLowerCase().includes(searchStr) ||
+      process.lineOfBusinessId.toString().toLowerCase().includes(searchStr) || //Updated line
       (locations?.find(l => l.id === process.locationId)?.name || "").toLowerCase().includes(searchStr)
     );
   });
@@ -362,7 +377,9 @@ export function ProcessDetail() {
                     {paginatedProcesses.map((process) => (
                       <TableRow key={process.id}>
                         <TableCell className="text-sm">{process.name}</TableCell>
-                        <TableCell className="text-sm">{process.lineOfBusiness}</TableCell>
+                        <TableCell className="text-sm">
+                          {lineOfBusinesses?.find(lob => lob.id === process.lineOfBusinessId)?.name}
+                        </TableCell>
                         <TableCell className="text-sm">
                           {locations?.find(l => l.id === process.locationId)?.name}
                         </TableCell>
@@ -497,13 +514,24 @@ export function ProcessDetail() {
 
                 <FormField
                   control={form.control}
-                  name="lineOfBusiness"
+                  name="lineOfBusinessId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-xs font-medium uppercase">Line of Business</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter line of business" {...field} />
-                      </FormControl>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Line of Business" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {lineOfBusinesses?.map((lob: any) => (
+                            <SelectItem key={lob.id} value={lob.id.toString()}>
+                              {lob.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -684,13 +712,24 @@ export function ProcessDetail() {
 
                 <FormField
                   control={editForm.control}
-                  name="lineOfBusiness"
+                  name="lineOfBusinessId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-xs font-medium uppercase">Line of Business</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter line of business" {...field} />
-                      </FormControl>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Line of Business" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {lineOfBusinesses?.map((lob: any) => (
+                            <SelectItem key={lob.id} value={lob.id.toString()}>
+                              {lob.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
