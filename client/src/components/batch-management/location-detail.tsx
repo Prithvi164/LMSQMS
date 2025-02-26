@@ -60,7 +60,7 @@ export function LocationDetail() {
     enabled: !!user,
   });
 
-  // Then fetch locations using organization settings endpoint
+  // Then fetch locations
   const { data: orgSettings, isLoading } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/settings`],
     queryFn: async () => {
@@ -96,35 +96,27 @@ export function LocationDetail() {
 
   const createLocationMutation = useMutation({
     mutationFn: async (data: z.infer<typeof locationFormSchema>) => {
-      try {
-        const requestBody = {
-          type: 'locations',
-          value: data
-        };
+      const requestBody = {
+        type: 'locations',
+        value: data
+      };
 
-        console.log('Location creation request:', requestBody);
+      console.log('Location creation request:', requestBody);
 
-        const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestBody),
-        });
+      const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
 
-        if (!response.ok) {
-          const errorData = await response.text();
-          console.error('Server response:', errorData);
-          throw new Error(errorData || 'Failed to create location');
-        }
-
-        const jsonData = await response.json();
-        console.log('Create response:', jsonData);
-        return jsonData;
-      } catch (error) {
-        console.error('Location creation error:', error);
-        throw error;
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create location');
       }
+
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
@@ -138,7 +130,7 @@ export function LocationDetail() {
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to create location",
+        description: error.message,
         variant: "destructive",
       });
     },
@@ -146,40 +138,32 @@ export function LocationDetail() {
 
   const editLocationMutation = useMutation({
     mutationFn: async (data: z.infer<typeof locationFormSchema>) => {
-      try {
-        const requestBody = {
-          type: 'locations',
-          action: 'update',
-          locationId: selectedLocation.id,
-          value: data
-        };
+      const requestBody = {
+        type: 'locations',
+        action: 'update',
+        locationId: selectedLocation.id,
+        value: data
+      };
 
-        console.log('Location update request:', requestBody);
+      console.log('Location update request:', requestBody);
 
-        const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestBody),
-        });
+      const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
 
-        if (!response.ok) {
-          const errorData = await response.text();
-          console.error('Server response:', errorData);
-          throw new Error(errorData || 'Failed to update location');
-        }
-
-        const jsonData = await response.json();
-        console.log('Update response:', jsonData);
-        return jsonData;
-      } catch (error) {
-        console.error('Location update error:', error);
-        throw error;
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Server response:', errorData);
+        throw new Error(errorData || 'Failed to update location');
       }
+
+      return response.json();
     },
     onSuccess: () => {
-      // Force a full refetch of organization settings
       queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
       toast({
         title: "Success",
@@ -192,7 +176,7 @@ export function LocationDetail() {
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to update location",
+        description: error.message,
         variant: "destructive",
       });
     },
@@ -200,37 +184,30 @@ export function LocationDetail() {
 
   const deleteLocationMutation = useMutation({
     mutationFn: async () => {
-      try {
-        const requestBody = {
-          type: 'locations',
-          action: 'delete',
-          locationId: selectedLocation.id,
-          value: null
-        };
+      const requestBody = {
+        type: 'locations',
+        action: 'delete',
+        locationId: selectedLocation.id,
+        value: null
+      };
 
-        console.log('Location deletion request:', requestBody);
+      console.log('Location deletion request:', requestBody);
 
-        const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestBody),
-        });
+      const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
 
-        if (!response.ok) {
-          const errorData = await response.text();
-          console.error('Server response:', errorData);
-          throw new Error(errorData || 'Failed to delete location');
-        }
-
-        const jsonData = await response.json();
-        console.log('Delete response:', jsonData);
-        return jsonData;
-      } catch (error) {
-        console.error('Location deletion error:', error);
-        throw error;
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Server response:', errorData);
+        throw new Error(errorData || 'Failed to delete location');
       }
+
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
@@ -245,7 +222,7 @@ export function LocationDetail() {
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to delete location",
+        description: error.message,
         variant: "destructive",
       });
     },
@@ -299,34 +276,7 @@ export function LocationDetail() {
     );
   }
 
-  // Parse the locations data properly
-  const locations = (orgSettings?.locations || []).map(location => {
-    if (typeof location.name === 'string') {
-      try {
-        // Try to parse as JSON first
-        if (location.name.startsWith('{')) {
-          const parsedData = JSON.parse(location.name);
-          return {
-            id: location.id,
-            ...parsedData
-          };
-        }
-        // If not JSON, use as-is
-        return {
-          id: location.id,
-          name: location.name,
-          address: location.address || '',
-          city: location.city || '',
-          state: location.state || '',
-          country: location.country || ''
-        };
-      } catch (e) {
-        console.error('Error parsing location data:', e);
-        return location;
-      }
-    }
-    return location;
-  });
+  const locations = orgSettings?.locations || [];
 
   return (
     <div className="space-y-4">
@@ -615,7 +565,7 @@ export function LocationDetail() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {locations.map((location: any) => (
+                  {locations.map((location) => (
                     <TableRow key={location.id}>
                       <TableCell className="font-medium">{location.name}</TableCell>
                       <TableCell>{location.address}</TableCell>
