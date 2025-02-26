@@ -22,6 +22,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Table,
@@ -31,7 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, Pencil, Trash2 } from "lucide-react";
 
 // Form validation schema
 const locationFormSchema = z.object({
@@ -44,6 +46,10 @@ const locationFormSchema = z.object({
 
 export function LocationDetail() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<any>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -69,6 +75,17 @@ export function LocationDetail() {
   const form = useForm<z.infer<typeof locationFormSchema>>({
     resolver: zodResolver(locationFormSchema),
     defaultValues: {
+      name: "",
+      address: "",
+      city: "",
+      state: "",
+      country: "",
+    },
+  });
+
+  const editForm = useForm<z.infer<typeof locationFormSchema>>({
+    resolver: zodResolver(locationFormSchema),
+    defaultValues: selectedLocation || {
       name: "",
       address: "",
       city: "",
@@ -123,11 +140,133 @@ export function LocationDetail() {
     },
   });
 
+  const editLocationMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof locationFormSchema>) => {
+      try {
+        const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            type: 'locations',
+            action: 'update',
+            locationId: selectedLocation.id,
+            value: data,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.text();
+          throw new Error(errorData || 'Failed to update location');
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error('Location update error:', error);
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
+      toast({
+        title: "Success",
+        description: "Location updated successfully",
+      });
+      setIsEditDialogOpen(false);
+      setSelectedLocation(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update location",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteLocationMutation = useMutation({
+    mutationFn: async () => {
+      try {
+        const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            type: 'locations',
+            action: 'delete',
+            locationId: selectedLocation.id,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.text();
+          throw new Error(errorData || 'Failed to delete location');
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error('Location deletion error:', error);
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
+      toast({
+        title: "Success",
+        description: "Location deleted successfully",
+      });
+      setIsDeleteDialogOpen(false);
+      setSelectedLocation(null);
+      setDeleteConfirmation("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete location",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = async (data: z.infer<typeof locationFormSchema>) => {
     try {
       await createLocationMutation.mutateAsync(data);
     } catch (error) {
       console.error("Error creating location:", error);
+    }
+  };
+
+  const onEdit = async (data: z.infer<typeof locationFormSchema>) => {
+    try {
+      await editLocationMutation.mutateAsync(data);
+    } catch (error) {
+      console.error("Error updating location:", error);
+    }
+  };
+
+  const handleEdit = (location: any) => {
+    setSelectedLocation(location);
+    editForm.reset(location);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDelete = (location: any) => {
+    setSelectedLocation(location);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    const expectedConfirmation = `delete-${selectedLocation.name.toLowerCase()}`;
+    if (deleteConfirmation.toLowerCase() === expectedConfirmation) {
+      deleteLocationMutation.mutate();
+    } else {
+      toast({
+        title: "Error",
+        description: "Please type the correct confirmation text",
+        variant: "destructive",
+      });
     }
   };
 
@@ -165,6 +304,7 @@ export function LocationDetail() {
         </Button>
       </div>
 
+      {/* Create Location Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -272,6 +412,156 @@ export function LocationDetail() {
         </DialogContent>
       </Dialog>
 
+      {/* Edit Location Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl mb-6">Edit Location</DialogTitle>
+          </DialogHeader>
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(onEdit)} className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Location Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <FormField
+                    control={editForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>LOCATION NAME</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter location name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="address"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>ADDRESS</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter address" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField
+                      control={editForm.control}
+                      name="city"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>CITY</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter city" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={editForm.control}
+                      name="state"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>STATE</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter state" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={editForm.control}
+                      name="country"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>COUNTRY</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter country" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="flex justify-end">
+                <Button 
+                  type="submit" 
+                  className="bg-purple-600 hover:bg-purple-700"
+                  disabled={editLocationMutation.isPending}
+                >
+                  {editLocationMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Update"
+                  )}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-2xl mb-4">Delete Location</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. To confirm deletion, please type:
+              <code className="mx-2 px-2 py-1 bg-muted rounded">delete-{selectedLocation?.name?.toLowerCase()}</code>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="my-4">
+            <Input
+              placeholder="Type confirmation text"
+              value={deleteConfirmation}
+              onChange={(e) => setDeleteConfirmation(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deleteLocationMutation.isPending}
+            >
+              {deleteLocationMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Location"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Card>
         <CardHeader>
           <CardTitle>Current Locations</CardTitle>
@@ -287,6 +577,7 @@ export function LocationDetail() {
                     <TableHead>City</TableHead>
                     <TableHead>State</TableHead>
                     <TableHead>Country</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -297,6 +588,24 @@ export function LocationDetail() {
                       <TableCell>{location.city}</TableCell>
                       <TableCell>{location.state}</TableCell>
                       <TableCell>{location.country}</TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(location)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDelete(location)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
