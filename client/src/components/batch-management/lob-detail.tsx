@@ -80,7 +80,10 @@ export function LobDetail() {
         },
         body: JSON.stringify({
           type: 'lineOfBusiness',
-          value: data,
+          value: {
+            name: data.name,
+            description: data.description
+          },
         }),
       });
 

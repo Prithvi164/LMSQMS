@@ -86,7 +86,13 @@ export function LocationDetail() {
         },
         body: JSON.stringify({
           type: 'locations',
-          value: data,
+          value: {
+            name: data.name,
+            address: data.address,
+            city: data.city,
+            state: data.state,
+            country: data.country
+          },
         }),
       });
 
