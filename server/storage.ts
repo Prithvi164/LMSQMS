@@ -276,13 +276,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteLocation(id: number): Promise<void> {
-    const result = await db
-      .delete(organizationLocations)
-      .where(eq(organizationLocations.id, id))
-      .returning();
-
-    if (!result.length) {
-      throw new Error('Location not found');
+    try {
+      await db
+        .delete(organizationLocations)
+        .where(eq(organizationLocations.id, id));
+    } catch (error) {
+      console.error('Error deleting location:', error);
+      throw new Error('Failed to delete location');
     }
   }
 }

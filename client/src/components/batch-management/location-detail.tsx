@@ -205,29 +205,25 @@ export function LocationDetail() {
   const deleteLocationMutation = useMutation({
     mutationFn: async () => {
       try {
-        const requestBody = {
-          type: 'locations',
-          operation: 'delete',
-          value: {
-            id: selectedLocation.id,
-            organizationId: organization?.id
-          }
-        };
-
         const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(requestBody),
+          body: JSON.stringify({
+            type: 'locations',
+            operation: 'delete',
+            id: selectedLocation.id
+          }),
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to delete location');
+          const errorData = await response.text();
+          console.error('Server response:', errorData);
+          throw new Error(errorData || 'Failed to delete location');
         }
 
-        return response.json();
+        return { success: true };
       } catch (error) {
         console.error('Location deletion error:', error);
         throw error;
