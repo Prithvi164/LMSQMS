@@ -79,7 +79,7 @@ export function LobDetail() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          type: 'lineOfBusiness',
+          type: 'lob',
           value: {
             name: data.name,
             description: data.description

@@ -54,7 +54,7 @@ export function LocationDetail() {
     enabled: !!user,
   });
 
-  // Then fetch organization settings which includes locations
+  // Then fetch organization settings
   const { data: orgSettings, isLoading } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/settings`],
     queryFn: async () => {
@@ -85,7 +85,7 @@ export function LocationDetail() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          type: 'locations',
+          type: 'location',
           value: {
             name: data.name,
             address: data.address,
