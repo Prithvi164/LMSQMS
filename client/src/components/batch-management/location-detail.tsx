@@ -79,21 +79,25 @@ export function LocationDetail() {
 
   const createLocationMutation = useMutation({
     mutationFn: async (data: z.infer<typeof locationFormSchema>) => {
+      const requestBody = {
+        type: 'organizationLocations',
+        value: {
+          name: data.name,
+          address: data.address,
+          city: data.city,
+          state: data.state,
+          country: data.country
+        },
+      };
+
+      console.log('Location creation request:', requestBody);
+
       const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          type: 'organizationLocation',
-          value: {
-            name: data.name,
-            address: data.address,
-            city: data.city,
-            state: data.state,
-            country: data.country
-          },
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -113,6 +117,7 @@ export function LocationDetail() {
       form.reset();
     },
     onError: (error: Error) => {
+      console.error('Location creation error:', error);
       toast({
         title: "Error",
         description: error.message,

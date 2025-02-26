@@ -73,18 +73,22 @@ export function LobDetail() {
 
   const createLobMutation = useMutation({
     mutationFn: async (data: z.infer<typeof lobFormSchema>) => {
+      const requestBody = {
+        type: 'lineOfBusinesses',
+        value: {
+          name: data.name,
+          description: data.description
+        },
+      };
+
+      console.log('LOB creation request:', requestBody);
+
       const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          type: 'lob',
-          value: {
-            name: data.name,
-            description: data.description
-          },
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -104,6 +108,7 @@ export function LobDetail() {
       form.reset();
     },
     onError: (error: Error) => {
+      console.error('LOB creation error:', error);
       toast({
         title: "Error",
         description: error.message,
