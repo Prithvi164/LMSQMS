@@ -103,6 +103,7 @@ export function ProcessDetail() {
       inductionDays: 0,
       trainingDays: 0,
       certificationDays: 0,
+      certificationDays: 0,
       ojtDays: 0,
       ojtCertificationDays: 0,
       lineOfBusinessId: "",
@@ -283,8 +284,8 @@ export function ProcessDetail() {
     setSelectedProcess(process);
     editForm.reset({
       name: process.name,
-      lineOfBusinessId: process.lineOfBusinessId.toString(),
-      locationId: process.locationId.toString(),
+      lineOfBusinessId: process.lineOfBusinessId ? process.lineOfBusinessId.toString() : "",
+      locationId: process.locationId ? process.locationId.toString() : "",
       inductionDays: process.inductionDays,
       trainingDays: process.trainingDays,
       certificationDays: process.certificationDays,
@@ -308,10 +309,13 @@ export function ProcessDetail() {
   // Filter processes based on search query
   const filteredProcesses = processes.filter((process: any) => {
     const searchStr = searchQuery.toLowerCase();
+    const lobName = lineOfBusinesses?.find(lob => lob.id === process.lineOfBusinessId)?.name || "";
+    const locationName = locations?.find(l => l.id === process.locationId)?.name || "";
+
     return (
       process.name.toLowerCase().includes(searchStr) ||
-      process.lineOfBusinessId.toString().toLowerCase().includes(searchStr) ||
-      (locations?.find(l => l.id === process.locationId)?.name || "").toLowerCase().includes(searchStr)
+      lobName.toLowerCase().includes(searchStr) ||
+      locationName.toLowerCase().includes(searchStr)
     );
   });
 
@@ -396,7 +400,7 @@ export function ProcessDetail() {
                       <TableRow key={process.id}>
                         <TableCell className="text-sm">{process.name}</TableCell>
                         <TableCell className="text-sm">
-                          {lineOfBusinesses?.find(lob => lob.id === process.lineOfBusinessId)?.name}
+                          {lineOfBusinesses?.find(lob => lob.id === process.lineOfBusinessId)?.name || process.lineOfBusiness}
                         </TableCell>
                         <TableCell className="text-sm">
                           {locations?.find(l => l.id === process.locationId)?.name}
