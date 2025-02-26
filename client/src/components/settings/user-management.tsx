@@ -156,11 +156,32 @@ export function UserManagement() {
     return location ? location.name : "Unknown Location";
   };
 
-  // Add this function after getLocationName
+  // Update process name finder to use the updated organization processes structure
   const getProcessName = (processId: number | null) => {
     if (!processId || !orgSettings?.processes) return "No Process";
     const process = orgSettings.processes.find((p: OrganizationProcess) => p.id === processId);
-    return process ? process.name : "Unknown Process";
+    if (!process) return "Unknown Process";
+
+    // Return formatted process details
+    return `${process.name} (${process.lineOfBusiness})`;
+  };
+
+  // Get process details for display
+  const getProcessDetails = (processId: number | null) => {
+    if (!processId || !orgSettings?.processes) return null;
+    const process = orgSettings.processes.find((p: OrganizationProcess) => p.id === processId);
+    if (!process) return null;
+
+    return {
+      name: process.name,
+      lineOfBusiness: process.lineOfBusiness,
+      inductionDays: process.inductionDays,
+      trainingDays: process.trainingDays,
+      certificationDays: process.certificationDays,
+      ojtDays: process.ojtDays,
+      ojtCertificationDays: process.ojtCertificationDays,
+      location: getLocationName(process.locationId)
+    };
   };
 
   // Find batch name for a user
@@ -656,71 +677,98 @@ export function UserManagement() {
                 <TableHead>Role</TableHead>
                 <TableHead>Manager</TableHead>
                 <TableHead>Location</TableHead>
-                <TableHead>Process</TableHead>
+                <TableHead>Process Details</TableHead>
                 <TableHead>Batch</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredUsers.map((u) => (
-                <TableRow key={u.id} className={!u.active ? "opacity-60" : ""}>
-                  <TableCell>{u.username}</TableCell>
-                  <TableCell>{u.email}</TableCell>
-                  <TableCell>{u.fullName}</TableCell>
-                  <TableCell>
-                    <Badge>{u.role}</Badge>
-                  </TableCell>
-                  <TableCell>{getManagerName(u.managerId)}</TableCell>
-                  <TableCell>{getLocationName(u.locationId)}</TableCell>
-                  <TableCell>{getProcessName(u.processId)}</TableCell>
-                  <TableCell>{getBatchName(u.batchId)}</TableCell>
-                  <TableCell>
-                    {u.role === "owner" ? (
-                      <div className="flex items-center" title="Owner status cannot be changed">
+              {filteredUsers.map((u) => {
+                const processDetails = getProcessDetails(u.processId);
+
+                return (
+                  <TableRow key={u.id} className={!u.active ? "opacity-60" : ""}>
+                    <TableCell>{u.username}</TableCell>
+                    <TableCell>{u.email}</TableCell>
+                    <TableCell>{u.fullName}</TableCell>
+                    <TableCell>
+                      <Badge>{u.role}</Badge>
+                    </TableCell>
+                    <TableCell>{getManagerName(u.managerId)}</TableCell>
+                    <TableCell>{getLocationName(u.locationId)}</TableCell>
+                    <TableCell>
+                      {processDetails ? (
+                        <div className="space-y-1">
+                          <div className="font-medium">{processDetails.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {processDetails.lineOfBusiness}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Location: {processDetails.location}
+                          </div>
+                          <div className="text-xs space-x-2">
+                            <Badge variant="outline">Induction: {processDetails.inductionDays}d</Badge>
+                            <Badge variant="outline">Training: {processDetails.trainingDays}d</Badge>
+                            <Badge variant="outline">Cert: {processDetails.certificationDays}d</Badge>
+                          </div>
+                          <div className="text-xs space-x-2">
+                            <Badge variant="outline">OJT: {processDetails.ojtDays}d</Badge>
+                            <Badge variant="outline">OJT Cert: {processDetails.ojtCertificationDays}d</Badge>
+                          </div>
+                        </div>
+                      ) : (
+                        "No Process"
+                      )}
+                    </TableCell>
+                    <TableCell>{getBatchName(u.batchId)}</TableCell>
+                    <TableCell>
+                      {u.role === "owner" ? (
+                        <div className="flex items-center" title="Owner status cannot be changed">
+                          <Switch
+                            checked={true}
+                            disabled={true}
+                            className="opacity-50 cursor-not-allowed"
+                          />
+                        </div>
+                      ) : (
                         <Switch
-                          checked={true}
-                          disabled={true}
-                          className="opacity-50 cursor-not-allowed"
+                          checked={u.active}
+                          onCheckedChange={(checked) => toggleUserStatus(u.id, u.active, u.role)}
+                          disabled={false}
                         />
-                      </div>
-                    ) : (
-                      <Switch
-                        checked={u.active}
-                        onCheckedChange={(checked) => toggleUserStatus(u.id, u.active, u.role)}
-                        disabled={false} // Remove the admin-only restriction
-                      />
-                    )}
-                  </TableCell>
-                  <TableCell className="space-x-2">
-                    <EditUserDialog user={u} />
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="outline" size="icon" className="text-destructive">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete User</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete this user? This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => deleteUserMutation.mutate(u.id)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </TableCell>
-                </TableRow>
-              ))}
+                      )}
+                    </TableCell>
+                    <TableCell className="space-x-2">
+                      <EditUserDialog user={u} />
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" size="icon" className="text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete User</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete this user? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteUserMutation.mutate(u.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
