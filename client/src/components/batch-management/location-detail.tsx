@@ -219,7 +219,7 @@ export function LocationDetail() {
         console.log('Delete request payload:', requestBody);
 
         const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
-          method: 'DELETE',
+          method: 'PATCH',  // Changed back to PATCH from DELETE
           headers: {
             'Content-Type': 'application/json',
           },
@@ -227,9 +227,16 @@ export function LocationDetail() {
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
-          console.error('Server response error:', errorData);
-          throw new Error(errorData.message || 'Failed to delete location');
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.indexOf("application/json") !== -1) {
+            const errorData = await response.json();
+            console.error('Server response error:', errorData);
+            throw new Error(errorData.message || 'Failed to delete location');
+          } else {
+            const errorText = await response.text();
+            console.error('Server error response:', errorText);
+            throw new Error('Server error occurred while deleting location');
+          }
         }
 
         const jsonData = await response.json();
