@@ -98,15 +98,8 @@ export function LocationDetail() {
     mutationFn: async (data: z.infer<typeof locationFormSchema>) => {
       try {
         const requestBody = {
-          type: 'processNames', // Changed type here.  Assumption based on intention.
-          value: {
-            name: data.name,
-            address: data.address,
-            city: data.city,
-            state: data.state,
-            country: data.country,
-            organization_id: organization?.id
-          }
+          type: 'locations',
+          value: data
         };
 
         console.log('Location creation request:', requestBody);
@@ -126,6 +119,7 @@ export function LocationDetail() {
         }
 
         const jsonData = await response.json();
+        console.log('Create response:', jsonData);
         return jsonData;
       } catch (error) {
         console.error('Location creation error:', error);
@@ -142,7 +136,6 @@ export function LocationDetail() {
       form.reset();
     },
     onError: (error: Error) => {
-      console.error('Location creation error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to create location",
@@ -155,17 +148,10 @@ export function LocationDetail() {
     mutationFn: async (data: z.infer<typeof locationFormSchema>) => {
       try {
         const requestBody = {
-          type: 'processNames',
+          type: 'locations',
           action: 'update',
-          value: selectedLocation.id,
-          data: JSON.stringify({
-            name: data.name,
-            address: data.address,
-            city: data.city,
-            state: data.state,
-            country: data.country,
-            organization_id: organization?.id
-          })
+          locationId: selectedLocation.id,
+          value: data
         };
 
         console.log('Location update request:', requestBody);
@@ -216,9 +202,10 @@ export function LocationDetail() {
     mutationFn: async () => {
       try {
         const requestBody = {
-          type: 'processNames',
+          type: 'locations',
           action: 'delete',
-          value: selectedLocation.id
+          locationId: selectedLocation.id,
+          value: null
         };
 
         console.log('Location deletion request:', requestBody);
