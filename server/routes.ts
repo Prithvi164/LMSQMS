@@ -772,6 +772,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add a specific PATCH endpoint for locations
+  app.patch("/api/organizations/:orgId/settings/locations/:locationId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const locationId = parseInt(req.params.locationId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only update locations in your own organization" });
+      }
+
+      // Get the existing location
+      const existingLocation = await storage.getLocation(locationId);
+      if (!existingLocation) {
+        return res.status(404).json({ message: "Location not found" });
+      }
+
+      // Validate required fields
+      const { name, address, city, state, country } = req.body;
+      if (!name || !address || !city || !state || !country) {
+        return res.status(400).json({
+          message: "Missing required location fields. Required: name, address, city, state, country"
+        });
+      }
+
+      // Update the location
+      const updatedLocation = await storage.updateLocation(locationId, {
+        name,
+        address,
+        city,
+        state,
+        country,
+        organizationId: orgId
+      });
+
+      res.json(updatedLocation);
+    } catch (err: any) {
+      console.error("Location update error:", err);
+      if (err.message?.includes('unique constraint')) {
+        return res.status(400).json({ message: "A location with this name already exists" });
+      }
+      res.status(500).json({ message: err.message || "Failed to update location" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

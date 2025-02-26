@@ -153,30 +153,28 @@ export function LocationDetail() {
   const editLocationMutation = useMutation({
     mutationFn: async (data: z.infer<typeof locationFormSchema>) => {
       try {
-        const requestBody = {
-          type: 'locations',
-          operation: 'update',
-          value: {
-            name: data.name,
-            address: data.address,
-            city: data.city,
-            state: data.state,
-            country: data.country,
-            organizationId: organization?.id,
-            id: selectedLocation.id
+        const response = await fetch(
+          `/api/organizations/${organization?.id}/settings/locations/${selectedLocation.id}`,
+          {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              name: data.name,
+              address: data.address,
+              city: data.city,
+              state: data.state,
+              country: data.country
+            }),
           }
-        };
-
-        const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestBody),
-        });
+        );
 
         if (!response.ok) {
           const errorData = await response.json();
+          if (errorData.message?.includes('already exists')) {
+            throw new Error('A location with this name already exists');
+          }
           throw new Error(errorData.message || 'Failed to update location');
         }
 
