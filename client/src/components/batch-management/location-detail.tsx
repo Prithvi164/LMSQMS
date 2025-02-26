@@ -34,6 +34,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Plus, Loader2, Pencil, Trash2 } from "lucide-react";
+import { Mascot } from "@/components/ui/mascot";
 
 // Form validation schema
 const locationFormSchema = z.object({
@@ -53,6 +54,13 @@ export function LocationDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const [mascotState, setMascotState] = useState<{
+    state: 'idle' | 'pointing' | 'explaining' | 'celebrating';
+    message: string;
+  }>({
+    state: 'idle',
+    message: "Welcome! I'm Loco, your location management assistant. Need help managing your locations?"
+  });
 
   // First fetch organization
   const { data: organization } = useQuery({
@@ -133,13 +141,7 @@ export function LocationDetail() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
-      toast({
-        title: "Success",
-        description: "Location created successfully",
-      });
-      setIsCreateDialogOpen(false);
-      form.reset();
+      onCreateSuccess();
     },
     onError: (error: Error) => {
       toast({
@@ -193,6 +195,7 @@ export function LocationDetail() {
       setIsEditDialogOpen(false);
       setSelectedLocation(null);
       editForm.reset();
+      updateMascotState({ state: 'celebrating', message: 'Location updated successfully! 🎉' });
     },
     onError: (error: Error) => {
       toast({
@@ -237,6 +240,7 @@ export function LocationDetail() {
       setIsDeleteDialogOpen(false);
       setSelectedLocation(null);
       setDeleteConfirmation("");
+      updateMascotState({ state: 'celebrating', message: 'Location deleted successfully! 🎉' });
     },
     onError: (error: Error) => {
       toast({
@@ -267,11 +271,19 @@ export function LocationDetail() {
     setSelectedLocation(location);
     editForm.reset(location);
     setIsEditDialogOpen(true);
+    updateMascotState({
+      state: 'explaining',
+      message: `Editing ${location.name}? I'll help you update the details!`
+    });
   };
 
   const handleDelete = (location: any) => {
     setSelectedLocation(location);
     setIsDeleteDialogOpen(true);
+    updateMascotState({
+      state: 'explaining',
+      message: `Please be careful when deleting ${location.name}. This action cannot be undone!`
+    });
   };
 
   const confirmDelete = () => {
@@ -287,6 +299,25 @@ export function LocationDetail() {
     }
   };
 
+  const updateMascotState = (state: typeof mascotState) => {
+    setMascotState(state);
+  };
+
+  const onCreateSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
+    toast({
+      title: "Success",
+      description: "Location created successfully",
+    });
+    setIsCreateDialogOpen(false);
+    form.reset();
+    updateMascotState({
+      state: 'celebrating',
+      message: "Great job! The new location has been added successfully! 🎉"
+    });
+  };
+
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -299,11 +330,25 @@ export function LocationDetail() {
 
   return (
     <div className="space-y-4">
+      <Mascot
+        state={mascotState.state}
+        message={mascotState.message}
+        position="right"
+      />
       <Card>
         <CardContent>
           <div className="flex justify-between items-center mb-4">
-            <div className="flex-1" /> {/* This creates space pushing the button to the right */}
-            <Button onClick={() => setIsCreateDialogOpen(true)} className="ml-auto">
+            <div className="flex-1" />
+            <Button
+              onClick={() => {
+                setIsCreateDialogOpen(true);
+                updateMascotState({
+                  state: 'pointing',
+                  message: "Let's add a new location! I'll help you fill out the details."
+                });
+              }}
+              className="ml-auto"
+            >
               <Plus className="h-4 w-4 mr-2" />
               Add New Location
             </Button>
