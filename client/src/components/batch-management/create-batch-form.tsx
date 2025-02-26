@@ -95,18 +95,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
   const [batchNumber, setBatchNumber] = useState("");
   const [filteredProcesses, setFilteredProcesses] = useState<Process[]>([]);
 
-  // Fetch all settings including processes and LOBs
-  const { data: settings } = useQuery<Settings>({
-    queryKey: ['/api/organizations/settings'],
-  });
-
-  // Fetch trainers (users with trainer role)
-  const { data: trainers } = useQuery<Trainer[]>({
-    queryKey: ['/api/users'],
-    select: (data) => data?.filter((user: any) => user.role === 'trainer') || [],
-  });
-
-  // Generate batch number
+  // Generate batch number immediately
   useEffect(() => {
     const generateBatchNumber = () => {
       const date = new Date();
@@ -117,6 +106,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     setBatchNumber(generateBatchNumber());
   }, []);
 
+  // Initialize form with default values
   const form = useForm<BatchFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -124,6 +114,21 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
       participantCount: 1,
       capacityLimit: 1,
     },
+  });
+
+  // Fetch settings with stale time and caching
+  const { data: settings, isLoading: isSettingsLoading } = useQuery<Settings>({
+    queryKey: ['/api/organizations/settings'],
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    cacheTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+  });
+
+  // Fetch trainers with role filtering and caching
+  const { data: trainers, isLoading: isTrainersLoading } = useQuery<Trainer[]>({
+    queryKey: ['/api/users'],
+    select: (data) => data?.filter((user: any) => user.role === 'trainer') || [],
+    staleTime: 5 * 60 * 1000,
+    cacheTime: 10 * 60 * 1000,
   });
 
   // Filter processes when LOB changes
@@ -134,7 +139,6 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
         (process) => process.lineOfBusiness === selectedLOB
       );
       setFilteredProcesses(filtered);
-      // Reset process selection when LOB changes
       form.setValue('processId', '');
       setSelectedProcess(null);
     }
@@ -233,11 +237,21 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     }
   };
 
-  if (!settings || !trainers) {
+  // Show loading spinner only during initial data fetch
+  if (isSettingsLoading || isTrainersLoading) {
     return (
       <div className="flex items-center justify-center p-6">
         <Loader2 className="h-6 w-6 animate-spin" />
-        <span className="ml-2">Loading...</span>
+        <span className="ml-2">Loading form data...</span>
+      </div>
+    );
+  }
+
+  // Ensure required data is available
+  if (!settings || !trainers) {
+    return (
+      <div className="flex items-center justify-center p-6 text-destructive">
+        Error loading form data. Please try again.
       </div>
     );
   }
