@@ -57,6 +57,7 @@ export interface IStorage {
   deleteBatch(id: number): Promise<void>;
   updateLocation(id: number, location: Partial<InsertOrganizationLocation>): Promise<OrganizationLocation>;
   deleteLocation(id: number): Promise<void>;
+  getLocation(id: number): Promise<OrganizationLocation | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -285,6 +286,13 @@ export class DatabaseStorage implements IStorage {
       console.error('Error deleting location:', error);
       throw new Error('Failed to delete location');
     }
+  }
+  async getLocation(id: number): Promise<OrganizationLocation | undefined> {
+    const [location] = await db
+      .select()
+      .from(organizationLocations)
+      .where(eq(organizationLocations.id, id)) as OrganizationLocation[];
+    return location;
   }
 }
 
