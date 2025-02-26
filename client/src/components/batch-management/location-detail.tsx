@@ -299,12 +299,64 @@ export function LocationDetail() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add New Location
-        </Button>
-      </div>
+      <Card>
+        <CardContent>
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex-1" /> {/* This creates space pushing the button to the right */}
+            <Button onClick={() => setIsCreateDialogOpen(true)} className="ml-auto">
+              <Plus className="h-4 w-4 mr-2" />
+              Add New Location
+            </Button>
+          </div>
+          {locations?.length > 0 ? (
+            <div className="relative overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Location Name</TableHead>
+                    <TableHead>Address</TableHead>
+                    <TableHead>City</TableHead>
+                    <TableHead>State</TableHead>
+                    <TableHead>Country</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {locations.map((location) => (
+                    <TableRow key={location.id}>
+                      <TableCell className="font-medium">{location.name}</TableCell>
+                      <TableCell>{location.address}</TableCell>
+                      <TableCell>{location.city}</TableCell>
+                      <TableCell>{location.state}</TableCell>
+                      <TableCell>{location.country}</TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(location)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDelete(location)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <p className="text-muted-foreground">No locations found. Create a new location to get started.</p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Create Location Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -557,58 +609,6 @@ export function LocationDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <Card>
-        <CardContent>
-          {locations?.length > 0 ? (
-            <div className="relative overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Location Name</TableHead>
-                    <TableHead>Address</TableHead>
-                    <TableHead>City</TableHead>
-                    <TableHead>State</TableHead>
-                    <TableHead>Country</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {locations.map((location) => (
-                    <TableRow key={location.id}>
-                      <TableCell className="font-medium">{location.name}</TableCell>
-                      <TableCell>{location.address}</TableCell>
-                      <TableCell>{location.city}</TableCell>
-                      <TableCell>{location.state}</TableCell>
-                      <TableCell>{location.country}</TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(location)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleDelete(location)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <p className="text-muted-foreground">No locations found. Create a new location to get started.</p>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }
