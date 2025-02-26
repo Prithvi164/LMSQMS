@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, pgEnum, date } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, pgEnum, date, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { relations, type InferSelectModel } from "drizzle-orm";
 import { z } from "zod";
@@ -61,10 +61,10 @@ export const organizations = pgTable("organizations", {
 
 export type Organization = InferSelectModel<typeof organizations>;
 
-// Organization Processes table
+// Organization Processes table with compound unique constraint
 export const organizationProcesses = pgTable("organization_processes", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull().unique(),  // Added unique constraint
+  name: text("name").notNull(),
   inductionDays: integer("induction_days").notNull(),
   trainingDays: integer("training_days").notNull(),
   certificationDays: integer("certification_days").notNull(),
@@ -78,14 +78,16 @@ export const organizationProcesses = pgTable("organization_processes", {
     .references(() => organizations.id)
     .notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  nameOrgUnique: unique("name_org_unique").on(table.name, table.organizationId),
+}));
 
 export type OrganizationProcess = InferSelectModel<typeof organizationProcesses>;
 
 // Organization Locations table with unique name constraint
 export const organizationLocations = pgTable("organization_locations", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull().unique(),  // Added unique constraint
+  name: text("name").notNull().unique(),
   address: text("address").notNull(),
   city: text("city").notNull(),
   state: text("state").notNull(),
