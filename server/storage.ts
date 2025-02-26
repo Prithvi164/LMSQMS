@@ -155,7 +155,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createLocation(location: InsertOrganizationLocation): Promise<OrganizationLocation> {
-    const [newLocation] = await db.insert(organizationLocations).values(location).returning() as OrganizationLocation[];
+    const [newLocation] = await db
+      .insert(organizationLocations)
+      .values({
+        name: location.name,
+        address: location.address,
+        city: location.city,
+        state: location.state,
+        country: location.country,
+        organizationId: location.organizationId,
+      })
+      .returning() as OrganizationLocation[];
     return newLocation;
   }
 

@@ -106,11 +106,9 @@ export function LocationDetail() {
             city: data.city,
             state: data.state,
             country: data.country,
-            organization_id: organization?.id
+            organizationId: organization?.id
           }
         };
-
-        console.log('Location creation request:', requestBody);
 
         const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
           method: 'PATCH',
@@ -162,11 +160,9 @@ export function LocationDetail() {
             city: data.city,
             state: data.state,
             country: data.country,
-            organization_id: organization?.id
+            organizationId: organization?.id
           }
         };
-
-        console.log('Location update request:', requestBody);
 
         const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
           method: 'PATCH',

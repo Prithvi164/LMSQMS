@@ -86,6 +86,10 @@ export type OrganizationProcess = InferSelectModel<typeof organizationProcesses>
 export const organizationLocations = pgTable("organization_locations", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  address: text("address").notNull(),
+  city: text("city").notNull(),
+  state: text("state").notNull(),
+  country: text("country").notNull(),
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
@@ -360,10 +364,18 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
     capacityLimit: z.number().min(1, "Capacity limit must be at least 1"),
   });
 
-export const insertOrganizationLocationSchema = createInsertSchema(organizationLocations).omit({
-  id: true,
-  createdAt: true
-});
+export const insertOrganizationLocationSchema = createInsertSchema(organizationLocations)
+  .omit({
+    id: true,
+    createdAt: true
+  })
+  .extend({
+    name: z.string().min(1, "Location name is required"),
+    address: z.string().min(1, "Address is required"),
+    city: z.string().min(1, "City is required"),
+    state: z.string().min(1, "State is required"),
+    country: z.string().min(1, "Country is required"),
+  });
 
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({ id: true, createdAt: true });
 export const insertUserSchema = createInsertSchema(users)
