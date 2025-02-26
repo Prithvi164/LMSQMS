@@ -76,16 +76,16 @@ export default function Settings() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="flex">
+      <div className="flex h-screen">
         {/* Settings Sidebar */}
-        <div className="w-64 border-r min-h-screen bg-background">
+        <div className="w-64 border-r bg-background flex flex-col">
           <div className="p-4 border-b">
             <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
               <ChevronLeft className="h-5 w-5" />
               <span>Back to Dashboard</span>
             </Link>
           </div>
-          <div className="p-4 space-y-2">
+          <div className="p-4 space-y-2 flex-1">
             <NavTab
               active={activeTab === "profile"}
               icon={UserCircle}
@@ -137,10 +137,10 @@ export default function Settings() {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1">
+        <div className="flex-1 overflow-auto">
           <div className="p-8">
             <h1 className="text-2xl font-semibold mb-6">{getPageTitle()}</h1>
-            <div className="max-w-4xl">
+            <div className="w-full">
               {usersLoading || orgLoading ? (
                 <div>Loading...</div>
               ) : (
