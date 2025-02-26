@@ -282,7 +282,6 @@ export function LocationDetail() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Location ID</TableHead>
                     <TableHead>Location Name</TableHead>
                     <TableHead>Address</TableHead>
                     <TableHead>City</TableHead>
@@ -293,7 +292,6 @@ export function LocationDetail() {
                 <TableBody>
                   {locations.map((location: any) => (
                     <TableRow key={location.id}>
-                      <TableCell>{location.id}</TableCell>
                       <TableCell className="font-medium">{location.name}</TableCell>
                       <TableCell>{location.address}</TableCell>
                       <TableCell>{location.city}</TableCell>
