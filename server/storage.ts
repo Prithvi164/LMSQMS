@@ -257,7 +257,14 @@ export class DatabaseStorage implements IStorage {
   async updateLocation(id: number, location: Partial<InsertOrganizationLocation>): Promise<OrganizationLocation> {
     const [updatedLocation] = await db
       .update(organizationLocations)
-      .set(location)
+      .set({
+        name: location.name,
+        address: location.address,
+        city: location.city,
+        state: location.state,
+        country: location.country,
+        organizationId: location.organizationId
+      })
       .where(eq(organizationLocations.id, id))
       .returning() as OrganizationLocation[];
 

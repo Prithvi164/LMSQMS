@@ -152,15 +152,14 @@ export function LocationDetail() {
       try {
         const requestBody = {
           type: 'locations',
-          action: 'update',
-          value: selectedLocation.id,
-          data: {
+          value: {
             name: data.name,
             address: data.address,
             city: data.city,
             state: data.state,
             country: data.country,
-            organizationId: organization?.id
+            organizationId: organization?.id,
+            id: selectedLocation.id
           }
         };
 
@@ -212,8 +211,15 @@ export function LocationDetail() {
       try {
         const requestBody = {
           type: 'locations',
-          action: 'delete',
-          value: selectedLocation.id
+          value: {
+            id: selectedLocation.id,
+            name: selectedLocation.name,
+            address: selectedLocation.address,
+            city: selectedLocation.city,
+            state: selectedLocation.state,
+            country: selectedLocation.country,
+            organizationId: organization?.id
+          }
         };
 
         console.log('Delete request payload:', requestBody);
