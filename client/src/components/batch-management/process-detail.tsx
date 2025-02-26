@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/table";
 import { Plus, Loader2 } from "lucide-react";
 
-// Form validation schema
+// Form validation schema remains unchanged
 const processFormSchema = z.object({
   name: z.string().min(1, "Process name is required"),
   inductionDays: z.number().min(0, "Induction days cannot be negative"),
@@ -53,18 +53,18 @@ const processFormSchema = z.object({
 });
 
 export function ProcessDetail() {
+  // State and hooks remain unchanged
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  // First fetch organization
+  // Queries remain unchanged
   const { data: organization } = useQuery({
     queryKey: ["/api/organization"],
     enabled: !!user,
   });
 
-  // Then fetch organization settings which includes locations
   const { data: orgSettings, isLoading } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/settings`],
     queryFn: async () => {
@@ -87,13 +87,12 @@ export function ProcessDetail() {
     },
   });
 
+  // Mutation remains unchanged
   const createProcessMutation = useMutation({
     mutationFn: async (data: z.infer<typeof processFormSchema>) => {
       const response = await fetch(`/api/organizations/${organization?.id}/processes`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: data.name,
           inductionDays: data.inductionDays,
@@ -176,7 +175,7 @@ export function ProcessDetail() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Process Name</FormLabel>
+                      <FormLabel className="text-sm font-medium">PROCESS NAME</FormLabel>
                       <FormControl>
                         <Input placeholder="Enter process name" {...field} />
                       </FormControl>
@@ -190,7 +189,7 @@ export function ProcessDetail() {
                   name="lineOfBusiness"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Line of Business</FormLabel>
+                      <FormLabel className="text-sm font-medium">LINE OF BUSINESS</FormLabel>
                       <FormControl>
                         <Input placeholder="Enter line of business" {...field} />
                       </FormControl>
@@ -204,7 +203,7 @@ export function ProcessDetail() {
                   name="locationId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Location</FormLabel>
+                      <FormLabel className="text-sm font-medium">LOCATION</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
@@ -229,7 +228,7 @@ export function ProcessDetail() {
                   name="inductionDays"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Induction Days</FormLabel>
+                      <FormLabel className="text-sm font-medium">INDUCTION DAYS</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -247,7 +246,7 @@ export function ProcessDetail() {
                   name="trainingDays"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Training Days</FormLabel>
+                      <FormLabel className="text-sm font-medium">TRAINING DAYS</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -265,7 +264,7 @@ export function ProcessDetail() {
                   name="certificationDays"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Certification Days</FormLabel>
+                      <FormLabel className="text-sm font-medium">CERTIFICATION DAYS</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -283,7 +282,7 @@ export function ProcessDetail() {
                   name="ojtDays"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>OJT Days</FormLabel>
+                      <FormLabel className="text-sm font-medium">OJT DAYS</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -301,7 +300,7 @@ export function ProcessDetail() {
                   name="ojtCertificationDays"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>OJT Certification Days</FormLabel>
+                      <FormLabel className="text-sm font-medium">OJT CERTIFICATION DAYS</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -343,29 +342,29 @@ export function ProcessDetail() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Process Name</TableHead>
-                    <TableHead>Line of Business</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Induction Days</TableHead>
-                    <TableHead>Training Days</TableHead>
-                    <TableHead>Certification Days</TableHead>
-                    <TableHead>OJT Days</TableHead>
-                    <TableHead>OJT Certification Days</TableHead>
+                    <TableHead className="text-xs font-medium">PROCESS NAME</TableHead>
+                    <TableHead className="text-xs font-medium">LINE OF BUSINESS</TableHead>
+                    <TableHead className="text-xs font-medium">LOCATION</TableHead>
+                    <TableHead className="text-xs font-medium">INDUCTION DAYS</TableHead>
+                    <TableHead className="text-xs font-medium">TRAINING DAYS</TableHead>
+                    <TableHead className="text-xs font-medium">CERTIFICATION DAYS</TableHead>
+                    <TableHead className="text-xs font-medium">OJT DAYS</TableHead>
+                    <TableHead className="text-xs font-medium">OJT CERTIFICATION DAYS</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {processes.map((process) => (
                     <TableRow key={process.id}>
-                      <TableCell className="font-medium">{process.name}</TableCell>
-                      <TableCell>{process.lineOfBusiness}</TableCell>
-                      <TableCell>
+                      <TableCell className="text-sm">{process.name}</TableCell>
+                      <TableCell className="text-sm">{process.lineOfBusiness}</TableCell>
+                      <TableCell className="text-sm">
                         {locations?.find(l => l.id === process.locationId)?.name}
                       </TableCell>
-                      <TableCell>{process.inductionDays}</TableCell>
-                      <TableCell>{process.trainingDays}</TableCell>
-                      <TableCell>{process.certificationDays}</TableCell>
-                      <TableCell>{process.ojtDays}</TableCell>
-                      <TableCell>{process.ojtCertificationDays}</TableCell>
+                      <TableCell className="text-sm">{process.inductionDays}</TableCell>
+                      <TableCell className="text-sm">{process.trainingDays}</TableCell>
+                      <TableCell className="text-sm">{process.certificationDays}</TableCell>
+                      <TableCell className="text-sm">{process.ojtDays}</TableCell>
+                      <TableCell className="text-sm">{process.ojtCertificationDays}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
