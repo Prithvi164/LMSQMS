@@ -143,6 +143,7 @@ export function LocationDetail() {
   const editLocationMutation = useMutation({
     mutationFn: async (data: z.infer<typeof locationFormSchema>) => {
       try {
+        // Format data according to the database schema
         const requestBody = {
           type: 'locations',
           action: 'update',
@@ -152,7 +153,8 @@ export function LocationDetail() {
             address: data.address,
             city: data.city,
             state: data.state,
-            country: data.country
+            country: data.country,
+            organization_id: organization?.id
           }
         };
 
@@ -205,7 +207,7 @@ export function LocationDetail() {
         const requestBody = {
           type: 'locations',
           action: 'delete',
-          value: selectedLocation.id
+          value: selectedLocation.id,
         };
 
         console.log('Location deletion request:', requestBody);

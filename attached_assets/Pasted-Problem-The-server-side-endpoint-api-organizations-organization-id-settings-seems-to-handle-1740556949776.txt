@@ -1,0 +1,189 @@
+Problem:
+
+The server-side endpoint /api/organizations/${organization?.id}/settings seems to handle multiple operations based on the type and action fields in the request body. However, the current implementation isn't correctly targeting existing locations for update or deletion.
+
+Root Cause Analysis:
+
+Create Location: The createLocationMutation sends a request to the /api/organizations/${organization?.id}/settings endpoint with the type set to 'locations' and the value set to the form data. The server likely interprets this as an instruction to add a new location to the list, hence new record created when user submit form.
+
+Edit Location: The editLocationMutation attempts to update an existing location by including the location's id as the value and providing the updated data. However, the server-side logic likely isn't correctly using the value (the location's ID) to locate and modify the existing record. Instead, it's likely interpreting the request as an instruction to create a new location because the settings do not find value field.
+
+Delete Location: The deleteLocationMutation similarly sends a request to delete a location, but the server-side logic likely isn't using the provided value (location's ID) to identify and remove the correct location.
+
+Proposed Solution:
+
+The key is to ensure that your API endpoint is correctly designed to handle the PATCH requests and uses the provided value and action to perform the correct operation (create, update, delete) on the appropriate location. You likely need to modify your API endpoint to correctly interpret and process these requests. Unfortunately, I cannot provide you with the exact code, but these are the most probable issues.
+
+Here's a high-level example of how you could structure your client-side mutations to better align with a typical API design:
+
+1. Clarify API Endpoint Expectations:
+
+First, understand how your server-side /api/organizations/${organization?.id}/settings endpoint is designed to handle create, update, and delete operations. Determine the expected format for the request body, especially how location IDs are used to target specific locations.
+
+2. Adapt Mutations:
+
+Modify the mutationFn in each mutation to send the data in the format expected by your API endpoint.
+
+Create Location Mutation (No Changes Needed):
+
+const createLocationMutation = useMutation({
+  mutationFn: async (data: z.infer<typeof locationFormSchema>) => {
+    try {
+      const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'locations',
+          value: data,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Server response:', errorData);
+        throw new Error(errorData || 'Failed to create location');
+      }
+
+      const jsonData = await response.json();
+      return jsonData;
+    } catch (error) {
+      console.error('Location creation error:', error);
+      throw error;
+    }
+  },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
+    toast({
+      title: "Success",
+      description: "Location created successfully",
+    });
+    setIsCreateDialogOpen(false);
+    form.reset();
+  },
+  onError: (error: Error) => {
+    console.error('Location creation error:', error);
+    toast({
+      title: "Error",
+      description: error.message || "Failed to create location",
+      variant: "destructive",
+    });
+  },
+});
+Use code with caution.
+JavaScript
+Edit Location Mutation:
+
+const editLocationMutation = useMutation({
+  mutationFn: async (data: z.infer<typeof locationFormSchema>) => {
+    try {
+      const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'locations',
+          action: 'update',
+          value: selectedLocation.id, //  <--- ID of the location
+          data: data, // The updated data for the location
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Server response:', errorData);
+        throw new Error(errorData || 'Failed to update location');
+      }
+
+      const jsonData = await response.json();
+      console.log('Update response:', jsonData);
+      return jsonData;
+    } catch (error) {
+      console.error('Location update error:', error);
+      throw error;
+    }
+  },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
+    toast({
+      title: "Success",
+      description: "Location updated successfully",
+    });
+    setIsEditDialogOpen(false);
+    setSelectedLocation(null);
+    editForm.reset();
+  },
+  onError: (error: Error) => {
+    toast({
+      title: "Error",
+      description: error.message || "Failed to update location",
+      variant: "destructive",
+    });
+  },
+});
+Use code with caution.
+JavaScript
+Delete Location Mutation:
+
+const deleteLocationMutation = useMutation({
+  mutationFn: async () => {
+    try {
+      const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'locations',
+          action: 'delete',
+          value: selectedLocation.id,  // <--- the ID of the location to delete
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Server response:', errorData);
+        throw new Error(errorData || 'Failed to delete location');
+      }
+
+      const jsonData = await response.json();
+      console.log('Delete response:', jsonData);
+      return jsonData;
+    } catch (error) {
+      console.error('Location deletion error:', error);
+      throw error;
+    }
+  },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
+    toast({
+      title: "Success",
+      description: "Location deleted successfully",
+    });
+    setIsDeleteDialogOpen(false);
+    setSelectedLocation(null);
+    setDeleteConfirmation("");
+  },
+  onError: (error: Error) => {
+    toast({
+      title: "Error",
+      description: error.message || "Failed to delete location",
+      variant: "destructive",
+    });
+  },
+});
+Use code with caution.
+JavaScript
+Important Considerations:
+
+Server-Side Logic: The primary focus should be on ensuring your server-side logic correctly handles the PATCH requests, interprets the action and value fields, and performs the corresponding database operations (create, update, delete) on the correct location.
+
+Error Handling: The code includes robust error handling, which is crucial for debugging and providing informative feedback to the user.
+
+Invalidate Queries: queryClient.invalidateQueries is correctly used to refresh the data after a successful mutation.
+
+Optimistic Updates: For a more responsive UI, consider implementing optimistic updates. This involves updating the UI immediately as if the mutation was successful and then reverting the update if the mutation fails.
+
+By making these adjustments, you'll ensure that your client-side mutations correctly interact with your API endpoint, resulting in the expected behavior (creating, updating, and deleting locations without adding new records unintentionally).
