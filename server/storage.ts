@@ -153,8 +153,16 @@ export class DatabaseStorage implements IStorage {
 
   // Organization settings operations
   async createProcess(process: InsertOrganizationProcess): Promise<OrganizationProcess> {
-    const [newProcess] = await db.insert(organizationProcesses).values(process).returning() as OrganizationProcess[];
-    return newProcess;
+    try {
+      const [newProcess] = await db.insert(organizationProcesses).values(process).returning() as OrganizationProcess[];
+      return newProcess;
+    } catch (error: any) {
+      // Check if error is related to unique constraint violation
+      if (error.code === '23505' && error.constraint_name === 'organization_processes_name_key') {
+        throw new Error('A process with this name already exists. Please choose a different name.');
+      }
+      throw error;
+    }
   }
 
   async createBatch(batch: InsertOrganizationBatch): Promise<OrganizationBatch> {

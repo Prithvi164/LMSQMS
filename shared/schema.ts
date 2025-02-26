@@ -64,7 +64,7 @@ export type Organization = InferSelectModel<typeof organizations>;
 // Organization Processes table
 export const organizationProcesses = pgTable("organization_processes", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull(),
+  name: text("name").notNull().unique(),  // Added unique constraint
   inductionDays: integer("induction_days").notNull(),
   trainingDays: integer("training_days").notNull(),
   certificationDays: integer("certification_days").notNull(),
@@ -335,6 +335,7 @@ export const insertOrganizationProcessSchema = createInsertSchema(organizationPr
     createdAt: true
   })
   .extend({
+    name: z.string().min(1, "Process name is required"),
     inductionDays: z.number().min(1, "Induction days must be at least 1"),
     trainingDays: z.number().min(1, "Training days must be at least 1"),
     certificationDays: z.number().min(1, "Certification days must be at least 1"),
