@@ -158,8 +158,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           const { name, address, city, state, country } = value;
           if (!name || !address || !city || !state || !country) {
-            return res.status(400).json({ 
-              message: "Missing required location fields. Required: name, address, city, state, country" 
+            return res.status(400).json({
+              message: "Missing required location fields. Required: name, address, city, state, country"
             });
           }
 
@@ -747,6 +747,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error deleting batch:", error);
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Add a specific DELETE endpoint for locations
+  app.delete("/api/organizations/:orgId/settings/locations/:locationId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const locationId = parseInt(req.params.locationId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only delete locations in your own organization" });
+      }
+
+      // Direct deletion without additional validation
+      await storage.deleteLocation(locationId);
+      res.status(200).json({ message: "Location deleted successfully" });
+    } catch (err: any) {
+      console.error("Location deletion error:", err);
+      res.status(500).json({ message: err.message || "Failed to delete location" });
     }
   });
 

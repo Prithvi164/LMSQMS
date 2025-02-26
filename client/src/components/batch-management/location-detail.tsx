@@ -208,16 +208,15 @@ export function LocationDetail() {
   const deleteLocationMutation = useMutation({
     mutationFn: async () => {
       try {
-        const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            type: 'locations',
-            locationId: selectedLocation.id
-          }),
-        });
+        const response = await fetch(
+          `/api/organizations/${organization?.id}/settings/locations/${selectedLocation.id}`,
+          {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        );
 
         if (!response.ok) {
           const errorText = await response.text();
