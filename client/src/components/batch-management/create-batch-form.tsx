@@ -115,7 +115,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     retry: 1
   });
 
-  // Fetch trainers with error handling and proper type definition
+  // Fetch trainers with error handling and proper field mapping
   const {
     data: trainers = [],
     isLoading: isTrainersLoading,
@@ -128,8 +128,12 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     retry: 1,
     select: (data: any[]) => {
       console.log('All users data:', data); // Debug log
-      const filtered = data?.filter(user => user.role === 'trainer') || [];
-      console.log('Filtered trainers:', filtered); // Debug log
+      const filtered = data?.filter(user => user.role === 'trainer').map(trainer => ({
+        id: trainer.id,
+        name: trainer.full_name || trainer.username, // Use full_name or fallback to username
+        managerId: trainer.managerId
+      })) || [];
+      console.log('Filtered and mapped trainers:', filtered); // Debug log
       return filtered;
     }
   });
@@ -285,8 +289,8 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     console.error("Trainers Error:", trainersError);
     return (
       <div className="flex items-center justify-center p-6">
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           onClick={() => {
             queryClient.invalidateQueries({ queryKey: [`/api/organizations/${currentUser.organizationId}/settings`] });
             queryClient.invalidateQueries({ queryKey: ['/api/users'] });
