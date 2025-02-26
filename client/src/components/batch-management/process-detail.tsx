@@ -40,7 +40,7 @@ import {
   TableHead,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Loader2, Pencil, Trash2 } from "lucide-react";
+import { Plus, Loader2, Pencil, Trash2, Settings } from "lucide-react";
 
 // Form validation schema remains unchanged
 const processFormSchema = z.object({
@@ -196,17 +196,113 @@ export function ProcessDetail() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-semibold tracking-tight">Manage Process</h2>
-        <Button 
-          onClick={() => setIsCreateDialogOpen(true)}
-          className="bg-purple-600 hover:bg-purple-700"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Process
-        </Button>
-      </div>
+      <Card className="overflow-hidden border-none shadow-lg">
+        <CardContent className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center gap-2">
+              <Settings className="h-5 w-5 text-purple-500" />
+              <h2 className="text-lg font-semibold">Manage Process</h2>
+            </div>
+            <Button 
+              onClick={() => setIsCreateDialogOpen(true)}
+              className="bg-purple-600 hover:bg-purple-700 transition-colors"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add New Process
+            </Button>
+          </div>
 
+          {processes?.length > 0 ? (
+            <div className="relative overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs font-medium uppercase">Process Name</TableHead>
+                    <TableHead className="text-xs font-medium uppercase">Line of Business</TableHead>
+                    <TableHead className="text-xs font-medium uppercase">Location</TableHead>
+                    <TableHead className="text-xs font-medium uppercase">Induction Days</TableHead>
+                    <TableHead className="text-xs font-medium uppercase">Training Days</TableHead>
+                    <TableHead className="text-xs font-medium uppercase">Certification Days</TableHead>
+                    <TableHead className="text-xs font-medium uppercase">OJT Days</TableHead>
+                    <TableHead className="text-xs font-medium uppercase">OJT Certification Days</TableHead>
+                    <TableHead className="text-xs font-medium uppercase">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {processes.map((process) => (
+                    <TableRow key={process.id}>
+                      <TableCell className="text-sm">{process.name}</TableCell>
+                      <TableCell className="text-sm">{process.lineOfBusiness}</TableCell>
+                      <TableCell className="text-sm">
+                        {locations?.find(l => l.id === process.locationId)?.name}
+                      </TableCell>
+                      <TableCell className="text-sm">{process.inductionDays}</TableCell>
+                      <TableCell className="text-sm">{process.trainingDays}</TableCell>
+                      <TableCell className="text-sm">{process.certificationDays}</TableCell>
+                      <TableCell className="text-sm">{process.ojtDays}</TableCell>
+                      <TableCell className="text-sm">{process.ojtCertificationDays}</TableCell>
+                      <TableCell className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {/* TODO: Implement edit */}}
+                          className="h-8 w-8"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(process)}
+                          className="h-8 w-8 text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <p className="text-center text-muted-foreground">No processes found.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Process</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this process? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deleteProcessMutation.isPending}
+            >
+              {deleteProcessMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {/* Create Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
@@ -380,100 +476,6 @@ export function ProcessDetail() {
           </Form>
         </DialogContent>
       </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Process</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this process? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={confirmDelete}
-              disabled={deleteProcessMutation.isPending}
-            >
-              {deleteProcessMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Card>
-        <CardContent className="p-6">
-          {processes?.length > 0 ? (
-            <div className="relative overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-xs font-medium uppercase">Process Name</TableHead>
-                    <TableHead className="text-xs font-medium uppercase">Line of Business</TableHead>
-                    <TableHead className="text-xs font-medium uppercase">Location</TableHead>
-                    <TableHead className="text-xs font-medium uppercase">Induction Days</TableHead>
-                    <TableHead className="text-xs font-medium uppercase">Training Days</TableHead>
-                    <TableHead className="text-xs font-medium uppercase">Certification Days</TableHead>
-                    <TableHead className="text-xs font-medium uppercase">OJT Days</TableHead>
-                    <TableHead className="text-xs font-medium uppercase">OJT Certification Days</TableHead>
-                    <TableHead className="text-xs font-medium uppercase">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {processes.map((process) => (
-                    <TableRow key={process.id}>
-                      <TableCell className="text-sm">{process.name}</TableCell>
-                      <TableCell className="text-sm">{process.lineOfBusiness}</TableCell>
-                      <TableCell className="text-sm">
-                        {locations?.find(l => l.id === process.locationId)?.name}
-                      </TableCell>
-                      <TableCell className="text-sm">{process.inductionDays}</TableCell>
-                      <TableCell className="text-sm">{process.trainingDays}</TableCell>
-                      <TableCell className="text-sm">{process.certificationDays}</TableCell>
-                      <TableCell className="text-sm">{process.ojtDays}</TableCell>
-                      <TableCell className="text-sm">{process.ojtCertificationDays}</TableCell>
-                      <TableCell className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {/* TODO: Implement edit */}}
-                          className="h-8 w-8"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(process)}
-                          className="h-8 w-8 text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <p className="text-center text-muted-foreground">No processes found.</p>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }
