@@ -187,6 +187,8 @@ export function ProcessDetail() {
 
   const createProcessMutation = useMutation({
     mutationFn: async (data: z.infer<typeof processFormSchema>) => {
+      const selectedLob = lineOfBusinesses?.find(lob => lob.id === parseInt(data.lineOfBusinessId));
+
       const response = await fetch(`/api/organizations/${organization?.id}/processes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -197,7 +199,8 @@ export function ProcessDetail() {
           certificationDays: data.certificationDays,
           ojtDays: data.ojtDays,
           ojtCertificationDays: data.ojtCertificationDays,
-          lineOfBusinessId: parseInt(data.lineOfBusinessId, 10),
+          lineOfBusiness: selectedLob?.name, 
+          lineOfBusinessId: parseInt(data.lineOfBusinessId, 10), 
           locationId: parseInt(data.locationId, 10),
         }),
       });
@@ -292,7 +295,7 @@ export function ProcessDetail() {
     const searchStr = searchQuery.toLowerCase();
     return (
       process.name.toLowerCase().includes(searchStr) ||
-      process.lineOfBusinessId.toString().toLowerCase().includes(searchStr) || //Updated line
+      process.lineOfBusinessId.toString().toLowerCase().includes(searchStr) || 
       (locations?.find(l => l.id === process.locationId)?.name || "").toLowerCase().includes(searchStr)
     );
   });
@@ -321,7 +324,7 @@ export function ProcessDetail() {
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
-                  setCurrentPage(1); // Reset to first page on search
+                  setCurrentPage(1); 
                 }}
               />
             </div>
