@@ -158,14 +158,14 @@ export function LocationDetail() {
           type: 'processNames',
           action: 'update',
           value: selectedLocation.id,
-          data: {
+          data: JSON.stringify({
             name: data.name,
             address: data.address,
             city: data.city,
             state: data.state,
             country: data.country,
             organization_id: organization?.id
-          }
+          })
         };
 
         console.log('Location update request:', requestBody);
@@ -193,6 +193,7 @@ export function LocationDetail() {
       }
     },
     onSuccess: () => {
+      // Force a full refetch of organization settings
       queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
       toast({
         title: "Success",
@@ -313,14 +314,27 @@ export function LocationDetail() {
 
   // Parse the locations data properly
   const locations = (orgSettings?.locations || []).map(location => {
-    if (typeof location.name === 'string' && location.name.startsWith('{')) {
+    if (typeof location.name === 'string') {
       try {
-        const parsedData = JSON.parse(location.name);
+        // Try to parse as JSON first
+        if (location.name.startsWith('{')) {
+          const parsedData = JSON.parse(location.name);
+          return {
+            id: location.id,
+            ...parsedData
+          };
+        }
+        // If not JSON, use as-is
         return {
           id: location.id,
-          ...parsedData
+          name: location.name,
+          address: location.address || '',
+          city: location.city || '',
+          state: location.state || '',
+          country: location.country || ''
         };
       } catch (e) {
+        console.error('Error parsing location data:', e);
         return location;
       }
     }
