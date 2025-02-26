@@ -134,6 +134,28 @@ export function AddUser({
     }
   });
 
+  // Add helper function to get potential managers based on role
+  const getFilteredManagers = (selectedRole: string) => {
+    if (!potentialManagers) return [];
+
+    switch (selectedRole) {
+      case "admin":
+        return potentialManagers.filter(m => m.role === "owner");
+      case "manager":
+        return potentialManagers.filter(m => ["owner", "admin"].includes(m.role));
+      case "team_lead":
+        return potentialManagers.filter(m => ["owner", "admin", "manager"].includes(m.role));
+      case "trainer":
+        return potentialManagers.filter(m => ["owner", "admin", "manager", "team_lead"].includes(m.role));
+      case "trainee":
+        return potentialManagers.filter(m => ["owner", "admin", "manager", "team_lead", "trainer"].includes(m.role));
+      case "advisor":
+        return potentialManagers.filter(m => ["owner", "admin", "manager", "team_lead"].includes(m.role));
+      default:
+        return [];
+    }
+  };
+
   // Ensure we have access to current organization's data
   if (!organization || isLoading) {
     return (
@@ -254,22 +276,32 @@ export function AddUser({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">No Manager</SelectItem>
-                    {potentialManagers.map((manager) => (
+                    {getFilteredManagers(newUserData.role).map((manager) => (
                       <SelectItem key={manager.id} value={manager.id.toString()}>
                         {manager.fullName || manager.username}
+                        {" "}
+                        <span className="text-muted-foreground">({manager.role})</span>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {newUserData.role && getFilteredManagers(newUserData.role).length === 0 && 
+                    "No eligible managers available for the selected role"}
+                </p>
               </div>
               <div>
                 <Label htmlFor="role">Role</Label>
                 <Select
                   value={newUserData.role}
-                  onValueChange={(value) => setNewUserData(prev => ({
-                    ...prev,
-                    role: value
-                  }))}
+                  onValueChange={(value) => {
+                    // Reset manager when role changes
+                    setNewUserData(prev => ({
+                      ...prev,
+                      role: value,
+                      managerId: "none"
+                    }));
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select role" />
@@ -278,19 +310,19 @@ export function AddUser({
                     {user.role === "owner" ? (
                       <>
                         <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="trainee">Trainee</SelectItem>
                         <SelectItem value="manager">Manager</SelectItem>
-                        <SelectItem value="trainer">Trainer</SelectItem>
-                        <SelectItem value="advisor">Advisor</SelectItem>
                         <SelectItem value="team_lead">Team Lead</SelectItem>
+                        <SelectItem value="trainer">Trainer</SelectItem>
+                        <SelectItem value="trainee">Trainee</SelectItem>
+                        <SelectItem value="advisor">Advisor</SelectItem>
                       </>
                     ) : user.role === "admin" ? (
                       <>
-                        <SelectItem value="trainee">Trainee</SelectItem>
                         <SelectItem value="manager">Manager</SelectItem>
-                        <SelectItem value="trainer">Trainer</SelectItem>
-                        <SelectItem value="advisor">Advisor</SelectItem>
                         <SelectItem value="team_lead">Team Lead</SelectItem>
+                        <SelectItem value="trainer">Trainer</SelectItem>
+                        <SelectItem value="trainee">Trainee</SelectItem>
+                        <SelectItem value="advisor">Advisor</SelectItem>
                       </>
                     ) : (
                       <SelectItem value="trainee">Trainee</SelectItem>
