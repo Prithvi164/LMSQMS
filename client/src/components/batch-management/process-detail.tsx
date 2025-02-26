@@ -38,15 +38,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Loader2, AlertCircle } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Plus, Loader2 } from "lucide-react";
 
 // Form validation schema
 const processFormSchema = z.object({
   name: z.string().min(1, "Process name is required"),
-  inductionDays: z.number().min(1, "Induction days must be at least 1"),
-  trainingDays: z.number().min(1, "Training days must be at least 1"),
-  certificationDays: z.number().min(1, "Certification days must be at least 1"),
+  inductionDays: z.number().min(0, "Induction days cannot be negative"),
+  trainingDays: z.number().min(0, "Training days cannot be negative"),
+  certificationDays: z.number().min(0, "Certification days cannot be negative"),
   ojtDays: z.number().min(0, "OJT days cannot be negative"),
   ojtCertificationDays: z.number().min(0, "OJT certification days cannot be negative"),
   lineOfBusiness: z.string().min(1, "Line of business is required"),
@@ -59,14 +58,14 @@ export function ProcessDetail() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  // Fetch organization first
+  // First fetch organization
   const { data: organization } = useQuery({
     queryKey: ["/api/organization"],
     enabled: !!user,
   });
 
-  // Then fetch organization settings
-  const { data: orgSettings, isLoading: isLoadingSettings } = useQuery({
+  // Then fetch organization settings which includes locations
+  const { data: orgSettings, isLoading } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/settings`],
     queryFn: async () => {
       if (!organization?.id) return null;
@@ -80,9 +79,9 @@ export function ProcessDetail() {
   const form = useForm<z.infer<typeof processFormSchema>>({
     resolver: zodResolver(processFormSchema),
     defaultValues: {
-      inductionDays: 1,
-      trainingDays: 1,
-      certificationDays: 1,
+      inductionDays: 0,
+      trainingDays: 0,
+      certificationDays: 0,
       ojtDays: 0,
       ojtCertificationDays: 0,
     },
@@ -137,8 +136,7 @@ export function ProcessDetail() {
     }
   };
 
-  // Show loading state while fetching data
-  if (isLoadingSettings) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -148,28 +146,16 @@ export function ProcessDetail() {
 
   const locations = orgSettings?.locations || [];
   const processes = orgSettings?.processes || [];
-  const hasLocations = locations && locations.length > 0;
-
-  console.log('Debug locations:', { locations, hasLocations, orgSettings });
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold">Process Details</h2>
-        <Button onClick={() => setIsCreateDialogOpen(true)} disabled={!hasLocations}>
+        <Button onClick={() => setIsCreateDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Add New Process
         </Button>
       </div>
-
-      {!hasLocations && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            No locations are available. Please add locations first before creating a process.
-          </AlertDescription>
-        </Alert>
-      )}
 
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="max-w-2xl">
