@@ -115,7 +115,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     retry: 1
   });
 
-  // Fetch trainers with error handling
+  // Fetch trainers with error handling and proper type definition
   const {
     data: trainers = [],
     isLoading: isTrainersLoading,
@@ -126,7 +126,12 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 10,
     retry: 1,
-    select: (data: any) => data?.filter((user: any) => user.role === 'trainer') || []
+    select: (data: any[]) => {
+      console.log('All users data:', data); // Debug log
+      const filtered = data?.filter(user => user.role === 'trainer') || [];
+      console.log('Filtered trainers:', filtered); // Debug log
+      return filtered;
+    }
   });
 
   // Generate batch number

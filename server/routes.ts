@@ -499,8 +499,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/users", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
     if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
-    const users = await storage.listUsers(req.user.organizationId);
-    res.json(users);
+
+    try {
+      console.log(`Fetching users for organization ${req.user.organizationId}`);
+      const users = await storage.listUsers(req.user.organizationId);
+      console.log(`Found ${users.length} users, including ${users.filter(u => u.role === 'trainer').length} trainers`);
+      res.json(users);
+    } catch (error: any) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: error.message });
+    }
   });
 
   // User routes
