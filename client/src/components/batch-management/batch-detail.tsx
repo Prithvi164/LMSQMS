@@ -28,7 +28,7 @@ export function BatchDetail() {
   const { toast } = useToast();
 
   const {
-    data: batches,
+    data: batches = [], // Provide default empty array to fix TypeScript error
     isLoading,
     error
   } = useQuery({
@@ -90,7 +90,7 @@ export function BatchDetail() {
                 onClick={() => setIsCreateDialogOpen(true)}
               >
                 <Plus className="h-4 w-4" />
-                Create New Batch
+                Add New Batch
               </Button>
             </div>
           </div>
@@ -101,7 +101,7 @@ export function BatchDetail() {
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Create New Batch</DialogTitle>
+            <DialogTitle>Add New Batch</DialogTitle>
           </DialogHeader>
           <CreateBatchForm onClose={() => setIsCreateDialogOpen(false)} />
         </DialogContent>
@@ -110,7 +110,7 @@ export function BatchDetail() {
       {/* Batch List Section */}
       <Card>
         <CardContent className="pt-6">
-          {batches && batches.length > 0 ? (
+          {batches.length > 0 ? (
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
@@ -168,7 +168,7 @@ export function BatchDetail() {
                   onClick={() => setIsCreateDialogOpen(true)}
                 >
                   <Plus className="mr-2 h-4 w-4" />
-                  Create New Batch
+                  Add New Batch
                 </Button>
               </div>
             </div>
