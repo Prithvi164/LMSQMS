@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -33,8 +33,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Loader2, Pencil, Trash2 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Plus, Loader2, Pencil, Trash2, MapPin } from "lucide-react";
 import { Mascot } from "@/components/ui/mascot";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Form validation schema
 const locationFormSchema = z.object({
@@ -320,8 +327,25 @@ export function LocationDetail() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="space-y-4">
+        <Card>
+          <CardContent className="py-4">
+            <div className="flex justify-between items-center mb-6">
+              <Skeleton className="h-10 w-32" />
+              <Skeleton className="h-10 w-40" />
+            </div>
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="flex space-x-4">
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-24" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -335,61 +359,92 @@ export function LocationDetail() {
         message={mascotState.message}
         position="right"
       />
-      <Card>
-        <CardContent>
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex-1" />
-            <Button
-              onClick={() => {
-                setIsCreateDialogOpen(true);
-                updateMascotState({
-                  state: 'pointing',
-                  message: "Let's add a new location! I'll help you fill out the details."
-                });
-              }}
-              className="ml-auto"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add New Location
-            </Button>
+      <Card className="overflow-hidden border-none shadow-lg">
+        <CardContent className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-purple-500" />
+              <h2 className="text-lg font-semibold">Manage Locations</h2>
+            </div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={() => {
+                      setIsCreateDialogOpen(true);
+                      updateMascotState({
+                        state: 'pointing',
+                        message: "Let's add a new location! I'll help you fill out the details."
+                      });
+                    }}
+                    className="bg-purple-600 hover:bg-purple-700 transition-colors"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add New Location
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Add a new location to your organization</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
+
           {locations?.length > 0 ? (
-            <div className="relative overflow-x-auto">
+            <div className="relative overflow-x-auto rounded-lg border">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Location Name</TableHead>
-                    <TableHead>Address</TableHead>
-                    <TableHead>City</TableHead>
-                    <TableHead>State</TableHead>
-                    <TableHead>Country</TableHead>
-                    <TableHead>Actions</TableHead>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="font-semibold">Location Name</TableHead>
+                    <TableHead className="font-semibold">Address</TableHead>
+                    <TableHead className="font-semibold">City</TableHead>
+                    <TableHead className="font-semibold">State</TableHead>
+                    <TableHead className="font-semibold">Country</TableHead>
+                    <TableHead className="font-semibold text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {locations.map((location) => (
-                    <TableRow key={location.id}>
+                    <TableRow
+                      key={location.id}
+                      className="hover:bg-muted/50 transition-colors"
+                    >
                       <TableCell className="font-medium">{location.name}</TableCell>
                       <TableCell>{location.address}</TableCell>
                       <TableCell>{location.city}</TableCell>
                       <TableCell>{location.state}</TableCell>
                       <TableCell>{location.country}</TableCell>
                       <TableCell>
-                        <div className="flex space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(location)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleDelete(location)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                        <div className="flex justify-end space-x-2">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEdit(location)}
+                                  className="hover:bg-purple-50"
+                                >
+                                  <Pencil className="h-4 w-4 text-purple-600" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Edit location</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => handleDelete(location)}
+                                  className="hover:bg-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Delete location</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -398,7 +453,10 @@ export function LocationDetail() {
               </Table>
             </div>
           ) : (
-            <p className="text-muted-foreground">No locations found. Create a new location to get started.</p>
+            <div className="text-center py-8 bg-muted/10 rounded-lg border-2 border-dashed">
+              <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground text-lg">No locations found. Add your first location to get started.</p>
+            </div>
           )}
         </CardContent>
       </Card>

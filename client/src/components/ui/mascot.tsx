@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { HelpCircle, MapPin, Building, Plus } from "lucide-react";
+import { MapPin, HelpCircle } from "lucide-react";
 
 interface MascotProps {
   state: 'idle' | 'pointing' | 'explaining' | 'celebrating';
@@ -11,7 +11,7 @@ interface MascotProps {
 export function Mascot({ state = 'idle', message, position = 'bottom' }: MascotProps) {
   const [isVisible, setIsVisible] = useState(true);
 
-  // Mascot character - simple SVG implementation
+  // Mascot character - cute location manager
   const MascotSVG = () => (
     <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
       {/* Body */}
@@ -21,12 +21,12 @@ export function Mascot({ state = 'idle', message, position = 'bottom' }: MascotP
       <circle cx="75" cy="50" r="5" fill="white" />
       {/* Smile */}
       <path
-        d="M45 70 Q60 85 75 70"
+        d={state === 'celebrating' ? "M45 70 Q60 80 75 70" : "M45 70 Q60 75 75 70"}
         stroke="white"
         strokeWidth="3"
         fill="none"
       />
-      {/* MapPin Icon */}
+      {/* Location Pin Icon */}
       <g transform="translate(85, 25) scale(0.8)">
         <MapPin color="white" />
       </g>
@@ -58,8 +58,9 @@ export function Mascot({ state = 'idle', message, position = 'bottom' }: MascotP
     },
     celebrating: {
       scale: [1, 1.2, 1],
+      rotate: [-10, 10, -10],
       transition: {
-        duration: 0.5,
+        duration: 0.8,
         repeat: 1,
       },
     },
@@ -85,19 +86,21 @@ export function Mascot({ state = 'idle', message, position = 'bottom' }: MascotP
         >
           {message && (
             <motion.div
-              className="bg-white p-4 rounded-lg shadow-lg max-w-xs"
+              className="bg-white p-4 rounded-lg shadow-lg max-w-xs relative"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
             >
               <p className="text-sm text-gray-700">{message}</p>
+              <div className="absolute -right-2 top-1/2 transform -translate-y-1/2 rotate-45 w-4 h-4 bg-white" />
             </motion.div>
           )}
           <motion.div
             variants={variants}
             animate={state}
-            className="cursor-pointer"
+            className="cursor-pointer hover:scale-105 transition-transform"
             onClick={() => setIsVisible(false)}
+            title="Click to hide mascot"
           >
             <MascotSVG />
           </motion.div>
