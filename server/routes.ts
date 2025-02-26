@@ -189,19 +189,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only view your own organization's settings" });
       }
 
+      // Fetch all required data with proper error handling
       const [processes, batches, locations] = await Promise.all([
-        storage.listProcesses(orgId),
-        storage.listBatches(orgId),
-        storage.listLocations(orgId),
+        storage.listProcesses(orgId).catch(err => {
+          console.error('Error fetching processes:', err);
+          return [];
+        }),
+        storage.listBatches(orgId).catch(err => {
+          console.error('Error fetching batches:', err);
+          return [];
+        }),
+        storage.listLocations(orgId).catch(err => {
+          console.error('Error fetching locations:', err);
+          return [];
+        }),
       ]);
 
-      res.json({
-        processes,
-        batches,
-        locations,
-      });
+      // Ensure we have the minimum required data
+      if (!processes || !locations) {
+        return res.status(500).json({
+          message: "Failed to fetch required data",
+          details: "Some required data is missing"
+        });
+      }
+
+      const response = {
+        processes: processes || [],
+        batches: batches || [],
+        locations: locations || [],
+      };
+
+      console.log('Sending organization settings:', response);
+      res.json(response);
     } catch (err: any) {
-      res.status(400).json({ message: err.message });
+      console.error("Error in /api/organizations/settings:", err);
+      res.status(500).json({
+        message: "Internal server error",
+        details: err.message
+      });
     }
   });
 
@@ -834,7 +859,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             row: i,
             error: error.message || 'Unknown error occurred'
           });
-        }
+                }
       }
 
       res.json(results);
