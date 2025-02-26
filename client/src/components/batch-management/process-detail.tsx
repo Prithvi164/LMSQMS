@@ -216,13 +216,12 @@ export function ProcessDetail() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="grid gap-4">
-                {/* Form fields remain unchanged */}
                 <FormField
                   control={form.control}
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium">PROCESS NAME</FormLabel>
+                      <FormLabel className="text-xs font-medium uppercase">Process Name</FormLabel>
                       <FormControl>
                         <Input placeholder="Enter process name" {...field} />
                       </FormControl>
@@ -236,7 +235,7 @@ export function ProcessDetail() {
                   name="lineOfBusiness"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium">LINE OF BUSINESS</FormLabel>
+                      <FormLabel className="text-xs font-medium uppercase">Line of Business</FormLabel>
                       <FormControl>
                         <Input placeholder="Enter line of business" {...field} />
                       </FormControl>
@@ -250,7 +249,7 @@ export function ProcessDetail() {
                   name="locationId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium">LOCATION</FormLabel>
+                      <FormLabel className="text-xs font-medium uppercase">Location</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
@@ -275,7 +274,7 @@ export function ProcessDetail() {
                   name="inductionDays"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium">INDUCTION DAYS</FormLabel>
+                      <FormLabel className="text-xs font-medium uppercase">Induction Days</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -293,7 +292,7 @@ export function ProcessDetail() {
                   name="trainingDays"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium">TRAINING DAYS</FormLabel>
+                      <FormLabel className="text-xs font-medium uppercase">Training Days</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -311,7 +310,7 @@ export function ProcessDetail() {
                   name="certificationDays"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium">CERTIFICATION DAYS</FormLabel>
+                      <FormLabel className="text-xs font-medium uppercase">Certification Days</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -329,7 +328,7 @@ export function ProcessDetail() {
                   name="ojtDays"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium">OJT DAYS</FormLabel>
+                      <FormLabel className="text-xs font-medium uppercase">OJT Days</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -347,7 +346,7 @@ export function ProcessDetail() {
                   name="ojtCertificationDays"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium">OJT CERTIFICATION DAYS</FormLabel>
+                      <FormLabel className="text-xs font-medium uppercase">OJT Certification Days</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -423,15 +422,15 @@ export function ProcessDetail() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-xs font-medium">PROCESS NAME</TableHead>
-                    <TableHead className="text-xs font-medium">LINE OF BUSINESS</TableHead>
-                    <TableHead className="text-xs font-medium">LOCATION</TableHead>
-                    <TableHead className="text-xs font-medium">INDUCTION DAYS</TableHead>
-                    <TableHead className="text-xs font-medium">TRAINING DAYS</TableHead>
-                    <TableHead className="text-xs font-medium">CERTIFICATION DAYS</TableHead>
-                    <TableHead className="text-xs font-medium">OJT DAYS</TableHead>
-                    <TableHead className="text-xs font-medium">OJT CERTIFICATION DAYS</TableHead>
-                    <TableHead className="text-xs font-medium">ACTIONS</TableHead>
+                    <TableHead className="text-xs font-medium uppercase">Process Name</TableHead>
+                    <TableHead className="text-xs font-medium uppercase">Line of Business</TableHead>
+                    <TableHead className="text-xs font-medium uppercase">Location</TableHead>
+                    <TableHead className="text-xs font-medium uppercase">Induction Days</TableHead>
+                    <TableHead className="text-xs font-medium uppercase">Training Days</TableHead>
+                    <TableHead className="text-xs font-medium uppercase">Certification Days</TableHead>
+                    <TableHead className="text-xs font-medium uppercase">OJT Days</TableHead>
+                    <TableHead className="text-xs font-medium uppercase">OJT Certification Days</TableHead>
+                    <TableHead className="text-xs font-medium uppercase">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
