@@ -213,7 +213,15 @@ export function LocationDetail() {
         const requestBody = {
           type: 'locations',
           action: 'delete',
-          value: selectedLocation.id
+          value: {
+            id: selectedLocation.id,
+            name: selectedLocation.name,
+            address: selectedLocation.address,
+            city: selectedLocation.city,
+            state: selectedLocation.state,
+            country: selectedLocation.country,
+            organizationId: organization?.id
+          }
         };
 
         console.log('Delete request payload:', requestBody);
