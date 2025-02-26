@@ -277,6 +277,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteLocation(id: number): Promise<void> {
     try {
+      // Direct deletion without any validation checks
       await db
         .delete(organizationLocations)
         .where(eq(organizationLocations.id, id));
