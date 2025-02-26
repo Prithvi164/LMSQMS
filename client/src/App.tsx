@@ -19,11 +19,14 @@ function Router() {
   const { user } = useAuth();
   const [location] = useLocation();
 
+  const isSettingsPage = location === "/settings";
+  const isAuthPage = location.startsWith("/auth");
+
   return (
     <div className="flex">
-      {user && !location.startsWith("/auth") && <SidebarNav />}
-      <main className={`${user ? "flex-1" : "w-full"}`}>
-        {user && !location.startsWith("/auth") && (
+      {user && !isAuthPage && !isSettingsPage && <SidebarNav />}
+      <main className={`${user && !isSettingsPage ? "flex-1" : "w-full"}`}>
+        {user && !isAuthPage && !isSettingsPage && (
           <div className="p-4 border-b flex justify-end">
             <UserProfile />
           </div>
