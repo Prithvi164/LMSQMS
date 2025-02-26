@@ -144,12 +144,15 @@ export function LocationDetail() {
     mutationFn: async (data: z.infer<typeof locationFormSchema>) => {
       try {
         const requestBody = {
-          type: 'locations',
+          type: 'organizationLocations',
           action: 'update',
-          locationId: selectedLocation.id,
           value: {
             id: selectedLocation.id,
-            ...data
+            name: data.name,
+            address: data.address,
+            city: data.city,
+            state: data.state,
+            country: data.country
           }
         };
 
@@ -170,6 +173,7 @@ export function LocationDetail() {
         }
 
         const jsonData = await response.json();
+        console.log('Update response:', jsonData);
         return jsonData;
       } catch (error) {
         console.error('Location update error:', error);
@@ -184,6 +188,7 @@ export function LocationDetail() {
       });
       setIsEditDialogOpen(false);
       setSelectedLocation(null);
+      editForm.reset();
     },
     onError: (error: Error) => {
       toast({
@@ -198,11 +203,9 @@ export function LocationDetail() {
     mutationFn: async () => {
       try {
         const requestBody = {
-          type: 'locations',
+          type: 'organizationLocations',
           action: 'delete',
-          value: {
-            id: selectedLocation.id
-          }
+          value: selectedLocation.id
         };
 
         console.log('Location deletion request:', requestBody);
@@ -221,7 +224,9 @@ export function LocationDetail() {
           throw new Error(errorData || 'Failed to delete location');
         }
 
-        return await response.json();
+        const jsonData = await response.json();
+        console.log('Delete response:', jsonData);
+        return jsonData;
       } catch (error) {
         console.error('Location deletion error:', error);
         throw error;
