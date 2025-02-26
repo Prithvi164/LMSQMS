@@ -209,21 +209,20 @@ export function LocationDetail() {
     mutationFn: async () => {
       try {
         const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
-          method: 'PATCH',
+          method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             type: 'locations',
-            operation: 'delete',
             locationId: selectedLocation.id
           }),
         });
 
         if (!response.ok) {
-          const errorData = await response.text();
-          console.error('Server response:', errorData);
-          throw new Error(errorData || 'Failed to delete location');
+          const errorText = await response.text();
+          console.error('Server response:', errorText);
+          throw new Error(errorText || 'Failed to delete location');
         }
 
         return { success: true };
@@ -245,7 +244,7 @@ export function LocationDetail() {
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to delete location",
         variant: "destructive",
       });
     },
