@@ -56,6 +56,7 @@ export interface IStorage {
   updateBatch(id: number, batch: Partial<InsertOrganizationBatch>): Promise<OrganizationBatch>;
   deleteBatch(id: number): Promise<void>;
   updateLocation(id: number, location: Partial<InsertOrganizationLocation>): Promise<OrganizationLocation>;
+  deleteLocation(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -265,6 +266,17 @@ export class DatabaseStorage implements IStorage {
     }
 
     return updatedLocation;
+  }
+
+  async deleteLocation(id: number): Promise<void> {
+    const result = await db
+      .delete(organizationLocations)
+      .where(eq(organizationLocations.id, id))
+      .returning();
+
+    if (!result.length) {
+      throw new Error('Location not found');
+    }
   }
 }
 

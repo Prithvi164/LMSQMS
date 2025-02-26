@@ -153,8 +153,8 @@ export function LocationDetail() {
         const requestBody = {
           type: 'locations',
           action: 'update',
-          value: {
-            id: selectedLocation.id,
+          value: selectedLocation.id,
+          data: {
             name: data.name,
             address: data.address,
             city: data.city,
@@ -213,15 +213,7 @@ export function LocationDetail() {
         const requestBody = {
           type: 'locations',
           action: 'delete',
-          value: {
-            id: selectedLocation.id,
-            name: selectedLocation.name,
-            address: selectedLocation.address,
-            city: selectedLocation.city,
-            state: selectedLocation.state,
-            country: selectedLocation.country,
-            organizationId: organization?.id
-          }
+          value: selectedLocation.id
         };
 
         console.log('Delete request payload:', requestBody);
@@ -235,16 +227,9 @@ export function LocationDetail() {
         });
 
         if (!response.ok) {
-          const contentType = response.headers.get("content-type");
-          if (contentType && contentType.indexOf("application/json") !== -1) {
-            const errorData = await response.json();
-            console.error('Server response error:', errorData);
-            throw new Error(errorData.message || 'Failed to delete location');
-          } else {
-            const errorText = await response.text();
-            console.error('Server error response:', errorText);
-            throw new Error('Server error occurred while deleting location');
-          }
+          const errorData = await response.json();
+          console.error('Server response error:', errorData);
+          throw new Error(errorData.message || 'Failed to delete location');
         }
 
         const jsonData = await response.json();
