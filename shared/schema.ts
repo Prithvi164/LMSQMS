@@ -137,43 +137,87 @@ export const users = pgTable("users", {
 
 export type User = InferSelectModel<typeof users>;
 
-// Organization Batches table
+// Organization Batches table with improved structure
 export const organizationBatches = pgTable("organization_batches", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   batchNumber: text("batch_number").notNull(),
   status: batchStatusEnum("status").default('planned').notNull(),
   lineOfBusiness: text("line_of_business").notNull(),
+
+  // Process relation
   processId: integer("process_id")
     .references(() => organizationProcesses.id)
     .notNull(),
+
+  // Personnel relations
   trainerId: integer("trainer_id")
     .references(() => users.id)
     .notNull(),
   managerId: integer("manager_id")
     .references(() => users.id)
     .notNull(),
+
+  // Location relation
   locationId: integer("location_id")
     .references(() => organizationLocations.id)
     .notNull(),
+
+  // Capacity details
   participantCount: integer("participant_count").notNull(),
   capacityLimit: integer("capacity_limit").notNull(),
-  inductionStartDate: timestamp("induction_start_date").notNull(),
-  inductionEndDate: timestamp("induction_end_date").notNull(),
-  trainingStartDate: timestamp("training_start_date").notNull(),
-  trainingEndDate: timestamp("training_end_date").notNull(),
-  certificationStartDate: timestamp("certification_start_date").notNull(),
-  certificationEndDate: timestamp("certification_end_date").notNull(),
-  recertificationStartDate: timestamp("recertification_start_date"),
-  recertificationEndDate: timestamp("recertification_end_date"),
+
+  // Schedule dates - using date type instead of timestamp
+  inductionStartDate: date("induction_start_date").notNull(),
+  inductionEndDate: date("induction_end_date").notNull(),
+  trainingStartDate: date("training_start_date").notNull(),
+  trainingEndDate: date("training_end_date").notNull(),
+  certificationStartDate: date("certification_start_date").notNull(),
+  certificationEndDate: date("certification_end_date").notNull(),
+  recertificationStartDate: date("recertification_start_date"),
+  recertificationEndDate: date("recertification_end_date"),
+
+  // Organization relation
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
+
+  // Metadata
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export type OrganizationBatch = InferSelectModel<typeof organizationBatches>;
+// Update the insert schema to match the new table structure
+export const insertOrganizationBatchSchema = createInsertSchema(organizationBatches)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    name: z.string().min(1, "Batch name is required"),
+    batchNumber: z.string().min(1, "Batch number is required"),
+    lineOfBusiness: z.string().min(1, "Line of business is required"),
+    processId: z.number().int().positive("Process is required"),
+    trainerId: z.number().int().positive("Trainer is required"),
+    managerId: z.number().int().positive("Manager is required"),
+    locationId: z.number().int().positive("Location is required"),
+    participantCount: z.number().int().min(1, "Participant count must be at least 1"),
+    capacityLimit: z.number().int().min(1, "Capacity limit must be at least 1"),
+    inductionStartDate: z.string().min(1, "Induction start date is required"),
+    inductionEndDate: z.string().min(1, "Induction end date is required"),
+    trainingStartDate: z.string().min(1, "Training start date is required"),
+    trainingEndDate: z.string().min(1, "Training end date is required"),
+    certificationStartDate: z.string().min(1, "Certification start date is required"),
+    certificationEndDate: z.string().min(1, "Certification end date is required"),
+    recertificationStartDate: z.string().optional(),
+    recertificationEndDate: z.string().optional(),
+    organizationId: z.number().int().positive("Organization is required"),
+  });
+
+export type OrganizationBatch = typeof organizationBatches.$inferSelect;
+export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
+
 
 // Role Permissions table
 export const rolePermissions = pgTable("role_permissions", {
@@ -385,24 +429,6 @@ export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organiz
 
 export type InsertOrganizationLineOfBusiness = z.infer<typeof insertOrganizationLineOfBusinessSchema>;
 
-export const insertOrganizationBatchSchema = createInsertSchema(organizationBatches)
-  .omit({
-    id: true,
-    createdAt: true,
-    updatedAt: true,
-  })
-  .extend({
-    inductionStartDate: z.string().min(1, "Induction start date is required"),
-    inductionEndDate: z.string().min(1, "Induction end date is required"),
-    trainingStartDate: z.string().min(1, "Training start date is required"),
-    trainingEndDate: z.string().min(1, "Training end date is required"),
-    certificationStartDate: z.string().min(1, "Certification start date is required"),
-    certificationEndDate: z.string().min(1, "Certification end date is required"),
-    recertificationStartDate: z.string().optional(),
-    recertificationEndDate: z.string().optional(),
-    participantCount: z.number().min(1, "Participant count must be at least 1"),
-    capacityLimit: z.number().min(1, "Capacity limit must be at least 1"),
-  });
 
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({ id: true, createdAt: true });
 export const insertUserSchema = createInsertSchema(users)
@@ -424,8 +450,6 @@ export const insertUserProgressSchema = createInsertSchema(userProgress);
 export type OrganizationProcess = InferSelectModel<typeof organizationProcesses>;
 export type InsertOrganizationProcess = z.infer<typeof insertOrganizationProcessSchema>;
 
-export type OrganizationBatch = InferSelectModel<typeof organizationBatches>;
-export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
 
 export type OrganizationLocation = InferSelectModel<typeof organizationLocations>;
 export type InsertOrganizationLocation = z.infer<typeof insertOrganizationLocationSchema>;
