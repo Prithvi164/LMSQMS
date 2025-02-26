@@ -96,34 +96,40 @@ export function LocationDetail() {
 
   const createLocationMutation = useMutation({
     mutationFn: async (data: z.infer<typeof locationFormSchema>) => {
-      const requestBody = {
-        type: 'locations',
-        operation: 'create',
-        value: {
-          type: 'single',
-          data: {
-            ...data,
+      try {
+        const requestBody = {
+          type: 'locations',
+          operation: 'create',
+          value: {
+            name: data.name,
+            address: data.address,
+            city: data.city,
+            state: data.state,
+            country: data.country,
             organization_id: organization?.id
           }
+        };
+
+        console.log('Location creation request:', requestBody);
+
+        const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Failed to create location');
         }
-      };
 
-      console.log('Location creation request:', requestBody);
-
-      const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to create location');
+        return response.json();
+      } catch (error) {
+        console.error('Location creation error:', error);
+        throw error;
       }
-
-      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
@@ -145,35 +151,41 @@ export function LocationDetail() {
 
   const editLocationMutation = useMutation({
     mutationFn: async (data: z.infer<typeof locationFormSchema>) => {
-      const requestBody = {
-        type: 'locations',
-        operation: 'update',
-        value: {
-          type: 'single',
-          id: selectedLocation.id,
-          data: {
-            ...data,
+      try {
+        const requestBody = {
+          type: 'locations',
+          operation: 'update',
+          value: {
+            id: selectedLocation.id,
+            name: data.name,
+            address: data.address,
+            city: data.city,
+            state: data.state,
+            country: data.country,
             organization_id: organization?.id
           }
+        };
+
+        console.log('Location update request:', requestBody);
+
+        const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Failed to update location');
         }
-      };
 
-      console.log('Location update request:', requestBody);
-
-      const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to update location');
+        return response.json();
+      } catch (error) {
+        console.error('Location update error:', error);
+        throw error;
       }
-
-      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
@@ -196,31 +208,35 @@ export function LocationDetail() {
 
   const deleteLocationMutation = useMutation({
     mutationFn: async () => {
-      const requestBody = {
-        type: 'locations',
-        operation: 'delete',
-        value: {
-          type: 'single',
-          id: selectedLocation.id
+      try {
+        const requestBody = {
+          type: 'locations',
+          operation: 'delete',
+          value: {
+            id: selectedLocation.id
+          }
+        };
+
+        console.log('Location deletion request:', requestBody);
+
+        const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Failed to delete location');
         }
-      };
 
-      console.log('Location deletion request:', requestBody);
-
-      const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to delete location');
+        return response.json();
+      } catch (error) {
+        console.error('Location deletion error:', error);
+        throw error;
       }
-
-      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
