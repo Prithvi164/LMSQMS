@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { SiReact } from "react-icons/si";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -32,6 +32,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, Loader2, Pencil, Trash } from "lucide-react";
 
 const lobFormSchema = z.object({
@@ -49,6 +56,8 @@ export function LobDetail() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedLob, setSelectedLob] = useState<any>(null);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -93,6 +102,12 @@ export function LobDetail() {
       confirmText: "",
     },
   });
+
+  // Pagination calculations
+  const totalPages = Math.ceil((lobs?.length || 0) / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedLobs = lobs?.slice(startIndex, endIndex) || [];
 
   const createLobMutation = useMutation({
     mutationFn: async (data: z.infer<typeof lobFormSchema>) => {
@@ -256,9 +271,6 @@ export function LobDetail() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <Card>
-                <CardHeader>
-                  <CardTitle>LOB Details</CardTitle>
-                </CardHeader>
                 <CardContent className="space-y-4">
                   <FormField
                     control={form.control}
@@ -320,9 +332,6 @@ export function LobDetail() {
           <Form {...editForm}>
             <form onSubmit={editForm.handleSubmit(onEdit)} className="space-y-6">
               <Card>
-                <CardHeader>
-                  <CardTitle>LOB Details</CardTitle>
-                </CardHeader>
                 <CardContent className="space-y-4">
                   <FormField
                     control={editForm.control}
@@ -379,42 +388,90 @@ export function LobDetail() {
       <Card>
         <CardContent>
           {lobs?.length > 0 ? (
-            <div className="relative overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>LOB Name</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {lobs.map((lob: any) => (
-                    <TableRow key={lob.id}>
-                      <TableCell className="font-medium">{lob.name}</TableCell>
-                      <TableCell>{lob.description}</TableCell>
-                      <TableCell className="text-right space-x-2">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => handleEdit(lob)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="text-red-600 hover:text-red-700"
-                          onClick={() => handleDelete(lob)}
-                        >
-                          <Trash className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
+            <>
+              <div className="flex items-center justify-end py-4">
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-500">Rows per page:</span>
+                  <Select
+                    value={pageSize.toString()}
+                    onValueChange={(value) => {
+                      setPageSize(parseInt(value));
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue placeholder="10" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="relative overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>LOB Name</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedLobs.map((lob: any) => (
+                      <TableRow key={lob.id}>
+                        <TableCell className="font-medium">{lob.name}</TableCell>
+                        <TableCell>{lob.description}</TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleEdit(lob)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="text-red-600 hover:text-red-700"
+                            onClick={() => handleDelete(lob)}
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="flex items-center justify-between py-4">
+                <div className="text-sm text-gray-500">
+                  Showing {startIndex + 1} to {Math.min(endIndex, lobs.length)} of {lobs.length} entries
+                </div>
+                <div className="space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </>
           ) : (
             <p className="text-muted-foreground">No line of business found. Create a new LOB to get started.</p>
           )}
