@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -34,8 +34,8 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
+  TableHead,
   TableRow,
 } from "@/components/ui/table";
 import { Plus, Loader2 } from "lucide-react";
@@ -152,8 +152,7 @@ export function ProcessDetail() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold">Process Details</h2>
+      <div className="flex justify-end items-center">
         <Button onClick={() => setIsCreateDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Add New Process
@@ -168,9 +167,6 @@ export function ProcessDetail() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <Card>
-                <CardHeader>
-                  <CardTitle>Process Details</CardTitle>
-                </CardHeader>
                 <CardContent className="space-y-4">
                   <FormField
                     control={form.control}
@@ -339,9 +335,6 @@ export function ProcessDetail() {
       </Dialog>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Current Processes</CardTitle>
-        </CardHeader>
         <CardContent>
           {processes?.length > 0 ? (
             <div className="relative overflow-x-auto">
