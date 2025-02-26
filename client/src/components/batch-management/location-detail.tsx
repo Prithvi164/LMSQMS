@@ -143,25 +143,34 @@ export function LocationDetail() {
   const editLocationMutation = useMutation({
     mutationFn: async (data: z.infer<typeof locationFormSchema>) => {
       try {
+        const requestBody = {
+          type: 'locations',
+          action: 'update',
+          locationId: selectedLocation.id,
+          value: {
+            id: selectedLocation.id,
+            ...data
+          }
+        };
+
+        console.log('Location update request:', requestBody);
+
         const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            type: 'locations',
-            action: 'update',
-            locationId: selectedLocation.id,
-            value: data,
-          }),
+          body: JSON.stringify(requestBody),
         });
 
         if (!response.ok) {
           const errorData = await response.text();
+          console.error('Server response:', errorData);
           throw new Error(errorData || 'Failed to update location');
         }
 
-        return await response.json();
+        const jsonData = await response.json();
+        return jsonData;
       } catch (error) {
         console.error('Location update error:', error);
         throw error;
@@ -188,20 +197,27 @@ export function LocationDetail() {
   const deleteLocationMutation = useMutation({
     mutationFn: async () => {
       try {
+        const requestBody = {
+          type: 'locations',
+          action: 'delete',
+          value: {
+            id: selectedLocation.id
+          }
+        };
+
+        console.log('Location deletion request:', requestBody);
+
         const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            type: 'locations',
-            action: 'delete',
-            locationId: selectedLocation.id,
-          }),
+          body: JSON.stringify(requestBody),
         });
 
         if (!response.ok) {
           const errorData = await response.text();
+          console.error('Server response:', errorData);
           throw new Error(errorData || 'Failed to delete location');
         }
 
@@ -392,8 +408,8 @@ export function LocationDetail() {
               </Card>
 
               <div className="flex justify-end">
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="bg-purple-600 hover:bg-purple-700"
                   disabled={createLocationMutation.isPending}
                 >
@@ -500,8 +516,8 @@ export function LocationDetail() {
               </Card>
 
               <div className="flex justify-end">
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="bg-purple-600 hover:bg-purple-700"
                   disabled={editLocationMutation.isPending}
                 >
