@@ -156,23 +156,24 @@ export function UserManagement() {
     return location ? location.name : "Unknown Location";
   };
 
-  // Update process name finder to use the updated organization processes structure
+  // Update process name finder to include process ID
   const getProcessName = (processId: number | null) => {
     if (!processId || !orgSettings?.processes) return "No Process";
     const process = orgSettings.processes.find((p: OrganizationProcess) => p.id === processId);
     if (!process) return "Unknown Process";
 
-    // Return formatted process details
-    return `${process.name} (${process.lineOfBusiness})`;
+    // Return formatted process details with ID
+    return `Process #${process.id} - ${process.name}`;
   };
 
-  // Get process details for display
+  // Update getProcessDetails function
   const getProcessDetails = (processId: number | null) => {
     if (!processId || !orgSettings?.processes) return null;
     const process = orgSettings.processes.find((p: OrganizationProcess) => p.id === processId);
     if (!process) return null;
 
     return {
+      id: process.id,
       name: process.name,
       lineOfBusiness: process.lineOfBusiness,
       inductionDays: process.inductionDays,
@@ -700,7 +701,9 @@ export function UserManagement() {
                     <TableCell>
                       {processDetails ? (
                         <div className="space-y-1">
-                          <div className="font-medium">{processDetails.name}</div>
+                          <div className="font-medium">
+                            Process #{processDetails.id} - {processDetails.name}
+                          </div>
                           <div className="text-sm text-muted-foreground">
                             {processDetails.lineOfBusiness}
                           </div>
