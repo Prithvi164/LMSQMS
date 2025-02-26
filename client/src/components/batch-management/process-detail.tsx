@@ -29,8 +29,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Table,
@@ -40,19 +38,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Plus, Loader2, AlertCircle, Pencil, Trash2 } from "lucide-react";
+import { Plus, Loader2, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+// Form validation schema
 const processFormSchema = z.object({
   name: z.string().min(1, "Process name is required"),
   inductionDays: z.number().min(1, "Induction days must be at least 1"),
@@ -64,26 +53,19 @@ const processFormSchema = z.object({
   locationId: z.string().min(1, "Location is required"),
 });
 
-const lineOfBusinessOptions = [
-  { value: "customer-support", label: "Customer Support" },
-  { value: "technical-support", label: "Technical Support" },
-  { value: "sales", label: "Sales" }
-];
-
 export function ProcessDetail() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedProcess, setSelectedProcess] = useState<any>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
+  // Fetch organization data
   const { data: organization, isLoading: orgLoading } = useQuery({
     queryKey: ["/api/organization"],
     enabled: !!user,
   });
 
+  // Fetch organization settings
   const { data: orgSettings, isLoading: settingsLoading } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/settings`],
     queryFn: async () => {
@@ -147,117 +129,12 @@ export function ProcessDetail() {
     },
   });
 
-  const updateProcessMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof processFormSchema>) => {
-      const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          type: 'updateProcess',
-          processId: selectedProcess.id,
-          value: {
-            ...data,
-            locationId: parseInt(data.locationId, 10),
-          },
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to update process');
-      }
-
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
-      toast({
-        title: "Success",
-        description: "Process updated successfully",
-      });
-      setIsEditDialogOpen(false);
-      setSelectedProcess(null);
-      form.reset();
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const deleteProcessMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          type: 'deleteProcess',
-          processId: selectedProcess.id,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to delete process');
-      }
-
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
-      toast({
-        title: "Success",
-        description: "Process deleted successfully",
-      });
-      setIsDeleteDialogOpen(false);
-      setSelectedProcess(null);
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
   const onSubmit = async (data: z.infer<typeof processFormSchema>) => {
     try {
-      if (isEditDialogOpen) {
-        await updateProcessMutation.mutateAsync(data);
-      } else {
-        await createProcessMutation.mutateAsync(data);
-      }
+      await createProcessMutation.mutateAsync(data);
     } catch (error) {
-      console.error("Error handling process:", error);
+      console.error("Error creating process:", error);
     }
-  };
-
-  const handleEdit = (process: any) => {
-    setSelectedProcess(process);
-    form.reset({
-      name: process.name,
-      inductionDays: process.inductionDays,
-      trainingDays: process.trainingDays,
-      certificationDays: process.certificationDays,
-      ojtDays: process.ojtDays,
-      ojtCertificationDays: process.ojtCertificationDays,
-      lineOfBusiness: process.lineOfBusiness,
-      locationId: process.locationId.toString(),
-    });
-    setIsEditDialogOpen(true);
-  };
-
-  const handleDelete = (process: any) => {
-    setSelectedProcess(process);
-    setIsDeleteDialogOpen(true);
   };
 
   if (orgLoading || settingsLoading) {
@@ -271,202 +148,6 @@ export function ProcessDetail() {
   const locations = orgSettings?.locations || [];
   const processes = orgSettings?.processes || [];
   const hasLocations = locations.length > 0;
-
-  const ProcessForm = () => (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Process Name</FormLabel>
-                <FormControl>
-                  <Input placeholder="Enter process name" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="lineOfBusiness"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Line of Business</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select LOB" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {lineOfBusinessOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="locationId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Location</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Location" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {hasLocations ? (
-                      locations.map((location) => (
-                        <SelectItem key={location.id} value={location.id.toString()}>
-                          {location.name}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="no-locations" disabled>
-                        Please add locations first
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="inductionDays"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Induction Days</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    {...field}
-                    onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="trainingDays"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Training Days</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    {...field}
-                    onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="certificationDays"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Certification Days</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    {...field}
-                    onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="ojtDays"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>OJT Days</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    {...field}
-                    onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="ojtCertificationDays"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>OJT Certification Days</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    {...field}
-                    onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="flex justify-end gap-4">
-          <Button
-            variant="outline"
-            type="button"
-            onClick={() => {
-              setIsCreateDialogOpen(false);
-              setIsEditDialogOpen(false);
-              setSelectedProcess(null);
-              form.reset();
-            }}
-          >
-            Cancel
-          </Button>
-          <Button 
-            type="submit" 
-            disabled={createProcessMutation.isPending || updateProcessMutation.isPending}
-          >
-            {createProcessMutation.isPending || updateProcessMutation.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditDialogOpen ? "Updating..." : "Creating..."}
-              </>
-            ) : (
-              isEditDialogOpen ? "Update Process" : "Create Process"
-            )}
-          </Button>
-        </div>
-      </form>
-    </Form>
-  );
 
   return (
     <div className="space-y-4">
@@ -490,47 +171,186 @@ export function ProcessDetail() {
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Create New Process</DialogTitle>
+            <DialogTitle className="text-2xl mb-6">Process Create Form</DialogTitle>
           </DialogHeader>
-          <ProcessForm />
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Process Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>PROCESS NAME</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter process name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="inductionDays"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>INDUCTION DAY</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="trainingDays"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>TRAINING DAY</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="certificationDays"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>CERTIFICATION DAY</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="ojtDays"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>OJT DAY</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="ojtCertificationDays"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>OJT CERTIFICATION DAY</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="lineOfBusiness"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>LOB</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter line of business" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="locationId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>LOCATION</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select Location" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {hasLocations ? (
+                              locations.map((location) => (
+                                <SelectItem key={location.id} value={location.id.toString()}>
+                                  {location.name}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="no-locations" disabled>
+                                Please add locations first
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+
+              <div className="flex justify-end">
+                <Button 
+                  type="submit" 
+                  className="bg-purple-600 hover:bg-purple-700"
+                  disabled={createProcessMutation.isPending}
+                >
+                  {createProcessMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    "Submit"
+                  )}
+                </Button>
+              </div>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
-
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Edit Process</DialogTitle>
-          </DialogHeader>
-          <ProcessForm />
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete the process "{selectedProcess?.name}". This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deleteProcessMutation.mutate()}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleteProcessMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete Process"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <Card>
         <CardHeader>
@@ -542,6 +362,7 @@ export function ProcessDetail() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Process ID</TableHead>
                     <TableHead>Process Name</TableHead>
                     <TableHead>Line of Business</TableHead>
                     <TableHead>Location</TableHead>
@@ -550,12 +371,12 @@ export function ProcessDetail() {
                     <TableHead>Certification Days</TableHead>
                     <TableHead>OJT Days</TableHead>
                     <TableHead>OJT Certification Days</TableHead>
-                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {processes.map((process) => (
                     <TableRow key={process.id}>
+                      <TableCell>{process.id}</TableCell>
                       <TableCell className="font-medium">{process.name}</TableCell>
                       <TableCell>{process.lineOfBusiness}</TableCell>
                       <TableCell>
@@ -566,24 +387,6 @@ export function ProcessDetail() {
                       <TableCell>{process.certificationDays}</TableCell>
                       <TableCell>{process.ojtDays}</TableCell>
                       <TableCell>{process.ojtCertificationDays}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(process)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(process)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
