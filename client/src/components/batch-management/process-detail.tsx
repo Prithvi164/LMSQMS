@@ -112,6 +112,16 @@ export function ProcessDetail() {
 
   const editForm = useForm<z.infer<typeof processFormSchema>>({
     resolver: zodResolver(processFormSchema),
+    defaultValues: {
+      name: "",
+      inductionDays: 0,
+      trainingDays: 0,
+      certificationDays: 0,
+      ojtDays: 0,
+      ojtCertificationDays: 0,
+      lineOfBusinessId: "",
+      locationId: "",
+    },
   });
 
   const editProcessMutation = useMutation({
@@ -190,6 +200,10 @@ export function ProcessDetail() {
     mutationFn: async (data: z.infer<typeof processFormSchema>) => {
       const selectedLob = lineOfBusinesses?.find(lob => lob.id === parseInt(data.lineOfBusinessId));
 
+      if (!selectedLob) {
+        throw new Error('Selected Line of Business not found');
+      }
+
       const response = await fetch(`/api/organizations/${organization?.id}/processes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -200,9 +214,9 @@ export function ProcessDetail() {
           certificationDays: data.certificationDays,
           ojtDays: data.ojtDays,
           ojtCertificationDays: data.ojtCertificationDays,
-          lineOfBusiness: selectedLob?.name,
-          lineOfBusinessId: parseInt(data.lineOfBusinessId, 10),
-          locationId: parseInt(data.locationId, 10),
+          lineOfBusiness: selectedLob.name,
+          lineOfBusinessId: parseInt(data.lineOfBusinessId),
+          locationId: parseInt(data.locationId),
         }),
       });
 
@@ -522,7 +536,7 @@ export function ProcessDetail() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-xs font-medium uppercase">Line of Business</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select Line of Business" />
@@ -547,7 +561,7 @@ export function ProcessDetail() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-xs font-medium uppercase">Location</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select Location" />
@@ -720,7 +734,7 @@ export function ProcessDetail() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-xs font-medium uppercase">Line of Business</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select Line of Business" />
@@ -745,7 +759,7 @@ export function ProcessDetail() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-xs font-medium uppercase">Location</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select Location" />
