@@ -97,15 +97,26 @@ export function LocationDetail() {
   const createLocationMutation = useMutation({
     mutationFn: async (data: z.infer<typeof locationFormSchema>) => {
       try {
+        const requestBody = {
+          type: 'organizationLocations',
+          value: {
+            name: data.name,
+            address: data.address,
+            city: data.city,
+            state: data.state,
+            country: data.country,
+            organization_id: organization?.id
+          }
+        };
+
+        console.log('Location creation request:', requestBody);
+
         const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            type: 'locations',
-            value: data,
-          }),
+          body: JSON.stringify(requestBody),
         });
 
         if (!response.ok) {
@@ -143,9 +154,8 @@ export function LocationDetail() {
   const editLocationMutation = useMutation({
     mutationFn: async (data: z.infer<typeof locationFormSchema>) => {
       try {
-        // Format data according to the database schema
         const requestBody = {
-          type: 'locations',
+          type: 'organizationLocations',
           action: 'update',
           value: selectedLocation.id,
           data: {
@@ -205,9 +215,9 @@ export function LocationDetail() {
     mutationFn: async () => {
       try {
         const requestBody = {
-          type: 'locations',
+          type: 'organizationLocations',
           action: 'delete',
-          value: selectedLocation.id,
+          value: selectedLocation.id
         };
 
         console.log('Location deletion request:', requestBody);
