@@ -56,6 +56,7 @@ const processFormSchema = z.object({
 
 export function ProcessDetail() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedProcess, setSelectedProcess] = useState<any>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
@@ -88,6 +89,57 @@ export function ProcessDetail() {
       certificationDays: 0,
       ojtDays: 0,
       ojtCertificationDays: 0,
+    },
+  });
+
+  const editForm = useForm<z.infer<typeof processFormSchema>>({
+    resolver: zodResolver(processFormSchema),
+  });
+
+  // Add edit mutation
+  const editProcessMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof processFormSchema>) => {
+      const response = await fetch(
+        `/api/organizations/${organization?.id}/processes/${selectedProcess.id}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: data.name,
+            inductionDays: data.inductionDays,
+            trainingDays: data.trainingDays,
+            certificationDays: data.certificationDays,
+            ojtDays: data.ojtDays,
+            ojtCertificationDays: data.ojtCertificationDays,
+            lineOfBusiness: data.lineOfBusiness,
+            locationId: parseInt(data.locationId, 10),
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to update process');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
+      toast({
+        title: "Success",
+        description: "Process updated successfully",
+      });
+      setIsEditDialogOpen(false);
+      setSelectedProcess(null);
+      editForm.reset();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -169,6 +221,14 @@ export function ProcessDetail() {
     }
   };
 
+  const onEdit = async (data: z.infer<typeof processFormSchema>) => {
+    try {
+      await editProcessMutation.mutateAsync(data);
+    } catch (error) {
+      console.error("Error updating process:", error);
+    }
+  };
+
   const handleDelete = async (process: any) => {
     setSelectedProcess(process);
     setDeleteDialogOpen(true);
@@ -185,6 +245,21 @@ export function ProcessDetail() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleEdit = (process: any) => {
+    setSelectedProcess(process);
+    editForm.reset({
+      name: process.name,
+      lineOfBusiness: process.lineOfBusiness,
+      locationId: process.locationId.toString(),
+      inductionDays: process.inductionDays,
+      trainingDays: process.trainingDays,
+      certificationDays: process.certificationDays,
+      ojtDays: process.ojtDays,
+      ojtCertificationDays: process.ojtCertificationDays,
+    });
+    setIsEditDialogOpen(true);
   };
 
   if (isLoading) {
@@ -245,23 +320,25 @@ export function ProcessDetail() {
                       <TableCell className="text-sm">{process.certificationDays}</TableCell>
                       <TableCell className="text-sm">{process.ojtDays}</TableCell>
                       <TableCell className="text-sm">{process.ojtCertificationDays}</TableCell>
-                      <TableCell className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {/* TODO: Implement edit */}}
-                          className="h-8 w-8"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(process)}
-                          className="h-8 w-8 text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(process)}
+                            className="h-8 w-8 text-purple-600 hover:text-purple-700"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(process)}
+                            className="h-8 w-8 text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -493,6 +570,180 @@ export function ProcessDetail() {
           </Form>
         </DialogContent>
       </Dialog>
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit Process</DialogTitle>
+          </DialogHeader>
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(onEdit)} className="space-y-6">
+              <div className="grid gap-4">
+                <FormField
+                  control={editForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-medium uppercase">Process Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter process name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="lineOfBusiness"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-medium uppercase">Line of Business</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter line of business" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="locationId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-medium uppercase">Location</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Location" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {locations.map((location) => (
+                            <SelectItem key={location.id} value={location.id.toString()}>
+                              {location.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="inductionDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-medium uppercase">Induction Days</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="trainingDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-medium uppercase">Training Days</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="certificationDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-medium uppercase">Certification Days</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="ojtDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-medium uppercase">OJT Days</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="ojtCertificationDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-medium uppercase">OJT Certification Days</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="submit"
+                  className="bg-purple-600 hover:bg-purple-700"
+                  disabled={editProcessMutation.isPending}
+                >
+                  {editProcessMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Update Process"
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
