@@ -300,7 +300,6 @@ export function LocationDetail() {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold">Location Details</h2>
         <Button onClick={() => setIsCreateDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Add New Location
@@ -311,14 +310,11 @@ export function LocationDetail() {
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="text-2xl mb-6">Create Location</DialogTitle>
+            <DialogTitle className="text-2xl mb-6">Add Location</DialogTitle>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <Card>
-                <CardHeader>
-                  <CardTitle>Location Details</CardTitle>
-                </CardHeader>
                 <CardContent className="space-y-4">
                   <FormField
                     control={form.control}
@@ -424,9 +420,6 @@ export function LocationDetail() {
           <Form {...editForm}>
             <form onSubmit={editForm.handleSubmit(onEdit)} className="space-y-6">
               <Card>
-                <CardHeader>
-                  <CardTitle>Location Details</CardTitle>
-                </CardHeader>
                 <CardContent className="space-y-4">
                   <FormField
                     control={editForm.control}
@@ -566,9 +559,6 @@ export function LocationDetail() {
       </Dialog>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Current Locations</CardTitle>
-        </CardHeader>
         <CardContent>
           {locations?.length > 0 ? (
             <div className="relative overflow-x-auto">
