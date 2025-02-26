@@ -29,6 +29,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Table,
@@ -38,7 +40,7 @@ import {
   TableHead,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, Pencil, Trash2 } from "lucide-react";
 
 // Form validation schema remains unchanged
 const processFormSchema = z.object({
@@ -53,8 +55,9 @@ const processFormSchema = z.object({
 });
 
 export function ProcessDetail() {
-  // State and hooks remain unchanged
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedProcess, setSelectedProcess] = useState<any>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -87,7 +90,34 @@ export function ProcessDetail() {
     },
   });
 
-  // Mutation remains unchanged
+  // Add delete mutation
+  const deleteProcessMutation = useMutation({
+    mutationFn: async (processId: number) => {
+      const response = await fetch(`/api/organizations/${organization?.id}/processes/${processId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to delete process');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
+      toast({
+        title: "Success",
+        description: "Process deleted successfully",
+      });
+      setDeleteDialogOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Create mutation remains unchanged
   const createProcessMutation = useMutation({
     mutationFn: async (data: z.infer<typeof processFormSchema>) => {
       const response = await fetch(`/api/organizations/${organization?.id}/processes`, {
@@ -138,6 +168,21 @@ export function ProcessDetail() {
     }
   };
 
+  const handleDelete = async (process: any) => {
+    setSelectedProcess(process);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (selectedProcess) {
+      try {
+        await deleteProcessMutation.mutateAsync(selectedProcess.id);
+      } catch (error) {
+        console.error("Error deleting process:", error);
+      }
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -162,6 +207,7 @@ export function ProcessDetail() {
         </Button>
       </div>
 
+      {/* Create Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -170,6 +216,7 @@ export function ProcessDetail() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="grid gap-4">
+                {/* Form fields remain unchanged */}
                 <FormField
                   control={form.control}
                   name="name"
@@ -335,6 +382,40 @@ export function ProcessDetail() {
         </DialogContent>
       </Dialog>
 
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Process</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this process? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deleteProcessMutation.isPending}
+            >
+              {deleteProcessMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Card>
         <CardContent className="p-6">
           {processes?.length > 0 ? (
@@ -350,6 +431,7 @@ export function ProcessDetail() {
                     <TableHead className="text-xs font-medium">CERTIFICATION DAYS</TableHead>
                     <TableHead className="text-xs font-medium">OJT DAYS</TableHead>
                     <TableHead className="text-xs font-medium">OJT CERTIFICATION DAYS</TableHead>
+                    <TableHead className="text-xs font-medium">ACTIONS</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -365,6 +447,24 @@ export function ProcessDetail() {
                       <TableCell className="text-sm">{process.certificationDays}</TableCell>
                       <TableCell className="text-sm">{process.ojtDays}</TableCell>
                       <TableCell className="text-sm">{process.ojtCertificationDays}</TableCell>
+                      <TableCell className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {/* TODO: Implement edit */}}
+                          className="h-8 w-8"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(process)}
+                          className="h-8 w-8 text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
