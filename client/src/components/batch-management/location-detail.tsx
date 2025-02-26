@@ -160,7 +160,8 @@ export function LocationDetail() {
             city: data.city,
             state: data.state,
             country: data.country,
-            organizationId: organization?.id
+            organizationId: organization?.id,
+            updatedAt: new Date().toISOString()
           }
         };
 
