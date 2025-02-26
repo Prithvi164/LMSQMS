@@ -119,8 +119,11 @@ export function LocationDetail() {
         });
 
         if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.message || 'Failed to create location');
+          const errorData = await response.json();
+          if (errorData.message?.includes('unique constraint')) {
+            throw new Error('A location with this name already exists');
+          }
+          throw new Error(errorData.message || 'Failed to create location');
         }
 
         return response.json();

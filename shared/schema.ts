@@ -82,10 +82,10 @@ export const organizationProcesses = pgTable("organization_processes", {
 
 export type OrganizationProcess = InferSelectModel<typeof organizationProcesses>;
 
-// Organization Locations table
+// Organization Locations table with unique name constraint
 export const organizationLocations = pgTable("organization_locations", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull(),
+  name: text("name").notNull().unique(),  // Added unique constraint
   address: text("address").notNull(),
   city: text("city").notNull(),
   state: text("state").notNull(),
@@ -344,7 +344,20 @@ export const insertOrganizationProcessSchema = createInsertSchema(organizationPr
     locationId: z.number().min(1, "Location is required"),
   });
 
-// Update insert schema for organization batches
+// Update insert schema to handle unique constraint error
+export const insertOrganizationLocationSchema = createInsertSchema(organizationLocations)
+  .omit({
+    id: true,
+    createdAt: true
+  })
+  .extend({
+    name: z.string().min(1, "Location name is required"),
+    address: z.string().min(1, "Address is required"),
+    city: z.string().min(1, "City is required"),
+    state: z.string().min(1, "State is required"),
+    country: z.string().min(1, "Country is required"),
+  });
+
 export const insertOrganizationBatchSchema = createInsertSchema(organizationBatches)
   .omit({
     id: true,
@@ -362,19 +375,6 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
     recertificationEndDate: z.string().optional(),
     participantCount: z.number().min(1, "Participant count must be at least 1"),
     capacityLimit: z.number().min(1, "Capacity limit must be at least 1"),
-  });
-
-export const insertOrganizationLocationSchema = createInsertSchema(organizationLocations)
-  .omit({
-    id: true,
-    createdAt: true
-  })
-  .extend({
-    name: z.string().min(1, "Location name is required"),
-    address: z.string().min(1, "Address is required"),
-    city: z.string().min(1, "City is required"),
-    state: z.string().min(1, "State is required"),
-    country: z.string().min(1, "Country is required"),
   });
 
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({ id: true, createdAt: true });
