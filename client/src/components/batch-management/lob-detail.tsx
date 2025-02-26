@@ -283,8 +283,8 @@ export function LobDetail() {
               </Card>
 
               <div className="flex justify-end">
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="bg-purple-600 hover:bg-purple-700"
                   disabled={createLobMutation.isPending}
                 >
@@ -347,8 +347,8 @@ export function LobDetail() {
               </Card>
 
               <div className="flex justify-end">
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="bg-purple-600 hover:bg-purple-700"
                   disabled={updateLobMutation.isPending}
                 >
@@ -367,42 +367,6 @@ export function LobDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the
-              Line of Business {selectedLob?.name}.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700"
-              onClick={async () => {
-                try {
-                  await deleteLobMutation.mutateAsync();
-                } catch (error) {
-                  console.error("Error deleting LOB:", error);
-                }
-              }}
-              disabled={deleteLobMutation.isPending}
-            >
-              {deleteLobMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       {/* LOB List Section */}
       <Card>
         <CardHeader>
@@ -414,7 +378,6 @@ export function LobDetail() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>LOB ID</TableHead>
                     <TableHead>LOB Name</TableHead>
                     <TableHead>Description</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -423,7 +386,6 @@ export function LobDetail() {
                 <TableBody>
                   {lobs.map((lob: any) => (
                     <TableRow key={lob.id}>
-                      <TableCell>{lob.id}</TableCell>
                       <TableCell className="font-medium">{lob.name}</TableCell>
                       <TableCell>{lob.description}</TableCell>
                       <TableCell className="text-right space-x-2">
@@ -453,6 +415,47 @@ export function LobDetail() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Line of Business</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                Are you absolutely sure you want to delete the Line of Business "{selectedLob?.name}"?
+              </p>
+              <p className="font-semibold text-red-600">
+                This action cannot be undone. This will permanently delete this Line of Business
+                and may affect any processes or batches that reference it.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={async () => {
+                try {
+                  await deleteLobMutation.mutateAsync();
+                } catch (error) {
+                  console.error("Error deleting LOB:", error);
+                }
+              }}
+              disabled={deleteLobMutation.isPending}
+            >
+              {deleteLobMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Yes, Delete Line of Business"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
