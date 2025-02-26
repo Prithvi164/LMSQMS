@@ -8,7 +8,31 @@ import { cn } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
-// ... (keep existing imports)
+// Import UI components
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface CreateBatchFormProps {
   onClose: () => void;
@@ -94,8 +118,8 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
   });
 
   // Fetch settings
-  const { 
-    data: settings, 
+  const {
+    data: settings,
     isLoading: isSettingsLoading,
     error: settingsError
   } = useQuery<Settings>({
@@ -103,6 +127,12 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     retry: 1,
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 10, // 10 minutes
+    onError: (error) => {
+      console.error('Settings fetch error:', error);
+    },
+    onSuccess: (data) => {
+      console.log('Settings fetched successfully:', data);
+    }
   });
 
   // Fetch trainers
@@ -115,7 +145,14 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     retry: 1,
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 10,
-    select: (data: any) => data?.filter((user: any) => user.role === 'trainer') || [],
+    select: (data: any) => {
+      const filteredTrainers = data?.filter((user: any) => user.role === 'trainer') || [];
+      console.log('Filtered trainers:', filteredTrainers);
+      return filteredTrainers;
+    },
+    onError: (error) => {
+      console.error('Trainers fetch error:', error);
+    }
   });
 
   // Filter processes when LOB changes
@@ -191,6 +228,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
 
       if (!response.ok) {
         const error = await response.json();
+        console.error("API response error:", error); //Added logging for API errors
         throw new Error(error.message || 'Failed to create batch');
       }
 
@@ -314,12 +352,12 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Process Name</FormLabel>
-                      <Select 
+                      <Select
                         onValueChange={(value) => {
                           field.onChange(value);
                           const process = filteredProcesses.find(p => p.id.toString() === value);
                           setSelectedProcess(process || null);
-                        }} 
+                        }}
                         value={field.value}
                         disabled={!form.getValues('lineOfBusiness')}
                       >
@@ -347,7 +385,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Select Trainer</FormLabel>
-                      <Select 
+                      <Select
                         onValueChange={(value) => {
                           field.onChange(value);
                           const trainer = trainers.find(t => t.id.toString() === value);
@@ -380,9 +418,9 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                     <FormItem>
                       <FormLabel>Manager</FormLabel>
                       <FormControl>
-                        <Input 
-                          value={selectedTrainer?.manager?.name || ''} 
-                          disabled 
+                        <Input
+                          value={selectedTrainer?.manager?.name || ''}
+                          disabled
                           placeholder="Manager will be auto-selected based on trainer"
                         />
                       </FormControl>
