@@ -37,6 +37,7 @@ interface CreateBatchFormProps {
   onClose: () => void;
 }
 
+// Extended form schema to include all date fields
 const formSchema = z.object({
   name: z.string().min(1, "Batch name is required"),
   lineOfBusiness: z.string().min(1, "Line of Business is required"),
@@ -48,7 +49,14 @@ const formSchema = z.object({
   participantCount: z.number().min(1, "Participant count must be at least 1"),
   capacityLimit: z.number().min(1, "Capacity limit must be at least 1"),
   inductionStartDate: z.date(),
+  inductionEndDate: z.date().optional(),
+  trainingStartDate: z.date().optional(),
+  trainingEndDate: z.date().optional(),
+  certificationStartDate: z.date().optional(),
+  certificationEndDate: z.date().optional(),
 });
+
+type BatchFormValues = z.infer<typeof formSchema>;
 
 export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
   const { toast } = useToast();
@@ -56,11 +64,11 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
   const [selectedProcess, setSelectedProcess] = useState<any>(null);
   const [selectedTrainer, setSelectedTrainer] = useState<any>(null);
   const [batchNumber, setBatchNumber] = useState("");
+  const [filteredProcesses, setFilteredProcesses] = useState<any[]>([]);
 
-  // Fetch processes
-  const { data: processes, isLoading: processesLoading } = useQuery({
+  // Fetch all settings including processes and LOBs
+  const { data: settings, isLoading: settingsLoading } = useQuery({
     queryKey: ['/api/organizations/settings'],
-    select: (data) => data?.processes || [],
   });
 
   // Fetch trainers (users with trainer role)
@@ -86,7 +94,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     setBatchNumber(generateBatchNumber());
   }, []);
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<BatchFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       status: "planned",
@@ -94,6 +102,19 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
       capacityLimit: 1,
     },
   });
+
+  // Filter processes when LOB changes
+  useEffect(() => {
+    const selectedLOB = form.watch('lineOfBusiness');
+    if (selectedLOB && settings?.processes) {
+      const filtered = settings.processes.filter(
+        (process: any) => process.lineOfBusiness === selectedLOB
+      );
+      setFilteredProcesses(filtered);
+      // Reset process selection when LOB changes
+      form.setValue('processId', '');
+    }
+  }, [form.watch('lineOfBusiness'), settings?.processes]);
 
   // Update dates when process is selected
   useEffect(() => {
@@ -117,13 +138,13 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
 
   // Update manager when trainer is selected
   useEffect(() => {
-    if (selectedTrainer) {
+    if (selectedTrainer?.managerId) {
       form.setValue('managerId', selectedTrainer.managerId.toString());
     }
   }, [selectedTrainer]);
 
   const createBatchMutation = useMutation({
-    mutationFn: async (values: z.infer<typeof formSchema>) => {
+    mutationFn: async (values: BatchFormValues) => {
       const formatDate = (date: Date | undefined) => {
         if (!date) return undefined;
         return format(date, "yyyy-MM-dd'T'HH:mm:ss.SSSxxx");
@@ -141,11 +162,11 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
         participantCount: values.participantCount,
         capacityLimit: values.capacityLimit,
         inductionStartDate: formatDate(values.inductionStartDate),
-        inductionEndDate: formatDate(form.getValues("inductionEndDate")),
-        trainingStartDate: formatDate(form.getValues("trainingStartDate")),
-        trainingEndDate: formatDate(form.getValues("trainingEndDate")),
-        certificationStartDate: formatDate(form.getValues("certificationStartDate")),
-        certificationEndDate: formatDate(form.getValues("certificationEndDate")),
+        inductionEndDate: formatDate(values.inductionEndDate),
+        trainingStartDate: formatDate(values.trainingStartDate),
+        trainingEndDate: formatDate(values.trainingEndDate),
+        certificationStartDate: formatDate(values.certificationStartDate),
+        certificationEndDate: formatDate(values.certificationEndDate),
       };
 
       const response = await fetch('/api/batches', {
@@ -180,7 +201,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     },
   });
 
-  const onSubmit = async (data: z.infer<typeof formSchema>) => {
+  const onSubmit = async (data: BatchFormValues) => {
     try {
       await createBatchMutation.mutateAsync(data);
     } catch (error) {
@@ -188,7 +209,16 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     }
   };
 
-  if(processesLoading || trainersLoading || locationsLoading) return <div>Loading...</div>
+  if(settingsLoading || trainersLoading || locationsLoading) {
+    return (
+      <div className="flex items-center justify-center p-6">
+        <Loader2 className="h-6 w-6 animate-spin" />
+        <span className="ml-2">Loading...</span>
+      </div>
+    );
+  }
+
+  const uniqueLOBs = [...new Set(settings?.processes?.map((p: any) => p.lineOfBusiness) || [])];
 
   return (
     <div className="space-y-6">
@@ -222,26 +252,20 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
 
                 <FormField
                   control={form.control}
-                  name="processId"
+                  name="lineOfBusiness"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Process Name</FormLabel>
-                      <Select 
-                        onValueChange={(value) => {
-                          field.onChange(value);
-                          setSelectedProcess(processes?.find(p => p.id.toString() === value));
-                        }} 
-                        value={field.value}
-                      >
+                      <FormLabel>Line of Business</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select Process" />
+                            <SelectValue placeholder="Select Line of Business" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {processes?.map((process) => (
-                            <SelectItem key={process.id} value={process.id.toString()}>
-                              {process.name}
+                          {uniqueLOBs.map((lob: string) => (
+                            <SelectItem key={lob} value={lob}>
+                              {lob}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -253,13 +277,30 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
 
                 <FormField
                   control={form.control}
-                  name="lineOfBusiness"
+                  name="processId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Line of Business</FormLabel>
-                      <FormControl>
-                        <Input value={selectedProcess?.lineOfBusiness || ''} disabled />
-                      </FormControl>
+                      <FormLabel>Process Name</FormLabel>
+                      <Select 
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          setSelectedProcess(filteredProcesses.find(p => p.id.toString() === value));
+                        }} 
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Process" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {filteredProcesses.map((process) => (
+                            <SelectItem key={process.id} value={process.id.toString()}>
+                              {process.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -301,9 +342,13 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                   name="managerId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Select Manager</FormLabel>
+                      <FormLabel>Manager</FormLabel>
                       <FormControl>
-                        <Input value={selectedTrainer?.manager?.name || ''} disabled />
+                        <Input 
+                          value={selectedTrainer?.manager?.name || ''} 
+                          disabled 
+                          placeholder="Manager will be auto-selected based on trainer"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -460,9 +505,9 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                   <div className="space-y-2">
                     <p className="font-medium">Schedule Preview:</p>
                     <div className="text-sm text-muted-foreground space-y-1">
-                      <p>Induction: {format(form.getValues('inductionStartDate'), "PPP")} to {format(form.getValues('inductionEndDate'), "PPP")}</p>
-                      <p>Training: {format(form.getValues('trainingStartDate'), "PPP")} to {format(form.getValues('trainingEndDate'), "PPP")}</p>
-                      <p>Certification: {format(form.getValues('certificationStartDate'), "PPP")} to {format(form.getValues('certificationEndDate'), "PPP")}</p>
+                      <p>Induction: {format(form.getValues('inductionStartDate'), "PPP")} to {format(form.getValues('inductionEndDate') || new Date(), "PPP")}</p>
+                      <p>Training: {format(form.getValues('trainingStartDate') || new Date(), "PPP")} to {format(form.getValues('trainingEndDate') || new Date(), "PPP")}</p>
+                      <p>Certification: {format(form.getValues('certificationStartDate') || new Date(), "PPP")} to {format(form.getValues('certificationEndDate') || new Date(), "PPP")}</p>
                     </div>
                   </div>
                 )}
@@ -489,7 +534,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                   Creating...
                 </>
               ) : (
-                "Create Batch"
+                "Add Batch"
               )}
             </Button>
           </div>
