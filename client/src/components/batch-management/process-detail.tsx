@@ -348,7 +348,6 @@ export function ProcessDetail() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Process ID</TableHead>
                     <TableHead>Process Name</TableHead>
                     <TableHead>Line of Business</TableHead>
                     <TableHead>Location</TableHead>
@@ -362,7 +361,6 @@ export function ProcessDetail() {
                 <TableBody>
                   {processes.map((process) => (
                     <TableRow key={process.id}>
-                      <TableCell>{process.id}</TableCell>
                       <TableCell className="font-medium">{process.name}</TableCell>
                       <TableCell>{process.lineOfBusiness}</TableCell>
                       <TableCell>
