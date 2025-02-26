@@ -22,9 +22,6 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
   const [activeUserTab, setActiveUserTab] = useState<UsersSubTab>("manage");
 
-  // Add console log to debug
-  console.log("Settings page rendering", { user, activeTab, activeUserTab });
-
   const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ["/api/users"],
     enabled: !!user,
@@ -70,91 +67,96 @@ export default function Settings() {
   );
 
   return (
-    <div className="flex min-h-screen">
-      {/* Left Sidebar */}
-      <div className="w-64 border-r bg-background">
-        <div className="p-4 border-b">
-          <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
-            <ChevronLeft className="h-5 w-5" />
-            <span>Back to Dashboard</span>
-          </Link>
-        </div>
-        <div className="p-4 space-y-4">
-          <div className="space-y-2">
-            <NavButton
-              active={activeTab === "profile"}
-              icon={UserCircle}
-              onClick={() => setActiveTab("profile")}
-            >
-              Profile
-            </NavButton>
+    <div className="flex min-h-screen bg-background">
+      {/* Container with max-width */}
+      <div className="mx-auto w-full max-w-7xl flex">
+        {/* Left Sidebar */}
+        <div className="w-64 border-r shrink-0">
+          <div className="p-4 border-b">
+            <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
+              <ChevronLeft className="h-5 w-5" />
+              <span>Back to Dashboard</span>
+            </Link>
+          </div>
+          <div className="p-4 space-y-4">
+            <div className="space-y-2">
+              <NavButton
+                active={activeTab === "profile"}
+                icon={UserCircle}
+                onClick={() => setActiveTab("profile")}
+              >
+                Profile
+              </NavButton>
 
-            <NavButton
-              active={activeTab === "users"}
-              icon={Users}
-              onClick={() => setActiveTab("users")}
-            >
-              Users
-            </NavButton>
+              <NavButton
+                active={activeTab === "users"}
+                icon={Users}
+                onClick={() => setActiveTab("users")}
+              >
+                Users
+              </NavButton>
 
-            {/* Show user sub-tabs only when users tab is active */}
-            {activeTab === "users" && (
-              <div className="pl-6 space-y-2 mt-2">
-                <button
-                  onClick={() => setActiveUserTab("manage")}
-                  className={cn(
-                    "w-full text-left p-2 rounded-lg transition-colors",
-                    activeUserTab === "manage" ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Manage Users
-                </button>
-                <button
-                  onClick={() => setActiveUserTab("add")}
-                  className={cn(
-                    "w-full text-left p-2 rounded-lg transition-colors",
-                    activeUserTab === "add" ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Add User
-                </button>
-              </div>
-            )}
+              {/* Show user sub-tabs only when users tab is active */}
+              {activeTab === "users" && (
+                <div className="pl-6 space-y-2 mt-2">
+                  <button
+                    onClick={() => setActiveUserTab("manage")}
+                    className={cn(
+                      "w-full text-left p-2 rounded-lg transition-colors",
+                      activeUserTab === "manage" ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    Manage Users
+                  </button>
+                  <button
+                    onClick={() => setActiveUserTab("add")}
+                    className={cn(
+                      "w-full text-left p-2 rounded-lg transition-colors",
+                      activeUserTab === "add" ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    Add User
+                  </button>
+                </div>
+              )}
 
-            <NavButton
-              active={activeTab === "permissions"}
-              icon={Shield}
-              onClick={() => setActiveTab("permissions")}
-            >
-              Roles & Permissions
-            </NavButton>
+              <NavButton
+                active={activeTab === "permissions"}
+                icon={Shield}
+                onClick={() => setActiveTab("permissions")}
+              >
+                Roles & Permissions
+              </NavButton>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="flex-1 p-8 overflow-y-auto">
-        {usersLoading || orgLoading ? (
-          <div>Loading...</div>
-        ) : (
-          <>
-            {activeTab === "profile" && <UserProfile />}
-            {activeTab === "users" && (
+        {/* Main Content */}
+        <div className="flex-1 p-8 overflow-y-auto">
+          <div className="max-w-4xl mx-auto">
+            {usersLoading || orgLoading ? (
+              <div>Loading...</div>
+            ) : (
               <>
-                {activeUserTab === "manage" && <UserManagement />}
-                {activeUserTab === "add" && (
-                  <AddUser
-                    users={users}
-                    user={user}
-                    organization={organization}
-                    potentialManagers={potentialManagers}
-                  />
+                {activeTab === "profile" && <UserProfile />}
+                {activeTab === "users" && (
+                  <>
+                    {activeUserTab === "manage" && <UserManagement />}
+                    {activeUserTab === "add" && (
+                      <AddUser
+                        users={users}
+                        user={user}
+                        organization={organization}
+                        potentialManagers={potentialManagers}
+                      />
+                    )}
+                  </>
                 )}
+                {activeTab === "permissions" && <RolePermissions />}
               </>
             )}
-            {activeTab === "permissions" && <RolePermissions />}
-          </>
-        )}
+          </div>
+        </div>
       </div>
     </div>
   );
