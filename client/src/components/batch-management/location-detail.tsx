@@ -148,13 +148,11 @@ export function LocationDetail() {
           action: 'update',
           value: {
             id: selectedLocation.id,
-            name: JSON.stringify({
-              name: data.name,
-              address: data.address,
-              city: data.city,
-              state: data.state,
-              country: data.country
-            })
+            name: data.name,
+            address: data.address,
+            city: data.city,
+            state: data.state,
+            country: data.country
           }
         };
 
