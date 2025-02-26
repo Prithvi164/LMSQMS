@@ -153,8 +153,8 @@ export function LocationDetail() {
         const requestBody = {
           type: 'locations',
           action: 'update',
-          locationId: selectedLocation.id,
-          data: {
+          value: {
+            id: selectedLocation.id,
             name: data.name,
             address: data.address,
             city: data.city,
