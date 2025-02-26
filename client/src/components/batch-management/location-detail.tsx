@@ -152,6 +152,7 @@ export function LocationDetail() {
       try {
         const requestBody = {
           type: 'locations',
+          operation: 'update',
           value: {
             name: data.name,
             address: data.address,
@@ -163,8 +164,6 @@ export function LocationDetail() {
           }
         };
 
-        console.log('Update request payload:', requestBody);
-
         const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
           method: 'PATCH',
           headers: {
@@ -175,13 +174,10 @@ export function LocationDetail() {
 
         if (!response.ok) {
           const errorData = await response.json();
-          console.error('Server response error:', errorData);
           throw new Error(errorData.message || 'Failed to update location');
         }
 
-        const jsonData = await response.json();
-        console.log('Update response:', jsonData);
-        return jsonData;
+        return response.json();
       } catch (error) {
         console.error('Location update error:', error);
         throw error;
@@ -211,18 +207,12 @@ export function LocationDetail() {
       try {
         const requestBody = {
           type: 'locations',
+          operation: 'delete',
           value: {
             id: selectedLocation.id,
-            name: selectedLocation.name,
-            address: selectedLocation.address,
-            city: selectedLocation.city,
-            state: selectedLocation.state,
-            country: selectedLocation.country,
             organizationId: organization?.id
           }
         };
-
-        console.log('Delete request payload:', requestBody);
 
         const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
           method: 'PATCH',
@@ -234,13 +224,10 @@ export function LocationDetail() {
 
         if (!response.ok) {
           const errorData = await response.json();
-          console.error('Server response error:', errorData);
           throw new Error(errorData.message || 'Failed to delete location');
         }
 
-        const jsonData = await response.json();
-        console.log('Delete response:', jsonData);
-        return jsonData;
+        return response.json();
       } catch (error) {
         console.error('Location deletion error:', error);
         throw error;
