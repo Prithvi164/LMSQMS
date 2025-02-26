@@ -42,7 +42,6 @@ import {
 } from "@/components/ui/table";
 import { Plus, Loader2, Pencil, Trash2, Settings } from "lucide-react";
 
-// Form validation schema remains unchanged
 const processFormSchema = z.object({
   name: z.string().min(1, "Process name is required"),
   inductionDays: z.number().min(0, "Induction days cannot be negative"),
@@ -64,7 +63,6 @@ export function ProcessDetail() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  // Queries remain unchanged
   const { data: organization } = useQuery({
     queryKey: ["/api/organization"],
     enabled: !!user,
@@ -96,7 +94,6 @@ export function ProcessDetail() {
     resolver: zodResolver(processFormSchema),
   });
 
-  // Add edit mutation
   const editProcessMutation = useMutation({
     mutationFn: async (data: z.infer<typeof processFormSchema>) => {
       const response = await fetch(
@@ -143,7 +140,6 @@ export function ProcessDetail() {
     },
   });
 
-  // Add delete mutation
   const deleteProcessMutation = useMutation({
     mutationFn: async (processId: number) => {
       const response = await fetch(`/api/organizations/${organization?.id}/processes/${processId}`, {
@@ -170,7 +166,6 @@ export function ProcessDetail() {
     },
   });
 
-  // Create mutation remains unchanged
   const createProcessMutation = useMutation({
     mutationFn: async (data: z.infer<typeof processFormSchema>) => {
       const response = await fetch(`/api/organizations/${organization?.id}/processes`, {
@@ -399,13 +394,14 @@ export function ProcessDetail() {
       </Dialog>
       {/* Create Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Process</DialogTitle>
+            <DialogDescription>Fill in the details below to create a new process.</DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid gap-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="name"
@@ -459,98 +455,112 @@ export function ProcessDetail() {
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="inductionDays"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs font-medium uppercase">Induction Days</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="col-span-2">
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="inductionDays"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs font-medium uppercase">Induction Days</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="trainingDays"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs font-medium uppercase">Training Days</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="trainingDays"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs font-medium uppercase">Training Days</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="certificationDays"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs font-medium uppercase">Certification Days</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="certificationDays"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs font-medium uppercase">Certification Days</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
 
-                <FormField
-                  control={form.control}
-                  name="ojtDays"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs font-medium uppercase">OJT Days</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="col-span-2">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="ojtDays"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs font-medium uppercase">OJT Days</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="ojtCertificationDays"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs font-medium uppercase">OJT Certification Days</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="ojtCertificationDays"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs font-medium uppercase">OJT Certification Days</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="flex justify-end">
+              <DialogFooter className="mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsCreateDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
                 <Button
                   type="submit"
                   className="bg-purple-600 hover:bg-purple-700"
@@ -565,11 +575,12 @@ export function ProcessDetail() {
                     "Create Process"
                   )}
                 </Button>
-              </div>
+              </DialogFooter>
             </form>
           </Form>
         </DialogContent>
       </Dialog>
+
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
