@@ -4,19 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, Upload, Plus } from "lucide-react";
+import { Download, Upload } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import type { User, Organization, OrganizationProcess, OrganizationBatch, OrganizationLocation } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 
 interface AddUserProps {
   users: User[];
@@ -49,11 +42,6 @@ export function AddUser({
     dateOfBirth: "",
     managerId: "none",
   });
-
-  // States for new item dialogs
-  const [newProcess, setNewProcess] = useState("");
-  const [newBatch, setNewBatch] = useState("");
-  const [newLocation, setNewLocation] = useState("");
 
   // Fetch organization settings
   const { data: orgSettings, isLoading } = useQuery({
@@ -146,31 +134,6 @@ export function AddUser({
     }
   });
 
-  // Mutation for adding new items to organization settings
-  const updateOrgSettingsMutation = useMutation({
-    mutationFn: async ({ type, value }: { type: string, value: string }) => {
-      const res = await apiRequest("PATCH", `/api/organizations/${organization?.id}/settings`, {
-        type,
-        value,
-      });
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
-      toast({
-        title: "Success",
-        description: "Settings updated successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
   // Ensure we have access to current organization's data
   if (!organization || isLoading) {
     return (
@@ -179,7 +142,6 @@ export function AddUser({
       </div>
     );
   }
-
 
   return (
     <Card>
@@ -314,7 +276,6 @@ export function AddUser({
                   </SelectTrigger>
                   <SelectContent>
                     {user.role === "owner" ? (
-                      // Owner can create all roles including admin
                       <>
                         <SelectItem value="admin">Admin</SelectItem>
                         <SelectItem value="trainee">Trainee</SelectItem>
@@ -324,7 +285,6 @@ export function AddUser({
                         <SelectItem value="team_lead">Team Lead</SelectItem>
                       </>
                     ) : user.role === "admin" ? (
-                      // Admin can create these roles
                       <>
                         <SelectItem value="trainee">Trainee</SelectItem>
                         <SelectItem value="manager">Manager</SelectItem>
@@ -333,7 +293,6 @@ export function AddUser({
                         <SelectItem value="team_lead">Team Lead</SelectItem>
                       </>
                     ) : (
-                      // Other roles can only create trainees
                       <SelectItem value="trainee">Trainee</SelectItem>
                     )}
                   </SelectContent>
@@ -341,176 +300,70 @@ export function AddUser({
               </div>
               <div>
                 <Label htmlFor="processId">Process Name</Label>
-                <div className="flex gap-2">
-                  <Select
-                    value={newUserData.processId}
-                    onValueChange={(value) => setNewUserData(prev => ({
-                      ...prev,
-                      processId: value
-                    }))}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select process" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {orgSettings?.processes.map((process: OrganizationProcess) => (
-                        <SelectItem key={process.id} value={process.id.toString()}>
-                          {process.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="icon">
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add New Process for {organization.name}</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                          <Label>Process Name</Label>
-                          <Input
-                            value={newProcess}
-                            onChange={(e) => setNewProcess(e.target.value)}
-                          />
-                        </div>
-                        <Button
-                          onClick={() => {
-                            if (newProcess) {
-                              updateOrgSettingsMutation.mutate({
-                                type: "processNames",
-                                value: newProcess,
-                              });
-                              setNewProcess("");
-                            }
-                          }}
-                        >
-                          Add Process
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
+                <Select
+                  value={newUserData.processId}
+                  onValueChange={(value) => setNewUserData(prev => ({
+                    ...prev,
+                    processId: value
+                  }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select process" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Process</SelectItem>
+                    {orgSettings?.processes?.map((process: OrganizationProcess) => (
+                      <SelectItem key={process.id} value={process.id.toString()}>
+                        {process.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label htmlFor="batchId">Batch Name</Label>
-                <div className="flex gap-2">
-                  <Select
-                    value={newUserData.batchId}
-                    onValueChange={(value) => setNewUserData(prev => ({
-                      ...prev,
-                      batchId: value
-                    }))}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select batch" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {orgSettings?.batches.map((batch) => (
-                        <SelectItem key={batch.id} value={batch.id.toString()}>
-                          {batch.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="icon">
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add New Batch for {organization.name}</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                          <Label>Batch Name</Label>
-                          <Input
-                            value={newBatch}
-                            onChange={(e) => setNewBatch(e.target.value)}
-                          />
-                        </div>
-                        <Button
-                          onClick={() => {
-                            if (newBatch) {
-                              updateOrgSettingsMutation.mutate({
-                                type: "batchNames",
-                                value: newBatch,
-                              });
-                              setNewBatch("");
-                            }
-                          }}
-                        >
-                          Add Batch
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
+                <Select
+                  value={newUserData.batchId}
+                  onValueChange={(value) => setNewUserData(prev => ({
+                    ...prev,
+                    batchId: value
+                  }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select batch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Batch</SelectItem>
+                    {orgSettings?.batches?.map((batch: OrganizationBatch) => (
+                      <SelectItem key={batch.id} value={batch.id.toString()}>
+                        {batch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label htmlFor="locationId">Location</Label>
-                <div className="flex gap-2">
-                  <Select
-                    value={newUserData.locationId}
-                    onValueChange={(value) => setNewUserData(prev => ({
-                      ...prev,
-                      locationId: value
-                    }))}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select location" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {orgSettings?.locations.map((location) => (
-                        <SelectItem key={location.id} value={location.id.toString()}>
-                          {location.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="icon">
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add New Location for {organization.name}</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                          <Label>Location Name</Label>
-                          <Input
-                            value={newLocation}
-                            onChange={(e) => setNewLocation(e.target.value)}
-                          />
-                        </div>
-                        <Button
-                          onClick={() => {
-                            if (newLocation) {
-                              updateOrgSettingsMutation.mutate({
-                                type: "locations",
-                                value: newLocation,
-                              });
-                              setNewLocation("");
-                            }
-                          }}
-                        >
-                          Add Location
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
+                <Select
+                  value={newUserData.locationId}
+                  onValueChange={(value) => setNewUserData(prev => ({
+                    ...prev,
+                    locationId: value
+                  }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select location" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Location</SelectItem>
+                    {orgSettings?.locations?.map((location: OrganizationLocation) => (
+                      <SelectItem key={location.id} value={location.id.toString()}>
+                        {location.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-
               <div>
                 <Label htmlFor="password">Password</Label>
                 <Input
@@ -572,6 +425,17 @@ export function AddUser({
                     dateOfBirth: e.target.value
                   }))}
                   required
+                />
+              </div>
+              <div>
+                <Label htmlFor="education">Education</Label>
+                <Input
+                  id="education"
+                  value={newUserData.education}
+                  onChange={(e) => setNewUserData(prev => ({
+                    ...prev,
+                    education: e.target.value
+                  }))}
                 />
               </div>
             </div>
