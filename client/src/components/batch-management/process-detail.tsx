@@ -59,6 +59,8 @@ export function ProcessDetail() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedProcess, setSelectedProcess] = useState<any>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -268,6 +270,12 @@ export function ProcessDetail() {
   const locations = orgSettings?.locations || [];
   const processes = orgSettings?.processes || [];
 
+  // Add pagination calculations
+  const totalPages = Math.ceil(processes.length / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedProcesses = processes.slice(startIndex, endIndex);
+
   return (
     <div className="space-y-4">
       <Card className="overflow-hidden border-none shadow-lg">
@@ -287,59 +295,109 @@ export function ProcessDetail() {
           </div>
 
           {processes?.length > 0 ? (
-            <div className="relative overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-xs font-medium uppercase">Process Name</TableHead>
-                    <TableHead className="text-xs font-medium uppercase">Line of Business</TableHead>
-                    <TableHead className="text-xs font-medium uppercase">Location</TableHead>
-                    <TableHead className="text-xs font-medium uppercase">Induction Days</TableHead>
-                    <TableHead className="text-xs font-medium uppercase">Training Days</TableHead>
-                    <TableHead className="text-xs font-medium uppercase">Certification Days</TableHead>
-                    <TableHead className="text-xs font-medium uppercase">OJT Days</TableHead>
-                    <TableHead className="text-xs font-medium uppercase">OJT Certification Days</TableHead>
-                    <TableHead className="text-xs font-medium uppercase">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {processes.map((process) => (
-                    <TableRow key={process.id}>
-                      <TableCell className="text-sm">{process.name}</TableCell>
-                      <TableCell className="text-sm">{process.lineOfBusiness}</TableCell>
-                      <TableCell className="text-sm">
-                        {locations?.find(l => l.id === process.locationId)?.name}
-                      </TableCell>
-                      <TableCell className="text-sm">{process.inductionDays}</TableCell>
-                      <TableCell className="text-sm">{process.trainingDays}</TableCell>
-                      <TableCell className="text-sm">{process.certificationDays}</TableCell>
-                      <TableCell className="text-sm">{process.ojtDays}</TableCell>
-                      <TableCell className="text-sm">{process.ojtCertificationDays}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(process)}
-                            className="h-8 w-8 text-purple-600 hover:text-purple-700"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(process)}
-                            className="h-8 w-8 text-red-500 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+            <>
+              {/* Add rows per page selector */}
+              <div className="flex items-center justify-end py-4">
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-500">Rows per page:</span>
+                  <Select
+                    value={pageSize.toString()}
+                    onValueChange={(value) => {
+                      setPageSize(parseInt(value));
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue placeholder="10" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="relative overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs font-medium uppercase">Process Name</TableHead>
+                      <TableHead className="text-xs font-medium uppercase">Line of Business</TableHead>
+                      <TableHead className="text-xs font-medium uppercase">Location</TableHead>
+                      <TableHead className="text-xs font-medium uppercase">Induction Days</TableHead>
+                      <TableHead className="text-xs font-medium uppercase">Training Days</TableHead>
+                      <TableHead className="text-xs font-medium uppercase">Certification Days</TableHead>
+                      <TableHead className="text-xs font-medium uppercase">OJT Days</TableHead>
+                      <TableHead className="text-xs font-medium uppercase">OJT Certification Days</TableHead>
+                      <TableHead className="text-xs font-medium uppercase">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedProcesses.map((process) => (
+                      <TableRow key={process.id}>
+                        <TableCell className="text-sm">{process.name}</TableCell>
+                        <TableCell className="text-sm">{process.lineOfBusiness}</TableCell>
+                        <TableCell className="text-sm">
+                          {locations?.find(l => l.id === process.locationId)?.name}
+                        </TableCell>
+                        <TableCell className="text-sm">{process.inductionDays}</TableCell>
+                        <TableCell className="text-sm">{process.trainingDays}</TableCell>
+                        <TableCell className="text-sm">{process.certificationDays}</TableCell>
+                        <TableCell className="text-sm">{process.ojtDays}</TableCell>
+                        <TableCell className="text-sm">{process.ojtCertificationDays}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEdit(process)}
+                              className="h-8 w-8 text-purple-600 hover:text-purple-700"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDelete(process)}
+                              className="h-8 w-8 text-red-500 hover:text-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Add pagination controls */}
+              <div className="flex items-center justify-between py-4">
+                <div className="text-sm text-gray-500">
+                  Showing {startIndex + 1} to {Math.min(endIndex, processes.length)} of {processes.length} entries
+                </div>
+                <div className="space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </>
           ) : (
             <p className="text-center text-muted-foreground">No processes found.</p>
           )}
