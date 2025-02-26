@@ -98,6 +98,19 @@ export const organizationLocations = pgTable("organization_locations", {
 
 export type OrganizationLocation = InferSelectModel<typeof organizationLocations>;
 
+// Organization Line of Business table
+export const organizationLineOfBusinesses = pgTable("organization_line_of_businesses", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description").notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type OrganizationLineOfBusiness = InferSelectModel<typeof organizationLineOfBusinesses>;
+
 // Users table
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -253,6 +266,7 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   processes: many(organizationProcesses),
   batches: many(organizationBatches),
   locations: many(organizationLocations),
+  lineOfBusinesses: many(organizationLineOfBusinesses),
   rolePermissions: many(rolePermissions),
 }));
 
@@ -358,6 +372,18 @@ export const insertOrganizationLocationSchema = createInsertSchema(organizationL
     state: z.string().min(1, "State is required"),
     country: z.string().min(1, "Country is required"),
   });
+
+export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organizationLineOfBusinesses)
+  .omit({
+    id: true,
+    createdAt: true
+  })
+  .extend({
+    name: z.string().min(1, "LOB name is required"),
+    description: z.string().min(1, "Description is required"),
+  });
+
+export type InsertOrganizationLineOfBusiness = z.infer<typeof insertOrganizationLineOfBusinessSchema>;
 
 export const insertOrganizationBatchSchema = createInsertSchema(organizationBatches)
   .omit({

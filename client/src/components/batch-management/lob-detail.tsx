@@ -31,9 +31,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, Pencil, Trash } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
-// Form validation schema
 const lobFormSchema = z.object({
   name: z.string().min(1, "LOB name is required"),
   description: z.string().min(1, "Description is required"),
@@ -41,6 +50,9 @@ const lobFormSchema = z.object({
 
 export function LobDetail() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedLob, setSelectedLob] = useState<any>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -51,13 +63,13 @@ export function LobDetail() {
     enabled: !!user,
   });
 
-  // Then fetch organization settings which includes LOBs
-  const { data: orgSettings, isLoading } = useQuery({
-    queryKey: [`/api/organizations/${organization?.id}/settings`],
+  // Then fetch organization line of businesses
+  const { data: lobs, isLoading } = useQuery({
+    queryKey: [`/api/organizations/${organization?.id}/line-of-businesses`],
     queryFn: async () => {
       if (!organization?.id) return null;
-      const res = await fetch(`/api/organizations/${organization.id}/settings`);
-      if (!res.ok) throw new Error('Failed to fetch organization settings');
+      const res = await fetch(`/api/organizations/${organization.id}/line-of-businesses`);
+      if (!res.ok) throw new Error('Failed to fetch line of businesses');
       return res.json();
     },
     enabled: !!organization?.id,
@@ -71,24 +83,22 @@ export function LobDetail() {
     },
   });
 
+  const editForm = useForm<z.infer<typeof lobFormSchema>>({
+    resolver: zodResolver(lobFormSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+    },
+  });
+
   const createLobMutation = useMutation({
     mutationFn: async (data: z.infer<typeof lobFormSchema>) => {
-      const requestBody = {
-        type: 'lineOfBusinesses',
-        value: {
-          name: data.name,
-          description: data.description
-        },
-      };
-
-      console.log('LOB creation request:', requestBody);
-
-      const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
-        method: 'PATCH',
+      const response = await fetch(`/api/organizations/${organization?.id}/line-of-businesses`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify(data),
       });
 
       if (!response.ok) {
@@ -99,7 +109,7 @@ export function LobDetail() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/line-of-businesses`] });
       toast({
         title: "Success",
         description: "Line of Business created successfully",
@@ -108,7 +118,71 @@ export function LobDetail() {
       form.reset();
     },
     onError: (error: Error) => {
-      console.error('LOB creation error:', error);
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateLobMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof lobFormSchema>) => {
+      const response = await fetch(`/api/organizations/${organization?.id}/line-of-businesses/${selectedLob.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to update LOB');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/line-of-businesses`] });
+      toast({
+        title: "Success",
+        description: "Line of Business updated successfully",
+      });
+      setIsEditDialogOpen(false);
+      setSelectedLob(null);
+      editForm.reset();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteLobMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/organizations/${organization?.id}/line-of-businesses/${selectedLob.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to delete LOB');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/line-of-businesses`] });
+      toast({
+        title: "Success",
+        description: "Line of Business deleted successfully",
+      });
+      setIsDeleteDialogOpen(false);
+      setSelectedLob(null);
+    },
+    onError: (error: Error) => {
       toast({
         title: "Error",
         description: error.message,
@@ -125,6 +199,28 @@ export function LobDetail() {
     }
   };
 
+  const onEdit = async (data: z.infer<typeof lobFormSchema>) => {
+    try {
+      await updateLobMutation.mutateAsync(data);
+    } catch (error) {
+      console.error("Error updating LOB:", error);
+    }
+  };
+
+  const handleEdit = (lob: any) => {
+    setSelectedLob(lob);
+    editForm.reset({
+      name: lob.name,
+      description: lob.description,
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDelete = (lob: any) => {
+    setSelectedLob(lob);
+    setIsDeleteDialogOpen(true);
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -132,8 +228,6 @@ export function LobDetail() {
       </div>
     );
   }
-
-  const lobs = orgSettings?.lineOfBusinesses || [];
 
   return (
     <div className="space-y-4">
@@ -145,6 +239,7 @@ export function LobDetail() {
         </Button>
       </div>
 
+      {/* Create LOB Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -208,6 +303,107 @@ export function LobDetail() {
         </DialogContent>
       </Dialog>
 
+      {/* Edit LOB Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl mb-6">Edit Line of Business</DialogTitle>
+          </DialogHeader>
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(onEdit)} className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>LOB Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <FormField
+                    control={editForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>LOB NAME</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter LOB name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>DESCRIPTION</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter LOB description" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+
+              <div className="flex justify-end">
+                <Button 
+                  type="submit" 
+                  className="bg-purple-600 hover:bg-purple-700"
+                  disabled={updateLobMutation.isPending}
+                >
+                  {updateLobMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Update"
+                  )}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the
+              Line of Business {selectedLob?.name}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={async () => {
+                try {
+                  await deleteLobMutation.mutateAsync();
+                } catch (error) {
+                  console.error("Error deleting LOB:", error);
+                }
+              }}
+              disabled={deleteLobMutation.isPending}
+            >
+              {deleteLobMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* LOB List Section */}
       <Card>
         <CardHeader>
           <CardTitle>Current Line of Business</CardTitle>
@@ -221,14 +417,32 @@ export function LobDetail() {
                     <TableHead>LOB ID</TableHead>
                     <TableHead>LOB Name</TableHead>
                     <TableHead>Description</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {lobs.map((lob) => (
+                  {lobs.map((lob: any) => (
                     <TableRow key={lob.id}>
                       <TableCell>{lob.id}</TableCell>
                       <TableCell className="font-medium">{lob.name}</TableCell>
                       <TableCell>{lob.description}</TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleEdit(lob)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="text-red-600 hover:text-red-700"
+                          onClick={() => handleDelete(lob)}
+                        >
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

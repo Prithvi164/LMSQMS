@@ -18,6 +18,9 @@ import {
   type OrganizationLocation,
   type InsertOrganizationLocation,
   type RolePermission,
+  type OrganizationLineOfBusiness,
+  type InsertOrganizationLineOfBusiness,
+  organizationLineOfBusinesses,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -63,6 +66,13 @@ export interface IStorage {
   getProcess(id: number): Promise<OrganizationProcess | undefined>;
   updateProcess(id: number, process: Partial<InsertOrganizationProcess>): Promise<OrganizationProcess>;
   deleteProcess(id: number): Promise<void>;
+
+  // Line of Business operations
+  createLineOfBusiness(lob: InsertOrganizationLineOfBusiness): Promise<OrganizationLineOfBusiness>;
+  getLineOfBusiness(id: number): Promise<OrganizationLineOfBusiness | undefined>;
+  listLineOfBusinesses(organizationId: number): Promise<OrganizationLineOfBusiness[]>;
+  updateLineOfBusiness(id: number, lob: Partial<InsertOrganizationLineOfBusiness>): Promise<OrganizationLineOfBusiness>;
+  deleteLineOfBusiness(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -352,6 +362,62 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error deleting process:', error);
       throw new Error('Failed to delete process');
+    }
+  }
+
+  // Line of Business operations
+  async createLineOfBusiness(lob: InsertOrganizationLineOfBusiness): Promise<OrganizationLineOfBusiness> {
+    try {
+      const [newLob] = await db
+        .insert(organizationLineOfBusinesses)
+        .values(lob)
+        .returning() as OrganizationLineOfBusiness[];
+      return newLob;
+    } catch (error: any) {
+      if (error.code === '23505') {
+        throw new Error('A Line of Business with this name already exists.');
+      }
+      throw error;
+    }
+  }
+
+  async getLineOfBusiness(id: number): Promise<OrganizationLineOfBusiness | undefined> {
+    const [lob] = await db
+      .select()
+      .from(organizationLineOfBusinesses)
+      .where(eq(organizationLineOfBusinesses.id, id)) as OrganizationLineOfBusiness[];
+    return lob;
+  }
+
+  async listLineOfBusinesses(organizationId: number): Promise<OrganizationLineOfBusiness[]> {
+    return await db
+      .select()
+      .from(organizationLineOfBusinesses)
+      .where(eq(organizationLineOfBusinesses.organizationId, organizationId)) as OrganizationLineOfBusiness[];
+  }
+
+  async updateLineOfBusiness(id: number, lob: Partial<InsertOrganizationLineOfBusiness>): Promise<OrganizationLineOfBusiness> {
+    const [updatedLob] = await db
+      .update(organizationLineOfBusinesses)
+      .set(lob)
+      .where(eq(organizationLineOfBusinesses.id, id))
+      .returning() as OrganizationLineOfBusiness[];
+
+    if (!updatedLob) {
+      throw new Error('Line of Business not found');
+    }
+
+    return updatedLob;
+  }
+
+  async deleteLineOfBusiness(id: number): Promise<void> {
+    try {
+      await db
+        .delete(organizationLineOfBusinesses)
+        .where(eq(organizationLineOfBusinesses.id, id));
+    } catch (error) {
+      console.error('Error deleting Line of Business:', error);
+      throw new Error('Failed to delete Line of Business');
     }
   }
 }
