@@ -152,9 +152,9 @@ export function LocationDetail() {
       try {
         const requestBody = {
           type: 'locations',
-          action: 'update',
-          value: {
-            id: selectedLocation.id,
+          operation: 'update',
+          locationId: selectedLocation.id,
+          location: {
             name: data.name,
             address: data.address,
             city: data.city,
@@ -180,7 +180,9 @@ export function LocationDetail() {
           throw new Error(errorData.message || 'Failed to update location');
         }
 
-        return response.json();
+        const jsonData = await response.json();
+        console.log('Update response:', jsonData);
+        return jsonData;
       } catch (error) {
         console.error('Location update error:', error);
         throw error;
