@@ -96,16 +96,6 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
   const [batchNumber, setBatchNumber] = useState("");
   const [filteredProcesses, setFilteredProcesses] = useState<Process[]>([]);
 
-  // Initialize form
-  const form = useForm<BatchFormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      status: "planned",
-      participantCount: 1,
-      capacityLimit: 1,
-    },
-  });
-
   // Generate batch number
   useEffect(() => {
     const generateBatchNumber = () => {
@@ -117,31 +107,63 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     setBatchNumber(generateBatchNumber());
   }, []);
 
-  // Fetch settings
+  // Initialize form
+  const form = useForm<BatchFormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      status: "planned",
+      participantCount: 1,
+      capacityLimit: 1,
+    },
+  });
+
+  // Fetch settings with error handling
   const {
     data: settings,
     isLoading: isSettingsLoading,
     error: settingsError
-  } = useQuery<Settings>({
+  } = useQuery({
     queryKey: ['/api/organizations/settings'],
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 10, // 10 minutes
+    retry: 3,
+    refetchOnWindowFocus: false,
+    onError: (error: any) => {
+      console.error('Settings fetch error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load settings. Please try again.",
+        variant: "destructive",
+      });
+    }
   });
 
-  // Fetch trainers
+  // Fetch trainers with error handling
   const {
-    data: trainers = [],
+    data: trainers,
     isLoading: isTrainersLoading,
     error: trainersError
-  } = useQuery<Trainer[]>({
+  } = useQuery({
     queryKey: ['/api/users'],
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 10,
+    retry: 3,
+    refetchOnWindowFocus: false,
     select: (data: any) => {
-      const trainers = data?.filter((user: any) => user.role === 'trainer') || [];
-      console.log('Filtered trainers:', trainers);
-      return trainers;
+      if (!Array.isArray(data)) {
+        console.error('Trainers data is not an array:', data);
+        return [];
+      }
+      return data.filter(user => user.role === 'trainer') || [];
     },
+    onError: (error: any) => {
+      console.error('Trainers fetch error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load trainers. Please try again.",
+        variant: "destructive",
+      });
+    }
   });
 
   // Filter processes when LOB changes
@@ -248,7 +270,6 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     }
   };
 
-  // Handle loading states
   if (isSettingsLoading || isTrainersLoading) {
     return (
       <div className="flex items-center justify-center p-6">
@@ -258,19 +279,27 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     );
   }
 
-  // Handle API errors
   if (settingsError || trainersError) {
     console.error("Settings Error:", settingsError);
     console.error("Trainers Error:", trainersError);
     return (
       <div className="flex items-center justify-center p-6">
-        <span className="text-destructive">Error loading data. Please try again.</span>
+        <Button 
+          variant="outline" 
+          onClick={() => {
+            queryClient.invalidateQueries({ queryKey: ['/api/organizations/settings'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+          }}
+        >
+          Retry Loading Data
+        </Button>
       </div>
     );
   }
 
-  // Handle missing data
+  // Ensure we have the required data
   if (!settings?.processes || !settings?.locations) {
+    console.error("Missing required data:", { settings });
     return (
       <div className="flex items-center justify-center p-6">
         <span>Required data is not available. Please check your connection.</span>
