@@ -466,21 +466,28 @@ export function LocationDetail() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-2xl mb-6">Add Location</DialogTitle>
+            <DialogDescription>
+              Fill in the details below to add a new location to your organization.
+            </DialogDescription>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <Card>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 pt-6">
                   <FormField
                     control={form.control}
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>LOCATION NAME</FormLabel>
+                        <FormLabel className="text-sm font-semibold text-foreground">LOCATION NAME</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter location name" {...field} />
+                          <Input 
+                            placeholder="Enter location name" 
+                            {...field} 
+                            className="transition-colors focus:border-purple-500"
+                          />
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage className="text-xs" />
                       </FormItem>
                     )}
                   />
@@ -490,26 +497,34 @@ export function LocationDetail() {
                     name="address"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>ADDRESS</FormLabel>
+                        <FormLabel className="text-sm font-semibold text-foreground">ADDRESS</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter address" {...field} />
+                          <Input 
+                            placeholder="Enter complete address" 
+                            {...field} 
+                            className="transition-colors focus:border-purple-500"
+                          />
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage className="text-xs" />
                       </FormItem>
                     )}
                   />
 
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-3 gap-6">
                     <FormField
                       control={form.control}
                       name="city"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>CITY</FormLabel>
+                          <FormLabel className="text-sm font-semibold text-foreground">CITY</FormLabel>
                           <FormControl>
-                            <Input placeholder="Enter city" {...field} />
+                            <Input 
+                              placeholder="Enter city name" 
+                              {...field} 
+                              className="transition-colors focus:border-purple-500"
+                            />
                           </FormControl>
-                          <FormMessage />
+                          <FormMessage className="text-xs" />
                         </FormItem>
                       )}
                     />
@@ -519,11 +534,15 @@ export function LocationDetail() {
                       name="state"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>STATE</FormLabel>
+                          <FormLabel className="text-sm font-semibold text-foreground">STATE</FormLabel>
                           <FormControl>
-                            <Input placeholder="Enter state" {...field} />
+                            <Input 
+                              placeholder="Enter state name" 
+                              {...field} 
+                              className="transition-colors focus:border-purple-500"
+                            />
                           </FormControl>
-                          <FormMessage />
+                          <FormMessage className="text-xs" />
                         </FormItem>
                       )}
                     />
@@ -533,11 +552,15 @@ export function LocationDetail() {
                       name="country"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>COUNTRY</FormLabel>
+                          <FormLabel className="text-sm font-semibold text-foreground">COUNTRY</FormLabel>
                           <FormControl>
-                            <Input placeholder="Enter country" {...field} />
+                            <Input 
+                              placeholder="Enter country name" 
+                              {...field} 
+                              className="transition-colors focus:border-purple-500"
+                            />
                           </FormControl>
-                          <FormMessage />
+                          <FormMessage className="text-xs" />
                         </FormItem>
                       )}
                     />
@@ -545,10 +568,23 @@ export function LocationDetail() {
                 </CardContent>
               </Card>
 
-              <div className="flex justify-end">
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsCreateDialogOpen(false);
+                    updateMascotState({
+                      state: 'idle',
+                      message: "Need help with anything else?"
+                    });
+                  }}
+                >
+                  Cancel
+                </Button>
                 <Button
                   type="submit"
-                  className="bg-purple-600 hover:bg-purple-700"
+                  className="bg-purple-600 hover:bg-purple-700 transition-colors min-w-[100px]"
                   disabled={createLocationMutation.isPending}
                 >
                   {createLocationMutation.isPending ? (
@@ -557,10 +593,10 @@ export function LocationDetail() {
                       Creating...
                     </>
                   ) : (
-                    "Submit"
+                    "Create"
                   )}
                 </Button>
-              </div>
+              </DialogFooter>
             </form>
           </Form>
         </DialogContent>
