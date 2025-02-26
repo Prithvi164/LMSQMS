@@ -87,13 +87,7 @@ export function LocationDetail() {
           },
           body: JSON.stringify({
             type: 'locations',
-            value: {
-              name: data.name,
-              address: data.address,
-              city: data.city,
-              state: data.state,
-              country: data.country,
-            },
+            value: data,
           }),
         });
 
@@ -145,7 +139,21 @@ export function LocationDetail() {
     );
   }
 
-  const locations = orgSettings?.locations || [];
+  // Parse the locations data properly
+  const locations = (orgSettings?.locations || []).map(location => {
+    if (typeof location.name === 'string' && location.name.startsWith('{')) {
+      try {
+        const parsedData = JSON.parse(location.name);
+        return {
+          id: location.id,
+          ...parsedData
+        };
+      } catch (e) {
+        return location;
+      }
+    }
+    return location;
+  });
 
   return (
     <div className="space-y-4">
