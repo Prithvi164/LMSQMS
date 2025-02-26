@@ -58,6 +58,11 @@ export interface IStorage {
   updateLocation(id: number, location: Partial<InsertOrganizationLocation>): Promise<OrganizationLocation>;
   deleteLocation(id: number): Promise<void>;
   getLocation(id: number): Promise<OrganizationLocation | undefined>;
+
+  // Process operations
+  getProcess(id: number): Promise<OrganizationProcess | undefined>;
+  updateProcess(id: number, process: Partial<InsertOrganizationProcess>): Promise<OrganizationProcess>;
+  deleteProcess(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -293,6 +298,39 @@ export class DatabaseStorage implements IStorage {
       .from(organizationLocations)
       .where(eq(organizationLocations.id, id)) as OrganizationLocation[];
     return location;
+  }
+
+  async getProcess(id: number): Promise<OrganizationProcess | undefined> {
+    const [process] = await db
+      .select()
+      .from(organizationProcesses)
+      .where(eq(organizationProcesses.id, id)) as OrganizationProcess[];
+    return process;
+  }
+
+  async updateProcess(id: number, process: Partial<InsertOrganizationProcess>): Promise<OrganizationProcess> {
+    const [updatedProcess] = await db
+      .update(organizationProcesses)
+      .set(process)
+      .where(eq(organizationProcesses.id, id))
+      .returning() as OrganizationProcess[];
+
+    if (!updatedProcess) {
+      throw new Error('Process not found');
+    }
+
+    return updatedProcess;
+  }
+
+  async deleteProcess(id: number): Promise<void> {
+    try {
+      await db
+        .delete(organizationProcesses)
+        .where(eq(organizationProcesses.id, id));
+    } catch (error) {
+      console.error('Error deleting process:', error);
+      throw new Error('Failed to delete process');
+    }
   }
 }
 

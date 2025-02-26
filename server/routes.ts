@@ -10,6 +10,7 @@ import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { insertOrganizationBatchSchema } from "@shared/schema";
+import { insertOrganizationProcessSchema } from "@shared/schema"; //Import schema for process
 
 // Configure multer for handling file uploads
 const upload = multer({
@@ -118,7 +119,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(organization);
   });
 
-  // Update the organization settings route
+  // Update the PATCH /api/organizations/:id/settings route to remove process handling
   app.patch("/api/organizations/:id/settings", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -138,12 +139,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let result;
       // Create new setting based on type
       switch (type) {
-        case "processNames":
-          result = await storage.createProcess({
-            name: value,
-            organizationId: orgId,
-          });
-          break;
         case "batchNames":
           result = await storage.createBatch({
             name: value,
@@ -209,6 +204,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ message: err.message });
     }
   });
+
+
+  // Organization Process Routes
+  app.post("/api/organizations/:id/processes", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.id);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only create processes in your own organization" });
+      }
+
+      // Validate and create process data
+      const processData = {
+        ...req.body,
+        organizationId: orgId,
+      };
+
+      const validatedData = insertOrganizationProcessSchema.parse(processData);
+      const process = await storage.createProcess(validatedData);
+      res.status(201).json(process);
+    } catch (error: any) {
+      console.error("Process creation error:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Get organization processes
+  app.get("/api/organizations/:id/processes", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.id);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only view processes in your own organization" });
+      }
+
+      const processes = await storage.listProcesses(orgId);
+      res.json(processes);
+    } catch (error: any) {
+      console.error("Error fetching processes:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Update a specific process
+  app.patch("/api/organizations/:orgId/processes/:processId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const processId = parseInt(req.params.processId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only update processes in your own organization" });
+      }
+
+      // Get the existing process
+      const existingProcess = await storage.getProcess(processId);
+      if (!existingProcess) {
+        return res.status(404).json({ message: "Process not found" });
+      }
+
+      // Update the process
+      const updatedProcess = await storage.updateProcess(processId, {
+        ...req.body,
+        organizationId: orgId
+      });
+
+      res.json(updatedProcess);
+    } catch (err: any) {
+      console.error("Process update error:", err);
+      res.status(500).json({ message: err.message || "Failed to update process" });
+    }
+  });
+
+  // Delete a specific process
+  app.delete("/api/organizations/:orgId/processes/:processId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const processId = parseInt(req.params.processId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only delete processes in your own organization" });
+      }
+
+      // Get the existing process
+      const existingProcess = await storage.getProcess(processId);
+      if (!existingProcess) {
+        return res.status(404).json({ message: "Process not found" });
+      }
+
+      // Delete the process
+      await storage.deleteProcess(processId);
+      res.status(200).json({ message: "Process deleted successfully" });
+    } catch (err: any) {
+      console.error("Process deletion error:", err);
+      res.status(500).json({ message: err.message || "Failed to delete process" });
+    }
+  });
+
 
   // User management routes
   app.get("/api/users", async (req, res) => {

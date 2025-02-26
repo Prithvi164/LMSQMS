@@ -89,17 +89,20 @@ export function ProcessDetail() {
 
   const createProcessMutation = useMutation({
     mutationFn: async (data: z.infer<typeof processFormSchema>) => {
-      const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
-        method: 'PATCH',
+      const response = await fetch(`/api/organizations/${organization?.id}/processes`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          type: 'processNames',
-          value: {
-            ...data,
-            locationId: parseInt(data.locationId, 10),
-          },
+          name: data.name,
+          inductionDays: data.inductionDays,
+          trainingDays: data.trainingDays,
+          certificationDays: data.certificationDays,
+          ojtDays: data.ojtDays,
+          ojtCertificationDays: data.ojtCertificationDays,
+          lineOfBusiness: data.lineOfBusiness,
+          locationId: parseInt(data.locationId, 10),
         }),
       });
 
@@ -315,8 +318,8 @@ export function ProcessDetail() {
               </Card>
 
               <div className="flex justify-end">
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="bg-purple-600 hover:bg-purple-700"
                   disabled={createProcessMutation.isPending}
                 >
