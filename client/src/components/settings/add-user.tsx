@@ -39,15 +39,15 @@ export function AddUser({
     fullName: "",
     employeeId: "",
     role: "trainee",
-    locationId: "",
+    locationId: "none",
     email: "",
     phoneNumber: "",
-    processId: "",
+    processId: "none",
     education: "",
-    batchId: "",
+    batchId: "none",
     dateOfJoining: "",
     dateOfBirth: "",
-    managerId: "",
+    managerId: "none",
   });
 
   // States for new item dialogs
@@ -72,10 +72,10 @@ export function AddUser({
       try {
         const payload = {
           ...data,
-          processId: data.processId ? Number(data.processId) : null,
-          batchId: data.batchId ? Number(data.batchId) : null,
-          locationId: data.locationId ? Number(data.locationId) : null,
-          managerId: data.managerId === "" ? null : data.managerId ? Number(data.managerId) : null,
+          processId: data.processId === "none" ? null : Number(data.processId),
+          batchId: data.batchId === "none" ? null : Number(data.batchId),
+          locationId: data.locationId === "none" ? null : Number(data.locationId),
+          managerId: data.managerId === "none" ? null : Number(data.managerId),
           organizationId: organization?.id || null,
         };
 
@@ -101,15 +101,15 @@ export function AddUser({
         fullName: "",
         employeeId: "",
         role: "trainee",
-        locationId: "",
+        locationId: "none",
         email: "",
         phoneNumber: "",
-        processId: "",
+        processId: "none",
         education: "",
-        batchId: "",
+        batchId: "none",
         dateOfJoining: "",
         dateOfBirth: "",
-        managerId: "",
+        managerId: "none",
       });
     },
     onError: (error: Error) => {
@@ -237,10 +237,7 @@ export function AddUser({
             className="space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
-              createUserMutation.mutate({
-                ...newUserData,
-                organizationId: organization.id,
-              });
+              createUserMutation.mutate(newUserData);
             }}
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -294,7 +291,7 @@ export function AddUser({
                     <SelectValue placeholder="Select manager" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No Manager</SelectItem>
+                    <SelectItem value="none">No Manager</SelectItem>
                     {potentialManagers.map((manager) => (
                       <SelectItem key={manager.id} value={manager.id.toString()}>
                         {manager.fullName || manager.username}
@@ -515,28 +512,18 @@ export function AddUser({
               </div>
 
               <div>
-                <Label htmlFor="managerId">Reporting Manager</Label>
-                <Select
-                  value={newUserData.managerId}
-                  onValueChange={(value) => setNewUserData(prev => ({
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={newUserData.password}
+                  onChange={(e) => setNewUserData(prev => ({
                     ...prev,
-                    managerId: value
+                    password: e.target.value
                   }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select manager" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">No Manager</SelectItem>
-                    {potentialManagers.map((manager) => (
-                      <SelectItem key={manager.id} value={manager.id.toString()}>
-                        {manager.fullName || manager.username}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  required
+                />
               </div>
-
               <div>
                 <Label htmlFor="employeeId">Employee ID</Label>
                 <Input
