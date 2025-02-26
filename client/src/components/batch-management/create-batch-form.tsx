@@ -186,6 +186,10 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
         throw new Error('Organization ID is required');
       }
 
+      if (!values.managerId || values.managerId === "none") {
+        throw new Error('Manager selection is required');
+      }
+
       const response = await fetch('/api/batches', {
         method: 'POST',
         headers: {
