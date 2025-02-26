@@ -32,20 +32,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Plus, Loader2, Pencil, Trash } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 const lobFormSchema = z.object({
   name: z.string().min(1, "LOB name is required"),
   description: z.string().min(1, "Description is required"),
+});
+
+const deleteConfirmationSchema = z.object({
+  confirmText: z.string().refine((val) => val === `delete-${Date.now()}`, {
+    message: "Please type the confirmation text exactly as shown above"
+  })
 });
 
 export function LobDetail() {
@@ -53,6 +49,7 @@ export function LobDetail() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedLob, setSelectedLob] = useState<any>(null);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -88,6 +85,13 @@ export function LobDetail() {
     defaultValues: {
       name: "",
       description: "",
+    },
+  });
+
+  const deleteForm = useForm<z.infer<typeof deleteConfirmationSchema>>({
+    resolver: zodResolver(deleteConfirmationSchema),
+    defaultValues: {
+      confirmText: "",
     },
   });
 
@@ -181,6 +185,7 @@ export function LobDetail() {
       });
       setIsDeleteDialogOpen(false);
       setSelectedLob(null);
+      setDeleteConfirmationText("");
     },
     onError: (error: Error) => {
       toast({
@@ -218,6 +223,7 @@ export function LobDetail() {
 
   const handleDelete = (lob: any) => {
     setSelectedLob(lob);
+    setDeleteConfirmationText(`delete-${Date.now()}`);
     setIsDeleteDialogOpen(true);
   };
 
@@ -417,24 +423,33 @@ export function LobDetail() {
       </Card>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Line of Business</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <p>
-                Are you absolutely sure you want to delete the Line of Business "{selectedLob?.name}"?
-              </p>
-              <p className="font-semibold text-red-600">
-                This action cannot be undone. This will permanently delete this Line of Business
-                and may affect any processes or batches that reference it.
-              </p>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700"
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Delete Line of Business</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              This action cannot be undone. Please type{" "}
+              <span className="font-mono text-primary">{deleteConfirmationText}</span> to confirm.
+            </p>
+            <Input
+              className="font-mono"
+              placeholder="Type delete confirmation"
+              value={deleteForm.watch("confirmText")}
+              onChange={(e) => deleteForm.setValue("confirmText", e.target.value)}
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteForm.formState.isValid === false || deleteLobMutation.isPending}
               onClick={async () => {
                 try {
                   await deleteLobMutation.mutateAsync();
@@ -442,7 +457,6 @@ export function LobDetail() {
                   console.error("Error deleting LOB:", error);
                 }
               }}
-              disabled={deleteLobMutation.isPending}
             >
               {deleteLobMutation.isPending ? (
                 <>
@@ -450,12 +464,12 @@ export function LobDetail() {
                   Deleting...
                 </>
               ) : (
-                "Yes, Delete Line of Business"
+                "Delete Line of Business"
               )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
