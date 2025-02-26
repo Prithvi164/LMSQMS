@@ -60,7 +60,7 @@ export function LocationDetail() {
     enabled: !!user,
   });
 
-  // Then fetch locations
+  // Then fetch organization settings which includes locations
   const { data: orgSettings, isLoading } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/settings`],
     queryFn: async () => {
@@ -98,7 +98,14 @@ export function LocationDetail() {
     mutationFn: async (data: z.infer<typeof locationFormSchema>) => {
       const requestBody = {
         type: 'locations',
-        value: data
+        operation: 'create',
+        value: {
+          type: 'single',
+          data: {
+            ...data,
+            organization_id: organization?.id
+          }
+        }
       };
 
       console.log('Location creation request:', requestBody);
@@ -140,9 +147,15 @@ export function LocationDetail() {
     mutationFn: async (data: z.infer<typeof locationFormSchema>) => {
       const requestBody = {
         type: 'locations',
-        action: 'update',
-        locationId: selectedLocation.id,
-        value: data
+        operation: 'update',
+        value: {
+          type: 'single',
+          id: selectedLocation.id,
+          data: {
+            ...data,
+            organization_id: organization?.id
+          }
+        }
       };
 
       console.log('Location update request:', requestBody);
@@ -156,9 +169,8 @@ export function LocationDetail() {
       });
 
       if (!response.ok) {
-        const errorData = await response.text();
-        console.error('Server response:', errorData);
-        throw new Error(errorData || 'Failed to update location');
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to update location');
       }
 
       return response.json();
@@ -186,9 +198,11 @@ export function LocationDetail() {
     mutationFn: async () => {
       const requestBody = {
         type: 'locations',
-        action: 'delete',
-        locationId: selectedLocation.id,
-        value: null
+        operation: 'delete',
+        value: {
+          type: 'single',
+          id: selectedLocation.id
+        }
       };
 
       console.log('Location deletion request:', requestBody);
@@ -202,9 +216,8 @@ export function LocationDetail() {
       });
 
       if (!response.ok) {
-        const errorData = await response.text();
-        console.error('Server response:', errorData);
-        throw new Error(errorData || 'Failed to delete location');
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to delete location');
       }
 
       return response.json();
