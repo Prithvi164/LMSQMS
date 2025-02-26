@@ -39,7 +39,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Plus, Loader2, Pencil, Trash2, MapPin } from "lucide-react";
+import { Plus, Loader2, Pencil, Trash2, MapPin, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Mascot } from "@/components/ui/mascot";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -58,6 +58,9 @@ export function LocationDetail() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<any>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -324,6 +327,28 @@ export function LocationDetail() {
     });
   };
 
+  const locations = orgSettings?.locations || [];
+
+  // Filter locations based on search term
+  const filteredLocations = locations?.filter((location: any) =>
+    Object.values(location).some((value: any) =>
+      String(value).toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  ) || [];
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredLocations.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedLocations = filteredLocations.slice(startIndex, startIndex + itemsPerPage);
+
+  // Handle page change
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    updateMascotState({
+      state: 'pointing',
+      message: `Showing page ${newPage} of ${totalPages}`
+    });
+  };
 
   if (isLoading) {
     return (
@@ -350,8 +375,6 @@ export function LocationDetail() {
     );
   }
 
-  const locations = orgSettings?.locations || [];
-
   return (
     <div className="space-y-4">
       <Mascot
@@ -366,91 +389,156 @@ export function LocationDetail() {
               <MapPin className="h-5 w-5 text-purple-500" />
               <h2 className="text-lg font-semibold">Manage Locations</h2>
             </div>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    onClick={() => {
-                      setIsCreateDialogOpen(true);
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search locations..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                    if (e.target.value) {
                       updateMascotState({
-                        state: 'pointing',
-                        message: "Let's add a new location! I'll help you fill out the details."
+                        state: 'explaining',
+                        message: `Searching for locations containing "${e.target.value}"`
                       });
-                    }}
-                    className="bg-purple-600 hover:bg-purple-700 transition-colors"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add New Location
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Add a new location to your organization</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+                    }
+                  }}
+                  className="pl-9 w-[250px] focus:border-purple-500"
+                />
+              </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      onClick={() => {
+                        setIsCreateDialogOpen(true);
+                        updateMascotState({
+                          state: 'pointing',
+                          message: "Let's add a new location! I'll help you fill out the details."
+                        });
+                      }}
+                      className="bg-purple-600 hover:bg-purple-700 transition-colors"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add New Location
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Add a new location to your organization</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </div>
 
-          {locations?.length > 0 ? (
-            <div className="relative overflow-x-auto rounded-lg border">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead className="font-semibold">Location Name</TableHead>
-                    <TableHead className="font-semibold">Address</TableHead>
-                    <TableHead className="font-semibold">City</TableHead>
-                    <TableHead className="font-semibold">State</TableHead>
-                    <TableHead className="font-semibold">Country</TableHead>
-                    <TableHead className="font-semibold text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {locations.map((location) => (
-                    <TableRow
-                      key={location.id}
-                      className="hover:bg-muted/50 transition-colors"
-                    >
-                      <TableCell className="font-medium">{location.name}</TableCell>
-                      <TableCell>{location.address}</TableCell>
-                      <TableCell>{location.city}</TableCell>
-                      <TableCell>{location.state}</TableCell>
-                      <TableCell>{location.country}</TableCell>
-                      <TableCell>
-                        <div className="flex justify-end space-x-2">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleEdit(location)}
-                                  className="hover:bg-purple-50"
-                                >
-                                  <Pencil className="h-4 w-4 text-purple-600" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Edit location</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  onClick={() => handleDelete(location)}
-                                  className="hover:bg-red-600"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Delete location</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
-                      </TableCell>
+          {filteredLocations.length > 0 ? (
+            <>
+              <div className="relative overflow-x-auto rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="font-semibold">Location Name</TableHead>
+                      <TableHead className="font-semibold">Address</TableHead>
+                      <TableHead className="font-semibold">City</TableHead>
+                      <TableHead className="font-semibold">State</TableHead>
+                      <TableHead className="font-semibold">Country</TableHead>
+                      <TableHead className="font-semibold text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedLocations.map((location:any) => (
+                      <TableRow
+                        key={location.id}
+                        className="hover:bg-muted/50 transition-colors"
+                      >
+                        <TableCell className="font-medium">{location.name}</TableCell>
+                        <TableCell>{location.address}</TableCell>
+                        <TableCell>{location.city}</TableCell>
+                        <TableCell>{location.state}</TableCell>
+                        <TableCell>{location.country}</TableCell>
+                        <TableCell>
+                          <div className="flex justify-end space-x-2">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleEdit(location)}
+                                    className="hover:bg-purple-50"
+                                  >
+                                    <Pencil className="h-4 w-4 text-purple-600" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Edit location</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => handleDelete(location)}
+                                    className="hover:bg-red-600"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Delete location</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex justify-between items-center mt-4 px-4">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredLocations.length)} of {filteredLocations.length} locations
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handlePageChange(page)}
+                        className={currentPage === page ? "bg-purple-600" : ""}
+                      >
+                        {page}
+                      </Button>
+                    ))}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : searchTerm ? (
+            <div className="text-center py-8 bg-muted/10 rounded-lg border-2 border-dashed">
+              <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground text-lg">No locations found matching "{searchTerm}"</p>
             </div>
           ) : (
             <div className="text-center py-8 bg-muted/10 rounded-lg border-2 border-dashed">
@@ -481,9 +569,9 @@ export function LocationDetail() {
                       <FormItem>
                         <FormLabel className="text-sm font-semibold text-foreground">LOCATION NAME</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="Enter location name" 
-                            {...field} 
+                          <Input
+                            placeholder="Enter location name"
+                            {...field}
                             className="transition-colors focus:border-purple-500"
                           />
                         </FormControl>
@@ -499,9 +587,9 @@ export function LocationDetail() {
                       <FormItem>
                         <FormLabel className="text-sm font-semibold text-foreground">ADDRESS</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="Enter complete address" 
-                            {...field} 
+                          <Input
+                            placeholder="Enter complete address"
+                            {...field}
                             className="transition-colors focus:border-purple-500"
                           />
                         </FormControl>
@@ -518,9 +606,9 @@ export function LocationDetail() {
                         <FormItem>
                           <FormLabel className="text-sm font-semibold text-foreground">CITY</FormLabel>
                           <FormControl>
-                            <Input 
-                              placeholder="Enter city name" 
-                              {...field} 
+                            <Input
+                              placeholder="Enter city name"
+                              {...field}
                               className="transition-colors focus:border-purple-500"
                             />
                           </FormControl>
@@ -536,9 +624,9 @@ export function LocationDetail() {
                         <FormItem>
                           <FormLabel className="text-sm font-semibold text-foreground">STATE</FormLabel>
                           <FormControl>
-                            <Input 
-                              placeholder="Enter state name" 
-                              {...field} 
+                            <Input
+                              placeholder="Enter state name"
+                              {...field}
                               className="transition-colors focus:border-purple-500"
                             />
                           </FormControl>
@@ -554,9 +642,9 @@ export function LocationDetail() {
                         <FormItem>
                           <FormLabel className="text-sm font-semibold text-foreground">COUNTRY</FormLabel>
                           <FormControl>
-                            <Input 
-                              placeholder="Enter country name" 
-                              {...field} 
+                            <Input
+                              placeholder="Enter country name"
+                              {...field}
                               className="transition-colors focus:border-purple-500"
                             />
                           </FormControl>
