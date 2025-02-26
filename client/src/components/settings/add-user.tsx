@@ -75,7 +75,7 @@ export function AddUser({
           processId: data.processId ? Number(data.processId) : null,
           batchId: data.batchId ? Number(data.batchId) : null,
           locationId: data.locationId ? Number(data.locationId) : null,
-          managerId: data.managerId === "null" ? null : data.managerId ? Number(data.managerId) : null,
+          managerId: data.managerId === "" ? null : data.managerId ? Number(data.managerId) : null,
           organizationId: organization?.id || null,
         };
 
@@ -180,10 +180,6 @@ export function AddUser({
     );
   }
 
-  // Filter potential managers to only show active users from the same organization
-  const organizationManagers = potentialManagers.filter(
-    manager => manager.organizationId === organization.id && manager.active
-  );
 
   return (
     <Card>
@@ -286,17 +282,26 @@ export function AddUser({
                 />
               </div>
               <div>
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={newUserData.password}
-                  onChange={(e) => setNewUserData(prev => ({
+                <Label htmlFor="managerId">Reporting Manager</Label>
+                <Select
+                  value={newUserData.managerId}
+                  onValueChange={(value) => setNewUserData(prev => ({
                     ...prev,
-                    password: e.target.value
+                    managerId: value
                   }))}
-                  required
-                />
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select manager" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No Manager</SelectItem>
+                    {potentialManagers.map((manager) => (
+                      <SelectItem key={manager.id} value={manager.id.toString()}>
+                        {manager.fullName || manager.username}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label htmlFor="role">Role</Label>
@@ -509,30 +514,29 @@ export function AddUser({
                 </div>
               </div>
 
-              {user.role === "admin" && (
-                <div>
-                  <Label htmlFor="managerId">Manager</Label>
-                  <Select
-                    value={newUserData.managerId}
-                    onValueChange={(value) => setNewUserData(prev => ({
-                      ...prev,
-                      managerId: value
-                    }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select manager" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="null">No Manager</SelectItem>
-                      {organizationManagers.map((manager) => (
-                        <SelectItem key={manager.id} value={String(manager.id)}>
-                          {manager.fullName || manager.username}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+              <div>
+                <Label htmlFor="managerId">Reporting Manager</Label>
+                <Select
+                  value={newUserData.managerId}
+                  onValueChange={(value) => setNewUserData(prev => ({
+                    ...prev,
+                    managerId: value
+                  }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select manager" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No Manager</SelectItem>
+                    {potentialManagers.map((manager) => (
+                      <SelectItem key={manager.id} value={manager.id.toString()}>
+                        {manager.fullName || manager.username}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div>
                 <Label htmlFor="employeeId">Employee ID</Label>
                 <Input
