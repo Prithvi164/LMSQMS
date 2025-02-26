@@ -54,9 +54,15 @@ export function LocationDetail() {
     enabled: !!user,
   });
 
-  // Then fetch locations
-  const { data: locations = [], isLoading } = useQuery({
-    queryKey: ["/api/locations"],
+  // Then fetch locations using organization settings endpoint
+  const { data: orgSettings, isLoading } = useQuery({
+    queryKey: [`/api/organizations/${organization?.id}/settings`],
+    queryFn: async () => {
+      if (!organization?.id) return null;
+      const res = await fetch(`/api/organizations/${organization.id}/settings`);
+      if (!res.ok) throw new Error('Failed to fetch organization settings');
+      return res.json();
+    },
     enabled: !!organization?.id,
   });
 
@@ -73,23 +79,39 @@ export function LocationDetail() {
 
   const createLocationMutation = useMutation({
     mutationFn: async (data: z.infer<typeof locationFormSchema>) => {
-      const response = await fetch("/api/locations", {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
+      try {
+        const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            type: 'locations',
+            value: {
+              name: data.name,
+              address: data.address,
+              city: data.city,
+              state: data.state,
+              country: data.country,
+            },
+          }),
+        });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to create location');
+        if (!response.ok) {
+          const errorData = await response.text();
+          console.error('Server response:', errorData);
+          throw new Error(errorData || 'Failed to create location');
+        }
+
+        const jsonData = await response.json();
+        return jsonData;
+      } catch (error) {
+        console.error('Location creation error:', error);
+        throw error;
       }
-
-      return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/locations"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
       toast({
         title: "Success",
         description: "Location created successfully",
@@ -101,7 +123,7 @@ export function LocationDetail() {
       console.error('Location creation error:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to create location",
         variant: "destructive",
       });
     },
@@ -122,6 +144,8 @@ export function LocationDetail() {
       </div>
     );
   }
+
+  const locations = orgSettings?.locations || [];
 
   return (
     <div className="space-y-4">
