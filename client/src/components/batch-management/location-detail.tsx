@@ -213,13 +213,21 @@ export function LocationDetail() {
         const requestBody = {
           type: 'locations',
           action: 'delete',
-          value: selectedLocation.id
+          value: {
+            id: selectedLocation.id,
+            name: selectedLocation.name,
+            address: selectedLocation.address,
+            city: selectedLocation.city,
+            state: selectedLocation.state,
+            country: selectedLocation.country,
+            organizationId: organization?.id
+          }
         };
 
         console.log('Delete request payload:', requestBody);
 
         const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
-          method: 'PATCH',  // Changed back to PATCH from DELETE
+          method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
           },
