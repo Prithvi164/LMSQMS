@@ -96,17 +96,6 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
   const [batchNumber, setBatchNumber] = useState("");
   const [filteredProcesses, setFilteredProcesses] = useState<Process[]>([]);
 
-  // Generate batch number immediately
-  useEffect(() => {
-    const generateBatchNumber = () => {
-      const date = new Date();
-      const year = date.getFullYear();
-      const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-      return `B${year}-${random}`;
-    };
-    setBatchNumber(generateBatchNumber());
-  }, []);
-
   // Initialize form
   const form = useForm<BatchFormValues>({
     resolver: zodResolver(formSchema),
@@ -117,6 +106,17 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     },
   });
 
+  // Generate batch number
+  useEffect(() => {
+    const generateBatchNumber = () => {
+      const date = new Date();
+      const year = date.getFullYear();
+      const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+      return `B${year}-${random}`;
+    };
+    setBatchNumber(generateBatchNumber());
+  }, []);
+
   // Fetch settings
   const {
     data: settings,
@@ -124,35 +124,24 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     error: settingsError
   } = useQuery<Settings>({
     queryKey: ['/api/organizations/settings'],
-    retry: 1,
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 10, // 10 minutes
-    onError: (error) => {
-      console.error('Settings fetch error:', error);
-    },
-    onSuccess: (data) => {
-      console.log('Settings fetched successfully:', data);
-    }
   });
 
   // Fetch trainers
   const {
-    data: trainers = [], // Provide default empty array
+    data: trainers = [],
     isLoading: isTrainersLoading,
     error: trainersError
   } = useQuery<Trainer[]>({
-    queryKey: ['/api/users', { role: 'trainer' }],
-    retry: 1,
+    queryKey: ['/api/users'],
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 10,
     select: (data: any) => {
-      const filteredTrainers = data?.filter((user: any) => user.role === 'trainer') || [];
-      console.log('Filtered trainers:', filteredTrainers);
-      return filteredTrainers;
+      const trainers = data?.filter((user: any) => user.role === 'trainer') || [];
+      console.log('Filtered trainers:', trainers);
+      return trainers;
     },
-    onError: (error) => {
-      console.error('Trainers fetch error:', error);
-    }
   });
 
   // Filter processes when LOB changes
@@ -228,7 +217,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
 
       if (!response.ok) {
         const error = await response.json();
-        console.error("API response error:", error); //Added logging for API errors
+        console.error("API response error:", error);
         throw new Error(error.message || 'Failed to create batch');
       }
 
