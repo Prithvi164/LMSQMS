@@ -1,3 +1,12 @@
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -42,6 +51,7 @@ import {
 import { Plus, Loader2, Pencil, Trash2, MapPin, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Mascot } from "@/components/ui/mascot";
 import { Skeleton } from "@/components/ui/skeleton";
+import {Select as RadixSelect, SelectContent as RadixSelectContent, SelectGroup as RadixSelectGroup, SelectItem as RadixSelectItem, SelectLabel as RadixSelectLabel, SelectTrigger as RadixSelectTrigger, SelectValue as RadixSelectValue} from '@radix-ui/react-select'
 
 // Form validation schema
 const locationFormSchema = z.object({
@@ -60,7 +70,7 @@ export function LocationDetail() {
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [pageSize, setPageSize] = useState(10); // Default to 10 items per page
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -336,10 +346,20 @@ export function LocationDetail() {
     )
   ) || [];
 
-  // Calculate pagination
-  const totalPages = Math.ceil(filteredLocations.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedLocations = filteredLocations.slice(startIndex, startIndex + itemsPerPage);
+  // Calculate pagination with dynamic page size
+  const totalPages = Math.ceil(filteredLocations.length / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedLocations = filteredLocations.slice(startIndex, startIndex + pageSize);
+
+  // Handle page size change
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setCurrentPage(1); // Reset to first page when changing page size
+    updateMascotState({
+      state: 'explaining',
+      message: `Showing ${newSize} locations per page`
+    });
+  };
 
   // Handle page change
   const handlePageChange = (newPage: number) => {
@@ -500,8 +520,26 @@ export function LocationDetail() {
               {/* Pagination Controls */}
               {totalPages > 1 && (
                 <div className="flex justify-between items-center mt-4 px-4">
-                  <div className="text-sm text-muted-foreground">
-                    Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredLocations.length)} of {filteredLocations.length} locations
+                  <div className="flex items-center gap-4">
+                    <div className="text-sm text-muted-foreground">
+                      Showing {startIndex + 1} to {Math.min(startIndex + pageSize, filteredLocations.length)} of {filteredLocations.length} locations
+                    </div>
+                    <Select
+                      value={pageSize.toString()}
+                      onValueChange={(value) => handlePageSizeChange(parseInt(value))}
+                    >
+                      <SelectTrigger className="w-[130px]">
+                        <SelectValue placeholder="Select page size" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectLabel>Page Size</SelectLabel>
+                          <SelectItem value="10">10 per page</SelectItem>
+                          <SelectItem value="50">50 per page</SelectItem>
+                          <SelectItem value="100">100 per page</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Button
