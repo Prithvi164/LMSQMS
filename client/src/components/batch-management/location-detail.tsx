@@ -85,7 +85,7 @@ export function LocationDetail() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          type: 'location',
+          type: 'organizationLocation',
           value: {
             name: data.name,
             address: data.address,
