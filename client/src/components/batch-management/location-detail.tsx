@@ -54,15 +54,9 @@ export function LocationDetail() {
     enabled: !!user,
   });
 
-  // Then fetch organization settings
-  const { data: orgSettings, isLoading } = useQuery({
-    queryKey: [`/api/organizations/${organization?.id}/settings`],
-    queryFn: async () => {
-      if (!organization?.id) return null;
-      const res = await fetch(`/api/organizations/${organization.id}/settings`);
-      if (!res.ok) throw new Error('Failed to fetch organization settings');
-      return res.json();
-    },
+  // Then fetch locations
+  const { data: locations = [], isLoading } = useQuery({
+    queryKey: ["/api/locations"],
     enabled: !!organization?.id,
   });
 
@@ -79,25 +73,12 @@ export function LocationDetail() {
 
   const createLocationMutation = useMutation({
     mutationFn: async (data: z.infer<typeof locationFormSchema>) => {
-      const requestBody = {
-        type: 'organizationLocations',
-        value: {
-          name: data.name,
-          address: data.address,
-          city: data.city,
-          state: data.state,
-          country: data.country
-        },
-      };
-
-      console.log('Location creation request:', requestBody);
-
-      const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
-        method: 'PATCH',
+      const response = await fetch("/api/locations", {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify(data),
       });
 
       if (!response.ok) {
@@ -108,7 +89,7 @@ export function LocationDetail() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/locations"] });
       toast({
         title: "Success",
         description: "Location created successfully",
@@ -141,8 +122,6 @@ export function LocationDetail() {
       </div>
     );
   }
-
-  const locations = orgSettings?.locations || [];
 
   return (
     <div className="space-y-4">
@@ -280,7 +259,7 @@ export function LocationDetail() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {locations.map((location) => (
+                  {locations.map((location: any) => (
                     <TableRow key={location.id}>
                       <TableCell>{location.id}</TableCell>
                       <TableCell className="font-medium">{location.name}</TableCell>
