@@ -160,10 +160,11 @@ export function LocationDetail() {
             city: data.city,
             state: data.state,
             country: data.country,
-            organizationId: organization?.id,
-            updatedAt: new Date().toISOString()
+            organizationId: organization?.id
           }
         };
+
+        console.log('Update request payload:', requestBody); // Add logging
 
         const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
           method: 'PATCH',
@@ -174,8 +175,9 @@ export function LocationDetail() {
         });
 
         if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.message || 'Failed to update location');
+          const errorData = await response.json();
+          console.error('Server response error:', errorData); // Add logging
+          throw new Error(errorData.message || 'Failed to update location');
         }
 
         return response.json();
