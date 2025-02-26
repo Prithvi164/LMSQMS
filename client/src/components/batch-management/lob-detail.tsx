@@ -236,7 +236,6 @@ export function LobDetail() {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold">Line of Business Details</h2>
         <Button onClick={() => setIsCreateDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Add New LOB
@@ -373,9 +372,6 @@ export function LobDetail() {
 
       {/* LOB List Section */}
       <Card>
-        <CardHeader>
-          <CardTitle>Current Line of Business</CardTitle>
-        </CardHeader>
         <CardContent>
           {lobs?.length > 0 ? (
             <div className="relative overflow-x-auto">
