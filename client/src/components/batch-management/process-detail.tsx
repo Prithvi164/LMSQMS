@@ -59,14 +59,14 @@ export function ProcessDetail() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  // Fetch organization data
-  const { data: organization, isLoading: orgLoading } = useQuery({
+  // Fetch organization first
+  const { data: organization } = useQuery({
     queryKey: ["/api/organization"],
     enabled: !!user,
   });
 
-  // Fetch organization settings
-  const { data: orgSettings, isLoading: settingsLoading } = useQuery({
+  // Then fetch organization settings
+  const { data: orgSettings, isLoading: isLoadingSettings } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/settings`],
     queryFn: async () => {
       if (!organization?.id) return null;
@@ -137,17 +137,20 @@ export function ProcessDetail() {
     }
   };
 
-  if (orgLoading || settingsLoading) {
+  // Show loading state while fetching data
+  if (isLoadingSettings) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
   }
 
   const locations = orgSettings?.locations || [];
   const processes = orgSettings?.processes || [];
-  const hasLocations = locations.length > 0;
+  const hasLocations = locations && locations.length > 0;
+
+  console.log('Debug locations:', { locations, hasLocations, orgSettings });
 
   return (
     <div className="space-y-4">
@@ -311,17 +314,11 @@ export function ProcessDetail() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {hasLocations ? (
-                              locations.map((location) => (
-                                <SelectItem key={location.id} value={location.id.toString()}>
-                                  {location.name}
-                                </SelectItem>
-                              ))
-                            ) : (
-                              <SelectItem value="no-locations" disabled>
-                                Please add locations first
+                            {locations.map((location) => (
+                              <SelectItem key={location.id} value={location.id.toString()}>
+                                {location.name}
                               </SelectItem>
-                            )}
+                            ))}
                           </SelectContent>
                         </Select>
                         <FormMessage />
