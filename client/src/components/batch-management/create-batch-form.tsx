@@ -128,12 +128,19 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     retry: 1,
     select: (data: any[]) => {
       console.log('All users data:', data); // Debug log
-      const filtered = data?.filter(user => user.role === 'trainer').map(trainer => ({
-        id: trainer.id,
-        name: trainer.full_name || trainer.username, // Use full_name or fallback to username
-        managerId: trainer.managerId
-      })) || [];
-      console.log('Filtered and mapped trainers:', filtered); // Debug log
+      const filtered = data?.filter(user => user.role === 'trainer').map(trainer => {
+        const manager = data.find(u => u.id === trainer.managerId);
+        return {
+          id: trainer.id,
+          name: trainer.full_name || trainer.username,
+          managerId: trainer.managerId,
+          manager: manager ? {
+            id: manager.id,
+            name: manager.full_name || manager.username
+          } : undefined
+        };
+      }) || [];
+      console.log('Filtered and mapped trainers with managers:', filtered); // Debug log
       return filtered;
     }
   });
@@ -440,13 +447,29 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Manager</FormLabel>
-                      <FormControl>
-                        <Input
-                          value={selectedTrainer?.manager?.name || ''}
-                          disabled
-                          placeholder="Manager will be auto-selected based on trainer"
-                        />
-                      </FormControl>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Manager will be auto-selected based on trainer" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">No Manager</SelectItem>
+                          {trainers
+                            .filter(trainer => trainer.manager)
+                            .map(trainer => (
+                              <SelectItem
+                                key={trainer.manager?.id}
+                                value={trainer.manager?.id.toString() || ""}
+                              >
+                                {trainer.manager?.name}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
