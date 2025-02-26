@@ -61,10 +61,10 @@ export const organizations = pgTable("organizations", {
 
 export type Organization = InferSelectModel<typeof organizations>;
 
-// Organization Processes table with compound unique constraint
+// Organization Processes table with unique name constraint
 export const organizationProcesses = pgTable("organization_processes", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull(),
+  name: text("name").notNull().unique(),  // Make name unique across all processes
   inductionDays: integer("induction_days").notNull(),
   trainingDays: integer("training_days").notNull(),
   certificationDays: integer("certification_days").notNull(),
@@ -78,9 +78,7 @@ export const organizationProcesses = pgTable("organization_processes", {
     .references(() => organizations.id)
     .notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (table) => ({
-  nameOrgUnique: unique("name_org_unique").on(table.name, table.organizationId),
-}));
+});
 
 export type OrganizationProcess = InferSelectModel<typeof organizationProcesses>;
 

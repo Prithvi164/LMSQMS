@@ -154,16 +154,15 @@ export class DatabaseStorage implements IStorage {
   // Organization settings operations
   async createProcess(process: InsertOrganizationProcess): Promise<OrganizationProcess> {
     try {
-      // First check if process with same name exists in the organization
+      // First check if process with same name exists
       const existingProcess = await db
         .select()
         .from(organizationProcesses)
         .where(eq(organizationProcesses.name, process.name))
-        .where(eq(organizationProcesses.organizationId, process.organizationId))
         .limit(1);
 
       if (existingProcess.length > 0) {
-        throw new Error('A process with this name already exists in your organization. Please choose a different name.');
+        throw new Error('A process with this name already exists. Please choose a different name.');
       }
 
       const [newProcess] = await db
@@ -173,8 +172,8 @@ export class DatabaseStorage implements IStorage {
       return newProcess;
     } catch (error: any) {
       // Handle unique constraint violation
-      if (error.code === '23505' && error.constraint_name === 'name_org_unique') {
-        throw new Error('A process with this name already exists in your organization. Please choose a different name.');
+      if (error.code === '23505' && error.constraint_name === 'organization_processes_name_unique') {
+        throw new Error('A process with this name already exists. Please choose a different name.');
       }
       throw error;
     }
