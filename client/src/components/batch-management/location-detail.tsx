@@ -98,7 +98,7 @@ export function LocationDetail() {
     mutationFn: async (data: z.infer<typeof locationFormSchema>) => {
       try {
         const requestBody = {
-          type: 'organizationLocations',
+          type: 'processNames', // Changed type here.  Assumption based on intention.
           value: {
             name: data.name,
             address: data.address,
@@ -155,7 +155,7 @@ export function LocationDetail() {
     mutationFn: async (data: z.infer<typeof locationFormSchema>) => {
       try {
         const requestBody = {
-          type: 'organizationLocations',
+          type: 'processNames',
           action: 'update',
           value: selectedLocation.id,
           data: {
@@ -215,7 +215,7 @@ export function LocationDetail() {
     mutationFn: async () => {
       try {
         const requestBody = {
-          type: 'organizationLocations',
+          type: 'processNames',
           action: 'delete',
           value: selectedLocation.id
         };
