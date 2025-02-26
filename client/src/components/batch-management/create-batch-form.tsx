@@ -625,9 +625,9 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                   <div className="space-y-2">
                     <p className="font-medium">Schedule Preview:</p>
                     <div className="text-sm text-muted-foreground space-y-1">
-                      <p>Induction: {format(form.getValues('inductionStartDate'), "PPP")} to {format(form.getValues('inductionEndDate') || new Date(), "PPP")}</p>
-                      <p>Training: {format(form.getValues('trainingStartDate') || new Date(), "PPP")} to {format(form.getValues('trainingEndDate') || new Date(), "PPP")}</p>
-                      <p>Certification: {format(form.getValues('certificationStartDate') || new Date(), "PPP")} to {format(form.getValues('certificationEndDate') || new Date(), "PPP")}</p>
+                      <p>Induction: {format(form.getValues('inductionStartDate'), "MMMM do, yyyy")} to {format(form.getValues('inductionEndDate') || new Date(), "MMMM do, yyyy")}</p>
+                      <p>Training: {format(form.getValues('trainingStartDate') || new Date(), "MMMM do, yyyy")} to {format(form.getValues('trainingEndDate') || new Date(), "MMMM do, yyyy")}</p>
+                      <p>Certification: {format(form.getValues('certificationStartDate') || new Date(), "MMMM do, yyyy")} to {format(form.getValues('certificationEndDate') || new Date(), "MMMM do, yyyy")}</p>
                     </div>
                   </div>
                 )}
