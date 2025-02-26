@@ -40,7 +40,7 @@ import {
   TableHead,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Loader2, Pencil, Trash2, Settings } from "lucide-react";
+import { Plus, Loader2, Pencil, Trash2, Settings, Search } from "lucide-react";
 
 const processFormSchema = z.object({
   name: z.string().min(1, "Process name is required"),
@@ -61,6 +61,7 @@ export function ProcessDetail() {
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -270,20 +271,38 @@ export function ProcessDetail() {
   const locations = orgSettings?.locations || [];
   const processes = orgSettings?.processes || [];
 
+  // Filter processes based on search query
+  const filteredProcesses = processes.filter((process: any) => {
+    const searchStr = searchQuery.toLowerCase();
+    return (
+      process.name.toLowerCase().includes(searchStr) ||
+      process.lineOfBusiness.toLowerCase().includes(searchStr) ||
+      (locations?.find(l => l.id === process.locationId)?.name || "").toLowerCase().includes(searchStr)
+    );
+  });
+
   // Add pagination calculations
-  const totalPages = Math.ceil(processes.length / pageSize);
+  const totalPages = Math.ceil(filteredProcesses.length / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
-  const paginatedProcesses = processes.slice(startIndex, endIndex);
+  const paginatedProcesses = filteredProcesses.slice(startIndex, endIndex);
 
   return (
     <div className="space-y-4">
       <Card className="overflow-hidden border-none shadow-lg">
         <CardContent className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center gap-2">
-              <Settings className="h-5 w-5 text-purple-500" />
-              <h2 className="text-lg font-semibold">Manage Process</h2>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search processes..."
+                className="pl-8"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1); // Reset to first page on search
+                }}
+              />
             </div>
             <Button
               onClick={() => setIsCreateDialogOpen(true)}
@@ -296,7 +315,6 @@ export function ProcessDetail() {
 
           {processes?.length > 0 ? (
             <>
-              {/* Add rows per page selector */}
               <div className="flex items-center justify-end py-4">
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-500">Rows per page:</span>
@@ -373,10 +391,9 @@ export function ProcessDetail() {
                 </Table>
               </div>
 
-              {/* Add pagination controls */}
               <div className="flex items-center justify-between py-4">
                 <div className="text-sm text-gray-500">
-                  Showing {startIndex + 1} to {Math.min(endIndex, processes.length)} of {processes.length} entries
+                  Showing {startIndex + 1} to {Math.min(endIndex, filteredProcesses.length)} of {filteredProcesses.length} entries
                 </div>
                 <div className="space-x-2">
                   <Button
@@ -404,7 +421,6 @@ export function ProcessDetail() {
         </CardContent>
       </Card>
 
-      {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -450,7 +466,6 @@ export function ProcessDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {/* Create Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -638,7 +653,6 @@ export function ProcessDetail() {
           </Form>
         </DialogContent>
       </Dialog>
-      {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -826,7 +840,6 @@ export function ProcessDetail() {
           </Form>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }

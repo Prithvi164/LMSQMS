@@ -39,7 +39,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Loader2, Pencil, Trash } from "lucide-react";
+import { Plus, Loader2, Pencil, Trash, Search } from "lucide-react";
 
 const lobFormSchema = z.object({
   name: z.string().min(1, "LOB name is required"),
@@ -58,6 +58,7 @@ export function LobDetail() {
   const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -103,11 +104,19 @@ export function LobDetail() {
     },
   });
 
-  // Pagination calculations
-  const totalPages = Math.ceil((lobs?.length || 0) / pageSize);
+  // Filter and pagination calculations
+  const filteredLobs = lobs?.filter((lob: any) => {
+    const searchStr = searchQuery.toLowerCase();
+    return (
+      lob.name.toLowerCase().includes(searchStr) ||
+      lob.description.toLowerCase().includes(searchStr)
+    );
+  }) || [];
+
+  const totalPages = Math.ceil(filteredLobs.length / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
-  const paginatedLobs = lobs?.slice(startIndex, endIndex) || [];
+  const paginatedLobs = filteredLobs.slice(startIndex, endIndex);
 
   const createLobMutation = useMutation({
     mutationFn: async (data: z.infer<typeof lobFormSchema>) => {
@@ -255,12 +264,30 @@ export function LobDetail() {
         <SiReact className="h-8 w-8 text-blue-500" />
         <h1 className="text-2xl font-semibold">Manage LOB</h1>
       </div>
-      <div className="flex justify-end">
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add New LOB
-        </Button>
-      </div>
+
+      {/* Search and Actions Section */}
+      <Card className="border-dashed">
+        <CardContent className="pt-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search LOBs..."
+                className="pl-8"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1); // Reset to first page on search
+                }}
+              />
+            </div>
+            <Button onClick={() => setIsCreateDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add New LOB
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Create LOB Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
