@@ -5,6 +5,7 @@ import * as z from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { SiReact } from "react-icons/si";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -235,6 +236,10 @@ export function LobDetail() {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center space-x-2 mb-6">
+        <SiReact className="h-8 w-8 text-blue-500" />
+        <h1 className="text-2xl font-semibold">Manage LOB</h1>
+      </div>
       <div className="flex justify-end">
         <Button onClick={() => setIsCreateDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
