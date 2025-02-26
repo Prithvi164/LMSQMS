@@ -144,15 +144,17 @@ export function LocationDetail() {
     mutationFn: async (data: z.infer<typeof locationFormSchema>) => {
       try {
         const requestBody = {
-          type: 'organizationLocations',
+          type: 'locations',
           action: 'update',
           value: {
             id: selectedLocation.id,
-            name: data.name,
-            address: data.address,
-            city: data.city,
-            state: data.state,
-            country: data.country
+            name: JSON.stringify({
+              name: data.name,
+              address: data.address,
+              city: data.city,
+              state: data.state,
+              country: data.country
+            })
           }
         };
 
@@ -203,7 +205,7 @@ export function LocationDetail() {
     mutationFn: async () => {
       try {
         const requestBody = {
-          type: 'organizationLocations',
+          type: 'locations',
           action: 'delete',
           value: selectedLocation.id
         };
