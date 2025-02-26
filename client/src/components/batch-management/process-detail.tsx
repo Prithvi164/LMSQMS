@@ -58,6 +58,7 @@ export function ProcessDetail() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedProcess, setSelectedProcess] = useState<any>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -173,13 +174,16 @@ export function ProcessDetail() {
     setDeleteDialogOpen(true);
   };
 
-  const confirmDelete = async () => {
-    if (selectedProcess) {
-      try {
-        await deleteProcessMutation.mutateAsync(selectedProcess.id);
-      } catch (error) {
-        console.error("Error deleting process:", error);
-      }
+  const confirmDelete = () => {
+    const expectedConfirmation = `delete-${selectedProcess.name.toLowerCase()}`;
+    if (deleteConfirmation.toLowerCase() === expectedConfirmation) {
+      deleteProcessMutation.mutate(selectedProcess.id);
+    } else {
+      toast({
+        title: "Error",
+        description: "Please type the correct confirmation text",
+        variant: "destructive",
+      });
     }
   };
 
@@ -203,7 +207,7 @@ export function ProcessDetail() {
               <Settings className="h-5 w-5 text-purple-500" />
               <h2 className="text-lg font-semibold">Manage Process</h2>
             </div>
-            <Button 
+            <Button
               onClick={() => setIsCreateDialogOpen(true)}
               className="bg-purple-600 hover:bg-purple-700 transition-colors"
             >
@@ -272,17 +276,30 @@ export function ProcessDetail() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Delete Process</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this process? This action cannot be undone.
+            <DialogDescription className="pt-4">
+              This action cannot be undone. Please type{" "}
+              <span className="font-medium">delete-{selectedProcess?.name.toLowerCase()}</span>{" "}
+              to confirm.
             </DialogDescription>
           </DialogHeader>
+          <div className="py-4">
+            <Input
+              placeholder="Type delete confirmation"
+              value={deleteConfirmation}
+              onChange={(e) => setDeleteConfirmation(e.target.value)}
+              className="mt-4"
+            />
+          </div>
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setDeleteDialogOpen(false)}
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setDeleteConfirmation("");
+              }}
             >
               Cancel
             </Button>
@@ -297,7 +314,7 @@ export function ProcessDetail() {
                   Deleting...
                 </>
               ) : (
-                "Delete"
+                "Delete Process"
               )}
             </Button>
           </DialogFooter>
