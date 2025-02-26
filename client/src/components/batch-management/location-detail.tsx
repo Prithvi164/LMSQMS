@@ -52,6 +52,7 @@ import { Plus, Loader2, Pencil, Trash2, MapPin, Search, ChevronLeft, ChevronRigh
 import { Mascot } from "@/components/ui/mascot";
 import { Skeleton } from "@/components/ui/skeleton";
 import {Select as RadixSelect, SelectContent as RadixSelectContent, SelectGroup as RadixSelectGroup, SelectItem as RadixSelectItem, SelectLabel as RadixSelectLabel, SelectTrigger as RadixSelectTrigger, SelectValue as RadixSelectValue} from '@radix-ui/react-select'
+import { Tour, type TourStep } from "@/components/ui/tour";
 
 // Form validation schema
 const locationFormSchema = z.object({
@@ -80,6 +81,10 @@ export function LocationDetail() {
   }>({
     state: 'idle',
     message: "Welcome! I'm Loco, your location management assistant. Need help managing your locations?"
+  });
+  const [showTour, setShowTour] = useState(() => {
+    const hasSeenTour = localStorage.getItem('locationManagementTourComplete');
+    return !hasSeenTour;
   });
 
   // First fetch organization
@@ -370,6 +375,51 @@ export function LocationDetail() {
     });
   };
 
+  const tourSteps: TourStep[] = [
+    {
+      target: '[data-tour="search"]',
+      title: 'Search Locations',
+      content: 'Quickly find locations by searching across names, addresses, cities, and more.',
+      position: 'bottom'
+    },
+    {
+      target: '[data-tour="add-location"]',
+      title: 'Add New Locations',
+      content: 'Click here to add a new location to your organization.',
+      position: 'left'
+    },
+    {
+      target: '[data-tour="page-size"]',
+      title: 'Adjust View',
+      content: 'Choose how many locations to display per page (10, 50, or 100 records).',
+      position: 'top'
+    },
+    {
+      target: '[data-tour="location-actions"]',
+      title: 'Manage Locations',
+      content: 'Edit or delete locations using these action buttons.',
+      position: 'left'
+    }
+  ];
+
+  const handleTourComplete = () => {
+    localStorage.setItem('locationManagementTourComplete', 'true');
+    setShowTour(false);
+    updateMascotState({
+      state: 'celebrating',
+      message: "Great! Now you know how to manage locations. Let me know if you need any help!"
+    });
+  };
+
+  const handleTourSkip = () => {
+    localStorage.setItem('locationManagementTourComplete', 'true');
+    setShowTour(false);
+    updateMascotState({
+      state: 'idle',
+      message: "You can always ask me if you need help with anything!"
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -413,6 +463,7 @@ export function LocationDetail() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
+                  data-tour="search"
                   placeholder="Search locations..."
                   value={searchTerm}
                   onChange={(e) => {
@@ -432,6 +483,7 @@ export function LocationDetail() {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
+                      data-tour="add-location"
                       onClick={() => {
                         setIsCreateDialogOpen(true);
                         updateMascotState({
@@ -466,7 +518,7 @@ export function LocationDetail() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginatedLocations.map((location:any) => (
+                    {paginatedLocations.map((location: any) => (
                       <TableRow
                         key={location.id}
                         className="hover:bg-muted/50 transition-colors"
@@ -477,7 +529,7 @@ export function LocationDetail() {
                         <TableCell>{location.state}</TableCell>
                         <TableCell>{location.country}</TableCell>
                         <TableCell>
-                          <div className="flex justify-end space-x-2">
+                          <div data-tour="location-actions" className="flex justify-end space-x-2">
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -525,6 +577,7 @@ export function LocationDetail() {
                       Showing {startIndex + 1} to {Math.min(startIndex + pageSize, filteredLocations.length)} of {filteredLocations.length} locations
                     </div>
                     <Select
+                      data-tour="page-size"
                       value={pageSize.toString()}
                       onValueChange={(value) => handlePageSizeChange(parseInt(value))}
                     >
@@ -874,6 +927,12 @@ export function LocationDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Tour
+        steps={tourSteps}
+        isOpen={showTour}
+        onComplete={handleTourComplete}
+        onSkip={handleTourSkip}
+      />
     </div>
   );
 }
