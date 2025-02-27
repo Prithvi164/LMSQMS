@@ -32,7 +32,7 @@ interface User {
   fullName?: string;
   role: string;
   locationId: number;
-  email: string; // Added email property
+  email: string;
 }
 
 interface Location {
@@ -43,6 +43,7 @@ interface Location {
 interface LineOfBusiness {
   id: number;
   name: string;
+  description: string;
 }
 
 // Form schema for process creation
@@ -84,27 +85,60 @@ export function ProcessDetail() {
   });
 
   // Fetch line of businesses
-  const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery<LineOfBusiness[]>({
-    queryKey: ['/api/organizations', user?.organizationId, 'line-of-businesses'],
+  const { data: lineOfBusinesses = [], isLoading: isLoadingLOB, error: lobError } = useQuery<LineOfBusiness[]>({
+    queryKey: ['lineOfBusinesses', user?.organizationId],
+    queryFn: async () => {
+      const response = await fetch(`/api/organizations/${user?.organizationId}/line-of-businesses`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch line of businesses');
+      }
+      return response.json();
+    },
     enabled: !!user?.organizationId,
   });
 
   // Fetch locations
-  const { data: locations = [], isLoading: isLoadingLocations } = useQuery<Location[]>({
-    queryKey: ['/api/organizations', user?.organizationId, 'locations'],
+  const { data: locations = [], isLoading: isLoadingLocations, error: locError } = useQuery<Location[]>({
+    queryKey: ['locations', user?.organizationId],
+    queryFn: async () => {
+      const response = await fetch(`/api/organizations/${user?.organizationId}/locations`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch locations');
+      }
+      return response.json();
+    },
     enabled: !!user?.organizationId,
   });
 
   // Fetch users
-  const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({
-    queryKey: ['/api/organizations', user?.organizationId, 'users'],
+  const { data: users = [], isLoading: isLoadingUsers, error: userError } = useQuery<User[]>({
+    queryKey: ['users', user?.organizationId],
+    queryFn: async () => {
+      const response = await fetch(`/api/organizations/${user?.organizationId}/users`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch users');
+      }
+      return response.json();
+    },
     enabled: !!user?.organizationId,
   });
 
   // Loading state
-  const isLoading = isLoadingLOB || isLoadingLocations || isLoadingUsers || !user?.organizationId;
+  const isLoading = isLoadingLOB || isLoadingLocations || isLoadingUsers;
 
   // Error handling
+  if (lobError || locError || userError) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-center text-red-500">
+            Error: {lobError?.message || locError?.message || userError?.message}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (!user?.organizationId) {
     return (
       <Card>
@@ -147,7 +181,7 @@ export function ProcessDetail() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/organizations', user.organizationId, 'processes'] });
+      queryClient.invalidateQueries({ queryKey: ['processes', user.organizationId] });
       toast({
         title: "Success",
         description: "Process created successfully",
@@ -184,12 +218,23 @@ export function ProcessDetail() {
     );
   }
 
+  console.log('Data loaded:', { 
+    lineOfBusinesses, 
+    locations, 
+    users, 
+    roles,
+    selectedLocation,
+    selectedRole,
+    filteredUsers 
+  });
+
   return (
     <Card>
       <CardContent className="p-6">
         <h2 className="text-2xl font-bold mb-6">Add New Process</h2>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Process Name Field */}
             <FormField
               control={form.control}
               name="name"
@@ -204,6 +249,7 @@ export function ProcessDetail() {
               )}
             />
 
+            {/* Process Duration Fields */}
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -301,6 +347,7 @@ export function ProcessDetail() {
               />
             </div>
 
+            {/* Line of Business Field */}
             <FormField
               control={form.control}
               name="lineOfBusinessId"
@@ -329,6 +376,7 @@ export function ProcessDetail() {
               )}
             />
 
+            {/* Location Field */}
             <FormField
               control={form.control}
               name="locationId"
@@ -360,6 +408,7 @@ export function ProcessDetail() {
               )}
             />
 
+            {/* Role Field */}
             <FormField
               control={form.control}
               name="role"
@@ -391,6 +440,7 @@ export function ProcessDetail() {
               )}
             />
 
+            {/* User Field */}
             <FormField
               control={form.control}
               name="userId"
