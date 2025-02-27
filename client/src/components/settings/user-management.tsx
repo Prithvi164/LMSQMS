@@ -62,7 +62,12 @@ export function UserManagement() {
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: number) => {
-      await apiRequest("DELETE", `/api/users/${userId}`);
+      const response = await apiRequest("DELETE", `/api/users/${userId}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to delete user");
+      }
+      return response.json();
     },
     onSuccess: () => {
       toast({

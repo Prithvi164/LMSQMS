@@ -114,7 +114,39 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUser(id: number): Promise<void> {
-    await db.delete(users).where(eq(users.id, id));
+    try {
+      console.log(`Attempting to delete user with ID: ${id}`);
+
+      // First, verify the user exists
+      const user = await this.getUser(id);
+      if (!user) {
+        console.log(`User with ID ${id} not found`);
+        throw new Error('User not found');
+      }
+
+      console.log(`Found user to delete:`, { 
+        id: user.id, 
+        username: user.username,
+        role: user.role 
+      });
+
+      // Perform the deletion
+      const result = await db
+        .delete(users)
+        .where(eq(users.id, id))
+        .returning();
+
+      console.log(`Deletion result:`, result);
+
+      if (!result.length) {
+        throw new Error('User deletion failed');
+      }
+
+      console.log(`Successfully deleted user with ID: ${id}`);
+    } catch (error) {
+      console.error('Error in deleteUser:', error);
+      throw error;
+    }
   }
 
   async listUsers(organizationId: number): Promise<User[]> {

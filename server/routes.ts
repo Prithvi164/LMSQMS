@@ -849,7 +849,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           // Find location if specified
-          let locationId: number | null = null;
+          let locationId: number | null =null;
           if (userData.location) {
             const location = locations.find(l => l.name.toLowerCase() === userData.location.toLowerCase());
             if (!location) {
@@ -1164,6 +1164,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error fetching locations:", error);
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Add the delete user route to the existing routes
+  app.delete("/api/users/:id", async (req, res) => {
+    if (!req.user) {
+      console.log('Delete user request rejected: No authenticated user');
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const userId = parseInt(req.params.id);
+      console.log(`Processing delete request for user ID: ${userId} by user: ${req.user.id}`);
+
+      const userToDelete = await storage.getUser(userId);
+      if (!userToDelete) {
+        console.log(`Delete request failed: User ${userId} not found`);
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Prevent deleting owner
+      if (userToDelete.role === 'owner') {
+        console.log(`Delete request rejected: Cannot delete owner account`);
+        return res.status(403).json({ message: "Cannot delete owner account" });
+      }
+
+      // Only owners and admins can delete users
+      if (req.user.role !== 'owner' && req.user.role !== 'admin') {
+        console.log(`Delete request rejected: Insufficient permissions for user ${req.user.id}`);
+        return res.status(403).json({ message: "Insufficient permissions to delete users" });
+      }
+
+      console.log(`Proceeding with deletion of user ${userId}`);
+      await storage.deleteUser(userId);
+
+      console.log(`User ${userId} deleted successfully`);
+      res.status(200).json({ message: "User deleted successfully" });
+    } catch (error: any) {
+      console.error("Error in delete user route:", error);
+      res.status(500).json({ message: error.message || "Failed to delete user" });
     }
   });
 
