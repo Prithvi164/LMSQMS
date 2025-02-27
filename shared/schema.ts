@@ -4,7 +4,15 @@ import { relations, type InferSelectModel } from "drizzle-orm";
 import { z } from "zod";
 
 // Role enum - update to include owner
-export const roleEnum = pgEnum('role', ['owner', 'admin', 'manager', 'trainer', 'trainee', 'advisor', 'team_lead']);
+export const roleEnum = pgEnum('role', [
+  'owner',     // Highest authority, overall decision-making
+  'admin',     // Administrative tasks, system management
+  'manager',   // Oversees teams
+  'team_lead', // Supervises smaller teams under manager
+  'trainer',   // Responsible for training
+  'trainee',   // Employee under training
+  'advisor'    // Senior employee providing expertise
+]);
 
 // Define permissions enum for different features
 export const permissionEnum = pgEnum('permission', [
@@ -220,10 +228,10 @@ export type OrganizationBatch = typeof organizationBatches.$inferSelect;
 export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
 
 
-// Role Permissions table
+// Role Permissions table - defines what each role can do
 export const rolePermissions = pgTable("role_permissions", {
   id: serial("id").primaryKey(),
-  role: roleEnum("role").notNull(),
+  role: roleEnum("role").notNull(),  // Uses the same role enum
   permissions: jsonb("permissions").notNull().$type<string[]>(),
   organizationId: integer("organization_id")
     .references(() => organizations.id)
@@ -429,7 +437,6 @@ export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organiz
   });
 
 export type InsertOrganizationLineOfBusiness = z.infer<typeof insertOrganizationLineOfBusinessSchema>;
-
 
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({ id: true, createdAt: true });
 export const insertUserSchema = createInsertSchema(users)
