@@ -6,7 +6,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 
-import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -24,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 // Type definitions
 interface User {
@@ -32,6 +32,7 @@ interface User {
   fullName?: string;
   role: string;
   locationId: number;
+  email: string; // Added email property
 }
 
 interface Location {
@@ -64,26 +65,57 @@ export function ProcessDetail() {
   const queryClient = useQueryClient();
   const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<string>("");
-  const [isLoading, setIsLoading] = useState(true);
+
+  // Form initialization
+  const form = useForm<z.infer<typeof processFormSchema>>({
+    resolver: zodResolver(processFormSchema),
+    defaultValues: {
+      name: "",
+      inductionDays: 1,
+      trainingDays: 1,
+      certificationDays: 1,
+      ojtDays: 0,
+      ojtCertificationDays: 0,
+      lineOfBusinessId: 0,
+      locationId: 0,
+      role: "",
+      userId: 0,
+    },
+  });
 
   // Fetch line of businesses
-  const { data: lineOfBusinesses = [] } = useQuery<LineOfBusiness[]>({
-    queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses`],
+  const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery<LineOfBusiness[]>({
+    queryKey: ['/api/organizations', user?.organizationId, 'line-of-businesses'],
     enabled: !!user?.organizationId,
   });
 
   // Fetch locations
-  const { data: locations = [] } = useQuery<Location[]>({
-    queryKey: [`/api/organizations/${user?.organizationId}/locations`],
+  const { data: locations = [], isLoading: isLoadingLocations } = useQuery<Location[]>({
+    queryKey: ['/api/organizations', user?.organizationId, 'locations'],
     enabled: !!user?.organizationId,
   });
 
   // Fetch users
-  const { data: users = [] } = useQuery<User[]>({
-    queryKey: [`/api/organizations/${user?.organizationId}/users`],
+  const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({
+    queryKey: ['/api/organizations', user?.organizationId, 'users'],
     enabled: !!user?.organizationId,
-    onSettled: () => setIsLoading(false),
   });
+
+  // Loading state
+  const isLoading = isLoadingLOB || isLoadingLocations || isLoadingUsers || !user?.organizationId;
+
+  // Error handling
+  if (!user?.organizationId) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-center text-red-500">
+            Error: Organization ID not found. Please ensure you are logged in.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   // Get unique roles from users
   const roles = Array.from(new Set(users.map(user => user.role))).sort();
@@ -94,23 +126,6 @@ export function ProcessDetail() {
     (!selectedRole || u.role === selectedRole)
   );
 
-  const form = useForm<z.infer<typeof processFormSchema>>({
-    resolver: zodResolver(processFormSchema),
-    defaultValues: {
-      name: "",
-      inductionDays: 1,
-      trainingDays: 1,
-      certificationDays: 1,
-      ojtDays: 0,
-      ojtCertificationDays: 0,
-      lineOfBusinessId: 0, // Added default value
-      locationId: 0,       // Added default value
-      role: "",            // Added default value
-      userId: 0,           // Added default value
-
-    },
-  });
-
   const createProcessMutation = useMutation({
     mutationFn: async (data: z.infer<typeof processFormSchema>) => {
       const response = await fetch('/api/processes', {
@@ -120,7 +135,7 @@ export function ProcessDetail() {
         },
         body: JSON.stringify({
           ...data,
-          organizationId: user?.organizationId,
+          organizationId: user.organizationId,
         }),
       });
 
@@ -132,7 +147,7 @@ export function ProcessDetail() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/processes`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/organizations', user.organizationId, 'processes'] });
       toast({
         title: "Success",
         description: "Process created successfully",
@@ -157,7 +172,16 @@ export function ProcessDetail() {
   };
 
   if (isLoading) {
-    return <div className="flex items-center justify-center p-8">Loading...</div>;
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+            <span className="ml-2">Loading...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
