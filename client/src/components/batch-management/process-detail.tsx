@@ -29,9 +29,9 @@ import { Button } from "@/components/ui/button";
 interface User {
   id: number;
   username: string;
-  fullName?: string;
+  fullName: string | null;
   role: string;
-  locationId: number;
+  locationId: number | null;
   email: string;
 }
 
@@ -68,7 +68,7 @@ export function ProcessDetail() {
 
   const form = useForm<z.infer<typeof processFormSchema>>({
     resolver: zodResolver(processFormSchema),
-    mode: "onChange",
+    mode: "onTouched",
     defaultValues: {
       name: "",
       inductionDays: 1,
@@ -83,55 +83,70 @@ export function ProcessDetail() {
     },
   });
 
-  // Fetch line of businesses
-  const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery({
-    queryKey: ['line-of-businesses', user?.organizationId],
-    queryFn: async () => {
-      const response = await fetch(`/api/organizations/${user?.organizationId}/line-of-businesses`, {
+  // Query helper function
+  const fetchData = async (url: string) => {
+    try {
+      const response = await fetch(url, {
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
         },
         credentials: 'include'
       });
-      if (!response.ok) throw new Error('Failed to fetch line of businesses');
-      return response.json();
-    },
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch data: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('Fetched data:', { url, data });
+      return data;
+    } catch (error) {
+      console.error('Fetch error:', error);
+      throw error;
+    }
+  };
+
+  // Fetch line of businesses
+  const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery({
+    queryKey: ['line-of-businesses', user?.organizationId],
+    queryFn: () => fetchData(`/api/organizations/${user?.organizationId}/line-of-businesses`),
     enabled: !!user?.organizationId,
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Failed to load line of businesses: ${error.message}`,
+      });
+    }
   });
 
   // Fetch locations
   const { data: locations = [], isLoading: isLoadingLocations } = useQuery({
     queryKey: ['locations', user?.organizationId],
-    queryFn: async () => {
-      const response = await fetch(`/api/organizations/${user?.organizationId}/locations`, {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-      });
-      if (!response.ok) throw new Error('Failed to fetch locations');
-      return response.json();
-    },
+    queryFn: () => fetchData(`/api/organizations/${user?.organizationId}/locations`),
     enabled: !!user?.organizationId,
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Failed to load locations: ${error.message}`,
+      });
+    }
   });
 
   // Fetch users
   const { data: users = [], isLoading: isLoadingUsers } = useQuery({
     queryKey: ['users', user?.organizationId],
-    queryFn: async () => {
-      const response = await fetch(`/api/organizations/${user?.organizationId}/users`, {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-      });
-      if (!response.ok) throw new Error('Failed to fetch users');
-      return response.json();
-    },
+    queryFn: () => fetchData(`/api/organizations/${user?.organizationId}/users`),
     enabled: !!user?.organizationId,
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Failed to load users: ${error.message}`,
+      });
+    }
   });
 
   // Get unique roles from users
@@ -190,8 +205,6 @@ export function ProcessDetail() {
     }
   };
 
-  const isLoading = isLoadingLOB || isLoadingLocations || isLoadingUsers;
-
   if (!user?.organizationId) {
     toast({
       variant: "destructive",
@@ -204,7 +217,7 @@ export function ProcessDetail() {
   return (
     <Card>
       <CardContent className="p-6">
-        {isLoading ? (
+        {(isLoadingLOB || isLoadingLocations || isLoadingUsers) ? (
           <div className="flex items-center justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
             <span className="ml-2">Loading...</span>
