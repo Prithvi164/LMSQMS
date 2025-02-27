@@ -43,7 +43,6 @@ interface Location {
 interface LineOfBusiness {
   id: number;
   name: string;
-  description: string;
 }
 
 // Form schema for process creation
@@ -61,14 +60,12 @@ const processFormSchema = z.object({
 });
 
 export function ProcessDetail() {
-  // Hooks at the top level
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<string>("");
 
-  // Form initialization
   const form = useForm<z.infer<typeof processFormSchema>>({
     resolver: zodResolver(processFormSchema),
     defaultValues: {
@@ -85,18 +82,27 @@ export function ProcessDetail() {
     },
   });
 
-  // Query hooks
+  // Fetch data with proper error handling
+  const fetchData = async (url: string) => {
+    const response = await fetch(url);
+    if (!response.ok) {
+      if (response.headers.get("content-type")?.includes("json")) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Failed to fetch data: ${response.statusText}`);
+      }
+      throw new Error(`Failed to fetch data: ${response.statusText}`);
+    }
+    return response.json();
+  };
+
+  // Query hooks with proper error handling
   const { 
     data: lineOfBusinesses = [], 
     isLoading: isLoadingLOB,
     error: lobError 
   } = useQuery<LineOfBusiness[]>({
     queryKey: ['lineOfBusinesses', user?.organizationId],
-    queryFn: async () => {
-      const response = await fetch(`/api/organizations/${user?.organizationId}/line-of-businesses`);
-      if (!response.ok) throw new Error('Failed to fetch line of businesses');
-      return response.json();
-    },
+    queryFn: () => fetchData(`/api/organizations/${user?.organizationId}/line-of-businesses`),
     enabled: !!user?.organizationId,
   });
 
@@ -106,11 +112,7 @@ export function ProcessDetail() {
     error: locError 
   } = useQuery<Location[]>({
     queryKey: ['locations', user?.organizationId],
-    queryFn: async () => {
-      const response = await fetch(`/api/organizations/${user?.organizationId}/locations`);
-      if (!response.ok) throw new Error('Failed to fetch locations');
-      return response.json();
-    },
+    queryFn: () => fetchData(`/api/organizations/${user?.organizationId}/locations`),
     enabled: !!user?.organizationId,
   });
 
@@ -120,11 +122,7 @@ export function ProcessDetail() {
     error: userError 
   } = useQuery<User[]>({
     queryKey: ['users', user?.organizationId],
-    queryFn: async () => {
-      const response = await fetch(`/api/organizations/${user?.organizationId}/users`);
-      if (!response.ok) throw new Error('Failed to fetch users');
-      return response.json();
-    },
+    queryFn: () => fetchData(`/api/organizations/${user?.organizationId}/users`),
     enabled: !!user?.organizationId,
   });
 
@@ -140,8 +138,8 @@ export function ProcessDetail() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to create process');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create process');
       }
 
       return response.json();
@@ -163,16 +161,6 @@ export function ProcessDetail() {
     },
   });
 
-  // Derived state
-  const isLoading = isLoadingLOB || isLoadingLocations || isLoadingUsers;
-  const error = lobError || locError || userError;
-  const roles = Array.from(new Set(users.map(user => user.role))).sort();
-  const filteredUsers = users.filter(u => 
-    (!selectedLocation || u.locationId === parseInt(selectedLocation)) &&
-    (!selectedRole || u.role === selectedRole)
-  );
-
-  // Event handlers
   const onSubmit = async (data: z.infer<typeof processFormSchema>) => {
     try {
       await createProcessMutation.mutateAsync(data);
@@ -181,7 +169,14 @@ export function ProcessDetail() {
     }
   };
 
-  // Render loading state
+  const isLoading = isLoadingLOB || isLoadingLocations || isLoadingUsers;
+  const error = lobError || locError || userError;
+  const roles = Array.from(new Set(users.map(user => user.role))).sort();
+  const filteredUsers = users.filter(u => 
+    (!selectedLocation || u.locationId === parseInt(selectedLocation)) &&
+    (!selectedRole || u.role === selectedRole)
+  );
+
   if (!user?.organizationId) {
     return (
       <Card>
@@ -194,7 +189,6 @@ export function ProcessDetail() {
     );
   }
 
-  // Render content
   return (
     <Card>
       <CardContent className="p-6">
