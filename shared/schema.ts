@@ -70,7 +70,7 @@ export const organizations = pgTable("organizations", {
 // Export organization type only once
 export type Organization = InferSelectModel<typeof organizations>;
 
-// Update Organization Processes table with enhanced fields
+// Update Organization Processes table with enhanced fields and remove location_id
 export const organizationProcesses = pgTable("organization_processes", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
@@ -83,9 +83,6 @@ export const organizationProcesses = pgTable("organization_processes", {
   ojtCertificationDays: integer("ojt_certification_days").notNull(),
   lineOfBusinessId: integer("line_of_business_id")
     .references(() => organizationLineOfBusinesses.id)
-    .notNull(),
-  locationId: integer("location_id")
-    .references(() => organizationLocations.id)
     .notNull(),
   organizationId: integer("organization_id")
     .references(() => organizations.id)
@@ -194,6 +191,7 @@ export const userBatches = pgTable("user_batches", {
 
 export type UserProcess = typeof userProcesses.$inferSelect;
 export type UserBatch = InferSelectModel<typeof userBatches>;
+
 
 
 // Organization Batches table with improved structure
@@ -378,10 +376,6 @@ export const organizationProcessesRelations = relations(organizationProcesses, (
     fields: [organizationProcesses.organizationId],
     references: [organizations.id],
   }),
-  location: one(organizationLocations, {
-    fields: [organizationProcesses.locationId],
-    references: [organizationLocations.id],
-  }),
   lineOfBusiness: one(organizationLineOfBusinesses, {
     fields: [organizationProcesses.lineOfBusinessId],
     references: [organizationLineOfBusinesses.id],
@@ -495,7 +489,6 @@ export const insertOrganizationProcessSchema = createInsertSchema(organizationPr
     ojtDays: z.number().min(0, "OJT days cannot be negative"),
     ojtCertificationDays: z.number().min(0, "OJT certification days cannot be negative"),
     lineOfBusinessId: z.number().int().positive("Line of Business is required"),
-    locationId: z.number().min(1, "Location is required"),
     organizationId: z.number().int().positive("Organization is required"),
   });
 

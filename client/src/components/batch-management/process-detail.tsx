@@ -29,13 +29,12 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 
-// Updated form schema to match new database structure
+// Updated form schema to match new database structure - removed locationId
 const processFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
   status: z.enum(['active', 'inactive', 'archived']).default('active'),
   lineOfBusinessId: z.number().int().positive("Line of Business is required"),
-  locationId: z.number().int().positive("Location is required"),
   inductionDays: z.number().int().min(1, "Induction days must be at least 1"),
   trainingDays: z.number().int().min(1, "Training days must be at least 1"),
   certificationDays: z.number().int().min(1, "Certification days must be at least 1"),
@@ -155,9 +154,9 @@ export function ProcessDetail() {
               <FormItem>
                 <FormLabel>Description</FormLabel>
                 <FormControl>
-                  <Textarea 
-                    placeholder="Enter process description" 
-                    {...field} 
+                  <Textarea
+                    placeholder="Enter process description"
+                    {...field}
                   />
                 </FormControl>
                 <FormMessage />
@@ -361,7 +360,7 @@ export function ProcessDetail() {
             )}
           />
 
-          <Button 
+          <Button
             type="submit"
             disabled={createProcessMutation.isPending}
           >
