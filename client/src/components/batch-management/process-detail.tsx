@@ -38,10 +38,6 @@ interface User {
 interface Location {
   id: number;
   name: string;
-  address: string;
-  city: string;
-  state: string;
-  country: string;
 }
 
 interface LineOfBusiness {
@@ -72,6 +68,7 @@ export function ProcessDetail() {
 
   const form = useForm<z.infer<typeof processFormSchema>>({
     resolver: zodResolver(processFormSchema),
+    mode: "onChange",
     defaultValues: {
       name: "",
       inductionDays: 1,
@@ -79,53 +76,61 @@ export function ProcessDetail() {
       certificationDays: 1,
       ojtDays: 0,
       ojtCertificationDays: 0,
-      lineOfBusinessId: 0,
-      locationId: 0,
+      lineOfBusinessId: undefined,
+      locationId: undefined,
       role: "",
-      userId: 0,
+      userId: undefined,
     },
   });
 
-  // Helper function to handle API requests
-  const fetchWithAuth = async (url: string) => {
-    const response = await fetch(url, {
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      },
-      credentials: 'include' // Important for session cookies
-    });
-
-    if (!response.ok) {
-      throw new Error(`API request failed: ${response.statusText}`);
-    }
-
-    const contentType = response.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      throw new Error('Invalid response format');
-    }
-
-    return response.json();
-  };
-
   // Fetch line of businesses
   const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery({
-    queryKey: ['lineOfBusinesses', user?.organizationId],
-    queryFn: () => fetchWithAuth(`/api/organizations/${user?.organizationId}/line-of-businesses`),
+    queryKey: ['line-of-businesses', user?.organizationId],
+    queryFn: async () => {
+      const response = await fetch(`/api/organizations/${user?.organizationId}/line-of-businesses`, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch line of businesses');
+      return response.json();
+    },
     enabled: !!user?.organizationId,
   });
 
   // Fetch locations
   const { data: locations = [], isLoading: isLoadingLocations } = useQuery({
     queryKey: ['locations', user?.organizationId],
-    queryFn: () => fetchWithAuth(`/api/organizations/${user?.organizationId}/locations`),
+    queryFn: async () => {
+      const response = await fetch(`/api/organizations/${user?.organizationId}/locations`, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch locations');
+      return response.json();
+    },
     enabled: !!user?.organizationId,
   });
 
   // Fetch users
   const { data: users = [], isLoading: isLoadingUsers } = useQuery({
     queryKey: ['users', user?.organizationId],
-    queryFn: () => fetchWithAuth(`/api/organizations/${user?.organizationId}/users`),
+    queryFn: async () => {
+      const response = await fetch(`/api/organizations/${user?.organizationId}/users`, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch users');
+      return response.json();
+    },
     enabled: !!user?.organizationId,
   });
 
