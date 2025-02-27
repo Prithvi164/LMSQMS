@@ -44,7 +44,7 @@ const editUserSchema = insertUserSchema.extend({
   dateOfJoining: z.string().optional(),
   dateOfBirth: z.string().optional(),
   education: z.string().optional(),
-}).partial();
+}).omit({ certified: true }).partial();  // Remove certified from the schema
 
 type UserFormData = z.infer<typeof editUserSchema>;
 
@@ -191,6 +191,7 @@ export function UserManagement() {
         dateOfJoining: editUser.dateOfJoining || "",
         dateOfBirth: editUser.dateOfBirth || "",
         education: editUser.education || "",
+        // Removed certified field from defaultValues
       }
     });
 
