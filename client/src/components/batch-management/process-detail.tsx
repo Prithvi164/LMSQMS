@@ -515,14 +515,14 @@ export function ProcessDetail() {
 
       {/* Create Process Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-2xl mb-6">Create Process</DialogTitle>
+            <DialogTitle>Create Process</DialogTitle>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <Card>
-                <CardContent className="space-y-4">
+                <CardContent className="p-4 space-y-4">
                   <FormField
                     control={form.control}
                     name="name"
@@ -537,7 +537,7 @@ export function ProcessDetail() {
                     )}
                   />
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <FormField
                       control={form.control}
                       name="inductionDays"
@@ -634,134 +634,143 @@ export function ProcessDetail() {
                     />
                   </div>
 
-                  <FormField
-                    control={form.control}
-                    name="lineOfBusinessId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Line of Business</FormLabel>
-                        <Select
-                          onValueChange={(value) => field.onChange(parseInt(value, 10))}
-                          value={field.value?.toString()}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Line of Business" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {lineOfBusinesses.map((lob: LineOfBusiness) => (
-                              <SelectItem key={lob.id} value={lob.id.toString()}>
-                                {lob.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <FormField
+                      control={form.control}
+                      name="lineOfBusinessId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Line of Business</FormLabel>
+                          <Select
+                            onValueChange={(value) => field.onChange(parseInt(value, 10))}
+                            value={field.value?.toString()}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select Line of Business" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {lineOfBusinesses.map((lob: LineOfBusiness) => (
+                                <SelectItem key={lob.id} value={lob.id.toString()}>
+                                  {lob.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  <FormField
-                    control={form.control}
-                    name="locationId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Location</FormLabel>
-                        <Select
-                          onValueChange={(value) => {
-                            field.onChange(parseInt(value, 10));
-                            setSelectedLocationId(value);
-                            setSelectedRole("");
-                            form.setValue("role", "");
-                            form.setValue("userId", undefined as unknown as number);
-                          }}
-                          value={field.value?.toString()}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Location" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {locations.map((location: Location) => (
-                              <SelectItem key={location.id} value={location.id.toString()}>
-                                {location.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <FormField
+                      control={form.control}
+                      name="locationId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Location</FormLabel>
+                          <Select
+                            onValueChange={(value) => {
+                              field.onChange(parseInt(value, 10));
+                              setSelectedLocationId(value);
+                              setSelectedRole("");
+                              form.setValue("role", "");
+                              form.setValue("userId", undefined as unknown as number);
+                            }}
+                            value={field.value?.toString()}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select Location" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {locations.map((location: Location) => (
+                                <SelectItem key={location.id} value={location.id.toString()}>
+                                  {location.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <FormField
+                      control={form.control}
+                      name="role"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Role</FormLabel>
+                          <Select
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              setSelectedRole(value);
+                              form.setValue("userId", undefined as unknown as number);
+                            }}
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select Role" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {roles.map((role: string) => (
+                                <SelectItem key={role} value={role}>
+                                  {role}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  <FormField
-                    control={form.control}
-                    name="role"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Role</FormLabel>
-                        <Select
-                          onValueChange={(value) => {
-                            field.onChange(value);
-                            setSelectedRole(value);
-                            form.setValue("userId", undefined as unknown as number);
-                          }}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Role" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {roles.map((role: string) => (
-                              <SelectItem key={role} value={role}>
-                                {role}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="userId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>User</FormLabel>
-                        <Select
-                          onValueChange={(value) => field.onChange(parseInt(value, 10))}
-                          value={field.value?.toString()}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select User" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {filteredUsers.map((user: User) => (
-                              <SelectItem key={user.id} value={user.id.toString()}>
-                                {user.fullName || user.username}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <FormField
+                      control={form.control}
+                      name="userId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>User</FormLabel>
+                          <Select
+                            onValueChange={(value) => field.onChange(parseInt(value, 10))}
+                            value={field.value?.toString()}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select User" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {filteredUsers.map((user: User) => (
+                                <SelectItem key={user.id} value={user.id.toString()}>
+                                  {user.fullName || user.username}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </CardContent>
               </Card>
 
-              <div className="flex justify-end">
+              <div className="flex justify-end space-x-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsCreateDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
                 <Button
                   type="submit"
-                  className="bg-purple-600 hover:bg-purple-700"
                   disabled={createProcessMutation.isPending}
                 >
                   {createProcessMutation.isPending ? (
@@ -781,14 +790,14 @@ export function ProcessDetail() {
 
       {/* Edit Process Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-2xl mb-6">Edit Process</DialogTitle>
+            <DialogTitle>Edit Process</DialogTitle>
           </DialogHeader>
           <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(onEdit)} className="space-y-6">
+            <form onSubmit={editForm.handleSubmit(onEdit)} className="space-y-4">
               <Card>
-                <CardContent className="space-y-4">
+                <CardContent className="p-4 space-y-4">
                   <FormField
                     control={editForm.control}
                     name="name"
@@ -803,7 +812,7 @@ export function ProcessDetail() {
                     )}
                   />
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <FormField
                       control={editForm.control}
                       name="inductionDays"
@@ -811,12 +820,18 @@ export function ProcessDetail() {
                         <FormItem>
                           <FormLabel>Induction Days</FormLabel>
                           <FormControl>
-                            <Input type="number" min="1" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10))} />
+                            <Input
+                              type="number"
+                              min="1"
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
+
                     <FormField
                       control={editForm.control}
                       name="trainingDays"
@@ -824,12 +839,18 @@ export function ProcessDetail() {
                         <FormItem>
                           <FormLabel>Training Days</FormLabel>
                           <FormControl>
-                            <Input type="number" min="1" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10))} />
+                            <Input
+                              type="number"
+                              min="1"
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
+
                     <FormField
                       control={editForm.control}
                       name="certificationDays"
@@ -837,12 +858,18 @@ export function ProcessDetail() {
                         <FormItem>
                           <FormLabel>Certification Days</FormLabel>
                           <FormControl>
-                            <Input type="number" min="1" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10))} />
+                            <Input
+                              type="number"
+                              min="1"
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
+
                     <FormField
                       control={editForm.control}
                       name="ojtDays"
@@ -850,12 +877,18 @@ export function ProcessDetail() {
                         <FormItem>
                           <FormLabel>OJT Days</FormLabel>
                           <FormControl>
-                            <Input type="number" min="0" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10))} />
+                            <Input
+                              type="number"
+                              min="0"
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
+
                     <FormField
                       control={editForm.control}
                       name="ojtCertificationDays"
@@ -863,7 +896,12 @@ export function ProcessDetail() {
                         <FormItem>
                           <FormLabel>OJT Certification Days</FormLabel>
                           <FormControl>
-                            <Input type="number" min="0" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10))} />
+                            <Input
+                              type="number"
+                              min="0"
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -871,128 +909,142 @@ export function ProcessDetail() {
                     />
                   </div>
 
-                  <FormField
-                    control={editForm.control}
-                    name="lineOfBusinessId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Line of Business</FormLabel>
-                        <Select onValueChange={(value) => field.onChange(parseInt(value, 10))} value={field.value?.toString()}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Line of Business" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {lineOfBusinesses.map((lob: LineOfBusiness) => (
-                              <SelectItem key={lob.id} value={lob.id.toString()}>
-                                {lob.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <FormField
+                      control={editForm.control}
+                      name="lineOfBusinessId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Line of Business</FormLabel>
+                          <Select
+                            onValueChange={(value) => field.onChange(parseInt(value, 10))}
+                            value={field.value?.toString()}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select Line of Business" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {lineOfBusinesses.map((lob: LineOfBusiness) => (
+                                <SelectItem key={lob.id} value={lob.id.toString()}>
+                                  {lob.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  <FormField
-                    control={editForm.control}
-                    name="locationId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Location</FormLabel>
-                        <Select
-                          onValueChange={(value) => {
-                            field.onChange(parseInt(value, 10));
-                            setSelectedLocationId(value);
-                            setSelectedRole("");
-                            editForm.setValue("role", "");
-                            editForm.setValue("userId", undefined as unknown as number);
-                          }}
-                          value={field.value?.toString()}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Location" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {locations.map((location: Location) => (
-                              <SelectItem key={location.id} value={location.id.toString()}>
-                                {location.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <FormField
+                      control={editForm.control}
+                      name="locationId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Location</FormLabel>
+                          <Select
+                            onValueChange={(value) => {
+                              field.onChange(parseInt(value, 10));
+                              setSelectedLocationId(value);
+                              setSelectedRole("");
+                              editForm.setValue("role", "");
+                              editForm.setValue("userId", undefined as unknown as number);
+                            }}
+                            value={field.value?.toString()}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select Location" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {locations.map((location: Location) => (
+                                <SelectItem key={location.id} value={location.id.toString()}>
+                                  {location.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <FormField
+                      control={editForm.control}
+                      name="role"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Role</FormLabel>
+                          <Select
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              setSelectedRole(value);
+                              editForm.setValue("userId", undefined as unknown as number);
+                            }}
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select Role" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {roles.map((role: string) => (
+                                <SelectItem key={role} value={role}>
+                                  {role}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  <FormField
-                    control={editForm.control}
-                    name="role"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Role</FormLabel>
-                        <Select
-                          onValueChange={(value) => {
-                            field.onChange(value);
-                            setSelectedRole(value);
-                            editForm.setValue("userId", undefined as unknown as number);
-                          }}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Role" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {roles.map((role: string) => (
-                              <SelectItem key={role} value={role}>
-                                {role}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={editForm.control}
-                    name="userId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>User</FormLabel>
-                        <Select onValueChange={(value) => field.onChange(parseInt(value, 10))} value={field.value?.toString()}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select User" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {filteredUsers.map((user: User) => (
-                              <SelectItem key={user.id} value={user.id.toString()}>
-                                {user.fullName || user.username}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <FormField
+                      control={editForm.control}
+                      name="userId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>User</FormLabel>
+                          <Select
+                            onValueChange={(value) => field.onChange(parseInt(value, 10))}
+                            value={field.value?.toString()}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select User" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {filteredUsers.map((user: User) => (
+                                <SelectItem key={user.id} value={user.id.toString()}>
+                                  {user.fullName || user.username}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}                    />
+                  </div>
                 </CardContent>
               </Card>
 
-              <div className="flex justify-end">
+              <div className="flex justify-end space-x-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsEditDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
                 <Button
                   type="submit"
-                  className="bg-purple-600 hover:bg-purple-700"
                   disabled={updateProcessMutation.isPending}
                 >
                   {updateProcessMutation.isPending ? (
@@ -1012,42 +1064,36 @@ export function ProcessDetail() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Process</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete this process? This action cannot be undone.
-            </p>
-          </div>
-          <div className="flex justify-end gap-3">
-            <Button
-              variant="outline"
-              onClick={() => setIsDeleteDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={deleteProcessMutation.isPending}
-              onClick={async () => {
-                try {
-                  await deleteProcessMutation.mutateAsync();
-                } catch (error) {
-                  console.error("Error deleting process:", error);
-                }
-              }}
-            >
-              {deleteProcessMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete Process"
-              )}
-            </Button>
+          <div className="space-y-4">
+            <p>Are you sure you want to delete this process? This action cannot be undone.</p>
+            <div className="flex justify-end space-x-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsDeleteDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => deleteProcessMutation.mutate()}
+                disabled={deleteProcessMutation.isPending}
+              >
+                {deleteProcessMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete"
+                )}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
