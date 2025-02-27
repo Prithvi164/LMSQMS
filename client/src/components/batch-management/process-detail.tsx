@@ -77,6 +77,7 @@ interface Process {
   lineOfBusinessName?: string;
   locationName?: string;
   userName?: string;
+  status?: string; // Added status field
 }
 
 // Form schema
@@ -443,9 +444,10 @@ export function ProcessDetail() {
                     <TableRow>
                       <TableHead>Process Name</TableHead>
                       <TableHead>Line of Business</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Days (I/T/C/O/OC)</TableHead>
+                      <TableHead>User Name</TableHead>
                       <TableHead>Role</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -454,12 +456,10 @@ export function ProcessDetail() {
                       <TableRow key={process.id}>
                         <TableCell className="font-medium">{process.name}</TableCell>
                         <TableCell>{process.lineOfBusinessName}</TableCell>
-                        <TableCell>{process.locationName}</TableCell>
-                        <TableCell>
-                          {process.inductionDays}/{process.trainingDays}/{process.certificationDays}/
-                          {process.ojtDays}/{process.ojtCertificationDays}
-                        </TableCell>
+                        <TableCell>{process.userName}</TableCell>
                         <TableCell>{process.role}</TableCell>
+                        <TableCell>{process.locationName}</TableCell>
+                        <TableCell>{process.status || 'Active'}</TableCell>
                         <TableCell className="text-right space-x-2">
                           <Button
                             variant="outline"
@@ -1030,7 +1030,8 @@ export function ProcessDetail() {
                           </Select>
                           <FormMessage />
                         </FormItem>
-                      )}                    />
+                      )}
+                    />
                   </div>
                 </CardContent>
               </Card>
@@ -1049,7 +1050,7 @@ export function ProcessDetail() {
                 >
                   {updateProcessMutation.isPending ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
                       Updating...
                     </>
                   ) : (
