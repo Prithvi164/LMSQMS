@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -19,7 +19,17 @@ export function UserProfile() {
     phoneNumber: user?.phoneNumber || "",
   });
 
+  // Fetch organization roles to get role description
+  const { data: roles } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/roles`],
+    enabled: !!user?.organizationId,
+  });
+
   if (!user) return null;
+
+  // Get role description from the roles data
+  const userRole = roles?.find(role => role.id === user.roleId);
+  const roleDisplay = userRole ? `${userRole.role} - ${userRole.description}` : "Unknown Role";
 
   // Safely handle null values for fullName
   const firstName = user.fullName?.split(' ')[0] || user.username;
@@ -178,7 +188,7 @@ export function UserProfile() {
               </div>
               <div>
                 <Label className="text-sm text-muted-foreground">Role</Label>
-                <p className="text-lg capitalize">{user.role}</p>
+                <p className="text-lg capitalize">{roleDisplay}</p>
               </div>
               <div>
                 <Label className="text-sm text-muted-foreground">Location</Label>
