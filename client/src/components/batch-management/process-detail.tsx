@@ -32,12 +32,19 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Plus, Settings } from "lucide-react";
+import { Settings, Plus, Loader2, Pencil, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Pencil, Trash2 } from "lucide-react";
-
 
 // Process form schema
 const processFormSchema = z.object({
@@ -675,8 +682,8 @@ export function ProcessDetail() {
                     <FormItem>
                       <FormLabel>Induction Days</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
+                        <Input
+                          type="number"
                           {...field}
                           onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
                         />
@@ -693,8 +700,8 @@ export function ProcessDetail() {
                     <FormItem>
                       <FormLabel>Training Days</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
+                        <Input
+                          type="number"
                           {...field}
                           onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
                         />
@@ -711,8 +718,8 @@ export function ProcessDetail() {
                     <FormItem>
                       <FormLabel>Certification Days</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
+                        <Input
+                          type="number"
                           {...field}
                           onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
                         />
@@ -729,8 +736,8 @@ export function ProcessDetail() {
                     <FormItem>
                       <FormLabel>OJT Days</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
+                        <Input
+                          type="number"
                           {...field}
                           onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
                         />
@@ -747,8 +754,8 @@ export function ProcessDetail() {
                     <FormItem>
                       <FormLabel>OJT Certification Days</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
+                        <Input
+                          type="number"
                           {...field}
                           onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
                         />
@@ -791,13 +798,13 @@ export function ProcessDetail() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Location</FormLabel>
-                      <Select 
+                      <Select
                         onValueChange={(value) => {
                           field.onChange(value);
                           setSelectedLocation(value);
                           setSelectedRole("");
                           setSelectedUsers([]);
-                        }} 
+                        }}
                         value={field.value}
                       >
                         <FormControl>
@@ -825,12 +832,12 @@ export function ProcessDetail() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Role</FormLabel>
-                      <Select 
+                      <Select
                         onValueChange={(value) => {
                           field.onChange(value);
                           setSelectedRole(value);
                           setSelectedUsers([]);
-                        }} 
+                        }}
                         value={field.value}
                         disabled={!selectedLocation}
                       >
@@ -982,7 +989,8 @@ export function ProcessDetail() {
                 <FormField
                   control={editForm.control}
                   name="name"
-                  render={({ field }) => (                    <FormItem>
+                  render={({ field }) => (
+                    <FormItem>
                       <FormLabel className="text-xs font-medium uppercase">ProcessName</FormLabel>
                       <FormControl>
                         <Input placeholder="Enter process name" {...field} />
