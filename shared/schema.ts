@@ -15,34 +15,29 @@ export const roleEnum = pgEnum('role', [
 ]);
 
 export const permissionEnum = pgEnum('permission', [
-  // Permissions remain unchanged
   'manage_billing',
   'manage_subscription',
   'create_admin',
   'manage_organization_settings',
 
-  // User Management
   'manage_users',
   'view_users',
   'edit_users',
   'delete_users',
   'upload_users',
 
-  // Course Management
   'manage_courses',
   'view_courses',
   'edit_courses',
   'delete_courses',
   'create_courses',
 
-  // Learning Path Management
   'manage_learning_paths',
   'view_learning_paths',
   'edit_learning_paths',
   'delete_learning_paths',
   'create_learning_paths',
 
-  // Organization Management
   'manage_organization',
   'view_organization',
   'edit_organization',
@@ -50,7 +45,6 @@ export const permissionEnum = pgEnum('permission', [
   'manage_processes',
   'manage_batches',
 
-  // Performance Management
   'view_performance',
   'manage_performance',
   'export_reports'
@@ -58,6 +52,13 @@ export const permissionEnum = pgEnum('permission', [
 
 // Batch status enum remains unchanged
 export const batchStatusEnum = pgEnum('batch_status', ['planned', 'ongoing', 'completed', 'cancelled']);
+
+// Add new process status enum
+export const processStatusEnum = pgEnum('process_status', [
+  'active',
+  'inactive',
+  'archived'
+]);
 
 // Organizations table
 export const organizations = pgTable("organizations", {
@@ -69,16 +70,20 @@ export const organizations = pgTable("organizations", {
 // Export organization type only once
 export type Organization = InferSelectModel<typeof organizations>;
 
-// Organization Processes table with unique name constraint
+// Update Organization Processes table with enhanced fields
 export const organizationProcesses = pgTable("organization_processes", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull().unique(),  // Make name unique across all processes
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  status: processStatusEnum("status").default('active').notNull(),
   inductionDays: integer("induction_days").notNull(),
   trainingDays: integer("training_days").notNull(),
   certificationDays: integer("certification_days").notNull(),
   ojtDays: integer("ojt_days").notNull(),
   ojtCertificationDays: integer("ojt_certification_days").notNull(),
-  lineOfBusiness: text("line_of_business").notNull(),
+  lineOfBusinessId: integer("line_of_business_id")
+    .references(() => organizationLineOfBusinesses.id)
+    .notNull(),
   locationId: integer("location_id")
     .references(() => organizationLocations.id)
     .notNull(),
@@ -86,9 +91,10 @@ export const organizationProcesses = pgTable("organization_processes", {
     .references(() => organizations.id)
     .notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export type OrganizationProcess = InferSelectModel<typeof organizationProcesses>;
+export type OrganizationProcess = typeof organizationProcesses.$inferSelect;
 
 // Organization Locations table with unique name constraint
 export const organizationLocations = pgTable("organization_locations", {
@@ -144,7 +150,7 @@ export const users = pgTable("users", {
 
 export type User = InferSelectModel<typeof users>;
 
-// User Processes junction table
+// Update User Processes junction table with additional tracking
 export const userProcesses = pgTable("user_processes", {
   id: serial("id").primaryKey(),
   userId: integer("user_id")
@@ -156,7 +162,11 @@ export const userProcesses = pgTable("user_processes", {
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
+  status: text("status").default('assigned').notNull(),
+  assignedAt: timestamp("assigned_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => {
   return {
     unq: unique().on(table.userId, table.processId),
@@ -182,8 +192,7 @@ export const userBatches = pgTable("user_batches", {
   };
 });
 
-// Add types for the new tables
-export type UserProcess = InferSelectModel<typeof userProcesses>;
+export type UserProcess = typeof userProcesses.$inferSelect;
 export type UserBatch = InferSelectModel<typeof userBatches>;
 
 
@@ -364,11 +373,21 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   rolePermissions: many(rolePermissions),
 }));
 
-export const organizationProcessesRelations = relations(organizationProcesses, ({ one }) => ({
+export const organizationProcessesRelations = relations(organizationProcesses, ({ one, many }) => ({
   organization: one(organizations, {
     fields: [organizationProcesses.organizationId],
     references: [organizations.id],
   }),
+  location: one(organizationLocations, {
+    fields: [organizationProcesses.locationId],
+    references: [organizationLocations.id],
+  }),
+  lineOfBusiness: one(organizationLineOfBusinesses, {
+    fields: [organizationProcesses.lineOfBusinessId],
+    references: [organizationLineOfBusinesses.id],
+  }),
+  users: many(userProcesses),
+  batches: many(organizationBatches),
 }));
 
 export const organizationBatchesRelations = relations(organizationBatches, ({ one, many }) => ({
@@ -415,7 +434,6 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     fields: [users.locationId],
     references: [organizationLocations.id],
   }),
-  // Add new relations
   managedProcesses: many(userProcesses),
   managedBatches: many(userBatches),
 })) as const;
@@ -460,20 +478,23 @@ export const learningPathsRelations = relations(learningPaths, ({ many }) => ({
 }));
 
 
-// Create insert schemas for new tables
+// Update the insert schema for organization processes
 export const insertOrganizationProcessSchema = createInsertSchema(organizationProcesses)
   .omit({
     id: true,
-    createdAt: true
+    createdAt: true,
+    updatedAt: true
   })
   .extend({
     name: z.string().min(1, "Process name is required"),
+    description: z.string().optional(),
+    status: z.enum(['active', 'inactive', 'archived']).default('active'),
     inductionDays: z.number().min(1, "Induction days must be at least 1"),
     trainingDays: z.number().min(1, "Training days must be at least 1"),
     certificationDays: z.number().min(1, "Certification days must be at least 1"),
     ojtDays: z.number().min(0, "OJT days cannot be negative"),
     ojtCertificationDays: z.number().min(0, "OJT certification days cannot be negative"),
-    lineOfBusiness: z.string().min(1, "Line of business is required"),
+    lineOfBusinessId: z.number().int().positive("Line of Business is required"),
     locationId: z.number().min(1, "Location is required"),
     organizationId: z.number().int().positive("Organization is required"),
   });
@@ -524,15 +545,9 @@ export const insertCourseSchema = createInsertSchema(courses);
 export const insertLearningPathSchema = createInsertSchema(learningPaths);
 export const insertUserProgressSchema = createInsertSchema(userProgress);
 
-// Export types with proper typing
-export type User = InferSelectModel<typeof users>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
-export type OrganizationProcess = InferSelectModel<typeof organizationProcesses>;
-export type OrganizationLocation = InferSelectModel<typeof organizationLocations>;
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
-export type Course = InferSelectModel<typeof courses>;
 export type InsertCourse = z.infer<typeof insertCourseSchema>;
-export type LearningPath = InferSelectModel<typeof learningPaths>;
 export type InsertLearningPath = z.infer<typeof insertLearningPathSchema>;
-export type UserProgress = InferSelectModel<typeof userProgress>;
 export type InsertUserProgress = z.infer<typeof insertUserProgressSchema>;
+export type InsertOrganizationProcess = z.infer<typeof insertOrganizationProcessSchema>;
