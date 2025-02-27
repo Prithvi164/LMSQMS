@@ -555,7 +555,6 @@ export function UserManagement() {
                   <TableHead className="w-[150px]">Location</TableHead>
                   <TableHead className="w-[100px]">Status</TableHead>
                   <TableHead className="w-[100px] text-right">Actions</TableHead>
-                  <TableHead className="w-[100px]">Certified</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -614,11 +613,6 @@ export function UserManagement() {
                           </AlertDialogContent>
                         </AlertDialog>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={u.certified ? "outline" : "secondary"}>
-                        {u.certified ? "Certified" : "Not Certified"}
-                      </Badge>
                     </TableCell>
                   </TableRow>
                 ))}
