@@ -124,7 +124,7 @@ export function ProcessDetail() {
   // Get filtered users based on role
   const getFilteredUsers = (role: string) => {
     if (!orgSettings?.users) return [];
-    return orgSettings.users.filter(u => 
+    return orgSettings.users.filter(u =>
       role === "all" ? ["trainer", "trainee", "team_lead"].includes(u.role) : u.role === role
     );
   };
@@ -190,7 +190,7 @@ export function ProcessDetail() {
             ojtCertificationDays: data.ojtCertificationDays,
             lineOfBusinessId: parseInt(data.lineOfBusinessId, 10),
             locationId: parseInt(data.locationId, 10),
-            userIds: data.userIds 
+            userIds: data.userIds
           }),
         }
       );
@@ -352,8 +352,8 @@ export function ProcessDetail() {
       certificationDays: process.certificationDays,
       ojtDays: process.ojtDays,
       ojtCertificationDays: process.ojtCertificationDays,
-      userIds: process.userIds || [], 
-      selectedRole: "all", 
+      userIds: process.userIds || [],
+      selectedRole: "all",
     });
     setIsEditDialogOpen(true);
   };
@@ -668,52 +668,7 @@ export function ProcessDetail() {
         </Card>
       )}
 
-      {/* Rest of your dialogs (Create, Edit, Delete) remain the same */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Delete Process</DialogTitle>
-            <DialogDescription className="pt-4">
-              This action cannot be undone. Please type{" "}
-              <span className="font-medium">delete-{selectedProcess?.name.toLowerCase()}</span>{" "}
-              to confirm.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Input
-              placeholder="Type delete confirmation"
-              value={deleteConfirmation}
-              onChange={(e) => setDeleteConfirmation(e.target.value)}
-              className="mt-4"
-            />
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setDeleteDialogOpen(false);
-                setDeleteConfirmation("");
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={confirmDelete}
-              disabled={deleteProcessMutation.isPending}
-            >
-              {deleteProcessMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete Process"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Create Process Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -819,7 +774,7 @@ export function ProcessDetail() {
                   )}
                 />
 
-                {/* User Selection */}
+                {/* Updated User Selection */}
                 <FormField
                   control={form.control}
                   name="userIds"
@@ -841,42 +796,51 @@ export function ProcessDetail() {
                               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-full p-0">
+                          <PopoverContent className="w-[400px] p-0">
                             <Command>
                               <CommandInput placeholder="Search users..." />
                               <CommandEmpty>No user found.</CommandEmpty>
                               <CommandGroup>
-                                {getFilteredUsers(selectedRole).map((user) => (
-                                  <CommandItem
-                                    key={user.id}
-                                    onSelect={() => {
-                                      const value = user.id.toString();
-                                      setSelectedUsers(current =>
-                                        current.includes(value)
-                                          ? current.filter(x => x !== value)
-                                          : [...current, value]
-                                      );
-                                    }}
-                                  >
-                                    <Check
-                                      className={cn(
-                                        "mr-2 h-4 w-4",
-                                        selectedUsers.includes(user.id.toString()) ? "opacity-100" : "opacity-0"
-                                      )}
-                                    />
-                                    <div className="flex items-center gap-2">
-                                      <span>{user.fullName || user.username}</span>
-                                      <Badge variant="outline" className="ml-2">
-                                        {user.role}
-                                      </Badge>
-                                      {user.employeeId && (
-                                        <span className="text-xs text-muted-foreground">
-                                          ({user.employeeId})
-                                        </span>
-                                      )}
-                                    </div>
-                                  </CommandItem>
-                                ))}
+                                {getFilteredUsers(selectedRole).map((user) => {
+                                  const isSelected = selectedUsers.includes(user.id.toString());
+                                  return (
+                                    <CommandItem
+                                      key={user.id}
+                                      onSelect={() => {
+                                        const value = user.id.toString();
+                                        setSelectedUsers(current =>
+                                          current.includes(value)
+                                            ? current.filter(x => x !== value)
+                                            : [...current, value]
+                                        );
+                                      }}
+                                      className="flex items-center justify-between py-2"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <Avatar className="h-6 w-6">
+                                          <AvatarFallback>
+                                            {(user.fullName || user.username)[0].toUpperCase()}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex flex-col">
+                                          <span className="font-medium">{user.fullName || user.username}</span>
+                                          <span className="text-xs text-muted-foreground">{user.email}</span>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Badge variant="outline" className="text-xs">
+                                          {user.role}
+                                        </Badge>
+                                        <Check
+                                          className={cn(
+                                            "h-4 w-4",
+                                            isSelected ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                      </div>
+                                    </CommandItem>
+                                  );
+                                })}
                               </CommandGroup>
                             </Command>
                           </PopoverContent>
@@ -890,16 +854,28 @@ export function ProcessDetail() {
                 {/* Display selected users */}
                 {selectedUsers.length > 0 && (
                   <div className="col-span-2">
-                    <Label>Selected Users</Label>
+                    <Label className="text-sm font-medium">Selected Users</Label>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {selectedUsers.map(id => {
                         const user = orgSettings?.users?.find(u => u.id.toString() === id);
-                        return user ? (
-                          <Badge key={id} variant="secondary" className="flex items-center gap-2">
+                        if (!user) return null;
+                        return (
+                          <Badge
+                            key={id}
+                            variant="secondary"
+                            className="flex items-center gap-2 px-3 py-1"
+                          >
+                            <Avatar className="h-5 w-5">
+                              <AvatarFallback className="text-xs">
+                                {(user.fullName || user.username)[0].toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
                             <span>{user.fullName || user.username}</span>
-                            <span className="text-xs">({user.role})</span>
+                            <Badge variant="outline" className="ml-1 text-xs">
+                              {user.role}
+                            </Badge>
                           </Badge>
-                        ) : null;
+                        );
                       })}
                     </div>
                   </div>
@@ -987,7 +963,7 @@ export function ProcessDetail() {
                         <Input
                           type="number"
                           {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value,10))}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
                         />
                       </FormControl>
                       <FormMessage />
@@ -1007,6 +983,54 @@ export function ProcessDetail() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Process Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="max-w-md"><DialogHeader>
+            <DialogTitle>Delete Process</DialogTitle>
+            <DialogDescription className="pt-4">
+              This action cannot be undone. Please type{" "}
+              <span className="font-medium">delete-{selectedProcess?.name.toLowerCase()}</span>{" "}
+              to confirm.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              placeholder="Type delete confirmation"
+              value={deleteConfirmation}
+              onChange={(e) => setDeleteConfirmation(e.target.value)}
+              className="mt-4"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setDeleteConfirmation("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deleteProcessMutation.isPending}
+            >
+              {deleteProcessMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Process"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Process Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -1090,7 +1114,7 @@ export function ProcessDetail() {
                         onValueChange={(value) => {
                           field.onChange(value);
                           setSelectedRole(value);
-                          setSelectedUsers([]); 
+                          setSelectedUsers([]);
                         }}
                         value={field.value}
                       >
@@ -1112,7 +1136,7 @@ export function ProcessDetail() {
                   )}
                 />
 
-                {/* User Selection */}
+                {/* Updated User Selection */}
                 <FormField
                   control={editForm.control}
                   name="userIds"
@@ -1134,42 +1158,51 @@ export function ProcessDetail() {
                               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-full p-0">
+                          <PopoverContent className="w-[400px] p-0">
                             <Command>
                               <CommandInput placeholder="Search users..." />
                               <CommandEmpty>No user found.</CommandEmpty>
                               <CommandGroup>
-                                {getFilteredUsers(selectedRole).map((user) => (
-                                  <CommandItem
-                                    key={user.id}
-                                    onSelect={() => {
-                                      const value = user.id.toString();
-                                      setSelectedUsers(current =>
-                                        current.includes(value)
-                                          ? current.filter(x => x !== value)
-                                          : [...current, value]
-                                      );
-                                    }}
-                                  >
-                                    <Check
-                                      className={cn(
-                                        "mr-2 h-4 w-4",
-                                        selectedUsers.includes(user.id.toString()) ? "opacity-100" : "opacity-0"
-                                      )}
-                                    />
-                                    <div className="flex items-center gap-2">
-                                      <span>{user.fullName || user.username}</span>
-                                      <Badge variant="outline" className="ml-2">
-                                        {user.role}
-                                      </Badge>
-                                      {user.employeeId && (
-                                        <span className="text-xs text-muted-foreground">
-                                          ({user.employeeId})
-                                        </span>
-                                      )}
-                                    </div>
-                                  </CommandItem>
-                                ))}
+                                {getFilteredUsers(selectedRole).map((user) => {
+                                  const isSelected = selectedUsers.includes(user.id.toString());
+                                  return (
+                                    <CommandItem
+                                      key={user.id}
+                                      onSelect={() => {
+                                        const value = user.id.toString();
+                                        setSelectedUsers(current =>
+                                          current.includes(value)
+                                            ? current.filter(x => x !== value)
+                                            : [...current, value]
+                                        );
+                                      }}
+                                      className="flex items-center justify-between py-2"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <Avatar className="h-6 w-6">
+                                          <AvatarFallback>
+                                            {(user.fullName || user.username)[0].toUpperCase()}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex flex-col">
+                                          <span className="font-medium">{user.fullName || user.username}</span>
+                                          <span className="text-xs text-muted-foreground">{user.email}</span>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Badge variant="outline" className="text-xs">
+                                          {user.role}
+                                        </Badge>
+                                        <Check
+                                          className={cn(
+                                            "h-4 w-4",
+                                            isSelected ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                      </div>
+                                    </CommandItem>
+                                  );
+                                })}
                               </CommandGroup>
                             </Command>
                           </PopoverContent>
@@ -1183,16 +1216,28 @@ export function ProcessDetail() {
                 {/* Display selected users */}
                 {selectedUsers.length > 0 && (
                   <div className="col-span-2">
-                    <Label>Selected Users</Label>
+                    <Label className="text-sm font-medium">Selected Users</Label>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {selectedUsers.map(id => {
                         const user = orgSettings?.users?.find(u => u.id.toString() === id);
-                        return user ? (
-                          <Badge key={id} variant="secondary" className="flex items-center gap-2">
+                        if (!user) return null;
+                        return (
+                          <Badge
+                            key={id}
+                            variant="secondary"
+                            className="flex items-center gap-2 px-3 py-1"
+                          >
+                            <Avatar className="h-5 w-5">
+                              <AvatarFallback className="text-xs">
+                                {(user.fullName || user.username)[0].toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
                             <span>{user.fullName || user.username}</span>
-                            <span className="text-xs">({user.role})</span>
+                            <Badge variant="outline" className="ml-1 text-xs">
+                              {user.role}
+                            </Badge>
                           </Badge>
-                        ) : null;
+                        );
                       })}
                     </div>
                   </div>
