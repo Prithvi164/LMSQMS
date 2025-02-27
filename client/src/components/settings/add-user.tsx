@@ -31,7 +31,7 @@ export function AddUser({
     password: "",
     fullName: "",
     employeeId: "",
-    role: "trainee",
+    roleId: "trainee", 
     locationId: "none",
     email: "",
     phoneNumber: "",
@@ -78,7 +78,7 @@ export function AddUser({
         password: "",
         fullName: "",
         employeeId: "",
-        role: "trainee",
+        roleId: "trainee",
         locationId: "none",
         email: "",
         phoneNumber: "",
@@ -263,7 +263,7 @@ export function AddUser({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">No Manager</SelectItem>
-                    {getFilteredManagers(newUserData.role).map((manager) => (
+                    {getFilteredManagers(newUserData.roleId).map((manager) => (
                       <SelectItem key={manager.id} value={manager.id.toString()}>
                         {manager.fullName || manager.username}
                         {" "}
@@ -273,18 +273,18 @@ export function AddUser({
                   </SelectContent>
                 </Select>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {newUserData.role && getFilteredManagers(newUserData.role).length === 0 && 
+                  {newUserData.roleId && getFilteredManagers(newUserData.roleId).length === 0 &&
                     "No eligible managers available for the selected role"}
                 </p>
               </div>
               <div>
-                <Label htmlFor="role">Role</Label>
+                <Label htmlFor="roleId">Role</Label>
                 <Select
-                  value={newUserData.role}
+                  value={newUserData.roleId}
                   onValueChange={(value) => {
                     setNewUserData(prev => ({
                       ...prev,
-                      role: value,
+                      roleId: value,
                       managerId: "none"
                     }));
                   }}
@@ -293,7 +293,7 @@ export function AddUser({
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
-                    {user.role === "owner" ? (
+                    {user.roleId === "owner" ? (
                       <>
                         <SelectItem value="admin">Admin</SelectItem>
                         <SelectItem value="manager">Manager</SelectItem>
@@ -302,7 +302,7 @@ export function AddUser({
                         <SelectItem value="trainee">Trainee</SelectItem>
                         <SelectItem value="advisor">Advisor</SelectItem>
                       </>
-                    ) : user.role === "admin" ? (
+                    ) : user.roleId === "admin" ? (
                       <>
                         <SelectItem value="manager">Manager</SelectItem>
                         <SelectItem value="team_lead">Team Lead</SelectItem>

@@ -62,7 +62,7 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   fullName: text("full_name"),
   employeeId: text("employee_id"),
-  roleId: roleEnum("role_id").notNull(),
+  roleId: roleEnum("role_id").notNull().default('trainee'), // Set default value
   locationId: integer("location_id").references(() => organizationLocations.id),
   email: text("email").notNull(),
   education: text("education"),
@@ -147,12 +147,17 @@ export const organizationBatches = pgTable("organization_batches", {
 export type OrganizationBatch = typeof organizationBatches.$inferSelect;
 
 // Insert schemas
+// Create a Zod enum for role validation
+const roleEnumValues = ['owner', 'admin', 'manager', 'team_lead', 'trainer', 'trainee', 'advisor'] as const;
+const roleValidation = z.enum(roleEnumValues);
+
+// Update insert schema for users
 export const insertUserSchema = createInsertSchema(users)
   .omit({ id: true, createdAt: true })
   .extend({
     fullName: z.string().min(1, "Full name is required"),
     employeeId: z.string().min(1, "Employee ID is required"),
-    roleId: z.enum(['owner', 'admin', 'manager', 'team_lead', 'trainer', 'trainee', 'advisor']).default('trainee'),
+    roleId: roleValidation.default('trainee'), // Use the Zod enum with default value
     email: z.string().email("Invalid email format"),
     phoneNumber: z.string().regex(/^\d{10}$/, "Phone number must be 10 digits"),
     dateOfJoining: z.string().optional(),
@@ -505,7 +510,6 @@ export const organizationBatchesRelations = relations(organizationBatches, ({ on
     references: [organizationLocations.id],
   }),
 }));
-
 
 export const insertOrganizationLocationSchema = createInsertSchema(organizationLocations)
   .omit({
