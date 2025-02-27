@@ -213,9 +213,39 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching processes for organization ${organizationId}`);
       const processes = await db
-        .select()
+        .select({
+          id: organizationProcesses.id,
+          name: organizationProcesses.name,
+          status: organizationProcesses.status,
+          inductionDays: organizationProcesses.inductionDays,
+          trainingDays: organizationProcesses.trainingDays,
+          certificationDays: organizationProcesses.certificationDays,
+          ojtDays: organizationProcesses.ojtDays,
+          ojtCertificationDays: organizationProcesses.ojtCertificationDays,
+          lineOfBusinessId: organizationProcesses.lineOfBusinessId,
+          locationId: organizationProcesses.locationId,
+          userId: organizationProcesses.userId,
+          role: organizationProcesses.role,
+          organizationId: organizationProcesses.organizationId,
+          lineOfBusinessName: organizationLineOfBusinesses.name,
+          locationName: organizationLocations.name,
+          userName: users.fullName,
+        })
         .from(organizationProcesses)
+        .leftJoin(
+          organizationLineOfBusinesses,
+          eq(organizationProcesses.lineOfBusinessId, organizationLineOfBusinesses.id)
+        )
+        .leftJoin(
+          organizationLocations,
+          eq(organizationProcesses.locationId, organizationLocations.id)
+        )
+        .leftJoin(
+          users,
+          eq(organizationProcesses.userId, users.id)
+        )
         .where(eq(organizationProcesses.organizationId, organizationId)) as OrganizationProcess[];
+
       console.log(`Found ${processes.length} processes`);
       return processes;
     } catch (error) {
