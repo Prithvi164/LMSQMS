@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -10,7 +11,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Form,
-  FormControl,
   FormField,
   FormItem,
   FormLabel,
@@ -31,6 +31,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Table,
@@ -88,10 +89,12 @@ export function ProcessDetail() {
   const { data: orgSettings, isLoading } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/settings`],
     onSuccess: (data) => {
-      console.log('Fetched org settings:', data);
+      console.log('=== Organization Settings Data ===');
+      console.log('Raw data:', data);
       if (data?.users) {
-        console.log('Available users:', data.users);
-        const roles = [...new Set(data.users.map(u => u.role))];
+        console.log('Users array:', data.users);
+        console.log('Sample user:', data.users[0]);
+        const roles = Array.from(new Set(data.users.map(u => u.role))).filter(Boolean);
         console.log('Available roles:', roles);
       }
     },
@@ -200,31 +203,33 @@ export function ProcessDetail() {
 
   // Get filtered roles with improved logging
   const getFilteredRoles = () => {
-    console.log('=== Get Filtered Roles ===');
-    console.log('orgSettings:', orgSettings);
+    console.log('=== getFilteredRoles called ===');
     console.log('Selected location:', selectedLocation);
 
-    if (!orgSettings?.users?.length) {
-      console.log('No users available');
+    if (!orgSettings?.users) {
+      console.log('No users data');
       return [];
     }
 
-    // Get all roles first
-    const allRoles = [...new Set(orgSettings.users.map(u => u.role))].filter(Boolean);
-    console.log('All roles:', allRoles);
+    let roleSet = new Set<string>();
 
+    // If no location selected, get all roles
     if (!selectedLocation) {
-      return allRoles;
+      orgSettings.users.forEach(user => {
+        if (user.role) roleSet.add(user.role);
+      });
+    } else {
+      // Filter by location
+      orgSettings.users
+        .filter(user => user.locationId?.toString() === selectedLocation)
+        .forEach(user => {
+          if (user.role) roleSet.add(user.role);
+        });
     }
 
-    // Filter by location
-    const locationUsers = orgSettings.users.filter(u => u.locationId?.toString() === selectedLocation);
-    console.log('Users in location:', locationUsers);
-
-    const locationRoles = [...new Set(locationUsers.map(u => u.role))].filter(Boolean);
-    console.log('Roles in location:', locationRoles);
-
-    return locationRoles;
+    const roles = Array.from(roleSet);
+    console.log('Available roles:', roles);
+    return roles;
   };
 
   // Get location name helper
@@ -235,30 +240,36 @@ export function ProcessDetail() {
   };
 
   // Role Selection Component
-  const RoleSelect = () => {
+  const RoleSelect = ({ field }: { field: any }) => {
     const roles = getFilteredRoles();
-    console.log('Rendering roles:', roles);
+    console.log('Rendering RoleSelect with roles:', roles);
 
     return (
-      <Select
-        onValueChange={(value) => {
-          console.log('Role selected:', value);
-          setSelectedRole(value);
-          setSelectedUsers([]);
-        }}
-        value={selectedRole}
-      >
-        <SelectTrigger>
-          <SelectValue placeholder="Select Role" />
-        </SelectTrigger>
-        <SelectContent>
-          {roles.map((role) => (
-            <SelectItem key={role} value={role}>
-              {role.charAt(0).toUpperCase() + role.slice(1)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <FormField
+        control={form.control}
+        name="role"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Role</FormLabel>
+            <Select
+              value={field.value}
+              onValueChange={field.onChange}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select Role" />
+              </SelectTrigger>
+              <SelectContent>
+                {roles.map((role) => (
+                  <SelectItem key={role} value={role}>
+                    {role}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
     );
   };
 
@@ -273,20 +284,17 @@ export function ProcessDetail() {
           <FormItem>
             <FormLabel>Location</FormLabel>
             <Select
+              value={field.value}
               onValueChange={(value) => {
                 console.log('Location selected:', value);
                 field.onChange(value);
                 setSelectedLocation(value);
                 setSelectedRole("");
-                setSelectedUsers([]);
               }}
-              value={field.value}
             >
-              <FormControl>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Location" />
-                </SelectTrigger>
-              </FormControl>
+              <SelectTrigger>
+                <SelectValue placeholder="Select Location" />
+              </SelectTrigger>
               <SelectContent>
                 {orgSettings?.locations?.map((location) => (
                   <SelectItem key={location.id} value={location.id.toString()}>
@@ -307,7 +315,7 @@ export function ProcessDetail() {
         render={({ field }) => (
           <FormItem>
             <FormLabel>Role</FormLabel>
-            <RoleSelect />
+            <RoleSelect field={field} />
             <FormMessage />
           </FormItem>
         )}
@@ -984,7 +992,7 @@ export function ProcessDetail() {
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Creating Process...
                     </>
-                  ) : (
+                  ) :(
                     "Create Process"
                   )}
                 </Button>
