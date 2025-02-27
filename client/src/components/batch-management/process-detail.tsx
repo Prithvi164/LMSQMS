@@ -121,21 +121,7 @@ export function ProcessDetail() {
     }
   });
 
-  // Fetch locations
-  const { data: locations = [], isLoading: isLoadingLocations } = useQuery({
-    queryKey: ['locations', user?.organizationId],
-    queryFn: () => fetchData(`/api/organizations/${user?.organizationId}/locations`),
-    enabled: !!user?.organizationId,
-    onError: (error: Error) => {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: `Failed to load locations: ${error.message}`,
-      });
-    }
-  });
-
-  // Fetch users
+  // Fetch users - we'll derive locations and roles from this data
   const { data: users = [], isLoading: isLoadingUsers } = useQuery({
     queryKey: ['users', user?.organizationId],
     queryFn: () => fetchData(`/api/organizations/${user?.organizationId}/users`),
@@ -147,6 +133,23 @@ export function ProcessDetail() {
         description: `Failed to load users: ${error.message}`,
       });
     }
+  });
+
+  // Get unique location IDs from users table
+  const uniqueLocationIds = Array.from(new Set(
+    users.filter(u => u.locationId !== null)
+    .map(u => u.locationId)
+  )).sort();
+  
+  // Create a locations array derived from users data
+  const locations = uniqueLocationIds.map(locationId => {
+    // Find the first user with this locationId to use as reference
+    const userWithLocation = users.find(u => u.locationId === locationId);
+    return {
+      id: locationId,
+      // Use a default name format since we don't have the actual location name
+      name: `Location ${locationId}`
+    };
   });
 
   // Get unique roles from users in the selected location
@@ -235,7 +238,7 @@ export function ProcessDetail() {
   return (
     <Card>
       <CardContent className="p-6">
-        {(isLoadingLOB || isLoadingLocations || isLoadingUsers) ? (
+        {(isLoadingLOB || isLoadingUsers) ? (
           <div className="flex items-center justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
             <span className="ml-2">Loading...</span>
