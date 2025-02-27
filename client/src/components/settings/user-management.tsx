@@ -54,7 +54,6 @@ export function UserManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [managerFilter, setManagerFilter] = useState<string>("all");
-  // Removed batchFilter state
 
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
@@ -115,7 +114,6 @@ export function UserManagement() {
   // Function to toggle user status
   const toggleUserStatus = async (userId: number, currentStatus: boolean, userRole: string) => {
     try {
-      // Cannot toggle owner status
       if (userRole === "owner") {
         toast({
           title: "Error",
@@ -148,9 +146,7 @@ export function UserManagement() {
     return location ? location.name : "Unknown Location";
   };
 
-  // Removed getProcessName and getBatchName functions
-
-  // Get unique managers for filter dropdown, removing duplicates
+  // Get unique managers for filter dropdown
   const uniqueManagers = Array.from(
     new Map(
       users
@@ -162,8 +158,6 @@ export function UserManagement() {
         .filter((item): item is [number, { id: number; name: string }] => item !== null)
     ).values()
   );
-
-  // Removed uniqueBatches
 
   // Filter users based on search term and filters
   const filteredUsers = users.filter(u => {
@@ -178,7 +172,6 @@ export function UserManagement() {
       (managerFilter === "none" && !u.managerId) ||
       (u.managerId?.toString() === managerFilter);
 
-    // Removed batch filter
     return matchesSearch && matchesRole && matchesManager;
   });
 
@@ -467,7 +460,8 @@ export function UserManagement() {
               'Date of Joining',
               'Date of Birth',
               'Education',
-              'Status'
+              'Status',
+              'Certified'
             ].join(',');
 
             const rows = users.map(u => [
@@ -482,7 +476,8 @@ export function UserManagement() {
               u.dateOfJoining || '',
               u.dateOfBirth || '',
               u.education || '',
-              u.active ? 'Active' : 'Inactive'
+              u.active ? 'Active' : 'Inactive',
+              u.certified ? 'Yes' : 'No'
             ].join(','));
 
             const csvContent = [headers, ...rows].join('\n');
@@ -544,7 +539,6 @@ export function UserManagement() {
                   ))}
                 </SelectContent>
               </Select>
-              {/* Removed batch filter */}
             </div>
           </div>
 
