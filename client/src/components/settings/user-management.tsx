@@ -112,9 +112,9 @@ export function UserManagement() {
   });
 
   // Function to toggle user status
-  const toggleUserStatus = async (userId: number, currentStatus: boolean, userRole: string) => {
+  const toggleUserStatus = async (userId: number, currentStatus: boolean, userRoleId: string) => {
     try {
-      if (userRole === "owner") {
+      if (userRoleId === "owner") {
         toast({
           title: "Error",
           description: "Owner status cannot be changed",
@@ -166,7 +166,7 @@ export function UserManagement() {
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (u.fullName?.toLowerCase() || "").includes(searchTerm.toLowerCase());
 
-    const matchesRole = roleFilter === "all" || u.role === roleFilter;
+    const matchesRole = roleFilter === "all" || u.roleId === roleFilter;
 
     const matchesManager = managerFilter === "all" ||
       (managerFilter === "none" && !u.managerId) ||
@@ -184,19 +184,18 @@ export function UserManagement() {
         fullName: editUser.fullName || "",
         email: editUser.email,
         employeeId: editUser.employeeId || "",
-        role: editUser.role,
+        roleId: editUser.roleId,
         phoneNumber: editUser.phoneNumber || "",
         locationId: editUser.locationId?.toString() || "none",
         managerId: editUser.managerId?.toString() || "none",
         dateOfJoining: editUser.dateOfJoining || "",
         dateOfBirth: editUser.dateOfBirth || "",
         education: editUser.education || "",
-        // Removed certified field from defaultValues
       }
     });
 
     // Determine if the current user can edit this user
-    const canEdit = user?.role === "owner" || (user?.role === "admin" && editUser.role !== "admin");
+    const canEdit = user?.roleId === "owner" || (user?.roleId === "admin" && editUser.roleId !== "admin");
 
     if (!canEdit) {
       return (
@@ -259,11 +258,11 @@ export function UserManagement() {
                         <Input
                           {...field}
                           type="email"
-                          disabled={editUser.role === "owner"}
-                          className={editUser.role === "owner" ? "bg-muted cursor-not-allowed" : ""}
+                          disabled={editUser.roleId === "owner"}
+                          className={editUser.roleId === "owner" ? "bg-muted cursor-not-allowed" : ""}
                         />
                       </FormControl>
-                      {editUser.role === "owner" && (
+                      {editUser.roleId === "owner" && (
                         <p className="text-sm text-muted-foreground">
                           Email cannot be changed for owner accounts
                         </p>
@@ -300,14 +299,14 @@ export function UserManagement() {
                 />
                 <FormField
                   control={form.control}
-                  name="role"
+                  name="roleId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Role</FormLabel>
                       <Select
                         onValueChange={field.onChange}
                         value={field.value}
-                        disabled={editUser.role === "owner"}
+                        disabled={editUser.roleId === "owner"}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -315,7 +314,7 @@ export function UserManagement() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {user?.role === "owner" ? (
+                          {user?.roleId === "owner" ? (
                             <>
                               <SelectItem value="admin">Admin</SelectItem>
                               <SelectItem value="manager">Manager</SelectItem>
@@ -335,7 +334,7 @@ export function UserManagement() {
                           )}
                         </SelectContent>
                       </Select>
-                      {editUser.role === "owner" && (
+                      {editUser.roleId === "owner" && (
                         <p className="text-sm text-muted-foreground mt-1">
                           Owner role cannot be changed
                         </p>
@@ -442,14 +441,14 @@ export function UserManagement() {
     );
   };
 
-  // Modify the CSV headers and data to exclude batch and process
+  // CSV template download handler
   const handleDownloadTemplate = () => {
     const headers = [
       'Username',
       'Full Name',
       'Email',
       'Employee ID',
-      'Role',
+      'Role ID',  // Updated from Role to Role ID
       'Phone Number',
       'Location',
       'Manager',
@@ -466,7 +465,7 @@ export function UserManagement() {
       'John Doe',
       'john.doe@example.com',
       'EMP001',
-      'trainee',
+      'trainee',  // Default role ID
       '+1234567890',
       'Mumbai',
       'manager.name@example.com',
@@ -510,7 +509,7 @@ export function UserManagement() {
                 'Full Name',
                 'Email',
                 'Employee ID',
-                'Role',
+                'Role ID',  // Updated from Role to Role ID
                 'Phone Number',
                 'Location',
                 'Manager',
@@ -526,7 +525,7 @@ export function UserManagement() {
                 u.fullName || '',
                 u.email,
                 u.employeeId || '',
-                u.role,
+                u.roleId,  // Updated from role to roleId
                 u.phoneNumber || '',
                 getLocationName(u.locationId),
                 getManagerName(u.managerId),
@@ -621,12 +620,12 @@ export function UserManagement() {
                     <TableCell>{u.email}</TableCell>
                     <TableCell>{u.fullName}</TableCell>
                     <TableCell>
-                      <Badge>{u.role}</Badge>
+                      <Badge>{u.roleId}</Badge>
                     </TableCell>
                     <TableCell>{getManagerName(u.managerId)}</TableCell>
                     <TableCell>{getLocationName(u.locationId)}</TableCell>
                     <TableCell>
-                      {u.role === "owner" ? (
+                      {u.roleId === "owner" ? (
                         <div className="flex items-center" title="Owner status cannot be changed">
                           <Switch
                             checked={true}
@@ -637,7 +636,7 @@ export function UserManagement() {
                       ) : (
                         <Switch
                           checked={u.active}
-                          onCheckedChange={(checked) => toggleUserStatus(u.id, u.active, u.role)}
+                          onCheckedChange={(checked) => toggleUserStatus(u.id, u.active, u.roleId)}
                           disabled={false}
                         />
                       )}
