@@ -14,8 +14,52 @@ export const roleEnum = pgEnum('role', [
   'advisor'    
 ]);
 
-export const batchStatusEnum = pgEnum('batch_status', ['planned', 'ongoing', 'completed', 'cancelled']);
-export const processStatusEnum = pgEnum('process_status', ['active', 'inactive', 'archived']);
+// Organization Role table
+export const organizationRoles = pgTable("organization_roles", {
+  id: serial("id").primaryKey(),
+  role: roleEnum("role").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    unq: unique().on(table.role, table.organizationId),
+  }
+});
+
+export type OrganizationRole = InferSelectModel<typeof organizationRoles>;
+
+// Update Users table to reference organization_roles
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+  fullName: text("full_name"),
+  employeeId: text("employee_id"),
+  roleId: integer("role_id")
+    .references(() => organizationRoles.id)
+    .notNull(),
+  locationId: integer("location_id")
+    .references(() => organizationLocations.id),
+  email: text("email").notNull(),
+  education: text("education"),
+  dateOfJoining: date("date_of_joining"),
+  phoneNumber: text("phone_number"),
+  dateOfBirth: date("date_of_birth"),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id),
+  managerId: integer("manager_id")
+    .references(() => users.id),
+  active: boolean("active").notNull().default(true),
+  certified: boolean("certified").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type User = InferSelectModel<typeof users>;
 
 // Organizations table
 export const organizations = pgTable("organizations", {
@@ -55,30 +99,6 @@ export const organizationLineOfBusinesses = pgTable("organization_line_of_busine
 
 export type OrganizationLineOfBusiness = InferSelectModel<typeof organizationLineOfBusinesses>;
 
-// Users table with role_id
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  fullName: text("full_name"),
-  employeeId: text("employee_id"),
-  roleId: roleEnum("role_id").notNull().default('trainee'), // Set default value
-  locationId: integer("location_id").references(() => organizationLocations.id),
-  email: text("email").notNull(),
-  education: text("education"),
-  dateOfJoining: date("date_of_joining"),
-  phoneNumber: text("phone_number"),
-  dateOfBirth: date("date_of_birth"),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id),
-  managerId: integer("manager_id")
-    .references(() => users.id),
-  active: boolean("active").notNull().default(true),
-  certified: boolean("certified").notNull().default(false),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export type User = InferSelectModel<typeof users>;
 
 // Organization Processes table
 export const organizationProcesses = pgTable("organization_processes", {
@@ -146,6 +166,9 @@ export const organizationBatches = pgTable("organization_batches", {
 
 export type OrganizationBatch = typeof organizationBatches.$inferSelect;
 
+export const batchStatusEnum = pgEnum('batch_status', ['planned', 'ongoing', 'completed', 'cancelled']);
+export const processStatusEnum = pgEnum('process_status', ['active', 'inactive', 'archived']);
+
 // Insert schemas
 // Create a Zod enum for role validation
 const roleEnumValues = ['owner', 'admin', 'manager', 'team_lead', 'trainer', 'trainee', 'advisor'] as const;
@@ -157,7 +180,7 @@ export const insertUserSchema = createInsertSchema(users)
   .extend({
     fullName: z.string().min(1, "Full name is required"),
     employeeId: z.string().min(1, "Employee ID is required"),
-    roleId: roleValidation.default('trainee'), // Use the Zod enum with default value
+    roleId: z.number().int().positive("Role is required"),
     email: z.string().email("Invalid email format"),
     phoneNumber: z.string().regex(/^\d{10}$/, "Phone number must be 10 digits"),
     dateOfJoining: z.string().optional(),
@@ -230,6 +253,7 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   batches: many(organizationBatches),
   locations: many(organizationLocations),
   lineOfBusinesses: many(organizationLineOfBusinesses),
+  roles: many(organizationRoles)
 }));
 
 export const organizationProcessesRelations = relations(organizationProcesses, ({ one }) => ({
@@ -256,6 +280,10 @@ export const usersRelations = relations(users, ({ one }) => ({
     fields: [users.organizationId],
     references: [organizations.id],
   }),
+  role: one(organizationRoles, {
+    fields: [users.roleId],
+    references: [organizationRoles.id],
+  }),
   manager: one(users, {
     fields: [users.managerId],
     references: [users.id],
@@ -265,7 +293,6 @@ export const usersRelations = relations(users, ({ one }) => ({
     references: [organizationLocations.id],
   }),
 }));
-
 
 export const permissionEnum = pgEnum('permission', [
   'manage_billing',
@@ -545,3 +572,28 @@ export const insertUserProgressSchema = createInsertSchema(userProgress);
 export type InsertCourse = z.infer<typeof insertCourseSchema>;
 export type InsertLearningPath = z.infer<typeof insertLearningPathSchema>;
 export type InsertUserProgress = z.infer<typeof insertUserProgressSchema>;
+
+
+// Add relations for organization roles
+export const organizationRolesRelations = relations(organizationRoles, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [organizationRoles.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
+// Insert schema for organization roles
+export const insertOrganizationRoleSchema = createInsertSchema(organizationRoles)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true
+  })
+  .extend({
+    role: z.enum(['owner', 'admin', 'manager', 'team_lead', 'trainer', 'trainee', 'advisor']),
+    name: z.string().min(1, "Role name is required"),
+    description: z.string().optional(),
+    organizationId: z.number().int().positive("Organization is required"),
+  });
+
+export type InsertOrganizationRole = z.infer<typeof insertOrganizationRoleSchema>;
