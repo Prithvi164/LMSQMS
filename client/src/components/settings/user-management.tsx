@@ -18,18 +18,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -54,6 +45,9 @@ export function UserManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [managerFilter, setManagerFilter] = useState<string>("all");
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
@@ -76,6 +70,9 @@ export function UserManagement() {
         description: "User deleted successfully",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      setShowDeleteDialog(false);
+      setUserToDelete(null);
+      setDeleteConfirmation("");
     },
     onError: (error: Error) => {
       toast({
@@ -441,6 +438,22 @@ export function UserManagement() {
     );
   };
 
+  // Helper function to handle delete confirmation
+  const handleDeleteConfirm = () => {
+    if (!userToDelete) return;
+
+    const confirmationText = "This action cannot be undone. To confirm deletion, please type";
+    if (deleteConfirmation.toLowerCase() === confirmationText.toLowerCase()) {
+      deleteUserMutation.mutate(userToDelete.id);
+    } else {
+      toast({
+        title: "Error",
+        description: "Please type the confirmation text exactly as shown",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -589,30 +602,17 @@ export function UserManagement() {
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <EditUserDialog user={u} />
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="icon" className="text-destructive">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete User</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete this user? This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => deleteUserMutation.mutate(u.id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="text-destructive"
+                          onClick={() => {
+                            setUserToDelete(u);
+                            setShowDeleteDialog(true);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -622,6 +622,50 @@ export function UserManagement() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete User</DialogTitle>
+            <DialogDescription>
+              This is a permanent action. Are you sure you want to delete{" "}
+              {userToDelete?.fullName || userToDelete?.username}?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="confirmation" className="text-sm text-muted-foreground block mb-2">
+              Type "This action cannot be undone. To confirm deletion, please type" to confirm:
+            </Label>
+            <Input
+              id="confirmation"
+              value={deleteConfirmation}
+              onChange={(e) => setDeleteConfirmation(e.target.value)}
+              className="mt-2"
+              placeholder="Type the confirmation text..."
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteDialog(false);
+                setUserToDelete(null);
+                setDeleteConfirmation("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={!deleteConfirmation}
+            >
+              Delete User
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
