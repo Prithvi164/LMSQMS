@@ -442,13 +442,13 @@ export function UserManagement() {
   const handleDeleteConfirm = () => {
     if (!userToDelete) return;
 
-    const confirmationText = "This action cannot be undone. To confirm deletion, please type";
-    if (deleteConfirmation.toLowerCase() === confirmationText.toLowerCase()) {
+    const userIdentifier = userToDelete.fullName || userToDelete.username;
+    if (deleteConfirmation === userIdentifier) {
       deleteUserMutation.mutate(userToDelete.id);
     } else {
       toast({
         title: "Error",
-        description: "Please type the confirmation text exactly as shown",
+        description: "Please type the user's name exactly as shown",
         variant: "destructive",
       });
     }
@@ -629,20 +629,19 @@ export function UserManagement() {
           <DialogHeader>
             <DialogTitle>Delete User</DialogTitle>
             <DialogDescription>
-              This is a permanent action. Are you sure you want to delete{" "}
-              {userToDelete?.fullName || userToDelete?.username}?
+              This is a permanent action. Are you sure you want to delete {userToDelete?.fullName || userToDelete?.username}?
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <Label htmlFor="confirmation" className="text-sm text-muted-foreground block mb-2">
-              Type "This action cannot be undone. To confirm deletion, please type" to confirm:
+              Type "{userToDelete?.fullName || userToDelete?.username}" to confirm:
             </Label>
             <Input
               id="confirmation"
               value={deleteConfirmation}
               onChange={(e) => setDeleteConfirmation(e.target.value)}
               className="mt-2"
-              placeholder="Type the confirmation text..."
+              placeholder="Type the user's name..."
             />
           </div>
           <DialogFooter>
