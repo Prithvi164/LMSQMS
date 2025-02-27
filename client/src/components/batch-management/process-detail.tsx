@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Form,
+  FormControl,
   FormField,
   FormItem,
   FormLabel,
@@ -245,31 +246,31 @@ export function ProcessDetail() {
     console.log('Rendering RoleSelect with roles:', roles);
 
     return (
-      <FormField
-        control={form.control}
-        name="role"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Role</FormLabel>
-            <Select
-              value={field.value}
-              onValueChange={field.onChange}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select Role" />
-              </SelectTrigger>
-              <SelectContent>
-                {roles.map((role) => (
-                  <SelectItem key={role} value={role}>
-                    {role}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      <FormItem>
+        <FormLabel>Role</FormLabel>
+        <Select
+          value={field.value}
+          onValueChange={(value) => {
+            console.log('Role selected:', value);
+            field.onChange(value);
+            setSelectedRole(value);
+          }}
+        >
+          <FormControl>
+            <SelectTrigger>
+              <SelectValue placeholder="Select Role" />
+            </SelectTrigger>
+          </FormControl>
+          <SelectContent>
+            {roles.map((role) => (
+              <SelectItem key={role} value={role}>
+                {role}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <FormMessage />
+      </FormItem>
     );
   };
 
@@ -292,9 +293,11 @@ export function ProcessDetail() {
                 setSelectedRole("");
               }}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Select Location" />
-              </SelectTrigger>
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Location" />
+                </SelectTrigger>
+              </FormControl>
               <SelectContent>
                 {orgSettings?.locations?.map((location) => (
                   <SelectItem key={location.id} value={location.id.toString()}>
@@ -313,11 +316,7 @@ export function ProcessDetail() {
         control={form.control}
         name="role"
         render={({ field }) => (
-          <FormItem>
-            <FormLabel>Role</FormLabel>
-            <RoleSelect field={field} />
-            <FormMessage />
-          </FormItem>
+          <RoleSelect field={field} />
         )}
       />
 
@@ -989,7 +988,7 @@ export function ProcessDetail() {
                 >
                   {createProcessMutation.isPending ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="mr-2h-4 w-4 animate-spin" />
                       Creating Process...
                     </>
                   ) :(
