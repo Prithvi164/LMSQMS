@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -25,7 +25,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-// Type definitions
+// Types for data
 interface User {
   id: number;
   username: string;
@@ -45,7 +45,7 @@ interface LineOfBusiness {
   name: string;
 }
 
-// Form schema for process creation
+// Form schema
 const processFormSchema = z.object({
   name: z.string().min(1, "Process name is required"),
   inductionDays: z.number().int().min(1, "Induction days must be at least 1"),
@@ -82,49 +82,77 @@ export function ProcessDetail() {
     },
   });
 
-  // Fetch data with proper error handling
-  const fetchData = async (url: string) => {
-    const response = await fetch(url);
-    if (!response.ok) {
-      if (response.headers.get("content-type")?.includes("json")) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Failed to fetch data: ${response.statusText}`);
-      }
-      throw new Error(`Failed to fetch data: ${response.statusText}`);
-    }
-    return response.json();
-  };
-
-  // Query hooks with proper error handling
-  const { 
-    data: lineOfBusinesses = [], 
-    isLoading: isLoadingLOB,
-    error: lobError 
-  } = useQuery<LineOfBusiness[]>({
+  // Query hooks with error handling
+  const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery({
     queryKey: ['lineOfBusinesses', user?.organizationId],
-    queryFn: () => fetchData(`/api/organizations/${user?.organizationId}/line-of-businesses`),
+    queryFn: async () => {
+      try {
+        const response = await fetch(`/api/organizations/${user?.organizationId}/line-of-businesses`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch line of businesses');
+        }
+        return response.json();
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load line of businesses",
+        });
+        return [];
+      }
+    },
     enabled: !!user?.organizationId,
   });
 
-  const { 
-    data: locations = [], 
-    isLoading: isLoadingLocations,
-    error: locError 
-  } = useQuery<Location[]>({
+  const { data: locations = [], isLoading: isLoadingLocations } = useQuery({
     queryKey: ['locations', user?.organizationId],
-    queryFn: () => fetchData(`/api/organizations/${user?.organizationId}/locations`),
+    queryFn: async () => {
+      try {
+        const response = await fetch(`/api/organizations/${user?.organizationId}/locations`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch locations');
+        }
+        return response.json();
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load locations",
+        });
+        return [];
+      }
+    },
     enabled: !!user?.organizationId,
   });
 
-  const { 
-    data: users = [], 
-    isLoading: isLoadingUsers,
-    error: userError 
-  } = useQuery<User[]>({
+  const { data: users = [], isLoading: isLoadingUsers } = useQuery({
     queryKey: ['users', user?.organizationId],
-    queryFn: () => fetchData(`/api/organizations/${user?.organizationId}/users`),
+    queryFn: async () => {
+      try {
+        const response = await fetch(`/api/organizations/${user?.organizationId}/users`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch users');
+        }
+        return response.json();
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load users",
+        });
+        return [];
+      }
+    },
     enabled: !!user?.organizationId,
   });
+
+  // Derived state
+  const isLoading = isLoadingLOB || isLoadingLocations || isLoadingUsers;
+  const roles = Array.from(new Set(users.map(user => user.role))).sort();
+  const filteredUsers = users.filter(u => 
+    (!selectedLocation || u.locationId === parseInt(selectedLocation)) &&
+    (!selectedRole || u.role === selectedRole)
+  );
 
   const createProcessMutation = useMutation({
     mutationFn: async (data: z.infer<typeof processFormSchema>) => {
@@ -154,9 +182,9 @@ export function ProcessDetail() {
     },
     onError: (error: Error) => {
       toast({
+        variant: "destructive",
         title: "Error",
         description: error.message,
-        variant: "destructive",
       });
     },
   });
@@ -169,24 +197,13 @@ export function ProcessDetail() {
     }
   };
 
-  const isLoading = isLoadingLOB || isLoadingLocations || isLoadingUsers;
-  const error = lobError || locError || userError;
-  const roles = Array.from(new Set(users.map(user => user.role))).sort();
-  const filteredUsers = users.filter(u => 
-    (!selectedLocation || u.locationId === parseInt(selectedLocation)) &&
-    (!selectedRole || u.role === selectedRole)
-  );
-
   if (!user?.organizationId) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="text-center text-red-500">
-            Please log in to access this feature.
-          </div>
-        </CardContent>
-      </Card>
-    );
+    toast({
+      variant: "destructive",
+      title: "Error",
+      description: "Please log in to access this feature.",
+    });
+    return null;
   }
 
   return (
@@ -196,10 +213,6 @@ export function ProcessDetail() {
           <div className="flex items-center justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
             <span className="ml-2">Loading...</span>
-          </div>
-        ) : error ? (
-          <div className="text-center text-red-500">
-            Error: {error.message}
           </div>
         ) : (
           <>
@@ -319,7 +332,6 @@ export function ProcessDetail() {
                   />
                 </div>
 
-                {/* Line of Business Field */}
                 <FormField
                   control={form.control}
                   name="lineOfBusinessId"
@@ -348,7 +360,6 @@ export function ProcessDetail() {
                   )}
                 />
 
-                {/* Location Field */}
                 <FormField
                   control={form.control}
                   name="locationId"
@@ -380,7 +391,6 @@ export function ProcessDetail() {
                   )}
                 />
 
-                {/* Role Field */}
                 <FormField
                   control={form.control}
                   name="role"
@@ -412,7 +422,6 @@ export function ProcessDetail() {
                   )}
                 />
 
-                {/* User Field */}
                 <FormField
                   control={form.control}
                   name="userId"
