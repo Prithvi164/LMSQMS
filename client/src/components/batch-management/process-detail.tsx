@@ -50,6 +50,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
 
+
 // Process form schema
 const processFormSchema = z.object({
   name: z.string().min(1, "Process name is required"),
@@ -191,87 +192,11 @@ export function ProcessDetail() {
     },
   });
 
-  // Get filtered users based on location and role
-  const getFilteredUsers = () => {
+  // Simplified role selection based on all available roles
+  const getAvailableRoles = () => {
     if (!orgSettings?.users) return [];
-
-    return orgSettings.users.filter(user => {
-      const locationMatch = !selectedLocation || user.locationId?.toString() === selectedLocation;
-      const roleMatch = !selectedRole || user.role === selectedRole;
-      return locationMatch && roleMatch;
-    });
-  };
-
-  // Get filtered roles with improved logging
-  const getFilteredRoles = () => {
-    console.log('=== getFilteredRoles called ===');
-    console.log('Selected location:', selectedLocation);
-
-    if (!orgSettings?.users) {
-      console.log('No users data');
-      return [];
-    }
-
-    let roleSet = new Set<string>();
-
-    // If no location selected, get all roles
-    if (!selectedLocation) {
-      orgSettings.users.forEach(user => {
-        if (user.role) roleSet.add(user.role);
-      });
-    } else {
-      // Filter by location
-      orgSettings.users
-        .filter(user => user.locationId?.toString() === selectedLocation)
-        .forEach(user => {
-          if (user.role) roleSet.add(user.role);
-        });
-    }
-
-    const roles = Array.from(roleSet);
-    console.log('Available roles:', roles);
-    return roles;
-  };
-
-  // Get location name helper
-  const getLocationName = (locationId: number | null) => {
-    if (!locationId || !orgSettings?.locations) return "";
-    const location = orgSettings.locations.find(l => l.id === locationId);
-    return location?.name || "";
-  };
-
-  // Role Selection Component
-  const RoleSelect = ({ field }: { field: any }) => {
-    const roles = getFilteredRoles();
-    console.log('Rendering RoleSelect with roles:', roles);
-
-    return (
-      <FormItem>
-        <FormLabel>Role</FormLabel>
-        <Select
-          value={field.value}
-          onValueChange={(value) => {
-            console.log('Role selected:', value);
-            field.onChange(value);
-            setSelectedRole(value);
-          }}
-        >
-          <FormControl>
-            <SelectTrigger>
-              <SelectValue placeholder="Select Role" />
-            </SelectTrigger>
-          </FormControl>
-          <SelectContent>
-            {roles.map((role) => (
-              <SelectItem key={role} value={role}>
-                {role}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <FormMessage />
-      </FormItem>
-    );
+    const roles = new Set(orgSettings.users.map(u => u.role).filter(Boolean));
+    return Array.from(roles);
   };
 
   // Form rendering component for user selection
@@ -287,10 +212,8 @@ export function ProcessDetail() {
             <Select
               value={field.value}
               onValueChange={(value) => {
-                console.log('Location selected:', value);
                 field.onChange(value);
                 setSelectedLocation(value);
-                setSelectedRole("");
               }}
             >
               <FormControl>
@@ -316,7 +239,30 @@ export function ProcessDetail() {
         control={form.control}
         name="role"
         render={({ field }) => (
-          <RoleSelect field={field} />
+          <FormItem>
+            <FormLabel>Role</FormLabel>
+            <Select
+              value={field.value}
+              onValueChange={(value) => {
+                field.onChange(value);
+                setSelectedRole(value);
+              }}
+            >
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Role" />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {getAvailableRoles().map((role) => (
+                  <SelectItem key={role} value={role}>
+                    {role}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
         )}
       />
 
@@ -373,6 +319,24 @@ export function ProcessDetail() {
       />
     </div>
   );
+
+  // Get filtered users based on location and role
+  const getFilteredUsers = () => {
+    if (!orgSettings?.users) return [];
+
+    return orgSettings.users.filter(user => {
+      const locationMatch = !selectedLocation || user.locationId?.toString() === selectedLocation;
+      return locationMatch;
+    });
+  };
+
+
+  // Get location name helper
+  const getLocationName = (locationId: number | null) => {
+    if (!locationId || !orgSettings?.locations) return "";
+    const location = orgSettings.locations.find(l => l.id === locationId);
+    return location?.name || "";
+  };
 
   // Handle form submission
   const onSubmit = async (data: z.infer<typeof processFormSchema>) => {
@@ -991,7 +955,7 @@ export function ProcessDetail() {
                       <Loader2 className="mr-2h-4 w-4 animate-spin" />
                       Creating Process...
                     </>
-                  ) :(
+                  ) : (
                     "Create Process"
                   )}
                 </Button>
