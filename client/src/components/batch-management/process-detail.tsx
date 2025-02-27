@@ -114,6 +114,12 @@ export function ProcessDetail() {
   const getFilteredUsers = (role: string, locationId: string) => {
     if (!orgSettings?.users) return [];
 
+    console.log('Filtering users:', {
+      allUsers: orgSettings.users,
+      selectedRole: role,
+      selectedLocation: locationId
+    });
+
     return orgSettings.users.filter(u => {
       const roleMatch = role === "all" ? 
         ["trainer", "trainee", "team_lead"].includes(u.role) : 
@@ -129,26 +135,23 @@ export function ProcessDetail() {
 
   const availableRoles = ["all", "trainer", "trainee", "team_lead"];
 
-  // Get location name
+  // Get location name helper
   const getLocationName = (locationId: number | null) => {
     if (!locationId || !orgSettings?.locations) return "No Location";
     const location = orgSettings.locations.find(l => l.id === locationId);
     return location ? location.name : "Unknown Location";
   };
 
-  // Get user details with all necessary information
-  const getUserDetails = (userId: number) => {
-    const foundUser = orgSettings?.users?.find(u => u.id === userId);
-    if (!foundUser) return null;
-
-    return {
-      name: foundUser.fullName || foundUser.username,
-      role: foundUser.role,
-      employeeId: foundUser.employeeId,
-      email: foundUser.email,
-      location: getLocationName(foundUser.locationId),
-    };
-  };
+  // User detail formatting helper
+  const formatUserForDisplay = (user: any) => ({
+    id: user.id,
+    name: user.fullName || user.username,
+    email: user.email,
+    role: user.role,
+    employeeId: user.employeeId,
+    location: getLocationName(user.locationId),
+    initials: (user.fullName || user.username)[0].toUpperCase()
+  });
 
   const form = useForm<z.infer<typeof processFormSchema>>({
     resolver: zodResolver(processFormSchema),
@@ -591,6 +594,7 @@ export function ProcessDetail() {
                     <ScrollArea className="h-[300px]">
                       {getFilteredUsers(selectedRole, selectedLocation).map((user) => {
                         const isAssigned = selectedProcess.users?.includes(user.id);
+                        const userDisplay = formatUserForDisplay(user);
                         return (
                           <div
                             key={user.id}
@@ -598,22 +602,20 @@ export function ProcessDetail() {
                           >
                             <div className="flex items-center gap-3">
                               <Avatar className="h-8 w-8">
-                                <AvatarFallback>
-                                  {(user.fullName || user.username)[0].toUpperCase()}
-                                </AvatarFallback>
+                                <AvatarFallback>{userDisplay.initials}</AvatarFallback>
                               </Avatar>
                               <div>
-                                <p className="font-medium">{user.fullName || user.username}</p>
+                                <p className="font-medium">{userDisplay.name}</p>
                                 <div className="flex items-center gap-2">
-                                  <Badge variant="outline">{user.role}</Badge>
-                                  {user.employeeId && (
+                                  <Badge variant="outline">{userDisplay.role}</Badge>
+                                  {userDisplay.employeeId && (
                                     <span className="text-xs text-muted-foreground">
-                                      ID: {user.employeeId}
+                                      ID: {userDisplay.employeeId}
                                     </span>
                                   )}
                                   <span className="text-xs text-muted-foreground">
-                                      Location: {getLocationName(user.locationId)}
-                                    </span>
+                                    Location: {userDisplay.location}
+                                  </span>
                                 </div>
                               </div>
                             </div>
@@ -780,7 +782,7 @@ export function ProcessDetail() {
                   name="selectedLocation"
                   render={({ field }) => (
                     <FormItem className="col-span-2">
-                      <FormLabel>Filter by Location</FormLabel>
+                      <FormLabel>Filter Users by Location</FormLabel>
                       <Select
                         onValueChange={(value) => {
                           field.onChange(value);
@@ -791,7 +793,7 @@ export function ProcessDetail() {
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select location" />
+                            <SelectValue placeholder="Select location to filter users" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -812,7 +814,7 @@ export function ProcessDetail() {
                   name="selectedRole"
                   render={({ field }) => (
                     <FormItem className="col-span-2">
-                      <FormLabel>Select Role</FormLabel>
+                      <FormLabel>Filter Users by Role</FormLabel>
                       <Select
                         onValueChange={(value) => {
                           field.onChange(value);
@@ -823,7 +825,7 @@ export function ProcessDetail() {
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select a role" />
+                            <SelectValue placeholder="Select role to filter users" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -845,7 +847,7 @@ export function ProcessDetail() {
                   name="userIds"
                   render={({ field }) => (
                     <FormItem className="col-span-2">
-                      <FormLabel>Assign Users</FormLabel>
+                      <FormLabel>Select Users</FormLabel>
                       <FormControl>
                         <Popover open={userComboOpen} onOpenChange={setUserComboOpen}>
                           <PopoverTrigger asChild>
@@ -864,10 +866,12 @@ export function ProcessDetail() {
                           <PopoverContent className="w-[400px] p-0">
                             <Command>
                               <CommandInput placeholder="Search users..." />
-                              <CommandEmpty>No user found.</CommandEmpty>
+                              <CommandEmpty>No users found.</CommandEmpty>
                               <CommandGroup>
                                 {getFilteredUsers(selectedRole, selectedLocation).map((user) => {
+                                  const userDisplay = formatUserForDisplay(user);
                                   const isSelected = selectedUsers.includes(user.id.toString());
+
                                   return (
                                     <CommandItem
                                       key={user.id}
@@ -883,32 +887,25 @@ export function ProcessDetail() {
                                     >
                                       <div className="flex items-center gap-2">
                                         <Avatar className="h-6 w-6">
-                                          <AvatarFallback>
-                                            {(user.fullName || user.username)[0].toUpperCase()}
-                                          </AvatarFallback>
+                                          <AvatarFallback>{userDisplay.initials}</AvatarFallback>
                                         </Avatar>
                                         <div className="flex flex-col">
-                                          <span className="font-medium">{user.fullName || user.username}</span>
+                                          <span className="font-medium">{userDisplay.name}</span>
                                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                            <span>{user.email}</span>
-                                            {user.employeeId && <span>({user.employeeId})</span>}
+                                            <span>{userDisplay.email}</span>
+                                            {userDisplay.employeeId && (
+                                              <span>({userDisplay.employeeId})</span>
+                                            )}
+                                            <span>{userDisplay.location}</span>
                                           </div>
                                         </div>
                                       </div>
-                                      <div className="flex items-center gap-2">
-                                        <Badge variant="outline" className="text-xs">
-                                          {user.role}
-                                        </Badge>
-                                        <Badge variant="secondary" className="text-xs">
-                                          {getLocationName(user.locationId)}
-                                        </Badge>
-                                        <Check
-                                          className={cn(
-                                            "h-4 w-4",
-                                            isSelected ? "opacity-100" : "opacity-0"
-                                          )}
-                                        />
-                                      </div>
+                                      <Check
+                                        className={cn(
+                                          "ml-auto h-4 w-4",
+                                          isSelected ? "opacity-100" : "opacity-0"
+                                        )}
+                                      />
                                     </CommandItem>
                                   );
                                 })}
@@ -928,8 +925,10 @@ export function ProcessDetail() {
                     <Label className="text-sm font-medium">Selected Users</Label>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {selectedUsers.map(id => {
-                        const userDetails = getUserDetails(parseInt(id));
-                        if (!userDetails) return null;
+                        const user = orgSettings?.users?.find(u => u.id.toString() === id);
+                        if (!user) return null;
+                        const userDisplay = formatUserForDisplay(user);
+
                         return (
                           <Badge
                             key={id}
@@ -938,21 +937,20 @@ export function ProcessDetail() {
                           >
                             <Avatar className="h-5 w-5">
                               <AvatarFallback className="text-xs">
-                                {(userDetails.name)[0].toUpperCase()}
+                                {userDisplay.initials}
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex flex-col">
-                              <span>{userDetails.name}</span>
+                              <span>{userDisplay.name}</span>
                               <div className="flex items-center gap-1 text-xs">
                                 <Badge variant="outline" className="text-xs">
-                                  {userDetails.role}
+                                  {userDisplay.role}
                                 </Badge>
                                 <span className="text-muted-foreground">
-                                  {userDetails.location}
+                                  {userDisplay.location}
                                 </span>
                               </div>
                             </div>
-                          `
                           </Badge>
                         );
                       })}
@@ -1187,7 +1185,7 @@ export function ProcessDetail() {
                   name="selectedLocation"
                   render={({ field }) => (
                     <FormItem className="col-span-2">
-                      <FormLabel>Filter by Location</FormLabel>
+                      <FormLabel>Filter Users by Location</FormLabel>
                       <Select
                         onValueChange={(value) => {
                           field.onChange(value);
@@ -1198,7 +1196,7 @@ export function ProcessDetail() {
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select location" />
+                            <SelectValue placeholder="Select location to filter users" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -1219,7 +1217,7 @@ export function ProcessDetail() {
                   name="selectedRole"
                   render={({ field }) => (
                     <FormItem className="col-span-2">
-                      <FormLabel>Select Role</FormLabel>
+                      <FormLabel>Filter Users by Role</FormLabel>
                       <Select
                         onValueChange={(value) => {
                           field.onChange(value);
@@ -1230,7 +1228,7 @@ export function ProcessDetail() {
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select a role" />
+                            <SelectValue placeholder="Select role to filter users" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -1252,7 +1250,7 @@ export function ProcessDetail() {
                   name="userIds"
                   render={({ field }) => (
                     <FormItem className="col-span-2">
-                      <FormLabel>Assign Users</FormLabel>
+                      <FormLabel>Select Users</FormLabel>
                       <FormControl>
                         <Popover open={userComboOpen} onOpenChange={setUserComboOpen}>
                           <PopoverTrigger asChild>
@@ -1271,10 +1269,12 @@ export function ProcessDetail() {
                           <PopoverContent className="w-[400px] p-0">
                             <Command>
                               <CommandInput placeholder="Search users..." />
-                              <CommandEmpty>No user found.</CommandEmpty>
+                              <CommandEmpty>No users found.</CommandEmpty>
                               <CommandGroup>
                                 {getFilteredUsers(selectedRole, selectedLocation).map((user) => {
+                                  const userDisplay = formatUserForDisplay(user);
                                   const isSelected = selectedUsers.includes(user.id.toString());
+
                                   return (
                                     <CommandItem
                                       key={user.id}
@@ -1290,32 +1290,25 @@ export function ProcessDetail() {
                                     >
                                       <div className="flex items-center gap-2">
                                         <Avatar className="h-6 w-6">
-                                          <AvatarFallback>
-                                            {(user.fullName || user.username)[0].toUpperCase()}
-                                          </AvatarFallback>
+                                          <AvatarFallback>{userDisplay.initials}</AvatarFallback>
                                         </Avatar>
                                         <div className="flex flex-col">
-                                          <span className="font-medium">{user.fullName || user.username}</span>
+                                          <span className="font-medium">{userDisplay.name}</span>
                                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                            <span>{user.email}</span>
-                                            {user.employeeId && <span>({user.employeeId})</span>}
+                                            <span>{userDisplay.email}</span>
+                                            {userDisplay.employeeId && (
+                                              <span>({userDisplay.employeeId})</span>
+                                            )}
+                                            <span>{userDisplay.location}</span>
                                           </div>
                                         </div>
                                       </div>
-                                      <div className="flex items-center gap-2">
-                                        <Badge variant="outline" className="text-xs">
-                                          {user.role}
-                                        </Badge>
-                                        <Badge variant="secondary" className="text-xs">
-                                          {getLocationName(user.locationId)}
-                                        </Badge>
-                                        <Check
-                                          className={cn(
-                                            "h-4 w-4",
-                                            isSelected ? "opacity-100" : "opacity-0"
-                                          )}
-                                        />
-                                      </div>
+                                      <Check
+                                        className={cn(
+                                          "ml-auto h-4 w-4",
+                                          isSelected ? "opacity-100" : "opacity-0"
+                                        )}
+                                      />
                                     </CommandItem>
                                   );
                                 })}
@@ -1329,14 +1322,16 @@ export function ProcessDetail() {
                   )}
                 />
 
-                {/* Display selected users with detailed information */}
+                {/* Display selected users */}
                 {selectedUsers.length > 0 && (
                   <div className="col-span-2">
                     <Label className="text-sm font-medium">Selected Users</Label>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {selectedUsers.map(id => {
-                        const userDetails = getUserDetails(parseInt(id));
-                        if (!userDetails) return null;
+                        const user = orgSettings?.users?.find(u => u.id.toString() === id);
+                        if (!user) return null;
+                        const userDisplay = formatUserForDisplay(user);
+
                         return (
                           <Badge
                             key={id}
@@ -1345,17 +1340,17 @@ export function ProcessDetail() {
                           >
                             <Avatar className="h-5 w-5">
                               <AvatarFallback className="text-xs">
-                                {userDetails.name[0].toUpperCase()}
+                                {userDisplay.initials}
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex flex-col">
-                              <span>{userDetails.name}</span>
+                              <span>{userDisplay.name}</span>
                               <div className="flex items-center gap-1 text-xs">
                                 <Badge variant="outline" className="text-xs">
-                                  {userDetails.role}
+                                  {userDisplay.role}
                                 </Badge>
                                 <span className="text-muted-foreground">
-                                  {userDetails.location}
+                                  {userDisplay.location}
                                 </span>
                               </div>
                             </div>
