@@ -105,6 +105,7 @@ export function ProcessDetail() {
       inductionDays: 0,
       trainingDays: 0,
       certificationDays: 0,
+      certificationDays: 0,
       ojtDays: 0,
       ojtCertificationDays: 0,
       lineOfBusinessId: "",
@@ -189,10 +190,17 @@ export function ProcessDetail() {
     });
   };
 
-  // Get unique roles from users table
-  const getAvailableRoles = () => {
+  // Get unique roles from users table filtered by selected location
+  const getAvailableRoles = (locationId: string | null = null) => {
     if (!orgSettings?.users) return [];
-    const roles = new Set(orgSettings.users.map(user => user.role));
+
+    // Filter users by location if locationId is provided
+    const filteredUsers = locationId
+      ? orgSettings.users.filter(user => user.locationId?.toString() === locationId)
+      : orgSettings.users;
+
+    // Get unique roles from filtered users
+    const roles = new Set(filteredUsers.map(user => user.role));
     return Array.from(roles);
   };
 
@@ -262,7 +270,7 @@ export function ProcessDetail() {
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                {getAvailableRoles().map((role) => (
+                {getAvailableRoles(selectedLocation).map((role) => (
                   <SelectItem key={role} value={role}>
                     {role.charAt(0).toUpperCase() + role.slice(1)}
                   </SelectItem>
@@ -697,7 +705,7 @@ export function ProcessDetail() {
                         <SelectValue placeholder="Select role to filter" />
                       </SelectTrigger>
                       <SelectContent>
-                        {getAvailableRoles().map((role) => (
+                        {getAvailableRoles(selectedLocation).map((role) => (
                           <SelectItem key={role} value={role}>
                             {role === "all" ? "All Roles" : role.charAt(0).toUpperCase() + role.slice(1)}
                           </SelectItem>
@@ -1220,7 +1228,7 @@ export function ProcessDetail() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Roles</SelectItem>
-                      {getAvailableRoles().map((role) => (
+                      {getAvailableRoles(selectedLocation).map((role) => (
                         <SelectItem key={role} value={role}>
                           {role.charAt(0).toUpperCase() + role.slice(1)}
                         </SelectItem>
