@@ -8,7 +8,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Trash2, Search, FileDown, Download } from "lucide-react";
+import { Edit2, Trash2, Search, FileDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -191,7 +191,6 @@ export function UserManagement() {
         dateOfJoining: editUser.dateOfJoining || "",
         dateOfBirth: editUser.dateOfBirth || "",
         education: editUser.education || "",
-        // Removed certified field from defaultValues
       }
     });
 
@@ -442,66 +441,11 @@ export function UserManagement() {
     );
   };
 
-  // Modify the CSV headers and data to exclude batch and process
-  const handleDownloadTemplate = () => {
-    const headers = [
-      'Username',
-      'Full Name',
-      'Email',
-      'Employee ID',
-      'Role',
-      'Phone Number',
-      'Location',
-      'Manager',
-      'Date of Joining',
-      'Date of Birth',
-      'Education',
-      'Status',
-      'Certified'
-    ].join(',');
-
-    // Create a template row with empty values
-    const templateRow = [
-      'john.doe',
-      'John Doe',
-      'john.doe@example.com',
-      'EMP001',
-      'trainee',
-      '+1234567890',
-      'Mumbai',
-      'manager.name@example.com',
-      '2024-01-01',
-      '1990-01-01',
-      'Bachelor in Computer Science',
-      'Active',
-      'No'
-    ].join(',');
-
-    const csvContent = [headers, templateRow].join('\n');
-
-    // Create and trigger download
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute('download', `users_template.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Manage Users</h1>
         <div className="flex gap-2">
-          <Button
-            onClick={handleDownloadTemplate}
-            variant="outline"
-            className="mb-4"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Download Template
-          </Button>
           <Button
             onClick={() => {
               // Create CSV content
