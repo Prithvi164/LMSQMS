@@ -32,12 +32,10 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -47,9 +45,6 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Settings, Plus, Loader2, Pencil, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
-
-
 
 // Process form schema
 const processFormSchema = z.object({
@@ -194,9 +189,21 @@ export function ProcessDetail() {
 
   // Simplified role selection based on all available roles
   const getAvailableRoles = () => {
-    if (!orgSettings?.users) return [];
-    const roles = new Set(orgSettings.users.map(u => u.role).filter(Boolean));
-    return Array.from(roles);
+    if (!orgSettings?.users) {
+      console.log('No users data available');
+      return [];
+    }
+
+    // Get all unique roles from users
+    const roleSet = new Set(
+      orgSettings.users
+        .map(user => user.role)
+        .filter(Boolean) // Remove null/undefined values
+    );
+
+    const roles = Array.from(roleSet).sort();
+    console.log('Available roles:', roles);
+    return roles;
   };
 
   // Form rendering component for user selection
@@ -214,6 +221,7 @@ export function ProcessDetail() {
               onValueChange={(value) => {
                 field.onChange(value);
                 setSelectedLocation(value);
+                setSelectedRole(""); //Reset role when location changes
               }}
             >
               <FormControl>
@@ -254,6 +262,7 @@ export function ProcessDetail() {
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
+                <SelectItem value="all">All Roles</SelectItem>
                 {getAvailableRoles().map((role) => (
                   <SelectItem key={role} value={role}>
                     {role}
@@ -326,7 +335,8 @@ export function ProcessDetail() {
 
     return orgSettings.users.filter(user => {
       const locationMatch = !selectedLocation || user.locationId?.toString() === selectedLocation;
-      return locationMatch;
+      const roleMatch = !selectedRole || user.role === selectedRole;
+      return locationMatch && roleMatch;
     });
   };
 
@@ -509,6 +519,11 @@ export function ProcessDetail() {
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
   const paginatedProcesses = filteredProcesses.slice(startIndex, endIndex);
+
+  const getFilteredRoles = () => {
+    const roles = getAvailableRoles();
+    return ["all", ...roles];
+  };
 
   return (
     <div className="space-y-4">
@@ -973,8 +988,7 @@ export function ProcessDetail() {
               This action cannot be undone. Please type{" "}
               <span className="font-medium">delete-{selectedProcess?.name.toLowerCase()}</span>{" "}
               to confirm.
-            </DialogDescription>
-          </DialogHeader>
+            </DialogDescription>          </DialogHeader>
           <div className="py-4">
             <Input
               placeholder="Type delete confirmation"
