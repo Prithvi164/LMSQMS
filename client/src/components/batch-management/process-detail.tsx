@@ -66,15 +66,14 @@ import {
   Search,
   Download,
   FileDown,
-  Settings
+  Settings,
+  Users as UsersIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { UsersIcon } from "@/components/icons/users";
-
 
 // Schema for process form with user selection
 const processFormSchema = z.object({
@@ -122,6 +121,27 @@ export function ProcessDetail() {
     enabled: !!organization?.id,
   });
 
+  // Get filtered users based on role
+  const getFilteredUsers = (role: string) => {
+    if (!orgSettings?.users) return [];
+    return orgSettings.users.filter(u => 
+      role === "all" ? ["trainer", "trainee", "team_lead"].includes(u.role) : u.role === role
+    );
+  };
+
+  const availableRoles = ["all", "trainer", "trainee", "team_lead"];
+
+  // Get user details
+  const getUserDetails = (userId: number) => {
+    const foundUser = orgSettings?.users?.find(u => u.id === userId);
+    return foundUser ? {
+      name: foundUser.fullName || foundUser.username,
+      role: foundUser.role,
+      employeeId: foundUser.employeeId,
+      email: foundUser.email
+    } : null;
+  };
+
   const form = useForm<z.infer<typeof processFormSchema>>({
     resolver: zodResolver(processFormSchema),
     defaultValues: {
@@ -129,13 +149,12 @@ export function ProcessDetail() {
       inductionDays: 0,
       trainingDays: 0,
       certificationDays: 0,
-      certificationDays: 0,
       ojtDays: 0,
       ojtCertificationDays: 0,
       lineOfBusinessId: "",
       locationId: "",
-      selectedRole: "all", //default role
-      userIds: [], 
+      selectedRole: "all",
+      userIds: [],
     },
   });
 
@@ -150,8 +169,8 @@ export function ProcessDetail() {
       ojtCertificationDays: 0,
       lineOfBusinessId: "",
       locationId: "",
-      selectedRole: "all", //default role
-      userIds: [], 
+      selectedRole: "all",
+      userIds: [],
     },
   });
 
@@ -334,7 +353,7 @@ export function ProcessDetail() {
       ojtDays: process.ojtDays,
       ojtCertificationDays: process.ojtCertificationDays,
       userIds: process.userIds || [], 
-      selectedRole: "all", //default role
+      selectedRole: "all", 
     });
     setIsEditDialogOpen(true);
   };
@@ -360,16 +379,6 @@ export function ProcessDetail() {
   const locations = orgSettings?.locations || [];
   const processes = orgSettings?.processes || [];
   const users = orgSettings?.users || [];
-
-  // Filter out users that can be assigned to processes
-  const getFilteredUsers = (role: string) => {
-    if (!orgSettings?.users) return [];
-    return orgSettings.users.filter(u => 
-      role === "all" ? ["trainer", "trainee", "team_lead"].includes(u.role) : u.role === role
-    );
-  };
-
-  const availableRoles = ["all", "trainer", "trainee", "team_lead"];
 
   // Filter processes based on search query
   const filteredProcesses = processes.filter((process: any) => {
@@ -397,140 +406,119 @@ export function ProcessDetail() {
         <h1 className="text-2xl font-semibold">Manage Process</h1>
       </div>
 
-      <Card className="overflow-hidden border-none shadow-lg">
+      {/* Process List Card */}
+      <Card>
         <CardContent className="p-6">
+          {/* Search and Add Process Button */}
           <div className="flex flex-col gap-4 md:flex-row md:items-center mb-6">
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search processes..."
-                className="pl-8"
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
                   setCurrentPage(1);
                 }}
+                className="pl-8"
               />
             </div>
             <Button
               onClick={() => setIsCreateDialogOpen(true)}
-              className="bg-purple-600 hover:bg-purple-700 transition-colors"
+              className="bg-purple-600 hover:bg-purple-700"
             >
               <Plus className="h-4 w-4 mr-2" />
               Add New Process
             </Button>
           </div>
 
-          {processes?.length > 0 ? (
-            <>
-              <div className="flex items-center justify-end py-4">
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-500">Rows per page:</span>
-                  <Select
-                    value={pageSize.toString()}
-                    onValueChange={(value) => {
-                      setPageSize(parseInt(value));
-                      setCurrentPage(1);
-                    }}
-                  >
-                    <SelectTrigger className="w-[100px]">
-                      <SelectValue placeholder="10" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                      <SelectItem value="100">100</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+          {/* Process Table */}
+          <div className="relative overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Process Name</TableHead>
+                  <TableHead>Line of Business</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Assigned Users</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedProcesses.map((process) => (
+                  <TableRow key={process.id}>
+                    <TableCell>{process.name}</TableCell>
+                    <TableCell>
+                      {lineOfBusinesses?.find(lob => lob.id === process.lineOfBusinessId)?.name}
+                    </TableCell>
+                    <TableCell>
+                      {locations?.find(l => l.id === process.locationId)?.name}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1 flex-wrap">
+                        {process.users?.map((userId: number) => {
+                          const userDetails = getUserDetails(userId);
+                          if (!userDetails) return null;
+                          return (
+                            <Badge key={userId} variant="outline" className="mr-1">
+                              {userDetails.name} ({userDetails.role})
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(process)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(process)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
 
-              <div className="relative overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-xs font-medium uppercase">Process Name</TableHead>
-                      <TableHead className="text-xs font-medium uppercase">Line of Business</TableHead>
-                      <TableHead className="text-xs font-medium uppercase">Location</TableHead>
-                      <TableHead className="text-xs font-medium uppercase">Induction Days</TableHead>
-                      <TableHead className="text-xs font-medium uppercase">Training Days</TableHead>
-                      <TableHead className="text-xs font-medium uppercase">Certification Days</TableHead>
-                      <TableHead className="text-xs font-medium uppercase">OJT Days</TableHead>
-                      <TableHead className="text-xs font-medium uppercase">OJT Certification Days</TableHead>
-                      <TableHead className="text-xs font-medium uppercase">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {paginatedProcesses.map((process) => (
-                      <TableRow key={process.id}>
-                        <TableCell className="text-sm">{process.name}</TableCell>
-                        <TableCell className="text-sm">
-                          {lineOfBusinesses?.find(lob => lob.id === process.lineOfBusinessId)?.name || process.lineOfBusiness}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {locations?.find(l => l.id === process.locationId)?.name}
-                        </TableCell>
-                        <TableCell className="text-sm">{process.inductionDays}</TableCell>
-                        <TableCell className="text-sm">{process.trainingDays}</TableCell>
-                        <TableCell className="text-sm">{process.certificationDays}</TableCell>
-                        <TableCell className="text-sm">{process.ojtDays}</TableCell>
-                        <TableCell className="text-sm">{process.ojtCertificationDays}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEdit(process)}
-                              className="h-8 w-8 text-purple-600 hover:text-purple-700"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDelete(process)}
-                              className="h-8 w-8 text-red-500 hover:text-red-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              <div className="flex items-center justify-between py-4">
-                <div className="text-sm text-gray-500">
-                  Showing {startIndex + 1} to {Math.min(endIndex, filteredProcesses.length)} of {filteredProcesses.length} entries
-                </div>
-                <div className="space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                    disabled={currentPage === 1}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                    disabled={currentPage === totalPages}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            </>
-          ) : (
-            <p className="text-center text-muted-foreground">No processes found.</p>
-          )}
+          {/* Pagination */}
+          <div className="flex items-center justify-between py-4">
+            <div className="text-sm text-gray-500">
+              Showing {startIndex + 1} to {Math.min(endIndex, filteredProcesses.length)} of {filteredProcesses.length} entries
+            </div>
+            <div className="space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
+      {/* Selected Process Users Card */}
       {selectedProcess && (
         <Card className="mt-6">
           <CardContent className="p-6">
@@ -550,29 +538,40 @@ export function ProcessDetail() {
                   <DialogHeader>
                     <DialogTitle>Assign Users to {selectedProcess.name}</DialogTitle>
                     <DialogDescription>
-                      Select users to assign to this process. Only users with appropriate roles can be assigned.
+                      Select users to assign to this process.
                     </DialogDescription>
                   </DialogHeader>
 
-                  <ScrollArea className="h-[300px] w-full rounded-md border p-4">
-                    <div className="space-y-4">
-                      {users?.map((user) => {
-                        // Only show users that can be assigned to processes
-                        if (!["trainer", "trainee", "team_lead"].includes(user.role)) return null;
+                  {/* User Assignment Content */}
+                  <div className="grid gap-4">
+                    <Select
+                      value={selectedRole}
+                      onValueChange={setSelectedRole}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select role to filter" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableRoles.map((role) => (
+                          <SelectItem key={role} value={role}>
+                            {role === "all" ? "All Roles" : role.charAt(0).toUpperCase() + role.slice(1)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
 
-                        const isAssigned = user.managedProcesses?.some(
-                          (up) => up.processId === selectedProcess.id
-                        );
-
+                    <ScrollArea className="h-[300px]">
+                      {getFilteredUsers(selectedRole).map((user) => {
+                        const isAssigned = selectedProcess.users?.includes(user.id);
                         return (
                           <div
                             key={user.id}
                             className="flex items-center justify-between p-2 hover:bg-accent rounded-lg"
                           >
                             <div className="flex items-center gap-3">
-                              <Avatar className="h-9 w-9">
+                              <Avatar className="h-8 w-8">
                                 <AvatarFallback>
-                                  {user.fullName?.[0] || user.username[0]}
+                                  {(user.fullName || user.username)[0].toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
                               <div>
@@ -627,47 +626,49 @@ export function ProcessDetail() {
                           </div>
                         );
                       })}
-                    </div>
-                  </ScrollArea>
+                    </ScrollArea>
+                  </div>
                 </DialogContent>
               </Dialog>
             </div>
 
+            {/* Display Assigned Users */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {users
-                ?.filter((user) =>
-                  user.managedProcesses?.some((up) => up.processId === selectedProcess.id)
-                )
-                .map((user) => (
-                  <Card key={user.id} className="bg-muted/50">
+              {selectedProcess.users?.map((userId: number) => {
+                const userDetails = getUserDetails(userId);
+                if (!userDetails) return null;
+                return (
+                  <Card key={userId} className="bg-muted/50">
                     <CardContent className="flex items-center gap-4 p-4">
                       <Avatar className="h-10 w-10">
                         <AvatarFallback>
-                          {user.fullName?.[0] || user.username[0]}
+                          {userDetails.name[0].toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="font-medium">{user.fullName || user.username}</p>
+                        <p className="font-medium">{userDetails.name}</p>
                         <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline">{user.role}</Badge>
-                          {user.employeeId && (
+                          <Badge variant="outline">{userDetails.role}</Badge>
+                          {userDetails.employeeId && (
                             <span className="text-xs text-muted-foreground">
-                              ID: {user.employeeId}
+                              ID: {userDetails.employeeId}
                             </span>
                           )}
                         </div>
                         <div className="text-sm text-muted-foreground mt-1">
-                          {user.email}
+                          {userDetails.email}
                         </div>
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
       )}
 
+      {/* Rest of your dialogs (Create, Edit, Delete) remain the same */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -986,7 +987,7 @@ export function ProcessDetail() {
                         <Input
                           type="number"
                           {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                          onChange={(e) => field.onChange(parseInt(e.target.value,10))}
                         />
                       </FormControl>
                       <FormMessage />
