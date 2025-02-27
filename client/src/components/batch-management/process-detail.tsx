@@ -184,8 +184,8 @@ export function ProcessDetail() {
     if (!orgSettings?.users) return [];
 
     return orgSettings.users.filter(user => {
-      const locationMatch = !selectedLocation || user.locationId?.toString() === selectedLocation;
-      const roleMatch = !selectedRole || user.role === selectedRole;
+      const locationMatch = !selectedLocation || user.locationId?.toString() === selectedLocation || selectedLocation === "all";
+      const roleMatch = !selectedRole || user.role === selectedRole || selectedRole === "all";
       return locationMatch && roleMatch;
     });
   };
@@ -196,12 +196,18 @@ export function ProcessDetail() {
 
     // Filter users by location if locationId is provided
     const filteredUsers = locationId
-      ? orgSettings.users.filter(user => user.locationId?.toString() === locationId)
+      ? orgSettings.users.filter(user => {
+          // Handle null location_id cases
+          if (locationId === "all") {
+            return true; // Show all roles when "all" is selected
+          }
+          return user.locationId?.toString() === locationId || user.locationId === null;
+        })
       : orgSettings.users;
 
     // Get unique roles from filtered users
     const roles = new Set(filteredUsers.map(user => user.role));
-    return Array.from(roles);
+    return Array.from(roles).filter(role => role); // Filter out any null/undefined roles
   };
 
   // Get location name helper
@@ -236,6 +242,7 @@ export function ProcessDetail() {
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
+                <SelectItem value="all">All Locations</SelectItem>
                 {orgSettings?.locations?.map((location) => (
                   <SelectItem key={location.id} value={location.id.toString()}>
                     {location.name}
@@ -262,7 +269,6 @@ export function ProcessDetail() {
                 setSelectedUsers([]);
               }}
               value={field.value}
-              disabled={!selectedLocation}
             >
               <FormControl>
                 <SelectTrigger>
