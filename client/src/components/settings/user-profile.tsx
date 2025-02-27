@@ -16,25 +16,28 @@ export function UserProfile() {
   const [isEditing, setIsEditing] = useState(false);
   const [editedUser, setEditedUser] = useState({
     fullName: user?.fullName || "",
-    location: user?.location || "",
+    location: user?.locationId || "",
     phoneNumber: user?.phoneNumber || "",
   });
 
   // Fetch organization roles to get role description
   const { data: roles, isLoading: isLoadingRoles } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/roles`],
-    enabled: !!user?.organizationId,
+    queryKey: ["/api/organizations", user?.organizationId, "roles"],
+    queryFn: async () => {
+      const response = await fetch(`/api/organizations/${user?.organizationId}/roles`, {
+        headers: { Accept: 'application/json' },
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch roles');
+      return response.json();
+    },
+    enabled: !!user?.organizationId && !!user?.roleId,
   });
 
   if (!user) return null;
 
   // Get role description from the roles data
   const userRole = roles?.find(role => role.id === user.roleId);
-  const roleDisplay = isLoadingRoles 
-    ? "Loading..." 
-    : userRole 
-      ? `${userRole.role} - ${userRole.description}` 
-      : "Role not assigned";
 
   // Safely handle null values for fullName
   const firstName = user.fullName?.split(' ')[0] || user.username;
@@ -76,6 +79,7 @@ export function UserProfile() {
               {user.avatarUrl ? (
                 <AvatarImage 
                   src={`${user.avatarUrl}?${Date.now()}`}
+                  alt={displayName}
                   onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
                     const img = e.target as HTMLImageElement;
                     img.style.display = 'none';
@@ -199,8 +203,10 @@ export function UserProfile() {
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
                       Loading...
                     </span>
+                  ) : userRole ? (
+                    `${userRole.role} - ${userRole.description}`
                   ) : (
-                    roleDisplay
+                    'Unknown Role'
                   )}
                 </p>
               </div>

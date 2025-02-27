@@ -15,7 +15,15 @@ export function UserProfile() {
 
   // Fetch organization roles to get role description
   const { data: roles, isLoading: isLoadingRoles } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/roles`],
+    queryKey: ["/api/organizations", user?.organizationId, "roles"],
+    queryFn: async () => {
+      const response = await fetch(`/api/organizations/${user?.organizationId}/roles`, {
+        headers: { Accept: 'application/json' },
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch roles');
+      return response.json();
+    },
     enabled: !!user?.organizationId && !!user?.roleId,
   });
 
@@ -45,7 +53,7 @@ export function UserProfile() {
             ) : userRole ? (
               userRole.role
             ) : (
-              "Loading..."
+              'Unknown Role'
             )}
           </span>
           <span className="font-semibold text-[15px] leading-tight">{displayName}</span>
