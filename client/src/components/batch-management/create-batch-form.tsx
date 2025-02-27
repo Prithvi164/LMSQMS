@@ -34,6 +34,41 @@ import {
 } from "@/components/ui/popover";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+interface CurrentUser {
+  id: number;
+  organizationId: number;
+  role: string;
+}
+
+interface Process {
+  id: number;
+  name: string;
+  lineOfBusiness: string;
+  inductionDays: number;
+  trainingDays: number;
+  certificationDays: number;
+}
+
+interface Trainer {
+  id: number;
+  name: string;
+  managerId?: number;
+  manager?: {
+    id: number;
+    name: string;
+  };
+}
+
+interface Location {
+  id: number;
+  name: string;
+}
+
+interface Settings {
+  processes: Process[];
+  locations: Location[];
+}
+
 const formSchema = z.object({
   name: z.string().min(1, "Batch name is required"),
   lineOfBusiness: z.string().min(1, "Line of Business is required"),
@@ -67,7 +102,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
   const [filteredProcesses, setFilteredProcesses] = useState<Process[]>([]);
 
   // First, get the current user's organization ID
-  const { data: currentUser } = useQuery({
+  const { data: currentUser } = useQuery<CurrentUser>({
     queryKey: ['/api/user'],
     retry: false
   });
@@ -77,7 +112,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     data: settings,
     isLoading: isSettingsLoading,
     error: settingsError
-  } = useQuery({
+  } = useQuery<Settings>({
     queryKey: [`/api/organizations/${currentUser?.organizationId}/settings`],
     enabled: !!currentUser?.organizationId,
     staleTime: 1000 * 60 * 5,
@@ -90,7 +125,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     data: trainers = [],
     isLoading: isTrainersLoading,
     error: trainersError
-  } = useQuery({
+  } = useQuery<Trainer[]>({
     queryKey: ['/api/users'],
     enabled: !!currentUser?.organizationId,
     staleTime: 1000 * 60 * 5,
@@ -98,18 +133,15 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     retry: 1,
     select: (data: any[]) => {
       console.log('All users data:', data);
-      const filtered = data?.filter(user => user.role === 'trainer').map(trainer => {
-        const manager = data.find(u => u.id === trainer.managerId);
-        return {
-          id: trainer.id,
-          name: trainer.full_name || trainer.username,
-          managerId: trainer.managerId,
-          manager: manager ? {
-            id: manager.id,
-            name: manager.full_name || manager.username
-          } : undefined
-        };
-      }) || [];
+      const filtered = data?.filter(user => user.role === 'trainer').map(trainer => ({
+        id: trainer.id,
+        name: trainer.full_name || trainer.username,
+        managerId: trainer.managerId,
+        manager: trainer.managerId ? {
+          id: trainer.managerId,
+          name: data.find(u => u.id === trainer.managerId)?.full_name || data.find(u => u.id === trainer.managerId)?.username
+        } : undefined
+      }));
       console.log('Filtered and mapped trainers with managers:', filtered);
       return filtered;
     }
@@ -141,7 +173,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     const selectedLOB = form.watch('lineOfBusiness');
     if (selectedLOB && settings?.processes) {
       const filtered = settings.processes.filter(
-        (process) => process.lineOfBusiness === selectedLOB
+        (process: Process) => process.lineOfBusiness === selectedLOB
       );
       setFilteredProcesses(filtered);
       form.setValue('processId', '');
@@ -179,7 +211,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     mutationFn: async (values: BatchFormValues) => {
       const formatDate = (date: Date | undefined) => {
         if (!date) return undefined;
-        return format(date, "yyyy-MM-dd");  // Changed to use only date portion
+        return format(date, "yyyy-MM-dd");
       };
 
       if (!currentUser?.organizationId) {
@@ -241,6 +273,14 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     },
   });
 
+  const onSubmit = async (data: BatchFormValues) => {
+    try {
+      await createBatchMutation.mutateAsync(data);
+    } catch (error) {
+      console.error("Error creating batch:", error);
+    }
+  };
+
   // Show loading state while waiting for user data
   if (!currentUser) {
     return (
@@ -290,15 +330,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     );
   }
 
-  const uniqueLOBs = Array.from(new Set(settings.processes.map(p => p.lineOfBusiness)));
-
-  const onSubmit = async (data: BatchFormValues) => {
-    try {
-      await createBatchMutation.mutateAsync(data);
-    } catch (error) {
-      console.error("Error creating batch:", error);
-    }
-  };
+  const uniqueLOBs = Array.from(new Set(settings.processes.map((p: Process) => p.lineOfBusiness)));
 
   return (
     <Form {...form}>
@@ -342,7 +374,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {uniqueLOBs.map((lob) => (
+                        {uniqueLOBs.map((lob: string) => (
                           <SelectItem key={lob} value={lob}>
                             {lob}
                           </SelectItem>
@@ -375,7 +407,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {filteredProcesses.map((process) => (
+                        {filteredProcesses.map((process: Process) => (
                           <SelectItem key={process.id} value={process.id.toString()}>
                             {process.name}
                           </SelectItem>
@@ -407,7 +439,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {trainers.map((trainer) => (
+                        {trainers.map((trainer: Trainer) => (
                           <SelectItem key={trainer.id} value={trainer.id.toString()}>
                             {trainer.name}
                           </SelectItem>
@@ -466,7 +498,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {settings.locations?.map((location) => (
+                        {settings.locations?.map((location: Location) => (
                           <SelectItem key={location.id} value={location.id.toString()}>
                             {location.name}
                           </SelectItem>
@@ -648,33 +680,4 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
       </form>
     </Form>
   );
-}
-
-interface Process {
-  id: number;
-  name: string;
-  lineOfBusiness: string;
-  inductionDays: number;
-  trainingDays: number;
-  certificationDays: number;
-}
-
-interface Trainer {
-  id: number;
-  name: string;
-  managerId: number;
-  manager?: {
-    id: number;
-    name: string;
-  };
-}
-
-interface Location {
-  id: number;
-  name: string;
-}
-
-interface Settings {
-  processes: Process[];
-  locations: Location[];
 }
