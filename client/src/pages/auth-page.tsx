@@ -12,6 +12,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { z } from "zod";
+
+// Define proper types for login and registration
+interface LoginCredentials {
+  username: string;
+  password: string;
+}
+
+interface RegistrationData extends LoginCredentials {
+  email: string;
+  organizationName: string;
+}
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -47,19 +59,20 @@ export default function AuthPage() {
     }
 
     try {
-      const credentials = {
-        username: formData.get("email") as string,
-        password: formData.get("password") as string,
-      };
-
       if (isLogin) {
-        await login(credentials);
+        const loginData: LoginCredentials = {
+          username: formData.get("username") as string,
+          password: formData.get("password") as string,
+        };
+        await login(loginData);
       } else {
-        await register({
-          ...credentials,
+        const registrationData: RegistrationData = {
+          username: formData.get("username") as string,
+          password: formData.get("password") as string,
           email: formData.get("email") as string,
           organizationName: formData.get("organizationName") as string,
-        });
+        };
+        await register(registrationData);
       }
       navigate("/");
     } catch (error: any) {
@@ -108,16 +121,29 @@ export default function AuthPage() {
                     </div>
                   </>
                 )}
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input 
-                    id="email" 
-                    name="email" 
-                    type="email"
-                    required 
-                    placeholder={isLogin ? "Enter your email" : "Enter your work email"}
-                  />
-                </div>
+                {isLogin && (
+                  <div>
+                    <Label htmlFor="username">Username</Label>
+                    <Input 
+                      id="username" 
+                      name="username" 
+                      required 
+                      placeholder="Enter your username"
+                    />
+                  </div>
+                )}
+                {!isLogin && (
+                  <div>
+                    <Label htmlFor="email">Email</Label>
+                    <Input 
+                      id="email" 
+                      name="email" 
+                      type="email"
+                      required 
+                      placeholder="Enter your work email"
+                    />
+                  </div>
+                )}
                 <div>
                   <Label htmlFor="password">Password</Label>
                   <Input 

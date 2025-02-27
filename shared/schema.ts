@@ -3,20 +3,19 @@ import { createInsertSchema } from "drizzle-zod";
 import { relations, type InferSelectModel } from "drizzle-orm";
 import { z } from "zod";
 
-// Role enum - update to include owner
+// Role enum and permission enum remain unchanged
 export const roleEnum = pgEnum('role', [
-  'owner',     // Highest authority, overall decision-making
-  'admin',     // Administrative tasks, system management
-  'manager',   // Oversees teams
-  'team_lead', // Supervises smaller teams under manager
-  'trainer',   // Responsible for training
-  'trainee',   // Employee under training
-  'advisor'    // Senior employee providing expertise
+  'owner',     
+  'admin',     
+  'manager',   
+  'team_lead', 
+  'trainer',   
+  'trainee',   
+  'advisor'    
 ]);
 
-// Define permissions enum for different features
 export const permissionEnum = pgEnum('permission', [
-  // Owner Management
+  // Permissions remain unchanged
   'manage_billing',
   'manage_subscription',
   'create_admin',
@@ -57,16 +56,17 @@ export const permissionEnum = pgEnum('permission', [
   'export_reports'
 ]);
 
-// Batch status enum
+// Batch status enum remains unchanged
 export const batchStatusEnum = pgEnum('batch_status', ['planned', 'ongoing', 'completed', 'cancelled']);
 
-// Organizations table - base table
+// Organizations table
 export const organizations = pgTable("organizations", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Export organization type only once
 export type Organization = InferSelectModel<typeof organizations>;
 
 // Organization Processes table with unique name constraint
@@ -418,7 +418,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   // Add new relations
   managedProcesses: many(userProcesses),
   managedBatches: many(userBatches),
-}));
+})) as const;
 
 export const userProcessesRelations = relations(userProcesses, ({ one }) => ({
   user: one(users, {
@@ -475,6 +475,7 @@ export const insertOrganizationProcessSchema = createInsertSchema(organizationPr
     ojtCertificationDays: z.number().min(0, "OJT certification days cannot be negative"),
     lineOfBusiness: z.string().min(1, "Line of business is required"),
     locationId: z.number().min(1, "Location is required"),
+    organizationId: z.number().int().positive("Organization is required"),
   });
 
 // Update insert schema to handle unique constraint error
@@ -489,6 +490,7 @@ export const insertOrganizationLocationSchema = createInsertSchema(organizationL
     city: z.string().min(1, "City is required"),
     state: z.string().min(1, "State is required"),
     country: z.string().min(1, "Country is required"),
+    organizationId: z.number().int().positive("Organization is required"),
   });
 
 export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organizationLineOfBusinesses)
@@ -499,6 +501,7 @@ export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organiz
   .extend({
     name: z.string().min(1, "LOB name is required"),
     description: z.string().min(1, "Description is required"),
+    organizationId: z.number().int().positive("Organization is required"),
   });
 
 export type InsertOrganizationLineOfBusiness = z.infer<typeof insertOrganizationLineOfBusinessSchema>;
@@ -515,24 +518,18 @@ export const insertUserSchema = createInsertSchema(users)
     dateOfBirth: z.string().optional(),
     education: z.string().optional(),
     certified: z.boolean().default(false),
+    active: z.boolean().default(true),
   });
 export const insertCourseSchema = createInsertSchema(courses);
 export const insertLearningPathSchema = createInsertSchema(learningPaths);
 export const insertUserProgressSchema = createInsertSchema(userProgress);
 
-// Export types for new tables
-export type OrganizationProcess = InferSelectModel<typeof organizationProcesses>;
-export type InsertOrganizationProcess = z.infer<typeof insertOrganizationProcessSchema>;
-
-
-export type OrganizationLocation = InferSelectModel<typeof organizationLocations>;
-export type InsertOrganizationLocation = z.infer<typeof insertOrganizationLocationSchema>;
-
-// Export types
-export type Organization = InferSelectModel<typeof organizations>;
-export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
+// Export types with proper typing
 export type User = InferSelectModel<typeof users>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type OrganizationProcess = InferSelectModel<typeof organizationProcesses>;
+export type OrganizationLocation = InferSelectModel<typeof organizationLocations>;
+export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
 export type Course = InferSelectModel<typeof courses>;
 export type InsertCourse = z.infer<typeof insertCourseSchema>;
 export type LearningPath = InferSelectModel<typeof learningPaths>;
