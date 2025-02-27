@@ -485,129 +485,145 @@ export function ProcessDetail() {
         </CardContent>
       </Card>
 
-      <Card className="mt-6">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <UsersIcon className="h-5 w-5 text-muted-foreground" />
-              <h2 className="text-xl font-semibold">Process Users</h2>
-            </div>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Assign Users
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[600px]">
-                <DialogHeader>
-                  <DialogTitle>Assign Users to Process</DialogTitle>
-                  <DialogDescription>
-                    Select users to assign to this process. Only users with appropriate roles can be assigned.
-                  </DialogDescription>
-                </DialogHeader>
+      {selectedProcess && (
+        <Card className="mt-6">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <UsersIcon className="h-5 w-5 text-muted-foreground" />
+                <h2 className="text-xl font-semibold">Users in {selectedProcess.name}</h2>
+              </div>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Assign Users
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[600px]">
+                  <DialogHeader>
+                    <DialogTitle>Assign Users to {selectedProcess.name}</DialogTitle>
+                    <DialogDescription>
+                      Select users to assign to this process. Only users with appropriate roles can be assigned.
+                    </DialogDescription>
+                  </DialogHeader>
 
-                <ScrollArea className="h-[300px] w-full rounded-md border p-4">
-                  <div className="space-y-4">
-                    {users?.map((user:any) => {
-                      // Only show users that can be assigned to processes (e.g., trainers, trainees)
-                      if (!["trainer", "trainee", "team_lead"].includes(user.role)) return null;
+                  <ScrollArea className="h-[300px] w-full rounded-md border p-4">
+                    <div className="space-y-4">
+                      {users?.map((user) => {
+                        // Only show users that can be assigned to processes
+                        if (!["trainer", "trainee", "team_lead"].includes(user.role)) return null;
 
-                      const isAssigned = user.processId === selectedProcess?.id;
+                        // Check if user is assigned to this process using the junction table
+                        const isAssigned = user.managedProcesses?.some(
+                          (up) => up.processId === selectedProcess.id
+                        );
 
-                      return (
-                        <div
-                          key={user.id}
-                          className="flex items-center justify-between p-2 hover:bg-accent rounded-lg"
-                        >
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-9 w-9">
-                              <AvatarFallback>
-                                {user.fullName?.[0] || user.username[0]}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="font-medium">{user.fullName || user.username}</p>
-                              <p className="text-sm text-muted-foreground">
-                                <Badge variant="outline" className="mr-2">
-                                  {user.role}
-                                </Badge>
-                                {user.employeeId}
-                              </p>
-                            </div>
-                          </div>
-                          <Button
-                            variant={isAssigned ? "destructive" : "outline"}
-                            size="sm"
-                            onClick={async () => {
-                              try {
-                                if (isAssigned) {
-                                  await apiRequest(
-                                    "DELETE",
-                                    `/api/organizations/${organization?.id}/processes/${selectedProcess?.id}/users/${user.id}`
-                                  );
-                                } else {
-                                  await apiRequest(
-                                    "POST",
-                                    `/api/organizations/${organization?.id}/processes/${selectedProcess?.id}/users`,
-                                    { userId: user.id }
-                                  );
-                                }
-
-                                queryClient.invalidateQueries({
-                                  queryKey: [`/api/organizations/${organization?.id}/settings`]
-                                });
-
-                                toast({
-                                  title: "Success",
-                                  description: `User ${isAssigned ? "removed from" : "assigned to"} process successfully`,
-                                });
-                              } catch (error) {
-                                toast({
-                                  title: "Error",
-                                  description: "Failed to update user assignment",
-                                  variant: "destructive",
-                                });
-                              }
-                            }}
+                        return (
+                          <div
+                            key={user.id}
+                            className="flex items-center justify-between p-2 hover:bg-accent rounded-lg"
                           >
-                            {isAssigned ? "Remove" : "Assign"}
-                          </Button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </ScrollArea>
-              </DialogContent>
-            </Dialog>
-          </div>
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-9 w-9">
+                                <AvatarFallback>
+                                  {user.fullName?.[0] || user.username[0]}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="font-medium">{user.fullName || user.username}</p>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline">{user.role}</Badge>
+                                  {user.employeeId && (
+                                    <span className="text-xs text-muted-foreground">
+                                      ID: {user.employeeId}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <Button
+                              variant={isAssigned ? "destructive" : "outline"}
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  if (isAssigned) {
+                                    // Remove user from process
+                                    await apiRequest(
+                                      "DELETE",
+                                      `/api/organizations/${organization?.id}/processes/${selectedProcess.id}/users/${user.id}`
+                                    );
+                                  } else {
+                                    // Assign user to process
+                                    await apiRequest(
+                                      "POST",
+                                      `/api/organizations/${organization?.id}/processes/${selectedProcess.id}/users`,
+                                      { userId: user.id }
+                                    );
+                                  }
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {users?.filter(user => user.processId === selectedProcess?.id).map((user:any) => (
-              <Card key={user.id} className="bg-muted/50">
-                <CardContent className="flex items-center gap-4 p-4">
-                  <Avatar className="h-10 w-10">
-                    <AvatarFallback>
-                      {user.fullName?.[0] || user.username[0]}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium">{user.fullName || user.username}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="outline">{user.role}</Badge>
-                      {user.employeeId && (
-                        <span className="text-xs text-muted-foreground">
-                          ID: {user.employeeId}
-                        </span>
-                      )}
+                                  queryClient.invalidateQueries({
+                                    queryKey: [`/api/organizations/${organization?.id}/settings`]
+                                  });
+
+                                  toast({
+                                    title: "Success",
+                                    description: `User ${isAssigned ? "removed from" : "assigned to"} process successfully`,
+                                  });
+                                } catch (error) {
+                                  toast({
+                                    title: "Error",
+                                    description: "Failed to update user assignment",
+                                    variant: "destructive",
+                                  });
+                                }
+                              }}
+                            >
+                              {isAssigned ? "Remove" : "Assign"}
+                            </Button>
+                          </div>
+                        );
+                      })}
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+                  </ScrollArea>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {users
+                ?.filter((user) =>
+                  user.managedProcesses?.some((up) => up.processId === selectedProcess.id)
+                )
+                .map((user) => (
+                  <Card key={user.id} className="bg-muted/50">
+                    <CardContent className="flex items-center gap-4 p-4">
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback>
+                          {user.fullName?.[0] || user.username[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{user.fullName || user.username}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="outline">{user.role}</Badge>
+                          {user.employeeId && (
+                            <span className="text-xs text-muted-foreground">
+                              ID: {user.employeeId}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          {user.email}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent className="max-w-md">
