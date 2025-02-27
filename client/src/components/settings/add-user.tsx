@@ -6,21 +6,24 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Download, Upload } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import type { User, Organization, OrganizationLocation, OrganizationRole } from "@shared/schema";
+import type { User, Organization, OrganizationLocation } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { useAuth } from "@/hooks/use-auth";
 
 interface AddUserProps {
-  //users: User[];
-  //user: User;
-  //organization: Organization | undefined;
-  //potentialManagers: User[];
+  users: User[];
+  user: User;
+  organization: Organization | undefined;
+  potentialManagers: User[];
 }
 
-export function AddUser(): JSX.Element {
-  const { user } = useAuth();
+export function AddUser({
+  users,
+  user,
+  organization,
+  potentialManagers,
+}: AddUserProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [newUserData, setNewUserData] = useState({
@@ -28,7 +31,7 @@ export function AddUser(): JSX.Element {
     password: "",
     fullName: "",
     employeeId: "",
-    roleId: "", 
+    role: "trainee",
     locationId: "none",
     email: "",
     phoneNumber: "",
@@ -38,10 +41,10 @@ export function AddUser(): JSX.Element {
     managerId: "none",
   });
 
-  // Fetch organization roles
-  const { data: roles = [] } = useQuery<OrganizationRole[]>({
-    queryKey: [`/api/organizations/${user?.organizationId}/roles`],
-    enabled: !!user?.organizationId,
+  // Fetch organization settings
+  const { data: orgSettings, isLoading } = useQuery({
+    queryKey: [`/api/organizations/${organization?.id}/settings`],
+    enabled: !!organization?.id,
   });
 
   const createUserMutation = useMutation({
@@ -51,8 +54,7 @@ export function AddUser(): JSX.Element {
           ...data,
           locationId: data.locationId === "none" ? null : Number(data.locationId),
           managerId: data.managerId === "none" ? null : Number(data.managerId),
-          organizationId: user?.organizationId || null,
-          roleId: Number(data.roleId), 
+          organizationId: organization?.id || null,
         };
 
         const response = await apiRequest("POST", "/api/users", payload);
@@ -76,7 +78,7 @@ export function AddUser(): JSX.Element {
         password: "",
         fullName: "",
         employeeId: "",
-        roleId: "",
+        role: "trainee",
         locationId: "none",
         email: "",
         phoneNumber: "",
@@ -95,31 +97,54 @@ export function AddUser(): JSX.Element {
     },
   });
 
-  // Filter available roles based on current user's role
-  const getAvailableRoles = () => {
-    const currentUserRole = roles.find(r => r.id === user?.roleId);
-    if (!currentUserRole) return [];
+  const uploadUsersMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await apiRequest("POST", "/api/users/upload", formData);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Upload Complete",
+        description: `Successfully added ${data.success} users. ${data.failures.length > 0 ?
+          `Failed to add ${data.failures.length} users.` : ''}`,
+        variant: data.failures.length > 0 ? "destructive" : "default"
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Upload Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
 
-    switch (currentUserRole.role) {
-      case 'owner':
-        return roles.filter(r => r.role !== 'owner');
-      case 'admin':
-        return roles.filter(r => !['owner', 'admin'].includes(r.role));
+  // Get filtered managers based on role
+  const getFilteredManagers = (selectedRole: string) => {
+    if (!potentialManagers) return [];
+
+    switch (selectedRole) {
+      case "admin":
+        return potentialManagers.filter(m => m.role === "owner");
+      case "manager":
+        return potentialManagers.filter(m => ["owner", "admin"].includes(m.role));
+      case "team_lead":
+        return potentialManagers.filter(m => ["owner", "admin", "manager"].includes(m.role));
+      case "trainer":
+        return potentialManagers.filter(m => ["owner", "admin", "manager", "team_lead"].includes(m.role));
+      case "trainee":
+        return potentialManagers.filter(m => ["owner", "admin", "manager", "team_lead", "trainer"].includes(m.role));
+      case "advisor":
+        return potentialManagers.filter(m => ["owner", "admin", "manager", "team_lead"].includes(m.role));
       default:
-        return roles.filter(r => r.role === 'trainee');
+        return [];
     }
   };
 
-  // Get filtered managers based on role.  This section needs significant modification to work without props.  It will likely require an additional API call or a different approach to get potential managers.
-  const getFilteredManagers = (selectedRoleId: string) => {
-    if (!roles || !user?.organizationId) return [];
-
-    // Placeholder - needs implementation to fetch potential managers based on organizationId and selectedRoleId
-    return [];
-  };
-
-
-  if (!user?.organizationId || !roles) {
+  if (!organization || isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
         <p>Loading organization settings...</p>
@@ -132,8 +157,11 @@ export function AddUser(): JSX.Element {
       <CardHeader>
         <CardTitle>Add New User</CardTitle>
         <CardDescription>
-          {/*This section needs modification to adjust the description based on the user's role.  It currently relies on currentUserRole which is not directly available without props */}
-          Add New User
+          {user.role === "owner"
+            ? "Create new administrators for your organization"
+            : user.role === "admin"
+            ? "Create new managers, trainers, or trainees for your organization"
+            : "Create new trainee accounts"}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -162,11 +190,16 @@ export function AddUser(): JSX.Element {
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) {
-                  // Handle file upload
+                  uploadUsersMutation.mutate(file);
                 }
               }}
             />
           </div>
+          {uploadUsersMutation.isPending && (
+            <div className="flex items-center justify-center p-4">
+              <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
+            </div>
+          )}
         </div>
         <Separator className="my-6" />
         <div>
@@ -217,30 +250,6 @@ export function AddUser(): JSX.Element {
                 />
               </div>
               <div>
-                <Label htmlFor="roleId">Role</Label>
-                <Select
-                  value={newUserData.roleId}
-                  onValueChange={(value) => {
-                    setNewUserData(prev => ({
-                      ...prev,
-                      roleId: value,
-                      managerId: "none" 
-                    }));
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getAvailableRoles().map((role) => (
-                      <SelectItem key={role.id} value={role.id.toString()}>
-                        {role.role} - {role.description}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
                 <Label htmlFor="managerId">Reporting Manager</Label>
                 <Select
                   value={newUserData.managerId}
@@ -254,16 +263,56 @@ export function AddUser(): JSX.Element {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">No Manager</SelectItem>
-                    {getFilteredManagers(newUserData.roleId).map((manager) => (
+                    {getFilteredManagers(newUserData.role).map((manager) => (
                       <SelectItem key={manager.id} value={manager.id.toString()}>
                         {manager.fullName || manager.username}
                         {" "}
-                        <span className="text-muted-foreground">
-                          {/*This section needs to be fixed to handle the case where roles might be undefined or not found.*/}
-                          {roles.find(r => r.id === manager.roleId)?.role}
-                        </span>
+                        <span className="text-muted-foreground">({manager.role})</span>
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {newUserData.role && getFilteredManagers(newUserData.role).length === 0 && 
+                    "No eligible managers available for the selected role"}
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="role">Role</Label>
+                <Select
+                  value={newUserData.role}
+                  onValueChange={(value) => {
+                    setNewUserData(prev => ({
+                      ...prev,
+                      role: value,
+                      managerId: "none"
+                    }));
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {user.role === "owner" ? (
+                      <>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="manager">Manager</SelectItem>
+                        <SelectItem value="team_lead">Team Lead</SelectItem>
+                        <SelectItem value="trainer">Trainer</SelectItem>
+                        <SelectItem value="trainee">Trainee</SelectItem>
+                        <SelectItem value="advisor">Advisor</SelectItem>
+                      </>
+                    ) : user.role === "admin" ? (
+                      <>
+                        <SelectItem value="manager">Manager</SelectItem>
+                        <SelectItem value="team_lead">Team Lead</SelectItem>
+                        <SelectItem value="trainer">Trainer</SelectItem>
+                        <SelectItem value="trainee">Trainee</SelectItem>
+                        <SelectItem value="advisor">Advisor</SelectItem>
+                      </>
+                    ) : (
+                      <SelectItem value="trainee">Trainee</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -281,8 +330,12 @@ export function AddUser(): JSX.Element {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">No Location</SelectItem>
-                    {/*This section needs to be fixed. It requires a proper implementation to fetch location data. */}
-                    </SelectContent>
+                    {orgSettings?.locations?.map((location: OrganizationLocation) => (
+                      <SelectItem key={location.id} value={location.id.toString()}>
+                        {location.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
               </div>
               <div>
