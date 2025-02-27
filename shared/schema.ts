@@ -87,6 +87,12 @@ export const organizationProcesses = pgTable("organization_processes", {
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
+  // Add new fields
+  userId: integer("user_id")
+    .references(() => users.id),
+  role: roleEnum("role"),
+  locationId: integer("location_id")
+    .references(() => organizationLocations.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -490,6 +496,10 @@ export const insertOrganizationProcessSchema = createInsertSchema(organizationPr
     ojtCertificationDays: z.number().min(0, "OJT certification days cannot be negative"),
     lineOfBusinessId: z.number().int().positive("Line of Business is required"),
     organizationId: z.number().int().positive("Organization is required"),
+    // Add validation for new fields
+    userId: z.number().int().optional(),
+    role: z.enum(['owner', 'admin', 'manager', 'team_lead', 'trainer', 'trainee', 'advisor']).optional(),
+    locationId: z.number().int().optional(),
   });
 
 // Update insert schema to handle unique constraint error
