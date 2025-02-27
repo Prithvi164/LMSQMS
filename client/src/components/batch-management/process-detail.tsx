@@ -33,16 +33,22 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  Check,
+  ChevronsUpDown,
+  Plus,
+  Loader2,
+  Pencil,
+  Trash2,
+  Search,
+  Settings,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Command,
   CommandEmpty,
@@ -55,25 +61,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
-  Check,
-  ChevronsUpDown,
-  Plus,
-  Loader2,
-  Pencil,
-  Trash2,
-  Search,
-  Download,
-  FileDown,
-  Settings,
-  Users as UsersIcon
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 // Schema for process form with user selection
 const processFormSchema = z.object({
@@ -86,6 +73,7 @@ const processFormSchema = z.object({
   lineOfBusinessId: z.string().min(1, "Line of business is required"),
   locationId: z.string().min(1, "Location is required"),
   selectedRole: z.string().min(1, "Role selection is required"),
+  selectedLocation: z.string().optional(),
   userIds: z.array(z.string()).optional(),
 });
 
@@ -101,6 +89,7 @@ export function ProcessDetail() {
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [userComboOpen, setUserComboOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string>("all");
+  const [selectedLocation, setSelectedLocation] = useState<string>("all");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -121,25 +110,44 @@ export function ProcessDetail() {
     enabled: !!organization?.id,
   });
 
-  // Get filtered users based on role
-  const getFilteredUsers = (role: string) => {
+  // Get filtered users based on role and location
+  const getFilteredUsers = (role: string, locationId: string) => {
     if (!orgSettings?.users) return [];
-    return orgSettings.users.filter(u =>
-      role === "all" ? ["trainer", "trainee", "team_lead"].includes(u.role) : u.role === role
-    );
+
+    return orgSettings.users.filter(u => {
+      const roleMatch = role === "all" ? 
+        ["trainer", "trainee", "team_lead"].includes(u.role) : 
+        u.role === role;
+
+      const locationMatch = locationId === "all" ? 
+        true : 
+        u.locationId?.toString() === locationId;
+
+      return roleMatch && locationMatch;
+    });
   };
 
   const availableRoles = ["all", "trainer", "trainee", "team_lead"];
 
-  // Get user details
+  // Get location name
+  const getLocationName = (locationId: number | null) => {
+    if (!locationId || !orgSettings?.locations) return "No Location";
+    const location = orgSettings.locations.find(l => l.id === locationId);
+    return location ? location.name : "Unknown Location";
+  };
+
+  // Get user details with all necessary information
   const getUserDetails = (userId: number) => {
     const foundUser = orgSettings?.users?.find(u => u.id === userId);
-    return foundUser ? {
+    if (!foundUser) return null;
+
+    return {
       name: foundUser.fullName || foundUser.username,
       role: foundUser.role,
       employeeId: foundUser.employeeId,
-      email: foundUser.email
-    } : null;
+      email: foundUser.email,
+      location: getLocationName(foundUser.locationId),
+    };
   };
 
   const form = useForm<z.infer<typeof processFormSchema>>({
@@ -154,6 +162,7 @@ export function ProcessDetail() {
       lineOfBusinessId: "",
       locationId: "",
       selectedRole: "all",
+      selectedLocation: "all",
       userIds: [],
     },
   });
@@ -170,6 +179,7 @@ export function ProcessDetail() {
       lineOfBusinessId: "",
       locationId: "",
       selectedRole: "all",
+      selectedLocation: "all",
       userIds: [],
     },
   });
@@ -354,6 +364,7 @@ export function ProcessDetail() {
       ojtCertificationDays: process.ojtCertificationDays,
       userIds: process.userIds || [],
       selectedRole: "all",
+      selectedLocation: "all",
     });
     setIsEditDialogOpen(true);
   };
@@ -545,6 +556,23 @@ export function ProcessDetail() {
                   {/* User Assignment Content */}
                   <div className="grid gap-4">
                     <Select
+                      value={selectedLocation}
+                      onValueChange={setSelectedLocation}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select location to filter" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Locations</SelectItem>
+                        {orgSettings?.locations?.map((location) => (
+                          <SelectItem key={location.id} value={location.id.toString()}>
+                            {location.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select
                       value={selectedRole}
                       onValueChange={setSelectedRole}
                     >
@@ -561,7 +589,7 @@ export function ProcessDetail() {
                     </Select>
 
                     <ScrollArea className="h-[300px]">
-                      {getFilteredUsers(selectedRole).map((user) => {
+                      {getFilteredUsers(selectedRole, selectedLocation).map((user) => {
                         const isAssigned = selectedProcess.users?.includes(user.id);
                         return (
                           <div
@@ -583,6 +611,9 @@ export function ProcessDetail() {
                                       ID: {user.employeeId}
                                     </span>
                                   )}
+                                  <span className="text-xs text-muted-foreground">
+                                      Location: {getLocationName(user.locationId)}
+                                    </span>
                                 </div>
                               </div>
                             </div>
@@ -654,6 +685,9 @@ export function ProcessDetail() {
                               ID: {userDetails.employeeId}
                             </span>
                           )}
+                          <span className="text-xs text-muted-foreground">
+                            Location: {userDetails.location}
+                          </span>
                         </div>
                         <div className="text-sm text-muted-foreground mt-1">
                           {userDetails.email}
@@ -741,7 +775,38 @@ export function ProcessDetail() {
                     </FormItem>
                   )}
                 />
-                {/* Add Role Selection First */}
+                <FormField
+                  control={form.control}
+                  name="selectedLocation"
+                  render={({ field }) => (
+                    <FormItem className="col-span-2">
+                      <FormLabel>Filter by Location</FormLabel>
+                      <Select
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          setSelectedLocation(value);
+                          setSelectedUsers([]); // Clear selected users when location changes
+                        }}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select location" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="all">All Locations</SelectItem>
+                          {orgSettings?.locations?.map((location) => (
+                            <SelectItem key={location.id} value={location.id.toString()}>
+                              {location.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name="selectedRole"
@@ -801,7 +866,7 @@ export function ProcessDetail() {
                               <CommandInput placeholder="Search users..." />
                               <CommandEmpty>No user found.</CommandEmpty>
                               <CommandGroup>
-                                {getFilteredUsers(selectedRole).map((user) => {
+                                {getFilteredUsers(selectedRole, selectedLocation).map((user) => {
                                   const isSelected = selectedUsers.includes(user.id.toString());
                                   return (
                                     <CommandItem
@@ -824,12 +889,18 @@ export function ProcessDetail() {
                                         </Avatar>
                                         <div className="flex flex-col">
                                           <span className="font-medium">{user.fullName || user.username}</span>
-                                          <span className="text-xs text-muted-foreground">{user.email}</span>
+                                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                            <span>{user.email}</span>
+                                            {user.employeeId && <span>({user.employeeId})</span>}
+                                          </div>
                                         </div>
                                       </div>
                                       <div className="flex items-center gap-2">
                                         <Badge variant="outline" className="text-xs">
                                           {user.role}
+                                        </Badge>
+                                        <Badge variant="secondary" className="text-xs">
+                                          {getLocationName(user.locationId)}
                                         </Badge>
                                         <Check
                                           className={cn(
@@ -857,8 +928,8 @@ export function ProcessDetail() {
                     <Label className="text-sm font-medium">Selected Users</Label>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {selectedUsers.map(id => {
-                        const user = orgSettings?.users?.find(u => u.id.toString() === id);
-                        if (!user) return null;
+                        const userDetails = getUserDetails(parseInt(id));
+                        if (!userDetails) return null;
                         return (
                           <Badge
                             key={id}
@@ -867,13 +938,21 @@ export function ProcessDetail() {
                           >
                             <Avatar className="h-5 w-5">
                               <AvatarFallback className="text-xs">
-                                {(user.fullName || user.username)[0].toUpperCase()}
+                                {(userDetails.name)[0].toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
-                            <span>{user.fullName || user.username}</span>
-                            <Badge variant="outline" className="ml-1 text-xs">
-                              {user.role}
-                            </Badge>
+                            <div className="flex flex-col">
+                              <span>{userDetails.name}</span>
+                              <div className="flex items-center gap-1 text-xs">
+                                <Badge variant="outline" className="text-xs">
+                                  {userDetails.role}
+                                </Badge>
+                                <span className="text-muted-foreground">
+                                  {userDetails.location}
+                                </span>
+                              </div>
+                            </div>
+                          `
                           </Badge>
                         );
                       })}
@@ -1103,7 +1182,38 @@ export function ProcessDetail() {
                     </FormItem>
                   )}
                 />
-                {/* Add Role Selection First */}
+                <FormField
+                  control={editForm.control}
+                  name="selectedLocation"
+                  render={({ field }) => (
+                    <FormItem className="col-span-2">
+                      <FormLabel>Filter by Location</FormLabel>
+                      <Select
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          setSelectedLocation(value);
+                          setSelectedUsers([]); // Clear selected users when location changes
+                        }}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select location" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="all">All Locations</SelectItem>
+                          {orgSettings?.locations?.map((location) => (
+                            <SelectItem key={location.id} value={location.id.toString()}>
+                              {location.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={editForm.control}
                   name="selectedRole"
@@ -1163,7 +1273,7 @@ export function ProcessDetail() {
                               <CommandInput placeholder="Search users..." />
                               <CommandEmpty>No user found.</CommandEmpty>
                               <CommandGroup>
-                                {getFilteredUsers(selectedRole).map((user) => {
+                                {getFilteredUsers(selectedRole, selectedLocation).map((user) => {
                                   const isSelected = selectedUsers.includes(user.id.toString());
                                   return (
                                     <CommandItem
@@ -1186,12 +1296,18 @@ export function ProcessDetail() {
                                         </Avatar>
                                         <div className="flex flex-col">
                                           <span className="font-medium">{user.fullName || user.username}</span>
-                                          <span className="text-xs text-muted-foreground">{user.email}</span>
+                                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                            <span>{user.email}</span>
+                                            {user.employeeId && <span>({user.employeeId})</span>}
+                                          </div>
                                         </div>
                                       </div>
                                       <div className="flex items-center gap-2">
                                         <Badge variant="outline" className="text-xs">
                                           {user.role}
+                                        </Badge>
+                                        <Badge variant="secondary" className="text-xs">
+                                          {getLocationName(user.locationId)}
                                         </Badge>
                                         <Check
                                           className={cn(
@@ -1213,14 +1329,14 @@ export function ProcessDetail() {
                   )}
                 />
 
-                {/* Display selected users */}
+                {/* Display selected users with detailed information */}
                 {selectedUsers.length > 0 && (
                   <div className="col-span-2">
                     <Label className="text-sm font-medium">Selected Users</Label>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {selectedUsers.map(id => {
-                        const user = orgSettings?.users?.find(u => u.id.toString() === id);
-                        if (!user) return null;
+                        const userDetails = getUserDetails(parseInt(id));
+                        if (!userDetails) return null;
                         return (
                           <Badge
                             key={id}
@@ -1229,13 +1345,20 @@ export function ProcessDetail() {
                           >
                             <Avatar className="h-5 w-5">
                               <AvatarFallback className="text-xs">
-                                {(user.fullName || user.username)[0].toUpperCase()}
+                                {userDetails.name[0].toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
-                            <span>{user.fullName || user.username}</span>
-                            <Badge variant="outline" className="ml-1 text-xs">
-                              {user.role}
-                            </Badge>
+                            <div className="flex flex-col">
+                              <span>{userDetails.name}</span>
+                              <div className="flex items-center gap-1 text-xs">
+                                <Badge variant="outline" className="text-xs">
+                                  {userDetails.role}
+                                </Badge>
+                                <span className="text-muted-foreground">
+                                  {userDetails.location}
+                                </span>
+                              </div>
+                            </div>
                           </Badge>
                         );
                       })}
