@@ -86,86 +86,46 @@ export function ProcessDetail() {
     },
   });
 
+  // Helper function to handle API requests
+  const fetchWithAuth = async (url: string) => {
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include' // Important for session cookies
+    });
+
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.statusText}`);
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('Invalid response format');
+    }
+
+    return response.json();
+  };
+
   // Fetch line of businesses
   const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery({
     queryKey: ['lineOfBusinesses', user?.organizationId],
-    queryFn: async () => {
-      try {
-        const response = await fetch(`/api/organizations/${user?.organizationId}/line-of-businesses`);
-        if (!response.ok) throw new Error('Failed to fetch line of businesses');
-        const data = await response.json();
-        console.log('Line of Business data:', data);
-        return data;
-      } catch (error) {
-        console.error('Line of Business error:', error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to load line of businesses",
-        });
-        return [];
-      }
-    },
+    queryFn: () => fetchWithAuth(`/api/organizations/${user?.organizationId}/line-of-businesses`),
     enabled: !!user?.organizationId,
   });
 
   // Fetch locations
   const { data: locations = [], isLoading: isLoadingLocations } = useQuery({
     queryKey: ['locations', user?.organizationId],
-    queryFn: async () => {
-      try {
-        const response = await fetch(`/api/organizations/${user?.organizationId}/locations`);
-        const text = await response.text(); // First get the response as text
-        console.log('Raw locations response:', text);
-
-        try {
-          const data = JSON.parse(text); // Try to parse it as JSON
-          console.log('Parsed locations data:', data);
-          return data;
-        } catch (e) {
-          console.error('JSON parse error:', e);
-          throw new Error('Invalid JSON response from locations endpoint');
-        }
-      } catch (error) {
-        console.error('Locations fetch error:', error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to load locations",
-        });
-        return [];
-      }
-    },
+    queryFn: () => fetchWithAuth(`/api/organizations/${user?.organizationId}/locations`),
     enabled: !!user?.organizationId,
   });
 
   // Fetch users
   const { data: users = [], isLoading: isLoadingUsers } = useQuery({
     queryKey: ['users', user?.organizationId],
-    queryFn: async () => {
-      try {
-        const response = await fetch(`/api/organizations/${user?.organizationId}/users`);
-        const text = await response.text(); // First get the response as text
-        console.log('Raw users response:', text);
-
-        try {
-          const data = JSON.parse(text); // Try to parse it as JSON
-          console.log('Parsed users data:', data);
-          return data;
-        } catch (e) {
-          console.error('JSON parse error:', e);
-          throw new Error('Invalid JSON response from users endpoint');
-        }
-      } catch (error) {
-        console.error('Users fetch error:', error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to load users",
-        });
-        return [];
-      }
-    },
+    queryFn: () => fetchWithAuth(`/api/organizations/${user?.organizationId}/users`),
     enabled: !!user?.organizationId,
   });
 
@@ -182,7 +142,11 @@ export function ProcessDetail() {
     mutationFn: async (data: z.infer<typeof processFormSchema>) => {
       const response = await fetch('/api/processes', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        credentials: 'include',
         body: JSON.stringify({
           ...data,
           organizationId: user?.organizationId,
