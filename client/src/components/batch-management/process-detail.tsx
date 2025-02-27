@@ -189,13 +189,6 @@ export function ProcessDetail() {
     });
   };
 
-  // Get location name helper
-  const getLocationName = (locationId: number | null) => {
-    if (!locationId || !orgSettings?.locations) return "";
-    const location = orgSettings.locations.find(l => l.id === locationId);
-    return location?.name || "";
-  };
-
   // Get unique roles from users table
   const getAvailableRoles = () => {
     if (!orgSettings?.users) return [];
@@ -203,13 +196,14 @@ export function ProcessDetail() {
     return Array.from(roles);
   };
 
-  // Get unique locations from users table via organisation_location
-  const getAvailableLocations = () => {
-    if (!orgSettings?.locations) return [];
-    return orgSettings.locations;
+  // Get location name helper
+  const getLocationName = (locationId: number | null) => {
+    if (!locationId || !orgSettings?.locations) return "";
+    const location = orgSettings.locations.find(l => l.id === locationId);
+    return location?.name || "";
   };
 
-  // Form rendering component
+  // Form rendering component for user selection
   const renderUserSelection = () => (
     <div className="space-y-4">
       {/* Location Selection */}
@@ -234,7 +228,7 @@ export function ProcessDetail() {
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                {getAvailableLocations().map((location) => (
+                {orgSettings?.locations?.map((location) => (
                   <SelectItem key={location.id} value={location.id.toString()}>
                     {location.name}
                   </SelectItem>
@@ -297,7 +291,7 @@ export function ProcessDetail() {
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
                         <AvatarFallback>
-                          {(user.username || "")[0]?.toUpperCase()}
+                          {user.username[0]?.toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div>
@@ -348,7 +342,7 @@ export function ProcessDetail() {
                 >
                   <Avatar className="h-4 w-4">
                     <AvatarFallback className="text-xs">
-                      {(user.username || "")[0]?.toUpperCase()}
+                      {user.username[0]?.toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <span>{user.username}</span>
