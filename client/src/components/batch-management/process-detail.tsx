@@ -38,6 +38,10 @@ interface User {
 interface Location {
   id: number;
   name: string;
+  address: string;
+  city: string;
+  state: string;
+  country: string;
 }
 
 interface LineOfBusiness {
@@ -82,17 +86,18 @@ export function ProcessDetail() {
     },
   });
 
-  // Query hooks with error handling
-  const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery({
+  // Fetch line of businesses
+  const { data: lineOfBusinesses = [] } = useQuery<LineOfBusiness[]>({
     queryKey: ['lineOfBusinesses', user?.organizationId],
     queryFn: async () => {
       try {
         const response = await fetch(`/api/organizations/${user?.organizationId}/line-of-businesses`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch line of businesses');
-        }
-        return response.json();
+        if (!response.ok) throw new Error('Failed to fetch line of businesses');
+        const data = await response.json();
+        console.log('Line of Business data:', data);
+        return data;
       } catch (error) {
+        console.error('Line of Business error:', error);
         toast({
           variant: "destructive",
           title: "Error",
@@ -104,16 +109,18 @@ export function ProcessDetail() {
     enabled: !!user?.organizationId,
   });
 
-  const { data: locations = [], isLoading: isLoadingLocations } = useQuery({
+  // Fetch locations with proper error handling
+  const { data: locations = [] } = useQuery<Location[]>({
     queryKey: ['locations', user?.organizationId],
     queryFn: async () => {
       try {
         const response = await fetch(`/api/organizations/${user?.organizationId}/locations`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch locations');
-        }
-        return response.json();
+        if (!response.ok) throw new Error('Failed to fetch locations');
+        const data = await response.json();
+        console.log('Locations data:', data);
+        return data;
       } catch (error) {
+        console.error('Locations error:', error);
         toast({
           variant: "destructive",
           title: "Error",
@@ -125,16 +132,18 @@ export function ProcessDetail() {
     enabled: !!user?.organizationId,
   });
 
-  const { data: users = [], isLoading: isLoadingUsers } = useQuery({
+  // Fetch users with proper error handling
+  const { data: users = [] } = useQuery<User[]>({
     queryKey: ['users', user?.organizationId],
     queryFn: async () => {
       try {
         const response = await fetch(`/api/organizations/${user?.organizationId}/users`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch users');
-        }
-        return response.json();
+        if (!response.ok) throw new Error('Failed to fetch users');
+        const data = await response.json();
+        console.log('Users data:', data);
+        return data;
       } catch (error) {
+        console.error('Users error:', error);
         toast({
           variant: "destructive",
           title: "Error",
@@ -146,13 +155,18 @@ export function ProcessDetail() {
     enabled: !!user?.organizationId,
   });
 
-  // Derived state
-  const isLoading = isLoadingLOB || isLoadingLocations || isLoadingUsers;
+  // Filter and process data
   const roles = Array.from(new Set(users.map(user => user.role))).sort();
   const filteredUsers = users.filter(u => 
     (!selectedLocation || u.locationId === parseInt(selectedLocation)) &&
     (!selectedRole || u.role === selectedRole)
   );
+
+  // Loading states
+  const { isLoading: isLoadingLOB } = useQuery({ queryKey: ['lineOfBusinesses', user?.organizationId] });
+  const { isLoading: isLoadingLocations } = useQuery({ queryKey: ['locations', user?.organizationId] });
+  const { isLoading: isLoadingUsers } = useQuery({ queryKey: ['users', user?.organizationId] });
+  const isLoading = isLoadingLOB || isLoadingLocations || isLoadingUsers;
 
   const createProcessMutation = useMutation({
     mutationFn: async (data: z.infer<typeof processFormSchema>) => {
@@ -332,6 +346,7 @@ export function ProcessDetail() {
                   />
                 </div>
 
+                {/* Line of Business Field */}
                 <FormField
                   control={form.control}
                   name="lineOfBusinessId"
@@ -360,6 +375,7 @@ export function ProcessDetail() {
                   )}
                 />
 
+                {/* Location Field */}
                 <FormField
                   control={form.control}
                   name="locationId"
@@ -391,6 +407,7 @@ export function ProcessDetail() {
                   )}
                 />
 
+                {/* Role Field */}
                 <FormField
                   control={form.control}
                   name="role"
@@ -422,6 +439,7 @@ export function ProcessDetail() {
                   )}
                 />
 
+                {/* User Field */}
                 <FormField
                   control={form.control}
                   name="userId"
