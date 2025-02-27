@@ -49,15 +49,13 @@ export function UserManagement() {
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10; // Number of items to show per page
+
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
     enabled: !!user,
-  });
-
-  // Fetch organization settings to get locations
-  const { data: orgSettings } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/settings`],
-    enabled: !!user?.organizationId,
   });
 
   const deleteUserMutation = useMutation({
@@ -143,8 +141,8 @@ export function UserManagement() {
 
   // Find location name for a user
   const getLocationName = (locationId: number | null) => {
-    if (!locationId || !orgSettings?.locations) return "No Location";
-    const location = orgSettings.locations.find((l: OrganizationLocation) => l.id === locationId);
+    if (!locationId ) return "No Location";
+    const location = orgSettings?.locations?.find((l: OrganizationLocation) => l.id === locationId);
     return location ? location.name : "Unknown Location";
   };
 
@@ -176,6 +174,45 @@ export function UserManagement() {
 
     return matchesSearch && matchesRole && matchesManager;
   });
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentUsers = filteredUsers.slice(startIndex, endIndex);
+
+  // Page change handler
+  const handlePageChange = (pageNumber: number) => {
+    setCurrentPage(pageNumber);
+  };
+
+  // Generate page numbers array
+  const getPageNumbers = () => {
+    const delta = 2; // Number of pages to show before and after current page
+    const range = [];
+    const rangeWithDots = [];
+    let l;
+
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || (i >= currentPage - delta && i <= currentPage + delta)) {
+        range.push(i);
+      }
+    }
+
+    for (let i of range) {
+      if (l) {
+        if (i - l === 2) {
+          rangeWithDots.push(l + 1);
+        } else if (i - l !== 1) {
+          rangeWithDots.push('...');
+        }
+      }
+      rangeWithDots.push(i);
+      l = i;
+    }
+
+    return rangeWithDots;
+  };
 
   // Create EditUserDialog component
   const EditUserDialog = ({ user: editUser }: { user: User }) => {
@@ -460,6 +497,11 @@ export function UserManagement() {
     }
   };
 
+  const { data: orgSettings } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/settings`],
+    enabled: !!user?.organizationId,
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -528,11 +570,20 @@ export function UserManagement() {
                 <Input
                   placeholder="Search by name, email..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1); // Reset to first page when searching
+                  }}
                   className="pl-9"
                 />
               </div>
-              <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <Select 
+                value={roleFilter} 
+                onValueChange={(value) => {
+                  setRoleFilter(value);
+                  setCurrentPage(1); // Reset to first page when filtering
+                }}
+              >
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filter by role" />
                 </SelectTrigger>
@@ -546,7 +597,13 @@ export function UserManagement() {
                   <SelectItem value="team_lead">Team Lead</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={managerFilter} onValueChange={setManagerFilter}>
+              <Select 
+                value={managerFilter} 
+                onValueChange={(value) => {
+                  setManagerFilter(value);
+                  setCurrentPage(1); // Reset to first page when filtering
+                }}
+              >
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filter by manager" />
                 </SelectTrigger>
@@ -578,7 +635,7 @@ export function UserManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredUsers.map((u) => (
+                {currentUsers.map((u) => (
                   <TableRow key={u.id} className={!u.active ? "opacity-60" : ""}>
                     <TableCell className="font-medium">{u.username}</TableCell>
                     <TableCell>{u.email}</TableCell>
@@ -625,6 +682,41 @@ export function UserManagement() {
                 ))}
               </TableBody>
             </Table>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center space-x-2 py-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+
+                {getPageNumbers().map((pageNumber, index) => (
+                  <Button
+                    key={index}
+                    variant={pageNumber === currentPage ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => typeof pageNumber === 'number' && handlePageChange(pageNumber)}
+                    disabled={typeof pageNumber !== 'number'}
+                  >
+                    {pageNumber}
+                  </Button>
+                ))}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
