@@ -26,28 +26,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHeader,
-  TableHead,
-  TableRow,
-} from "@/components/ui/table";
-import { Plus, Loader2, Pencil, Trash2, Settings, Search, UsersIcon } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Label } from "@/components/ui/label";
 
 
+// Schema for process form with user selection
 const processFormSchema = z.object({
   name: z.string().min(1, "Process name is required"),
   inductionDays: z.number().min(0, "Induction days cannot be negative"),
@@ -57,6 +52,7 @@ const processFormSchema = z.object({
   ojtCertificationDays: z.number().min(0, "OJT certification days cannot be negative"),
   lineOfBusinessId: z.string().min(1, "Line of business is required"),
   locationId: z.string().min(1, "Location is required"),
+  userIds: z.array(z.string()).optional(), // Add field for user selection
 });
 
 export function ProcessDetail() {
@@ -68,10 +64,13 @@ export function ProcessDetail() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [userComboOpen, setUserComboOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
+  // Fetch all necessary data
   const { data: organization } = useQuery({
     queryKey: ["/api/organization"],
     enabled: !!user,
@@ -79,27 +78,13 @@ export function ProcessDetail() {
 
   const { data: orgSettings, isLoading } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/settings`],
-    queryFn: async () => {
-      if (!organization?.id) return null;
-      const res = await fetch(`/api/organizations/${organization.id}/settings`);
-      if (!res.ok) throw new Error('Failed to fetch organization settings');
-      return res.json();
-    },
     enabled: !!organization?.id,
   });
 
-  // Fetch organization's line of businesses
   const { data: lineOfBusinesses } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/line-of-businesses`],
-    queryFn: async () => {
-      if (!organization?.id) return null;
-      const res = await fetch(`/api/organizations/${organization.id}/line-of-businesses`);
-      if (!res.ok) throw new Error('Failed to fetch line of businesses');
-      return res.json();
-    },
     enabled: !!organization?.id,
   });
-
 
   const form = useForm<z.infer<typeof processFormSchema>>({
     resolver: zodResolver(processFormSchema),
@@ -112,6 +97,7 @@ export function ProcessDetail() {
       ojtCertificationDays: 0,
       lineOfBusinessId: "",
       locationId: "",
+      userIds: [], // Initialize empty user selection
     },
   });
 
@@ -126,6 +112,7 @@ export function ProcessDetail() {
       ojtCertificationDays: 0,
       lineOfBusinessId: "",
       locationId: "",
+      userIds: [], // Initialize empty user selection
     },
   });
 
@@ -145,6 +132,7 @@ export function ProcessDetail() {
             ojtCertificationDays: data.ojtCertificationDays,
             lineOfBusinessId: parseInt(data.lineOfBusinessId, 10),
             locationId: parseInt(data.locationId, 10),
+            userIds: data.userIds // Include userIds in the update
           }),
         }
       );
@@ -203,34 +191,43 @@ export function ProcessDetail() {
 
   const createProcessMutation = useMutation({
     mutationFn: async (data: z.infer<typeof processFormSchema>) => {
-      const selectedLob = lineOfBusinesses?.find(lob => lob.id === parseInt(data.lineOfBusinessId));
+      try {
+        // Create process first
+        const response = await fetch(`/api/organizations/${organization?.id}/processes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...data,
+            lineOfBusinessId: parseInt(data.lineOfBusinessId),
+            locationId: parseInt(data.locationId),
+          }),
+        });
 
-      if (!selectedLob) {
-        throw new Error('Selected Line of Business not found');
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Failed to create process');
+        }
+
+        const process = await response.json();
+
+        // If users were selected, assign them to the process
+        if (data.userIds?.length) {
+          await Promise.all(
+            data.userIds.map(userId =>
+              fetch(`/api/organizations/${organization?.id}/processes/${process.id}/users`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: parseInt(userId) }),
+              })
+            )
+          );
+        }
+
+        return process;
+      } catch (error) {
+        console.error('Error creating process:', error);
+        throw error;
       }
-
-      const response = await fetch(`/api/organizations/${organization?.id}/processes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: data.name,
-          inductionDays: data.inductionDays,
-          trainingDays: data.trainingDays,
-          certificationDays: data.certificationDays,
-          ojtDays: data.ojtDays,
-          ojtCertificationDays: data.ojtCertificationDays,
-          lineOfBusiness: selectedLob.name,
-          lineOfBusinessId: parseInt(data.lineOfBusinessId),
-          locationId: parseInt(data.locationId),
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to create process');
-      }
-
-      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
@@ -240,6 +237,7 @@ export function ProcessDetail() {
       });
       setIsCreateDialogOpen(false);
       form.reset();
+      setSelectedUsers([]);
     },
     onError: (error: Error) => {
       toast({
@@ -252,7 +250,10 @@ export function ProcessDetail() {
 
   const onSubmit = async (data: z.infer<typeof processFormSchema>) => {
     try {
-      await createProcessMutation.mutateAsync(data);
+      await createProcessMutation.mutateAsync({
+        ...data,
+        userIds: selectedUsers,
+      });
     } catch (error) {
       console.error("Error creating process:", error);
     }
@@ -295,6 +296,7 @@ export function ProcessDetail() {
       certificationDays: process.certificationDays,
       ojtDays: process.ojtDays,
       ojtCertificationDays: process.ojtCertificationDays,
+      userIds: process.userIds || [], // Handle userIds in edit
     });
     setIsEditDialogOpen(true);
   };
@@ -314,16 +316,17 @@ export function ProcessDetail() {
 
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
+    return <div>Loading...</div>;
   }
 
   const locations = orgSettings?.locations || [];
   const processes = orgSettings?.processes || [];
-  const users = orgSettings?.users || []; // Added to access user data
+  const users = orgSettings?.users || [];
+
+  // Filter out users that can be assigned to processes
+  const assignableUsers = users.filter(u =>
+    ["trainer", "trainee", "team_lead"].includes(u.role)
+  );
 
   // Filter processes based on search query
   const filteredProcesses = processes.filter((process: any) => {
@@ -684,9 +687,9 @@ export function ProcessDetail() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs font-medium uppercase">Process Name</FormLabel>
+                      <FormLabel>Process Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter process name" {...field} />
+                        <Input {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -698,7 +701,7 @@ export function ProcessDetail() {
                   name="lineOfBusinessId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs font-medium uppercase">Line of Business</FormLabel>
+                      <FormLabel>Line of Business</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
@@ -723,7 +726,7 @@ export function ProcessDetail() {
                   name="locationId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs font-medium uppercase">Location</FormLabel>
+                      <FormLabel>Location</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
@@ -743,127 +746,182 @@ export function ProcessDetail() {
                   )}
                 />
 
-                <div className="col-span-2">
-                  <div className="grid grid-cols-3 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="inductionDays"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs font-medium uppercase">Induction Days</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                {/* Add User Selection */}
+                <FormField
+                  control={form.control}
+                  name="userIds"
+                  render={({ field }) => (
+                    <FormItem className="col-span-2">
+                      <FormLabel>Assign Users</FormLabel>
+                      <FormControl>
+                        <Popover open={userComboOpen} onOpenChange={setUserComboOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={userComboOpen}
+                              className="w-full justify-between"
+                            >
+                              {selectedUsers.length > 0
+                                ? `${selectedUsers.length} user${selectedUsers.length > 1 ? 's' : ''} selected`
+                                : "Select users..."}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-full p-0">
+                            <Command>
+                              <CommandInput placeholder="Search users..." />
+                              <CommandEmpty>No user found.</CommandEmpty>
+                              <CommandGroup>
+                                {assignableUsers.map((user) => (
+                                  <CommandItem
+                                    key={user.id}
+                                    onSelect={() => {
+                                      const value = user.id.toString();
+                                      setSelectedUsers(current =>
+                                        current.includes(value)
+                                          ? current.filter(x => x !== value)
+                                          : [...current, value]
+                                      );
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        selectedUsers.includes(user.id.toString()) ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    {user.fullName || user.username}
+                                    <Badge variant="outline" className="ml-2">
+                                      {user.role}
+                                    </Badge>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                    <FormField
-                      control={form.control}
-                      name="trainingDays"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs font-medium uppercase">Training Days</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="certificationDays"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs font-medium uppercase">Certification Days</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                {/* Display selected users */}
+                {selectedUsers.length > 0 && (
+                  <div className="col-span-2">
+                    <Label>Selected Users</Label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {selectedUsers.map(id => {
+                        const user = assignableUsers.find(u => u.id.toString() === id);
+                        return user ? (
+                          <Badge key={id} variant="secondary">
+                            {user.fullName || user.username}
+                          </Badge>
+                        ) : null;
+                      })}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div className="col-span-2">
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="ojtDays"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs font-medium uppercase">OJT Days</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                <FormField
+                  control={form.control}
+                  name="inductionDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Induction Days</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                    <FormField
-                      control={form.control}
-                      name="ojtCertificationDays"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs font-medium uppercase">OJT Certification Days</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
+                <FormField
+                  control={form.control}
+                  name="trainingDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Training Days</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="certificationDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Certification Days</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="ojtDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>OJT Days</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="ojtCertificationDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>OJT Certification Days</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
-              <DialogFooter className="mt-6">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsCreateDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  className="bg-purple-600 hover:bg-purple-700"
-                  disabled={createProcessMutation.isPending}
-                >
-                  {createProcessMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    "Create Process"
-                  )}
-                </Button>
-              </DialogFooter>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={createProcessMutation.isPending}
+              >
+                {createProcessMutation.isPending ? "Creating..." : "Create Process"}
+              </Button>
             </form>
           </Form>
         </DialogContent>
@@ -882,7 +940,7 @@ export function ProcessDetail() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs font-medium uppercase">Process Name</FormLabel>
+                      <FormLabel className="text-xs font-medium uppercase">ProcessName</FormLabel>
                       <FormControl>
                         <Input placeholder="Enter process name" {...field} />
                       </FormControl>
@@ -940,128 +998,182 @@ export function ProcessDetail() {
                     </FormItem>
                   )}
                 />
+                {/* Add User Selection (Same as Create Dialog) */}
+                <FormField
+                  control={editForm.control}
+                  name="userIds"
+                  render={({ field }) => (
+                    <FormItem className="col-span-2">
+                      <FormLabel>Assign Users</FormLabel>
+                      <FormControl>
+                        <Popover open={userComboOpen} onOpenChange={setUserComboOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={userComboOpen}
+                              className="w-full justify-between"
+                            >
+                              {selectedUsers.length > 0
+                                ? `${selectedUsers.length} user${selectedUsers.length > 1 ? 's' : ''} selected`
+                                : "Select users..."}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-full p-0">
+                            <Command>
+                              <CommandInput placeholder="Search users..." />
+                              <CommandEmpty>No user found.</CommandEmpty>
+                              <CommandGroup>
+                                {assignableUsers.map((user) => (
+                                  <CommandItem
+                                    key={user.id}
+                                    onSelect={() => {
+                                      const value = user.id.toString();
+                                      setSelectedUsers(current =>
+                                        current.includes(value)
+                                          ? current.filter(x => x !== value)
+                                          : [...current, value]
+                                      );
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        selectedUsers.includes(user.id.toString()) ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    {user.fullName || user.username}
+                                    <Badge variant="outline" className="ml-2">
+                                      {user.role}
+                                    </Badge>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                <div className="col-span-2">
-                  <div className="grid grid-cols-3 gap-4">
-                    <FormField
-                      control={editForm.control}
-                      name="inductionDays"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs font-medium uppercase">Induction Days</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={editForm.control}
-                      name="trainingDays"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs font-medium uppercase">Training Days</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={editForm.control}
-                      name="certificationDays"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs font-medium uppercase">Certification Days</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                {/* Display selected users */}
+                {selectedUsers.length > 0 && (
+                  <div className="col-span-2">
+                    <Label>Selected Users</Label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {selectedUsers.map(id => {
+                        const user = assignableUsers.find(u => u.id.toString() === id);
+                        return user ? (
+                          <Badge key={id} variant="secondary">
+                            {user.fullName || user.username}
+                          </Badge>
+                        ) : null;
+                      })}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div className="col-span-2">
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={editForm.control}
-                      name="ojtDays"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs font-medium uppercase">OJT Days</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                <FormField
+                  control={editForm.control}
+                  name="inductionDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Induction Days</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                    <FormField
-                      control={editForm.control}
-                      name="ojtCertificationDays"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs font-medium uppercase">OJT Certification Days</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
+                <FormField
+                  control={editForm.control}
+                  name="trainingDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Training Days</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="certificationDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Certification Days</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="ojtDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>OJT Days</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="ojtCertificationDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>OJT Certification Days</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
-              <DialogFooter className="mt-6">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsEditDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  className="bg-purple-600 hover:bg-purple-700"
-                  disabled={editProcessMutation.isPending}
-                >
-                  {editProcessMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Updating...
-                    </>
-                  ) : (
-                    "Update Process"
-                  )}
-                </Button>
-              </DialogFooter>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={editProcessMutation.isPending}
+              >
+                {editProcessMutation.isPending ? "Updating..." : "Update Process"}
+              </Button>
             </form>
           </Form>
         </DialogContent>
