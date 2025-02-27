@@ -132,6 +132,7 @@ export const users = pgTable("users", {
   managerId: integer("manager_id")
     .references(() => users.id),
   active: boolean("active").notNull().default(true),
+  certified: boolean("certified").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -441,6 +442,7 @@ export const insertUserSchema = createInsertSchema(users)
     dateOfJoining: z.string().optional(),
     dateOfBirth: z.string().optional(),
     education: z.string().optional(),
+    certified: z.boolean().default(false),
   });
 export const insertCourseSchema = createInsertSchema(courses);
 export const insertLearningPathSchema = createInsertSchema(learningPaths);

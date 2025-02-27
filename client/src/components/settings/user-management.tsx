@@ -171,7 +171,6 @@ export function UserManagement() {
     return batch ? batch.name : "Unknown Batch";
   };
 
-
   // Get unique managers for filter dropdown, removing duplicates
   const uniqueManagers = Array.from(
     new Map(
@@ -662,6 +661,7 @@ export function UserManagement() {
                   <TableHead className="w-[150px]">Batch</TableHead>
                   <TableHead className="w-[100px]">Status</TableHead>
                   <TableHead className="w-[100px] text-right">Actions</TableHead>
+                  <TableHead className="w-[100px]">Certified</TableHead> {/* Added line */}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -723,6 +723,13 @@ export function UserManagement() {
                         </AlertDialog>
                       </div>
                     </TableCell>
+                    <TableCell> {/* Added line */}
+                      {u.certified ? (
+                        <Badge variant="success">Certified</Badge>
+                      ) : (
+                        <Badge variant="secondary">Not Certified</Badge>
+                      )}
+                    </TableCell> {/* Added line */}
                   </TableRow>
                 ))}
               </TableBody>
