@@ -56,13 +56,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { 
-  Check, 
-  ChevronsUpDown, 
-  Plus, 
-  Loader2, 
-  Pencil, 
-  Trash2, 
+import {
+  Check,
+  ChevronsUpDown,
+  Plus,
+  Loader2,
+  Pencil,
+  Trash2,
   Search,
   Download,
   FileDown,
@@ -86,7 +86,8 @@ const processFormSchema = z.object({
   ojtCertificationDays: z.number().min(0, "OJT certification days cannot be negative"),
   lineOfBusinessId: z.string().min(1, "Line of business is required"),
   locationId: z.string().min(1, "Location is required"),
-  userIds: z.array(z.string()).optional(), // Add field for user selection
+  selectedRole: z.string().min(1, "Role selection is required"),
+  userIds: z.array(z.string()).optional(),
 });
 
 export function ProcessDetail() {
@@ -100,6 +101,7 @@ export function ProcessDetail() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [userComboOpen, setUserComboOpen] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<string>("all");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -127,11 +129,13 @@ export function ProcessDetail() {
       inductionDays: 0,
       trainingDays: 0,
       certificationDays: 0,
+      certificationDays: 0,
       ojtDays: 0,
       ojtCertificationDays: 0,
       lineOfBusinessId: "",
       locationId: "",
-      userIds: [], // Initialize empty user selection
+      selectedRole: "all", //default role
+      userIds: [], 
     },
   });
 
@@ -146,7 +150,8 @@ export function ProcessDetail() {
       ojtCertificationDays: 0,
       lineOfBusinessId: "",
       locationId: "",
-      userIds: [], // Initialize empty user selection
+      selectedRole: "all", //default role
+      userIds: [], 
     },
   });
 
@@ -166,7 +171,7 @@ export function ProcessDetail() {
             ojtCertificationDays: data.ojtCertificationDays,
             lineOfBusinessId: parseInt(data.lineOfBusinessId, 10),
             locationId: parseInt(data.locationId, 10),
-            userIds: data.userIds // Include userIds in the update
+            userIds: data.userIds 
           }),
         }
       );
@@ -226,7 +231,6 @@ export function ProcessDetail() {
   const createProcessMutation = useMutation({
     mutationFn: async (data: z.infer<typeof processFormSchema>) => {
       try {
-        // Create process first
         const response = await fetch(`/api/organizations/${organization?.id}/processes`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -244,7 +248,6 @@ export function ProcessDetail() {
 
         const process = await response.json();
 
-        // If users were selected, assign them to the process
         if (data.userIds?.length) {
           await Promise.all(
             data.userIds.map(userId =>
@@ -330,7 +333,8 @@ export function ProcessDetail() {
       certificationDays: process.certificationDays,
       ojtDays: process.ojtDays,
       ojtCertificationDays: process.ojtCertificationDays,
-      userIds: process.userIds || [], // Handle userIds in edit
+      userIds: process.userIds || [], 
+      selectedRole: "all", //default role
     });
     setIsEditDialogOpen(true);
   };
@@ -358,9 +362,14 @@ export function ProcessDetail() {
   const users = orgSettings?.users || [];
 
   // Filter out users that can be assigned to processes
-  const assignableUsers = users.filter(u =>
-    ["trainer", "trainee", "team_lead"].includes(u.role)
-  );
+  const getFilteredUsers = (role: string) => {
+    if (!orgSettings?.users) return [];
+    return orgSettings.users.filter(u => 
+      role === "all" ? ["trainer", "trainee", "team_lead"].includes(u.role) : u.role === role
+    );
+  };
+
+  const availableRoles = ["all", "trainer", "trainee", "team_lead"];
 
   // Filter processes based on search query
   const filteredProcesses = processes.filter((process: any) => {
@@ -551,7 +560,6 @@ export function ProcessDetail() {
                         // Only show users that can be assigned to processes
                         if (!["trainer", "trainee", "team_lead"].includes(user.role)) return null;
 
-                        // Check if user is assigned to this process using the junction table
                         const isAssigned = user.managedProcesses?.some(
                           (up) => up.processId === selectedProcess.id
                         );
@@ -585,13 +593,11 @@ export function ProcessDetail() {
                               onClick={async () => {
                                 try {
                                   if (isAssigned) {
-                                    // Remove user from process
                                     await apiRequest(
                                       "DELETE",
                                       `/api/organizations/${organization?.id}/processes/${selectedProcess.id}/users/${user.id}`
                                     );
                                   } else {
-                                    // Assign user to process
                                     await apiRequest(
                                       "POST",
                                       `/api/organizations/${organization?.id}/processes/${selectedProcess.id}/users`,
@@ -779,7 +785,40 @@ export function ProcessDetail() {
                     </FormItem>
                   )}
                 />
-                {/* Add User Selection */}
+                {/* Add Role Selection First */}
+                <FormField
+                  control={form.control}
+                  name="selectedRole"
+                  render={({ field }) => (
+                    <FormItem className="col-span-2">
+                      <FormLabel>Select Role</FormLabel>
+                      <Select
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          setSelectedRole(value);
+                          setSelectedUsers([]); // Clear selected users when role changes
+                        }}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a role" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {availableRoles.map((role) => (
+                            <SelectItem key={role} value={role}>
+                              {role === "all" ? "All Roles" : role.charAt(0).toUpperCase() + role.slice(1)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* User Selection */}
                 <FormField
                   control={form.control}
                   name="userIds"
@@ -806,7 +845,7 @@ export function ProcessDetail() {
                               <CommandInput placeholder="Search users..." />
                               <CommandEmpty>No user found.</CommandEmpty>
                               <CommandGroup>
-                                {assignableUsers.map((user) => (
+                                {getFilteredUsers(selectedRole).map((user) => (
                                   <CommandItem
                                     key={user.id}
                                     onSelect={() => {
@@ -824,10 +863,17 @@ export function ProcessDetail() {
                                         selectedUsers.includes(user.id.toString()) ? "opacity-100" : "opacity-0"
                                       )}
                                     />
-                                    {user.fullName || user.username}
-                                    <Badge variant="outline" className="ml-2">
-                                      {user.role}
-                                    </Badge>
+                                    <div className="flex items-center gap-2">
+                                      <span>{user.fullName || user.username}</span>
+                                      <Badge variant="outline" className="ml-2">
+                                        {user.role}
+                                      </Badge>
+                                      {user.employeeId && (
+                                        <span className="text-xs text-muted-foreground">
+                                          ({user.employeeId})
+                                        </span>
+                                      )}
+                                    </div>
                                   </CommandItem>
                                 ))}
                               </CommandGroup>
@@ -846,10 +892,11 @@ export function ProcessDetail() {
                     <Label>Selected Users</Label>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {selectedUsers.map(id => {
-                        const user = assignableUsers.find(u => u.id.toString() === id);
+                        const user = orgSettings?.users?.find(u => u.id.toString() === id);
                         return user ? (
-                          <Badge key={id} variant="secondary">
-                            {user.fullName || user.username}
+                          <Badge key={id} variant="secondary" className="flex items-center gap-2">
+                            <span>{user.fullName || user.username}</span>
+                            <span className="text-xs">({user.role})</span>
                           </Badge>
                         ) : null;
                       })}
@@ -1031,7 +1078,40 @@ export function ProcessDetail() {
                     </FormItem>
                   )}
                 />
-                {/* Add User Selection (Same as Create Dialog) */}
+                {/* Add Role Selection First */}
+                <FormField
+                  control={editForm.control}
+                  name="selectedRole"
+                  render={({ field }) => (
+                    <FormItem className="col-span-2">
+                      <FormLabel>Select Role</FormLabel>
+                      <Select
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          setSelectedRole(value);
+                          setSelectedUsers([]); 
+                        }}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a role" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {availableRoles.map((role) => (
+                            <SelectItem key={role} value={role}>
+                              {role === "all" ? "All Roles" : role.charAt(0).toUpperCase() + role.slice(1)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* User Selection */}
                 <FormField
                   control={editForm.control}
                   name="userIds"
@@ -1058,7 +1138,7 @@ export function ProcessDetail() {
                               <CommandInput placeholder="Search users..." />
                               <CommandEmpty>No user found.</CommandEmpty>
                               <CommandGroup>
-                                {assignableUsers.map((user) => (
+                                {getFilteredUsers(selectedRole).map((user) => (
                                   <CommandItem
                                     key={user.id}
                                     onSelect={() => {
@@ -1076,10 +1156,17 @@ export function ProcessDetail() {
                                         selectedUsers.includes(user.id.toString()) ? "opacity-100" : "opacity-0"
                                       )}
                                     />
-                                    {user.fullName || user.username}
-                                    <Badge variant="outline" className="ml-2">
-                                      {user.role}
-                                    </Badge>
+                                    <div className="flex items-center gap-2">
+                                      <span>{user.fullName || user.username}</span>
+                                      <Badge variant="outline" className="ml-2">
+                                        {user.role}
+                                      </Badge>
+                                      {user.employeeId && (
+                                        <span className="text-xs text-muted-foreground">
+                                          ({user.employeeId})
+                                        </span>
+                                      )}
+                                    </div>
                                   </CommandItem>
                                 ))}
                               </CommandGroup>
@@ -1098,10 +1185,11 @@ export function ProcessDetail() {
                     <Label>Selected Users</Label>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {selectedUsers.map(id => {
-                        const user = assignableUsers.find(u => u.id.toString() === id);
+                        const user = orgSettings?.users?.find(u => u.id.toString() === id);
                         return user ? (
-                          <Badge key={id} variant="secondary">
-                            {user.fullName || user.username}
+                          <Badge key={id} variant="secondary" className="flex items-center gap-2">
+                            <span>{user.fullName || user.username}</span>
+                            <span className="text-xs">({user.role})</span>
                           </Badge>
                         ) : null;
                       })}
