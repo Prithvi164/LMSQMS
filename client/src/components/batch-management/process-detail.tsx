@@ -32,6 +32,7 @@ interface User {
   fullName: string | null;
   role: string;
   locationId: number | null;
+  locationName?: string | null; // Added location name
   email: string;
 }
 
@@ -83,98 +84,93 @@ export function ProcessDetail() {
     },
   });
 
-  // Query helper function
-  const fetchData = async (url: string) => {
-    try {
-      const response = await fetch(url, {
+  // Fetch line of businesses
+  const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery({
+    queryKey: ['line-of-businesses', user?.organizationId],
+    queryFn: async () => {
+      const response = await fetch(`/api/organizations/${user?.organizationId}/line-of-businesses`, {
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json'
         },
         credentials: 'include'
       });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch data: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      console.log('Fetched data:', { url, data });
-      return data;
-    } catch (error) {
-      console.error('Fetch error:', error);
-      throw error;
-    }
-  };
-
-  // Fetch line of businesses
-  const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery({
-    queryKey: ['line-of-businesses', user?.organizationId],
-    queryFn: () => fetchData(`/api/organizations/${user?.organizationId}/line-of-businesses`),
+      if (!response.ok) throw new Error('Failed to fetch line of businesses');
+      return response.json();
+    },
     enabled: !!user?.organizationId,
-    onError: (error: Error) => {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: `Failed to load line of businesses: ${error.message}`,
-      });
-    }
   });
 
-  // Fetch users - we'll derive locations and roles from this data
+  // Fetch locations
+  const { data: locations = [], isLoading: isLoadingLocations } = useQuery({
+    queryKey: ['locations', user?.organizationId],
+    queryFn: async () => {
+      const response = await fetch(`/api/organizations/${user?.organizationId}/locations`, {
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch locations');
+      return response.json();
+    },
+    enabled: !!user?.organizationId,
+  });
+
+  // Fetch users with location names
   const { data: users = [], isLoading: isLoadingUsers } = useQuery({
     queryKey: ['users', user?.organizationId],
-    queryFn: () => fetchData(`/api/organizations/${user?.organizationId}/users`),
-    enabled: !!user?.organizationId,
-    onError: (error: Error) => {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: `Failed to load users: ${error.message}`,
+    queryFn: async () => {
+      const response = await fetch(`/api/organizations/${user?.organizationId}/users`, {
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
       });
-    }
-  });
+      if (!response.ok) throw new Error('Failed to fetch users');
+      const userData = await response.json();
 
-  // Get unique location IDs from users table
-  const uniqueLocationIds = Array.from(new Set(
-    users.filter(u => u.locationId !== null)
-    .map(u => u.locationId)
-  )).sort();
-  
-  // Create a locations array derived from users data
-  const locations = uniqueLocationIds.map(locationId => {
-    // Find the first user with this locationId to use as reference
-    const userWithLocation = users.find(u => u.locationId === locationId);
-    return {
-      id: locationId,
-      // Use a default name format since we don't have the actual location name
-      name: `Location ${locationId}`
-    };
+      // Map location names to users
+      return userData.map((user: User) => ({
+        ...user,
+        locationName: locations.find(loc => loc.id === user.locationId)?.name
+      }));
+    },
+    enabled: !!user?.organizationId && !isLoadingLocations, // Wait for locations to load
   });
 
   // Get unique roles from users in the selected location
   const roles = Array.from(new Set(
-    users.filter(u => !selectedLocation || u.locationId?.toString() === selectedLocation)
-    .map(user => user.role)
+    users
+      .filter(u => !selectedLocation || locations.find(loc => loc.id === u.locationId)?.name === selectedLocation)
+      .map(user => user.role)
   )).sort();
 
   // Filter users based on selected location and role
   const filteredUsers = users.filter(u => {
-    const locationMatch = !selectedLocation || u.locationId?.toString() === selectedLocation;
+    const locationMatch = !selectedLocation || locations.find(loc => loc.id === u.locationId)?.name === selectedLocation;
     const roleMatch = !selectedRole || u.role === selectedRole;
-    console.log("Filtering users", {u, locationMatch, roleMatch, selectedLocation, selectedRole})
     return locationMatch && roleMatch;
   });
 
-  console.log('Filtering debug:', {
+  console.log('Debug state:', {
     selectedLocation,
     selectedRole,
-    availableRoles: roles,
-    filteredUsersCount: filteredUsers.length,
+    roles,
+    locations: locations.map(l => ({ id: l.id, name: l.name })),
     users: users.map(u => ({
       id: u.id,
       name: u.fullName || u.username,
       locationId: u.locationId,
+      locationName: u.locationName,
+      role: u.role
+    })),
+    filteredUsers: filteredUsers.map(u => ({
+      id: u.id,
+      name: u.fullName || u.username,
+      locationName: u.locationName,
       role: u.role
     }))
   });
@@ -238,7 +234,7 @@ export function ProcessDetail() {
   return (
     <Card>
       <CardContent className="p-6">
-        {(isLoadingLOB || isLoadingUsers) ? (
+        {(isLoadingLOB || isLoadingLocations || isLoadingUsers) ? (
           <div className="flex items-center justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
             <span className="ml-2">Loading...</span>
@@ -248,7 +244,7 @@ export function ProcessDetail() {
             <h2 className="text-2xl font-bold mb-6">Add New Process</h2>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                {/* Process Name Field */}
+                {/* Form fields remain unchanged */}
                 <FormField
                   control={form.control}
                   name="name"
@@ -263,7 +259,6 @@ export function ProcessDetail() {
                   )}
                 />
 
-                {/* Process Duration Fields */}
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -361,7 +356,6 @@ export function ProcessDetail() {
                   />
                 </div>
 
-                {/* Line of Business Field */}
                 <FormField
                   control={form.control}
                   name="lineOfBusinessId"
@@ -390,7 +384,6 @@ export function ProcessDetail() {
                   )}
                 />
 
-                {/* Location Field */}
                 <FormField
                   control={form.control}
                   name="locationId"
@@ -399,8 +392,11 @@ export function ProcessDetail() {
                       <FormLabel>Location</FormLabel>
                       <Select
                         onValueChange={(value) => {
-                          field.onChange(parseInt(value, 10));
-                          setSelectedLocation(value);
+                          const location = locations.find(loc => loc.id === parseInt(value, 10));
+                          if (location) {
+                            field.onChange(parseInt(value, 10));
+                            setSelectedLocation(location.name);
+                          }
                         }}
                         value={field.value?.toString()}
                       >
@@ -422,7 +418,6 @@ export function ProcessDetail() {
                   )}
                 />
 
-                {/* Role Field */}
                 <FormField
                   control={form.control}
                   name="role"
@@ -454,7 +449,6 @@ export function ProcessDetail() {
                   )}
                 />
 
-                {/* User Field */}
                 <FormField
                   control={form.control}
                   name="userId"
