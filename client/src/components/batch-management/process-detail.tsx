@@ -184,39 +184,37 @@ export function ProcessDetail() {
     if (!orgSettings?.users) return [];
 
     return orgSettings.users.filter(user => {
-      const locationMatch = !selectedLocation || user.locationId?.toString() === selectedLocation || selectedLocation === "all";
-      const roleMatch = !selectedRole || user.role === selectedRole || selectedRole === "all";
+      const locationMatch = !selectedLocation || user.locationId?.toString() === selectedLocation;
+      const roleMatch = !selectedRole || user.role === selectedRole;
       return locationMatch && roleMatch;
     });
   };
 
   // Get unique roles from users table filtered by selected location
-  const getAvailableRoles = (locationId: string | null = null) => {
+  const getFilteredRoles = () => {
+    console.log('Getting filtered roles...');
+    console.log('Selected location:', selectedLocation);
+    console.log('orgSettings:', orgSettings);
+
     if (!orgSettings?.users) {
-      console.log('No users found in orgSettings');
+      console.log('No users data available');
       return [];
     }
 
-    console.log('Getting roles with locationId:', locationId);
-    console.log('All users:', orgSettings.users);
+    // Get unique roles from users in the selected location
+    const rolesInLocation = selectedLocation
+      ? orgSettings.users
+          .filter(user => user.locationId?.toString() === selectedLocation)
+          .map(user => user.role)
+      : orgSettings.users.map(user => user.role);
 
-    // If no location is selected or "all" is selected, show all unique roles
-    if (!locationId || locationId === "all") {
-      const allRoles = Array.from(new Set(orgSettings.users.map(user => user.role)));
-      console.log('All available roles:', allRoles);
-      return allRoles;
-    }
+    console.log('Roles before filtering:', rolesInLocation);
 
-    // Filter users by selected location
-    const usersInLocation = orgSettings.users.filter(user =>
-      user.locationId?.toString() === locationId
-    );
-    console.log('Users in selected location:', usersInLocation);
+    // Get unique values and remove null/undefined
+    const uniqueRoles = [...new Set(rolesInLocation)].filter(Boolean);
+    console.log('Unique roles found:', uniqueRoles);
 
-    // Get unique roles from filtered users
-    const roles = Array.from(new Set(usersInLocation.map(user => user.role)));
-    console.log('Roles for selected location:', roles);
-    return roles;
+    return uniqueRoles;
   };
 
   // Get location name helper
@@ -238,11 +236,11 @@ export function ProcessDetail() {
             <FormLabel>Location</FormLabel>
             <Select
               onValueChange={(value) => {
+                console.log('Location changed to:', value);
                 field.onChange(value);
                 setSelectedLocation(value);
                 setSelectedRole("");
                 setSelectedUsers([]);
-                console.log('Selected location:', value);
               }}
               value={field.value}
             >
@@ -252,7 +250,6 @@ export function ProcessDetail() {
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                <SelectItem value="all">All Locations</SelectItem>
                 {orgSettings?.locations?.map((location) => (
                   <SelectItem key={location.id} value={location.id.toString()}>
                     {location.name}
@@ -274,10 +271,10 @@ export function ProcessDetail() {
             <FormLabel>Role</FormLabel>
             <Select
               onValueChange={(value) => {
+                console.log('Role changed to:', value);
                 field.onChange(value);
                 setSelectedRole(value);
                 setSelectedUsers([]);
-                console.log('Selected role:', value);
               }}
               value={field.value}
             >
@@ -287,8 +284,7 @@ export function ProcessDetail() {
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                <SelectItem value="all">All Roles</SelectItem>
-                {getAvailableRoles(selectedLocation).map((role) => (
+                {getFilteredRoles().map((role) => (
                   <SelectItem key={role} value={role}>
                     {role.charAt(0).toUpperCase() + role.slice(1)}
                   </SelectItem>
@@ -351,41 +347,6 @@ export function ProcessDetail() {
           </FormItem>
         )}
       />
-
-      {/* Display Selected Users */}
-      {selectedUsers.length > 0 && (
-        <div className="border rounded-md p-2">
-          <div className="flex flex-wrap gap-2">
-            {selectedUsers.map(id => {
-              const user = orgSettings?.users?.find(u => u.id.toString() === id);
-              if (!user) return null;
-
-              return (
-                <Badge
-                  key={id}
-                  variant="secondary"
-                  className="flex items-center gap-2 p-1"
-                >
-                  <Avatar className="h-4 w-4">
-                    <AvatarFallback className="text-xs">
-                      {user.username[0]?.toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span>{user.username}</span>
-                  <div className="flex items-center gap-1">
-                    <Badge variant="outline" className="text-xs">
-                      {user.role}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {getLocationName(user.locationId)}
-                    </span>
-                  </div>
-                </Badge>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 
@@ -723,7 +684,7 @@ export function ProcessDetail() {
                         <SelectValue placeholder="Select role to filter" />
                       </SelectTrigger>
                       <SelectContent>
-                        {getAvailableRoles(selectedLocation).map((role) => (
+                        {getFilteredRoles().map((role) => (
                           <SelectItem key={role} value={role}>
                             {role === "all" ? "All Roles" : role.charAt(0).toUpperCase() + role.slice(1)}
                           </SelectItem>
@@ -1246,7 +1207,7 @@ export function ProcessDetail() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Roles</SelectItem>
-                      {getAvailableRoles(selectedLocation).map((role) => (
+                      {getFilteredRoles().map((role) => (
                         <SelectItem key={role} value={role}>
                           {role.charAt(0).toUpperCase() + role.slice(1)}
                         </SelectItem>
