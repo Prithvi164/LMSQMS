@@ -16,14 +16,13 @@ export function UserProfile() {
   // Fetch organization roles to get role description
   const { data: roles, isLoading: isLoadingRoles } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/roles`],
-    enabled: !!user?.organizationId,
+    enabled: !!user?.organizationId && !!user?.roleId,
   });
 
   if (!user) return null;
 
   // Get role description from the roles data
   const userRole = roles?.find(role => role.id === user.roleId);
-  const roleDisplay = userRole?.role || "Loading...";
 
   // Get the first letter of the full name, fallback to username
   const avatarLetter = user.fullName 
@@ -43,8 +42,10 @@ export function UserProfile() {
                 <Loader2 className="h-3 w-3 animate-spin mr-1" />
                 Loading...
               </span>
+            ) : userRole ? (
+              userRole.role
             ) : (
-              roleDisplay
+              "Loading..."
             )}
           </span>
           <span className="font-semibold text-[15px] leading-tight">{displayName}</span>
