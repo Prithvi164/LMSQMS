@@ -66,6 +66,7 @@ import {
   Search,
   Download,
   FileDown,
+  Settings
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
@@ -383,7 +384,7 @@ export function ProcessDetail() {
   return (
     <div className="space-y-4">
       <div className="flex items-center space-x-2 mb-6">
-        <SiReact className="h-8 w-8 text-blue-500" />
+        <Settings className="h-8 w-8 text-blue-500" />
         <h1 className="text-2xl font-semibold">Manage Process</h1>
       </div>
 
