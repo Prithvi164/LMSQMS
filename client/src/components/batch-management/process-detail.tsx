@@ -61,6 +61,7 @@ const processFormSchema = z.object({
 });
 
 export function ProcessDetail() {
+  // Hooks at the top level
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -84,92 +85,57 @@ export function ProcessDetail() {
     },
   });
 
-  // Fetch line of businesses
-  const { data: lineOfBusinesses = [], isLoading: isLoadingLOB, error: lobError } = useQuery<LineOfBusiness[]>({
+  // Query hooks
+  const { 
+    data: lineOfBusinesses = [], 
+    isLoading: isLoadingLOB,
+    error: lobError 
+  } = useQuery<LineOfBusiness[]>({
     queryKey: ['lineOfBusinesses', user?.organizationId],
     queryFn: async () => {
       const response = await fetch(`/api/organizations/${user?.organizationId}/line-of-businesses`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch line of businesses');
-      }
+      if (!response.ok) throw new Error('Failed to fetch line of businesses');
       return response.json();
     },
     enabled: !!user?.organizationId,
   });
 
-  // Fetch locations
-  const { data: locations = [], isLoading: isLoadingLocations, error: locError } = useQuery<Location[]>({
+  const { 
+    data: locations = [], 
+    isLoading: isLoadingLocations,
+    error: locError 
+  } = useQuery<Location[]>({
     queryKey: ['locations', user?.organizationId],
     queryFn: async () => {
       const response = await fetch(`/api/organizations/${user?.organizationId}/locations`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch locations');
-      }
+      if (!response.ok) throw new Error('Failed to fetch locations');
       return response.json();
     },
     enabled: !!user?.organizationId,
   });
 
-  // Fetch users
-  const { data: users = [], isLoading: isLoadingUsers, error: userError } = useQuery<User[]>({
+  const { 
+    data: users = [], 
+    isLoading: isLoadingUsers,
+    error: userError 
+  } = useQuery<User[]>({
     queryKey: ['users', user?.organizationId],
     queryFn: async () => {
       const response = await fetch(`/api/organizations/${user?.organizationId}/users`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch users');
-      }
+      if (!response.ok) throw new Error('Failed to fetch users');
       return response.json();
     },
     enabled: !!user?.organizationId,
   });
-
-  // Loading state
-  const isLoading = isLoadingLOB || isLoadingLocations || isLoadingUsers;
-
-  // Error handling
-  if (lobError || locError || userError) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="text-center text-red-500">
-            Error: {lobError?.message || locError?.message || userError?.message}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!user?.organizationId) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="text-center text-red-500">
-            Error: Organization ID not found. Please ensure you are logged in.
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Get unique roles from users
-  const roles = Array.from(new Set(users.map(user => user.role))).sort();
-
-  // Filter users based on selected location and role
-  const filteredUsers = users.filter(u => 
-    (!selectedLocation || u.locationId === parseInt(selectedLocation)) &&
-    (!selectedRole || u.role === selectedRole)
-  );
 
   const createProcessMutation = useMutation({
     mutationFn: async (data: z.infer<typeof processFormSchema>) => {
       const response = await fetch('/api/processes', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...data,
-          organizationId: user.organizationId,
+          organizationId: user?.organizationId,
         }),
       });
 
@@ -181,7 +147,7 @@ export function ProcessDetail() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['processes', user.organizationId] });
+      queryClient.invalidateQueries({ queryKey: ['processes', user?.organizationId] });
       toast({
         title: "Success",
         description: "Process created successfully",
@@ -197,6 +163,16 @@ export function ProcessDetail() {
     },
   });
 
+  // Derived state
+  const isLoading = isLoadingLOB || isLoadingLocations || isLoadingUsers;
+  const error = lobError || locError || userError;
+  const roles = Array.from(new Set(users.map(user => user.role))).sort();
+  const filteredUsers = users.filter(u => 
+    (!selectedLocation || u.locationId === parseInt(selectedLocation)) &&
+    (!selectedRole || u.role === selectedRole)
+  );
+
+  // Event handlers
   const onSubmit = async (data: z.infer<typeof processFormSchema>) => {
     try {
       await createProcessMutation.mutateAsync(data);
@@ -205,279 +181,283 @@ export function ProcessDetail() {
     }
   };
 
-  if (isLoading) {
+  // Render loading state
+  if (!user?.organizationId) {
     return (
       <Card>
         <CardContent className="p-6">
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-            <span className="ml-2">Loading...</span>
+          <div className="text-center text-red-500">
+            Please log in to access this feature.
           </div>
         </CardContent>
       </Card>
     );
   }
 
-  console.log('Data loaded:', { 
-    lineOfBusinesses, 
-    locations, 
-    users, 
-    roles,
-    selectedLocation,
-    selectedRole,
-    filteredUsers 
-  });
-
+  // Render content
   return (
     <Card>
       <CardContent className="p-6">
-        <h2 className="text-2xl font-bold mb-6">Add New Process</h2>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Process Name Field */}
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Process Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter process name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        {isLoading ? (
+          <div className="flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+            <span className="ml-2">Loading...</span>
+          </div>
+        ) : error ? (
+          <div className="text-center text-red-500">
+            Error: {error.message}
+          </div>
+        ) : (
+          <>
+            <h2 className="text-2xl font-bold mb-6">Add New Process</h2>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                {/* Process Name Field */}
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Process Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter process name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            {/* Process Duration Fields */}
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="inductionDays"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Induction Days</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="1"
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                {/* Process Duration Fields */}
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="inductionDays"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Induction Days</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="1"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="trainingDays"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Training Days</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="1"
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={form.control}
+                    name="trainingDays"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Training Days</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="1"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="certificationDays"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Certification Days</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="1"
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={form.control}
+                    name="certificationDays"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Certification Days</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="1"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="ojtDays"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>OJT Days</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="0"
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={form.control}
+                    name="ojtDays"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>OJT Days</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="0"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="ojtCertificationDays"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>OJT Certification Days</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="0"
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+                  <FormField
+                    control={form.control}
+                    name="ojtCertificationDays"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>OJT Certification Days</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="0"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
-            {/* Line of Business Field */}
-            <FormField
-              control={form.control}
-              name="lineOfBusinessId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Line of Business</FormLabel>
-                  <Select
-                    onValueChange={(value) => field.onChange(parseInt(value, 10))}
-                    value={field.value?.toString()}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Line of Business" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {lineOfBusinesses.map((lob) => (
-                        <SelectItem key={lob.id} value={lob.id.toString()}>
-                          {lob.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                {/* Line of Business Field */}
+                <FormField
+                  control={form.control}
+                  name="lineOfBusinessId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Line of Business</FormLabel>
+                      <Select
+                        onValueChange={(value) => field.onChange(parseInt(value, 10))}
+                        value={field.value?.toString()}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Line of Business" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {lineOfBusinesses.map((lob) => (
+                            <SelectItem key={lob.id} value={lob.id.toString()}>
+                              {lob.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            {/* Location Field */}
-            <FormField
-              control={form.control}
-              name="locationId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Location</FormLabel>
-                  <Select
-                    onValueChange={(value) => {
-                      field.onChange(parseInt(value, 10));
-                      setSelectedLocation(value);
-                    }}
-                    value={field.value?.toString()}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Location" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {locations.map((location) => (
-                        <SelectItem key={location.id} value={location.id.toString()}>
-                          {location.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                {/* Location Field */}
+                <FormField
+                  control={form.control}
+                  name="locationId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Location</FormLabel>
+                      <Select
+                        onValueChange={(value) => {
+                          field.onChange(parseInt(value, 10));
+                          setSelectedLocation(value);
+                        }}
+                        value={field.value?.toString()}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Location" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {locations.map((location) => (
+                            <SelectItem key={location.id} value={location.id.toString()}>
+                              {location.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            {/* Role Field */}
-            <FormField
-              control={form.control}
-              name="role"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Role</FormLabel>
-                  <Select
-                    onValueChange={(value) => {
-                      field.onChange(value);
-                      setSelectedRole(value);
-                    }}
-                    value={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Role" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {roles.map((role) => (
-                        <SelectItem key={role} value={role}>
-                          {role}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                {/* Role Field */}
+                <FormField
+                  control={form.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Role</FormLabel>
+                      <Select
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          setSelectedRole(value);
+                        }}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Role" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {roles.map((role) => (
+                            <SelectItem key={role} value={role}>
+                              {role}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            {/* User Field */}
-            <FormField
-              control={form.control}
-              name="userId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>User</FormLabel>
-                  <Select
-                    onValueChange={(value) => field.onChange(parseInt(value, 10))}
-                    value={field.value?.toString()}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select User" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {filteredUsers.map((user) => (
-                        <SelectItem key={user.id} value={user.id.toString()}>
-                          {user.fullName || user.username}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                {/* User Field */}
+                <FormField
+                  control={form.control}
+                  name="userId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>User</FormLabel>
+                      <Select
+                        onValueChange={(value) => field.onChange(parseInt(value, 10))}
+                        value={field.value?.toString()}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select User" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {filteredUsers.map((user) => (
+                            <SelectItem key={user.id} value={user.id.toString()}>
+                              {user.fullName || user.username}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            <Button
-              type="submit"
-              disabled={createProcessMutation.isPending}
-              className="w-full"
-            >
-              {createProcessMutation.isPending ? "Creating..." : "Create Process"}
-            </Button>
-          </form>
-        </Form>
+                <Button
+                  type="submit"
+                  disabled={createProcessMutation.isPending}
+                  className="w-full"
+                >
+                  {createProcessMutation.isPending ? "Creating..." : "Create Process"}
+                </Button>
+              </form>
+            </Form>
+          </>
+        )}
       </CardContent>
     </Card>
   );
