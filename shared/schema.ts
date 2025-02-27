@@ -1,9 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, pgEnum, date, unique } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
-import { relations, type InferSelectModel } from "drizzle-orm";
-import { z } from "zod";
-
-// Role enum definition
+// Enums must be declared before they are used
 export const roleEnum = pgEnum('role', [
   'owner',     
   'admin',     
@@ -13,6 +8,14 @@ export const roleEnum = pgEnum('role', [
   'trainee',   
   'advisor'    
 ]);
+
+export const batchStatusEnum = pgEnum('batch_status', ['planned', 'ongoing', 'completed', 'cancelled']);
+export const processStatusEnum = pgEnum('process_status', ['active', 'inactive', 'archived']);
+
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, pgEnum, date, unique } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { relations, type InferSelectModel } from "drizzle-orm";
+import { z } from "zod";
 
 // Organization Role table
 export const organizationRoles = pgTable("organization_roles", {
@@ -165,8 +168,6 @@ export const organizationBatches = pgTable("organization_batches", {
 
 export type OrganizationBatch = typeof organizationBatches.$inferSelect;
 
-export const batchStatusEnum = pgEnum('batch_status', ['planned', 'ongoing', 'completed', 'cancelled']);
-export const processStatusEnum = pgEnum('process_status', ['active', 'inactive', 'archived']);
 
 // Insert schemas
 // Create a Zod enum for role validation

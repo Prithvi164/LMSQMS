@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import type { User, Organization, OrganizationLocation, InsertUser, Role } from "@shared/schema";
+import type { User, Organization, OrganizationLocation, InsertUser, Role as UserRole } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,13 @@ import { insertUserSchema } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { z } from "zod";
 
+//New Type Definition
+interface OrganizationRole {
+  id: number;
+  role: string;
+  description: string;
+}
+
 // Extend the insertUserSchema for the edit form
 const editUserSchema = insertUserSchema.extend({
   locationId: z.string().optional(),
@@ -61,16 +68,16 @@ export function UserManagement() {
   });
 
   // Fetch organization roles
-  const { data: roles = [] } = useQuery({
+  const { data: roles = [] } = useQuery<OrganizationRole[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/roles`],
     enabled: !!user?.organizationId,
   });
 
-  // Fetch organization settings to get locations
-  const { data: orgSettings } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/settings`],
-    enabled: !!user?.organizationId,
-  });
+  // Get role description for display
+  const getRoleDescription = (roleId: number) => {
+    const role = roles.find(r => r.id === roleId);
+    return role ? `${role.role} - ${role.description}` : "Unknown Role";
+  };
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: number) => {
@@ -152,6 +159,12 @@ export function UserManagement() {
     return location ? location.name : "Unknown Location";
   };
 
+  // Fetch organization settings to get locations
+  const { data: orgSettings } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/settings`],
+    enabled: !!user?.organizationId,
+  });
+
   // Get unique managers for filter dropdown
   const uniqueManagers = Array.from(
     new Map(
@@ -190,7 +203,7 @@ export function UserManagement() {
         fullName: editUser.fullName || "",
         email: editUser.email,
         employeeId: editUser.employeeId || "",
-        roleId: editUser.roleId,
+        roleId: editUser.roleId.toString(),
         phoneNumber: editUser.phoneNumber || "",
         locationId: editUser.locationId?.toString() || "none",
         managerId: editUser.managerId?.toString() || "none",
@@ -312,7 +325,6 @@ export function UserManagement() {
                       <Select
                         onValueChange={field.onChange}
                         value={field.value}
-                        disabled={editUser.roleId === "owner"}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -320,31 +332,13 @@ export function UserManagement() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {user?.roleId === "owner" ? (
-                            <>
-                              <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="manager">Manager</SelectItem>
-                              <SelectItem value="team_lead">Team Lead</SelectItem>
-                              <SelectItem value="trainer">Trainer</SelectItem>
-                              <SelectItem value="trainee">Trainee</SelectItem>
-                              <SelectItem value="advisor">Advisor</SelectItem>
-                            </>
-                          ) : (
-                            <>
-                              <SelectItem value="trainee">Trainee</SelectItem>
-                              <SelectItem value="manager">Manager</SelectItem>
-                              <SelectItem value="trainer">Trainer</SelectItem>
-                              <SelectItem value="advisor">Advisor</SelectItem>
-                              <SelectItem value="team_lead">Team Lead</SelectItem>
-                            </>
-                          )}
+                          {roles.map((role) => (
+                            <SelectItem key={role.id} value={role.id.toString()}>
+                              {role.role} - {role.description}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
-                      {editUser.roleId === "owner" && (
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Owner role cannot be changed
-                        </p>
-                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -624,7 +618,7 @@ export function UserManagement() {
                     <TableCell>{u.fullName}</TableCell>
                     <TableCell>
                       <Badge>
-                        {roles.find(r => r.id === u.roleId)?.role || "Unknown Role"}
+                        {getRoleDescription(u.roleId)}
                       </Badge>
                     </TableCell>
                     <TableCell>{getManagerName(u.managerId)}</TableCell>
