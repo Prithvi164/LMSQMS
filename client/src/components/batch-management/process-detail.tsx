@@ -88,7 +88,7 @@ export function ProcessDetail() {
     try {
       const response = await fetch(url, {
         headers: {
-          'Accept': 'application/json',
+          Accept: 'application/json',
           'Content-Type': 'application/json'
         },
         credentials: 'include'
@@ -149,20 +149,38 @@ export function ProcessDetail() {
     }
   });
 
-  // Get unique roles from users
-  const roles = Array.from(new Set(users.map(user => user.role))).sort();
+  // Get unique roles from users in the selected location
+  const roles = Array.from(new Set(
+    users.filter(u => !selectedLocation || u.locationId?.toString() === selectedLocation)
+    .map(user => user.role)
+  )).sort();
 
   // Filter users based on selected location and role
-  const filteredUsers = users.filter(u => 
-    (!selectedLocation || u.locationId === parseInt(selectedLocation)) &&
-    (!selectedRole || u.role === selectedRole)
-  );
+  const filteredUsers = users.filter(u => {
+    const locationMatch = !selectedLocation || u.locationId?.toString() === selectedLocation;
+    const roleMatch = !selectedRole || u.role === selectedRole;
+    console.log("Filtering users", {u, locationMatch, roleMatch, selectedLocation, selectedRole})
+    return locationMatch && roleMatch;
+  });
+
+  console.log('Filtering debug:', {
+    selectedLocation,
+    selectedRole,
+    availableRoles: roles,
+    filteredUsersCount: filteredUsers.length,
+    users: users.map(u => ({
+      id: u.id,
+      name: u.fullName || u.username,
+      locationId: u.locationId,
+      role: u.role
+    }))
+  });
 
   const createProcessMutation = useMutation({
     mutationFn: async (data: z.infer<typeof processFormSchema>) => {
       const response = await fetch('/api/processes', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
