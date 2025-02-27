@@ -6,12 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Download, Upload } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Badge } from "@/components/ui/badge";
-import { Check, ChevronsUpDown } from "lucide-react";
-import { cn } from "@/lib/utils";
-import type { User, Organization, OrganizationProcess, OrganizationBatch, OrganizationLocation } from "@shared/schema";
+import type { User, Organization, OrganizationLocation } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -40,19 +35,11 @@ export function AddUser({
     locationId: "none",
     email: "",
     phoneNumber: "",
-    processId: "none",
     education: "",
-    batchId: "none",
     dateOfJoining: "",
     dateOfBirth: "",
     managerId: "none",
   });
-
-  // For multiple selections
-  const [selectedProcesses, setSelectedProcesses] = useState<string[]>([]);
-  const [selectedBatches, setSelectedBatches] = useState<string[]>([]);
-  const [processComboOpen, setProcessComboOpen] = useState(false);
-  const [batchComboOpen, setBatchComboOpen] = useState(false);
 
   // Fetch organization settings
   const { data: orgSettings, isLoading } = useQuery({
@@ -63,18 +50,11 @@ export function AddUser({
   const createUserMutation = useMutation({
     mutationFn: async (data: typeof newUserData) => {
       try {
-        const isManagerOrTrainer = ["manager", "trainer"].includes(data.role);
-
         const payload = {
           ...data,
-          processId: isManagerOrTrainer ? null : data.processId === "none" ? null : Number(data.processId),
-          batchId: isManagerOrTrainer ? null : data.batchId === "none" ? null : Number(data.batchId),
           locationId: data.locationId === "none" ? null : Number(data.locationId),
           managerId: data.managerId === "none" ? null : Number(data.managerId),
           organizationId: organization?.id || null,
-          // Add arrays for multiple selections
-          processes: isManagerOrTrainer ? selectedProcesses.map(id => Number(id)) : [],
-          batches: isManagerOrTrainer ? selectedBatches.map(id => Number(id)) : [],
         };
 
         const response = await apiRequest("POST", "/api/users", payload);
@@ -102,15 +82,11 @@ export function AddUser({
         locationId: "none",
         email: "",
         phoneNumber: "",
-        processId: "none",
         education: "",
-        batchId: "none",
         dateOfJoining: "",
         dateOfBirth: "",
         managerId: "none",
       });
-      setSelectedProcesses([]);
-      setSelectedBatches([]);
     },
     onError: (error: Error) => {
       toast({
@@ -167,8 +143,6 @@ export function AddUser({
         return [];
     }
   };
-
-  const isManagerOrTrainer = ["manager", "trainer"].includes(newUserData.role);
 
   if (!organization || isLoading) {
     return (
@@ -308,16 +282,11 @@ export function AddUser({
                 <Select
                   value={newUserData.role}
                   onValueChange={(value) => {
-                    // Reset manager and selections when role changes
                     setNewUserData(prev => ({
                       ...prev,
                       role: value,
-                      managerId: "none",
-                      processId: "none",
-                      batchId: "none"
+                      managerId: "none"
                     }));
-                    setSelectedProcesses([]);
-                    setSelectedBatches([]);
                   }}
                 >
                   <SelectTrigger>
@@ -346,148 +315,6 @@ export function AddUser({
                     )}
                   </SelectContent>
                 </Select>
-              </div>
-              <div>
-                <Label htmlFor="processes">
-                  {isManagerOrTrainer ? "Managed Processes" : "Process"}
-                </Label>
-                {isManagerOrTrainer ? (
-                  <Popover open={processComboOpen} onOpenChange={setProcessComboOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={processComboOpen}
-                        className="w-full justify-between"
-                      >
-                        {selectedProcesses.length > 0
-                          ? `${selectedProcesses.length} process${selectedProcesses.length > 1 ? 'es' : ''} selected`
-                          : "Select processes..."}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
-                      <Command>
-                        <CommandInput placeholder="Search processes..." />
-                        <CommandEmpty>No process found.</CommandEmpty>
-                        <CommandGroup>
-                          {orgSettings?.processes?.map((process: OrganizationProcess) => (
-                            <CommandItem
-                              key={process.id}
-                              onSelect={() => {
-                                const value = process.id.toString();
-                                setSelectedProcesses(current =>
-                                  current.includes(value)
-                                    ? current.filter(x => x !== value)
-                                    : [...current, value]
-                                );
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  selectedProcesses.includes(process.id.toString()) ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              {process.name}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                ) : (
-                  <Select
-                    value={newUserData.processId}
-                    onValueChange={(value) => setNewUserData(prev => ({
-                      ...prev,
-                      processId: value
-                    }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select process" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No Process</SelectItem>
-                      {orgSettings?.processes?.map((process: OrganizationProcess) => (
-                        <SelectItem key={process.id} value={process.id.toString()}>
-                          {process.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-              <div>
-                <Label htmlFor="batches">
-                  {isManagerOrTrainer ? "Managed Batches" : "Batch"}
-                </Label>
-                {isManagerOrTrainer ? (
-                  <Popover open={batchComboOpen} onOpenChange={setBatchComboOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={batchComboOpen}
-                        className="w-full justify-between"
-                      >
-                        {selectedBatches.length > 0
-                          ? `${selectedBatches.length} batch${selectedBatches.length > 1 ? 'es' : ''} selected`
-                          : "Select batches..."}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
-                      <Command>
-                        <CommandInput placeholder="Search batches..." />
-                        <CommandEmpty>No batch found.</CommandEmpty>
-                        <CommandGroup>
-                          {orgSettings?.batches?.map((batch: OrganizationBatch) => (
-                            <CommandItem
-                              key={batch.id}
-                              onSelect={() => {
-                                const value = batch.id.toString();
-                                setSelectedBatches(current =>
-                                  current.includes(value)
-                                    ? current.filter(x => x !== value)
-                                    : [...current, value]
-                                );
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  selectedBatches.includes(batch.id.toString()) ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              {batch.name}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                ) : (
-                  <Select
-                    value={newUserData.batchId}
-                    onValueChange={(value) => setNewUserData(prev => ({
-                      ...prev,
-                      batchId: value
-                    }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select batch" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No Batch</SelectItem>
-                      {orgSettings?.batches?.map((batch: OrganizationBatch) => (
-                        <SelectItem key={batch.id} value={batch.id.toString()}>
-                          {batch.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
               </div>
               <div>
                 <Label htmlFor="locationId">Location</Label>
@@ -586,40 +413,6 @@ export function AddUser({
                 />
               </div>
             </div>
-            {isManagerOrTrainer && (selectedProcesses.length > 0 || selectedBatches.length > 0) && (
-              <div className="mt-4 space-y-2">
-                {selectedProcesses.length > 0 && (
-                  <div>
-                    <Label>Selected Processes</Label>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {selectedProcesses.map(id => {
-                        const process = orgSettings?.processes?.find((p: OrganizationProcess) => p.id.toString() === id);
-                        return process ? (
-                          <Badge key={id} variant="secondary" className="text-sm">
-                            {process.name}
-                          </Badge>
-                        ) : null;
-                      })}
-                    </div>
-                  </div>
-                )}
-                {selectedBatches.length > 0 && (
-                  <div>
-                    <Label>Selected Batches</Label>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {selectedBatches.map(id => {
-                        const batch = orgSettings?.batches?.find((b: OrganizationBatch) => b.id.toString() === id);
-                        return batch ? (
-                          <Badge key={id} variant="secondary" className="text-sm">
-                            {batch.name}
-                          </Badge>
-                        ) : null;
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
             <Button
               type="submit"
               className="w-full mt-6"

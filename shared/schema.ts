@@ -127,10 +127,8 @@ export const users = pgTable("users", {
   fullName: text("full_name"),
   employeeId: text("employee_id"),
   role: roleEnum("role").notNull(),
-  batchId: integer("batch_id"),
   locationId: integer("location_id").references(() => organizationLocations.id),
   email: text("email").notNull(),
-  processId: integer("process_id").references(() => organizationProcesses.id),
   education: text("education"),
   dateOfJoining: date("date_of_joining"),
   phoneNumber: text("phone_number"),
@@ -413,17 +411,9 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     fields: [users.managerId],
     references: [users.id],
   }),
-  batch: one(organizationBatches, {
-    fields: [users.batchId],
-    references: [organizationBatches.id],
-  }),
   location: one(organizationLocations, {
     fields: [users.locationId],
     references: [organizationLocations.id],
-  }),
-  process: one(organizationProcesses, {
-    fields: [users.processId],
-    references: [organizationProcesses.id],
   }),
   // Add new relations
   managedProcesses: many(userProcesses),
