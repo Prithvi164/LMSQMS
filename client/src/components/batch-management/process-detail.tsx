@@ -31,50 +31,26 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
-  Check,
-  ChevronsUpDown,
-  Plus,
-  Loader2,
-  Pencil,
-  Trash2,
-  Search,
-  Settings,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Loader2, Plus, Settings } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Pencil, Trash2 } from "lucide-react";
 
-// Schema for process form with user selection
+
+// Process form schema
 const processFormSchema = z.object({
   name: z.string().min(1, "Process name is required"),
-  inductionDays: z.number().min(0, "Induction days cannot be negative"),
-  trainingDays: z.number().min(0, "Training days cannot be negative"),
-  certificationDays: z.number().min(0, "Certification days cannot be negative"),
-  ojtDays: z.number().min(0, "OJT days cannot be negative"),
-  ojtCertificationDays: z.number().min(0, "OJT certification days cannot be negative"),
-  lineOfBusinessId: z.string().min(1, "Line of business is required"),
+  inductionDays: z.number().min(0, "Induction days must be 0 or greater"),
+  trainingDays: z.number().min(0, "Training days must be 0 or greater"),
+  certificationDays: z.number().min(0, "Certification days must be 0 or greater"),
+  ojtDays: z.number().min(0, "OJT days must be 0 or greater"),
+  ojtCertificationDays: z.number().min(0, "OJT certification days must be 0 or greater"),
+  lineOfBusinessId: z.string().min(1, "Line of Business is required"),
   locationId: z.string().min(1, "Location is required"),
-  selectedRole: z.string().min(1, "Role selection is required"),
-  selectedLocation: z.string().optional(),
-  userIds: z.array(z.string()).optional(),
+  role: z.string().min(1, "Role is required"),
+  userIds: z.array(z.string()).min(1, "At least one user must be selected"),
 });
 
 export function ProcessDetail() {
@@ -88,71 +64,34 @@ export function ProcessDetail() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [userComboOpen, setUserComboOpen] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<string>("all");
-  const [selectedLocation, setSelectedLocation] = useState<string>("all");
+  const [selectedRole, setSelectedRole] = useState<string>("");
+  const [selectedLocation, setSelectedLocation] = useState<string>("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  // Fetch all necessary data
+  // Fetch organization data
   const { data: organization } = useQuery({
     queryKey: ["/api/organization"],
     enabled: !!user,
   });
 
+  // Fetch settings including users, locations, etc.
   const { data: orgSettings, isLoading } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/settings`],
     enabled: !!organization?.id,
   });
 
+  // Fetch line of businesses
   const { data: lineOfBusinesses } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/line-of-businesses`],
     enabled: !!organization?.id,
   });
 
-  // Get filtered users based on role and location
-  const getFilteredUsers = (role: string, locationId: string) => {
-    if (!orgSettings?.users) return [];
+  // Available roles
+  const availableRoles = ["trainer", "trainee", "team_lead", "all"];
 
-    console.log('Filtering users:', {
-      allUsers: orgSettings.users,
-      selectedRole: role,
-      selectedLocation: locationId
-    });
-
-    return orgSettings.users.filter(u => {
-      const roleMatch = role === "all" ? 
-        ["trainer", "trainee", "team_lead"].includes(u.role) : 
-        u.role === role;
-
-      const locationMatch = locationId === "all" ? 
-        true : 
-        u.locationId?.toString() === locationId;
-
-      return roleMatch && locationMatch;
-    });
-  };
-
-  const availableRoles = ["all", "trainer", "trainee", "team_lead"];
-
-  // Get location name helper
-  const getLocationName = (locationId: number | null) => {
-    if (!locationId || !orgSettings?.locations) return "No Location";
-    const location = orgSettings.locations.find(l => l.id === locationId);
-    return location ? location.name : "Unknown Location";
-  };
-
-  // User detail formatting helper
-  const formatUserForDisplay = (user: any) => ({
-    id: user.id,
-    name: user.fullName || user.username,
-    email: user.email,
-    role: user.role,
-    employeeId: user.employeeId,
-    location: getLocationName(user.locationId),
-    initials: (user.fullName || user.username)[0].toUpperCase()
-  });
-
+  // Form definition
   const form = useForm<z.infer<typeof processFormSchema>>({
     resolver: zodResolver(processFormSchema),
     defaultValues: {
@@ -164,8 +103,7 @@ export function ProcessDetail() {
       ojtCertificationDays: 0,
       lineOfBusinessId: "",
       locationId: "",
-      selectedRole: "all",
-      selectedLocation: "all",
+      role: "",
       userIds: [],
     },
   });
@@ -181,11 +119,82 @@ export function ProcessDetail() {
       ojtCertificationDays: 0,
       lineOfBusinessId: "",
       locationId: "",
-      selectedRole: "all",
-      selectedLocation: "all",
+      role: "",
       userIds: [],
     },
   });
+
+  // Create process mutation
+  const createProcessMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof processFormSchema>) => {
+      const response = await fetch(`/api/organizations/${organization?.id}/processes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: data.name,
+          inductionDays: data.inductionDays,
+          trainingDays: data.trainingDays,
+          certificationDays: data.certificationDays,
+          ojtDays: data.ojtDays,
+          ojtCertificationDays: data.ojtCertificationDays,
+          lineOfBusinessId: parseInt(data.lineOfBusinessId),
+          locationId: parseInt(data.locationId),
+          role: data.role,
+          userIds: data.userIds,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create process');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
+      toast({
+        title: "Success",
+        description: "Process created successfully",
+      });
+      setIsCreateDialogOpen(false);
+      form.reset();
+      setSelectedUsers([]);
+      setSelectedLocation("");
+      setSelectedRole("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Get filtered users based on location and role
+  const getFilteredUsers = () => {
+    if (!orgSettings?.users) return [];
+
+    return orgSettings.users.filter(user => {
+      const locationMatch = !selectedLocation || user.locationId?.toString() === selectedLocation;
+      const roleMatch = !selectedRole || user.role === selectedRole;
+      return locationMatch && roleMatch;
+    });
+  };
+
+  // Handle form submission
+  const onSubmit = async (data: z.infer<typeof processFormSchema>) => {
+    console.log('Form data:', data);
+    try {
+      await createProcessMutation.mutateAsync({
+        ...data,
+        userIds: selectedUsers,
+      });
+    } catch (error) {
+      console.error("Error creating process:", error);
+    }
+  };
 
   const editProcessMutation = useMutation({
     mutationFn: async (data: z.infer<typeof processFormSchema>) => {
@@ -260,74 +269,6 @@ export function ProcessDetail() {
     },
   });
 
-  const createProcessMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof processFormSchema>) => {
-      try {
-        const response = await fetch(`/api/organizations/${organization?.id}/processes`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...data,
-            lineOfBusinessId: parseInt(data.lineOfBusinessId),
-            locationId: parseInt(data.locationId),
-          }),
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.message || 'Failed to create process');
-        }
-
-        const process = await response.json();
-
-        if (data.userIds?.length) {
-          await Promise.all(
-            data.userIds.map(userId =>
-              fetch(`/api/organizations/${organization?.id}/processes/${process.id}/users`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: parseInt(userId) }),
-              })
-            )
-          );
-        }
-
-        return process;
-      } catch (error) {
-        console.error('Error creating process:', error);
-        throw error;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
-      toast({
-        title: "Success",
-        description: "Process created successfully",
-      });
-      setIsCreateDialogOpen(false);
-      form.reset();
-      setSelectedUsers([]);
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const onSubmit = async (data: z.infer<typeof processFormSchema>) => {
-    try {
-      await createProcessMutation.mutateAsync({
-        ...data,
-        userIds: selectedUsers,
-      });
-    } catch (error) {
-      console.error("Error creating process:", error);
-    }
-  };
-
   const onEdit = async (data: z.infer<typeof processFormSchema>) => {
     try {
       await editProcessMutation.mutateAsync(data);
@@ -366,23 +307,25 @@ export function ProcessDetail() {
       ojtDays: process.ojtDays,
       ojtCertificationDays: process.ojtCertificationDays,
       userIds: process.userIds || [],
-      selectedRole: "all",
+      role: "all",
       selectedLocation: "all",
     });
     setIsEditDialogOpen(true);
   };
 
-  const apiRequest = async (method: string, url: string, body?: any) => {
-    const response = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || `API request failed: ${response.status}`);
-    }
-    return response.json();
+  const getUserDetails = (userId: number) => {
+    const user = orgSettings?.users?.find(u => u.id === userId);
+    if (!user) return null;
+    const locationName = orgSettings?.locations?.find(l => l.id === user.locationId)?.name || "Unknown Location";
+    return {
+      id: user.id,
+      name: user.fullName || user.username,
+      email: user.email,
+      role: user.role,
+      employeeId: user.employeeId,
+      location: locationName,
+      initials: (user.fullName || user.username)[0].toUpperCase(),
+    };
   };
 
 
@@ -417,16 +360,13 @@ export function ProcessDetail() {
     <div className="space-y-4">
       <div className="flex items-center space-x-2 mb-6">
         <Settings className="h-8 w-8 text-blue-500" />
-        <h1 className="text-2xl font-semibold">Manage Process</h1>
+        <h1 className="text-2xl font-semibold">Process Management</h1>
       </div>
 
-      {/* Process List Card */}
       <Card>
         <CardContent className="p-6">
-          {/* Search and Add Process Button */}
           <div className="flex flex-col gap-4 md:flex-row md:items-center mb-6">
             <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search processes..."
                 value={searchQuery}
@@ -446,7 +386,6 @@ export function ProcessDetail() {
             </Button>
           </div>
 
-          {/* Process Table */}
           <div className="relative overflow-x-auto">
             <Table>
               <TableHeader>
@@ -505,7 +444,6 @@ export function ProcessDetail() {
             </Table>
           </div>
 
-          {/* Pagination */}
           <div className="flex items-center justify-between py-4">
             <div className="text-sm text-gray-500">
               Showing {startIndex + 1} to {Math.min(endIndex, filteredProcesses.length)} of {filteredProcesses.length} entries
@@ -532,7 +470,6 @@ export function ProcessDetail() {
         </CardContent>
       </Card>
 
-      {/* Selected Process Users Card */}
       {selectedProcess && (
         <Card className="mt-6">
           <CardContent className="p-6">
@@ -556,7 +493,6 @@ export function ProcessDetail() {
                     </DialogDescription>
                   </DialogHeader>
 
-                  {/* User Assignment Content */}
                   <div className="grid gap-4">
                     <Select
                       value={selectedLocation}
@@ -592,9 +528,9 @@ export function ProcessDetail() {
                     </Select>
 
                     <ScrollArea className="h-[300px]">
-                      {getFilteredUsers(selectedRole, selectedLocation).map((user) => {
+                      {getFilteredUsers().map((user) => {
                         const isAssigned = selectedProcess.users?.includes(user.id);
-                        const userDisplay = formatUserForDisplay(user);
+                        const userDisplay = getUserDetails(user.id);
                         return (
                           <div
                             key={user.id}
@@ -602,19 +538,19 @@ export function ProcessDetail() {
                           >
                             <div className="flex items-center gap-3">
                               <Avatar className="h-8 w-8">
-                                <AvatarFallback>{userDisplay.initials}</AvatarFallback>
+                                <AvatarFallback>{userDisplay?.initials}</AvatarFallback>
                               </Avatar>
                               <div>
-                                <p className="font-medium">{userDisplay.name}</p>
+                                <p className="font-medium">{userDisplay?.name}</p>
                                 <div className="flex items-center gap-2">
-                                  <Badge variant="outline">{userDisplay.role}</Badge>
-                                  {userDisplay.employeeId && (
+                                  <Badge variant="outline">{userDisplay?.role}</Badge>
+                                  {userDisplay?.employeeId && (
                                     <span className="text-xs text-muted-foreground">
-                                      ID: {userDisplay.employeeId}
+                                      ID: {userDisplay?.employeeId}
                                     </span>
                                   )}
                                   <span className="text-xs text-muted-foreground">
-                                    Location: {userDisplay.location}
+                                    Location: {userDisplay?.location}
                                   </span>
                                 </div>
                               </div>
@@ -625,20 +561,23 @@ export function ProcessDetail() {
                               onClick={async () => {
                                 try {
                                   if (isAssigned) {
-                                    await apiRequest(
-                                      "DELETE",
-                                      `/api/organizations/${organization?.id}/processes/${selectedProcess.id}/users/${user.id}`
+                                    await fetch(
+                                      `/api/organizations/${organization?.id}/processes/${selectedProcess.id}/users/${user.id}`,
+                                      { method: "DELETE" }
                                     );
                                   } else {
-                                    await apiRequest(
-                                      "POST",
+                                    await fetch(
                                       `/api/organizations/${organization?.id}/processes/${selectedProcess.id}/users`,
-                                      { userId: user.id }
+                                      {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ userId: user.id }),
+                                      }
                                     );
                                   }
 
                                   queryClient.invalidateQueries({
-                                    queryKey: [`/api/organizations/${organization?.id}/settings`]
+                                    queryKey: [`/api/organizations/${organization?.id}/settings`],
                                   });
 
                                   toast({
@@ -665,7 +604,6 @@ export function ProcessDetail() {
               </Dialog>
             </div>
 
-            {/* Display Assigned Users */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {selectedProcess.users?.map((userId: number) => {
                 const userDetails = getUserDetails(userId);
@@ -704,30 +642,123 @@ export function ProcessDetail() {
         </Card>
       )}
 
-      {/* Create Process Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add New Process</DialogTitle>
-            <DialogDescription>Fill in the details below to create a new process.</DialogDescription>
+            <DialogTitle>Create New Process</DialogTitle>
+            <DialogDescription>Fill in the process details below.</DialogDescription>
           </DialogHeader>
+
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
+                {/* Basic Details */}
                 <FormField
                   control={form.control}
                   name="name"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="col-span-2">
                       <FormLabel>Process Name</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input placeholder="Enter process name" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
+                {/* Duration Fields */}
+                <FormField
+                  control={form.control}
+                  name="inductionDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Induction Days</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="trainingDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Training Days</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="certificationDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Certification Days</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="ojtDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>OJT Days</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="ojtCertificationDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>OJT Certification Days</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* LOB Selection */}
                 <FormField
                   control={form.control}
                   name="lineOfBusinessId"
@@ -753,20 +784,29 @@ export function ProcessDetail() {
                   )}
                 />
 
+                {/* Location Selection */}
                 <FormField
                   control={form.control}
                   name="locationId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Location</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select 
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          setSelectedLocation(value);
+                          setSelectedRole("");
+                          setSelectedUsers([]);
+                        }} 
+                        value={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select Location" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {locations.map((location) => (
+                          {orgSettings?.locations?.map((location: any) => (
                             <SelectItem key={location.id} value={location.id.toString()}>
                               {location.name}
                             </SelectItem>
@@ -777,61 +817,32 @@ export function ProcessDetail() {
                     </FormItem>
                   )}
                 />
+
+                {/* Role Selection */}
                 <FormField
                   control={form.control}
-                  name="selectedLocation"
+                  name="role"
                   render={({ field }) => (
-                    <FormItem className="col-span-2">
-                      <FormLabel>Filter Users by Location</FormLabel>
-                      <Select
-                        onValueChange={(value) => {
-                          field.onChange(value);
-                          setSelectedLocation(value);
-                          setSelectedUsers([]); // Clear selected users when location changes
-                        }}
-                        value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select location to filter users" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="all">All Locations</SelectItem>
-                          {orgSettings?.locations?.map((location) => (
-                            <SelectItem key={location.id} value={location.id.toString()}>
-                              {location.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="selectedRole"
-                  render={({ field }) => (
-                    <FormItem className="col-span-2">
-                      <FormLabel>Filter Users by Role</FormLabel>
-                      <Select
+                    <FormItem>
+                      <FormLabel>Role</FormLabel>
+                      <Select 
                         onValueChange={(value) => {
                           field.onChange(value);
                           setSelectedRole(value);
-                          setSelectedUsers([]); // Clear selected users when role changes
-                        }}
+                          setSelectedUsers([]);
+                        }} 
                         value={field.value}
+                        disabled={!selectedLocation}
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select role to filter users" />
+                            <SelectValue placeholder="Select Role" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           {availableRoles.map((role) => (
                             <SelectItem key={role} value={role}>
-                              {role === "all" ? "All Roles" : role.charAt(0).toUpperCase() + role.slice(1)}
+                              {role.charAt(0).toUpperCase() + role.slice(1)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -841,229 +852,81 @@ export function ProcessDetail() {
                   )}
                 />
 
-                {/* Updated User Selection */}
-                <FormField
-                  control={form.control}
-                  name="userIds"
-                  render={({ field }) => (
-                    <FormItem className="col-span-2">
-                      <FormLabel>Select Users</FormLabel>
-                      <FormControl>
-                        <Popover open={userComboOpen} onOpenChange={setUserComboOpen}>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              aria-expanded={userComboOpen}
-                              className="w-full justify-between"
-                            >
-                              {selectedUsers.length > 0
-                                ? `${selectedUsers.length} user${selectedUsers.length > 1 ? 's' : ''} selected`
-                                : "Select users..."}
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[400px] p-0">
-                            <Command>
-                              <CommandInput placeholder="Search users..." />
-                              <CommandEmpty>No users found.</CommandEmpty>
-                              <CommandGroup>
-                                {getFilteredUsers(selectedRole, selectedLocation).map((user) => {
-                                  const userDisplay = formatUserForDisplay(user);
-                                  const isSelected = selectedUsers.includes(user.id.toString());
-
-                                  return (
-                                    <CommandItem
-                                      key={user.id}
-                                      onSelect={() => {
-                                        const value = user.id.toString();
-                                        setSelectedUsers(current =>
-                                          current.includes(value)
-                                            ? current.filter(x => x !== value)
-                                            : [...current, value]
-                                        );
-                                      }}
-                                      className="flex items-center justify-between py-2"
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        <Avatar className="h-6 w-6">
-                                          <AvatarFallback>{userDisplay.initials}</AvatarFallback>
-                                        </Avatar>
-                                        <div className="flex flex-col">
-                                          <span className="font-medium">{userDisplay.name}</span>
-                                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                            <span>{userDisplay.email}</span>
-                                            {userDisplay.employeeId && (
-                                              <span>({userDisplay.employeeId})</span>
-                                            )}
-                                            <span>{userDisplay.location}</span>
-                                          </div>
-                                        </div>
-                                      </div>
-                                      <Check
-                                        className={cn(
-                                          "ml-auto h-4 w-4",
-                                          isSelected ? "opacity-100" : "opacity-0"
-                                        )}
-                                      />
-                                    </CommandItem>
-                                  );
-                                })}
-                              </CommandGroup>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Display selected users */}
-                {selectedUsers.length > 0 && (
-                  <div className="col-span-2">
-                    <Label className="text-sm font-medium">Selected Users</Label>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {selectedUsers.map(id => {
-                        const user = orgSettings?.users?.find(u => u.id.toString() === id);
-                        if (!user) return null;
-                        const userDisplay = formatUserForDisplay(user);
-
-                        return (
-                          <Badge
-                            key={id}
-                            variant="secondary"
-                            className="flex items-center gap-2 px-3 py-1"
-                          >
-                            <Avatar className="h-5 w-5">
-                              <AvatarFallback className="text-xs">
-                                {userDisplay.initials}
+                {/* User Selection */}
+                <div className="col-span-2">
+                  <FormLabel>Select Users</FormLabel>
+                  <ScrollArea className="h-[200px] border rounded-md p-4">
+                    <div className="space-y-2">
+                      {getFilteredUsers().map((user: any) => (
+                        <div
+                          key={user.id}
+                          className="flex items-center justify-between p-2 hover:bg-accent rounded-lg"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback>
+                                {(user.fullName || user.username)[0].toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
-                            <div className="flex flex-col">
-                              <span>{userDisplay.name}</span>
-                              <div className="flex items-center gap-1 text-xs">
-                                <Badge variant="outline" className="text-xs">
-                                  {userDisplay.role}
-                                </Badge>
-                                <span className="text-muted-foreground">
-                                  {userDisplay.location}
-                                </span>
+                            <div>
+                              <p className="font-medium">{user.fullName || user.username}</p>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline">{user.role}</Badge>
+                                {user.employeeId && (
+                                  <span className="text-xs text-muted-foreground">
+                                    ID: {user.employeeId}
+                                  </span>
+                                )}
                               </div>
                             </div>
-                          </Badge>
-                        );
-                      })}
+                          </div>
+                          <Button
+                            type="button"
+                            variant={selectedUsers.includes(user.id.toString()) ? "secondary" : "outline"}
+                            size="sm"
+                            onClick={() => {
+                              const userId = user.id.toString();
+                              setSelectedUsers(current =>
+                                current.includes(userId)
+                                  ? current.filter(id => id !== userId)
+                                  : [...current, userId]
+                              );
+                              form.setValue("userIds", selectedUsers);
+                            }}
+                          >
+                            {selectedUsers.includes(user.id.toString()) ? "Selected" : "Select"}
+                          </Button>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                )}
-
-                <FormField
-                  control={form.control}
-                  name="inductionDays"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Induction Days</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="trainingDays"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Training Days</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="certificationDays"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Certification Days</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="ojtDays"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>OJT Days</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="ojtCertificationDays"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>OJT Certification Days</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  </ScrollArea>
+                  <FormMessage>{form.formState.errors.userIds?.message}</FormMessage>
+                </div>
               </div>
 
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={createProcessMutation.isPending}
-              >
-                {createProcessMutation.isPending ? "Creating..." : "Create Process"}
-              </Button>
+              <DialogFooter>
+                <Button
+                  type="submit"
+                  disabled={createProcessMutation.isPending}
+                >
+                  {createProcessMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating Process...
+                    </>
+                  ) : (
+                    "Create Process"
+                  )}
+                </Button>
+              </DialogFooter>
             </form>
           </Form>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Process Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="max-w-md"><DialogHeader>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
             <DialogTitle>Delete Process</DialogTitle>
             <DialogDescription className="pt-4">
               This action cannot be undone. Please type{" "}
@@ -1107,7 +970,6 @@ export function ProcessDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Process Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -1120,8 +982,7 @@ export function ProcessDetail() {
                 <FormField
                   control={editForm.control}
                   name="name"
-                  render={({ field }) => (
-                    <FormItem>
+                  render={({ field }) => (                    <FormItem>
                       <FormLabel className="text-xs font-medium uppercase">ProcessName</FormLabel>
                       <FormControl>
                         <Input placeholder="Enter process name" {...field} />
@@ -1169,7 +1030,7 @@ export function ProcessDetail() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {locations.map((location) => (
+                          {locations.map((location: any) => (
                             <SelectItem key={location.id} value={location.id.toString()}>
                               {location.name}
                             </SelectItem>
@@ -1180,187 +1041,6 @@ export function ProcessDetail() {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={editForm.control}
-                  name="selectedLocation"
-                  render={({ field }) => (
-                    <FormItem className="col-span-2">
-                      <FormLabel>Filter Users by Location</FormLabel>
-                      <Select
-                        onValueChange={(value) => {
-                          field.onChange(value);
-                          setSelectedLocation(value);
-                          setSelectedUsers([]); // Clear selected users when location changes
-                        }}
-                        value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select location to filter users" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="all">All Locations</SelectItem>
-                          {orgSettings?.locations?.map((location) => (
-                            <SelectItem key={location.id} value={location.id.toString()}>
-                              {location.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={editForm.control}
-                  name="selectedRole"
-                  render={({ field }) => (
-                    <FormItem className="col-span-2">
-                      <FormLabel>Filter Users by Role</FormLabel>
-                      <Select
-                        onValueChange={(value) => {
-                          field.onChange(value);
-                          setSelectedRole(value);
-                          setSelectedUsers([]);
-                        }}
-                        value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select role to filter users" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {availableRoles.map((role) => (
-                            <SelectItem key={role} value={role}>
-                              {role === "all" ? "All Roles" : role.charAt(0).toUpperCase() + role.slice(1)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Updated User Selection */}
-                <FormField
-                  control={editForm.control}
-                  name="userIds"
-                  render={({ field }) => (
-                    <FormItem className="col-span-2">
-                      <FormLabel>Select Users</FormLabel>
-                      <FormControl>
-                        <Popover open={userComboOpen} onOpenChange={setUserComboOpen}>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              aria-expanded={userComboOpen}
-                              className="w-full justify-between"
-                            >
-                              {selectedUsers.length > 0
-                                ? `${selectedUsers.length} user${selectedUsers.length > 1 ? 's' : ''} selected`
-                                : "Select users..."}
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[400px] p-0">
-                            <Command>
-                              <CommandInput placeholder="Search users..." />
-                              <CommandEmpty>No users found.</CommandEmpty>
-                              <CommandGroup>
-                                {getFilteredUsers(selectedRole, selectedLocation).map((user) => {
-                                  const userDisplay = formatUserForDisplay(user);
-                                  const isSelected = selectedUsers.includes(user.id.toString());
-
-                                  return (
-                                    <CommandItem
-                                      key={user.id}
-                                      onSelect={() => {
-                                        const value = user.id.toString();
-                                        setSelectedUsers(current =>
-                                          current.includes(value)
-                                            ? current.filter(x => x !== value)
-                                            : [...current, value]
-                                        );
-                                      }}
-                                      className="flex items-center justify-between py-2"
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        <Avatar className="h-6 w-6">
-                                          <AvatarFallback>{userDisplay.initials}</AvatarFallback>
-                                        </Avatar>
-                                        <div className="flex flex-col">
-                                          <span className="font-medium">{userDisplay.name}</span>
-                                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                            <span>{userDisplay.email}</span>
-                                            {userDisplay.employeeId && (
-                                              <span>({userDisplay.employeeId})</span>
-                                            )}
-                                            <span>{userDisplay.location}</span>
-                                          </div>
-                                        </div>
-                                      </div>
-                                      <Check
-                                        className={cn(
-                                          "ml-auto h-4 w-4",
-                                          isSelected ? "opacity-100" : "opacity-0"
-                                        )}
-                                      />
-                                    </CommandItem>
-                                  );
-                                })}
-                              </CommandGroup>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Display selected users */}
-                {selectedUsers.length > 0 && (
-                  <div className="col-span-2">
-                    <Label className="text-sm font-medium">Selected Users</Label>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {selectedUsers.map(id => {
-                        const user = orgSettings?.users?.find(u => u.id.toString() === id);
-                        if (!user) return null;
-                        const userDisplay = formatUserForDisplay(user);
-
-                        return (
-                          <Badge
-                            key={id}
-                            variant="secondary"
-                            className="flex items-center gap-2 px-3 py-1"
-                          >
-                            <Avatar className="h-5 w-5">
-                              <AvatarFallback className="text-xs">
-                                {userDisplay.initials}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex flex-col">
-                              <span>{userDisplay.name}</span>
-                              <div className="flex items-center gap-1 text-xs">
-                                <Badge variant="outline" className="text-xs">
-                                  {userDisplay.role}
-                                </Badge>
-                                <span className="text-muted-foreground">
-                                  {userDisplay.location}
-                                </span>
-                              </div>
-                            </div>
-                          </Badge>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
                 <FormField
                   control={editForm.control}
                   name="inductionDays"
@@ -1450,6 +1130,72 @@ export function ProcessDetail() {
                     </FormItem>
                   )}
                 />
+                <div className="col-span-2 space-y-4">
+                  <h3 className="font-medium">User Assignment</h3>
+
+                  <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by Location" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Locations</SelectItem>
+                      {orgSettings?.locations?.map((location: any) => (
+                        <SelectItem key={location.id} value={location.id.toString()}>
+                          {location.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={selectedRole} onValueChange={setSelectedRole}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by Role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Roles</SelectItem>
+                      {availableRoles.map((role) => (
+                        <SelectItem key={role} value={role}>
+                          {role.charAt(0).toUpperCase() + role.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <ScrollArea className="h-[200px] border rounded-md p-2">
+                    <div className="space-y-2">
+                      {getFilteredUsers().map((user: any) => (
+                        <div
+                          key={user.id}
+                          className="flex items-center justify-between p-2 hover:bg-accent rounded-lg"
+                        >
+                          <div>
+                            <p className="font-medium">{user.fullName || user.username}</p>
+                            <div className="flex gap-2 text-sm text-muted-foreground">
+                              <Badge variant="outline">{user.role}</Badge>
+                              <span>{orgSettings?.locations?.find((l: any) => l.id === user.locationId)?.name}</span>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant={selectedUsers.includes(user.id.toString()) ? "secondary" : "outline"}
+                            size="sm"
+                            onClick={() => {
+                              const userId = user.id.toString();
+                              setSelectedUsers(current =>
+                                current.includes(userId)
+                                  ? current.filter(id => id !== userId)
+                                  : [...current, userId]
+                              );
+                              editForm.setValue("userIds", selectedUsers);
+                            }}
+                          >
+                            {selectedUsers.includes(user.id.toString()) ? "Selected" : "Select"}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
               </div>
 
               <Button
