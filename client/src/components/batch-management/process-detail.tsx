@@ -77,7 +77,7 @@ interface Process {
   lineOfBusinessName?: string;
   locationName?: string;
   userName?: string;
-  status?: string; // Added status field
+  status?: string;
 }
 
 // Form schema
@@ -241,7 +241,13 @@ export function ProcessDetail() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          // Ensure we're sending these fields
+          userId: parseInt(data.userId.toString(), 10),
+          role: data.role,
+          status: 'active' // Default status for new processes
+        }),
       });
 
       if (!response.ok) {
@@ -456,8 +462,8 @@ export function ProcessDetail() {
                       <TableRow key={process.id}>
                         <TableCell className="font-medium">{process.name}</TableCell>
                         <TableCell>{process.lineOfBusinessName}</TableCell>
-                        <TableCell>{process.userName}</TableCell>
-                        <TableCell>{process.role}</TableCell>
+                        <TableCell>{process.userName || 'Not assigned'}</TableCell>
+                        <TableCell>{process.role || 'Not assigned'}</TableCell>
                         <TableCell>{process.locationName}</TableCell>
                         <TableCell>{process.status || 'Active'}</TableCell>
                         <TableCell className="text-right space-x-2">
