@@ -2,8 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useQuery } from "@tanstack/react-query";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -26,6 +25,25 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 
+// Type definitions
+interface User {
+  id: number;
+  username: string;
+  fullName?: string;
+  role: string;
+  locationId: number;
+}
+
+interface Location {
+  id: number;
+  name: string;
+}
+
+interface LineOfBusiness {
+  id: number;
+  name: string;
+}
+
 // Form schema for process creation
 const processFormSchema = z.object({
   name: z.string().min(1, "Process name is required"),
@@ -46,33 +64,35 @@ export function ProcessDetail() {
   const queryClient = useQueryClient();
   const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(true);
 
   // Fetch line of businesses
-  const { data: lineOfBusinesses } = useQuery({
+  const { data: lineOfBusinesses = [] } = useQuery<LineOfBusiness[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses`],
     enabled: !!user?.organizationId,
   });
 
   // Fetch locations
-  const { data: locations } = useQuery({
+  const { data: locations = [] } = useQuery<Location[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/locations`],
     enabled: !!user?.organizationId,
   });
 
   // Fetch users
-  const { data: users } = useQuery({
+  const { data: users = [] } = useQuery<User[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/users`],
     enabled: !!user?.organizationId,
+    onSettled: () => setIsLoading(false),
   });
 
   // Get unique roles from users
-  const roles = users ? [...new Set(users.map(user => user.role))].sort() : [];
+  const roles = Array.from(new Set(users.map(user => user.role))).sort();
 
   // Filter users based on selected location and role
-  const filteredUsers = users?.filter(u => 
+  const filteredUsers = users.filter(u => 
     (!selectedLocation || u.locationId === parseInt(selectedLocation)) &&
     (!selectedRole || u.role === selectedRole)
-  ) || [];
+  );
 
   const form = useForm<z.infer<typeof processFormSchema>>({
     resolver: zodResolver(processFormSchema),
@@ -83,6 +103,11 @@ export function ProcessDetail() {
       certificationDays: 1,
       ojtDays: 0,
       ojtCertificationDays: 0,
+      lineOfBusinessId: 0, // Added default value
+      locationId: 0,       // Added default value
+      role: "",            // Added default value
+      userId: 0,           // Added default value
+
     },
   });
 
@@ -130,6 +155,10 @@ export function ProcessDetail() {
       console.error("Error creating process:", error);
     }
   };
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center p-8">Loading...</div>;
+  }
 
   return (
     <Card>
@@ -264,7 +293,7 @@ export function ProcessDetail() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {lineOfBusinesses?.map((lob) => (
+                      {lineOfBusinesses.map((lob) => (
                         <SelectItem key={lob.id} value={lob.id.toString()}>
                           {lob.name}
                         </SelectItem>
@@ -295,7 +324,7 @@ export function ProcessDetail() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {locations?.map((location) => (
+                      {locations.map((location) => (
                         <SelectItem key={location.id} value={location.id.toString()}>
                           {location.name}
                         </SelectItem>
