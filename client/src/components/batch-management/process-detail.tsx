@@ -45,19 +45,6 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Settings, Plus, Loader2, Pencil, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 
@@ -85,7 +72,6 @@ export function ProcessDetail() {
   const [pageSize, setPageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
-  const [userComboOpen, setUserComboOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string>("");
   const [selectedLocation, setSelectedLocation] = useState<string>("");
   const { toast } = useToast();
@@ -110,8 +96,6 @@ export function ProcessDetail() {
     enabled: !!organization?.id,
   });
 
-  // Available roles
-  const availableRoles = ["trainer", "trainee", "team_lead", "all"];
 
   // Form definition
   const form = useForm<z.infer<typeof processFormSchema>>({
@@ -120,7 +104,6 @@ export function ProcessDetail() {
       name: "",
       inductionDays: 0,
       trainingDays: 0,
-      certificationDays: 0,
       certificationDays: 0,
       ojtDays: 0,
       ojtCertificationDays: 0,
@@ -206,9 +189,188 @@ export function ProcessDetail() {
     });
   };
 
+  // Get location name helper
+  const getLocationName = (locationId: number | null) => {
+    if (!locationId || !orgSettings?.locations) return "";
+    const location = orgSettings.locations.find(l => l.id === locationId);
+    return location?.name || "";
+  };
+
+  // Get unique roles from users table
+  const getAvailableRoles = () => {
+    if (!orgSettings?.users) return [];
+    const roles = new Set(orgSettings.users.map(user => user.role));
+    return Array.from(roles);
+  };
+
+  // Get unique locations from users table via organisation_location
+  const getAvailableLocations = () => {
+    if (!orgSettings?.locations) return [];
+    return orgSettings.locations;
+  };
+
+  // Form rendering component
+  const renderUserSelection = () => (
+    <div className="space-y-4">
+      {/* Location Selection */}
+      <FormField
+        control={form.control}
+        name="locationId"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Location</FormLabel>
+            <Select
+              onValueChange={(value) => {
+                field.onChange(value);
+                setSelectedLocation(value);
+                setSelectedRole("");
+                setSelectedUsers([]);
+              }}
+              value={field.value}
+            >
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Location" />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {getAvailableLocations().map((location) => (
+                  <SelectItem key={location.id} value={location.id.toString()}>
+                    {location.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      {/* Role Selection */}
+      <FormField
+        control={form.control}
+        name="role"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Role</FormLabel>
+            <Select
+              onValueChange={(value) => {
+                field.onChange(value);
+                setSelectedRole(value);
+                setSelectedUsers([]);
+              }}
+              value={field.value}
+              disabled={!selectedLocation}
+            >
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Role" />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {getAvailableRoles().map((role) => (
+                  <SelectItem key={role} value={role}>
+                    {role.charAt(0).toUpperCase() + role.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      {/* User Selection */}
+      <FormField
+        control={form.control}
+        name="userIds"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Select Users</FormLabel>
+            <ScrollArea className="h-[200px] border rounded-md p-4">
+              <div className="space-y-2">
+                {getFilteredUsers().map((user) => (
+                  <div
+                    key={user.id}
+                    className="flex items-center justify-between p-2 hover:bg-accent rounded-lg"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback>
+                          {(user.username || "")[0]?.toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{user.username}</p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Badge variant="outline">{user.role}</Badge>
+                          <span>{getLocationName(user.locationId)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant={selectedUsers.includes(user.id.toString()) ? "secondary" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        const userId = user.id.toString();
+                        const newSelectedUsers = selectedUsers.includes(userId)
+                          ? selectedUsers.filter(id => id !== userId)
+                          : [...selectedUsers, userId];
+                        setSelectedUsers(newSelectedUsers);
+                        field.onChange(newSelectedUsers);
+                      }}
+                    >
+                      {selectedUsers.includes(user.id.toString()) ? "Selected" : "Select"}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      {/* Display Selected Users */}
+      {selectedUsers.length > 0 && (
+        <div className="border rounded-md p-2">
+          <div className="flex flex-wrap gap-2">
+            {selectedUsers.map(id => {
+              const user = orgSettings?.users?.find(u => u.id.toString() === id);
+              if (!user) return null;
+
+              return (
+                <Badge
+                  key={id}
+                  variant="secondary"
+                  className="flex items-center gap-2 p-1"
+                >
+                  <Avatar className="h-4 w-4">
+                    <AvatarFallback className="text-xs">
+                      {(user.username || "")[0]?.toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span>{user.username}</span>
+                  <div className="flex items-center gap-1">
+                    <Badge variant="outline" className="text-xs">
+                      {user.role}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {getLocationName(user.locationId)}
+                    </span>
+                  </div>
+                </Badge>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   // Handle form submission
   const onSubmit = async (data: z.infer<typeof processFormSchema>) => {
-    console.log('Form data:', data);
     try {
       await createProcessMutation.mutateAsync({
         ...data,
@@ -498,7 +660,6 @@ export function ProcessDetail() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
-                {/*<UsersIcon className="h-5 w-5 text-muted-foreground" />*/}
                 <h2 className="text-xl font-semibold">Users in {selectedProcess.name}</h2>
               </div>
               <Dialog>
@@ -542,7 +703,7 @@ export function ProcessDetail() {
                         <SelectValue placeholder="Select role to filter" />
                       </SelectTrigger>
                       <SelectContent>
-                        {availableRoles.map((role) => (
+                        {getAvailableRoles().map((role) => (
                           <SelectItem key={role} value={role}>
                             {role === "all" ? "All Roles" : role.charAt(0).toUpperCase() + role.slice(1)}
                           </SelectItem>
@@ -675,7 +836,7 @@ export function ProcessDetail() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
-                {/* Basic Details */}
+                {/* Process Name */}
                 <FormField
                   control={form.control}
                   name="name"
@@ -690,7 +851,7 @@ export function ProcessDetail() {
                   )}
                 />
 
-                {/* Duration Fields */}
+                {/* Other form fields */}
                 <FormField
                   control={form.control}
                   name="inductionDays"
@@ -807,213 +968,12 @@ export function ProcessDetail() {
                   )}
                 />
 
-                {/* Location Selection */}
-                <FormField
-                  control={form.control}
-                  name="locationId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Location</FormLabel>
-                      <Select
-                        onValueChange={(value) => {
-                          field.onChange(value);
-                          setSelectedLocation(value);
-                          setSelectedRole("");
-                          setSelectedUsers([]);
-                        }}
-                        value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Location" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {orgSettings?.locations?.map((location: any) => (
-                            <SelectItem key={location.id} value={location.id.toString()}>
-                              {location.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
 
-                {/* Role Selection */}
-                <FormField
-                  control={form.control}
-                  name="role"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Role</FormLabel>
-                      <Select
-                        onValueChange={(value) => {
-                          field.onChange(value);
-                          setSelectedRole(value);
-                          setSelectedUsers([]);
-                        }}
-                        value={field.value}
-                        disabled={!selectedLocation}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Role" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {availableRoles.map((role) => (
-                            <SelectItem key={role} value={role}>
-                              {role.charAt(0).toUpperCase() + role.slice(1)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* User Selection */}
-                <FormField
-                  control={form.control}
-                  name="userIds"
-                  render={({ field }) => (
-                    <FormItem className="col-span-2">
-                      <FormLabel>Select Users</FormLabel>
-                      <div className="space-y-4">
-                        {/* Location Filter */}
-                        <Select
-                          value={selectedLocation}
-                          onValueChange={(value) => {
-                            setSelectedLocation(value);
-                            setSelectedRole("");
-                            setSelectedUsers([]);
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Location First" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {orgSettings?.locations?.map((location) => (
-                              <SelectItem key={location.id} value={location.id.toString()}>
-                                {location.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-
-                        {/* Role Filter - Only enabled if location is selected */}
-                        <Select
-                          value={selectedRole}
-                          onValueChange={(value) => {
-                            setSelectedRole(value);
-                            setSelectedUsers([]);
-                          }}
-                          disabled={!selectedLocation}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Role" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableRoles.map((role) => (
-                              <SelectItem key={role} value={role}>
-                                {role === "all" ? "All Roles" : role.charAt(0).toUpperCase() + role.slice(1)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-
-                        {/* User Selection - Only enabled if both location and role are selected */}
-                        <ScrollArea className="h-[200px] border rounded-md p-4">
-                          <div className="space-y-2">
-                            {getFilteredUsers().map((user) => (
-                              <div
-                                key={user.id}
-                                className="flex items-center justify-between p-2 hover:bg-accent rounded-lg"
-                              >
-                                <div className="flex items-center gap-3">
-                                  <Avatar className="h-8 w-8">
-                                    <AvatarFallback>
-                                      {(user.fullName || user.username)[0].toUpperCase()}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div>
-                                    <p className="font-medium">{user.fullName || user.username}</p>
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                      <Badge variant="outline">{user.role}</Badge>
-                                      {user.employeeId && <span>ID: {user.employeeId}</span>}
-                                    </div>
-                                  </div>
-                                </div>
-                                <Button
-                                  type="button"
-                                  variant={selectedUsers.includes(user.id.toString()) ? "secondary" : "outline"}
-                                  size="sm"
-                                  onClick={() => {
-                                    const userId = user.id.toString();
-                                    setSelectedUsers(current =>
-                                      current.includes(userId)
-                                        ? current.filter(id => id !== userId)
-                                        : [...current, userId]
-                                    );
-                                    form.setValue("userIds", selectedUsers);
-                                  }}
-                                >
-                                  {selectedUsers.includes(user.id.toString()) ? "Selected" : "Select"}
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                        </ScrollArea>
-
-                        {/* Display selected users */}
-                        {selectedUsers.length > 0 && (
-                          <div className="border rounded-md p-2">
-                            <div className="flex flex-wrap gap-2">
-                              {selectedUsers.map(id => {
-                                const user = orgSettings?.users?.find(u => u.id.toString() === id);
-                                if (!user) return null;
-                                const locationName = orgSettings?.locations?.find(
-                                  (l) => l.id === user.locationId
-                                )?.name;
-
-                                return (
-                                  <Badge
-                                    key={id}
-                                    variant="secondary"
-                                    className="flex items-center gap-2 p-1"
-                                  >
-                                    <Avatar className="h-4 w-4">
-                                      <AvatarFallback className="text-xs">
-                                        {(user.fullName || user.username)[0].toUpperCase()}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex flex-col">
-                                      <span>{user.fullName || user.username}</span>
-                                      <div className="flex items-center gap-1 text-xs">
-                                        <Badge variant="outline" className="text-xs">
-                                          {user.role}
-                                        </Badge>
-                                        {locationName && (
-                                          <span className="text-muted-foreground">
-                                            {locationName}
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </Badge>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      <FormMessage>{form.formState.errors.userIds?.message}</FormMessage>
-                    </FormItem>
-                  )}
-                />
+                {/* User Selection Section */}
+                <div className="col-span-2">
+                  <h3 className="text-lg font-semibold mb-4">User Assignment</h3>
+                  {renderUserSelection()}
+                </div>
               </div>
 
               <DialogFooter>
@@ -1266,7 +1226,7 @@ export function ProcessDetail() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Roles</SelectItem>
-                      {availableRoles.map((role) => (
+                      {getAvailableRoles().map((role) => (
                         <SelectItem key={role} value={role}>
                           {role.charAt(0).toUpperCase() + role.slice(1)}
                         </SelectItem>
@@ -1294,12 +1254,11 @@ export function ProcessDetail() {
                             size="sm"
                             onClick={() => {
                               const userId = user.id.toString();
-                              setSelectedUsers(current =>
-                                current.includes(userId)
-                                  ? current.filter(id => id !== userId)
-                                  : [...current, userId]
-                              );
-                              editForm.setValue("userIds", selectedUsers);
+                              const newSelectedUsers = selectedUsers.includes(userId)
+                                ? selectedUsers.filter(id => id !== userId)
+                                : [...selectedUsers, userId];
+                              setSelectedUsers(newSelectedUsers);
+                              editForm.setValue("userIds", newSelectedUsers);
                             }}
                           >
                             {selectedUsers.includes(user.id.toString()) ? "Selected" : "Select"}
