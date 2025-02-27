@@ -146,6 +146,49 @@ export const users = pgTable("users", {
 
 export type User = InferSelectModel<typeof users>;
 
+// User Processes junction table
+export const userProcesses = pgTable("user_processes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .references(() => users.id)
+    .notNull(),
+  processId: integer("process_id")
+    .references(() => organizationProcesses.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    unq: unique().on(table.userId, table.processId),
+  };
+});
+
+// User Batches junction table
+export const userBatches = pgTable("user_batches", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .references(() => users.id)
+    .notNull(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    unq: unique().on(table.userId, table.batchId),
+  };
+});
+
+// Add types for the new tables
+export type UserProcess = InferSelectModel<typeof userProcesses>;
+export type UserBatch = InferSelectModel<typeof userBatches>;
+
+
 // Organization Batches table with improved structure
 export const organizationBatches = pgTable("organization_batches", {
   id: serial("id").primaryKey(),
@@ -361,7 +404,7 @@ export const organizationLocationsRelations = relations(organizationLocations, (
   }),
 }));
 
-export const usersRelations = relations(users, ({ one }) => ({
+export const usersRelations = relations(users, ({ one, many }) => ({
   organization: one(organizations, {
     fields: [users.organizationId],
     references: [organizations.id],
@@ -382,7 +425,39 @@ export const usersRelations = relations(users, ({ one }) => ({
     fields: [users.processId],
     references: [organizationProcesses.id],
   }),
+  // Add new relations
+  managedProcesses: many(userProcesses),
+  managedBatches: many(userBatches),
+}));
 
+export const userProcessesRelations = relations(userProcesses, ({ one }) => ({
+  user: one(users, {
+    fields: [userProcesses.userId],
+    references: [users.id],
+  }),
+  process: one(organizationProcesses, {
+    fields: [userProcesses.processId],
+    references: [organizationProcesses.id],
+  }),
+  organization: one(organizations, {
+    fields: [userProcesses.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
+export const userBatchesRelations = relations(userBatches, ({ one }) => ({
+  user: one(users, {
+    fields: [userBatches.userId],
+    references: [users.id],
+  }),
+  batch: one(organizationBatches, {
+    fields: [userBatches.batchId],
+    references: [organizationBatches.id],
+  }),
+  organization: one(organizations, {
+    fields: [userBatches.organizationId],
+    references: [organizations.id],
+  }),
 }));
 
 export const coursesRelations = relations(courses, ({ many }) => ({
