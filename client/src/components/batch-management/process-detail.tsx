@@ -192,29 +192,45 @@ export function ProcessDetail() {
 
   // Get unique roles from users table filtered by selected location
   const getFilteredRoles = () => {
-    console.log('Getting filtered roles...');
-    console.log('Selected location:', selectedLocation);
+    // Debug logs
+    console.log('=== Role Filtering Debug ===');
     console.log('orgSettings:', orgSettings);
+    console.log('Selected location:', selectedLocation);
 
-    if (!orgSettings?.users) {
-      console.log('No users data available');
+    if (!orgSettings?.users?.length) {
+      console.log('No users found in orgSettings');
       return [];
     }
 
-    // Get unique roles from users in the selected location
-    const rolesInLocation = selectedLocation
-      ? orgSettings.users
-          .filter(user => user.locationId?.toString() === selectedLocation)
-          .map(user => user.role)
-      : orgSettings.users.map(user => user.role);
+    // Log all users data
+    console.log('All users:', orgSettings.users.map(u => ({
+      id: u.id,
+      username: u.username,
+      role: u.role,
+      locationId: u.locationId
+    })));
 
-    console.log('Roles before filtering:', rolesInLocation);
+    // Simple role filtering logic
+    let roles = [];
 
-    // Get unique values and remove null/undefined
-    const uniqueRoles = [...new Set(rolesInLocation)].filter(Boolean);
-    console.log('Unique roles found:', uniqueRoles);
+    if (!selectedLocation) {
+      // If no location selected, show all available roles
+      roles = [...new Set(orgSettings.users.map(u => u.role))];
+      console.log('All available roles:', roles);
+    } else {
+      // Filter roles by selected location
+      roles = [...new Set(
+        orgSettings.users
+          .filter(u => u.locationId?.toString() === selectedLocation)
+          .map(u => u.role)
+      )];
+      console.log('Roles for selected location:', roles);
+    }
 
-    return uniqueRoles;
+    // Filter out any null/undefined values and sort
+    const validRoles = roles.filter(Boolean).sort();
+    console.log('Final filtered roles:', validRoles);
+    return validRoles;
   };
 
   // Get location name helper
