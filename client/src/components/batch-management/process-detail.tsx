@@ -87,7 +87,7 @@ export function ProcessDetail() {
   });
 
   // Fetch line of businesses
-  const { data: lineOfBusinesses = [] } = useQuery<LineOfBusiness[]>({
+  const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery({
     queryKey: ['lineOfBusinesses', user?.organizationId],
     queryFn: async () => {
       try {
@@ -109,18 +109,25 @@ export function ProcessDetail() {
     enabled: !!user?.organizationId,
   });
 
-  // Fetch locations with proper error handling
-  const { data: locations = [] } = useQuery<Location[]>({
+  // Fetch locations
+  const { data: locations = [], isLoading: isLoadingLocations } = useQuery({
     queryKey: ['locations', user?.organizationId],
     queryFn: async () => {
       try {
         const response = await fetch(`/api/organizations/${user?.organizationId}/locations`);
-        if (!response.ok) throw new Error('Failed to fetch locations');
-        const data = await response.json();
-        console.log('Locations data:', data);
-        return data;
+        const text = await response.text(); // First get the response as text
+        console.log('Raw locations response:', text);
+
+        try {
+          const data = JSON.parse(text); // Try to parse it as JSON
+          console.log('Parsed locations data:', data);
+          return data;
+        } catch (e) {
+          console.error('JSON parse error:', e);
+          throw new Error('Invalid JSON response from locations endpoint');
+        }
       } catch (error) {
-        console.error('Locations error:', error);
+        console.error('Locations fetch error:', error);
         toast({
           variant: "destructive",
           title: "Error",
@@ -132,18 +139,25 @@ export function ProcessDetail() {
     enabled: !!user?.organizationId,
   });
 
-  // Fetch users with proper error handling
-  const { data: users = [] } = useQuery<User[]>({
+  // Fetch users
+  const { data: users = [], isLoading: isLoadingUsers } = useQuery({
     queryKey: ['users', user?.organizationId],
     queryFn: async () => {
       try {
         const response = await fetch(`/api/organizations/${user?.organizationId}/users`);
-        if (!response.ok) throw new Error('Failed to fetch users');
-        const data = await response.json();
-        console.log('Users data:', data);
-        return data;
+        const text = await response.text(); // First get the response as text
+        console.log('Raw users response:', text);
+
+        try {
+          const data = JSON.parse(text); // Try to parse it as JSON
+          console.log('Parsed users data:', data);
+          return data;
+        } catch (e) {
+          console.error('JSON parse error:', e);
+          throw new Error('Invalid JSON response from users endpoint');
+        }
       } catch (error) {
-        console.error('Users error:', error);
+        console.error('Users fetch error:', error);
         toast({
           variant: "destructive",
           title: "Error",
@@ -155,18 +169,14 @@ export function ProcessDetail() {
     enabled: !!user?.organizationId,
   });
 
-  // Filter and process data
+  // Get unique roles from users
   const roles = Array.from(new Set(users.map(user => user.role))).sort();
+
+  // Filter users based on selected location and role
   const filteredUsers = users.filter(u => 
     (!selectedLocation || u.locationId === parseInt(selectedLocation)) &&
     (!selectedRole || u.role === selectedRole)
   );
-
-  // Loading states
-  const { isLoading: isLoadingLOB } = useQuery({ queryKey: ['lineOfBusinesses', user?.organizationId] });
-  const { isLoading: isLoadingLocations } = useQuery({ queryKey: ['locations', user?.organizationId] });
-  const { isLoading: isLoadingUsers } = useQuery({ queryKey: ['users', user?.organizationId] });
-  const isLoading = isLoadingLOB || isLoadingLocations || isLoadingUsers;
 
   const createProcessMutation = useMutation({
     mutationFn: async (data: z.infer<typeof processFormSchema>) => {
@@ -210,6 +220,8 @@ export function ProcessDetail() {
       console.error("Error creating process:", error);
     }
   };
+
+  const isLoading = isLoadingLOB || isLoadingLocations || isLoadingUsers;
 
   if (!user?.organizationId) {
     toast({
