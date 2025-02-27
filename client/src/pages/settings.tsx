@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import type { User, Organization } from "@shared/schema";
-import { Users, UserCircle, Shield, ChevronLeft } from "lucide-react";
+import { Users, UserCircle, Shield, ChevronLeft, Network } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
 
@@ -12,8 +12,9 @@ import { UserManagement } from "@/components/settings/user-management";
 import { UserProfile } from "@/components/settings/user-profile";
 import { AddUser } from "@/components/settings/add-user";
 import { RolePermissions } from "@/components/settings/role-permissions";
+import { OrganizationTree } from "@/components/settings/organization-tree";
 
-type SettingsTab = "profile" | "users" | "permissions";
+type SettingsTab = "profile" | "users" | "permissions" | "organization-tree";
 type UsersSubTab = "add" | "manage";
 
 export default function Settings() {
@@ -71,6 +72,7 @@ export default function Settings() {
     if (activeTab === "users") {
       return activeUserTab === "manage" ? "Manage Users" : "Add New User";
     }
+    if (activeTab === "organization-tree") return "Organization Structure";
     return "Roles & Permissions";
   };
 
@@ -133,6 +135,14 @@ export default function Settings() {
             >
               Roles & Permissions
             </NavTab>
+
+            <NavTab
+              active={activeTab === "organization-tree"}
+              icon={Network}
+              onClick={() => setActiveTab("organization-tree")}
+            >
+              Organization Tree
+            </NavTab>
           </div>
         </div>
 
@@ -160,6 +170,7 @@ export default function Settings() {
                     </>
                   )}
                   {activeTab === "permissions" && <RolePermissions />}
+                  {activeTab === "organization-tree" && <OrganizationTree />}
                 </>
               )}
             </div>
