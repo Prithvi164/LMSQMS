@@ -18,8 +18,7 @@ export const roleEnum = pgEnum('role', [
 export const organizationRoles = pgTable("organization_roles", {
   id: serial("id").primaryKey(),
   role: roleEnum("role").notNull(),
-  name: text("name").notNull(),
-  description: text("description"),
+  description: text("description").notNull(),
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
@@ -574,14 +573,6 @@ export type InsertLearningPath = z.infer<typeof insertLearningPathSchema>;
 export type InsertUserProgress = z.infer<typeof insertUserProgressSchema>;
 
 
-// Add relations for organization roles
-export const organizationRolesRelations = relations(organizationRoles, ({ one }) => ({
-  organization: one(organizations, {
-    fields: [organizationRoles.organizationId],
-    references: [organizations.id],
-  }),
-}));
-
 // Insert schema for organization roles
 export const insertOrganizationRoleSchema = createInsertSchema(organizationRoles)
   .omit({
@@ -591,9 +582,16 @@ export const insertOrganizationRoleSchema = createInsertSchema(organizationRoles
   })
   .extend({
     role: z.enum(['owner', 'admin', 'manager', 'team_lead', 'trainer', 'trainee', 'advisor']),
-    name: z.string().min(1, "Role name is required"),
-    description: z.string().optional(),
+    description: z.string().min(1, "Role description is required"),
     organizationId: z.number().int().positive("Organization is required"),
   });
 
 export type InsertOrganizationRole = z.infer<typeof insertOrganizationRoleSchema>;
+
+// Add relations for organization roles
+export const organizationRolesRelations = relations(organizationRoles, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [organizationRoles.organizationId],
+    references: [organizations.id],
+  }),
+}));

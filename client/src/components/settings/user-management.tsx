@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import type { User, Organization, OrganizationLocation, InsertUser } from "@shared/schema";
+import type { User, Organization, OrganizationLocation, InsertUser, Role } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -58,6 +58,12 @@ export function UserManagement() {
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
     enabled: !!user,
+  });
+
+  // Fetch organization roles
+  const { data: roles = [] } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/roles`],
+    enabled: !!user?.organizationId,
   });
 
   // Fetch organization settings to get locations
@@ -166,7 +172,7 @@ export function UserManagement() {
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (u.fullName?.toLowerCase() || "").includes(searchTerm.toLowerCase());
 
-    const matchesRole = roleFilter === "all" || u.roleId === roleFilter;
+    const matchesRole = roleFilter === "all" || (roles.find(r => r.id === u.roleId)?.role === roleFilter);
 
     const matchesManager = managerFilter === "all" ||
       (managerFilter === "none" && !u.managerId) ||
@@ -574,12 +580,9 @@ export function UserManagement() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="manager">Manager</SelectItem>
-                  <SelectItem value="trainer">Trainer</SelectItem>
-                  <SelectItem value="trainee">Trainee</SelectItem>
-                  <SelectItem value="advisor">Advisor</SelectItem>
-                  <SelectItem value="team_lead">Team Lead</SelectItem>
+                  {roles?.map(role => (
+                    <SelectItem key={role.id} value={role.role}>{role.role}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Select value={managerFilter} onValueChange={setManagerFilter}>
@@ -620,7 +623,9 @@ export function UserManagement() {
                     <TableCell>{u.email}</TableCell>
                     <TableCell>{u.fullName}</TableCell>
                     <TableCell>
-                      <Badge>{u.roleId}</Badge>
+                      <Badge>
+                        {roles.find(r => r.id === u.roleId)?.role || "Unknown Role"}
+                      </Badge>
                     </TableCell>
                     <TableCell>{getManagerName(u.managerId)}</TableCell>
                     <TableCell>{getLocationName(u.locationId)}</TableCell>

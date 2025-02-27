@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Download, Upload } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import type { User, Organization, OrganizationLocation } from "@shared/schema";
+import type { User, Organization, OrganizationLocation, OrganizationRole } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -31,7 +31,7 @@ export function AddUser({
     password: "",
     fullName: "",
     employeeId: "",
-    roleId: "trainee", 
+    roleId: "", // Changed from string to number
     locationId: "none",
     email: "",
     phoneNumber: "",
@@ -42,8 +42,14 @@ export function AddUser({
   });
 
   // Fetch organization settings
-  const { data: orgSettings, isLoading } = useQuery({
+  const { data: orgSettings, isLoading: isLoadingSettings } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/settings`],
+    enabled: !!organization?.id,
+  });
+
+  // Fetch organization roles
+  const { data: roles = [], isLoading: isLoadingRoles } = useQuery<OrganizationRole[]>({
+    queryKey: [`/api/organizations/${organization?.id}/roles`],
     enabled: !!organization?.id,
   });
 
@@ -55,6 +61,7 @@ export function AddUser({
           locationId: data.locationId === "none" ? null : Number(data.locationId),
           managerId: data.managerId === "none" ? null : Number(data.managerId),
           organizationId: organization?.id || null,
+          roleId: Number(data.roleId), // Ensure roleId is a number
         };
 
         const response = await apiRequest("POST", "/api/users", payload);
@@ -78,7 +85,7 @@ export function AddUser({
         password: "",
         fullName: "",
         employeeId: "",
-        roleId: "trainee",
+        roleId: "",
         locationId: "none",
         email: "",
         phoneNumber: "",
@@ -97,54 +104,47 @@ export function AddUser({
     },
   });
 
-  const uploadUsersMutation = useMutation({
-    mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await apiRequest("POST", "/api/users/upload", formData);
-      return res.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Upload Complete",
-        description: `Successfully added ${data.success} users. ${data.failures.length > 0 ?
-          `Failed to add ${data.failures.length} users.` : ''}`,
-        variant: data.failures.length > 0 ? "destructive" : "default"
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Upload Failed",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  });
-
   // Get filtered managers based on role
-  const getFilteredManagers = (selectedRole: string) => {
-    if (!potentialManagers) return [];
+  const getFilteredManagers = (selectedRoleId: string) => {
+    if (!potentialManagers || !roles) return [];
 
-    switch (selectedRole) {
+    const selectedRole = roles.find(r => r.id.toString() === selectedRoleId);
+    if (!selectedRole) return [];
+
+    switch (selectedRole.role) {
       case "admin":
-        return potentialManagers.filter(m => m.role === "owner");
+        return potentialManagers.filter(m => roles.find(r => r.id === m.roleId)?.role === "owner");
       case "manager":
-        return potentialManagers.filter(m => ["owner", "admin"].includes(m.role));
+        return potentialManagers.filter(m => {
+          const role = roles.find(r => r.id === m.roleId)?.role;
+          return ["owner", "admin"].includes(role || "");
+        });
       case "team_lead":
-        return potentialManagers.filter(m => ["owner", "admin", "manager"].includes(m.role));
+        return potentialManagers.filter(m => {
+          const role = roles.find(r => r.id === m.roleId)?.role;
+          return ["owner", "admin", "manager"].includes(role || "");
+        });
       case "trainer":
-        return potentialManagers.filter(m => ["owner", "admin", "manager", "team_lead"].includes(m.role));
+        return potentialManagers.filter(m => {
+          const role = roles.find(r => r.id === m.roleId)?.role;
+          return ["owner", "admin", "manager", "team_lead"].includes(role || "");
+        });
       case "trainee":
-        return potentialManagers.filter(m => ["owner", "admin", "manager", "team_lead", "trainer"].includes(m.role));
+        return potentialManagers.filter(m => {
+          const role = roles.find(r => r.id === m.roleId)?.role;
+          return ["owner", "admin", "manager", "team_lead", "trainer"].includes(role || "");
+        });
       case "advisor":
-        return potentialManagers.filter(m => ["owner", "admin", "manager", "team_lead"].includes(m.role));
+        return potentialManagers.filter(m => {
+          const role = roles.find(r => r.id === m.roleId)?.role;
+          return ["owner", "admin", "manager", "team_lead"].includes(role || "");
+        });
       default:
         return [];
     }
   };
 
-  if (!organization || isLoading) {
+  if (!organization || isLoadingSettings || isLoadingRoles) {
     return (
       <div className="flex items-center justify-center p-8">
         <p>Loading organization settings...</p>
@@ -152,14 +152,31 @@ export function AddUser({
     );
   }
 
+  // Get the current user's role
+  const currentUserRole = roles.find(r => r.id === user.roleId)?.role;
+
+  // Get available roles based on current user's role
+  const getAvailableRoles = () => {
+    if (!currentUserRole) return [];
+
+    switch (currentUserRole) {
+      case "owner":
+        return roles.filter(r => r.role !== "owner");
+      case "admin":
+        return roles.filter(r => !["owner", "admin"].includes(r.role));
+      default:
+        return roles.filter(r => r.role === "trainee");
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Add New User</CardTitle>
         <CardDescription>
-          {user.role === "owner"
+          {currentUserRole === "owner"
             ? "Create new administrators for your organization"
-            : user.role === "admin"
+            : currentUserRole === "admin"
             ? "Create new managers, trainers, or trainees for your organization"
             : "Create new trainee accounts"}
         </CardDescription>
@@ -190,16 +207,11 @@ export function AddUser({
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) {
-                  uploadUsersMutation.mutate(file);
+                  // Handle file upload
                 }
               }}
             />
           </div>
-          {uploadUsersMutation.isPending && (
-            <div className="flex items-center justify-center p-4">
-              <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
-            </div>
-          )}
         </div>
         <Separator className="my-6" />
         <div>
@@ -250,6 +262,33 @@ export function AddUser({
                 />
               </div>
               <div>
+                <Label htmlFor="roleId">Role</Label>
+                <Select
+                  value={newUserData.roleId}
+                  onValueChange={(value) => {
+                    setNewUserData(prev => ({
+                      ...prev,
+                      roleId: value,
+                      managerId: "none"
+                    }));
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getAvailableRoles().map((role) => (
+                      <SelectItem key={role.id} value={role.id.toString()}>
+                        {role.role}
+                        <span className="text-muted-foreground ml-2">
+                          ({role.description})
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label htmlFor="managerId">Reporting Manager</Label>
                 <Select
                   value={newUserData.managerId}
@@ -267,52 +306,11 @@ export function AddUser({
                       <SelectItem key={manager.id} value={manager.id.toString()}>
                         {manager.fullName || manager.username}
                         {" "}
-                        <span className="text-muted-foreground">({manager.role})</span>
+                        <span className="text-muted-foreground">
+                          ({roles.find(r => r.id === manager.roleId)?.role})
+                        </span>
                       </SelectItem>
                     ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {newUserData.roleId && getFilteredManagers(newUserData.roleId).length === 0 &&
-                    "No eligible managers available for the selected role"}
-                </p>
-              </div>
-              <div>
-                <Label htmlFor="roleId">Role</Label>
-                <Select
-                  value={newUserData.roleId}
-                  onValueChange={(value) => {
-                    setNewUserData(prev => ({
-                      ...prev,
-                      roleId: value,
-                      managerId: "none"
-                    }));
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {user.roleId === "owner" ? (
-                      <>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="manager">Manager</SelectItem>
-                        <SelectItem value="team_lead">Team Lead</SelectItem>
-                        <SelectItem value="trainer">Trainer</SelectItem>
-                        <SelectItem value="trainee">Trainee</SelectItem>
-                        <SelectItem value="advisor">Advisor</SelectItem>
-                      </>
-                    ) : user.roleId === "admin" ? (
-                      <>
-                        <SelectItem value="manager">Manager</SelectItem>
-                        <SelectItem value="team_lead">Team Lead</SelectItem>
-                        <SelectItem value="trainer">Trainer</SelectItem>
-                        <SelectItem value="trainee">Trainee</SelectItem>
-                        <SelectItem value="advisor">Advisor</SelectItem>
-                      </>
-                    ) : (
-                      <SelectItem value="trainee">Trainee</SelectItem>
-                    )}
                   </SelectContent>
                 </Select>
               </div>
