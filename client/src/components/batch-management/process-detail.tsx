@@ -45,6 +45,21 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Settings, Plus, Loader2, Pencil, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+
 
 // Process form schema
 const processFormSchema = z.object({
@@ -482,7 +497,7 @@ export function ProcessDetail() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
-                <UsersIcon className="h-5 w-5 text-muted-foreground" />
+                {/*<UsersIcon className="h-5 w-5 text-muted-foreground" />*/}
                 <h2 className="text-xl font-semibold">Users in {selectedProcess.name}</h2>
               </div>
               <Dialog>
@@ -860,55 +875,170 @@ export function ProcessDetail() {
                 />
 
                 {/* User Selection */}
-                <div className="col-span-2">
-                  <FormLabel>Select Users</FormLabel>
-                  <ScrollArea className="h-[200px] border rounded-md p-4">
-                    <div className="space-y-2">
-                      {getFilteredUsers().map((user: any) => (
-                        <div
-                          key={user.id}
-                          className="flex items-center justify-between p-2 hover:bg-accent rounded-lg"
+                <FormField
+                  control={form.control}
+                  name="userIds"
+                  render={({ field }) => (
+                    <FormItem className="col-span-2">
+                      <FormLabel>Select Users</FormLabel>
+                      <div className="space-y-4">
+                        {/* Location Filter */}
+                        <Select
+                          value={selectedLocation}
+                          onValueChange={(value) => {
+                            setSelectedLocation(value);
+                            setSelectedRole("");
+                            setSelectedUsers([]);
+                          }}
                         >
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-8 w-8">
-                              <AvatarFallback>
-                                {(user.fullName || user.username)[0].toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="font-medium">{user.fullName || user.username}</p>
-                              <div className="flex items-center gap-2">
-                                <Badge variant="outline">{user.role}</Badge>
-                                {user.employeeId && (
-                                  <span className="text-xs text-muted-foreground">
-                                    ID: {user.employeeId}
-                                  </span>
-                                )}
-                              </div>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Location" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {orgSettings?.locations?.map((location) => (
+                              <SelectItem key={location.id} value={location.id.toString()}>
+                                {location.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        {/* Role Filter */}
+                        <Select
+                          value={selectedRole}
+                          onValueChange={(value) => {
+                            setSelectedRole(value);
+                            setSelectedUsers([]);
+                          }}
+                          disabled={!selectedLocation}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Role" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableRoles.map((role) => (
+                              <SelectItem key={role} value={role}>
+                                {role === "all" ? "All Roles" : role.charAt(0).toUpperCase() + role.slice(1)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        {/* User Multi-select */}
+                        <Popover open={userComboOpen} onOpenChange={setUserComboOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={userComboOpen}
+                              className="w-full justify-between"
+                            >
+                              {selectedUsers.length > 0
+                                ? `${selectedUsers.length} user${selectedUsers.length > 1 ? 's' : ''} selected`
+                                : "Select users..."}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[400px] p-0">
+                            <Command>
+                              <CommandInput placeholder="Search users..." />
+                              <CommandEmpty>No users found.</CommandEmpty>
+                              <CommandGroup>
+                                {getFilteredUsers().map((user) => {
+                                  const isSelected = selectedUsers.includes(user.id.toString());
+                                  const locationName = orgSettings?.locations?.find(
+                                    (l) => l.id === user.locationId
+                                  )?.name || "Unknown Location";
+
+                                  return (
+                                    <CommandItem
+                                      key={user.id}
+                                      onSelect={() => {
+                                        const value = user.id.toString();
+                                        setSelectedUsers(current =>
+                                          current.includes(value)
+                                            ? current.filter(x => x !== value)
+                                            : [...current, value]
+                                        );
+                                        form.setValue("userIds", selectedUsers);
+                                      }}
+                                      className="flex items-center justify-between py-2"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <Avatar className="h-6 w-6">
+                                          <AvatarFallback>
+                                            {(user.fullName || user.username)[0].toUpperCase()}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex flex-col">
+                                          <span className="font-medium">
+                                            {user.fullName || user.username}
+                                          </span>
+                                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                            <Badge variant="outline">{user.role}</Badge>
+                                            <span>{locationName}</span>
+                                            {user.employeeId && (
+                                              <span>ID: {user.employeeId}</span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <Check
+                                        className={cn(
+                                          "ml-auto h-4 w-4",
+                                          isSelected ? "opacity-100" : "opacity-0"
+                                        )}
+                                      />
+                                    </CommandItem>
+                                  );
+                                })}
+                              </CommandGroup>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+
+                        {/* Display selected users */}
+                        {selectedUsers.length > 0 && (
+                          <div className="border rounded-md p-2">
+                            <div className="flex flex-wrap gap-2">
+                              {selectedUsers.map(id => {
+                                const user = orgSettings?.users?.find(u => u.id.toString() === id);
+                                if (!user) return null;
+                                const locationName = orgSettings?.locations?.find(
+                                  (l) => l.id === user.locationId
+                                )?.name || "Unknown Location";
+
+                                return (
+                                  <Badge
+                                    key={id}
+                                    variant="secondary"
+                                    className="flex items-center gap-2 p-1"
+                                  >
+                                    <Avatar className="h-4 w-4">
+                                      <AvatarFallback className="text-xs">
+                                        {(user.fullName || user.username)[0].toUpperCase()}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span>{user.fullName || user.username}</span>
+                                    <div className="flex items-center gap-1">
+                                      <Badge variant="outline" className="text-xs">
+                                        {user.role}
+                                      </Badge>
+                                      <span className="text-xs text-muted-foreground">
+                                        {locationName}
+                                      </span>
+                                    </div>
+                                  </Badge>
+                                );
+                              })}
                             </div>
                           </div>
-                          <Button
-                            type="button"
-                            variant={selectedUsers.includes(user.id.toString()) ? "secondary" : "outline"}
-                            size="sm"
-                            onClick={() => {
-                              const userId = user.id.toString();
-                              setSelectedUsers(current =>
-                                current.includes(userId)
-                                  ? current.filter(id => id !== userId)
-                                  : [...current, userId]
-                              );
-                              form.setValue("userIds", selectedUsers);
-                            }}
-                          >
-                            {selectedUsers.includes(user.id.toString()) ? "Selected" : "Select"}
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                  <FormMessage>{form.formState.errors.userIds?.message}</FormMessage>
-                </div>
+                        )}
+                      </div>
+                      <FormMessage>{form.formState.errors.userIds?.message}</FormMessage>
+                    </FormItem>
+                  )}
+                />
               </div>
 
               <DialogFooter>
