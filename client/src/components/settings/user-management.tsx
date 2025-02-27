@@ -442,13 +442,14 @@ export function UserManagement() {
   const handleDeleteConfirm = () => {
     if (!userToDelete) return;
 
-    const userIdentifier = userToDelete.fullName || userToDelete.username;
-    if (deleteConfirmation === userIdentifier) {
+    // Attempt to delete the user
+    try {
       deleteUserMutation.mutate(userToDelete.id);
-    } else {
+    } catch (error) {
+      console.error("Error deleting user:", error);
       toast({
         title: "Error",
-        description: "Please type the user's name exactly as shown",
+        description: "Failed to delete user. Please try again.",
         variant: "destructive",
       });
     }
@@ -634,7 +635,7 @@ export function UserManagement() {
           </DialogHeader>
           <div className="py-4">
             <Label htmlFor="confirmation" className="text-sm text-muted-foreground block mb-2">
-              Type "{userToDelete?.fullName || userToDelete?.username}" to confirm:
+              Type "{userToDelete?.fullName || userToDelete?.username}" to confirm deletion:
             </Label>
             <Input
               id="confirmation"
@@ -658,7 +659,7 @@ export function UserManagement() {
             <Button
               variant="destructive"
               onClick={handleDeleteConfirm}
-              disabled={!deleteConfirmation}
+              disabled={deleteConfirmation !== (userToDelete?.fullName || userToDelete?.username)}
             >
               Delete User
             </Button>
