@@ -7,14 +7,14 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/use-auth";
 import { Link } from "wouter";
-import { Settings, LogOut } from "lucide-react";
+import { Settings, LogOut, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 export function UserProfile() {
   const { user, logout } = useAuth();
 
   // Fetch organization roles to get role description
-  const { data: roles } = useQuery({
+  const { data: roles, isLoading: isLoadingRoles } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/roles`],
     enabled: !!user?.organizationId,
   });
@@ -23,7 +23,7 @@ export function UserProfile() {
 
   // Get role description from the roles data
   const userRole = roles?.find(role => role.id === user.roleId);
-  const roleDisplay = userRole?.role || "Unknown Role";
+  const roleDisplay = userRole?.role || "Loading...";
 
   // Get the first letter of the full name, fallback to username
   const avatarLetter = user.fullName 
@@ -37,7 +37,16 @@ export function UserProfile() {
     <DropdownMenu>
       <DropdownMenuTrigger className="flex items-center gap-3 outline-none">
         <div className="text-sm flex flex-col items-end">
-          <span className="text-muted-foreground text-[13px] capitalize">{roleDisplay}</span>
+          <span className="text-muted-foreground text-[13px] capitalize">
+            {isLoadingRoles ? (
+              <span className="flex items-center">
+                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                Loading...
+              </span>
+            ) : (
+              roleDisplay
+            )}
+          </span>
           <span className="font-semibold text-[15px] leading-tight">{displayName}</span>
         </div>
         <Avatar className="h-8 w-8">

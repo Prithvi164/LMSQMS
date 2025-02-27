@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
 
 export function UserProfile() {
   const { user } = useAuth();
@@ -20,7 +21,7 @@ export function UserProfile() {
   });
 
   // Fetch organization roles to get role description
-  const { data: roles } = useQuery({
+  const { data: roles, isLoading: isLoadingRoles } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/roles`],
     enabled: !!user?.organizationId,
   });
@@ -29,7 +30,11 @@ export function UserProfile() {
 
   // Get role description from the roles data
   const userRole = roles?.find(role => role.id === user.roleId);
-  const roleDisplay = userRole ? `${userRole.role} - ${userRole.description}` : "Unknown Role";
+  const roleDisplay = isLoadingRoles 
+    ? "Loading..." 
+    : userRole 
+      ? `${userRole.role} - ${userRole.description}` 
+      : "Role not assigned";
 
   // Safely handle null values for fullName
   const firstName = user.fullName?.split(' ')[0] || user.username;
@@ -188,7 +193,16 @@ export function UserProfile() {
               </div>
               <div>
                 <Label className="text-sm text-muted-foreground">Role</Label>
-                <p className="text-lg capitalize">{roleDisplay}</p>
+                <p className="text-lg capitalize">
+                  {isLoadingRoles ? (
+                    <span className="flex items-center">
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Loading...
+                    </span>
+                  ) : (
+                    roleDisplay
+                  )}
+                </p>
               </div>
               <div>
                 <Label className="text-sm text-muted-foreground">Location</Label>
