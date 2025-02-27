@@ -78,7 +78,7 @@ export function ProcessDetail() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  // Fetch organization data
+  // Fetch organization data with explicit logging
   const { data: organization } = useQuery({
     queryKey: ["/api/organization"],
     enabled: !!user,
@@ -87,6 +87,14 @@ export function ProcessDetail() {
   // Fetch settings including users, locations, etc.
   const { data: orgSettings, isLoading } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/settings`],
+    onSuccess: (data) => {
+      console.log('Fetched org settings:', data);
+      if (data?.users) {
+        console.log('Available users:', data.users);
+        const roles = [...new Set(data.users.map(u => u.role))];
+        console.log('Available roles:', roles);
+      }
+    },
     enabled: !!organization?.id,
   });
 
@@ -190,47 +198,33 @@ export function ProcessDetail() {
     });
   };
 
-  // Get unique roles from users table filtered by selected location
+  // Get filtered roles with improved logging
   const getFilteredRoles = () => {
-    // Debug logs
-    console.log('=== Role Filtering Debug ===');
+    console.log('=== Get Filtered Roles ===');
     console.log('orgSettings:', orgSettings);
     console.log('Selected location:', selectedLocation);
 
     if (!orgSettings?.users?.length) {
-      console.log('No users found in orgSettings');
+      console.log('No users available');
       return [];
     }
 
-    // Log all users data
-    console.log('All users:', orgSettings.users.map(u => ({
-      id: u.id,
-      username: u.username,
-      role: u.role,
-      locationId: u.locationId
-    })));
-
-    // Simple role filtering logic
-    let roles = [];
+    // Get all roles first
+    const allRoles = [...new Set(orgSettings.users.map(u => u.role))].filter(Boolean);
+    console.log('All roles:', allRoles);
 
     if (!selectedLocation) {
-      // If no location selected, show all available roles
-      roles = [...new Set(orgSettings.users.map(u => u.role))];
-      console.log('All available roles:', roles);
-    } else {
-      // Filter roles by selected location
-      roles = [...new Set(
-        orgSettings.users
-          .filter(u => u.locationId?.toString() === selectedLocation)
-          .map(u => u.role)
-      )];
-      console.log('Roles for selected location:', roles);
+      return allRoles;
     }
 
-    // Filter out any null/undefined values and sort
-    const validRoles = roles.filter(Boolean).sort();
-    console.log('Final filtered roles:', validRoles);
-    return validRoles;
+    // Filter by location
+    const locationUsers = orgSettings.users.filter(u => u.locationId?.toString() === selectedLocation);
+    console.log('Users in location:', locationUsers);
+
+    const locationRoles = [...new Set(locationUsers.map(u => u.role))].filter(Boolean);
+    console.log('Roles in location:', locationRoles);
+
+    return locationRoles;
   };
 
   // Get location name helper
@@ -238,6 +232,34 @@ export function ProcessDetail() {
     if (!locationId || !orgSettings?.locations) return "";
     const location = orgSettings.locations.find(l => l.id === locationId);
     return location?.name || "";
+  };
+
+  // Role Selection Component
+  const RoleSelect = () => {
+    const roles = getFilteredRoles();
+    console.log('Rendering roles:', roles);
+
+    return (
+      <Select
+        onValueChange={(value) => {
+          console.log('Role selected:', value);
+          setSelectedRole(value);
+          setSelectedUsers([]);
+        }}
+        value={selectedRole}
+      >
+        <SelectTrigger>
+          <SelectValue placeholder="Select Role" />
+        </SelectTrigger>
+        <SelectContent>
+          {roles.map((role) => (
+            <SelectItem key={role} value={role}>
+              {role.charAt(0).toUpperCase() + role.slice(1)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
   };
 
   // Form rendering component for user selection
@@ -252,7 +274,7 @@ export function ProcessDetail() {
             <FormLabel>Location</FormLabel>
             <Select
               onValueChange={(value) => {
-                console.log('Location changed to:', value);
+                console.log('Location selected:', value);
                 field.onChange(value);
                 setSelectedLocation(value);
                 setSelectedRole("");
@@ -285,28 +307,7 @@ export function ProcessDetail() {
         render={({ field }) => (
           <FormItem>
             <FormLabel>Role</FormLabel>
-            <Select
-              onValueChange={(value) => {
-                console.log('Role changed to:', value);
-                field.onChange(value);
-                setSelectedRole(value);
-                setSelectedUsers([]);
-              }}
-              value={field.value}
-            >
-              <FormControl>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Role" />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {getFilteredRoles().map((role) => (
-                  <SelectItem key={role} value={role}>
-                    {role.charAt(0).toUpperCase() + role.slice(1)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <RoleSelect />
             <FormMessage />
           </FormItem>
         )}
