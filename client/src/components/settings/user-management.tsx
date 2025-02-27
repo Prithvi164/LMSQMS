@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import type { User, Organization, OrganizationLocation, InsertUser, OrganizationBatch, OrganizationProcess } from "@shared/schema";
+import type { User, Organization, OrganizationLocation, InsertUser } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -40,8 +40,6 @@ import { z } from "zod";
 // Extend the insertUserSchema for the edit form
 const editUserSchema = insertUserSchema.extend({
   locationId: z.string().optional(),
-  processId: z.string().optional(),
-  batchId: z.string().optional(),
   managerId: z.string().optional(),
   dateOfJoining: z.string().optional(),
   dateOfBirth: z.string().optional(),
@@ -56,22 +54,16 @@ export function UserManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [managerFilter, setManagerFilter] = useState<string>("all");
-  const [batchFilter, setBatchFilter] = useState<string>("all");
+  // Removed batchFilter state
 
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
     enabled: !!user,
   });
 
-  // Fetch organization settings to get locations, batches, etc.
+  // Fetch organization settings to get locations
   const { data: orgSettings } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/settings`],
-    queryFn: async () => {
-      if (!user?.organizationId) return null;
-      const res = await fetch(`/api/organizations/${user.organizationId}/settings`);
-      if (!res.ok) throw new Error('Failed to fetch organization settings');
-      return res.json();
-    },
     enabled: !!user?.organizationId,
   });
 
@@ -156,20 +148,7 @@ export function UserManagement() {
     return location ? location.name : "Unknown Location";
   };
 
-  // Update getProcessName function to not include ID
-  const getProcessName = (processId: number | null) => {
-    if (!processId || !orgSettings?.processes) return "No Process";
-    const process = orgSettings.processes.find((p: OrganizationProcess) => p.id === processId);
-    return process ? process.name : "Unknown Process";
-  };
-
-
-  // Find batch name for a user
-  const getBatchName = (batchId: number | null) => {
-    if (!batchId || !orgSettings?.batches) return "No Batch";
-    const batch = orgSettings.batches.find((b: OrganizationBatch) => b.id === batchId);
-    return batch ? batch.name : "Unknown Batch";
-  };
+  // Removed getProcessName and getBatchName functions
 
   // Get unique managers for filter dropdown, removing duplicates
   const uniqueManagers = Array.from(
@@ -184,8 +163,7 @@ export function UserManagement() {
     ).values()
   );
 
-  // Get unique batches for filter dropdown
-  const uniqueBatches = orgSettings?.batches || [];
+  // Removed uniqueBatches
 
   // Filter users based on search term and filters
   const filteredUsers = users.filter(u => {
@@ -200,14 +178,11 @@ export function UserManagement() {
       (managerFilter === "none" && !u.managerId) ||
       (u.managerId?.toString() === managerFilter);
 
-    const matchesBatch = batchFilter === "all" ||
-      (batchFilter === "none" && !u.batchId) ||
-      (u.batchId?.toString() === batchFilter);
-
-    return matchesSearch && matchesRole && matchesManager && matchesBatch;
+    // Removed batch filter
+    return matchesSearch && matchesRole && matchesManager;
   });
 
-  // Create EditUserDialog component to handle the form properly
+  // Create EditUserDialog component
   const EditUserDialog = ({ user: editUser }: { user: User }) => {
     const form = useForm<UserFormData>({
       resolver: zodResolver(editUserSchema),
@@ -219,8 +194,6 @@ export function UserManagement() {
         role: editUser.role,
         phoneNumber: editUser.phoneNumber || "",
         locationId: editUser.locationId?.toString() || "none",
-        processId: editUser.processId?.toString() || "none",
-        batchId: editUser.batchId?.toString() || "none",
         managerId: editUser.managerId?.toString() || "none",
         dateOfJoining: editUser.dateOfJoining || "",
         dateOfBirth: editUser.dateOfBirth || "",
@@ -261,8 +234,6 @@ export function UserManagement() {
                   data: {
                     ...data,
                     locationId: data.locationId === "none" ? null : parseInt(data.locationId!),
-                    processId: data.processId === "none" ? null : parseInt(data.processId!),
-                    batchId: data.batchId === "none" ? null : parseInt(data.batchId!),
                     managerId: data.managerId === "none" ? null : parseInt(data.managerId!),
                   }
                 });
@@ -278,7 +249,7 @@ export function UserManagement() {
                     <FormItem>
                       <FormLabel>Full Name</FormLabel>
                       <FormControl>
-                        <Input {...field} value={field.value || ''} />
+                        <Input {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -294,7 +265,6 @@ export function UserManagement() {
                         <Input
                           {...field}
                           type="email"
-                          value={field.value || ''}
                           disabled={editUser.role === "owner"}
                           className={editUser.role === "owner" ? "bg-muted cursor-not-allowed" : ""}
                         />
@@ -315,7 +285,7 @@ export function UserManagement() {
                     <FormItem>
                       <FormLabel>Phone Number</FormLabel>
                       <FormControl>
-                        <Input {...field} value={field.value || ''} />
+                        <Input {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -328,7 +298,7 @@ export function UserManagement() {
                     <FormItem>
                       <FormLabel>Employee ID</FormLabel>
                       <FormControl>
-                        <Input {...field} value={field.value || ''} />
+                        <Input {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -352,17 +322,15 @@ export function UserManagement() {
                         </FormControl>
                         <SelectContent>
                           {user?.role === "owner" ? (
-                            // Owner can assign any role
                             <>
                               <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="trainee">Trainee</SelectItem>
                               <SelectItem value="manager">Manager</SelectItem>
-                              <SelectItem value="trainer">Trainer</SelectItem>
-                              <SelectItem value="advisor">Advisor</SelectItem>
                               <SelectItem value="team_lead">Team Lead</SelectItem>
+                              <SelectItem value="trainer">Trainer</SelectItem>
+                              <SelectItem value="trainee">Trainee</SelectItem>
+                              <SelectItem value="advisor">Advisor</SelectItem>
                             </>
                           ) : (
-                            // Admin can't modify admin roles
                             <>
                               <SelectItem value="trainee">Trainee</SelectItem>
                               <SelectItem value="manager">Manager</SelectItem>
@@ -409,56 +377,6 @@ export function UserManagement() {
                 />
                 <FormField
                   control={form.control}
-                  name="processId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Process</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select process" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="none">No Process</SelectItem>
-                          {orgSettings?.processes?.map((process: OrganizationProcess) => (
-                            <SelectItem key={process.id} value={process.id.toString()}>
-                              {process.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="batchId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Batch</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select batch" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="none">No Batch</SelectItem>
-                          {orgSettings?.batches?.map((batch: OrganizationBatch) => (
-                            <SelectItem key={batch.id} value={batch.id.toString()}>
-                              {batch.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
                   name="managerId"
                   render={({ field }) => (
                     <FormItem>
@@ -489,7 +407,7 @@ export function UserManagement() {
                     <FormItem>
                       <FormLabel>Date of Joining</FormLabel>
                       <FormControl>
-                        <Input {...field} type="date" value={field.value || ''} />
+                        <Input {...field} type="date" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -502,7 +420,7 @@ export function UserManagement() {
                     <FormItem>
                       <FormLabel>Date of Birth</FormLabel>
                       <FormControl>
-                        <Input {...field} type="date" value={field.value || ''} />
+                        <Input {...field} type="date" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -515,7 +433,7 @@ export function UserManagement() {
                     <FormItem>
                       <FormLabel>Education</FormLabel>
                       <FormControl>
-                        <Input {...field} value={field.value || ''} />
+                        <Input {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -545,8 +463,6 @@ export function UserManagement() {
               'Role',
               'Phone Number',
               'Location',
-              'Process',
-              'Batch',
               'Manager',
               'Date of Joining',
               'Date of Birth',
@@ -562,8 +478,6 @@ export function UserManagement() {
               u.role,
               u.phoneNumber || '',
               getLocationName(u.locationId),
-              getProcessName(u.processId),
-              getBatchName(u.batchId),
               getManagerName(u.managerId),
               u.dateOfJoining || '',
               u.dateOfBirth || '',
@@ -630,20 +544,7 @@ export function UserManagement() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={batchFilter} onValueChange={setBatchFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filter by batch" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Batches</SelectItem>
-                  <SelectItem value="none">No Batch</SelectItem>
-                  {uniqueBatches.map((batch) => (
-                    <SelectItem key={batch.id} value={batch.id.toString()}>
-                      {batch.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {/* Removed batch filter */}
             </div>
           </div>
 
@@ -657,11 +558,9 @@ export function UserManagement() {
                   <TableHead className="w-[100px]">Role</TableHead>
                   <TableHead className="w-[150px]">Manager</TableHead>
                   <TableHead className="w-[150px]">Location</TableHead>
-                  <TableHead className="w-[150px]">Process</TableHead>
-                  <TableHead className="w-[150px]">Batch</TableHead>
                   <TableHead className="w-[100px]">Status</TableHead>
                   <TableHead className="w-[100px] text-right">Actions</TableHead>
-                  <TableHead className="w-[100px]">Certified</TableHead> {/* Added line */}
+                  <TableHead className="w-[100px]">Certified</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -675,8 +574,6 @@ export function UserManagement() {
                     </TableCell>
                     <TableCell>{getManagerName(u.managerId)}</TableCell>
                     <TableCell>{getLocationName(u.locationId)}</TableCell>
-                    <TableCell>{getProcessName(u.processId)}</TableCell>
-                    <TableCell>{getBatchName(u.batchId)}</TableCell>
                     <TableCell>
                       {u.role === "owner" ? (
                         <div className="flex items-center" title="Owner status cannot be changed">
@@ -723,13 +620,11 @@ export function UserManagement() {
                         </AlertDialog>
                       </div>
                     </TableCell>
-                    <TableCell> {/* Added line */}
-                      {u.certified ? (
-                        <Badge variant="success">Certified</Badge>
-                      ) : (
-                        <Badge variant="secondary">Not Certified</Badge>
-                      )}
-                    </TableCell> {/* Added line */}
+                    <TableCell>
+                      <Badge variant={u.certified ? "outline" : "secondary"}>
+                        {u.certified ? "Certified" : "Not Certified"}
+                      </Badge>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
