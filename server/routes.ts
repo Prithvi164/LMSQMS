@@ -1112,6 +1112,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add this route to get all users with location information
+  app.get("/api/organizations/:orgId/users", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only view users in your own organization" });
+      }
+
+      // First get all locations
+      const locations = await storage.listLocations(orgId);
+
+      // Then get users and map location information
+      const users = await storage.listUsers(orgId);
+
+      const usersWithLocation = users.map(user => {
+        const location = locations.find(loc => loc.id === user.locationId);
+        return {
+          ...user,
+          locationName: location ? location.name : null
+        };
+      });
+
+      console.log('Users with location:', usersWithLocation);
+      res.json(usersWithLocation);
+    } catch (error: any) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Add this route to get locations
+  app.get("/api/organizations/:orgId/locations", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only view locations in your own organization" });
+      }
+
+      const locations = await storage.listLocations(orgId);
+      console.log('Locations:', locations);
+      res.json(locations);
+    } catch (error: any) {
+      console.error("Error fetching locations:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
