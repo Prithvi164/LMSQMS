@@ -46,7 +46,7 @@ interface User {
   id: number;
   username: string;
   fullName: string | null;
-  role: string;
+  roleId: string; // Changed from role to roleId
   locationId: number | null;
   locationName: string | null;
   email: string;
@@ -192,13 +192,13 @@ export function ProcessDetail() {
   const roles = Array.from(new Set(
     users
       .filter((u: User) => !selectedLocationId || u.locationId === parseInt(selectedLocationId, 10))
-      .map((u: User) => u.role)
+      .map((u: User) => u.roleId)
   )).sort();
 
   // Filter users based on location and role
   const filteredUsers = users.filter((u: User) => {
     const locationMatch = !selectedLocationId || u.locationId === parseInt(selectedLocationId, 10);
-    const roleMatch = !selectedRole || u.role === selectedRole;
+    const roleMatch = !selectedRole || u.roleId === selectedRole;
     return locationMatch && roleMatch;
   });
 

@@ -216,6 +216,7 @@ export class DatabaseStorage implements IStorage {
         .select({
           id: organizationProcesses.id,
           name: organizationProcesses.name,
+          description: organizationProcesses.description,
           status: organizationProcesses.status,
           inductionDays: organizationProcesses.inductionDays,
           trainingDays: organizationProcesses.trainingDays,
