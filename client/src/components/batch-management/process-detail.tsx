@@ -72,7 +72,7 @@ interface Process {
   ojtCertificationDays: number;
   lineOfBusinessId: number;
   locationId: number;
-  role: string;
+  roleId: string;
   userId: number;
   lineOfBusinessName?: string;
   locationName?: string;
@@ -90,7 +90,7 @@ const processFormSchema = z.object({
   ojtCertificationDays: z.number().min(0, "OJT certification days cannot be negative"),
   lineOfBusinessId: z.number().min(1, "Line of Business is required"),
   locationId: z.number().min(1, "Location is required"),
-  role: z.string().min(1, "Role is required"),
+  roleId: z.string().min(1, "Role is required"),
   userId: z.number().min(1, "User is required"),
 });
 
@@ -213,7 +213,7 @@ export function ProcessDetail() {
       ojtCertificationDays: 0,
       lineOfBusinessId: undefined,
       locationId: undefined,
-      role: "",
+      roleId: "",
       userId: undefined,
     },
   });
@@ -229,7 +229,7 @@ export function ProcessDetail() {
       ojtCertificationDays: 0,
       lineOfBusinessId: undefined,
       locationId: undefined,
-      role: "",
+      roleId: "",
       userId: undefined,
     },
   });
@@ -245,7 +245,7 @@ export function ProcessDetail() {
           ...data,
           // Ensure we're sending these fields
           userId: parseInt(data.userId.toString(), 10),
-          role: data.role,
+          roleId: data.roleId,
           status: 'active' // Default status for new processes
         }),
       });
@@ -367,7 +367,7 @@ export function ProcessDetail() {
       ojtCertificationDays: process.ojtCertificationDays,
       lineOfBusinessId: process.lineOfBusinessId,
       locationId: process.locationId,
-      role: process.role,
+      roleId: process.roleId,
       userId: process.userId,
     });
     setIsEditDialogOpen(true);
@@ -461,10 +461,10 @@ export function ProcessDetail() {
                     {paginatedProcesses.map((process: Process) => (
                       <TableRow key={process.id}>
                         <TableCell className="font-medium">{process.name}</TableCell>
-                        <TableCell>{process.lineOfBusinessName}</TableCell>
+                        <TableCell>{process.lineOfBusinessName || 'Not assigned'}</TableCell>
                         <TableCell>{process.userName || 'Not assigned'}</TableCell>
-                        <TableCell>{process.role || 'Not assigned'}</TableCell>
-                        <TableCell>{process.locationName}</TableCell>
+                        <TableCell>{process.roleId || 'Not assigned'}</TableCell>
+                        <TableCell>{process.locationName || 'Not assigned'}</TableCell>
                         <TableCell>{process.status || 'Active'}</TableCell>
                         <TableCell className="text-right space-x-2">
                           <Button
@@ -680,7 +680,7 @@ export function ProcessDetail() {
                               field.onChange(parseInt(value, 10));
                               setSelectedLocationId(value);
                               setSelectedRole("");
-                              form.setValue("role", "");
+                              form.setValue("roleId", "");
                               form.setValue("userId", undefined as unknown as number);
                             }}
                             value={field.value?.toString()}
@@ -706,7 +706,7 @@ export function ProcessDetail() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <FormField
                       control={form.control}
-                      name="role"
+                      name="roleId"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Role</FormLabel>
@@ -955,7 +955,7 @@ export function ProcessDetail() {
                               field.onChange(parseInt(value, 10));
                               setSelectedLocationId(value);
                               setSelectedRole("");
-                              editForm.setValue("role", "");
+                              editForm.setValue("roleId", "");
                               editForm.setValue("userId", undefined as unknown as number);
                             }}
                             value={field.value?.toString()}
@@ -981,7 +981,7 @@ export function ProcessDetail() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <FormField
                       control={editForm.control}
-                      name="role"
+                      name="roleId"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Role</FormLabel>

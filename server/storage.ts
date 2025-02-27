@@ -225,7 +225,7 @@ export class DatabaseStorage implements IStorage {
           lineOfBusinessId: organizationProcesses.lineOfBusinessId,
           locationId: organizationProcesses.locationId,
           userId: organizationProcesses.userId,
-          role: organizationProcesses.role,
+          roleId: organizationProcesses.roleId,
           organizationId: organizationProcesses.organizationId,
           lineOfBusinessName: organizationLineOfBusinesses.name,
           locationName: organizationLocations.name,

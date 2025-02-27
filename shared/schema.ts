@@ -87,10 +87,9 @@ export const organizationProcesses = pgTable("organization_processes", {
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
-  // Add new fields
   userId: integer("user_id")
     .references(() => users.id),
-  role: roleEnum("role"),
+  roleId: roleEnum("role_id"),
   locationId: integer("location_id")
     .references(() => organizationLocations.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -377,7 +376,7 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   rolePermissions: many(rolePermissions),
 }));
 
-export const organizationProcessesRelations = relations(organizationProcesses, ({ one, many }) => ({
+export const organizationProcessesRelations = relations(organizationProcesses, ({ one }) => ({
   organization: one(organizations, {
     fields: [organizationProcesses.organizationId],
     references: [organizations.id],
@@ -386,8 +385,14 @@ export const organizationProcessesRelations = relations(organizationProcesses, (
     fields: [organizationProcesses.lineOfBusinessId],
     references: [organizationLineOfBusinesses.id],
   }),
-  users: many(userProcesses),
-  batches: many(organizationBatches),
+  user: one(users, {
+    fields: [organizationProcesses.userId],
+    references: [users.id],
+  }),
+  location: one(organizationLocations, {
+    fields: [organizationProcesses.locationId],
+    references: [organizationLocations.id],
+  }),
 }));
 
 export const organizationBatchesRelations = relations(organizationBatches, ({ one, many }) => ({
@@ -498,7 +503,7 @@ export const insertOrganizationProcessSchema = createInsertSchema(organizationPr
     organizationId: z.number().int().positive("Organization is required"),
     // Add validation for new fields
     userId: z.number().int().optional(),
-    role: z.enum(['owner', 'admin', 'manager', 'team_lead', 'trainer', 'trainee', 'advisor']).optional(),
+    roleId: z.enum(['owner', 'admin', 'manager', 'team_lead', 'trainer', 'trainee', 'advisor']).optional(),
     locationId: z.number().int().optional(),
   });
 
