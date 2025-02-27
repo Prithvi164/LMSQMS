@@ -30,6 +30,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Table,
@@ -40,6 +41,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Plus, Loader2, Pencil, Trash, Search } from "lucide-react";
+import { Label } from "@/components/ui/label";
 
 // Define interfaces
 interface User {
@@ -106,6 +108,8 @@ export function ProcessDetail() {
   const [pageSize, setPageSize] = useState(10);
   const [selectedLocationId, setSelectedLocationId] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<string>("");
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const { toast } = useToast();
   const { user } = useAuth();
@@ -328,8 +332,9 @@ export function ProcessDetail() {
         title: "Success",
         description: "Process deleted successfully",
       });
-      setIsDeleteDialogOpen(false);
+      setShowDeleteDialog(false);
       setSelectedProcess(null);
+      setDeleteConfirmation("");
     },
     onError: (error: Error) => {
       toast({
@@ -375,7 +380,22 @@ export function ProcessDetail() {
 
   const handleDelete = (process: Process) => {
     setSelectedProcess(process);
-    setIsDeleteDialogOpen(true);
+    setDeleteConfirmation("");
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (!selectedProcess) return;
+
+    if (deleteConfirmation === selectedProcess.name) {
+      deleteProcessMutation.mutate();
+    } else {
+      toast({
+        title: "Error",
+        description: "Please type the process name exactly as shown",
+        variant: "destructive",
+      });
+    }
   };
 
   if (isLoadingLOB || isLoadingLocations || isLoadingUsers || isLoadingProcesses) {
@@ -1070,38 +1090,46 @@ export function ProcessDetail() {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Delete Process</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <p>Are you sure you want to delete this process? This action cannot be undone.</p>
-            <div className="flex justify-end space-x-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsDeleteDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={() => deleteProcessMutation.mutate()}
-                disabled={deleteProcessMutation.isPending}
-              >
-                {deleteProcessMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Deleting...
-                  </>
-                ) : (
-                  "Delete"
-                )}
-              </Button>
-            </div>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground mb-4">
+              This action cannot be undone. Are you sure you want to delete{" "}
+              <span className="font-semibold">{selectedProcess?.name}</span>?
+            </p>
+            <Label htmlFor="confirmation" className="text-sm text-muted-foreground block mb-2">
+              Type "{selectedProcess?.name}" to confirm:
+            </Label>
+            <Input
+              id="confirmation"
+              value={deleteConfirmation}
+              onChange={(e) => setDeleteConfirmation(e.target.value)}
+              className="mt-2"
+              placeholder="Type the process name..."
+            />
           </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteDialog(false);
+                setSelectedProcess(null);
+                setDeleteConfirmation("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={deleteConfirmation !== selectedProcess?.name}
+            >
+              Delete Process
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
