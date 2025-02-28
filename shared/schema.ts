@@ -60,17 +60,16 @@ export const processStatusEnum = pgEnum('process_status', [
   'archived'
 ]);
 
-// Organizations table
+// Organizations table remains unchanged
 export const organizations = pgTable("organizations", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Export organization type only once
 export type Organization = InferSelectModel<typeof organizations>;
 
-// Update Organization Processes table by removing user and role fields
+// Update Organization Processes table - remove user and role fields completely
 export const organizationProcesses = pgTable("organization_processes", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
@@ -124,7 +123,7 @@ export const organizationLineOfBusinesses = pgTable("organization_line_of_busine
 
 export type OrganizationLineOfBusiness = InferSelectModel<typeof organizationLineOfBusinesses>;
 
-// Users table
+// Users table - ensure username is unique
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
@@ -149,7 +148,7 @@ export const users = pgTable("users", {
 
 export type User = InferSelectModel<typeof users>;
 
-// Update User Processes junction table with enhanced tracking
+// Enhanced User Processes junction table for multiple process assignments
 export const userProcesses = pgTable("user_processes", {
   id: serial("id").primaryKey(),
   userId: integer("user_id")
@@ -172,6 +171,8 @@ export const userProcesses = pgTable("user_processes", {
   };
 });
 
+export type UserProcess = typeof userProcesses.$inferSelect;
+
 // User Batches junction table
 export const userBatches = pgTable("user_batches", {
   id: serial("id").primaryKey(),
@@ -191,7 +192,6 @@ export const userBatches = pgTable("user_batches", {
   };
 });
 
-export type UserProcess = typeof userProcesses.$inferSelect;
 export type UserBatch = InferSelectModel<typeof userBatches>;
 
 
@@ -202,30 +202,20 @@ export const organizationBatches = pgTable("organization_batches", {
   batchNumber: text("batch_number").notNull(),
   status: batchStatusEnum("status").default('planned').notNull(),
   lineOfBusiness: text("line_of_business").notNull(),
-
-  // Process relation
   processId: integer("process_id")
     .references(() => organizationProcesses.id)
     .notNull(),
-
-  // Personnel relations
   trainerId: integer("trainer_id")
     .references(() => users.id)
     .notNull(),
   managerId: integer("manager_id")
     .references(() => users.id)
     .notNull(),
-
-  // Location relation
   locationId: integer("location_id")
     .references(() => organizationLocations.id)
     .notNull(),
-
-  // Capacity details
   participantCount: integer("participant_count").notNull(),
   capacityLimit: integer("capacity_limit").notNull(),
-
-  // Schedule dates - using date type instead of timestamp
   inductionStartDate: date("induction_start_date").notNull(),
   inductionEndDate: date("induction_end_date").notNull(),
   trainingStartDate: date("training_start_date").notNull(),
@@ -234,13 +224,9 @@ export const organizationBatches = pgTable("organization_batches", {
   certificationEndDate: date("certification_end_date").notNull(),
   recertificationStartDate: date("recertification_start_date"),
   recertificationEndDate: date("recertification_end_date"),
-
-  // Organization relation
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
-
-  // Metadata
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
