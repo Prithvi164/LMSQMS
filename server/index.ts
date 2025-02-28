@@ -8,11 +8,23 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// CORS configuration
+// Enhanced CORS configuration for Replit environment
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  // Allow Replit domains and localhost
+  const allowedOrigins = [
+    /\.replit\.dev$/,
+    /^https?:\/\/localhost/,
+    /^https?:\/\/127\.0\.0\.1/
+  ];
+
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.some(pattern => pattern.test(origin))) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+
+  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS,PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.header('Access-Control-Allow-Credentials', 'true');
 
   if (req.method === 'OPTIONS') {
     res.sendStatus(200);
@@ -21,10 +33,14 @@ app.use((req, res, next) => {
   }
 });
 
-// Request logging middleware
+// Request logging middleware with enhanced debugging
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
+  const origin = req.headers.origin || 'Unknown Origin';
+
+  log(`Incoming request: ${req.method} ${path} from ${origin}`);
+
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
   const originalResJson = res.json;
@@ -36,7 +52,7 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms from ${origin}`;
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
