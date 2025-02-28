@@ -10,6 +10,8 @@ import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { insertOrganizationProcessSchema } from "@shared/schema";
+import * as XLSX from 'xlsx';  // Add XLSX import at the top
+
 // Configure multer for handling file uploads
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -501,25 +503,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Template download route - updated to use CSV format
-  app.get("/api/users/template.csv", async (req, res) => {
+  // Template download route - updated to use XLSX format
+  app.get("/api/users/template", (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
-    // Define headers
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new();
+
+    // Define headers exactly as per screenshot
     const headers = [
       'Username*', 'Password*', 'FullName*', 'EmployeeID*', 'Role*',
-      'Category*', 'Email*', 'PhoneNumber*', 'ProcessNames*', 'Location',
+      'Category*', 'Email*', 'PhoneNumber*', 'ProcessIDs*', 'Location',
       'ManagerUsername', 'DateOfJoining', 'DateOfBirth', 'Education'
     ];
 
     // Example data row matching headers
     const exampleData = [
       'john.doe', 'password123', 'John Doe', 'EMP001', 'trainee',
-      'trainee', 'john@example.com', '1234567890', 'Inbound Call Handling,Outbound', 'New York',
+      'trainee', 'john@example.com', '1234567890', '1,2,3', 'New York',
       'manager.username', '01-01-2023', '01-01-1990', 'Bachelors'
     ];
 
-    // Instructions
+    // Instructions as separate rows
     const instructions = [
       ['Instructions:'],
       ['1. Fields marked with * are mandatory'],
@@ -530,22 +535,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ['6. Dates must be in DD-MM-YYYY format'],
       ['7. ManagerUsername is optional - leave blank if no manager'],
       ['8. Location must match existing values in your organization'],
-      ['9. ProcessNames must be comma-separated process names (e.g., "Inbound Call Handling,Outbound")'],
+      ['9. ProcessIDs must be comma-separated numbers (e.g., 1,2,3)'],
       ['10. Category must be either "active" or "trainee"']
     ];
 
-    // Combine all rows and convert to CSV
-    const allRows = [headers, exampleData, [], ...instructions];
-    const csvContent = allRows
-      .map(row => row.map(cell => `"${cell}"`).join(','))
-      .join('\n');
+    // Create worksheet with headers and example
+    const ws = XLSX.utils.aoa_to_sheet([headers, exampleData, [], ...instructions]);
 
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=user_upload_template.csv');
-    res.send(csvContent);
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, ws, "Template");
+
+    // Set column widths
+    const colWidths = headers.map(() => ({ wch: 20 }));
+    ws['!cols'] = colWidths;
+
+    // Write to buffer
+    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+    res.setHeader('Content-Disposition', 'attachment; filename=user_upload_template.xlsx');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buffer);
   });
 
-  // Update upload route to handle CSV files and process names
+  // Update upload route to handle both CSV and XLSX
   app.post("/api/users/upload", upload.single('file'), async (req, res) => {
     try {
       if (!req.user) {
@@ -556,17 +568,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
-      // Verify file type
-      const ext = path.extname(req.file.originalname).toLowerCase();
-      if (ext !== '.csv') {
-        return res.status(400).json({ message: "Only CSV files are allowed" });
-      }
+      let rows: string[][] = [];
 
-      // Parse CSV content
-      const csvContent = req.file.buffer.toString('utf-8');
-      const rows = csvContent.split('\n').map(line =>
-        line.split(',').map(cell => cell.trim().replace(/^"|"$/g, '')) // Remove quotes
-      );
+      // Parse file based on extension
+      const ext = path.extname(req.file.originalname).toLowerCase();
+      if (ext === '.xlsx') {
+        const workbook = XLSX.read(req.file.buffer);
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      } else {
+        // CSV handling
+        const csvContent = req.file.buffer.toString('utf-8');
+        rows = csvContent.split('\n').map(line => line.split(',').map(cell => cell.trim()));
+      }
 
       const headers = rows[0].map(h => h.trim().replace(/[\r\n*]/g, ''));
       console.log('Processing file with headers:', headers);
@@ -578,8 +592,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       // Fetch organization settings first
-      const [processes, locations] = await Promise.all([
-        storage.listProcesses(req.user.organizationId),
+      const [batches, locations] = await Promise.all([
+        storage.listBatches(req.user.organizationId),
         storage.listLocations(req.user.organizationId),
       ]);
 
@@ -635,16 +649,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             locationId = location.id;
           }
 
-          // Convert process names to IDs
+          // Parse process IDs
           const processIds: number[] = [];
-          if (userData.processnames) {
-            const processNames = userData.processnames.split(',').map(name => name.trim());
-            for (const name of processNames) {
-              const process = processes.find(p => p.name.toLowerCase() === name.toLowerCase());
-              if (!process) {
-                throw new Error(`Process not found: ${name}`);
+          if (userData.processids) {
+            const ids = userData.processids.split(',').map(id => id.trim());
+            for (const id of ids) {
+              const processId = parseInt(id);
+              if (isNaN(processId)) {
+                throw new Error(`Invalid process ID: ${id}`);
               }
-              processIds.push(process.id);
+              processIds.push(processId);
             }
           }
 
@@ -819,8 +833,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(processes);
     } catch (error: any) {
       console.error("Error fetching processes:", error);
-      res.status(500).json({ message: error.message });
-    }
+      res.status(500).json({ message: error.message });    }
   });
 
   // Add better error handling and authentication for line of business routes
@@ -838,7 +851,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const orgId = parseInt(req.params.id);
-if (!orgId) {
+      if (!orgId) {
         console.log('Invalid organization ID provided');
         return res.status(400).json({ message: "Invalid organization ID" });
       }
