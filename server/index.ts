@@ -1,6 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { log } from "./vite";
+import { log, setupVite } from "./vite";
 import path from "path";
 import { fileURLToPath } from 'url';
 
@@ -48,19 +48,10 @@ app.use((req, res, next) => {
     res.status(500).json({ message: err.message || 'Internal Server Error' });
   });
 
-  // API routes should be handled before the static file middleware
-  app.use('/api', (req, res, next) => {
-    log(`API Request: ${req.method} ${req.path}`, 'express');
-    next();
-  });
-
-  // In development, serve the client directory
+  // In development, use Vite's dev server
   if (process.env.NODE_ENV !== 'production') {
     log('Running in development mode', 'express');
-    app.use(express.static(path.join(__dirname, '../client')));
-    app.get('*', (_req, res) => {
-      res.sendFile(path.join(__dirname, '../client/index.html'));
-    });
+    await setupVite(app, server);
   } else {
     // In production, serve from dist/public
     log('Running in production mode', 'express');
