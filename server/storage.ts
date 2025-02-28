@@ -6,6 +6,7 @@ import {
   organizationProcesses,
   organizationBatches,
   organizationLineOfBusinesses,
+  organizationLocations,
   rolePermissions,
   userProcesses,
   type User,
@@ -21,6 +22,7 @@ import {
   type InsertOrganizationLineOfBusiness,
   type UserProcess,
   type InsertUserProcess,
+  type OrganizationLocation,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -83,6 +85,9 @@ export interface IStorage {
 
   // Add new method for getting processes by line of business
   getProcessesByLineOfBusiness(organizationId: number, lobId: number): Promise<OrganizationProcess[]>;
+
+  // Add Location operations
+  listLocations(organizationId: number): Promise<OrganizationLocation[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -592,6 +597,22 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error fetching processes by LOB:', error);
       throw new Error('Failed to fetch processes for Line of Business');
+    }
+  }
+
+  async listLocations(organizationId: number): Promise<OrganizationLocation[]> {
+    try {
+      console.log(`Fetching locations for organization ${organizationId}`);
+      const locations = await db
+        .select()
+        .from(organizationLocations)
+        .where(eq(organizationLocations.organizationId, organizationId)) as OrganizationLocation[];
+
+      console.log(`Found ${locations.length} locations`);
+      return locations;
+    } catch (error) {
+      console.error('Error fetching locations:', error);
+      throw new Error('Failed to fetch locations');
     }
   }
 }
