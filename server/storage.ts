@@ -7,6 +7,7 @@ import {
   organizationBatches,
   organizationLocations,
   rolePermissions,
+  userProcesses,
   type User,
   type InsertUser,
   type Organization,
@@ -21,6 +22,8 @@ import {
   type OrganizationLineOfBusiness,
   type InsertOrganizationLineOfBusiness,
   organizationLineOfBusinesses,
+  type UserProcess,
+  type InsertUserProcess,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -33,6 +36,11 @@ export interface IStorage {
   updateUserPassword(email: string, hashedPassword: string): Promise<void>;
   deleteUser(id: number): Promise<void>;
   listUsers(organizationId: number): Promise<User[]>;
+
+  // User Process operations
+  assignProcessesToUser(processes: InsertUserProcess[]): Promise<UserProcess[]>;
+  getUserProcesses(userId: number): Promise<UserProcess[]>;
+  removeUserProcess(userId: number, processId: number): Promise<void>;
 
   // Organization operations
   getOrganization(id: number): Promise<Organization | undefined>;
@@ -124,10 +132,10 @@ export class DatabaseStorage implements IStorage {
         throw new Error('User not found');
       }
 
-      console.log(`Found user to delete:`, { 
-        id: user.id, 
+      console.log(`Found user to delete:`, {
+        id: user.id,
         username: user.username,
-        role: user.role 
+        role: user.role
       });
 
       // Perform the deletion
@@ -248,6 +256,7 @@ export class DatabaseStorage implements IStorage {
         .select({
           id: organizationProcesses.id,
           name: organizationProcesses.name,
+          description: organizationProcesses.description,
           status: organizationProcesses.status,
           inductionDays: organizationProcesses.inductionDays,
           trainingDays: organizationProcesses.trainingDays,
@@ -256,26 +265,11 @@ export class DatabaseStorage implements IStorage {
           ojtCertificationDays: organizationProcesses.ojtCertificationDays,
           lineOfBusinessId: organizationProcesses.lineOfBusinessId,
           locationId: organizationProcesses.locationId,
-          userId: organizationProcesses.userId,
-          roleId: organizationProcesses.roleId,
           organizationId: organizationProcesses.organizationId,
-          lineOfBusinessName: organizationLineOfBusinesses.name,
-          locationName: organizationLocations.name,
-          userName: users.fullName,
+          createdAt: organizationProcesses.createdAt,
+          updatedAt: organizationProcesses.updatedAt
         })
         .from(organizationProcesses)
-        .leftJoin(
-          organizationLineOfBusinesses,
-          eq(organizationProcesses.lineOfBusinessId, organizationLineOfBusinesses.id)
-        )
-        .leftJoin(
-          organizationLocations,
-          eq(organizationProcesses.locationId, organizationLocations.id)
-        )
-        .leftJoin(
-          users,
-          eq(organizationProcesses.userId, users.id)
-        )
         .where(eq(organizationProcesses.organizationId, organizationId)) as OrganizationProcess[];
 
       console.log(`Found ${processes.length} processes`);
@@ -504,6 +498,59 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error deleting Line of Business:', error);
       throw new Error('Failed to delete Line of Business');
+    }
+  }
+
+  // Add new methods for user process management
+  async assignProcessesToUser(processes: InsertUserProcess[]): Promise<UserProcess[]> {
+    try {
+      const assignedProcesses = await db
+        .insert(userProcesses)
+        .values(processes)
+        .returning() as UserProcess[];
+      return assignedProcesses;
+    } catch (error) {
+      console.error('Error assigning processes to user:', error);
+      throw new Error('Failed to assign processes to user');
+    }
+  }
+
+  async getUserProcesses(userId: number): Promise<UserProcess[]> {
+    try {
+      const processes = await db
+        .select({
+          id: userProcesses.id,
+          userId: userProcesses.userId,
+          processId: userProcesses.processId,
+          organizationId: userProcesses.organizationId,
+          status: userProcesses.status,
+          assignedAt: userProcesses.assignedAt,
+          completedAt: userProcesses.completedAt,
+          processName: organizationProcesses.name,
+        })
+        .from(userProcesses)
+        .leftJoin(
+          organizationProcesses,
+          eq(userProcesses.processId, organizationProcesses.id)
+        )
+        .where(eq(userProcesses.userId, userId)) as UserProcess[];
+
+      return processes;
+    } catch (error) {
+      console.error('Error fetching user processes:', error);
+      throw new Error('Failed to fetch user processes');
+    }
+  }
+
+  async removeUserProcess(userId: number, processId: number): Promise<void> {
+    try {
+      await db
+        .delete(userProcesses)
+        .where(eq(userProcesses.userId, userId))
+        .where(eq(userProcesses.processId, processId));
+    } catch (error) {
+      console.error('Error removing user process:', error);
+      throw new Error('Failed to remove user process');
     }
   }
 }
