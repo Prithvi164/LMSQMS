@@ -26,6 +26,8 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
   const [selectedLOBs, setSelectedLOBs] = useState<number[]>([]);
   const [openLOB, setOpenLOB] = useState(false);
   const [openProcess, setOpenProcess] = useState(false);
+  const [openManager, setOpenManager] = useState(false);
+
   const [newUserData, setNewUserData] = useState({
     username: "",
     password: "",
@@ -45,8 +47,8 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
   const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery<OrganizationLineOfBusiness[]>({
     queryKey: [`/api/organizations/${organization?.id}/line-of-businesses`],
     enabled: !!organization?.id,
-    staleTime: 5 * 60 * 1000, 
-    cacheTime: 30 * 60 * 1000, 
+    staleTime: 5 * 60 * 1000,
+    cacheTime: 30 * 60 * 1000,
     onError: (error: any) => {
       console.error('Error fetching Line of Businesses:', error);
       toast({
@@ -258,42 +260,71 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
 
             <div>
               <Label htmlFor="managerId">Reporting Manager</Label>
-              <Command className="rounded-lg border shadow-md">
-                <CommandInput placeholder="Search manager..." />
-                <CommandEmpty>No manager found.</CommandEmpty>
-                <CommandGroup className="max-h-48 overflow-auto">
-                  <CommandItem
-                    onSelect={() => setNewUserData(prev => ({ ...prev, managerId: "none" }))}
-                    className="cursor-pointer"
+              <Popover open={openManager} onOpenChange={setOpenManager}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={openManager}
+                    className="w-full justify-between"
                   >
+                    {newUserData.managerId === "none"
+                      ? "Select manager..."
+                      : getFilteredManagers().find(m => m.id.toString() === newUserData.managerId)
+                        ? `${getFilteredManagers().find(m => m.id.toString() === newUserData.managerId)?.fullName ||
+                            getFilteredManagers().find(m => m.id.toString() === newUserData.managerId)?.username}`
+                        : "Select manager..."}
                     <Check
                       className={cn(
-                        "mr-2 h-4 w-4",
-                        newUserData.managerId === "none" ? "opacity-100" : "opacity-0"
+                        "ml-2 h-4 w-4",
+                        newUserData.managerId !== "none" ? "opacity-100" : "opacity-0"
                       )}
                     />
-                    No Manager
-                  </CommandItem>
-                  {getFilteredManagers().map((manager) => (
-                    <CommandItem
-                      key={manager.id}
-                      onSelect={() => setNewUserData(prev => ({
-                        ...prev,
-                        managerId: manager.id.toString()
-                      }))}
-                      className="cursor-pointer"
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          newUserData.managerId === manager.id.toString() ? "opacity-100" : "opacity-0"
-                        )}
-                      />
-                      {manager.fullName || manager.username} ({manager.role})
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </Command>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[200px] p-0">
+                  <Command>
+                    <CommandInput placeholder="Search manager..." />
+                    <CommandEmpty>No manager found.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        onSelect={() => {
+                          setNewUserData(prev => ({ ...prev, managerId: "none" }));
+                          setOpenManager(false);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            newUserData.managerId === "none" ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        No Manager
+                      </CommandItem>
+                      {getFilteredManagers().map((manager) => (
+                        <CommandItem
+                          key={manager.id}
+                          onSelect={() => {
+                            setNewUserData(prev => ({
+                              ...prev,
+                              managerId: manager.id.toString()
+                            }));
+                            setOpenManager(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              newUserData.managerId === manager.id.toString() ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {manager.fullName || manager.username} ({manager.role})
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div>
