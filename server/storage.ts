@@ -148,19 +148,35 @@ export class DatabaseStorage implements IStorage {
         role: user.role
       });
 
-      // Perform the deletion
-      const result = await db
-        .delete(users)
-        .where(eq(users.id, id))
-        .returning();
+      // Use a transaction to ensure data consistency
+      await db.transaction(async (tx) => {
+        // First, delete all user processes for this user
+        await tx
+          .delete(userProcesses)
+          .where(eq(userProcesses.userId, id));
 
-      console.log(`Deletion result:`, result);
+        console.log(`Deleted user processes for user ${id}`);
 
-      if (!result.length) {
-        throw new Error('User deletion failed');
-      }
+        // Update any users that have this user as their manager
+        await tx
+          .update(users)
+          .set({ managerId: null })
+          .where(eq(users.managerId, id));
 
-      console.log(`Successfully deleted user with ID: ${id}`);
+        console.log(`Updated manager references for user ${id}`);
+
+        // Finally delete the user
+        const result = await tx
+          .delete(users)
+          .where(eq(users.id, id))
+          .returning();
+
+        if (!result.length) {
+          throw new Error('User deletion failed');
+        }
+
+        console.log(`Successfully deleted user with ID: ${id}`);
+      });
     } catch (error) {
       console.error('Error in deleteUser:', error);
       throw error;
