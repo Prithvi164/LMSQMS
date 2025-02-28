@@ -81,10 +81,18 @@ app.use((req, res, next) => {
   }
 
   const port = 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-  }, () => {
-    log(`API Server running at http://0.0.0.0:${port}`, 'express');
-  });
-})();
+  try {
+    server.listen({
+      port,
+      host: "0.0.0.0",
+    }, () => {
+      log(`API Server running at http://0.0.0.0:${port}`, 'express');
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+})().catch(error => {
+  console.error('Unhandled error during server startup:', error);
+  process.exit(1);
+});
