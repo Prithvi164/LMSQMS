@@ -502,7 +502,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Template download route - updated to include process information
+  // Template download route - updated with properly aligned columns
   app.get("/api/users/template", (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -516,12 +516,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'Category*',
       'Email*',
       'PhoneNumber*',
+      'ProcessIDs*',  // Moved ProcessIDs column before optional fields
       'Location',
       'ManagerUsername',
       'DateOfJoining',
       'DateOfBirth',
-      'Education',
-      'ProcessIDs'  // Added ProcessIDs column
+      'Education'
     ].join(',');
 
     const example = [
@@ -533,12 +533,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'trainee',
       'john@example.com',
       '1234567890',
+      '1,2,3',  // Example process IDs aligned with its header
       'New York',
       'manager.username',
       '2023-01-01',
       '1990-01-01',
-      'Bachelors',
-      '1,2,3'  // Example process IDs
+      'Bachelors'
     ].join(',');
 
     const validRoles = [
@@ -559,7 +559,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       '6. Dates must be in YYYY-MM-DD format (e.g., 2023-01-01)',
       '7. ManagerUsername is optional - leave blank if no manager',
       '8. Location must match existing values in your organization',
-      '9. ProcessIDs should be comma-separated process IDs (e.g., 1,2,3)',
+      '9. ProcessIDs must be comma-separated numbers (e.g., 1,2,3)',
       '10. Category must be either "active" or "trainee"'
     ].join('\n');
 
@@ -860,7 +860,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       if (!req.user) {
-        console.log('Unauthorized attempt to create line ofbusiness');
+        console.log('Unauthorized attempt to create line of business');
         return res.status(401).json({ message: "Unauthorized" });
       }
 
@@ -870,7 +870,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid organization ID" });
       }
 
-      // Check if user belongs to theorganization
+      // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
         console.log(`User ${req.user.id} attempted to create LOB in organization ${orgId}`);
         return res.status(403).json({ message: "You can only create LOBs in your own organization" });
