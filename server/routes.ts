@@ -704,6 +704,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'Email*',
       'PhoneNumber*',
       'Location',
+      'LineOfBusiness',  // New field
+      'Processes',       // New field
       'ManagerUsername',
       'DateOfJoining',
       'DateOfBirth',
@@ -719,6 +721,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'john@example.com',
       '1234567890',
       'New York',
+      'Sales',          // Example LOB
+      'Process1,Process2', // Multiple processes separated by comma
       'manager.username',
       '2023-01-01',  // YYYY-MM-DD format
       '1990-01-01',  // YYYY-MM-DD format
@@ -742,7 +746,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       '5. Email must be valid format',
       '6. Dates must be in YYYY-MM-DD format (e.g., 2023-01-01)',
       '7. ManagerUsername is optional - leave blank if no manager',
-      '8. Location must match existing values in your organization'
+      '8. Location must match existing values in your organization',
+      '9. LineOfBusiness must match an existing Line of Business name',
+      '10. Processes should be comma-separated process names that exist in the selected Line of Business'
     ].join('\n');
 
     const csvContent = headers + '\n' + example + instructions;
@@ -752,7 +758,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.send(csvContent);
   });
 
-  // CSV upload route
+  // CSV upload route with LOB and Process handling
   app.post("/api/users/upload", upload.single('file'), async (req, res) => {
     try {
       if (!req.user) {
@@ -762,29 +768,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.file?.buffer) {
         return res.status(400).json({ message: "No file uploaded" });
       }
-
-      // Function to format date string to PostgreSQL format
-      const formatDate = (dateStr: string) => {
-        if (!dateStr) return null;
-        // Check if date is already in YYYY-MM-DD format
-        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
-
-        // Try to parse other date formats
-        const date = new Date(dateStr);
-        if (isNaN(date.getTime())) return null;
-
-        return date.toISOString().split('T')[0];
-      };
-
-      // Function to normalize role string
-      const normalizeRole = (role: string) => {
-        const normalized = role.toLowerCase().replace(/\s+/g, '_');
-        const validRoles = ['admin', 'manager', 'trainer', 'trainee', 'advisor', 'team_lead'];
-        if (!validRoles.includes(normalized)) {
-          throw new Error(`Invalid role: ${role}. Must be one of: ${validRoles.join(', ')}`);
-        }
-        return normalized;
-      };
 
       const csvContent = req.file.buffer.toString('utf-8');
       const lines = csvContent.split('\n');
@@ -799,10 +782,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       // Fetch organization settings first
-      const [processes, batches, locations] = await Promise.all([
+      const [processes, batches, locations, lineOfBusinesses] = await Promise.all([
         storage.listProcesses(req.user.organizationId),
         storage.listBatches(req.user.organizationId),
         storage.listLocations(req.user.organizationId),
+        storage.listLineOfBusinesses(req.user.organizationId),
       ]);
 
       for (let i = 1; i < lines.length; i++) {
@@ -819,16 +803,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           const userData: Record<string, string> = {};
           headers.forEach((header, index) => {
-            // Map CSV headers to database fields
             const fieldName = header.toLowerCase()
               .replace(/\s+/g, '')
               .replace('*', '');
             userData[fieldName] = values[index];
           });
 
-          console.log('Parsed user data:', { ...userData, password: '[REDACTED]' });
-
-          // Basic validation
+          // Basic validation (same as before)
           if (!userData.username) throw new Error('Username is required');
           if (!userData.password) throw new Error('Password is required');
           if (!userData.fullname) throw new Error('Full Name is required');
@@ -837,10 +818,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!userData.role) throw new Error('Role is required');
           if (!userData.phonenumber) throw new Error('Phone Number is required');
 
-          // Check if username already exists
+          // Check username uniqueness
           const existingUser = await storage.getUserByUsername(userData.username);
           if (existingUser) {
             throw new Error(`Username '${userData.username}' already exists`);
+          }
+
+          // Find LOB if specified
+          let processIds: number[] = [];
+          if (userData.lineofbusiness && userData.processes) {
+            const lob = lineOfBusinesses.find(l => 
+              l.name.toLowerCase() === userData.lineofbusiness.toLowerCase()
+            );
+            if (!lob) {
+              throw new Error(`Line of Business not found: ${userData.lineofbusiness}`);
+            }
+
+            // Get processes for this LOB
+            const lobProcesses = processes.filter(p => p.lineOfBusinessId === lob.id);
+            const requestedProcessNames = userData.processes.split(',').map(p => p.trim());
+
+            // Validate and collect process IDs
+            for (const processName of requestedProcessNames) {
+              const process =lobProcesses.find(p => 
+                p.name.toLowerCase() === processName.toLowerCase()
+              );
+              if (!process) {
+                throw new Error(`Process "${processName}" not found in Line of Business "${userData.lineofbusiness}"`);
+              }
+              processIds.push(process.id);
+            }
           }
 
           // Find manager if specified
@@ -852,40 +859,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
               throw new Error(`Manager not found: ${userData.managerusername}`);
             }
             managerId = manager.id;
-            console.log(`Found manager with ID: ${managerId}`);
           }
 
           // Find location if specified
           let locationId: number | null = null;
           if (userData.location) {
-            const location = locations.find(l => l.name.toLowerCase() === userData.location.toLowerCase());
+            const location = locations.find(l => 
+              l.name.toLowerCase() === userData.location.toLowerCase()
+            );
             if (!location) {
               throw new Error(`Location not found: ${userData.location}`);
             }
             locationId = location.id;
           }
 
-
           // Format dates properly
-          const dateOfJoining = formatDate(userData.dateofjoining);
-          const dateOfBirth = formatDate(userData.dateofbirth);
-
-          console.log('Formatted dates:', { dateOfJoining, dateOfBirth });
+          const dateOfJoining = userData.dateofjoining ? new Date(userData.dateofjoining).toISOString().split('T')[0] : null;
+          const dateOfBirth = userData.dateofbirth ? new Date(userData.dateofbirth).toISOString().split('T')[0] : null;
 
           // Hash the password
           const hashedPassword = await hashPassword(userData.password);
 
-          // Normalize and validate role
-          const normalizedRole = normalizeRole(userData.role);
-          console.log('Normalized role:', normalizedRole);
-
           // Create user with validated data
-          const newUser = {
+          const userToCreate = {
             username: userData.username,
             password: hashedPassword,
             fullName: userData.fullname,
             employeeId: userData.employeeid,
-            role: normalizedRole,
+            role: userData.role.toLowerCase(),
             email: userData.email,
             phoneNumber: userData.phonenumber,
             dateOfJoining,
@@ -897,8 +898,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             active: true
           };
 
-          console.log('Creating user:', { ...newUser, password: '[REDACTED]' });
-          await storage.createUser(newUser);
+          // Create user with processes
+          const result = await storage.createUserWithProcesses(
+            userToCreate,
+            processIds,
+            req.user.organizationId
+          );
+
           console.log('User created successfully');
           results.success++;
         } catch (error: any) {
@@ -920,181 +926,431 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/reset-db", async (req, res) => {
-    try {
-      // Truncate tables in correct order due to foreign key constraints
-      await sql`
-        TRUNCATE TABLE "user_progress" CASCADE;
-        TRUNCATE TABLE "learning_path_courses" CASCADE;
-        TRUNCATE TABLE "learning_paths" CASCADE;
-        TRUNCATE TABLE "courses" CASCADE;
-        TRUNCATE TABLE "users" CASCADE;
-        TRUNCATE TABLE "organizations" CASCADE;
-      `;
-
-      res.json({ message: "Database truncated successfully" });
-    } catch (error) {
-      console.error("Truncate error:", error);
-      res.status(500).json({ message: "Failed to truncate database", error: error.message });
-    }
-  });
-
-  // Batch Management Routes
-  app.post("/api/batches", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const batchData = {
-        ...req.body,
-        organizationId: req.user.organizationId,
-      };
-
-      const validatedData = insertOrganizationBatchSchema.parse(batchData);
-      const batch = await storage.createBatch(validatedData);
-      res.status(201).json(batch);
-    } catch (error: any) {
-      console.error("Batch creation error:", error);
-      res.status(400).json({ message: error.message });
-    }
-  });
-
-  app.get("/api/batches", async (req, res) => {
+  // User management routes
+  app.get("/api/users", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
     if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
 
     try {
-      const batches = await storage.listBatches(req.user.organizationId);
-      res.json(batches);
+      console.log(`Fetching users for organization ${req.user.organizationId}`);
+      const users = await storage.listUsers(req.user.organizationId);
+      console.log(`Found ${users.length} users, including ${users.filter(u => u.role === 'trainer').length} trainers`);
+      res.json(users);
     } catch (error: any) {
-      console.error("Error fetching batches:", error);
+      console.error("Error fetching users:", error);
       res.status(500).json({ message: error.message });
     }
   });
 
-  app.get("/api/batches/:id", async (req, res) => {
+  // User routes - Replacing the original with the edited code
+  app.post("/api/users", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const { processes, ...userData } = req.body;
+
+      // Hash the password before creating the user
+      const hashedPassword = await hashPassword(userData.password);
+
+      // Prepare user data
+      const userToCreate = {
+        ...userData,
+        password: hashedPassword,
+        role: userData.role.toLowerCase(),
+        organizationId: req.user.organizationId,
+      };
+
+      // Create user with processes if provided
+      const result = await storage.createUserWithProcesses(
+        userToCreate,
+        processes || [],
+        req.user.organizationId
+      );
+
+      res.status(201).json(result.user);
+    } catch (error: any) {
+      console.error("User creation error:", error);
+      // Handle unique constraint violations
+      if (error.message.includes('already exists')) {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(400).json({ message: error.message || "Failed to create user" });
+    }
+  });
+
+  // Update user route
+  app.patch("/api/users/:id", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     try {
-      const batch = await storage.getBatch(parseInt(req.params.id));
-      if (!batch) {
-        return res.status(404).json({ message: "Batch not found" });
+      const userId = parseInt(req.params.id);
+      const updateData = req.body;
+
+      // Get the user to be updated
+      const userToUpdate = await storage.getUser(userId);
+      if (!userToUpdate) {
+        return res.status(404).json({ message: "User not found" });
       }
-      if (batch.organizationId !== req.user.organizationId) {
-        return res.status(403).json({ message: "Access denied" });
+
+      // Prevent changing owner role
+      if (userToUpdate.role === 'owner' && updateData.role && updateData.role !== 'owner') {
+        return res.status(403).json({ message: "Cannot change the role of an owner" });
       }
-      res.json(batch);
+
+      // Prevent assigning owner role
+      if (updateData.role === 'owner') {
+        return res.status(403).json({ message: "Cannot assign owner role through update" });
+      }
+
+      // Check if the user is updating their own profile
+      const isOwnProfile = req.user.id === userId;
+
+      // If it's own profile update, allow location and other basic info updates
+      if (isOwnProfile) {
+        // Filter allowed fields for self-update
+        const allowedSelfUpdateFields = [
+          'fullName',
+          'email',
+          'phoneNumber',
+          'locationId',
+          'dateOfBirth',
+          'education'
+        ];
+        const filteredUpdateData = Object.keys(updateData)
+          .filter(key => allowedSelfUpdateFields.includes(key))
+          .reduce((obj, key) => {
+            obj[key] = updateData[key];
+            return obj;
+          }, {});
+
+        const updatedUser = await storage.updateUser(userId, filteredUpdateData);
+        return res.json(updatedUser);
+      }
+
+      // For owner role, allow all updates except role changes to/from owner
+      if (req.user.role === 'owner') {
+        const updatedUser = await storage.updateUser(userId, updateData);
+        return res.json(updatedUser);
+      }
+
+      // Admin users can only be modified by owners
+      if (userToUpdate.role === 'admin' && req.user.role !== 'owner') {
+        return res.status(403).json({ message: "Only owners can modify admin users" });
+      }
+
+      // Allow admins to change active status for non-owner users
+      if (req.user.role === 'admin' && 'active' in updateData) {
+        if (userToUpdate.role === 'owner') {
+          return res.status(403).json({ message: "Cannot change owner's active status" });
+        }
+        const updatedUser = await storage.updateUser(userId, { active: updateData.active });
+        return res.json(updatedUser);
+      }
+
+      // For other roles, restrict certain fields
+      const allowedFields = ['fullName', 'phoneNumber', 'locationId', 'dateOfBirth', 'education'];
+      const filteredUpdateData = Object.keys(updateData)
+        .filter(key => allowedFields.includes(key))
+        .reduce((obj, key) => {
+          obj[key] = updateData[key];
+          return obj;
+        }, {});
+
+      const updatedUser = await storage.updateUser(userId, filteredUpdateData);
+      res.json(updatedUser);
     } catch (error: any) {
-      console.error("Error fetching batch:", error);
+      console.error("User update error:", error);
+      res.status(400).json({ message: error.message || "Failed to update user" });
+    }
+  });
+
+
+  // Permissions routes
+  app.get("/api/permissions", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
+
+    try {
+      const rolePermissions = await storage.listRolePermissions(req.user.organizationId);
+      res.json(rolePermissions);
+    } catch (error: any) {
+      console.error("Error fetching permissions:", error);
       res.status(500).json({ message: error.message });
     }
   });
 
-  app.patch("/api/batches/:id", async (req, res) => {
+  app.get("/api/permissions/:role", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
 
     try {
-      const batch = await storage.getBatch(parseInt(req.params.id));
-      if (!batch) {
-        return res.status(404).json({ message: "Batch not found" });
+      const rolePermission = await storage.getRolePermissions(req.user.organizationId, req.params.role);
+      if (!rolePermission) {
+        return res.status(404).json({ message: "Role permissions not found" });
       }
-      if (batch.organizationId !== req.user.organizationId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-
-      const updatedBatch = await storage.updateBatch(parseInt(req.params.id), req.body);
-      res.json(updatedBatch);
+      res.json(rolePermission);
     } catch (error: any) {
-      console.error("Error updating batch:", error);
+      console.error("Error fetching role permissions:", error);
       res.status(500).json({ message: error.message });
     }
   });
 
-  app.delete("/api/batches/:id", async (req, res) => {
+  app.patch("/api/permissions/:role", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
+    if (req.user.role !== "admin") return res.status(403).json({ message: "Only admins can modify permissions" });
 
     try {
-      const batch = await storage.getBatch(parseInt(req.params.id));
-      if (!batch) {
-        return res.status(404).json({ message: "Batch not found" });
-      }
-      if (batch.organizationId !== req.user.organizationId) {
-        return res.status(403).json({ message: "Access denied" });
+      const { permissions } = req.body;
+      if (!Array.isArray(permissions)) {
+        return res.status(400).json({ message: "Permissions must be an array" });
       }
 
-      await storage.deleteBatch(parseInt(req.params.id));
-      res.sendStatus(204);
+      const rolePermission = await storage.updateRolePermissions(
+        req.user.organizationId,
+        req.params.role,
+        permissions
+      );
+
+      res.json(rolePermission);
     } catch (error: any) {
-      console.error("Error deleting batch:", error);
+      console.error("Error updating permissions:", error);
       res.status(500).json({ message: error.message });
     }
   });
 
-  // Add a specific DELETE endpoint for locations
-  app.delete("/api/organizations/:orgId/settings/locations/:locationId", async (req, res) => {
+  // Template download route - update to match CSV upload expectations
+  app.get("/api/users/template", (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
-    try {
-      const orgId = parseInt(req.params.orgId);
-      const locationId = parseInt(req.params.locationId);
+    // Create CSV content with clear column names and proper date format examples
+    const headers = [
+      'Username*',
+      'Password*',
+      'FullName*',
+      'EmployeeID*',
+      'Role*',
+      'Email*',
+      'PhoneNumber*',
+      'Location',
+      'LineOfBusiness',  // New field
+      'Processes',       // New field
+      'ManagerUsername',
+      'DateOfJoining',
+      'DateOfBirth',
+      'Education'
+    ].join(',');
 
-      // Check if user belongs to the organization
-      if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "You can only delete locations in your own organization" });
-      }
+    const example = [
+      'john.doe',
+      'password123',
+      'John Doe',
+      'EMP001',
+      'trainee',
+      'john@example.com',
+      '1234567890',
+      'New York',
+      'Sales',          // Example LOB
+      'Process1,Process2', // Multiple processes separated by comma
+      'manager.username',
+      '2023-01-01',  // YYYY-MM-DD format
+      '1990-01-01',  // YYYY-MM-DD format
+      'Bachelors'
+    ].join(',');
 
-      // Direct deletion without additional validation
-      await storage.deleteLocation(locationId);
-      res.status(200).json({ message: "Location deleted successfully" });
-    } catch (err: any) {
-      console.error("Location deletion error:", err);
-      res.status(500).json({ message: err.message || "Failed to delete location" });
-    }
+    const validRoles = [
+      'trainee',
+      'trainer',
+      'manager',
+      'advisor',
+      'team_lead'
+    ].join(', ');
+
+    const instructions = [
+      '\n\nInstructions:',
+      '1. Fields marked with * are mandatory',
+      `2. Role must be one of: ${validRoles}`,
+      '3. Password must be at least 6 characters',
+      '4. Phone number must be 10 digits',
+      '5. Email must be valid format',
+      '6. Dates must be in YYYY-MM-DD format (e.g., 2023-01-01)',
+      '7. ManagerUsername is optional - leave blank if no manager',
+      '8. Location must match existing values in your organization',
+      '9. LineOfBusiness must match an existing Line of Business name',
+      '10. Processes should be comma-separated process names that exist in the selected Line of Business'
+    ].join('\n');
+
+    const csvContent = headers + '\n' + example + instructions;
+
+    res.setHeader('Content-Disposition', 'attachment; filename=users-template.csv');
+    res.setHeader('Content-Type', 'text/csv');
+    res.send(csvContent);
   });
 
-  // Add a specific PATCH endpoint for locations
-  app.patch("/api/organizations/:orgId/settings/locations/:locationId", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
+  // CSV upload route with LOB and Process handling
+  app.post("/api/users/upload", upload.single('file'), async (req, res) => {
     try {
-      const orgId = parseInt(req.params.orgId);
-      const locationId = parseInt(req.params.locationId);
-
-      // Check if user belongs to the organization
-      if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "You can only update locations in your own organization" });
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      // Get the existing location
-      const existingLocation = await storage.getLocation(locationId);
-      if (!existingLocation) {
-        return res.status(404).json({ message: "Location not found" });
+      if (!req.file?.buffer) {
+        return res.status(400).json({ message: "No file uploaded" });
       }
 
-      // Validate required fields
-      const { name, address, city, state, country } = req.body;
-      if (!name || !address || !city || !state || !country) {
-        return res.status(400).json({
-          message: "Missing required location fields. Required: name, address, city, state, country"
-        });
+      const csvContent = req.file.buffer.toString('utf-8');
+      const lines = csvContent.split('\n');
+      const headers = lines[0].split(',').map(h => h.trim().replace(/[\r\n*]/g, ''));
+
+      console.log('Processing CSV with headers:', headers);
+
+      // Process data rows (skip header)
+      const results = {
+        success: 0,
+        failures: [] as { row: number; error: string }[]
+      };
+
+      // Fetch organization settings first
+      const [processes, batches, locations, lineOfBusinesses] = await Promise.all([
+        storage.listProcesses(req.user.organizationId),
+        storage.listBatches(req.user.organizationId),
+        storage.listLocations(req.user.organizationId),
+        storage.listLineOfBusinesses(req.user.organizationId),
+      ]);
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        try {
+          console.log(`\nProcessing row ${i}:`);
+
+          const values = line.split(',').map(v => v.trim());
+          if (values.length !== headers.length) {
+            throw new Error(`Invalid number of columns. Expected ${headers.length}, got ${values.length}`);
+          }
+
+          const userData: Record<string, string> = {};
+          headers.forEach((header, index) => {
+            const fieldName = header.toLowerCase()
+              .replace(/\s+/g, '')
+              .replace('*', '');
+            userData[fieldName] = values[index];
+          });
+
+          // Basic validation (same as before)
+          if (!userData.username) throw new Error('Username is required');
+          if (!userData.password) throw new Error('Password is required');
+          if (!userData.fullname) throw new Error('Full Name is required');
+          if (!userData.employeeid) throw new Error('Employee ID is required');
+          if (!userData.email) throw new Error('Email is required');
+          if (!userData.role) throw new Error('Role is required');
+          if (!userData.phonenumber) throw new Error('Phone Number is required');
+
+          // Check username uniqueness
+          const existingUser = await storage.getUserByUsername(userData.username);
+          if (existingUser) {
+            throw new Error(`Username '${userData.username}' already exists`);
+          }
+
+          // Find LOB if specified
+          let processIds: number[] = [];
+          if (userData.lineofbusiness && userData.processes) {
+            const lob = lineOfBusinesses.find(l => 
+              l.name.toLowerCase() === userData.lineofbusiness.toLowerCase()
+            );
+            if (!lob) {
+              throw new Error(`Line of Business not found: ${userData.lineofbusiness}`);
+            }
+
+            // Get processes for this LOB
+            const lobProcesses = processes.filter(p => p.lineOfBusinessId === lob.id);
+            const requestedProcessNames = userData.processes.split(',').map(p => p.trim());
+
+            // Validate and collect process IDs
+            for (const processName of requestedProcessNames) {
+              const process = lobProcesses.find(p => 
+                p.name.toLowerCase() === processName.toLowerCase()
+              );
+              if (!process) {
+                throw new Error(`Process "${processName}" not found in Line of Business "${userData.lineofbusiness}"`);
+              }
+              processIds.push(process.id);
+            }
+          }
+
+          // Find manager if specified
+          let managerId: number | null = null;
+          if (userData.managerusername) {
+            console.log(`Looking up manager: ${userData.managerusername}`);
+            const manager = await storage.getUserByUsername(userData.managerusername);
+            if (!manager) {
+              throw new Error(`Manager not found: ${userData.managerusername}`);
+            }
+            managerId = manager.id;
+          }
+
+          // Find location if specified
+          let locationId: number | null = null;
+          if (userData.location) {
+            const location = locations.find(l => 
+              l.name.toLowerCase() === userData.location.toLowerCase()
+            );
+            if (!location) {
+              throw new Error(`Location not found: ${userData.location}`);
+            }
+            locationId = location.id;
+          }
+
+          // Format dates properly
+          const dateOfJoining = userData.dateofjoining ? new Date(userData.dateofjoining).toISOString().split('T')[0] : null;
+          const dateOfBirth = userData.dateofbirth ? new Date(userData.dateofbirth).toISOString().split('T')[0] : null;
+
+          // Hash the password
+          const hashedPassword = await hashPassword(userData.password);
+
+          // Create user with validated data
+          const userToCreate = {
+            username: userData.username,
+            password: hashedPassword,
+            fullName: userData.fullname,
+            employeeId: userData.employeeid,
+            role: userData.role.toLowerCase(),
+            email: userData.email,
+            phoneNumber: userData.phonenumber,
+            dateOfJoining,
+            dateOfBirth,
+            education: userData.education || null,
+            organizationId: req.user.organizationId,
+            managerId,
+            locationId,
+            active: true,
+            lineOfBusinessId: processIds.length > 0 ? lineOfBusinesses.find(l => l.name.toLowerCase() === userData.lineofbusiness.toLowerCase())?.id : null,
+            processIds
+          };
+
+          console.log('Creating user:', { ...userToCreate, password: '[REDACTED]' });
+          await storage.createUser(userToCreate);
+          console.log('User created successfully');
+          results.success++;
+        } catch (error: any) {
+          console.error(`Row ${i} processing error:`, error);
+          results.failures.push({
+            row: i,
+            error: error.message || 'Unknown error occurred'
+          });
+        }
       }
 
-      // Update the location
-      const updatedLocation = await storage.updateLocation(locationId, {
-        name,
-        address,
-        city,
-        state,
-        country,
-        organizationId: orgId
+      res.json(results);
+    } catch (error: any) {
+      console.error('CSV upload error:', error);
+      res.status(400).json({
+        message: error.message,
+        details: 'Please ensure the CSV file matches the template format'
       });
-
-      res.json(updatedLocation);
-    } catch (err: any) {
-      console.error("Location update error:", err);
-      if (err.message?.includes('unique constraint')) {
-        return res.status(400).json({ message: "A location with this name already exists" });
-      }
-      res.status(500).json({ message: err.message || "Failed to update location" });
     }
   });
 
