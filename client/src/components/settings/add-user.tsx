@@ -47,24 +47,35 @@ export function AddUser({
     processes: [] as number[],
   });
 
-  // Fetch Line of Businesses
+  // Fetch Line of Businesses with caching configuration
   const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery<OrganizationLineOfBusiness[]>({
     queryKey: [`/api/organizations/${organization?.id}/line-of-businesses`],
     enabled: !!organization?.id,
-    onSuccess: (data) => {
-      console.log('Fetched Line of Businesses:', data);
-    },
-    onError: (error) => {
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    cacheTime: 30 * 60 * 1000, // Keep data in cache for 30 minutes
+    onError: (error: any) => {
       console.error('Error fetching Line of Businesses:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load Line of Business data. Please try again.",
+        variant: "destructive",
+      });
     }
   });
 
-  // Fetch organization processes
+  // Fetch processes for selected LOBs
   const { data: processes = [], isLoading: isLoadingProcesses } = useQuery<OrganizationProcess[]>({
-    queryKey: [`/api/organizations/${organization?.id}/processes`],
+    queryKey: [`/api/organizations/${organization?.id}/processes`, selectedLOBs],
     enabled: !!organization?.id && !['owner', 'admin'].includes(newUserData.role) && selectedLOBs.length > 0,
-    onSuccess: (data) => {
-      console.log('Fetched Processes:', data);
+    staleTime: 5 * 60 * 1000,
+    cacheTime: 30 * 60 * 1000,
+    onError: (error: any) => {
+      console.error('Error fetching Processes:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load Process data. Please try again.",
+        variant: "destructive",
+      });
     }
   });
 
@@ -72,14 +83,6 @@ export function AddUser({
   const filteredProcesses = processes.filter(process => 
     selectedLOBs.includes(process.lineOfBusinessId)
   );
-
-  console.log('Current state:', {
-    organizationId: organization?.id,
-    lineOfBusinesses,
-    selectedLOBs,
-    processes,
-    filteredProcesses
-  });
 
   // Get filtered managers based on role
   const getFilteredManagers = (selectedRole: string) => {
@@ -159,13 +162,13 @@ export function AddUser({
     return null;
   }
 
-  // Show loading state
+  // Show loading state for initial data fetch
   if (isLoadingLOB) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>Add New User</CardTitle>
-          <CardDescription>Loading settings...</CardDescription>
+          <CardDescription>Loading organization data...</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="animate-pulse space-y-4">

@@ -452,7 +452,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Template download route - updated to exclude LOB and process fields
+  // Template download route - updated to exclude LOB and Process fields
   app.get("/api/users/template", (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -778,6 +778,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(processes);
     } catch (error: any) {
       console.error("Error fetching processes:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Add this API endpoint if it doesn't exist or modify the existing one
+  app.get("/api/organizations/:id/line-of-businesses", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.id);
+      console.log(`Fetching Line of Businesses for organization ${orgId}`);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        console.log(`User ${req.user.id} attempted to access organization ${orgId}'s LOBs`);
+        return res.status(403).json({ message: "You can only view LOBs in your own organization" });
+      }
+
+      const lobs = await storage.listLineOfBusinesses(orgId);
+      console.log(`Found ${lobs.length} Line of Businesses:`, lobs);
+      res.json(lobs);
+    } catch (error: any) {
+      console.error("Error fetching LOBs:", error);
       res.status(500).json({ message: error.message });
     }
   });
