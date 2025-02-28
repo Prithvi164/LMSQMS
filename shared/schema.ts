@@ -319,6 +319,9 @@ export const courses = pgTable("courses", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export type Course = typeof courses.$inferSelect;
+export type InsertCourse = typeof courses.$inferInsert;
+
 // Learning Path table
 export const learningPaths = pgTable("learning_paths", {
   id: serial("id").primaryKey(),
@@ -350,6 +353,9 @@ export const userProgress = pgTable("user_progress", {
   score: integer("score"),
   lastAccessed: timestamp("last_accessed").defaultNow().notNull(),
 });
+
+export type UserProgress = typeof userProgress.$inferSelect;
+export type InsertUserProgress = typeof userProgress.$inferInsert;
 
 // Relations
 export const organizationsRelations = relations(organizations, ({ many }) => ({
