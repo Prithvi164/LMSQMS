@@ -3,6 +3,9 @@ import { createInsertSchema } from "drizzle-zod";
 import { relations, type InferSelectModel } from "drizzle-orm";
 import { z } from "zod";
 
+// Add new user category enum
+export const userCategoryEnum = pgEnum('user_category', ['active', 'trainee']);
+
 // Role enum and permission enum remain unchanged
 export const roleEnum = pgEnum('role', [
   'owner',     
@@ -129,6 +132,7 @@ export const users = pgTable("users", {
   fullName: text("full_name"),
   employeeId: text("employee_id"),
   role: roleEnum("role").notNull(),
+  category: userCategoryEnum("category").notNull().default('trainee'),
   locationId: integer("location_id").references(() => organizationLocations.id),
   email: text("email").notNull(),
   education: text("education"),
@@ -517,6 +521,7 @@ export const insertUserSchema = createInsertSchema(users)
     education: z.string().optional(),
     certified: z.boolean().default(false),
     active: z.boolean().default(true),
+    category: z.enum(['active', 'trainee']).default('trainee'),
   });
 export const insertCourseSchema = createInsertSchema(courses);
 export const insertLearningPathSchema = createInsertSchema(learningPaths);
