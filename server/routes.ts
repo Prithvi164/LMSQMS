@@ -10,9 +10,6 @@ import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { insertOrganizationProcessSchema } from "@shared/schema";
-import type { InsertUser } from "@shared/types"; // Added import for InsertUser type
-
-
 // Configure multer for handling file uploads
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -27,10 +24,9 @@ const upload = multer({
       const ext = path.extname(file.originalname).toLowerCase();
       console.log('File extension:', ext);
 
-      // Only allow CSV files
-      if (ext !== '.csv') {
+      if (ext !== '.csv' && ext !== '.xlsx') {
         console.error('Invalid file type:', ext);
-        cb(new Error('Only CSV (.csv) files are allowed'));
+        cb(new Error('Only CSV (.csv) and Excel (.xlsx) files are allowed'));
         return;
       }
 
@@ -178,21 +174,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           result = await storage.createBatch({
             name: value,
             organizationId: orgId,
-            locationId: 0, // Default location
-            managerId: 0, // Default manager
-            processId: 0, // Default process
-            batchNumber: "B" + new Date().getTime(),
-            lineOfBusiness: "default",
-            trainerId: 0,
-            participantCount: 0,
-            capacityLimit: 10,
-            startDate: new Date().toISOString(),
-            endDate: new Date().toISOString(),
-            status: "planned", // Changed from "pending" to valid status
-            certificationStartDate: new Date().toISOString(),
-            certificationEndDate: new Date().toISOString(),
-            recertificationStartDate: new Date().toISOString(),
-            recertificationEndDate: new Date().toISOString()
           });
           break;
         case "locations":
@@ -355,13 +336,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hashedPassword = await hashPassword(userData.password);
 
       // Prepare user data
-      const userToCreate: InsertUser = {
+      const userToCreate = {
         ...userData,
         password: hashedPassword,
         role: userData.role.toLowerCase(),
-        organizationId: req.user.organizationId!,
-        active: true,
-        certified: false
+        organizationId: req.user.organizationId,
       };
 
       // Create user with optional processes
@@ -466,7 +445,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ message: error.message || "Failed to update user" });
     }
   });
-
 
 
   // Permissions routes
@@ -674,7 +652,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const hashedPassword = await hashPassword(userData.password);
 
           // Create user with validated data
-          const userToCreate: InsertUser = {
+          const userToCreate = {
             username: userData.username,
             password: hashedPassword,
             fullName: userData.fullname,
@@ -689,8 +667,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             organizationId: req.user.organizationId,
             managerId,
             locationId,
-            active: true,
-            certified: false
+            active: true
           };
 
           console.log('Creating user with processes:', { ...userToCreate, password: '[REDACTED]', processIds });
@@ -840,7 +817,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const processes = await storage.getProcessesByLineOfBusiness(orgId, lobId);
       res.json(processes);
-    } catch (error: any) {      console.error("Error fetching processes:", error);
+    } catch (error: any) {
+      console.error("Error fetching processes:", error);
       res.status(500).json({ message: error.message });
     }
   });
@@ -860,7 +838,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const orgId = parseInt(req.params.id);
-      if (!orgId) {
+if (!orgId) {
         console.log('Invalid organization ID provided');
         return res.status(400).json({ message: "Invalid organization ID" });
       }
