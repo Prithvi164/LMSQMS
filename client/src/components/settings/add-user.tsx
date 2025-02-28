@@ -3,17 +3,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, Upload, Check } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
-import type { User, Organization, OrganizationLocation, OrganizationProcess, OrganizationLineOfBusiness } from "@shared/schema";
-import { useToast } from "@/hooks/use-toast";
-import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { Check } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import type { User, Organization, OrganizationProcess, OrganizationLineOfBusiness } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
 interface AddUserProps {
   users: User[];
@@ -30,8 +28,9 @@ export function AddUser({
 }: AddUserProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [selectedLOB, setSelectedLOB] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
+  const [selectedLOBs, setSelectedLOBs] = useState<number[]>([]);
+  const [openLOB, setOpenLOB] = useState(false);
+  const [openProcess, setOpenProcess] = useState(false);
   const [newUserData, setNewUserData] = useState({
     username: "",
     password: "",
@@ -48,12 +47,6 @@ export function AddUser({
     processes: [] as number[],
   });
 
-  // Fetch organization settings
-  const { data: orgSettings, isLoading: isLoadingSettings } = useQuery({
-    queryKey: [`/api/organizations/${organization?.id}/settings`],
-    enabled: !!organization?.id,
-  });
-
   // Fetch Line of Businesses
   const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery<OrganizationLineOfBusiness[]>({
     queryKey: [`/api/organizations/${organization?.id}/line-of-businesses`],
@@ -63,18 +56,17 @@ export function AddUser({
   // Fetch organization processes
   const { data: processes = [], isLoading: isLoadingProcesses } = useQuery<OrganizationProcess[]>({
     queryKey: [`/api/organizations/${organization?.id}/processes`],
-    enabled: !!organization?.id && !['owner', 'admin'].includes(newUserData.role),
+    enabled: !!organization?.id && !['owner', 'admin'].includes(newUserData.role) && selectedLOBs.length > 0,
   });
 
-  // Get filtered processes based on selected LOB
-  const filteredProcesses = selectedLOB 
-    ? processes.filter(process => process.lineOfBusinessId === parseInt(selectedLOB))
-    : processes;
+  // Get filtered processes based on selected LOBs
+  const filteredProcesses = processes.filter(process => 
+    selectedLOBs.includes(process.lineOfBusinessId)
+  );
 
   // Get filtered managers based on role
   const getFilteredManagers = (selectedRole: string) => {
     if (!potentialManagers) return [];
-
     switch (selectedRole) {
       case "admin":
         return potentialManagers.filter(m => m.role === "owner");
@@ -135,7 +127,7 @@ export function AddUser({
         managerId: "none",
         processes: [],
       });
-      setSelectedLOB(null);
+      setSelectedLOBs([]);
     },
     onError: (error: Error) => {
       toast({
@@ -147,11 +139,11 @@ export function AddUser({
   });
 
   if (!organization) {
-    return null; // Don't render anything if organization is not available
+    return null;
   }
 
-  // Show simplified loading state
-  if (isLoadingSettings) {
+  // Show loading state
+  if (isLoadingLOB) {
     return (
       <Card>
         <CardHeader>
@@ -182,357 +174,363 @@ export function AddUser({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {/* CSV Upload Section */}
-        <div className="mb-6">
-          <div className="flex items-center justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                window.location.href = '/api/users/template';
-              }}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Download CSV Template
-            </Button>
-            <Label htmlFor="csv-upload" className="cursor-pointer">
-              <div className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2">
-                <Upload className="mr-2 h-4 w-4" />
-                Upload CSV
-              </div>
-            </Label>
-            <Input
-              id="csv-upload"
-              type="file"
-              className="hidden"
-              accept=".csv"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  // Handle file upload
-                }
-              }}
-            />
-          </div>
-        </div>
-        <Separator className="my-6" />
-        <div>
-          <h3 className="text-lg font-medium mb-4">Add Single User</h3>
-          <form
-            className="space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              createUserMutation.mutate(newUserData);
-            }}
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Basic fields */}
-              <div>
-                <Label htmlFor="username">Username</Label>
-                <Input
-                  id="username"
-                  value={newUserData.username}
-                  onChange={(e) => setNewUserData(prev => ({
-                    ...prev,
-                    username: e.target.value
-                  }))}
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="fullName">Full Name</Label>
-                <Input
-                  id="fullName"
-                  value={newUserData.fullName}
-                  onChange={(e) => setNewUserData(prev => ({
-                    ...prev,
-                    fullName: e.target.value
-                  }))}
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={newUserData.email}
-                  onChange={(e) => setNewUserData(prev => ({
-                    ...prev,
-                    email: e.target.value
-                  }))}
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="role">Role</Label>
-                <Select
-                  value={newUserData.role}
-                  onValueChange={(value) => {
-                    setNewUserData(prev => ({
-                      ...prev,
-                      role: value,
-                      managerId: "none",
-                      processes: [] // Clear processes when role changes
-                    }));
-                    setSelectedLOB(null);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {user.role === "owner" ? (
-                      <>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="manager">Manager</SelectItem>
-                        <SelectItem value="team_lead">Team Lead</SelectItem>
-                        <SelectItem value="trainer">Trainer</SelectItem>
-                        <SelectItem value="trainee">Trainee</SelectItem>
-                        <SelectItem value="advisor">Advisor</SelectItem>
-                      </>
-                    ) : user.role === "admin" ? (
-                      <>
-                        <SelectItem value="manager">Manager</SelectItem>
-                        <SelectItem value="team_lead">Team Lead</SelectItem>
-                        <SelectItem value="trainer">Trainer</SelectItem>
-                        <SelectItem value="trainee">Trainee</SelectItem>
-                        <SelectItem value="advisor">Advisor</SelectItem>
-                      </>
-                    ) : (
-                      <SelectItem value="trainee">Trainee</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Line of Business and Process Selection */}
-              {!['owner', 'admin'].includes(newUserData.role) && (
-                <>
-                  <div>
-                    <Label>Line of Business</Label>
-                    <Select
-                      value={selectedLOB || ""}
-                      onValueChange={(value) => {
-                        setSelectedLOB(value);
-                        setNewUserData(prev => ({
-                          ...prev,
-                          processes: [] // Clear processes when LOB changes
-                        }));
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Line of Business" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {lineOfBusinesses.map((lob) => (
-                          <SelectItem key={lob.id} value={lob.id.toString()}>
-                            {lob.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="col-span-2">
-                    <Label>Processes</Label>
-                    <Popover open={open} onOpenChange={setOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={open}
-                          className="w-full justify-between"
-                        >
-                          {newUserData.processes.length > 0
-                            ? `${newUserData.processes.length} processes selected`
-                            : "Select processes"}
-                          <Check
-                            className={cn(
-                              "ml-2 h-4 w-4",
-                              newUserData.processes.length > 0 ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-full p-0">
-                        <Command>
-                          <CommandInput placeholder="Search processes..." />
-                          <CommandEmpty>No process found.</CommandEmpty>
-                          <CommandGroup className="max-h-64 overflow-auto">
-                            {filteredProcesses.map((process) => (
-                              <CommandItem
-                                key={process.id}
-                                onSelect={() => {
-                                  setNewUserData(prev => {
-                                    const newProcesses = prev.processes.includes(process.id)
-                                      ? prev.processes.filter(id => id !== process.id)
-                                      : [...prev.processes, process.id];
-                                    return { ...prev, processes: newProcesses };
-                                  });
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    newUserData.processes.includes(process.id) ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                {process.name}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                    {(!selectedLOB && filteredProcesses.length === 0) && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Please select a Line of Business first
-                      </p>
-                    )}
-                    {(selectedLOB && filteredProcesses.length === 0) && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        No processes available for this Line of Business
-                      </p>
-                    )}
-                    {newUserData.processes.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {newUserData.processes.map(processId => {
-                          const process = processes.find(p => p.id === processId);
-                          return process ? (
-                            <Badge
-                              key={process.id}
-                              variant="secondary"
-                              className="text-xs"
-                            >
-                              {process.name}
-                            </Badge>
-                          ) : null;
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-
-              {/* Other fields */}
-              <div>
-                <Label htmlFor="managerId">Reporting Manager</Label>
-                <Select
-                  value={newUserData.managerId}
-                  onValueChange={(value) => setNewUserData(prev => ({
-                    ...prev,
-                    managerId: value
-                  }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select manager" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No Manager</SelectItem>
-                    {getFilteredManagers(newUserData.role).map((manager) => (
-                      <SelectItem key={manager.id} value={manager.id.toString()}>
-                        {manager.fullName || manager.username}
-                        {" "}
-                        <span className="text-muted-foreground">({manager.role})</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={newUserData.password}
-                  onChange={(e) => setNewUserData(prev => ({
-                    ...prev,
-                    password: e.target.value
-                  }))}
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="employeeId">Employee ID</Label>
-                <Input
-                  id="employeeId"
-                  value={newUserData.employeeId}
-                  onChange={(e) => setNewUserData(prev => ({
-                    ...prev,
-                    employeeId: e.target.value
-                  }))}
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="phoneNumber">Phone Number</Label>
-                <Input
-                  id="phoneNumber"
-                  value={newUserData.phoneNumber}
-                  onChange={(e) => setNewUserData(prev => ({
-                    ...prev,
-                    phoneNumber: e.target.value
-                  }))}
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="dateOfJoining">Date of Joining</Label>
-                <Input
-                  id="dateOfJoining"
-                  type="date"
-                  value={newUserData.dateOfJoining}
-                  onChange={(e) => setNewUserData(prev => ({
-                    ...prev,
-                    dateOfJoining: e.target.value
-                  }))}
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                <Input
-                  id="dateOfBirth"
-                  type="date"
-                  value={newUserData.dateOfBirth}
-                  onChange={(e) => setNewUserData(prev => ({
-                    ...prev,
-                    dateOfBirth: e.target.value
-                  }))}
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="education">Education</Label>
-                <Input
-                  id="education"
-                  value={newUserData.education}
-                  onChange={(e) => setNewUserData(prev => ({
-                    ...prev,
-                    education: e.target.value
-                  }))}
-                />
-              </div>
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            createUserMutation.mutate(newUserData);
+          }}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Basic fields */}
+            <div>
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                value={newUserData.username}
+                onChange={(e) => setNewUserData(prev => ({
+                  ...prev,
+                  username: e.target.value
+                }))}
+                required
+              />
             </div>
 
-            <Button
-              type="submit"
-              className="w-full mt-6"
-              disabled={createUserMutation.isPending}
-            >
-              Create User
-            </Button>
-          </form>
-        </div>
+            <div>
+              <Label htmlFor="fullName">Full Name</Label>
+              <Input
+                id="fullName"
+                value={newUserData.fullName}
+                onChange={(e) => setNewUserData(prev => ({
+                  ...prev,
+                  fullName: e.target.value
+                }))}
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={newUserData.email}
+                onChange={(e) => setNewUserData(prev => ({
+                  ...prev,
+                  email: e.target.value
+                }))}
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="role">Role</Label>
+              <select
+                id="role"
+                className="w-full rounded-md border border-input bg-background px-3 py-2"
+                value={newUserData.role}
+                onChange={(e) => {
+                  setNewUserData(prev => ({
+                    ...prev,
+                    role: e.target.value,
+                    managerId: "none",
+                    processes: []
+                  }));
+                  setSelectedLOBs([]);
+                }}
+              >
+                {user.role === "owner" ? (
+                  <>
+                    <option value="admin">Admin</option>
+                    <option value="manager">Manager</option>
+                    <option value="team_lead">Team Lead</option>
+                    <option value="trainer">Trainer</option>
+                    <option value="trainee">Trainee</option>
+                    <option value="advisor">Advisor</option>
+                  </>
+                ) : user.role === "admin" ? (
+                  <>
+                    <option value="manager">Manager</option>
+                    <option value="team_lead">Team Lead</option>
+                    <option value="trainer">Trainer</option>
+                    <option value="trainee">Trainee</option>
+                    <option value="advisor">Advisor</option>
+                  </>
+                ) : (
+                  <option value="trainee">Trainee</option>
+                )}
+              </select>
+            </div>
+
+            {/* Line of Business Multi-Select */}
+            {!['owner', 'admin'].includes(newUserData.role) && (
+              <>
+                <div className="col-span-2">
+                  <Label>Line of Business</Label>
+                  <Popover open={openLOB} onOpenChange={setOpenLOB}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={openLOB}
+                        className="w-full justify-between"
+                      >
+                        {selectedLOBs.length > 0
+                          ? `${selectedLOBs.length} LOBs selected`
+                          : "Select Line of Business"}
+                        <Check
+                          className={cn(
+                            "ml-2 h-4 w-4",
+                            selectedLOBs.length > 0 ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput placeholder="Search Line of Business..." />
+                        <CommandEmpty>No Line of Business found.</CommandEmpty>
+                        <CommandGroup className="max-h-64 overflow-auto">
+                          {lineOfBusinesses.map((lob) => (
+                            <CommandItem
+                              key={lob.id}
+                              onSelect={() => {
+                                setSelectedLOBs(prev => {
+                                  const newSelection = prev.includes(lob.id)
+                                    ? prev.filter(id => id !== lob.id)
+                                    : [...prev, lob.id];
+                                  return newSelection;
+                                });
+                                setNewUserData(prev => ({
+                                  ...prev,
+                                  processes: []
+                                }));
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedLOBs.includes(lob.id) ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {lob.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  {selectedLOBs.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {selectedLOBs.map(lobId => {
+                        const lob = lineOfBusinesses.find(l => l.id === lobId);
+                        return lob ? (
+                          <Badge
+                            key={lob.id}
+                            variant="secondary"
+                            className="text-xs"
+                          >
+                            {lob.name}
+                          </Badge>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Process Multi-Select */}
+                <div className="col-span-2">
+                  <Label>Processes</Label>
+                  <Popover open={openProcess} onOpenChange={setOpenProcess}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={openProcess}
+                        className="w-full justify-between"
+                        disabled={selectedLOBs.length === 0}
+                      >
+                        {newUserData.processes.length > 0
+                          ? `${newUserData.processes.length} processes selected`
+                          : "Select processes"}
+                        <Check
+                          className={cn(
+                            "ml-2 h-4 w-4",
+                            newUserData.processes.length > 0 ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput placeholder="Search processes..." />
+                        <CommandEmpty>No process found.</CommandEmpty>
+                        <CommandGroup className="max-h-64 overflow-auto">
+                          {filteredProcesses.map((process) => (
+                            <CommandItem
+                              key={process.id}
+                              onSelect={() => {
+                                setNewUserData(prev => {
+                                  const newProcesses = prev.processes.includes(process.id)
+                                    ? prev.processes.filter(id => id !== process.id)
+                                    : [...prev.processes, process.id];
+                                  return { ...prev, processes: newProcesses };
+                                });
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  newUserData.processes.includes(process.id) ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {process.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  {selectedLOBs.length === 0 && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Please select at least one Line of Business first
+                    </p>
+                  )}
+                  {selectedLOBs.length > 0 && filteredProcesses.length === 0 && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      No processes available for selected Line of Business
+                    </p>
+                  )}
+                  {newUserData.processes.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {newUserData.processes.map(processId => {
+                        const process = processes.find(p => p.id === processId);
+                        return process ? (
+                          <Badge
+                            key={process.id}
+                            variant="secondary"
+                            className="text-xs"
+                          >
+                            {process.name}
+                          </Badge>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Other fields */}
+            <div>
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={newUserData.password}
+                onChange={(e) => setNewUserData(prev => ({
+                  ...prev,
+                  password: e.target.value
+                }))}
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="employeeId">Employee ID</Label>
+              <Input
+                id="employeeId"
+                value={newUserData.employeeId}
+                onChange={(e) => setNewUserData(prev => ({
+                  ...prev,
+                  employeeId: e.target.value
+                }))}
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="phoneNumber">Phone Number</Label>
+              <Input
+                id="phoneNumber"
+                value={newUserData.phoneNumber}
+                onChange={(e) => setNewUserData(prev => ({
+                  ...prev,
+                  phoneNumber: e.target.value
+                }))}
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="managerId">Reporting Manager</Label>
+              <select
+                id="managerId"
+                className="w-full rounded-md border border-input bg-background px-3 py-2"
+                value={newUserData.managerId}
+                onChange={(e) => setNewUserData(prev => ({
+                  ...prev,
+                  managerId: e.target.value
+                }))}
+              >
+                <option value="none">No Manager</option>
+                {getFilteredManagers(newUserData.role).map((manager) => (
+                  <option key={manager.id} value={manager.id.toString()}>
+                    {manager.fullName || manager.username} ({manager.role})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <Label htmlFor="dateOfJoining">Date of Joining</Label>
+              <Input
+                id="dateOfJoining"
+                type="date"
+                value={newUserData.dateOfJoining}
+                onChange={(e) => setNewUserData(prev => ({
+                  ...prev,
+                  dateOfJoining: e.target.value
+                }))}
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="dateOfBirth">Date of Birth</Label>
+              <Input
+                id="dateOfBirth"
+                type="date"
+                value={newUserData.dateOfBirth}
+                onChange={(e) => setNewUserData(prev => ({
+                  ...prev,
+                  dateOfBirth: e.target.value
+                }))}
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="education">Education</Label>
+              <Input
+                id="education"
+                value={newUserData.education}
+                onChange={(e) => setNewUserData(prev => ({
+                  ...prev,
+                  education: e.target.value
+                }))}
+              />
+            </div>
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full mt-6"
+            disabled={createUserMutation.isPending}
+          >
+            Create User
+          </Button>
+        </form>
       </CardContent>
     </Card>
   );
