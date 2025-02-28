@@ -25,9 +25,9 @@ const upload = multer({
       const ext = path.extname(file.originalname).toLowerCase();
       console.log('File extension:', ext);
 
-      if (ext !== '.csv') {
+      if (ext !== '.csv' && ext !== '.xlsx') {
         console.error('Invalid file type:', ext);
-        cb(new Error('Only CSV files (.csv) are allowed'));
+        cb(new Error('Only CSV (.csv) and Excel (.xlsx) files are allowed'));
         return;
       }
 
@@ -502,76 +502,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Template download route - updated with exact column ordering
+  // Template download route - updated to use XLSX format
   app.get("/api/users/template", (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
-    // Define headers in exact order matching screenshot
+    const XLSX = require('xlsx');
+
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new();
+
+    // Define headers exactly as per screenshot
     const headers = [
-      'Username*',
-      'Password*',
-      'FullName*',
-      'EmployeeID*',
-      'Role*',
-      'Category*',
-      'Email*',
-      'PhoneNumber*',
-      'ProcessIDs*',
-      'Location',
-      'ManagerUsername',
-      'DateOfJoining',
-      'DateOfBirth',
-      'Education'
-    ].join(',');
+      'Username*', 'Password*', 'FullName*', 'EmployeeID*', 'Role*',
+      'Category*', 'Email*', 'PhoneNumber*', 'ProcessIDs*', 'Location',
+      'ManagerUsername', 'DateOfJoining', 'DateOfBirth', 'Education'
+    ];
 
-    // Example data in matching order
-    const example = [
-      'john.doe',           // Username
-      'password123',        // Password
-      'John Doe',          // FullName
-      'EMP001',            // EmployeeID
-      'trainee',           // Role
-      'trainee',           // Category
-      'john@example.com',   // Email
-      '1234567890',        // PhoneNumber
-      '1,2,3',             // ProcessIDs
-      'New York',          // Location
-      'manager.username',   // ManagerUsername
-      '2023-01-01',        // DateOfJoining
-      '1990-01-01',        // DateOfBirth
-      'Bachelors'          // Education
-    ].join(',');
+    // Example data row matching headers
+    const exampleData = [
+      'john.doe', 'password123', 'John Doe', 'EMP001', 'trainee',
+      'trainee', 'john@example.com', '1234567890', '1,2,3', 'New York',
+      'manager.username', '01-01-2023', '01-01-1990', 'Bachelors'
+    ];
 
-    const validRoles = [
-      'trainee',
-      'trainer',
-      'manager',
-      'advisor',
-      'team_lead'
-    ].join(', ');
-
+    // Instructions as separate rows
     const instructions = [
-      '\n\nInstructions:',
-      '1. Fields marked with * are mandatory',
-      `2. Role must be one of: ${validRoles}`,
-      '3. Password must be at least 6 characters',
-      '4. Phone number must be 10 digits',
-      '5. Email must be valid format',
-      '6. Dates must be in YYYY-MM-DD format (e.g., 2023-01-01)',
-      '7. ManagerUsername is optional - leave blank if no manager',
-      '8. Location must match existing values in your organization',
-      '9. ProcessIDs must be comma-separated numbers (e.g., 1,2,3)',
-      '10. Category must be either "active" or "trainee"'
-    ].join('\n');
+      ['Instructions:'],
+      ['1. Fields marked with * are mandatory'],
+      ['2. Role must be one of: trainee, trainer, manager, advisor, team_lead'],
+      ['3. Password must be at least 6 characters'],
+      ['4. Phone number must be 10 digits'],
+      ['5. Email must be valid format'],
+      ['6. Dates must be in DD-MM-YYYY format'],
+      ['7. ManagerUsername is optional - leave blank if no manager'],
+      ['8. Location must match existing values in your organization'],
+      ['9. ProcessIDs must be comma-separated numbers (e.g., 1,2,3)'],
+      ['10. Category must be either "active" or "trainee"']
+    ];
 
-    const csvContent = headers + '\n' + example + instructions;
+    // Create worksheet with headers and example
+    const ws = XLSX.utils.aoa_to_sheet([headers, exampleData, [], ...instructions]);
 
-    res.setHeader('Content-Disposition', 'attachment; filename=users-template.csv');
-    res.setHeader('Content-Type', 'text/csv');
-    res.send(csvContent);
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, ws, "Template");
+
+    // Set column widths
+    const colWidths = headers.map(() => ({ wch: 20 }));
+    ws['!cols'] = colWidths;
+
+    // Write to buffer
+    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+    res.setHeader('Content-Disposition', 'attachment; filename=user_upload_template.xlsx');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buffer);
   });
 
-  // CSV upload route with process handling
+  // Update upload route to handle both CSV and XLSX
   app.post("/api/users/upload", upload.single('file'), async (req, res) => {
     try {
       if (!req.user) {
@@ -582,11 +569,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
-      const csvContent = req.file.buffer.toString('utf-8');
-      const lines = csvContent.split('\n');
-      const headers = lines[0].split(',').map(h => h.trim().replace(/[\r\n*]/g, ''));
+      const XLSX = require('xlsx');
+      let rows: string[][] = [];
 
-      console.log('Processing CSV with headers:', headers);
+      // Parse file based on extension
+      const ext = path.extname(req.file.originalname).toLowerCase();
+      if (ext === '.xlsx') {
+        const workbook = XLSX.read(req.file.buffer);
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      } else {
+        // CSV handling
+        const csvContent = req.file.buffer.toString('utf-8');
+        rows = csvContent.split('\n').map(line => line.split(',').map(cell => cell.trim()));
+      }
+
+      const headers = rows[0].map(h => h.trim().replace(/[\r\n*]/g, ''));
+      console.log('Processing file with headers:', headers);
 
       // Process data rows (skip header)
       const results = {
@@ -600,27 +599,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         storage.listLocations(req.user.organizationId),
       ]);
 
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
+      // Process each row
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row.length || row.every(cell => !cell)) continue; // Skip empty rows
 
         try {
-          console.log(`\nProcessing row ${i}:`);
-
-          const values = line.split(',').map(v => v.trim());
-          if (values.length !== headers.length) {
-            throw new Error(`Invalid number of columns. Expected ${headers.length}, got ${values.length}`);
-          }
-
           const userData: Record<string, string> = {};
           headers.forEach((header, index) => {
             const fieldName = header.toLowerCase()
               .replace(/\s+/g, '')
-              .replace('*', '');
-            userData[fieldName] = values[index];
+              .replace(/[*]/g, '');
+            userData[fieldName] = row[index]?.trim() || '';
           });
 
-          // Basic validation
+          // Validate required fields
           if (!userData.username) throw new Error('Username is required');
           if (!userData.password) throw new Error('Password is required');
           if (!userData.fullname) throw new Error('Full Name is required');
@@ -639,7 +632,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Find manager if specified
           let managerId: number | null = null;
           if (userData.managerusername) {
-            console.log(`Looking up manager: ${userData.managerusername}`);
             const manager = await storage.getUserByUsername(userData.managerusername);
             if (!manager) {
               throw new Error(`Manager not found: ${userData.managerusername}`);
@@ -672,14 +664,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
 
-          // Format dates properly
-          const dateOfJoining = userData.dateofjoining ? new Date(userData.dateofjoining).toISOString().split('T')[0] : null;
-          const dateOfBirth = userData.dateofbirth ? new Date(userData.dateofbirth).toISOString().split('T')[0] : null;
-
           // Hash the password
           const hashedPassword = await hashPassword(userData.password);
 
-          // Create user with validated data using createUserWithProcesses
+          // Create user with validated data
           const userToCreate = {
             username: userData.username,
             password: hashedPassword,
@@ -689,13 +677,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             category: userData.category.toLowerCase(),
             email: userData.email,
             phoneNumber: userData.phonenumber,
-            dateOfJoining,
-            dateOfBirth,
+            dateOfJoining: userData.dateofjoining || null,
+            dateOfBirth: userData.dateofbirth || null,
             education: userData.education || null,
             organizationId: req.user.organizationId,
             managerId,
             locationId,
-            active: true,
+            active: true
           };
 
           console.log('Creating user with processes:', { ...userToCreate, password: '[REDACTED]', processIds });
@@ -713,10 +701,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(results);
     } catch (error: any) {
-      console.error('CSV upload error:', error);
+      console.error('File upload error:', error);
       res.status(400).json({
         message: error.message,
-        details: 'Please ensure the CSV file matches the template format'
+        details: 'Please ensure the file matches the template format'
       });
     }
   });
@@ -857,7 +845,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Creating new line of business - Request:', {
         userId: req.user?.id,
         organizationId: req.params.id,
-        body: req.body      });
+        body: req.body
+      });
 
       if (!req.user) {
         console.log('Unauthorized attempt to create line of business');
