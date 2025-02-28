@@ -10,7 +10,8 @@ import type { User, Organization, OrganizationLocation, OrganizationProcess } fr
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface AddUserProps {
   users: User[];
@@ -27,6 +28,7 @@ export function AddUser({
 }: AddUserProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
   const [newUserData, setNewUserData] = useState({
     username: "",
     password: "",
@@ -40,7 +42,7 @@ export function AddUser({
     dateOfJoining: "",
     dateOfBirth: "",
     managerId: "none",
-    processes: [] as number[], // New field for process IDs
+    processes: [] as number[],
   });
 
   // Fetch organization settings and processes
@@ -85,7 +87,7 @@ export function AddUser({
           locationId: data.locationId === "none" ? null : Number(data.locationId),
           managerId: data.managerId === "none" ? null : Number(data.managerId),
           organizationId: organization?.id || null,
-          processes: data.processes, // Include process IDs in payload
+          processes: data.processes,
         };
 
         const response = await apiRequest("POST", "/api/users", payload);
@@ -130,12 +132,10 @@ export function AddUser({
   });
 
   // Handle process selection
-  const handleProcessChange = (processId: number, checked: boolean) => {
+  const handleProcessChange = (processIds: string[]) => {
     setNewUserData(prev => ({
       ...prev,
-      processes: checked 
-        ? [...prev.processes, processId]
-        : prev.processes.filter(id => id !== processId)
+      processes: processIds.map(id => parseInt(id))
     }));
   };
 
@@ -202,6 +202,7 @@ export function AddUser({
             }}
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Username field */}
               <div>
                 <Label htmlFor="username">Username</Label>
                 <Input
@@ -214,6 +215,8 @@ export function AddUser({
                   required
                 />
               </div>
+
+              {/* Full Name field */}
               <div>
                 <Label htmlFor="fullName">Full Name</Label>
                 <Input
@@ -226,6 +229,8 @@ export function AddUser({
                   required
                 />
               </div>
+
+              {/* Email field */}
               <div>
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -239,6 +244,8 @@ export function AddUser({
                   required
                 />
               </div>
+
+              {/* Manager Select */}
               <div>
                 <Label htmlFor="managerId">Reporting Manager</Label>
                 <Select
@@ -262,11 +269,9 @@ export function AddUser({
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {newUserData.role && getFilteredManagers(newUserData.role).length === 0 && 
-                    "No eligible managers available for the selected role"}
-                </p>
               </div>
+
+              {/* Role Select */}
               <div>
                 <Label htmlFor="role">Role</Label>
                 <Select
@@ -275,7 +280,8 @@ export function AddUser({
                     setNewUserData(prev => ({
                       ...prev,
                       role: value,
-                      managerId: "none"
+                      managerId: "none",
+                      processes: []
                     }));
                   }}
                 >
@@ -306,6 +312,36 @@ export function AddUser({
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Process Multi-Select */}
+              {!['owner', 'admin'].includes(newUserData.role) && (
+                <div className="col-span-2">
+                  <Label>Assigned Processes</Label>
+                  <Select
+                    value={newUserData.processes.map(String)}
+                    onValueChange={handleProcessChange}
+                    multiple
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select processes" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {processes.map((process) => (
+                        <SelectItem key={process.id} value={process.id.toString()}>
+                          {process.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {processes.length === 0 && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      No processes available for assignment
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Other fields remain unchanged */}
               <div>
                 <Label htmlFor="locationId">Location</Label>
                 <Select
@@ -328,6 +364,7 @@ export function AddUser({
                   </SelectContent>
                 </Select>
               </div>
+
               <div>
                 <Label htmlFor="password">Password</Label>
                 <Input
@@ -341,6 +378,7 @@ export function AddUser({
                   required
                 />
               </div>
+
               <div>
                 <Label htmlFor="employeeId">Employee ID</Label>
                 <Input
@@ -353,6 +391,7 @@ export function AddUser({
                   required
                 />
               </div>
+
               <div>
                 <Label htmlFor="phoneNumber">Phone Number</Label>
                 <Input
@@ -365,6 +404,7 @@ export function AddUser({
                   required
                 />
               </div>
+
               <div>
                 <Label htmlFor="dateOfJoining">Date of Joining</Label>
                 <Input
@@ -378,6 +418,7 @@ export function AddUser({
                   required
                 />
               </div>
+
               <div>
                 <Label htmlFor="dateOfBirth">Date of Birth</Label>
                 <Input
@@ -391,6 +432,7 @@ export function AddUser({
                   required
                 />
               </div>
+
               <div>
                 <Label htmlFor="education">Education</Label>
                 <Input
@@ -402,30 +444,8 @@ export function AddUser({
                   }))}
                 />
               </div>
-              {/* New Process Selection Section */}
-              {!['owner', 'admin'].includes(newUserData.role) && (
-                <div className="col-span-2">
-                  <Label>Assigned Processes</Label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-2">
-                    {processes.map((process) => (
-                      <div key={process.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`process-${process.id}`}
-                          checked={newUserData.processes.includes(process.id)}
-                          onCheckedChange={(checked) => handleProcessChange(process.id, checked as boolean)}
-                        />
-                        <Label htmlFor={`process-${process.id}`}>{process.name}</Label>
-                      </div>
-                    ))}
-                  </div>
-                  {processes.length === 0 && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      No processes available for assignment
-                    </p>
-                  )}
-                </div>
-              )}
             </div>
+
             <Button
               type="submit"
               className="w-full mt-6"
