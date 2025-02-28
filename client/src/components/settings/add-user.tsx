@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Check, X, Loader2 } from "lucide-react";
+import { Check, X, Loader2, FileDown, Upload } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
@@ -114,7 +114,6 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
           throw new Error("Please select a category (Active or Trainee)");
         }
 
-        // Properly handle locationId
         let locationId = null;
         if (data.locationId !== "none") {
           const locationExists = locations.some(l => l.id.toString() === data.locationId);
@@ -177,6 +176,56 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     },
   });
 
+  const downloadTemplate = () => {
+    // Download template from server endpoint
+    const link = document.createElement('a');
+    link.href = '/api/users/template';
+    link.setAttribute('download', 'user_upload_template.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const bulkUploadMutation = useMutation({
+    mutationFn: async (formData: FormData) => {
+      const response = await apiRequest("POST", "/api/users/upload", formData);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to upload users");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Users uploaded successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      await bulkUploadMutation.mutateAsync(formData);
+      event.target.value = ''; // Clear the input after successful upload
+    } catch (error) {
+      console.error('Error uploading file:', error);
+    }
+  };
+
   if (!organization) {
     return null;
   }
@@ -200,8 +249,48 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Add New User</CardTitle>
-        <CardDescription>Create new user account</CardDescription>
+        <div className="flex justify-between items-center">
+          <div>
+            <CardTitle>Add New User</CardTitle>
+            <CardDescription>Create new user account</CardDescription>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={downloadTemplate}
+              className="flex items-center gap-2"
+            >
+              <FileDown className="h-4 w-4" />
+              Download Template
+            </Button>
+            <div className="relative">
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleFileUpload}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                disabled={bulkUploadMutation.isPending}
+              />
+              <Button
+                variant="outline"
+                className="flex items-center gap-2"
+                disabled={bulkUploadMutation.isPending}
+              >
+                {bulkUploadMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4" />
+                    Bulk Upload
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <form
