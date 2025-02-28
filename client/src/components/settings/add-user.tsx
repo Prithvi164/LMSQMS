@@ -6,10 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Download, Upload } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import type { User, Organization, OrganizationLocation, OrganizationProcess } from "@shared/schema";
+import type { User, Organization, OrganizationLocation, OrganizationProcess, OrganizationLineOfBusiness } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+//import { MultiSelect } from "@/components/ui/multi-select"; // Custom multi-select component - Assuming this is already defined elsewhere.
+
 
 interface AddUserProps {
   users: User[];
@@ -26,7 +28,7 @@ export function AddUser({
 }: AddUserProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const [selectedLOB, setSelectedLOB] = useState<string | null>(null);
   const [newUserData, setNewUserData] = useState({
     username: "",
     password: "",
@@ -43,9 +45,15 @@ export function AddUser({
     processes: [] as number[],
   });
 
-  // Fetch organization settings and processes
+  // Fetch organization settings
   const { data: orgSettings, isLoading: isLoadingSettings } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/settings`],
+    enabled: !!organization?.id,
+  });
+
+  // Fetch Line of Businesses
+  const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery<OrganizationLineOfBusiness[]>({
+    queryKey: [`/api/organizations/${organization?.id}/line-of-businesses`],
     enabled: !!organization?.id,
   });
 
@@ -54,6 +62,11 @@ export function AddUser({
     queryKey: [`/api/organizations/${organization?.id}/processes`],
     enabled: !!organization?.id && !['owner', 'admin'].includes(newUserData.role),
   });
+
+  // Get filtered processes based on selected LOB
+  const filteredProcesses = selectedLOB 
+    ? processes.filter(process => process.lineOfBusinessId === parseInt(selectedLOB))
+    : processes;
 
   // Get filtered managers based on role
   const getFilteredManagers = (selectedRole: string) => {
@@ -119,6 +132,7 @@ export function AddUser({
         managerId: "none",
         processes: [],
       });
+      setSelectedLOB(null);
     },
     onError: (error: Error) => {
       toast({
@@ -129,7 +143,7 @@ export function AddUser({
     },
   });
 
-  if (!organization || isLoadingSettings || isLoadingProcesses) {
+  if (!organization || isLoadingSettings || isLoadingProcesses || isLoadingLOB) {
     return (
       <div className="flex items-center justify-center p-8">
         <p>Loading organization settings...</p>
@@ -150,6 +164,7 @@ export function AddUser({
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {/* CSV Upload Section */}
         <div className="mb-6">
           <div className="flex items-center justify-end gap-2">
             <Button
@@ -234,31 +249,6 @@ export function AddUser({
               </div>
 
               <div>
-                <Label htmlFor="managerId">Reporting Manager</Label>
-                <Select
-                  value={newUserData.managerId}
-                  onValueChange={(value) => setNewUserData(prev => ({
-                    ...prev,
-                    managerId: value
-                  }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select manager" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No Manager</SelectItem>
-                    {getFilteredManagers(newUserData.role).map((manager) => (
-                      <SelectItem key={manager.id} value={manager.id.toString()}>
-                        {manager.fullName || manager.username}
-                        {" "}
-                        <span className="text-muted-foreground">({manager.role})</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
                 <Label htmlFor="role">Role</Label>
                 <Select
                   value={newUserData.role}
@@ -269,6 +259,7 @@ export function AddUser({
                       managerId: "none",
                       processes: []
                     }));
+                    setSelectedLOB(null);
                   }}
                 >
                   <SelectTrigger>
@@ -299,39 +290,97 @@ export function AddUser({
                 </Select>
               </div>
 
-              {/* Process Multi-Select */}
+              {/* Line of Business and Process Selection */}
               {!['owner', 'admin'].includes(newUserData.role) && (
-                <div className="col-span-2">
-                  <Label>Assigned Processes</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {processes.map((process) => (
-                      <Button
-                        key={process.id}
-                        type="button"
-                        variant={newUserData.processes.includes(process.id) ? "default" : "outline"}
-                        onClick={() => {
-                          setNewUserData(prev => ({
-                            ...prev,
-                            processes: prev.processes.includes(process.id)
-                              ? prev.processes.filter(id => id !== process.id)
-                              : [...prev.processes, process.id]
-                          }));
-                        }}
-                        className="text-sm"
-                      >
-                        {process.name}
-                      </Button>
-                    ))}
+                <>
+                  <div>
+                    <Label>Line of Business</Label>
+                    <Select
+                      value={selectedLOB || ""}
+                      onValueChange={(value) => {
+                        setSelectedLOB(value);
+                        setNewUserData(prev => ({
+                          ...prev,
+                          processes: [] // Clear selected processes when LOB changes
+                        }));
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Line of Business" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {lineOfBusinesses.map((lob) => (
+                          <SelectItem key={lob.id} value={lob.id.toString()}>
+                            {lob.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  {processes.length === 0 && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      No processes available for assignment
-                    </p>
-                  )}
-                </div>
+
+                  <div>
+                    <Label>Processes</Label>
+                    <Select
+                      value={newUserData.processes.map(String)}
+                      onValueChange={(values) => {
+                        setNewUserData(prev => ({
+                          ...prev,
+                          processes: values.map(v => parseInt(v))
+                        }));
+                      }}
+                      multiple
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select processes" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredProcesses.map((process) => (
+                          <SelectItem key={process.id} value={process.id.toString()}>
+                            {process.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {(!selectedLOB && filteredProcesses.length === 0) && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Please select a Line of Business first
+                      </p>
+                    )}
+                    {(selectedLOB && filteredProcesses.length === 0) && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        No processes available for this Line of Business
+                      </p>
+                    )}
+                  </div>
+                </>
               )}
 
               {/* Other fields */}
+              <div>
+                <Label htmlFor="managerId">Reporting Manager</Label>
+                <Select
+                  value={newUserData.managerId}
+                  onValueChange={(value) => setNewUserData(prev => ({
+                    ...prev,
+                    managerId: value
+                  }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select manager" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Manager</SelectItem>
+                    {getFilteredManagers(newUserData.role).map((manager) => (
+                      <SelectItem key={manager.id} value={manager.id.toString()}>
+                        {manager.fullName || manager.username}
+                        {" "}
+                        <span className="text-muted-foreground">({manager.role})</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div>
                 <Label htmlFor="locationId">Location</Label>
                 <Select
