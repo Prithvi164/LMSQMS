@@ -376,7 +376,11 @@ export function ProcessDetail() {
                     <TableRow>
                       <TableHead>Process Name</TableHead>
                       <TableHead>Line of Business</TableHead>
-                      <TableHead>Training Days</TableHead>
+                      <TableHead className="text-center">ID</TableHead>
+                      <TableHead className="text-center">TD</TableHead>
+                      <TableHead className="text-center">CD</TableHead>
+                      <TableHead className="text-center">OJT</TableHead>
+                      <TableHead className="text-center">OJTC</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -384,9 +388,20 @@ export function ProcessDetail() {
                   <TableBody>
                     {paginatedProcesses.map((process: Process) => (
                       <TableRow key={process.id}>
-                        <TableCell className="font-medium">{process.name}</TableCell>
+                        <TableCell className="font-medium">
+                          {process.name}
+                          {process.lineOfBusinessName && (
+                            <span className="text-muted-foreground ml-2">
+                              ({process.lineOfBusinessName})
+                            </span>
+                          )}
+                        </TableCell>
                         <TableCell>{process.lineOfBusinessName || "Not assigned"}</TableCell>
-                        <TableCell>{process.trainingDays}</TableCell>
+                        <TableCell className="text-center">{process.inductionDays}</TableCell>
+                        <TableCell className="text-center">{process.trainingDays}</TableCell>
+                        <TableCell className="text-center">{process.certificationDays}</TableCell>
+                        <TableCell className="text-center">{process.ojtDays}</TableCell>
+                        <TableCell className="text-center">{process.ojtCertificationDays}</TableCell>
                         <TableCell>{process.status || "Active"}</TableCell>
                         <TableCell className="text-right space-x-2">
                           <Button
