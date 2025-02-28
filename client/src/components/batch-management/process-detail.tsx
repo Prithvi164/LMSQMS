@@ -375,6 +375,7 @@ export function ProcessDetail() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Process Name</TableHead>
+                      <TableHead>Line of Business</TableHead>
                       <TableHead className="text-center">ID</TableHead>
                       <TableHead className="text-center">TD</TableHead>
                       <TableHead className="text-center">CD</TableHead>
@@ -388,11 +389,9 @@ export function ProcessDetail() {
                       <TableRow key={process.id}>
                         <TableCell className="font-medium">
                           {process.name}
-                          {process.lineOfBusinessName && (
-                            <span className="text-muted-foreground ml-2">
-                              ({process.lineOfBusinessName})
-                            </span>
-                          )}
+                        </TableCell>
+                        <TableCell>
+                          {lineOfBusinesses.find(lob => lob.id === process.lineOfBusinessId)?.name || "-"}
                         </TableCell>
                         <TableCell className="text-center">{process.inductionDays}</TableCell>
                         <TableCell className="text-center">{process.trainingDays}</TableCell>
