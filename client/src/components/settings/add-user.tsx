@@ -10,8 +10,6 @@ import type { User, Organization, OrganizationLocation, OrganizationProcess, Org
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-//import { MultiSelect } from "@/components/ui/multi-select"; // Custom multi-select component - Assuming this is already defined elsewhere.
-
 
 interface AddUserProps {
   users: User[];
@@ -29,6 +27,7 @@ export function AddUser({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedLOB, setSelectedLOB] = useState<string | null>(null);
+  const [selectedProcesses, setSelectedProcesses] = useState<string[]>([]);
   const [newUserData, setNewUserData] = useState({
     username: "",
     password: "",
@@ -98,7 +97,7 @@ export function AddUser({
           locationId: data.locationId === "none" ? null : Number(data.locationId),
           managerId: data.managerId === "none" ? null : Number(data.managerId),
           organizationId: organization?.id || null,
-          processes: data.processes,
+          processes: selectedProcesses.map(id => parseInt(id)), // Use selectedProcesses instead
         };
 
         const response = await apiRequest("POST", "/api/users", payload);
@@ -132,6 +131,7 @@ export function AddUser({
         managerId: "none",
         processes: [],
       });
+      setSelectedProcesses([]);
       setSelectedLOB(null);
     },
     onError: (error: Error) => {
@@ -207,7 +207,7 @@ export function AddUser({
             }}
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Basic fields */}
+              {/* Basic Information Fields */}
               <div>
                 <Label htmlFor="username">Username</Label>
                 <Input
@@ -259,6 +259,7 @@ export function AddUser({
                       managerId: "none",
                       processes: []
                     }));
+                    setSelectedProcesses([]);
                     setSelectedLOB(null);
                   }}
                 >
@@ -299,9 +300,10 @@ export function AddUser({
                       value={selectedLOB || ""}
                       onValueChange={(value) => {
                         setSelectedLOB(value);
+                        setSelectedProcesses([]); // Clear selected processes when LOB changes
                         setNewUserData(prev => ({
                           ...prev,
-                          processes: [] // Clear selected processes when LOB changes
+                          processes: []
                         }));
                       }}
                     >
@@ -321,14 +323,17 @@ export function AddUser({
                   <div>
                     <Label>Processes</Label>
                     <Select
-                      value={newUserData.processes.map(String)}
-                      onValueChange={(values) => {
+                      value={selectedProcesses}
+                      onValueChange={(value: string) => {
+                        const newSelection = selectedProcesses.includes(value)
+                          ? selectedProcesses.filter(id => id !== value)
+                          : [...selectedProcesses, value];
+                        setSelectedProcesses(newSelection);
                         setNewUserData(prev => ({
                           ...prev,
-                          processes: values.map(v => parseInt(v))
+                          processes: newSelection.map(id => parseInt(id))
                         }));
                       }}
-                      multiple
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select processes" />
@@ -381,29 +386,7 @@ export function AddUser({
                 </Select>
               </div>
 
-              <div>
-                <Label htmlFor="locationId">Location</Label>
-                <Select
-                  value={newUserData.locationId}
-                  onValueChange={(value) => setNewUserData(prev => ({
-                    ...prev,
-                    locationId: value
-                  }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No Location</SelectItem>
-                    {orgSettings?.locations?.map((location: OrganizationLocation) => (
-                      <SelectItem key={location.id} value={location.id.toString()}>
-                        {location.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
+              {/* Remaining fields */}
               <div>
                 <Label htmlFor="password">Password</Label>
                 <Input
