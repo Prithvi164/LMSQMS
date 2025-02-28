@@ -3,11 +3,13 @@ import { registerRoutes } from "./routes";
 import { log, setupVite, serveStatic } from "./vite";
 import path from "path";
 import { fileURLToPath } from 'url';
+import { createServer } from "http";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+const server = createServer(app);
 
 // Basic middleware setup
 app.use(express.json());
@@ -27,26 +29,27 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  const server = await registerRoutes(app);
-
-  // Error handling middleware
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    console.error('Error:', err);
-    res.status(500).json({ message: err.message || 'Internal Server Error' });
-  });
-
-  if (process.env.NODE_ENV === 'production') {
-    // In production, serve from dist/public
-    log('Running in production mode', 'express');
-    serveStatic(app);
-  } else {
-    // In development, use Vite's dev server
-    log('Running in development mode', 'express');
-    await setupVite(app, server);
-  }
-
-  const port = 5000;
   try {
+    // Setup API routes first
+    await registerRoutes(app);
+
+    // Error handling middleware
+    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+      console.error('Error:', err);
+      res.status(500).json({ message: err.message || 'Internal Server Error' });
+    });
+
+    if (process.env.NODE_ENV === 'production') {
+      // In production, serve from dist/public
+      log('Running in production mode', 'express');
+      serveStatic(app);
+    } else {
+      // In development, use Vite's dev server
+      log('Running in development mode', 'express');
+      await setupVite(app, server);
+    }
+
+    const port = 5000;
     server.listen({
       port,
       host: "0.0.0.0",
@@ -54,7 +57,7 @@ app.use((req, res, next) => {
       log(`Server running at http://0.0.0.0:${port}`, 'express');
     });
   } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error('Error during server startup:', error);
     process.exit(1);
   }
 })().catch(error => {
