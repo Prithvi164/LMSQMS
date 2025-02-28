@@ -116,12 +116,43 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUser(id: number, user: Partial<InsertUser>): Promise<User> {
-    const [updatedUser] = await db
-      .update(users)
-      .set(user)
-      .where(eq(users.id, id))
-      .returning() as User[];
-    return updatedUser;
+    try {
+      console.log(`Attempting to update user with ID: ${id}`, user);
+
+      // Check if username is being updated and if it would conflict
+      if (user.username) {
+        const existingUser = await db
+          .select()
+          .from(users)
+          .where(eq(users.username, user.username))
+          .then(results => results.find(u => u.id !== id));
+
+        if (existingUser) {
+          throw new Error('Username already exists. Please choose a different username.');
+        }
+      }
+
+      const [updatedUser] = await db
+        .update(users)
+        .set({
+          ...user,
+          // Ensure we're not overwriting these fields unintentionally
+          id: undefined,
+          createdAt: undefined,
+        })
+        .where(eq(users.id, id))
+        .returning() as User[];
+
+      if (!updatedUser) {
+        throw new Error('User not found');
+      }
+
+      console.log('Successfully updated user:', updatedUser);
+      return updatedUser;
+    } catch (error: any) {
+      console.error('Error updating user:', error);
+      throw error;
+    }
   }
 
   async updateUserPassword(email: string, hashedPassword: string): Promise<void> {
