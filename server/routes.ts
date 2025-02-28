@@ -669,11 +669,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log('Processing process names:', processNames);
 
             for (const name of processNames) {
+              const normalizedName = name.toLowerCase().trim();
               const process = processes.find(p => 
-                p.name.toLowerCase() === name.toLowerCase()
+                p.name.toLowerCase().trim() === normalizedName
               );
+
               if (!process) {
-                throw new Error(`Process not found: ${name}`);
+                throw new Error(`Process not found: ${name}. Available processes: ${processes.map(p => p.name).join(', ')}`);
               }
               processIds.push(process.id);
             }
@@ -713,10 +715,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             req.user.organizationId
           );
 
+          if (!result || !result.user) {
+            throw new Error('Failed to create user');
+          }
+
           console.log('User created successfully:', { 
             userId: result.user.id, 
             username: result.user.username,
-            processCount: result.processes.length 
+            processCount: result.processes.length,
+            processes: result.processes.map(p => p.processId)
           });
 
           results.success++;
@@ -846,8 +853,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const processes = await storage.getUserProcesses(userId);
       res.json(processes);
     } catch (error: any) {
-      console.error("Error fetching user processes:", error);
-      res.status(500).json({ message: error.message });
+      console.error("Error fetching user processes:", error);      res.status(500).json({ message: error.message });
     }
   });
 

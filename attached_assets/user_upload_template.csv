@@ -1,0 +1,2 @@
+Username*,Password*,FullName*,EmployeeID*,Role*,Category*,Email*,PhoneNumber*,ProcessNames*,Location,ManagerUsername,DateOfJoining,DateOfBirth,Education
+john.doe,password123,John Doe,EMP001,trainee,trainee,john@example.com,1234567890,"Inbound Call Handling,Outbound",Noida,ajay1,01-03-2025,01-03-2025,Bachelors
