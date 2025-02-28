@@ -503,7 +503,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Template download route - updated to properly format columns
+  // Template download route - Excel format only
   app.get("/api/users/template", (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -532,7 +532,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ['3. Password must be at least 6 characters'],
       ['4. Phone number must be 10 digits'],
       ['5. Email must be valid format'],
-      ['6. Dates in DD-MM-YYYY format'],
+      ['6. Dates in 2023-01-01 format'],
       ['7. ManagerUsername is optional - leave blank if no manager'],
       ['8. Location must match existing values in your organization'],
       ['9. ProcessNames must be comma-separated values (e.g., Process1,Process2)'],
@@ -557,7 +557,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.send(buffer);
   });
 
-  // Update upload route to handle process names
+  // Update upload route to handle both CSV and Excel with improved error handling
   app.post("/api/users/upload", upload.single('file'), async (req, res) => {
     try {
       if (!req.user) {
@@ -569,19 +569,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       let rows: string[][] = [];
-
-      // Parse file based on extension
       const ext = path.extname(req.file.originalname).toLowerCase();
-      if (ext === '.xlsx') {
-        const workbook = XLSX.read(req.file.buffer);
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-      } else {
-        // CSV handling
-        const csvContent = req.file.buffer.toString('utf-8');
-        rows = csvContent.split('\n').map(line => line.split(',').map(cell => cell.trim()));
+
+      try {
+        if (ext === '.xlsx') {
+          const workbook = XLSX.read(req.file.buffer);
+          const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+          rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        } else if (ext === '.csv') {
+          const csvContent = req.file.buffer.toString('utf-8');
+          rows = csvContent
+            .split('\n')
+            .map(line => line.split(',').map(cell => cell.trim()))
+            .filter(row => row.length > 0 && !row.every(cell => !cell)); // Remove empty rows
+        } else {
+          return res.status(400).json({ message: "Only CSV (.csv) and Excel (.xlsx) files are allowed" });
+        }
+      } catch (error) {
+        console.error('File parsing error:', error);
+        return res.status(400).json({
+          message: "Failed to parse file",
+          details: "Please ensure the file matches the template format and is not corrupted"
+        });
       }
 
+      // Remove empty rows and get headers
       const headers = rows[0].map(h => h.trim().replace(/[\r\n*]/g, ''));
       console.log('Processing file with headers:', headers);
 
@@ -708,6 +720,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add endpoint to get processes by line of business
+  app.get("/api/organizations/:orgId/line-of-businesses/:lobId/processes", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const lobId = parseInt(req.params.lobId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only view processes in your own organization" });
+      }
+
+      const processes = await storage.getProcessesByLineOfBusiness(orgId, lobId);
+      res.json(processes);
+    } catch (error: any) {
+      console.error("Error fetching processes:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Add this route to get all users with location information
   app.get("/api/organizations/:orgId/users", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
@@ -798,8 +831,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`User ${userId} deleted successfully`);
       res.status(200).json({ message: "User deleted successfully" });
     } catch (error: any) {
-      console.error("Error in delete user route:", error);
-      res.status(500).json({ message: error.message || "Failed to delete user" });
+      console.error("Error in delete user route:", error);      res.status(500).json({ message: error.message || "Failed to delete user" });
     }
   });
 
@@ -834,7 +866,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(processes);
     } catch (error: any) {
       console.error("Error fetching processes:", error);
-      res.status(500).json({ message: error.message });    }
+      res.status(500).json({ message: error.message });
+    }
   });
 
   // Add better error handling and authentication for line of business routes
