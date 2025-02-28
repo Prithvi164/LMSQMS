@@ -9,6 +9,7 @@ import { insertUserSchema } from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
+import { insertOrganizationProcessSchema } from "@shared/schema";
 
 // Configure multer for handling file uploads
 const upload = multer({
@@ -804,6 +805,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message });
     }
   });
+
+  // Add Organization Process Routes
+  // Get organization processes
+  app.get("/api/organizations/:id/processes", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.id);
+      console.log(`Fetching processes for organization ${orgId}`);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only view processes in your own organization" });
+      }
+
+      const processes = await storage.listProcesses(orgId);
+      console.log(`Found ${processes.length} processes`);
+      res.json(processes);
+    } catch (error: any) {
+      console.error("Error fetching processes:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Create new process
+  app.post("/api/organizations/:id/processes", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.id);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only create processes in your own organization" });
+      }
+
+      const processData = {
+        ...req.body,
+        organizationId: orgId,
+      };
+
+      console.log('Creating process with data:', processData);
+
+      const validatedData = insertOrganizationProcessSchema.parse(processData);
+      const process = await storage.createProcess(validatedData);
+
+      console.log('Process created successfully:', process);
+      res.status(201).json(process);
+    } catch (error: any) {
+      console.error("Process creation error:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Get processes by Line of Business (already present in original code)
+
 
   const httpServer = createServer(app);
   return httpServer;

@@ -5,7 +5,7 @@ import {
   organizations,
   organizationProcesses,
   organizationBatches,
-  organizationLocations,
+  organizationLineOfBusinesses,
   rolePermissions,
   userProcesses,
   type User,
@@ -16,12 +16,9 @@ import {
   type InsertOrganizationProcess,
   type OrganizationBatch,
   type InsertOrganizationBatch,
-  type OrganizationLocation,
-  type InsertOrganizationLocation,
   type RolePermission,
   type OrganizationLineOfBusiness,
   type InsertOrganizationLineOfBusiness,
-  organizationLineOfBusinesses,
   type UserProcess,
   type InsertUserProcess,
 } from "@shared/schema";
@@ -52,10 +49,8 @@ export interface IStorage {
   // Organization settings operations
   createProcess(process: InsertOrganizationProcess): Promise<OrganizationProcess>;
   createBatch(batch: InsertOrganizationBatch): Promise<OrganizationBatch>;
-  createLocation(location: InsertOrganizationLocation): Promise<OrganizationLocation>;
   listProcesses(organizationId: number): Promise<OrganizationProcess[]>;
   listBatches(organizationId: number): Promise<OrganizationBatch[]>;
-  listLocations(organizationId: number): Promise<OrganizationLocation[]>;
 
   // Role Permissions operations
   listRolePermissions(organizationId: number): Promise<RolePermission[]>;
@@ -66,9 +61,6 @@ export interface IStorage {
   getBatch(id: number): Promise<OrganizationBatch | undefined>;
   updateBatch(id: number, batch: Partial<InsertOrganizationBatch>): Promise<OrganizationBatch>;
   deleteBatch(id: number): Promise<void>;
-  updateLocation(id: number, location: Partial<InsertOrganizationLocation>): Promise<OrganizationLocation>;
-  deleteLocation(id: number): Promise<void>;
-  getLocation(id: number): Promise<OrganizationLocation | undefined>;
 
   // Process operations
   getProcess(id: number): Promise<OrganizationProcess | undefined>;
@@ -214,27 +206,26 @@ export class DatabaseStorage implements IStorage {
   // Organization settings operations
   async createProcess(process: InsertOrganizationProcess): Promise<OrganizationProcess> {
     try {
-      // First check if process with same name exists
+      // First check if process with same name exists in the organization
       const existingProcess = await db
         .select()
         .from(organizationProcesses)
         .where(eq(organizationProcesses.name, process.name))
+        .where(eq(organizationProcesses.organizationId, process.organizationId))
         .limit(1);
 
       if (existingProcess.length > 0) {
-        throw new Error('A process with this name already exists. Please choose a different name.');
+        throw new Error('A process with this name already exists in this organization');
       }
 
       const [newProcess] = await db
         .insert(organizationProcesses)
         .values(process)
         .returning() as OrganizationProcess[];
+
       return newProcess;
     } catch (error: any) {
-      // Handle unique constraint violation
-      if (error.code === '23505' && error.constraint_name === 'organization_processes_name_unique') {
-        throw new Error('A process with this name already exists. Please choose a different name.');
-      }
+      console.error('Error creating process:', error);
       throw error;
     }
   }
@@ -244,41 +235,11 @@ export class DatabaseStorage implements IStorage {
     return newBatch;
   }
 
-  async createLocation(location: InsertOrganizationLocation): Promise<OrganizationLocation> {
-    const [newLocation] = await db
-      .insert(organizationLocations)
-      .values({
-        name: location.name,
-        address: location.address,
-        city: location.city,
-        state: location.state,
-        country: location.country,
-        organizationId: location.organizationId,
-      })
-      .returning() as OrganizationLocation[];
-    return newLocation;
-  }
-
   async listProcesses(organizationId: number): Promise<OrganizationProcess[]> {
     try {
       console.log(`Fetching processes for organization ${organizationId}`);
       const processes = await db
-        .select({
-          id: organizationProcesses.id,
-          name: organizationProcesses.name,
-          description: organizationProcesses.description,
-          status: organizationProcesses.status,
-          inductionDays: organizationProcesses.inductionDays,
-          trainingDays: organizationProcesses.trainingDays,
-          certificationDays: organizationProcesses.certificationDays,
-          ojtDays: organizationProcesses.ojtDays,
-          ojtCertificationDays: organizationProcesses.ojtCertificationDays,
-          lineOfBusinessId: organizationProcesses.lineOfBusinessId,
-          locationId: organizationProcesses.locationId,
-          organizationId: organizationProcesses.organizationId,
-          createdAt: organizationProcesses.createdAt,
-          updatedAt: organizationProcesses.updatedAt
-        })
+        .select()
         .from(organizationProcesses)
         .where(eq(organizationProcesses.organizationId, organizationId)) as OrganizationProcess[];
 
@@ -302,21 +263,6 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error fetching batches:', error);
       throw new Error('Failed to fetch batches');
-    }
-  }
-
-  async listLocations(organizationId: number): Promise<OrganizationLocation[]> {
-    try {
-      console.log(`Fetching locations for organization ${organizationId}`);
-      const locations = await db
-        .select()
-        .from(organizationLocations)
-        .where(eq(organizationLocations.organizationId, organizationId)) as OrganizationLocation[];
-      console.log(`Found ${locations.length} locations`);
-      return locations;
-    } catch (error) {
-      console.error('Error fetching locations:', error);
-      throw new Error('Failed to fetch locations');
     }
   }
 
@@ -382,46 +328,8 @@ export class DatabaseStorage implements IStorage {
       .delete(organizationBatches)
       .where(eq(organizationBatches.id, id));
   }
-  async updateLocation(id: number, location: Partial<InsertOrganizationLocation>): Promise<OrganizationLocation> {
-    const [updatedLocation] = await db
-      .update(organizationLocations)
-      .set({
-        name: location.name,
-        address: location.address,
-        city: location.city,
-        state: location.state,
-        country: location.country,
-        organizationId: location.organizationId
-      })
-      .where(eq(organizationLocations.id, id))
-      .returning() as OrganizationLocation[];
 
-    if (!updatedLocation) {
-      throw new Error('Location not found');
-    }
-
-    return updatedLocation;
-  }
-
-  async deleteLocation(id: number): Promise<void> {
-    try {
-      // Direct deletion without any validation checks
-      await db
-        .delete(organizationLocations)
-        .where(eq(organizationLocations.id, id));
-    } catch (error) {
-      console.error('Error deleting location:', error);
-      throw new Error('Failed to delete location');
-    }
-  }
-  async getLocation(id: number): Promise<OrganizationLocation | undefined> {
-    const [location] = await db
-      .select()
-      .from(organizationLocations)
-      .where(eq(organizationLocations.id, id)) as OrganizationLocation[];
-    return location;
-  }
-
+  // Process operations
   async getProcess(id: number): Promise<OrganizationProcess | undefined> {
     const [process] = await db
       .select()
@@ -615,14 +523,13 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Add implementation for getting processes by line of business
   async getProcessesByLineOfBusiness(organizationId: number, lobId: number): Promise<OrganizationProcess[]> {
     try {
       const processes = await db
         .select()
         .from(organizationProcesses)
         .where(eq(organizationProcesses.organizationId, organizationId))
-        .where(eq(organizationProcesses.lineOfBusinessId, lobId));
+        .where(eq(organizationProcesses.lineOfBusinessId, lobId)) as OrganizationProcess[];
 
       return processes;
     } catch (error) {

@@ -86,8 +86,6 @@ export const organizationProcesses = pgTable("organization_processes", {
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
-  locationId: integer("location_id")
-    .references(() => organizationLocations.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -367,10 +365,6 @@ export const organizationProcessesRelations = relations(organizationProcesses, (
     fields: [organizationProcesses.lineOfBusinessId],
     references: [organizationLineOfBusinesses.id],
   }),
-  location: one(organizationLocations, {
-    fields: [organizationProcesses.locationId],
-    references: [organizationLocations.id],
-  }),
 }));
 
 export const organizationBatchesRelations = relations(organizationBatches, ({ one, many }) => ({
@@ -478,27 +472,11 @@ export const insertOrganizationProcessSchema = createInsertSchema(organizationPr
     ojtDays: z.number().min(0, "OJT days cannot be negative"),
     ojtCertificationDays: z.number().min(0, "OJT certification days cannot be negative"),
     lineOfBusinessId: z.number().int().positive("Line of Business is required"),
-    organizationId: z.number().int().positive("Organization is required"),
-    locationId: z.number().int().optional(),
+    organizationId: z.number().int().positive("Organization is required")
   });
 
-// Create insert schema for user processes
-export const insertUserProcessSchema = createInsertSchema(userProcesses)
-  .omit({
-    id: true,
-    createdAt: true,
-    updatedAt: true,
-    assignedAt: true,
-    completedAt: true
-  })
-  .extend({
-    userId: z.number().int().positive("User ID is required"),
-    processId: z.number().int().positive("Process ID is required"),
-    organizationId: z.number().int().positive("Organization ID is required"),
-    status: z.string().default('assigned'),
-  });
+export type InsertOrganizationProcess = z.infer<typeof insertOrganizationProcessSchema>;
 
-// Update insert schema to handle unique constraint error
 export const insertOrganizationLocationSchema = createInsertSchema(organizationLocations)
   .omit({
     id: true,
@@ -556,5 +534,3 @@ export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
 export type InsertCourse = z.infer<typeof insertCourseSchema>;
 export type InsertLearningPath = z.infer<typeof insertLearningPathSchema>;
 export type InsertUserProgress = z.infer<typeof insertUserProgressSchema>;
-export type InsertOrganizationProcess = z.infer<typeof insertOrganizationProcessSchema>;
-export type InsertUserProcess = z.infer<typeof insertUserProcessSchema>;
