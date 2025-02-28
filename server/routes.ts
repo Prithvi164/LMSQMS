@@ -10,7 +10,7 @@ import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { insertOrganizationProcessSchema } from "@shared/schema";
-import * as XLSX from 'xlsx';  // Add XLSX import at the top
+import * as XLSX from 'xlsx';
 
 // Configure multer for handling file uploads
 const upload = multer({
@@ -503,7 +503,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Template download route - updated to use XLSX format
+  // Template download route - updated to properly format columns
   app.get("/api/users/template", (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -513,14 +513,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Define headers exactly as per screenshot
     const headers = [
       'Username*', 'Password*', 'FullName*', 'EmployeeID*', 'Role*',
-      'Category*', 'Email*', 'PhoneNumber*', 'ProcessIDs*', 'Location',
+      'Category*', 'Email*', 'PhoneNumber*', 'ProcessNames*', 'Location',
       'ManagerUsername', 'DateOfJoining', 'DateOfBirth', 'Education'
     ];
 
     // Example data row matching headers
     const exampleData = [
       'john.doe', 'password123', 'John Doe', 'EMP001', 'trainee',
-      'trainee', 'john@example.com', '1234567890', '1,2,3', 'New York',
+      'trainee', 'john@example.com', '1234567890', 'Process1,Process2', 'New York',
       'manager.username', '01-01-2023', '01-01-1990', 'Bachelors'
     ];
 
@@ -532,10 +532,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ['3. Password must be at least 6 characters'],
       ['4. Phone number must be 10 digits'],
       ['5. Email must be valid format'],
-      ['6. Dates must be in DD-MM-YYYY format'],
+      ['6. Dates in DD-MM-YYYY format'],
       ['7. ManagerUsername is optional - leave blank if no manager'],
       ['8. Location must match existing values in your organization'],
-      ['9. ProcessIDs must be comma-separated numbers (e.g., 1,2,3)'],
+      ['9. ProcessNames must be comma-separated values (e.g., Process1,Process2)'],
       ['10. Category must be either "active" or "trainee"']
     ];
 
@@ -557,7 +557,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.send(buffer);
   });
 
-  // Update upload route to handle both CSV and XLSX
+  // Update upload route to handle process names
   app.post("/api/users/upload", upload.single('file'), async (req, res) => {
     try {
       if (!req.user) {
@@ -592,9 +592,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       // Fetch organization settings first
-      const [batches, locations] = await Promise.all([
+      const [batches, locations, processes] = await Promise.all([
         storage.listBatches(req.user.organizationId),
         storage.listLocations(req.user.organizationId),
+        storage.listProcesses(req.user.organizationId)
       ]);
 
       // Process each row
@@ -649,16 +650,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             locationId = location.id;
           }
 
-          // Parse process IDs
+          // Convert process names to IDs
           const processIds: number[] = [];
-          if (userData.processids) {
-            const ids = userData.processids.split(',').map(id => id.trim());
-            for (const id of ids) {
-              const processId = parseInt(id);
-              if (isNaN(processId)) {
-                throw new Error(`Invalid process ID: ${id}`);
+          if (userData.processnames) {
+            const processNames = userData.processnames.split(',').map(name => name.trim());
+            for (const processName of processNames) {
+              const process = processes.find(p => p.name.toLowerCase() === processName.toLowerCase());
+              if (!process) {
+                throw new Error(`Process not found: ${processName}`);
               }
-              processIds.push(processId);
+              processIds.push(process.id);
             }
           }
 
