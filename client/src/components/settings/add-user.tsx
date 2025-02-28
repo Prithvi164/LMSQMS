@@ -4,12 +4,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, Upload } from "lucide-react";
+import { Download, Upload, Check } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import type { User, Organization, OrganizationLocation, OrganizationProcess, OrganizationLineOfBusiness } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface AddUserProps {
   users: User[];
@@ -27,6 +31,7 @@ export function AddUser({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedLOB, setSelectedLOB] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
   const [newUserData, setNewUserData] = useState({
     username: "",
     password: "",
@@ -148,17 +153,6 @@ export function AddUser({
       </div>
     );
   }
-
-  // Handle process selection
-  const handleProcessSelect = (value: string) => {
-    const processId = parseInt(value);
-    setNewUserData(prev => ({
-      ...prev,
-      processes: prev.processes.includes(processId)
-        ? prev.processes.filter(id => id !== processId)
-        : [...prev.processes, processId]
-    }));
-  };
 
   return (
     <Card>
@@ -327,21 +321,57 @@ export function AddUser({
                     </Select>
                   </div>
 
-                  <div>
+                  <div className="col-span-2">
                     <Label>Processes</Label>
-                    <div className="flex flex-wrap gap-2 mt-2 p-2 border rounded-md">
-                      {filteredProcesses.map((process) => (
+                    <Popover open={open} onOpenChange={setOpen}>
+                      <PopoverTrigger asChild>
                         <Button
-                          key={process.id}
-                          type="button"
-                          variant={newUserData.processes.includes(process.id) ? "default" : "outline"}
-                          onClick={() => handleProcessSelect(process.id.toString())}
-                          className="text-sm"
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={open}
+                          className="w-full justify-between"
                         >
-                          {process.name}
+                          {newUserData.processes.length > 0
+                            ? `${newUserData.processes.length} processes selected`
+                            : "Select processes"}
+                          <Check
+                            className={cn(
+                              "ml-2 h-4 w-4",
+                              newUserData.processes.length > 0 ? "opacity-100" : "opacity-0"
+                            )}
+                          />
                         </Button>
-                      ))}
-                    </div>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0">
+                        <Command>
+                          <CommandInput placeholder="Search processes..." />
+                          <CommandEmpty>No process found.</CommandEmpty>
+                          <CommandGroup className="max-h-64 overflow-auto">
+                            {filteredProcesses.map((process) => (
+                              <CommandItem
+                                key={process.id}
+                                onSelect={() => {
+                                  setNewUserData(prev => {
+                                    const newProcesses = prev.processes.includes(process.id)
+                                      ? prev.processes.filter(id => id !== process.id)
+                                      : [...prev.processes, process.id];
+                                    return { ...prev, processes: newProcesses };
+                                  });
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    newUserData.processes.includes(process.id) ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {process.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                     {(!selectedLOB && filteredProcesses.length === 0) && (
                       <p className="text-sm text-muted-foreground mt-1">
                         Please select a Line of Business first
@@ -351,6 +381,22 @@ export function AddUser({
                       <p className="text-sm text-muted-foreground mt-1">
                         No processes available for this Line of Business
                       </p>
+                    )}
+                    {newUserData.processes.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {newUserData.processes.map(processId => {
+                          const process = processes.find(p => p.id === processId);
+                          return process ? (
+                            <Badge
+                              key={process.id}
+                              variant="secondary"
+                              className="text-xs"
+                            >
+                              {process.name}
+                            </Badge>
+                          ) : null;
+                        })}
+                      </div>
                     )}
                   </div>
                 </>
