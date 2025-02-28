@@ -63,9 +63,9 @@ export function AddUser({
     }
   });
 
-  // Fetch processes for selected LOBs
-  const { data: processes = [], isLoading: isLoadingProcesses } = useQuery<OrganizationProcess[]>({
-    queryKey: [`/api/organizations/${organization?.id}/processes`, selectedLOBs],
+  // Fetch processes for all selected LOBs
+  const { data: processesData = [], isLoading: isLoadingProcesses } = useQuery<OrganizationProcess[]>({
+    queryKey: [`/api/organizations/${organization?.id}/processes`],
     enabled: !!organization?.id && !['owner', 'admin'].includes(newUserData.role) && selectedLOBs.length > 0,
     staleTime: 5 * 60 * 1000,
     cacheTime: 30 * 60 * 1000,
@@ -79,8 +79,8 @@ export function AddUser({
     }
   });
 
-  // Get filtered processes based on selected LOBs
-  const filteredProcesses = processes.filter(process => 
+  // Get filtered processes based on all selected LOBs
+  const filteredProcesses = processesData.filter(process =>
     selectedLOBs.includes(process.lineOfBusinessId)
   );
 
@@ -332,6 +332,7 @@ export function AddUser({
                                       : [...prev, lob.id];
                                     return newSelection;
                                   });
+                                  // Clear process selection when LOBs change
                                   setNewUserData(prev => ({
                                     ...prev,
                                     processes: []
@@ -427,6 +428,9 @@ export function AddUser({
                                 )}
                               />
                               {process.name}
+                              <span className="ml-2 text-muted-foreground">
+                                ({lineOfBusinesses.find(l => l.id === process.lineOfBusinessId)?.name})
+                              </span>
                             </CommandItem>
                           ))}
                         </CommandGroup>
@@ -446,14 +450,15 @@ export function AddUser({
                   {newUserData.processes.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
                       {newUserData.processes.map(processId => {
-                        const process = processes.find(p => p.id === processId);
+                        const process = processesData.find(p => p.id === processId);
+                        const lob = process ? lineOfBusinesses.find(l => l.id === process.lineOfBusinessId) : null;
                         return process ? (
                           <Badge
                             key={process.id}
                             variant="secondary"
                             className="text-xs"
                           >
-                            {process.name}
+                            {process.name} ({lob?.name})
                           </Badge>
                         ) : null;
                       })}
