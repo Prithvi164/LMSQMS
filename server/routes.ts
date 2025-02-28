@@ -860,7 +860,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userToDelete = await storage.getUser(userId);
       if (!userToDelete) {
         console.log(`Delete request failed: User ${userId} not found`);
-        return res.status(404).json({ message: ""User not found" });
+        return res.status(404).json({ message: "User not found" });
       }
 
       // Prevent deleting owner
@@ -871,7 +871,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Only owners and admins can delete users
       if (req.user.role !== 'owner' && req.user.role !== 'admin') {
-        console.log`Delete request rejected: Insufficient permissions for user ${req.user.id}`;
+        console.log(`Delete request rejected: Insufficient permissions for user ${req.user.id}`);
         return res.status(403).json({ message: "Insufficient permissions to delete users" });
       }
 
