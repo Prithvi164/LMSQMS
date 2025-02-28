@@ -10,7 +10,6 @@ import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { insertOrganizationProcessSchema } from "@shared/schema";
-import * as XLSX from 'xlsx';
 
 // Configure multer for handling file uploads
 const upload = multer({
@@ -23,30 +22,15 @@ const upload = multer({
         return;
       }
 
-      console.log('Received file:', {
-        originalName: file.originalname,
-        mimeType: file.mimetype,
-        size: file.size
-      });
-
-      // Accept both the official Excel MIME type and the common spreadsheet MIME type
-      const validMimeTypes = [
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'application/vnd.ms-excel',
-        'application/octet-stream' // Some systems might send this for .xlsx
-      ];
-
       const ext = path.extname(file.originalname).toLowerCase();
-      if (ext !== '.xlsx' || !validMimeTypes.includes(file.mimetype)) {
-        console.error('Invalid file:', {
-          extension: ext,
-          mimeType: file.mimetype
-        });
-        cb(new Error('Only Excel (.xlsx) files are allowed. Please download and use our template.'));
+      console.log('File extension:', ext);
+
+      if (ext !== '.csv' && ext !== '.xlsx') {
+        console.error('Invalid file type:', ext);
+        cb(new Error('Only CSV (.csv) and Excel (.xlsx) files are allowed'));
         return;
       }
 
-      console.log('File validation passed');
       cb(null, true);
     } catch (error) {
       console.error('File upload error:', error);
@@ -54,7 +38,7 @@ const upload = multer({
     }
   },
   limits: {
-    fileSize: 10 * 1024 * 1024 // Increased to 10MB limit
+    fileSize: 5 * 1024 * 1024 // 5MB limit
   }
 });
 
@@ -518,9 +502,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Template download route - Excel format only
+  // Template download route - updated to use XLSX format
   app.get("/api/users/template", (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    const XLSX = require('xlsx');
 
     // Create workbook and worksheet
     const wb = XLSX.utils.book_new();
@@ -528,14 +514,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Define headers exactly as per screenshot
     const headers = [
       'Username*', 'Password*', 'FullName*', 'EmployeeID*', 'Role*',
-      'Category*', 'Email*', 'PhoneNumber*', 'ProcessNames*', 'Location',
+      'Category*', 'Email*', 'PhoneNumber*', 'ProcessIDs*', 'Location',
       'ManagerUsername', 'DateOfJoining', 'DateOfBirth', 'Education'
     ];
 
     // Example data row matching headers
     const exampleData = [
       'john.doe', 'password123', 'John Doe', 'EMP001', 'trainee',
-      'trainee', 'john@example.com', '1234567890', 'Process1,Process2', 'New York',
+      'trainee', 'john@example.com', '1234567890', '1,2,3', 'New York',
       'manager.username', '01-01-2023', '01-01-1990', 'Bachelors'
     ];
 
@@ -547,10 +533,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ['3. Password must be at least 6 characters'],
       ['4. Phone number must be 10 digits'],
       ['5. Email must be valid format'],
-      ['6. Dates in 2023-01-01 format'],
+      ['6. Dates must be in DD-MM-YYYY format'],
       ['7. ManagerUsername is optional - leave blank if no manager'],
       ['8. Location must match existing values in your organization'],
-      ['9. ProcessNames must be comma-separated values (e.g., Process1,Process2)'],
+      ['9. ProcessIDs must be comma-separated numbers (e.g., 1,2,3)'],
       ['10. Category must be either "active" or "trainee"']
     ];
 
@@ -572,7 +558,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.send(buffer);
   });
 
-  // Upload route handling Excel files only
+  // Update upload route to handle both CSV and XLSX
   app.post("/api/users/upload", upload.single('file'), async (req, res) => {
     try {
       if (!req.user) {
@@ -583,23 +569,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
+      const XLSX = require('xlsx');
       let rows: string[][] = [];
-      try {
-        console.log('Processing Excel file:', req.file.originalname);
+
+      // Parse file based on extension
+      const ext = path.extname(req.file.originalname).toLowerCase();
+      if (ext === '.xlsx') {
         const workbook = XLSX.read(req.file.buffer);
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        console.log('Successfully parsed Excel file, found rows:', rows.length);
-      } catch (error) {
-        console.error('Excel parsing error:', error);
-        return res.status(400).json({
-          message: "Failed to parse Excel file",
-          details: "Please ensure you're using our template and the file is not corrupted"
-        });
+      } else {
+        // CSV handling
+        const csvContent = req.file.buffer.toString('utf-8');
+        rows = csvContent.split('\n').map(line => line.split(',').map(cell => cell.trim()));
       }
 
-      // Remove empty rows and get headers
-      rows = rows.filter(row => row.length > 0 && !row.every(cell => !cell));
       const headers = rows[0].map(h => h.trim().replace(/[\r\n*]/g, ''));
       console.log('Processing file with headers:', headers);
 
@@ -610,10 +594,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       // Fetch organization settings first
-      const [batches, locations, processes] = await Promise.all([
+      const [batches, locations] = await Promise.all([
         storage.listBatches(req.user.organizationId),
         storage.listLocations(req.user.organizationId),
-        storage.listProcesses(req.user.organizationId)
       ]);
 
       // Process each row
@@ -668,16 +651,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             locationId = location.id;
           }
 
-          // Convert process names to IDs
+          // Parse process IDs
           const processIds: number[] = [];
-          if (userData.processnames) {
-            const processNames = userData.processnames.split(',').map(name => name.trim());
-            for (const processName of processNames) {
-              const process = processes.find(p => p.name.toLowerCase() === processName.toLowerCase());
-              if (!process) {
-                throw new Error(`Process not found: ${processName}`);
+          if (userData.processids) {
+            const ids = userData.processids.split(',').map(id => id.trim());
+            for (const id of ids) {
+              const processId = parseInt(id);
+              if (isNaN(processId)) {
+                throw new Error(`Invalid process ID: ${id}`);
               }
-              processIds.push(process.id);
+              processIds.push(processId);
             }
           }
 
@@ -723,27 +706,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: error.message,
         details: 'Please ensure the file matches the template format'
       });
-    }
-  });
-
-  // Add endpoint to get processes by line of business
-  app.get("/api/organizations/:orgId/line-of-businesses/:lobId/processes", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const orgId = parseInt(req.params.orgId);
-      const lobId = parseInt(req.params.lobId);
-
-      // Check if user belongs to the organization
-      if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "You can only view processes in your own organization" });
-      }
-
-      const processes = await storage.getProcessesByLineOfBusiness(orgId, lobId);
-      res.json(processes);
-    } catch (error: any) {
-      console.error("Error fetching processes:", error);
-      res.status(500).json({ message: error.message });
     }
   });
 
