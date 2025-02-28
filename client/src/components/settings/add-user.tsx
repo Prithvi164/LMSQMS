@@ -42,12 +42,11 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     processes: [] as number[],
   });
 
-  // Fetch Line of Businesses with optimized caching
   const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery<OrganizationLineOfBusiness[]>({
     queryKey: [`/api/organizations/${organization?.id}/line-of-businesses`],
     enabled: !!organization?.id,
-    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
-    cacheTime: 30 * 60 * 1000, // Keep data in cache for 30 minutes
+    staleTime: 5 * 60 * 1000, 
+    cacheTime: 30 * 60 * 1000, 
     onError: (error: any) => {
       console.error('Error fetching Line of Businesses:', error);
       toast({
@@ -58,10 +57,9 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     }
   });
 
-  // Fetch processes with optimized caching and filtering
   const { data: processes = [], isLoading: isLoadingProcesses } = useQuery<OrganizationProcess[]>({
     queryKey: [`/api/organizations/${organization?.id}/processes`],
-    enabled: !!organization?.id && !['owner', 'admin'].includes(newUserData.role) && selectedLOBs.length > 0,
+    enabled: !!organization?.id && selectedLOBs.length > 0,
     staleTime: 5 * 60 * 1000,
     cacheTime: 30 * 60 * 1000,
     onError: (error: any) => {
@@ -73,7 +71,6 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     }
   });
 
-  // Filter processes based on selected LOBs - memoize if performance is still an issue
   const filteredProcesses = processes.filter(process =>
     selectedLOBs.includes(process.lineOfBusinessId)
   );
@@ -87,24 +84,9 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     setOpenLOB(false);
   };
 
-  const getFilteredManagers = (selectedRole: string) => {
-    if (!potentialManagers) return [];
-    switch (selectedRole) {
-      case "admin":
-        return potentialManagers.filter(m => m.role === "owner");
-      case "manager":
-        return potentialManagers.filter(m => ["owner", "admin"].includes(m.role));
-      case "team_lead":
-        return potentialManagers.filter(m => ["owner", "admin", "manager"].includes(m.role));
-      case "trainer":
-        return potentialManagers.filter(m => ["owner", "admin", "manager", "team_lead"].includes(m.role));
-      case "trainee":
-        return potentialManagers.filter(m => ["owner", "admin", "manager", "team_lead", "trainer"].includes(m.role));
-      case "advisor":
-        return potentialManagers.filter(m => ["owner", "admin", "manager", "team_lead"].includes(m.role));
-      default:
-        return [];
-    }
+  const getFilteredManagers = () => {
+    if (!users) return [];
+    return users.filter(u => u.active);
   };
 
   const createUserMutation = useMutation({
@@ -164,7 +146,6 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     return null;
   }
 
-  // Show loading state for initial data fetch
   if (isLoadingLOB) {
     return (
       <Card>
@@ -185,13 +166,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     <Card>
       <CardHeader>
         <CardTitle>Add New User</CardTitle>
-        <CardDescription>
-          {user.role === "owner"
-            ? "Create new administrators for your organization"
-            : user.role === "admin"
-            ? "Create new managers, trainers, or trainees for your organization"
-            : "Create new trainee accounts"}
-        </CardDescription>
+        <CardDescription>Create new user account</CardDescription>
       </CardHeader>
       <CardContent>
         <form
@@ -201,8 +176,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
             createUserMutation.mutate(newUserData);
           }}
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Basic fields */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="username">Username</Label>
               <Input
@@ -282,212 +256,44 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
               </select>
             </div>
 
-            {/* Line of Business Multi-Select */}
-            {!['owner', 'admin'].includes(newUserData.role) && (
-              <>
-                <div className="col-span-2">
-                  <Label>Line of Business</Label>
-                  <div className="flex gap-2">
-                    <Popover open={openLOB} onOpenChange={setOpenLOB}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={openLOB}
-                          className="w-full justify-between"
-                        >
-                          {selectedLOBs.length > 0
-                            ? `${selectedLOBs.length} LOBs selected`
-                            : "No Line of Business selected"}
-                          <Check
-                            className={cn(
-                              "ml-2 h-4 w-4",
-                              selectedLOBs.length > 0 ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-full p-0">
-                        <Command>
-                          <CommandInput placeholder="Search Line of Business..." />
-                          <CommandEmpty>No Line of Business found.</CommandEmpty>
-                          <CommandGroup className="max-h-64 overflow-auto">
-                            {lineOfBusinesses.map((lob) => (
-                              <CommandItem
-                                key={lob.id}
-                                onSelect={() => {
-                                  setSelectedLOBs(prev => {
-                                    const newSelection = prev.includes(lob.id)
-                                      ? prev.filter(id => id !== lob.id)
-                                      : [...prev, lob.id];
-                                    return newSelection;
-                                  });
-                                  setNewUserData(prev => ({
-                                    ...prev,
-                                    processes: []
-                                  }));
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    selectedLOBs.includes(lob.id) ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                {lob.name}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                    {selectedLOBs.length > 0 && (
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => {
-                          setSelectedLOBs([]);
-                          setNewUserData(prev => ({
-                            ...prev,
-                            processes: []
-                          }));
-                        }}
-                        title="Clear selections"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                  {/* Show selected LOBs */}
-                  {selectedLOBs.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {selectedLOBs.map(lobId => {
-                        const lob = lineOfBusinesses.find(l => l.id === lobId);
-                        return lob ? (
-                          <Badge
-                            key={lob.id}
-                            variant="secondary"
-                            className="text-xs"
-                          >
-                            {lob.name}
-                          </Badge>
-                        ) : null;
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {/* Process Multi-Select */}
-                <div className="col-span-2">
-                  <Label>Processes</Label>
-                  <Popover open={openProcess} onOpenChange={setOpenProcess}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={openProcess}
-                        className="w-full justify-between"
-                        disabled={selectedLOBs.length === 0}
-                      >
-                        {isLoadingProcesses ? (
-                          <div className="flex items-center">
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            Loading processes...
-                          </div>
-                        ) : (
-                          <>
-                            {newUserData.processes.length > 0
-                              ? `${newUserData.processes.length} processes selected`
-                              : "Select processes"}
-                            <Check
-                              className={cn(
-                                "ml-2 h-4 w-4",
-                                newUserData.processes.length > 0 ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                          </>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
-                      <Command>
-                        <CommandInput placeholder="Search processes..." />
-                        <CommandEmpty>No process found.</CommandEmpty>
-                        <CommandGroup className="max-h-64 overflow-auto">
-                          {filteredProcesses.map((process) => (
-                            <CommandItem
-                              key={process.id}
-                              onSelect={() => {
-                                setNewUserData(prev => {
-                                  const newProcesses = prev.processes.includes(process.id)
-                                    ? prev.processes.filter(id => id !== process.id)
-                                    : [...prev.processes, process.id];
-                                  return { ...prev, processes: newProcesses };
-                                });
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  newUserData.processes.includes(process.id) ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              {process.name}
-                              <span className="ml-2 text-muted-foreground">
-                                ({lineOfBusinesses.find(l => l.id === process.lineOfBusinessId)?.name})
-                              </span>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  {/* Process selection guidance */}
-                  {selectedLOBs.length === 0 && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Please select at least one Line of Business first
-                    </p>
-                  )}
-                  {selectedLOBs.length > 0 && filteredProcesses.length === 0 && !isLoadingProcesses && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      No processes available for selected Line of Business
-                    </p>
-                  )}
-                  {/* Show selected processes */}
-                  {newUserData.processes.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {newUserData.processes.map(processId => {
-                        const process = processes.find(p => p.id === processId);
-                        const lob = process ? lineOfBusinesses.find(l => l.id === process.lineOfBusinessId) : null;
-                        return process ? (
-                          <Badge
-                            key={process.id}
-                            variant="secondary"
-                            className="text-xs"
-                          >
-                            {process.name} ({lob?.name})
-                          </Badge>
-                        ) : null;
-                      })}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-
-            {/* Other fields */}
             <div>
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={newUserData.password}
-                onChange={(e) => setNewUserData(prev => ({
-                  ...prev,
-                  password: e.target.value
-                }))}
-                required
-              />
+              <Label htmlFor="managerId">Reporting Manager</Label>
+              <Command className="rounded-lg border shadow-md">
+                <CommandInput placeholder="Search manager..." />
+                <CommandEmpty>No manager found.</CommandEmpty>
+                <CommandGroup className="max-h-48 overflow-auto">
+                  <CommandItem
+                    onSelect={() => setNewUserData(prev => ({ ...prev, managerId: "none" }))}
+                    className="cursor-pointer"
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        newUserData.managerId === "none" ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    No Manager
+                  </CommandItem>
+                  {getFilteredManagers().map((manager) => (
+                    <CommandItem
+                      key={manager.id}
+                      onSelect={() => setNewUserData(prev => ({
+                        ...prev,
+                        managerId: manager.id.toString()
+                      }))}
+                      className="cursor-pointer"
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          newUserData.managerId === manager.id.toString() ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      {manager.fullName || manager.username} ({manager.role})
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </Command>
             </div>
 
             <div>
@@ -503,6 +309,147 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
               />
             </div>
 
+            <div className="col-span-2">
+              <Label>Line of Business</Label>
+              <div className="flex gap-2">
+                <Popover open={openLOB} onOpenChange={setOpenLOB}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={openLOB}
+                      className="w-full justify-between"
+                    >
+                      {selectedLOBs.length > 0
+                        ? `${selectedLOBs.length} LOBs selected`
+                        : "Select Line of Business"}
+                      <Check
+                        className={cn(
+                          "ml-2 h-4 w-4",
+                          selectedLOBs.length > 0 ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput placeholder="Search Line of Business..." />
+                      <CommandEmpty>No Line of Business found.</CommandEmpty>
+                      <CommandGroup className="max-h-64 overflow-auto">
+                        {lineOfBusinesses.map((lob) => (
+                          <CommandItem
+                            key={lob.id}
+                            onSelect={() => {
+                              setSelectedLOBs(prev => {
+                                const newSelection = prev.includes(lob.id)
+                                  ? prev.filter(id => id !== lob.id)
+                                  : [...prev, lob.id];
+                                return newSelection;
+                              });
+                              setNewUserData(prev => ({
+                                ...prev,
+                                processes: []
+                              }));
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedLOBs.includes(lob.id) ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {lob.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+
+            {selectedLOBs.length > 0 && (
+              <div className="col-span-2">
+                <Label>Processes</Label>
+                <Popover open={openProcess} onOpenChange={setOpenProcess}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={openProcess}
+                      className="w-full justify-between"
+                    >
+                      {isLoadingProcesses ? (
+                        <div className="flex items-center">
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Loading processes...
+                        </div>
+                      ) : (
+                        <>
+                          {newUserData.processes.length > 0
+                            ? `${newUserData.processes.length} processes selected`
+                            : "Select processes"}
+                          <Check
+                            className={cn(
+                              "ml-2 h-4 w-4",
+                              newUserData.processes.length > 0 ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                        </>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput placeholder="Search processes..." />
+                      <CommandEmpty>No process found.</CommandEmpty>
+                      <CommandGroup className="max-h-64 overflow-auto">
+                        {filteredProcesses.map((process) => (
+                          <CommandItem
+                            key={process.id}
+                            onSelect={() => {
+                              setNewUserData(prev => {
+                                const newProcesses = prev.processes.includes(process.id)
+                                  ? prev.processes.filter(id => id !== process.id)
+                                  : [...prev.processes, process.id];
+                                return { ...prev, processes: newProcesses };
+                              });
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                newUserData.processes.includes(process.id) ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {process.name}
+                            <span className="ml-2 text-muted-foreground">
+                              ({lineOfBusinesses.find(l => l.id === process.lineOfBusinessId)?.name})
+                            </span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+
+            <div>
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={newUserData.password}
+                onChange={(e) => setNewUserData(prev => ({
+                  ...prev,
+                  password: e.target.value
+                }))}
+                required
+              />
+            </div>
+
+
             <div>
               <Label htmlFor="phoneNumber">Phone Number</Label>
               <Input
@@ -514,26 +461,6 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                 }))}
                 required
               />
-            </div>
-
-            <div>
-              <Label htmlFor="managerId">Reporting Manager</Label>
-              <select
-                id="managerId"
-                className="w-full rounded-md border border-input bg-background px-3 py-2"
-                value={newUserData.managerId}
-                onChange={(e) => setNewUserData(prev => ({
-                  ...prev,
-                  managerId: e.target.value
-                }))}
-              >
-                <option value="none">No Manager</option>
-                {getFilteredManagers(newUserData.role).map((manager) => (
-                  <option key={manager.id} value={manager.id.toString()}>
-                    {manager.fullName || manager.username} ({manager.role})
-                  </option>
-                ))}
-              </select>
             </div>
 
             <div>

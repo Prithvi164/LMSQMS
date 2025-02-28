@@ -124,13 +124,13 @@ export const organizationLineOfBusinesses = pgTable("organization_line_of_busine
 
 export type OrganizationLineOfBusiness = InferSelectModel<typeof organizationLineOfBusinesses>;
 
-// Users table - update to include category
+// Users table - update to include category and unique employeeId
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   fullName: text("full_name"),
-  employeeId: text("employee_id"),
+  employeeId: text("employee_id").notNull().unique(),
   role: roleEnum("role").notNull(),
   category: userCategoryTypeEnum("category").default('trainee').notNull(),
   locationId: integer("location_id").references(() => organizationLocations.id),
