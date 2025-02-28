@@ -8,7 +8,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { User, Organization, OrganizationProcess, OrganizationLineOfBusiness } from "@shared/schema";
+import type { User, Organization, OrganizationProcess, OrganizationLineOfBusiness, OrganizationLocation } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -27,6 +27,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
   const [openLOB, setOpenLOB] = useState(false);
   const [openProcess, setOpenProcess] = useState(false);
   const [openManager, setOpenManager] = useState(false);
+  const [openLocation, setOpenLocation] = useState(false);
 
   const [newUserData, setNewUserData] = useState({
     username: "",
@@ -40,9 +41,9 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     dateOfJoining: "",
     dateOfBirth: "",
     managerId: "none",
+    locationId: "none",
     processes: [] as number[],
   });
-
 
   const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery<OrganizationLineOfBusiness[]>({
     queryKey: [`/api/organizations/${organization?.id}/line-of-businesses`],
@@ -54,6 +55,20 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       toast({
         title: "Error",
         description: "Failed to load Line of Business data. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const { data: locations = [], isLoading: isLoadingLocations } = useQuery<OrganizationLocation[]>({
+    queryKey: [`/api/organizations/${organization?.id}/locations`],
+    enabled: !!organization?.id,
+    staleTime: 5 * 60 * 1000,
+    cacheTime: 30 * 60 * 1000,
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: "Failed to load Location data. Please try again.",
         variant: "destructive",
       });
     }
@@ -97,9 +112,9 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         const payload = {
           ...data,
           managerId: data.managerId === "none" ? null : Number(data.managerId),
+          locationId: data.locationId === "none" ? null : Number(data.locationId),
           organizationId: organization?.id || null,
           processes: data.processes,
-          locationId: null,
         };
 
         const response = await apiRequest("POST", "/api/users", payload);
@@ -130,6 +145,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         dateOfJoining: "",
         dateOfBirth: "",
         managerId: "none",
+        locationId: "none",
         processes: [],
       });
       setSelectedLOBs([]);
@@ -147,7 +163,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     return null;
   }
 
-  if (isLoadingLOB) {
+  if (isLoadingLOB || isLoadingLocations) {
     return (
       <Card>
         <CardHeader>
@@ -317,6 +333,72 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                             )}
                           />
                           {manager.fullName} ({manager.role})
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div>
+              <Label htmlFor="locationId">Location</Label>
+              <Popover open={openLocation} onOpenChange={setOpenLocation}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={openLocation}
+                    className="w-full justify-between"
+                  >
+                    {newUserData.locationId === "none"
+                      ? "Select location..."
+                      : locations.find(l => l.id.toString() === newUserData.locationId)?.name || "Select location..."}
+                    <Check
+                      className={cn(
+                        "ml-2 h-4 w-4",
+                        newUserData.locationId !== "none" ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[200px] p-0">
+                  <Command>
+                    <CommandInput placeholder="Search location..." />
+                    <CommandEmpty>No location found.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        onSelect={() => {
+                          setNewUserData(prev => ({ ...prev, locationId: "none" }));
+                          setOpenLocation(false);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            newUserData.locationId === "none" ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        No Location
+                      </CommandItem>
+                      {locations.map((location) => (
+                        <CommandItem
+                          key={location.id}
+                          onSelect={() => {
+                            setNewUserData(prev => ({
+                              ...prev,
+                              locationId: location.id.toString()
+                            }));
+                            setOpenLocation(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              newUserData.locationId === location.id.toString() ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {location.name}
                         </CommandItem>
                       ))}
                     </CommandGroup>
