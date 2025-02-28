@@ -26,6 +26,7 @@ import {
   type InsertOrganizationLocation,
 } from "@shared/schema";
 
+// Add to IStorage interface
 export interface IStorage {
   // User operations
   getUser(id: number): Promise<User | undefined>;
@@ -91,6 +92,9 @@ export interface IStorage {
   listLocations(organizationId: number): Promise<OrganizationLocation[]>;
   updateLocation(id: number, location: Partial<InsertOrganizationLocation>): Promise<OrganizationLocation>;
   deleteLocation(id: number): Promise<void>;
+
+  // Add createLocation method
+  createLocation(location: InsertOrganizationLocation): Promise<OrganizationLocation>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -769,6 +773,34 @@ export class DatabaseStorage implements IStorage {
       });
     } catch (error) {
       console.error('Error deleting location:', error);
+      throw error;
+    }
+  }
+
+  async createLocation(location: InsertOrganizationLocation): Promise<OrganizationLocation> {
+    try {
+      console.log('Creating location with data:', location);
+
+      // Check if location with same name exists in the organization
+      const existingLocations = await db
+        .select()
+        .from(organizationLocations)
+        .where(eq(organizationLocations.organizationId, location.organizationId))
+        .where(eq(organizationLocations.name, location.name));
+
+      if (existingLocations.length > 0) {
+        throw new Error('A location with this name already exists in this organization');
+      }
+
+      const [newLocation] = await db
+        .insert(organizationLocations)
+        .values(location)
+        .returning() as OrganizationLocation[];
+
+      console.log('Successfully created new location:', newLocation);
+      return newLocation;
+    } catch (error: any) {
+      console.error('Error creating location:', error);
       throw error;
     }
   }
