@@ -1,6 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { serveStatic, log } from "./vite";
+import { setupVite, log } from "./vite";
 import path from "path";
 import { fileURLToPath } from 'url';
 
@@ -48,13 +48,16 @@ app.use((req, res, next) => {
     res.status(500).json({ message: err.message || 'Internal Server Error' });
   });
 
-  // Serve static files from the client directory
-  app.use(express.static(path.join(__dirname, '../client')));
-
-  // Handle client-side routing by serving index.html for all unmatched routes
-  app.get('*', (_req, res) => {
-    res.sendFile(path.join(__dirname, '../client/index.html'));
-  });
+  // In development, use Vite's dev server
+  if (process.env.NODE_ENV !== 'production') {
+    await setupVite(app, server);
+  } else {
+    // In production, serve static files
+    app.use(express.static(path.join(__dirname, '../dist/public')));
+    app.get('*', (_req, res) => {
+      res.sendFile(path.join(__dirname, '../dist/public/index.html'));
+    });
+  }
 
   const port = 5000;
   server.listen({
