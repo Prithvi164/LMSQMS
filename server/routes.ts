@@ -10,6 +10,8 @@ import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { insertOrganizationProcessSchema } from "@shared/schema";
+import { UploadLogger, UploadErrorType } from "./utils/uploadLogger";
+
 // Configure multer for handling file uploads
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -546,34 +548,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.send(csvContent);
   });
 
-  // Update upload route to handle CSV files and process names
+  // Update upload route to handle CSV files and process names with detailed logging
   app.post("/api/users/upload", upload.single('file'), async (req, res) => {
+    const logger = new UploadLogger();
+
     try {
       if (!req.user) {
-        return res.status(401).json({ message: "Unauthorized" });
+        logger.logError(0, 'AUTH_CHECK', new Error("Unauthorized"), 'PERMISSION');
+        throw new Error("Unauthorized");
       }
 
       if (!req.file?.buffer) {
-        return res.status(400).json({ message: "No file uploaded" });
+        logger.logError(0, 'FILE_CHECK', new Error("No file uploaded"), 'VALIDATION');
+        throw new Error("No file uploaded");
       }
 
       // Verify file type
       const ext = path.extname(req.file.originalname).toLowerCase();
       if (ext !== '.csv') {
-        return res.status(400).json({ message: "Only CSV files are allowed" });
+        logger.logError(0, 'FILE_TYPE_CHECK', new Error("Only CSV files are allowed"), 'VALIDATION');
+        throw new Error("Only CSV files are allowed");
       }
 
       // Parse CSV content
       const csvContent = req.file.buffer.toString('utf-8');
       const rows = csvContent.split('\n')
         .map(line => line.split(',')
-          .map(cell => cell.trim().replace(/^"|"$/g, '')) // Remove quotes and trim
+          .map(cell => cell.trim().replace(/^"|"$/g, ''))
         )
-        .filter(row => row.some(cell => cell)); // Filter out empty rows
+        .filter(row => row.some(cell => cell));
 
       // Get headers and create a mapping to standardized field names
       const headers = rows[0].map(h => h.trim().replace(/[\r\n*]/g, ''));
-      console.log('Processing file with headers:', headers);
+      logger.logSuccess(0, 'PARSE_HEADERS', 'Successfully parsed CSV headers', { headers });
 
       // Define header mapping to standardized field names
       const headerMapping: { [key: string]: string } = {
@@ -593,20 +600,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'Education': 'education'
       };
 
-      // Track results
-      const results = {
-        success: 0,
-        failures: [] as { row: number; error: string }[]
-      };
-
       // Fetch organization settings first
       const [processes, locations] = await Promise.all([
         storage.listProcesses(req.user.organizationId),
         storage.listLocations(req.user.organizationId),
       ]);
 
-      console.log('Available processes:', processes.map(p => ({ id: p.id, name: p.name })));
-      console.log('Available locations:', locations.map(l => ({ id: l.id, name: l.name })));
+      logger.logSuccess(0, 'FETCH_SETTINGS', 'Successfully fetched organization settings', {
+        processCount: processes.length,
+        locationCount: locations.length,
+        processes: processes.map(p => ({ id: p.id, name: p.name })),
+        locations: locations.map(l => ({ id: l.id, name: l.name }))
+      });
 
       // Process each row (skip header)
       for (let i = 1; i < rows.length; i++) {
@@ -621,7 +626,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             userData[standardField] = row[index]?.trim() || '';
           });
 
-          console.log(`Processing row ${i}:`, { ...userData, password: '[REDACTED]' });
+          logger.logSuccess(i, 'PARSE_ROW', 'Successfully parsed row data', {
+            ...userData,
+            password: '[REDACTED]'
+          });
 
           // Validate required fields
           const requiredFields = ['username', 'password', 'fullName', 'employeeId', 'role', 'category', 'email', 'phoneNumber'];
@@ -645,18 +653,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
               throw new Error(`Manager not found: ${userData.managerUsername}`);
             }
             managerId = manager.id;
+            logger.logSuccess(i, 'FIND_MANAGER', 'Successfully found manager', {
+              managerUsername: userData.managerUsername,
+              managerId
+            });
           }
 
           // Find location if specified
           let locationId: number | null = null;
           if (userData.location) {
-            const location = locations.find(l => 
+            const location = locations.find(l =>
               l.name.toLowerCase() === userData.location.toLowerCase()
             );
             if (!location) {
               throw new Error(`Location not found: ${userData.location}`);
             }
             locationId = location.id;
+            logger.logSuccess(i, 'FIND_LOCATION', 'Successfully found location', {
+              locationName: userData.location,
+              locationId
+            });
           }
 
           // Convert process names to IDs
@@ -666,11 +682,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .map(name => name.trim())
               .filter(name => name);
 
-            console.log('Processing process names:', processNames);
+            logger.logSuccess(i, 'PARSE_PROCESSES', 'Successfully parsed process names', {
+              processNames
+            });
 
             for (const name of processNames) {
               const normalizedName = name.toLowerCase().trim();
-              const process = processes.find(p => 
+              const process = processes.find(p =>
                 p.name.toLowerCase().trim() === normalizedName
               );
 
@@ -679,6 +697,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
               processIds.push(process.id);
             }
+
+            logger.logSuccess(i, 'MAP_PROCESSES', 'Successfully mapped process names to IDs', {
+              processNames,
+              processIds
+            });
           }
 
           // Hash the password
@@ -703,7 +726,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             active: true
           };
 
-          console.log('Creating user with data:', {
+          logger.logSuccess(i, 'PREPARE_USER', 'User data prepared for creation', {
             ...userToCreate,
             password: '[REDACTED]',
             processIds
@@ -719,32 +742,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
             throw new Error('Failed to create user');
           }
 
-          console.log('User created successfully:', { 
-            userId: result.user.id, 
+          logger.logSuccess(i, 'CREATE_USER', 'Successfully created user with processes', {
+            userId: result.user.id,
             username: result.user.username,
             processCount: result.processes.length,
             processes: result.processes.map(p => p.processId)
           });
 
-          results.success++;
-
         } catch (error: any) {
-          console.error(`Row ${i} processing error:`, error);
-          results.failures.push({
-            row: i,
-            error: error.message || 'Unknown error occurred'
+          let errorType: keyof typeof UploadErrorType = 'UNKNOWN';
+
+          // Categorize errors
+          if (error.message.includes('required')) {
+            errorType = 'VALIDATION';
+          } else if (error.message.includes('already exists')) {
+            errorType = 'USER';
+          } else if (error.message.includes('Process not found') || error.message.includes('Location not found')) {
+            errorType = 'PROCESS';
+          } else if (error.message.includes('permission')) {
+            errorType = 'PERMISSION';
+          } else if (error.code === '23505') { // Database unique constraint violation
+            errorType = 'DATABASE';
+          }
+
+          logger.logError(i, 'ROW_PROCESSING', error, errorType, {
+            rowNumber: i,
+            error: error.message,
+            stack: error.stack
           });
         }
       }
 
-      console.log('Upload results:', results);
-      res.json(results);
+      const summary = logger.getBatchSummary();
+      res.json(summary);
 
     } catch (error: any) {
-      console.error('File upload error:', error);
+      logger.logError(0, 'FILE_PROCESSING', error, 'UNKNOWN', {
+        filename: req.file?.originalname,
+        error: error.message,
+        stack: error.stack
+      });
+      const summary = logger.getBatchSummary();
       res.status(400).json({
         message: error.message,
-        details: 'Please ensure the file matches the template format'
+        details: 'Please ensure the file matches the template format',
+        summary
       });
     }
   });
@@ -818,7 +860,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userToDelete = await storage.getUser(userId);
       if (!userToDelete) {
         console.log(`Delete request failed: User ${userId} not found`);
-        return res.status(404).json({ message: "User not found" });
+        return res.status(404).json({ message: ""User not found" });
       }
 
       // Prevent deleting owner
@@ -829,7 +871,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Only owners and admins can delete users
       if (req.user.role !== 'owner' && req.user.role !== 'admin') {
-        console.log(`Delete request rejected: Insufficient permissions for user ${req.user.id}`);
+        console.log`Delete request rejected: Insufficient permissions for user ${req.user.id}`;
         return res.status(403).json({ message: "Insufficient permissions to delete users" });
       }
 

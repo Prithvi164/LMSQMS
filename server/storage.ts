@@ -664,6 +664,12 @@ export class DatabaseStorage implements IStorage {
     organizationId: number
   ): Promise<{ user: User; processes: UserProcess[] }> {
     try {
+      console.log('Starting createUserWithProcesses:', {
+        username: user.username,
+        role: user.role,
+        processCount: processIds.length
+      });
+
       // Start a transaction to ensure both user and process assignments succeed or fail together
       return await db.transaction(async (tx) => {
         // Create the user first
@@ -672,8 +678,14 @@ export class DatabaseStorage implements IStorage {
           .values(user)
           .returning() as User[];
 
+        console.log('User created:', {
+          userId: newUser.id,
+          username: newUser.username
+        });
+
         // If no processes needed (for admin/owner roles) or no processes specified
         if (!processIds?.length || user.role === 'admin' || user.role === 'owner') {
+          console.log('No processes to assign - admin/owner role or empty process list');
           return { user: newUser, processes: [] };
         }
 
@@ -685,10 +697,24 @@ export class DatabaseStorage implements IStorage {
           status: 'assigned'
         }));
 
+        console.log('Creating process assignments:', {
+          userId: newUser.id,
+          processCount: processAssignments.length,
+          processes: processIds
+        });
+
         const assignedProcesses = await tx
           .insert(userProcesses)
           .values(processAssignments)
           .returning() as UserProcess[];
+
+        console.log('Process assignments created:', {
+          count: assignedProcesses.length,
+          assignments: assignedProcesses.map(p => ({
+            userId: p.userId,
+            processId: p.processId
+          }))
+        });
 
         return {
           user: newUser,
@@ -698,14 +724,18 @@ export class DatabaseStorage implements IStorage {
     } catch (error: any) {
       // Handle unique constraint violation
       if (error.code === '23505') {
-        if (error.constraint.includes('username')) {
+        if (error.constraint?.includes('username')) {
           throw new Error('Username already exists. Please choose a different username.');
         }
-        if (error.constraint.includes('email')) {
+        if (error.constraint?.includes('email')) {
           throw new Error('Email already exists. Please use a different email address.');
         }
       }
-      console.error('Error in createUserWithProcesses:', error);
+      console.error('Error in createUserWithProcesses:', {
+        error: error.message,
+        code: error.code,
+        constraint: error.constraint
+      });
       throw error;
     }
   }
