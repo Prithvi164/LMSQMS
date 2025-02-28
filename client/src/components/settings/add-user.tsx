@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +27,6 @@ export function AddUser({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedLOB, setSelectedLOB] = useState<string | null>(null);
-  const [selectedProcesses, setSelectedProcesses] = useState<string[]>([]);
   const [newUserData, setNewUserData] = useState({
     username: "",
     password: "",
@@ -43,14 +42,6 @@ export function AddUser({
     managerId: "none",
     processes: [] as number[],
   });
-
-  // Sync selectedProcesses with newUserData.processes
-  useEffect(() => {
-    setNewUserData(prev => ({
-      ...prev,
-      processes: selectedProcesses.map(id => parseInt(id))
-    }));
-  }, [selectedProcesses]);
 
   // Fetch organization settings
   const { data: orgSettings, isLoading: isLoadingSettings } = useQuery({
@@ -105,7 +96,7 @@ export function AddUser({
           locationId: data.locationId === "none" ? null : Number(data.locationId),
           managerId: data.managerId === "none" ? null : Number(data.managerId),
           organizationId: organization?.id || null,
-          processes: selectedProcesses.map(id => parseInt(id)),
+          processes: data.processes,
         };
 
         const response = await apiRequest("POST", "/api/users", payload);
@@ -139,7 +130,6 @@ export function AddUser({
         managerId: "none",
         processes: [],
       });
-      setSelectedProcesses([]);
       setSelectedLOB(null);
     },
     onError: (error: Error) => {
@@ -158,6 +148,17 @@ export function AddUser({
       </div>
     );
   }
+
+  // Handle process selection
+  const handleProcessSelect = (value: string) => {
+    const processId = parseInt(value);
+    setNewUserData(prev => ({
+      ...prev,
+      processes: prev.processes.includes(processId)
+        ? prev.processes.filter(id => id !== processId)
+        : [...prev.processes, processId]
+    }));
+  };
 
   return (
     <Card>
@@ -215,7 +216,7 @@ export function AddUser({
             }}
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Username field */}
+              {/* Basic fields */}
               <div>
                 <Label htmlFor="username">Username</Label>
                 <Input
@@ -229,7 +230,6 @@ export function AddUser({
                 />
               </div>
 
-              {/* Full Name field */}
               <div>
                 <Label htmlFor="fullName">Full Name</Label>
                 <Input
@@ -243,7 +243,6 @@ export function AddUser({
                 />
               </div>
 
-              {/* Email field */}
               <div>
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -258,7 +257,6 @@ export function AddUser({
                 />
               </div>
 
-              {/* Role Select */}
               <div>
                 <Label htmlFor="role">Role</Label>
                 <Select
@@ -268,8 +266,8 @@ export function AddUser({
                       ...prev,
                       role: value,
                       managerId: "none",
+                      processes: [] // Clear processes when role changes
                     }));
-                    setSelectedProcesses([]);
                     setSelectedLOB(null);
                   }}
                 >
@@ -310,7 +308,10 @@ export function AddUser({
                       value={selectedLOB || ""}
                       onValueChange={(value) => {
                         setSelectedLOB(value);
-                        setSelectedProcesses([]);
+                        setNewUserData(prev => ({
+                          ...prev,
+                          processes: [] // Clear processes when LOB changes
+                        }));
                       }}
                     >
                       <SelectTrigger>
@@ -328,26 +329,19 @@ export function AddUser({
 
                   <div>
                     <Label>Processes</Label>
-                    <Select
-                      value={selectedProcesses}
-                      onValueChange={(value: string) => {
-                        const newSelection = selectedProcesses.includes(value)
-                          ? selectedProcesses.filter(id => id !== value)
-                          : [...selectedProcesses, value];
-                        setSelectedProcesses(newSelection);
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select processes" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {filteredProcesses.map((process) => (
-                          <SelectItem key={process.id} value={process.id.toString()}>
-                            {process.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex flex-wrap gap-2 mt-2 p-2 border rounded-md">
+                      {filteredProcesses.map((process) => (
+                        <Button
+                          key={process.id}
+                          type="button"
+                          variant={newUserData.processes.includes(process.id) ? "default" : "outline"}
+                          onClick={() => handleProcessSelect(process.id.toString())}
+                          className="text-sm"
+                        >
+                          {process.name}
+                        </Button>
+                      ))}
+                    </div>
                     {(!selectedLOB && filteredProcesses.length === 0) && (
                       <p className="text-sm text-muted-foreground mt-1">
                         Please select a Line of Business first
@@ -362,7 +356,7 @@ export function AddUser({
                 </>
               )}
 
-              {/* Manager Select */}
+              {/* Other fields */}
               <div>
                 <Label htmlFor="managerId">Reporting Manager</Label>
                 <Select
@@ -388,7 +382,6 @@ export function AddUser({
                 </Select>
               </div>
 
-              {/* Password field */}
               <div>
                 <Label htmlFor="password">Password</Label>
                 <Input
@@ -403,7 +396,6 @@ export function AddUser({
                 />
               </div>
 
-              {/* Employee ID field */}
               <div>
                 <Label htmlFor="employeeId">Employee ID</Label>
                 <Input
@@ -417,7 +409,6 @@ export function AddUser({
                 />
               </div>
 
-              {/* Phone Number field */}
               <div>
                 <Label htmlFor="phoneNumber">Phone Number</Label>
                 <Input
@@ -431,7 +422,6 @@ export function AddUser({
                 />
               </div>
 
-              {/* Date of Joining field */}
               <div>
                 <Label htmlFor="dateOfJoining">Date of Joining</Label>
                 <Input
@@ -446,7 +436,6 @@ export function AddUser({
                 />
               </div>
 
-              {/* Date of Birth field */}
               <div>
                 <Label htmlFor="dateOfBirth">Date of Birth</Label>
                 <Input
@@ -461,7 +450,6 @@ export function AddUser({
                 />
               </div>
 
-              {/* Education field */}
               <div>
                 <Label htmlFor="education">Education</Label>
                 <Input
