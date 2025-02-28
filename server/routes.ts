@@ -511,29 +511,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // User routes
+  // User routes - Replacing the original with the edited code
   app.post("/api/users", async (req, res) => {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
     try {
-      // Hash the password before creating the user
-      const hashedPassword = await hashPassword(req.body.password);
+      const { processes, ...userData } = req.body;
 
-      // Validate the request body
-      const userData = {
-        ...req.body,
+      // Hash the password before creating the user
+      const hashedPassword = await hashPassword(userData.password);
+
+      // Prepare user data
+      const userToCreate = {
+        ...userData,
         password: hashedPassword,
-        role: req.body.role.toLowerCase(), // Ensure role is lowercase
-        organizationId: req.user.organizationId, // Use req.user.organizationId for security
+        role: userData.role.toLowerCase(),
+        organizationId: req.user.organizationId,
       };
 
-      // Create the user
-      const user = await storage.createUser(userData);
-      res.status(201).json(user);
+      // Create user with processes if provided
+      const result = await storage.createUserWithProcesses(
+        userToCreate,
+        processes || [],
+        req.user.organizationId
+      );
+
+      res.status(201).json(result.user);
     } catch (error: any) {
       console.error("User creation error:", error);
+      // Handle unique constraint violations
+      if (error.message.includes('already exists')) {
+        return res.status(400).json({ message: error.message });
+      }
       res.status(400).json({ message: error.message || "Failed to create user" });
     }
   });
@@ -845,7 +856,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           // Find location if specified
-          let locationId: number | null =null;
+          let locationId: number | null = null;
           if (userData.location) {
             const location = locations.find(l => l.name.toLowerCase() === userData.location.toLowerCase());
             if (!location) {
@@ -1179,6 +1190,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error in delete user route:", error);
       res.status(500).json({ message: error.message || "Failed to delete user" });
+    }
+  });
+
+  // Route to get user processes
+  app.get("/api/users/:id/processes", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const userId = parseInt(req.params.id);
+      const processes = await storage.getUserProcesses(userId);
+      res.json(processes);
+    } catch (error: any) {
+      console.error("Error fetching user processes:", error);
+      res.status(500).json({ message: error.message });
     }
   });
 

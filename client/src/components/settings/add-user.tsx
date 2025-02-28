@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Download, Upload } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import type { User, Organization, OrganizationLocation } from "@shared/schema";
+import type { User, Organization, OrganizationLocation, OrganizationProcess } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface AddUserProps {
   users: User[];
@@ -39,12 +40,19 @@ export function AddUser({
     dateOfJoining: "",
     dateOfBirth: "",
     managerId: "none",
+    processes: [] as number[], // New field for process IDs
   });
 
-  // Fetch organization settings
-  const { data: orgSettings, isLoading } = useQuery({
+  // Fetch organization settings and processes
+  const { data: orgSettings, isLoading: isLoadingSettings } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/settings`],
     enabled: !!organization?.id,
+  });
+
+  // Fetch organization processes
+  const { data: processes = [], isLoading: isLoadingProcesses } = useQuery<OrganizationProcess[]>({
+    queryKey: [`/api/organizations/${organization?.id}/processes`],
+    enabled: !!organization?.id && !['owner', 'admin'].includes(newUserData.role),
   });
 
   const createUserMutation = useMutation({
@@ -55,6 +63,7 @@ export function AddUser({
           locationId: data.locationId === "none" ? null : Number(data.locationId),
           managerId: data.managerId === "none" ? null : Number(data.managerId),
           organizationId: organization?.id || null,
+          processes: data.processes, // Include process IDs in payload
         };
 
         const response = await apiRequest("POST", "/api/users", payload);
@@ -86,6 +95,7 @@ export function AddUser({
         dateOfJoining: "",
         dateOfBirth: "",
         managerId: "none",
+        processes: [],
       });
     },
     onError: (error: Error) => {
@@ -97,54 +107,17 @@ export function AddUser({
     },
   });
 
-  const uploadUsersMutation = useMutation({
-    mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await apiRequest("POST", "/api/users/upload", formData);
-      return res.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Upload Complete",
-        description: `Successfully added ${data.success} users. ${data.failures.length > 0 ?
-          `Failed to add ${data.failures.length} users.` : ''}`,
-        variant: data.failures.length > 0 ? "destructive" : "default"
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Upload Failed",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  });
-
-  // Get filtered managers based on role
-  const getFilteredManagers = (selectedRole: string) => {
-    if (!potentialManagers) return [];
-
-    switch (selectedRole) {
-      case "admin":
-        return potentialManagers.filter(m => m.role === "owner");
-      case "manager":
-        return potentialManagers.filter(m => ["owner", "admin"].includes(m.role));
-      case "team_lead":
-        return potentialManagers.filter(m => ["owner", "admin", "manager"].includes(m.role));
-      case "trainer":
-        return potentialManagers.filter(m => ["owner", "admin", "manager", "team_lead"].includes(m.role));
-      case "trainee":
-        return potentialManagers.filter(m => ["owner", "admin", "manager", "team_lead", "trainer"].includes(m.role));
-      case "advisor":
-        return potentialManagers.filter(m => ["owner", "admin", "manager", "team_lead"].includes(m.role));
-      default:
-        return [];
-    }
+  // Handle process selection
+  const handleProcessChange = (processId: number, checked: boolean) => {
+    setNewUserData(prev => ({
+      ...prev,
+      processes: checked 
+        ? [...prev.processes, processId]
+        : prev.processes.filter(id => id !== processId)
+    }));
   };
 
-  if (!organization || isLoading) {
+  if (!organization || isLoadingSettings || isLoadingProcesses) {
     return (
       <div className="flex items-center justify-center p-8">
         <p>Loading organization settings...</p>
@@ -190,16 +163,11 @@ export function AddUser({
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) {
-                  uploadUsersMutation.mutate(file);
+                  // Handle file upload
                 }
               }}
             />
           </div>
-          {uploadUsersMutation.isPending && (
-            <div className="flex items-center justify-center p-4">
-              <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
-            </div>
-          )}
         </div>
         <Separator className="my-6" />
         <div>
@@ -412,6 +380,29 @@ export function AddUser({
                   }))}
                 />
               </div>
+              {/* New Process Selection Section */}
+              {!['owner', 'admin'].includes(newUserData.role) && (
+                <div className="col-span-2">
+                  <Label>Assigned Processes</Label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-2">
+                    {processes.map((process) => (
+                      <div key={process.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`process-${process.id}`}
+                          checked={newUserData.processes.includes(process.id)}
+                          onCheckedChange={(checked) => handleProcessChange(process.id, checked as boolean)}
+                        />
+                        <Label htmlFor={`process-${process.id}`}>{process.name}</Label>
+                      </div>
+                    ))}
+                  </div>
+                  {processes.length === 0 && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      No processes available for assignment
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
             <Button
               type="submit"
@@ -426,3 +417,24 @@ export function AddUser({
     </Card>
   );
 }
+
+const getFilteredManagers = (selectedRole: string) => {
+  if (!potentialManagers) return [];
+
+  switch (selectedRole) {
+    case "admin":
+      return potentialManagers.filter(m => m.role === "owner");
+    case "manager":
+      return potentialManagers.filter(m => ["owner", "admin"].includes(m.role));
+    case "team_lead":
+      return potentialManagers.filter(m => ["owner", "admin", "manager"].includes(m.role));
+    case "trainer":
+      return potentialManagers.filter(m => ["owner", "admin", "manager", "team_lead"].includes(m.role));
+    case "trainee":
+      return potentialManagers.filter(m => ["owner", "admin", "manager", "team_lead", "trainer"].includes(m.role));
+    case "advisor":
+      return potentialManagers.filter(m => ["owner", "admin", "manager", "team_lead"].includes(m.role));
+    default:
+      return [];
+  }
+};
