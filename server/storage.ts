@@ -482,15 +482,28 @@ export class DatabaseStorage implements IStorage {
   // Line of Business operations
   async createLineOfBusiness(lob: InsertOrganizationLineOfBusiness): Promise<OrganizationLineOfBusiness> {
     try {
+      console.log('Creating new line of business:', lob);
+
+      // Check if LOB with same name exists in the organization
+      const existing = await db
+        .select()
+        .from(organizationLineOfBusinesses)
+        .where(eq(organizationLineOfBusinesses.organizationId, lob.organizationId))
+        .where(eq(organizationLineOfBusinesses.name, lob.name));
+
+      if (existing.length > 0) {
+        throw new Error('A Line of Business with this name already exists in this organization');
+      }
+
       const [newLob] = await db
         .insert(organizationLineOfBusinesses)
         .values(lob)
         .returning() as OrganizationLineOfBusiness[];
+
+      console.log('Successfully created new line of business:', newLob);
       return newLob;
     } catch (error: any) {
-      if (error.code === '23505') {
-        throw new Error('A Line of Business with this name already exists.');
-      }
+      console.error('Error creating line of business:', error);
       throw error;
     }
   }
@@ -504,10 +517,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async listLineOfBusinesses(organizationId: number): Promise<OrganizationLineOfBusiness[]> {
-    return await db
-      .select()
-      .from(organizationLineOfBusinesses)
-      .where(eq(organizationLineOfBusinesses.organizationId, organizationId)) as OrganizationLineOfBusiness[];
+    try {
+      console.log(`Fetching line of businesses for organization ${organizationId}`);
+
+      const lineOfBusinesses = await db
+        .select()
+        .from(organizationLineOfBusinesses)
+        .where(eq(organizationLineOfBusinesses.organizationId, organizationId)) as OrganizationLineOfBusiness[];
+
+      console.log(`Successfully found ${lineOfBusinesses.length} line of businesses`);
+      return lineOfBusinesses;
+    } catch (error: any) {
+      console.error('Error fetching line of businesses:', error);
+      throw new Error(`Failed to fetch line of businesses: ${error.message}`);
+    }
   }
 
   async updateLineOfBusiness(id: number, lob: Partial<InsertOrganizationLineOfBusiness>): Promise<OrganizationLineOfBusiness> {

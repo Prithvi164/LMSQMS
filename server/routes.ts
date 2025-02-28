@@ -834,7 +834,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Add this API endpoint if it doesn't exist or modify the existing one
   app.get("/api/organizations/:id/line-of-businesses", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user) {
+      console.log('Unauthorized access attempt to line of businesses');
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
     try {
       const orgId = parseInt(req.params.id);
@@ -848,10 +851,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const lobs = await storage.listLineOfBusinesses(orgId);
       console.log(`Found ${lobs.length} Line of Businesses:`, lobs);
-      res.json(lobs);
+
+      // Ensure we're sending a valid JSON response
+      return res.json(lobs || []);
     } catch (error: any) {
       console.error("Error fetching LOBs:", error);
-      res.status(500).json({ message: error.message });
+      return res.status(500).json({
+        message: "Failed to fetch line of businesses",
+        error: error.message
+      });
     }
   });
 
