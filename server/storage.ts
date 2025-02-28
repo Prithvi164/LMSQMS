@@ -650,16 +650,28 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Attempting to delete location with ID: ${id}`);
 
-      const result = await db
-        .delete(organizationLocations)
-        .where(eq(organizationLocations.id, id))
-        .returning();
+      // Use a transaction to ensure data consistency
+      await db.transaction(async (tx) => {
+        // First update all users that reference this location
+        await tx
+          .update(users)
+          .set({ locationId: null })
+          .where(eq(users.locationId, id));
 
-      if (!result.length) {
-        throw new Error('Location not found or deletion failed');
-      }
+        console.log(`Updated users' location references to null`);
 
-      console.log(`Successfully deleted location with ID: ${id}`);
+        // Then delete the location
+        const result = await tx
+          .delete(organizationLocations)
+          .where(eq(organizationLocations.id, id))
+          .returning();
+
+        if (!result.length) {
+          throw new Error('Location not found or deletion failed');
+        }
+
+        console.log(`Successfully deleted location with ID: ${id}`);
+      });
     } catch (error) {
       console.error('Error deleting location:', error);
       throw error;
