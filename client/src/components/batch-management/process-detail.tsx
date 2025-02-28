@@ -41,23 +41,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Plus, Loader2, Pencil, Trash, Search } from "lucide-react";
-import { Label } from "@/components/ui/label";
-
-// Define interfaces
-interface User {
-  id: number;
-  username: string;
-  fullName: string | null;
-  role: string;
-  locationId: number | null;
-  locationName: string | null;
-  email: string;
-}
-
-interface Location {
-  id: number;
-  name: string;
-}
 
 interface LineOfBusiness {
   id: number;
@@ -73,16 +56,11 @@ interface Process {
   ojtDays: number;
   ojtCertificationDays: number;
   lineOfBusinessId: number;
-  locationId: number;
-  roleId: string;
-  userId: number;
   lineOfBusinessName?: string;
-  locationName?: string;
-  userName?: string;
   status?: string;
 }
 
-// Form schema
+// Form schema simplified to remove location, role, and user
 const processFormSchema = z.object({
   name: z.string().min(1, "Process name is required"),
   inductionDays: z.number().min(1, "Induction days must be at least 1"),
@@ -91,9 +69,6 @@ const processFormSchema = z.object({
   ojtDays: z.number().min(0, "OJT days cannot be negative"),
   ojtCertificationDays: z.number().min(0, "OJT certification days cannot be negative"),
   lineOfBusinessId: z.number().min(1, "Line of Business is required"),
-  locationId: z.number().min(1, "Location is required"),
-  roleId: z.string().min(1, "Role is required"),
-  userId: z.number().min(1, "User is required"),
 });
 
 type ProcessFormValues = z.infer<typeof processFormSchema>;
@@ -106,75 +81,34 @@ export function ProcessDetail() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [selectedLocationId, setSelectedLocationId] = useState<string>("");
-  const [selectedRole, setSelectedRole] = useState<string>("");
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // First fetch organization
+  // Fetch organization with optimized caching
   const { data: organization } = useQuery({
     queryKey: ["/api/organization"],
     enabled: !!user,
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    cacheTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
   });
 
-  // Fetch line of businesses
+  // Fetch line of businesses with optimized caching
   const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/line-of-businesses`],
-    queryFn: async () => {
-      const response = await fetch(`/api/organizations/${organization?.id}/line-of-businesses`, {
-        headers: { Accept: 'application/json' },
-        credentials: 'include'
-      });
-      if (!response.ok) throw new Error('Failed to fetch line of businesses');
-      return response.json();
-    },
     enabled: !!organization?.id,
+    staleTime: 5 * 60 * 1000,
+    cacheTime: 30 * 60 * 1000,
   });
 
-  // Fetch locations
-  const { data: locations = [], isLoading: isLoadingLocations } = useQuery({
-    queryKey: [`/api/organizations/${organization?.id}/locations`],
-    queryFn: async () => {
-      const response = await fetch(`/api/organizations/${organization?.id}/locations`, {
-        headers: { Accept: 'application/json' },
-        credentials: 'include'
-      });
-      if (!response.ok) throw new Error('Failed to fetch locations');
-      return response.json();
-    },
-    enabled: !!organization?.id,
-  });
-
-  // Fetch users with location information
-  const { data: users = [], isLoading: isLoadingUsers } = useQuery({
-    queryKey: [`/api/organizations/${organization?.id}/users`],
-    queryFn: async () => {
-      const response = await fetch(`/api/organizations/${organization?.id}/users`, {
-        headers: { Accept: 'application/json' },
-        credentials: 'include'
-      });
-      if (!response.ok) throw new Error('Failed to fetch users');
-      return response.json();
-    },
-    enabled: !!organization?.id,
-  });
-
-  // Fetch processes
+  // Fetch processes with optimized caching
   const { data: processes = [], isLoading: isLoadingProcesses } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/processes`],
-    queryFn: async () => {
-      const response = await fetch(`/api/organizations/${organization?.id}/processes`, {
-        headers: { Accept: 'application/json' },
-        credentials: 'include'
-      });
-      if (!response.ok) throw new Error('Failed to fetch processes');
-      return response.json();
-    },
     enabled: !!organization?.id,
+    staleTime: 5 * 60 * 1000,
+    cacheTime: 30 * 60 * 1000,
   });
 
   // Filter and pagination calculations
@@ -182,8 +116,7 @@ export function ProcessDetail() {
     const searchStr = searchQuery.toLowerCase();
     return (
       process.name.toLowerCase().includes(searchStr) ||
-      (process.lineOfBusinessName || '').toLowerCase().includes(searchStr) ||
-      (process.locationName || '').toLowerCase().includes(searchStr)
+      (process.lineOfBusinessName || '').toLowerCase().includes(searchStr)
     );
   });
 
@@ -191,20 +124,6 @@ export function ProcessDetail() {
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
   const paginatedProcesses = filteredProcesses.slice(startIndex, endIndex);
-
-  // Get roles based on selected location
-  const roles = Array.from(new Set(
-    users
-      .filter((u: User) => !selectedLocationId || u.locationId === parseInt(selectedLocationId, 10))
-      .map((u: User) => u.role)
-  )).sort();
-
-  // Filter users based on location and role
-  const filteredUsers = users.filter((u: User) => {
-    const locationMatch = !selectedLocationId || u.locationId === parseInt(selectedLocationId, 10);
-    const roleMatch = !selectedRole || u.role === selectedRole;
-    return locationMatch && roleMatch;
-  });
 
   const form = useForm<ProcessFormValues>({
     resolver: zodResolver(processFormSchema),
@@ -216,9 +135,6 @@ export function ProcessDetail() {
       ojtDays: 0,
       ojtCertificationDays: 0,
       lineOfBusinessId: undefined,
-      locationId: undefined,
-      roleId: "",
-      userId: undefined,
     },
   });
 
@@ -232,9 +148,6 @@ export function ProcessDetail() {
       ojtDays: 0,
       ojtCertificationDays: 0,
       lineOfBusinessId: undefined,
-      locationId: undefined,
-      roleId: "",
-      userId: undefined,
     },
   });
 
@@ -245,13 +158,7 @@ export function ProcessDetail() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...data,
-          // Ensure we're sending these fields
-          userId: parseInt(data.userId.toString(), 10),
-          roleId: data.roleId,
-          status: 'active' // Default status for new processes
-        }),
+        body: JSON.stringify(data),
       });
 
       if (!response.ok) {
@@ -332,7 +239,7 @@ export function ProcessDetail() {
         title: "Success",
         description: "Process deleted successfully",
       });
-      setShowDeleteDialog(false);
+      setIsDeleteDialogOpen(false);
       setSelectedProcess(null);
       setDeleteConfirmation("");
     },
@@ -371,9 +278,6 @@ export function ProcessDetail() {
       ojtDays: process.ojtDays,
       ojtCertificationDays: process.ojtCertificationDays,
       lineOfBusinessId: process.lineOfBusinessId,
-      locationId: process.locationId,
-      roleId: process.roleId,
-      userId: process.userId,
     });
     setIsEditDialogOpen(true);
   };
@@ -381,7 +285,7 @@ export function ProcessDetail() {
   const handleDelete = (process: Process) => {
     setSelectedProcess(process);
     setDeleteConfirmation("");
-    setShowDeleteDialog(true);
+    setIsDeleteDialogOpen(true);
   };
 
   const handleDeleteConfirm = () => {
@@ -398,7 +302,8 @@ export function ProcessDetail() {
     }
   };
 
-  if (isLoadingLOB || isLoadingLocations || isLoadingUsers || isLoadingProcesses) {
+  // Show loading state
+  if (isLoadingLOB || isLoadingProcesses) {
     return (
       <div className="flex items-center justify-center p-8">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -437,7 +342,7 @@ export function ProcessDetail() {
         </CardContent>
       </Card>
 
-      {/* Process List Section */}
+      {/* Process List */}
       <Card>
         <CardContent>
           {processes.length > 0 ? (
@@ -457,8 +362,8 @@ export function ProcessDetail() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
                       <SelectItem value="50">50</SelectItem>
-                      <SelectItem value="100">100</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -470,9 +375,7 @@ export function ProcessDetail() {
                     <TableRow>
                       <TableHead>Process Name</TableHead>
                       <TableHead>Line of Business</TableHead>
-                      <TableHead>User Name</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Location</TableHead>
+                      <TableHead>Training Days</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -482,9 +385,7 @@ export function ProcessDetail() {
                       <TableRow key={process.id}>
                         <TableCell className="font-medium">{process.name}</TableCell>
                         <TableCell>{process.lineOfBusinessName || 'Not assigned'}</TableCell>
-                        <TableCell>{process.userName || 'Not assigned'}</TableCell>
-                        <TableCell>{process.roleId || 'Not assigned'}</TableCell>
-                        <TableCell>{process.locationName || 'Not assigned'}</TableCell>
+                        <TableCell>{process.trainingDays}</TableCell>
                         <TableCell>{process.status || 'Active'}</TableCell>
                         <TableCell className="text-right space-x-2">
                           <Button
@@ -547,247 +448,148 @@ export function ProcessDetail() {
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <Card>
-                <CardContent className="p-4 space-y-4">
+              <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Process Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter process name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <FormField
                     control={form.control}
-                    name="name"
+                    name="inductionDays"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Process Name</FormLabel>
+                        <FormLabel>Induction Days</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter process name" {...field} />
+                          <Input
+                            type="number"
+                            min="1"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <FormField
-                      control={form.control}
-                      name="inductionDays"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Induction Days</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              min="1"
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  <FormField
+                    control={form.control}
+                    name="trainingDays"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Training Days</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="1"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                    <FormField
-                      control={form.control}
-                      name="trainingDays"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Training Days</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              min="1"
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  <FormField
+                    control={form.control}
+                    name="certificationDays"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Certification Days</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="1"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                    <FormField
-                      control={form.control}
-                      name="certificationDays"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Certification Days</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              min="1"
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  <FormField
+                    control={form.control}
+                    name="ojtDays"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>OJT Days</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="0"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                    <FormField
-                      control={form.control}
-                      name="ojtDays"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>OJT Days</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              min="0"
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  <FormField
+                    control={form.control}
+                    name="ojtCertificationDays"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>OJT Certification Days</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="0"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
-                    <FormField
-                      control={form.control}
-                      name="ojtCertificationDays"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>OJT Certification Days</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              min="0"
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                <FormField
+                  control={form.control}
+                  name="lineOfBusinessId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Line of Business</FormLabel>
+                      <Select
+                        onValueChange={(value) => field.onChange(parseInt(value, 10))}
+                        value={field.value?.toString()}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Line of Business" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {lineOfBusinesses.map((lob: LineOfBusiness) => (
+                            <SelectItem key={lob.id} value={lob.id.toString()}>
+                              {lob.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <FormField
-                      control={form.control}
-                      name="lineOfBusinessId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Line of Business</FormLabel>
-                          <Select
-                            onValueChange={(value) => field.onChange(parseInt(value, 10))}
-                            value={field.value?.toString()}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select Line of Business" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {lineOfBusinesses.map((lob: LineOfBusiness) => (
-                                <SelectItem key={lob.id} value={lob.id.toString()}>
-                                  {lob.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="locationId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Location</FormLabel>
-                          <Select
-                            onValueChange={(value) => {
-                              field.onChange(parseInt(value, 10));
-                              setSelectedLocationId(value);
-                              setSelectedRole("");
-                              form.setValue("roleId", "");
-                              form.setValue("userId", undefined as unknown as number);
-                            }}
-                            value={field.value?.toString()}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select Location" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {locations.map((location: Location) => (
-                                <SelectItem key={location.id} value={location.id.toString()}>
-                                  {location.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <FormField
-                      control={form.control}
-                      name="roleId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Role</FormLabel>
-                          <Select
-                            onValueChange={(value) => {
-                              field.onChange(value);
-                              setSelectedRole(value);
-                              form.setValue("userId", undefined as unknown as number);
-                            }}
-                            value={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select Role" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {roles.map((role: string) => (
-                                <SelectItem key={role} value={role}>
-                                  {role}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="userId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>User</FormLabel>
-                          <Select
-                            onValueChange={(value) => field.onChange(parseInt(value, 10))}
-                            value={field.value?.toString()}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select User" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {filteredUsers.map((user: User) => (
-                                <SelectItem key={user.id} value={user.id.toString()}>
-                                  {user.fullName || user.username}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <div className="flex justify-end space-x-2">
+              <DialogFooter>
                 <Button
                   type="button"
                   variant="outline"
@@ -808,7 +610,7 @@ export function ProcessDetail() {
                     "Create Process"
                   )}
                 </Button>
-              </div>
+              </DialogFooter>
             </form>
           </Form>
         </DialogContent>
@@ -822,247 +624,150 @@ export function ProcessDetail() {
           </DialogHeader>
           <Form {...editForm}>
             <form onSubmit={editForm.handleSubmit(onEdit)} className="space-y-4">
-              <Card>
-                <CardContent className="p-4 space-y-4">
+              <div className="space-y-4">
+                {/* Same form fields as create dialog */}
+                <FormField
+                  control={editForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Process Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter process name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {/* Same number input fields as create dialog */}
                   <FormField
                     control={editForm.control}
-                    name="name"
+                    name="inductionDays"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Process Name</FormLabel>
+                        <FormLabel>Induction Days</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter process name" {...field} />
+                          <Input
+                            type="number"
+                            min="1"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <FormField
-                      control={editForm.control}
-                      name="inductionDays"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Induction Days</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              min="1"
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  <FormField
+                    control={editForm.control}
+                    name="trainingDays"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Training Days</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="1"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                    <FormField
-                      control={editForm.control}
-                      name="trainingDays"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Training Days</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              min="1"
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  <FormField
+                    control={editForm.control}
+                    name="certificationDays"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Certification Days</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="1"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                    <FormField
-                      control={editForm.control}
-                      name="certificationDays"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Certification Days</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              min="1"
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  <FormField
+                    control={editForm.control}
+                    name="ojtDays"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>OJT Days</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="0"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                    <FormField
-                      control={editForm.control}
-                      name="ojtDays"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>OJT Days</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              min="0"
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  <FormField
+                    control={editForm.control}
+                    name="ojtCertificationDays"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>OJT Certification Days</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="0"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
-                    <FormField
-                      control={editForm.control}
-                      name="ojtCertificationDays"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>OJT Certification Days</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              min="0"
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                <FormField
+                  control={editForm.control}
+                  name="lineOfBusinessId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Line of Business</FormLabel>
+                      <Select
+                        onValueChange={(value) => field.onChange(parseInt(value, 10))}
+                        value={field.value?.toString()}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Line of Business" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {lineOfBusinesses.map((lob: LineOfBusiness) => (
+                            <SelectItem key={lob.id} value={lob.id.toString()}>
+                              {lob.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <FormField
-                      control={editForm.control}
-                      name="lineOfBusinessId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Line of Business</FormLabel>
-                          <Select
-                            onValueChange={(value) => field.onChange(parseInt(value, 10))}
-                            value={field.value?.toString()}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select Line of Business" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {lineOfBusinesses.map((lob: LineOfBusiness) => (
-                                <SelectItem key={lob.id} value={lob.id.toString()}>
-                                  {lob.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={editForm.control}
-                      name="locationId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Location</FormLabel>
-                          <Select
-                            onValueChange={(value) => {
-                              field.onChange(parseInt(value, 10));
-                              setSelectedLocationId(value);
-                              setSelectedRole("");
-                              editForm.setValue("roleId", "");
-                              editForm.setValue("userId", undefined as unknown as number);
-                            }}
-                            value={field.value?.toString()}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select Location" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {locations.map((location: Location) => (
-                                <SelectItem key={location.id} value={location.id.toString()}>
-                                  {location.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <FormField
-                      control={editForm.control}
-                      name="roleId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Role</FormLabel>
-                          <Select
-                            onValueChange={(value) => {
-                              field.onChange(value);
-                              setSelectedRole(value);
-                              editForm.setValue("userId", undefined as unknown as number);
-                            }}
-                            value={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select Role" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {roles.map((role: string) => (
-                                <SelectItem key={role} value={role}>
-                                  {role}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={editForm.control}
-                      name="userId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>User</FormLabel>
-                          <Select
-                            onValueChange={(value) => field.onChange(parseInt(value, 10))}
-                            value={field.value?.toString()}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select User" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {filteredUsers.map((user: User) => (
-                                <SelectItem key={user.id} value={user.id.toString()}>
-                                  {user.fullName || user.username}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <div className="flex justify-end space-x-2">
+              <DialogFooter>
                 <Button
                   type="button"
                   variant="outline"
@@ -1076,58 +781,64 @@ export function ProcessDetail() {
                 >
                   {updateProcessMutation.isPending ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Updating...
                     </>
                   ) : (
                     "Update Process"
                   )}
                 </Button>
-              </div>
+              </DialogFooter>
             </form>
           </Form>
         </DialogContent>
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent className="sm:max-w-[425px]">
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Process</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm text-muted-foreground mb-4">
-              This action cannot be undone. Are you sure you want to delete{" "}
-              <span className="font-semibold">{selectedProcess?.name}</span>?
+          <div className="space-y-4">
+            <p>
+              Are you sure you want to delete the process "{selectedProcess?.name}"?
+              This action cannot be undone.
             </p>
-            <Label htmlFor="confirmation" className="text-sm text-muted-foreground block mb-2">
-              Type "{selectedProcess?.name}" to confirm:
-            </Label>
-            <Input
-              id="confirmation"
-              value={deleteConfirmation}
-              onChange={(e) => setDeleteConfirmation(e.target.value)}
-              className="mt-2"
-              placeholder="Type the process name..."
-            />
+            <div className="space-y-2">
+              <Label htmlFor="confirm">
+                Type "{selectedProcess?.name}" to confirm deletion
+              </Label>
+              <Input
+                id="confirm"
+                value={deleteConfirmation}
+                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                placeholder="Type process name to confirm"
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button
+              type="button"
               variant="outline"
-              onClick={() => {
-                setShowDeleteDialog(false);
-                setSelectedProcess(null);
-                setDeleteConfirmation("");
-              }}
+              onClick={() => setIsDeleteDialogOpen(false)}
             >
               Cancel
             </Button>
             <Button
+              type="button"
               variant="destructive"
               onClick={handleDeleteConfirm}
-              disabled={deleteConfirmation !== selectedProcess?.name}
+              disabled={deleteProcessMutation.isPending}
             >
-              Delete Process
+              {deleteProcessMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Process"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
