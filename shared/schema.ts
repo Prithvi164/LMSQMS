@@ -70,7 +70,7 @@ export const organizations = pgTable("organizations", {
 // Export organization type only once
 export type Organization = InferSelectModel<typeof organizations>;
 
-// Update Organization Processes table with enhanced fields and remove location_id
+// Update Organization Processes table by removing user and role fields
 export const organizationProcesses = pgTable("organization_processes", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
@@ -87,9 +87,6 @@ export const organizationProcesses = pgTable("organization_processes", {
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
-  userId: integer("user_id")
-    .references(() => users.id),
-  roleId: roleEnum("role_id"),
   locationId: integer("location_id")
     .references(() => organizationLocations.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -152,7 +149,7 @@ export const users = pgTable("users", {
 
 export type User = InferSelectModel<typeof users>;
 
-// Update User Processes junction table with additional tracking
+// Update User Processes junction table with enhanced tracking
 export const userProcesses = pgTable("user_processes", {
   id: serial("id").primaryKey(),
   userId: integer("user_id")
@@ -196,7 +193,6 @@ export const userBatches = pgTable("user_batches", {
 
 export type UserProcess = typeof userProcesses.$inferSelect;
 export type UserBatch = InferSelectModel<typeof userBatches>;
-
 
 
 // Organization Batches table with improved structure
@@ -385,10 +381,6 @@ export const organizationProcessesRelations = relations(organizationProcesses, (
     fields: [organizationProcesses.lineOfBusinessId],
     references: [organizationLineOfBusinesses.id],
   }),
-  user: one(users, {
-    fields: [organizationProcesses.userId],
-    references: [users.id],
-  }),
   location: one(organizationLocations, {
     fields: [organizationProcesses.locationId],
     references: [organizationLocations.id],
@@ -501,10 +493,23 @@ export const insertOrganizationProcessSchema = createInsertSchema(organizationPr
     ojtCertificationDays: z.number().min(0, "OJT certification days cannot be negative"),
     lineOfBusinessId: z.number().int().positive("Line of Business is required"),
     organizationId: z.number().int().positive("Organization is required"),
-    // Add validation for new fields
-    userId: z.number().int().optional(),
-    roleId: z.enum(['owner', 'admin', 'manager', 'team_lead', 'trainer', 'trainee', 'advisor']).optional(),
     locationId: z.number().int().optional(),
+  });
+
+// Create insert schema for user processes
+export const insertUserProcessSchema = createInsertSchema(userProcesses)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+    assignedAt: true,
+    completedAt: true
+  })
+  .extend({
+    userId: z.number().int().positive("User ID is required"),
+    processId: z.number().int().positive("Process ID is required"),
+    organizationId: z.number().int().positive("Organization ID is required"),
+    status: z.string().default('assigned'),
   });
 
 // Update insert schema to handle unique constraint error
@@ -559,3 +564,4 @@ export type InsertCourse = z.infer<typeof insertCourseSchema>;
 export type InsertLearningPath = z.infer<typeof insertLearningPathSchema>;
 export type InsertUserProgress = z.infer<typeof insertUserProgressSchema>;
 export type InsertOrganizationProcess = z.infer<typeof insertOrganizationProcessSchema>;
+export type InsertUserProcess = z.infer<typeof insertUserProcessSchema>;
