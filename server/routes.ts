@@ -10,7 +10,6 @@ import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { insertOrganizationBatchSchema } from "@shared/schema";
-import { insertOrganizationProcessSchema } from "@shared/schema"; //Import schema for process
 
 // Configure multer for handling file uploads
 const upload = multer({
@@ -207,15 +206,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Fetch all required data
-      const [processes, batches, locations] = await Promise.all([
-        storage.listProcesses(orgId),
+      const [batches, locations] = await Promise.all([
         storage.listBatches(orgId),
         storage.listLocations(orgId),
       ]);
 
       // Ensure we have arrays
       const response = {
-        processes: Array.isArray(processes) ? processes : [],
         batches: Array.isArray(batches) ? batches : [],
         locations: Array.isArray(locations) ? locations : [],
       };
@@ -223,7 +220,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Log response for debugging
       console.log('Organization settings response:', {
         orgId,
-        processCount: response.processes.length,
         batchCount: response.batches.length,
         locationCount: response.locations.length
       });
@@ -237,6 +233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
 
   // Organization settings route to fetch all required data for batch creation
   app.get("/api/organizations/:id/settings", async (req, res) => {
@@ -253,25 +250,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Fetching settings for organization ${orgId}`);
 
       // Fetch all required data
-      const [processes, batches, locations] = await Promise.all([
-        storage.listProcesses(orgId),
+      const [batches, locations] = await Promise.all([
         storage.listBatches(orgId),
         storage.listLocations(orgId),
       ]);
 
       // Ensure processes and locations are arrays
       const response = {
-        processes: Array.isArray(processes) ? processes : [],
         batches: Array.isArray(batches) ? batches : [],
         locations: Array.isArray(locations) ? locations : [],
       };
 
       // Log response data for debugging
       console.log('Organization settings response:', {
-        processCount: response.processes.length,
         batchCount: response.batches.length,
         locationCount: response.locations.length,
-        processes: response.processes,
       });
 
       return res.json(response);
@@ -281,217 +274,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Failed to fetch organization settings",
         error: err.message
       });
-    }
-  });
-
-
-  // Organization Process Routes
-  app.post("/api/organizations/:id/processes", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const orgId = parseInt(req.params.id);
-
-      // Check if user belongs to the organization
-      if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "You can only create processes in your own organization" });
-      }
-
-      // Validate and create process data
-      const processData = {
-        ...req.body,
-        organizationId: orgId,
-      };
-
-      const validatedData = insertOrganizationProcessSchema.parse(processData);
-      const process = await storage.createProcess(validatedData);
-      res.status(201).json(process);
-    } catch (error: any) {
-      console.error("Process creation error:", error);
-      res.status(400).json({ message: error.message });
-    }
-  });
-
-  // Get organization processes
-  app.get("/api/organizations/:id/processes", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const orgId = parseInt(req.params.id);
-
-      // Check if user belongs to the organization
-      if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "You can only view processes in your own organization" });
-      }
-
-      const processes = await storage.listProcesses(orgId);
-      res.json(processes);
-    } catch (error: any) {
-      console.error("Error fetching processes:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Update a specific process
-  app.patch("/api/organizations/:orgId/processes/:processId", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const orgId = parseInt(req.params.orgId);
-      const processId = parseInt(req.params.processId);
-
-      // Check if user belongs to the organization
-      if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "You can only update processes in your own organization" });
-      }
-
-      // Get the existing process
-      const existingProcess = await storage.getProcess(processId);
-      if (!existingProcess) {
-        return res.status(404).json({ message: "Process not found" });
-      }
-
-      // Update the process
-      const updatedProcess = await storage.updateProcess(processId, {
-        ...req.body,
-        organizationId: orgId
-      });
-
-      res.json(updatedProcess);
-    } catch (err: any) {
-      console.error("Process update error:", err);
-      res.status(500).json({ message: err.message || "Failed to update process" });
-    }
-  });
-
-  // Delete a specific process
-  app.delete("/api/organizations/:orgId/processes/:processId", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const orgId = parseInt(req.params.orgId);
-      const processId = parseInt(req.params.processId);
-
-      // Check if user belongs to the organization
-      if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "You can only delete processes in your own organization" });
-      }
-
-      // Get the existing process
-      const existingProcess = await storage.getProcess(processId);
-      if (!existingProcess) {
-        return res.status(404).json({ message: "Process not found" });
-      }
-
-      // Delete the process
-      await storage.deleteProcess(processId);
-      res.status(200).json({ message: "Process deleted successfully" });
-    } catch (err: any) {
-      console.error("Process deletion error:", err);
-      res.status(500).json({ message: err.message || "Failed to delete process" });
-    }
-  });
-
-  // Add these routes after the existing process routes
-  // Line of Business Routes
-  app.post("/api/organizations/:id/line-of-businesses", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const orgId = parseInt(req.params.id);
-
-      // Check if user belongs to the organization
-      if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "You can only create LOBs in your own organization" });
-      }
-
-      const lobData = {
-        ...req.body,
-        organizationId: orgId,
-      };
-
-      const lob = await storage.createLineOfBusiness(lobData);
-      res.status(201).json(lob);
-    } catch (error: any) {
-      console.error("LOB creation error:", error);
-      res.status(400).json({ message: error.message });
-    }
-  });
-
-  app.get("/api/organizations/:id/line-of-businesses", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const orgId = parseInt(req.params.id);
-
-      // Check if user belongs to the organization
-      if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "You can only view LOBs in your own organization" });
-      }
-
-      const lobs = await storage.listLineOfBusinesses(orgId);
-      res.json(lobs);
-    } catch (error: any) {
-      console.error("Error fetching LOBs:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  app.patch("/api/organizations/:orgId/line-of-businesses/:lobId", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const orgId = parseInt(req.params.orgId);
-      const lobId = parseInt(req.params.lobId);
-
-      // Check if user belongs to the organization
-      if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "You can only update LOBs in your own organization" });
-      }
-
-      // Get the existing LOB
-      const existingLob = await storage.getLineOfBusiness(lobId);
-      if (!existingLob) {
-        return res.status(404).json({ message: "Line of Business not found" });
-      }
-
-      // Update the LOB
-      const updatedLob = await storage.updateLineOfBusiness(lobId, {
-        ...req.body,
-        organizationId: orgId
-      });
-
-      res.json(updatedLob);
-    } catch (err: any) {
-      console.error("LOB update error:", err);
-      res.status(500).json({ message: err.message || "Failed to update LOB" });
-    }
-  });
-
-  app.delete("/api/organizations/:orgId/line-of-businesses/:lobId", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const orgId = parseInt(req.params.orgId);
-      const lobId = parseInt(req.params.lobId);
-
-      // Check if user belongs to the organization
-      if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "You can only delete LOBs in your own organization" });
-      }
-
-      // Get the existing LOB
-      const existingLob = await storage.getLineOfBusiness(lobId);
-      if (!existingLob) {
-        return res.status(404).json({ message: "Line of Business not found" });
-      }
-
-      // Delete the LOB
-      await storage.deleteLineOfBusiness(lobId);
-      res.status(200).json({ message: "Line of Business deleted successfully" });
-    } catch (err: any) {
-      console.error("LOB deletion error:", err);
-      res.status(500).json({ message: err.message || "Failed to delete LOB" });
     }
   });
 
@@ -518,7 +300,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      const { processes, ...userData } = req.body;
+      const {  ...userData } = req.body;
 
       // Hash the password before creating the user
       const hashedPassword = await hashPassword(userData.password);
@@ -534,7 +316,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create user with processes if provided
       const result = await storage.createUserWithProcesses(
         userToCreate,
-        processes || [],
+        [],
         req.user.organizationId
       );
 
@@ -704,8 +486,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'Email*',
       'PhoneNumber*',
       'Location',
-      'LineOfBusiness',
-      'Processes',
       'ManagerUsername',
       'DateOfJoining',
       'DateOfBirth',
@@ -721,8 +501,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'john@example.com',
       '1234567890',
       'New York',
-      'Sales',
-      '"Process1,Process2"',  // Quoted to keep processes in one column
       'manager.username',
       '2023-01-01',
       '1990-01-01',
@@ -747,8 +525,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       '6. Dates must be in YYYY-MM-DD format (e.g., 2023-01-01)',
       '7. ManagerUsername is optional - leave blank if no manager',
       '8. Location must match existing values in your organization',
-      '9. LineOfBusiness must match an existing Line of Business name',
-      '10. Processes should be comma-separated process names that exist in the selected Line of Business (e.g., "Process1,Process2")'
+      '9. Process assignments should be done through the user interface after creating the user'
     ].join('\n');
 
     const csvContent = headers + '\n' + example + instructions;
@@ -782,11 +559,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       // Fetch organization settings first
-      const [processes, batches, locations, lineOfBusinesses] = await Promise.all([
-        storage.listProcesses(req.user.organizationId),
+      const [batches, locations] = await Promise.all([
         storage.listBatches(req.user.organizationId),
         storage.listLocations(req.user.organizationId),
-        storage.listLineOfBusinesses(req.user.organizationId),
       ]);
 
       for (let i = 1; i < lines.length; i++) {
@@ -824,31 +599,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             throw new Error(`Username '${userData.username}' already exists`);
           }
 
-          // Find LOB if specified
-          let processIds: number[] = [];
-          if (userData.lineofbusiness && userData.processes) {
-            const lob = lineOfBusinesses.find(l =>
-              l.name.toLowerCase() === userData.lineofbusiness.toLowerCase()
-            );
-            if (!lob) {
-              throw new Error(`Line of Business not found: ${userData.lineofbusiness}`);
-            }
-
-            // Get processes for this LOB
-            const lobProcesses = processes.filter(p => p.lineOfBusinessId === lob.id);
-            const requestedProcessNames = userData.processes.split(',').map(p => p.trim());
-
-            // Validate and collect process IDs
-            for (const processName of requestedProcessNames) {
-              const process = lobProcesses.find(p =>
-                p.name.toLowerCase() === processName.toLowerCase()
-              );
-              if (!process) {
-                throw new Error(`Process "${processName}" not found in Line of Business "${userData.lineofbusiness}"`);
-              }
-              processIds.push(process.id);
-            }
-          }
 
           // Find manager if specified
           let managerId: number | null = null;
@@ -896,8 +646,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             managerId,
             locationId,
             active: true,
-            lineOfBusinessId: processIds.length > 0 ? lineOfBusinesses.find(l => l.name.toLowerCase() === userData.lineofbusiness.toLowerCase())?.id : null,
-            processIds
+            processIds: [] // Initialize as empty array
           };
 
           console.log('Creating user:', { ...userToCreate, password: '[REDACTED]' });
