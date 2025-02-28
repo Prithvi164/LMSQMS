@@ -34,7 +34,6 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     fullName: "",
     employeeId: "",
     role: "trainee",
-    locationId: "none",
     email: "",
     phoneNumber: "",
     education: "",
@@ -43,6 +42,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     managerId: "none",
     processes: [] as number[],
   });
+
 
   const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery<OrganizationLineOfBusiness[]>({
     queryKey: [`/api/organizations/${organization?.id}/line-of-businesses`],
@@ -96,10 +96,10 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       try {
         const payload = {
           ...data,
-          locationId: data.locationId === "none" ? null : Number(data.locationId),
           managerId: data.managerId === "none" ? null : Number(data.managerId),
           organizationId: organization?.id || null,
           processes: data.processes,
+          locationId: null,
         };
 
         const response = await apiRequest("POST", "/api/users", payload);
@@ -124,7 +124,6 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         fullName: "",
         employeeId: "",
         role: "trainee",
-        locationId: "none",
         email: "",
         phoneNumber: "",
         education: "",
@@ -271,7 +270,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                     {newUserData.managerId === "none"
                       ? "Select manager..."
                       : getFilteredManagers().find(m => m.id.toString() === newUserData.managerId)
-                        ? `${getFilteredManagers().find(m => m.id.toString() === newUserData.managerId)?.username}`
+                        ? `${getFilteredManagers().find(m => m.id.toString() === newUserData.managerId)?.fullName}`
                         : "Select manager..."}
                     <Check
                       className={cn(
@@ -317,8 +316,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                               newUserData.managerId === manager.id.toString() ? "opacity-100" : "opacity-0"
                             )}
                           />
-                          {manager.username} ({manager.role})
-                          {manager.fullName && <span className="text-muted-foreground ml-2">({manager.fullName})</span>}
+                          {manager.fullName} ({manager.role})
                         </CommandItem>
                       ))}
                     </CommandGroup>
