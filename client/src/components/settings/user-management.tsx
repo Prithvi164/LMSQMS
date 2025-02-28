@@ -136,7 +136,7 @@ export function UserManagement() {
   const getManagerName = (managerId: number | null) => {
     if (!managerId) return "No Manager";
     const manager = users.find(u => u.id === managerId);
-    return manager ? (manager.fullName || manager.username) : "Unknown Manager";
+    return manager ? manager.username : "Unknown Manager";
   };
 
   // Find location name for a user
