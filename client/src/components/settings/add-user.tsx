@@ -51,18 +51,35 @@ export function AddUser({
   const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery<OrganizationLineOfBusiness[]>({
     queryKey: [`/api/organizations/${organization?.id}/line-of-businesses`],
     enabled: !!organization?.id,
+    onSuccess: (data) => {
+      console.log('Fetched Line of Businesses:', data);
+    },
+    onError: (error) => {
+      console.error('Error fetching Line of Businesses:', error);
+    }
   });
 
   // Fetch organization processes
   const { data: processes = [], isLoading: isLoadingProcesses } = useQuery<OrganizationProcess[]>({
     queryKey: [`/api/organizations/${organization?.id}/processes`],
     enabled: !!organization?.id && !['owner', 'admin'].includes(newUserData.role) && selectedLOBs.length > 0,
+    onSuccess: (data) => {
+      console.log('Fetched Processes:', data);
+    }
   });
 
   // Get filtered processes based on selected LOBs
   const filteredProcesses = processes.filter(process => 
     selectedLOBs.includes(process.lineOfBusinessId)
   );
+
+  console.log('Current state:', {
+    organizationId: organization?.id,
+    lineOfBusinesses,
+    selectedLOBs,
+    processes,
+    filteredProcesses
+  });
 
   // Get filtered managers based on role
   const getFilteredManagers = (selectedRole: string) => {
