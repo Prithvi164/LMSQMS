@@ -271,8 +271,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                     {newUserData.managerId === "none"
                       ? "Select manager..."
                       : getFilteredManagers().find(m => m.id.toString() === newUserData.managerId)
-                        ? `${getFilteredManagers().find(m => m.id.toString() === newUserData.managerId)?.fullName ||
-                            getFilteredManagers().find(m => m.id.toString() === newUserData.managerId)?.username}`
+                        ? `${getFilteredManagers().find(m => m.id.toString() === newUserData.managerId)?.username}`
                         : "Select manager..."}
                     <Check
                       className={cn(
@@ -318,7 +317,8 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                               newUserData.managerId === manager.id.toString() ? "opacity-100" : "opacity-0"
                             )}
                           />
-                          {manager.fullName || manager.username} ({manager.role})
+                          {manager.username} ({manager.role})
+                          {manager.fullName && <span className="text-muted-foreground ml-2">({manager.fullName})</span>}
                         </CommandItem>
                       ))}
                     </CommandGroup>
