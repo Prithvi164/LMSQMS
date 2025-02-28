@@ -375,7 +375,6 @@ export function ProcessDetail() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Process Name</TableHead>
-                      <TableHead>Line of Business</TableHead>
                       <TableHead className="text-center">ID</TableHead>
                       <TableHead className="text-center">TD</TableHead>
                       <TableHead className="text-center">CD</TableHead>
@@ -396,7 +395,6 @@ export function ProcessDetail() {
                             </span>
                           )}
                         </TableCell>
-                        <TableCell>{process.lineOfBusinessName || "Not assigned"}</TableCell>
                         <TableCell className="text-center">{process.inductionDays}</TableCell>
                         <TableCell className="text-center">{process.trainingDays}</TableCell>
                         <TableCell className="text-center">{process.certificationDays}</TableCell>
