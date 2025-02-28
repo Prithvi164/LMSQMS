@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { SiReact } from "react-icons/si";
+import { Label } from "@/components/ui/label";
 
 import {
   Form,
@@ -116,7 +117,7 @@ export function ProcessDetail() {
     const searchStr = searchQuery.toLowerCase();
     return (
       process.name.toLowerCase().includes(searchStr) ||
-      (process.lineOfBusinessName || '').toLowerCase().includes(searchStr)
+      (process.lineOfBusinessName || "").toLowerCase().includes(searchStr)
     );
   });
 
@@ -154,16 +155,16 @@ export function ProcessDetail() {
   const createProcessMutation = useMutation({
     mutationFn: async (data: ProcessFormValues) => {
       const response = await fetch(`/api/organizations/${organization?.id}/processes`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(data),
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || 'Failed to create process');
+        throw new Error(error.message || "Failed to create process");
       }
 
       return response.json();
@@ -189,16 +190,16 @@ export function ProcessDetail() {
   const updateProcessMutation = useMutation({
     mutationFn: async (data: ProcessFormValues) => {
       const response = await fetch(`/api/organizations/${organization?.id}/processes/${selectedProcess?.id}`, {
-        method: 'PATCH',
+        method: "PATCH",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(data),
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || 'Failed to update process');
+        throw new Error(error.message || "Failed to update process");
       }
 
       return response.json();
@@ -225,12 +226,12 @@ export function ProcessDetail() {
   const deleteProcessMutation = useMutation({
     mutationFn: async () => {
       const response = await fetch(`/api/organizations/${organization?.id}/processes/${selectedProcess?.id}`, {
-        method: 'DELETE',
+        method: "DELETE",
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || 'Failed to delete process');
+        throw new Error(error.message || "Failed to delete process");
       }
     },
     onSuccess: () => {
@@ -384,9 +385,9 @@ export function ProcessDetail() {
                     {paginatedProcesses.map((process: Process) => (
                       <TableRow key={process.id}>
                         <TableCell className="font-medium">{process.name}</TableCell>
-                        <TableCell>{process.lineOfBusinessName || 'Not assigned'}</TableCell>
+                        <TableCell>{process.lineOfBusinessName || "Not assigned"}</TableCell>
                         <TableCell>{process.trainingDays}</TableCell>
-                        <TableCell>{process.status || 'Active'}</TableCell>
+                        <TableCell>{process.status || "Active"}</TableCell>
                         <TableCell className="text-right space-x-2">
                           <Button
                             variant="outline"
@@ -412,7 +413,8 @@ export function ProcessDetail() {
 
               <div className="flex items-center justify-between py-4">
                 <div className="text-sm text-gray-500">
-                  Showing {startIndex + 1} to {Math.min(endIndex, processes.length)} of {processes.length} entries
+                  Showing {startIndex + 1} to {Math.min(endIndex, processes.length)} of {processes.length}{" "}
+                  entries
                 </div>
                 <div className="space-x-2">
                   <Button
@@ -435,7 +437,9 @@ export function ProcessDetail() {
               </div>
             </>
           ) : (
-            <p className="text-muted-foreground">No processes found. Create a new process to get started.</p>
+            <p className="text-muted-foreground">
+              No processes found. Create a new process to get started.
+            </p>
           )}
         </CardContent>
       </Card>
@@ -597,10 +601,7 @@ export function ProcessDetail() {
                 >
                   Cancel
                 </Button>
-                <Button
-                  type="submit"
-                  disabled={createProcessMutation.isPending}
-                >
+                <Button type="submit" disabled={createProcessMutation.isPending}>
                   {createProcessMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -775,10 +776,7 @@ export function ProcessDetail() {
                 >
                   Cancel
                 </Button>
-                <Button
-                  type="submit"
-                  disabled={updateProcessMutation.isPending}
-                >
+                <Button type="submit" disabled={updateProcessMutation.isPending}>
                   {updateProcessMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -802,13 +800,10 @@ export function ProcessDetail() {
           </DialogHeader>
           <div className="space-y-4">
             <p>
-              Are you sure you want to delete the process "{selectedProcess?.name}"?
-              This action cannot be undone.
+              Are you sure you want to delete the process "{selectedProcess?.name}"? This action cannot be undone.
             </p>
             <div className="space-y-2">
-              <Label htmlFor="confirm">
-                Type "{selectedProcess?.name}" to confirm deletion
-              </Label>
+              <Label htmlFor="confirm">Type "{selectedProcess?.name}" to confirm deletion</Label>
               <Input
                 id="confirm"
                 value={deleteConfirmation}
