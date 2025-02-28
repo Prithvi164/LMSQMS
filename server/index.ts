@@ -8,6 +8,17 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Development CSP headers
+if (process.env.NODE_ENV === 'development') {
+  app.use((req, res, next) => {
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: ws:"
+    );
+    next();
+  });
+}
+
 // Enhanced CORS configuration for Replit environment
 app.use((req, res, next) => {
   // Allow Replit domains and localhost
