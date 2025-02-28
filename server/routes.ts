@@ -957,6 +957,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add LOB update and delete routes
+  app.patch("/api/organizations/:id/line-of-businesses/:lobId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.id);
+      const lobId = parseInt(req.params.lobId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only modify LOBs in your own organization" });
+      }
+
+      console.log('Updating LOB:', lobId, 'with data:', req.body);
+      const updatedLob = await storage.updateLineOfBusiness(lobId, {
+        ...req.body,
+        organizationId: orgId, // Ensure we keep the correct organization ID
+      });
+
+      res.json(updatedLob);
+    } catch (error: any) {
+      console.error("LOB update error:", error);
+      res.status(400).json({ message: error.message || "Failed to update Line of Business" });
+    }
+  });
+
+  // Delete LOB route
+  app.delete("/api/organizations/:id/line-of-businesses/:lobId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.id);
+      const lobId = parseInt(req.params.lobId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only delete LOBs in your own organization" });
+      }
+
+      console.log('Deleting LOB:', lobId);
+      await storage.deleteLineOfBusiness(lobId);
+
+      res.json({ message: "Line of Business deleted successfully" });
+    } catch (error: any) {
+      console.error("LOB deletion error:", error);
+      res.status(400).json({ message: error.message || "Failed to delete Line of Business" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

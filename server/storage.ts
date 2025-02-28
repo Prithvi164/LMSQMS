@@ -460,27 +460,75 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateLineOfBusiness(id: number, lob: Partial<InsertOrganizationLineOfBusiness>): Promise<OrganizationLineOfBusiness> {
-    const [updatedLob] = await db
-      .update(organizationLineOfBusinesses)
-      .set(lob)
-      .where(eq(organizationLineOfBusinesses.id, id))
-      .returning() as OrganizationLineOfBusiness[];
+    try {
+      console.log(`Updating Line of Business with ID: ${id}`, lob);
 
-    if (!updatedLob) {
-      throw new Error('Line of Business not found');
+      // Check if name is being updated and if it would conflict
+      if (lob.name) {
+        const nameExists = await db
+          .select()
+          .from(organizationLineOfBusinesses)
+          .where(eq(organizationLineOfBusinesses.organizationId, lob.organizationId))
+          .where(eq(organizationLineOfBusinesses.name, lob.name))
+          .then(results => results.some(l => l.id !== id));
+
+        if (nameExists) {
+          throw new Error('A Line of Business with this name already exists in this organization');
+        }
+      }
+
+      const [updatedLob] = await db
+        .update(organizationLineOfBusinesses)
+        .set({
+          ...lob,
+          // Ensure we're not overwriting these fields unintentionally
+          id: undefined,
+          createdAt: undefined,
+        })
+        .where(eq(organizationLineOfBusinesses.id, id))
+        .returning() as OrganizationLineOfBusiness[];
+
+      if (!updatedLob) {
+        throw new Error('Line of Business not found');
+      }
+
+      console.log('Successfully updated Line of Business:', updatedLob);
+      return updatedLob;
+    } catch (error) {
+      console.error('Error updating Line of Business:', error);
+      throw error;
     }
-
-    return updatedLob;
   }
 
   async deleteLineOfBusiness(id: number): Promise<void> {
     try {
-      await db
-        .delete(organizationLineOfBusinesses)
-        .where(eq(organizationLineOfBusinesses.id, id));
+      console.log(`Attempting to delete Line of Business with ID: ${id}`);
+
+      // Use a transaction to ensure data consistency
+      await db.transaction(async (tx) => {
+        // First update all processes that reference this LOB
+        await tx
+          .update(organizationProcesses)
+          .set({ lineOfBusinessId: null })
+          .where(eq(organizationProcesses.lineOfBusinessId, id));
+
+        console.log(`Updated processes' LOB references to null`);
+
+        // Then delete the LOB
+        const result = await tx
+          .delete(organizationLineOfBusinesses)
+          .where(eq(organizationLineOfBusinesses.id, id))
+          .returning();
+
+        if (!result.length) {
+          throw new Error('Line of Business not found or deletion failed');
+        }
+
+        console.log(`Successfully deleted Line of Business with ID: ${id}`);
+      });
     } catch (error) {
       console.error('Error deleting Line of Business:', error);
-      throw new Error('Failed to delete Line of Business');
+      throw error;
     }
   }
 
