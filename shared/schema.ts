@@ -3,8 +3,8 @@ import { createInsertSchema } from "drizzle-zod";
 import { relations, type InferSelectModel } from "drizzle-orm";
 import { z } from "zod";
 
-// Add new user category enum
-export const userCategoryEnum = pgEnum('user_category', ['active', 'trainee']);
+// Define enums
+export const userCategoryTypeEnum = pgEnum('user_category_type', ['active', 'trainee']);
 
 // Role enum and permission enum remain unchanged
 export const roleEnum = pgEnum('role', [
@@ -124,7 +124,7 @@ export const organizationLineOfBusinesses = pgTable("organization_line_of_busine
 
 export type OrganizationLineOfBusiness = InferSelectModel<typeof organizationLineOfBusinesses>;
 
-// Users table - ensure username is unique
+// Users table - update to include category
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
@@ -132,7 +132,7 @@ export const users = pgTable("users", {
   fullName: text("full_name"),
   employeeId: text("employee_id"),
   role: roleEnum("role").notNull(),
-  category: userCategoryEnum("category").notNull().default('trainee'),
+  category: userCategoryTypeEnum("category").default('trainee').notNull(),
   locationId: integer("location_id").references(() => organizationLocations.id),
   email: text("email").notNull(),
   education: text("education"),
@@ -509,6 +509,7 @@ export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organiz
 export type InsertOrganizationLineOfBusiness = z.infer<typeof insertOrganizationLineOfBusinessSchema>;
 
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({ id: true, createdAt: true });
+// Update the insert schema for users
 export const insertUserSchema = createInsertSchema(users)
   .omit({ id: true, createdAt: true })
   .extend({
