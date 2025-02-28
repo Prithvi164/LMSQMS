@@ -1,6 +1,11 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import { serveStatic, log } from "./vite";
+import path from "path";
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -43,11 +48,13 @@ app.use((req, res, next) => {
     res.status(500).json({ message: err.message || 'Internal Server Error' });
   });
 
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
+  // Serve static files from the client directory
+  app.use(express.static(path.join(__dirname, '../client')));
+
+  // Handle client-side routing by serving index.html for all unmatched routes
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(__dirname, '../client/index.html'));
+  });
 
   const port = 5000;
   server.listen({
