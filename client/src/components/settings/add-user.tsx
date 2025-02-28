@@ -35,7 +35,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     fullName: "",
     employeeId: "",
     role: "trainee",
-    category: "", 
+    category: "",
     email: "",
     phoneNumber: "",
     education: "",
@@ -114,13 +114,25 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
           throw new Error("Please select a category (Active or Trainee)");
         }
 
+        // Properly handle locationId
+        let locationId = null;
+        if (data.locationId !== "none") {
+          const locationExists = locations.some(l => l.id.toString() === data.locationId);
+          if (!locationExists) {
+            throw new Error("Selected location is invalid");
+          }
+          locationId = Number(data.locationId);
+        }
+
         const payload = {
           ...data,
           managerId: data.managerId === "none" ? null : Number(data.managerId),
-          locationId: data.locationId === "none" ? null : Number(data.locationId),
+          locationId,
           organizationId: organization?.id || null,
           processes: data.processes,
         };
+
+        console.log('Creating user with payload:', payload);
 
         const response = await apiRequest("POST", "/api/users", payload);
         if (!response.ok) {
@@ -144,7 +156,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         fullName: "",
         employeeId: "",
         role: "trainee",
-        category: "", 
+        category: "",
         email: "",
         phoneNumber: "",
         education: "",
