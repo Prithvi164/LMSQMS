@@ -447,6 +447,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
+
   // Permissions routes
   app.get("/api/permissions", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
@@ -564,14 +565,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Parse CSV content
       const csvContent = req.file.buffer.toString('utf-8');
-      const rows = csvContent.split('\n').map(line =>
-        line.split(',').map(cell => cell.trim().replace(/^"|"$/g, '')) // Remove quotes
-      );
+      const rows = csvContent.split('\n')
+        .map(line => line.split(',')
+          .map(cell => cell.trim().replace(/^"|"$/g, '')) // Remove quotes
+        )
+        .filter(row => row.some(cell => cell)); // Filter out empty rows
 
-      const headers = rows[0].map(h => h.trim().replace(/[\r\n*]/g, ''));
+      const headers = rows[0].map(h => h.trim().toLowerCase().replace(/[\r\n*]/g, ''));
       console.log('Processing file with headers:', headers);
 
-      // Process data rows (skip header)
+      // Track results
       const results = {
         success: 0,
         failures: [] as { row: number; error: string }[]
@@ -583,29 +586,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         storage.listLocations(req.user.organizationId),
       ]);
 
-      // Process each row
-      for (let i = 1; i < rows.length; i++) {
-        const row = rows[i];
-        if (!row.length || row.every(cell => !cell)) continue; // Skip empty rows
+      console.log('Available processes:', processes.map(p => p.name));
+      console.log('Available locations:', locations.map(l => l.name));
 
+      // Process each row (skip header)
+      for (let i = 1; i < rows.length; i++) {
         try {
-          const userData: Record<string, string> = {};
+          const row = rows[i];
+          if (!row.length || row.every(cell => !cell)) continue; // Skip empty rows
+
+          // Create a normalized mapping of the data
+          const userData: Record<string, any> = {};
           headers.forEach((header, index) => {
-            const fieldName = header.toLowerCase()
-              .replace(/\s+/g, '')
-              .replace(/[*]/g, '');
-            userData[fieldName] = row[index]?.trim() || '';
+            userData[header] = row[index]?.trim() || '';
           });
 
           // Validate required fields
-          if (!userData.username) throw new Error('Username is required');
-          if (!userData.password) throw new Error('Password is required');
-          if (!userData.fullname) throw new Error('Full Name is required');
-          if (!userData.employeeid) throw new Error('Employee ID is required');
-          if (!userData.email) throw new Error('Email is required');
-          if (!userData.role) throw new Error('Role is required');
-          if (!userData.category) throw new Error('Category is required');
-          if (!userData.phonenumber) throw new Error('Phone Number is required');
+          const requiredFields = ['username', 'password', 'fullname', 'employeeid', 'role', 'category', 'email', 'phonenumber'];
+          for (const field of requiredFields) {
+            if (!userData[field]) {
+              throw new Error(`${field.charAt(0).toUpperCase() + field.slice(1)} is required`);
+            }
+          }
 
           // Check username uniqueness
           const existingUser = await storage.getUserByUsername(userData.username);
@@ -626,7 +628,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Find location if specified
           let locationId: number | null = null;
           if (userData.location) {
-            const location = locations.find(l =>
+            const location = locations.find(l => 
               l.name.toLowerCase() === userData.location.toLowerCase()
             );
             if (!location) {
@@ -638,9 +640,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Convert process names to IDs
           const processIds: number[] = [];
           if (userData.processnames) {
-            const processNames = userData.processnames.split(',').map(name => name.trim());
+            const processNames = userData.processnames.split(',')
+              .map(name => name.trim())
+              .filter(name => name); // Filter out empty names
+
+            console.log('Processing process names:', processNames);
+
             for (const name of processNames) {
-              const process = processes.find(p => p.name.toLowerCase() === name.toLowerCase());
+              const process = processes.find(p => 
+                p.name.toLowerCase() === name.toLowerCase()
+              );
               if (!process) {
                 throw new Error(`Process not found: ${name}`);
               }
@@ -670,10 +679,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             active: true
           };
 
-          console.log('Creating user with processes:', { ...userToCreate, password: '[REDACTED]', processIds });
-          await storage.createUserWithProcesses(userToCreate, processIds, req.user.organizationId);
-          console.log('User created successfully');
+          console.log('Creating user with data:', {
+            ...userToCreate,
+            password: '[REDACTED]',
+            processIds
+          });
+
+          const result = await storage.createUserWithProcesses(
+            userToCreate,
+            processIds,
+            req.user.organizationId
+          );
+
+          console.log('User created successfully:', result);
           results.success++;
+
         } catch (error: any) {
           console.error(`Row ${i} processing error:`, error);
           results.failures.push({
@@ -683,7 +703,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      console.log('Upload results:', results);
       res.json(results);
+
     } catch (error: any) {
       console.error('File upload error:', error);
       res.status(400).json({
@@ -838,7 +860,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const orgId = parseInt(req.params.id);
-if (!orgId) {
+      if (!orgId) {
         console.log('Invalid organization ID provided');
         return res.status(400).json({ message: "Invalid organization ID" });
       }
