@@ -502,7 +502,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Template download route - updated to exclude LOB and Process fields
+  // Template download route - updated to include process information
   app.get("/api/users/template", (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -513,13 +513,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'FullName*',
       'EmployeeID*',
       'Role*',
+      'Category*',
       'Email*',
       'PhoneNumber*',
       'Location',
       'ManagerUsername',
       'DateOfJoining',
       'DateOfBirth',
-      'Education'
+      'Education',
+      'ProcessIDs'  // Added ProcessIDs column
     ].join(',');
 
     const example = [
@@ -528,13 +530,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'John Doe',
       'EMP001',
       'trainee',
+      'trainee',
       'john@example.com',
       '1234567890',
       'New York',
       'manager.username',
       '2023-01-01',
       '1990-01-01',
-      'Bachelors'
+      'Bachelors',
+      '1,2,3'  // Example process IDs
     ].join(',');
 
     const validRoles = [
@@ -555,7 +559,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       '6. Dates must be in YYYY-MM-DD format (e.g., 2023-01-01)',
       '7. ManagerUsername is optional - leave blank if no manager',
       '8. Location must match existing values in your organization',
-      '9. Process assignments will be handled through the user interface'
+      '9. ProcessIDs should be comma-separated process IDs (e.g., 1,2,3)',
+      '10. Category must be either "active" or "trainee"'
     ].join('\n');
 
     const csvContent = headers + '\n' + example + instructions;
@@ -565,7 +570,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.send(csvContent);
   });
 
-  // CSV upload route with LOB and Process handling
+  // CSV upload route with process handling
   app.post("/api/users/upload", upload.single('file'), async (req, res) => {
     try {
       if (!req.user) {
@@ -614,13 +619,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             userData[fieldName] = values[index];
           });
 
-          // Basic validation (same as before)
+          // Basic validation
           if (!userData.username) throw new Error('Username is required');
           if (!userData.password) throw new Error('Password is required');
           if (!userData.fullname) throw new Error('Full Name is required');
           if (!userData.employeeid) throw new Error('Employee ID is required');
           if (!userData.email) throw new Error('Email is required');
           if (!userData.role) throw new Error('Role is required');
+          if (!userData.category) throw new Error('Category is required');
           if (!userData.phonenumber) throw new Error('Phone Number is required');
 
           // Check username uniqueness
@@ -628,7 +634,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (existingUser) {
             throw new Error(`Username '${userData.username}' already exists`);
           }
-
 
           // Find manager if specified
           let managerId: number | null = null;
@@ -653,6 +658,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             locationId = location.id;
           }
 
+          // Parse process IDs
+          const processIds: number[] = [];
+          if (userData.processids) {
+            const ids = userData.processids.split(',').map(id => id.trim());
+            for (const id of ids) {
+              const processId = parseInt(id);
+              if (isNaN(processId)) {
+                throw new Error(`Invalid process ID: ${id}`);
+              }
+              processIds.push(processId);
+            }
+          }
+
           // Format dates properly
           const dateOfJoining = userData.dateofjoining ? new Date(userData.dateofjoining).toISOString().split('T')[0] : null;
           const dateOfBirth = userData.dateofbirth ? new Date(userData.dateofbirth).toISOString().split('T')[0] : null;
@@ -660,13 +678,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Hash the password
           const hashedPassword = await hashPassword(userData.password);
 
-          // Create user with validated data
+          // Create user with validated data using createUserWithProcesses
           const userToCreate = {
             username: userData.username,
             password: hashedPassword,
             fullName: userData.fullname,
             employeeId: userData.employeeid,
             role: userData.role.toLowerCase(),
+            category: userData.category.toLowerCase(),
             email: userData.email,
             phoneNumber: userData.phonenumber,
             dateOfJoining,
@@ -676,11 +695,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             managerId,
             locationId,
             active: true,
-            processIds: [] // Initialize as empty array
           };
 
-          console.log('Creating user:', { ...userToCreate, password: '[REDACTED]' });
-          await storage.createUser(userToCreate);
+          console.log('Creating user with processes:', { ...userToCreate, password: '[REDACTED]', processIds });
+          await storage.createUserWithProcesses(userToCreate, processIds, req.user.organizationId);
           console.log('User created successfully');
           results.success++;
         } catch (error: any) {
@@ -842,7 +860,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       if (!req.user) {
-        console.log('Unauthorized attempt to create line of business');
+        console.log('Unauthorized attempt to create line ofbusiness');
         return res.status(401).json({ message: "Unauthorized" });
       }
 
@@ -852,7 +870,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid organization ID" });
       }
 
-      // Check if user belongs to the organization
+      // Check if user belongs to theorganization
       if (req.user.organizationId !== orgId) {
         console.log(`User ${req.user.id} attempted to create LOB in organization ${orgId}`);
         return res.status(403).json({ message: "You can only create LOBs in your own organization" });
