@@ -17,7 +17,7 @@ import { OrganizationTree } from "@/components/settings/organization-tree";
 type SettingsTab = "profile" | "users" | "permissions" | "organization-tree";
 type UsersSubTab = "add" | "manage";
 
-export default function Settings() {
+export default function Settings(): React.JSX.Element {
   const { user } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
@@ -33,6 +33,11 @@ export default function Settings() {
     enabled: !!user,
   });
 
+  // If user is not authenticated, return a placeholder element instead of null
+  if (!user) {
+    return <div className="min-h-screen bg-background" />;
+  }
+
   // Filter potential managers based on user's role
   const potentialManagers = users.filter(u => {
     if (user?.role === "admin") {
@@ -42,7 +47,6 @@ export default function Settings() {
     }
   });
 
-  if (!user) return null;
 
   const NavTab = ({
     active,

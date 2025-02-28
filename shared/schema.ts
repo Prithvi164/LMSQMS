@@ -542,3 +542,29 @@ export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
 export type InsertCourse = z.infer<typeof insertCourseSchema>;
 export type InsertLearningPath = z.infer<typeof insertLearningPathSchema>;
 export type InsertUserProgress = z.infer<typeof insertUserProgressSchema>;
+
+// Export specific types for frontend usage
+export type Course = typeof courses.$inferSelect;
+export type LearningPath = typeof learningPaths.$inferSelect;
+export type UserProgress = typeof userProgress.$inferSelect;
+
+export type {
+  Organization,
+  OrganizationProcess,
+  OrganizationLocation,
+  OrganizationLineOfBusiness,
+  User,
+  UserProcess,
+  UserBatch,
+  OrganizationBatch,
+  RolePermission,
+  InsertUser,
+  InsertOrganization,
+  InsertCourse,
+  InsertLearningPath,
+  InsertUserProgress,
+  InsertUserWithProcesses,
+  InsertOrganizationProcess,
+  InsertOrganizationBatch,
+  InsertRolePermission
+};
