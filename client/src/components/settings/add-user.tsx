@@ -55,6 +55,28 @@ export function AddUser({
     enabled: !!organization?.id && !['owner', 'admin'].includes(newUserData.role),
   });
 
+  // Get filtered managers based on role
+  const getFilteredManagers = (selectedRole: string) => {
+    if (!potentialManagers) return [];
+
+    switch (selectedRole) {
+      case "admin":
+        return potentialManagers.filter(m => m.role === "owner");
+      case "manager":
+        return potentialManagers.filter(m => ["owner", "admin"].includes(m.role));
+      case "team_lead":
+        return potentialManagers.filter(m => ["owner", "admin", "manager"].includes(m.role));
+      case "trainer":
+        return potentialManagers.filter(m => ["owner", "admin", "manager", "team_lead"].includes(m.role));
+      case "trainee":
+        return potentialManagers.filter(m => ["owner", "admin", "manager", "team_lead", "trainer"].includes(m.role));
+      case "advisor":
+        return potentialManagers.filter(m => ["owner", "admin", "manager", "team_lead"].includes(m.role));
+      default:
+        return [];
+    }
+  };
+
   const createUserMutation = useMutation({
     mutationFn: async (data: typeof newUserData) => {
       try {
@@ -417,24 +439,3 @@ export function AddUser({
     </Card>
   );
 }
-
-const getFilteredManagers = (selectedRole: string) => {
-  if (!potentialManagers) return [];
-
-  switch (selectedRole) {
-    case "admin":
-      return potentialManagers.filter(m => m.role === "owner");
-    case "manager":
-      return potentialManagers.filter(m => ["owner", "admin"].includes(m.role));
-    case "team_lead":
-      return potentialManagers.filter(m => ["owner", "admin", "manager"].includes(m.role));
-    case "trainer":
-      return potentialManagers.filter(m => ["owner", "admin", "manager", "team_lead"].includes(m.role));
-    case "trainee":
-      return potentialManagers.filter(m => ["owner", "admin", "manager", "team_lead", "trainer"].includes(m.role));
-    case "advisor":
-      return potentialManagers.filter(m => ["owner", "admin", "manager", "team_lead"].includes(m.role));
-    default:
-      return [];
-  }
-};
