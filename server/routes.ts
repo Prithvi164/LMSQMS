@@ -24,9 +24,9 @@ const upload = multer({
       const ext = path.extname(file.originalname).toLowerCase();
       console.log('File extension:', ext);
 
-      if (ext !== '.xlsx') {
+      if (ext !== '.csv' && ext !== '.xlsx') {
         console.error('Invalid file type:', ext);
-        cb(new Error('Only Excel (.xlsx) files are allowed'));
+        cb(new Error('Only CSV (.csv) and Excel (.xlsx) files are allowed'));
         return;
       }
 
@@ -447,7 +447,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
-
   // Permissions routes
   app.get("/api/permissions", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
@@ -502,22 +501,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Template download route - updated to use semicolon separator
+  // Template download route - updated to use CSV format
   app.get("/api/users/template.csv", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
-    // Define headers with exact case matching for upload
+    // Define headers
     const headers = [
       'Username*', 'Password*', 'FullName*', 'EmployeeID*', 'Role*',
       'Category*', 'Email*', 'PhoneNumber*', 'ProcessNames*', 'Location',
       'ManagerUsername', 'DateOfJoining', 'DateOfBirth', 'Education'
     ];
 
-    // Example data row matching headers exactly
+    // Example data row matching headers
     const exampleData = [
       'john.doe', 'password123', 'John Doe', 'EMP001', 'trainee',
-      'trainee', 'john@example.com', '1234567890', 'Inbound Call Handling;Outbound', 'Noida',
-      'ajay1', '01-03-2025', '01-03-2025', 'Bachelors'
+      'trainee', 'john@example.com', '1234567890', 'Inbound Call Handling,Outbound', 'New York',
+      'manager.username', '01-01-2023', '01-01-1990', 'Bachelors'
     ];
 
     // Instructions
@@ -530,8 +529,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ['5. Email must be valid format'],
       ['6. Dates must be in DD-MM-YYYY format'],
       ['7. ManagerUsername is optional - leave blank if no manager'],
-      ['8. Location must match exactly with existing locations in your organization'],
-      ['9. ProcessNames: Use semicolon (;) to separate multiple processes (e.g., "Process1;Process2")'],
+      ['8. Location must match existing values in your organization'],
+      ['9. ProcessNames must be comma-separated process names (e.g., "Inbound Call Handling,Outbound")'],
       ['10. Category must be either "active" or "trainee"']
     ];
 
@@ -546,60 +545,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.send(csvContent);
   });
 
-  // Update template download route to provide Excel template
-  app.get("/api/users/template.xlsx", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    // Define headers
-    const headers = [
-      'Username*', 'Password*', 'FullName*', 'EmployeeID*', 'Role*',
-      'Category*', 'Email*', 'PhoneNumber*', 'ProcessNames*', 'Location',
-      'ManagerUsername', 'DateOfJoining', 'DateOfBirth', 'Education'
-    ];
-
-    // Example data
-    const exampleData = [
-      'john.doe', 'password123', 'John Doe', 'EMP001', 'trainee',
-      'trainee', 'john@example.com', '1234567890', 'Inbound Call Handling;Outbound', 'Noida',
-      'ajay1', '01-03-2025', '01-03-2025', 'Bachelors'
-    ];
-
-    // Create workbook
-    const XLSX = require('xlsx');
-    const wb = XLSX.utils.book_new();
-
-    // Create main sheet with headers and example
-    const mainData = [headers, exampleData];
-    const ws = XLSX.utils.aoa_to_sheet(mainData);
-
-    // Add instructions sheet
-    const instructions = [
-      ['Instructions:'],
-      ['1. Fields marked with * are mandatory'],
-      ['2. Role must be one of: trainee, trainer, manager, advisor, team_lead'],
-      ['3. Password must be at least 6 characters'],
-      ['4. Phone number must be 10 digits'],
-      ['5. Email must be valid format'],
-      ['6. Dates must be in DD-MM-YYYY format'],
-      ['7. ManagerUsername is optional - leave blank if no manager'],
-      ['8. Location must match exactly with existing locations in your organization'],
-      ['9. ProcessNames: Use semicolon (;) to separate multiple processes'],
-      ['10. Category must be either "active" or "trainee"']
-    ];
-    const wsInstructions = XLSX.utils.aoa_to_sheet(instructions);
-
-    // Add sheets to workbook
-    XLSX.utils.book_append_sheet(wb, ws, "Template");
-    XLSX.utils.book_append_sheet(wb, wsInstructions, "Instructions");
-
-    // Write to buffer and send
-    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename=user_upload_template.xlsx');
-    res.send(buffer);
-  });
-
-  // Update upload route to handle Excel files
+  // Update upload route to handle CSV files and process names
   app.post("/api/users/upload", upload.single('file'), async (req, res) => {
     try {
       if (!req.user) {
@@ -610,73 +556,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
-      // Parse Excel file
-      const XLSX = require('xlsx');
-      const workbook = XLSX.read(req.file.buffer);
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      // Verify file type
+      const ext = path.extname(req.file.originalname).toLowerCase();
+      if (ext !== '.csv') {
+        return res.status(400).json({ message: "Only CSV files are allowed" });
+      }
 
-      // Get headers (first row)
-      const headers = rows[0].map((h: string) => h.replace(/\*/g, '').trim());
+      // Parse CSV content
+      const csvContent = req.file.buffer.toString('utf-8');
+      const rows = csvContent.split('\n').map(line =>
+        line.split(',').map(cell => cell.trim().replace(/^"|"$/g, '')) // Remove quotes
+      );
+
+      const headers = rows[0].map(h => h.trim().replace(/[\r\n*]/g, ''));
       console.log('Processing file with headers:', headers);
 
-      // Define header mapping
-      const headerMapping = {
-        'Username': 'username',
-        'Password': 'password',
-        'FullName': 'fullName',
-        'EmployeeID': 'employeeId',
-        'Role': 'role',
-        'Category': 'category',
-        'Email': 'email',
-        'PhoneNumber': 'phoneNumber',
-        'ProcessNames': 'processNames',
-        'Location': 'location',
-        'ManagerUsername': 'managerUsername',
-        'DateOfJoining': 'dateOfJoining',
-        'DateOfBirth': 'dateOfBirth',
-        'Education': 'education'
-      };
-
-      // Track results
+      // Process data rows (skip header)
       const results = {
         success: 0,
         failures: [] as { row: number; error: string }[]
       };
 
-      // Fetch organization settings
+      // Fetch organization settings first
       const [processes, locations] = await Promise.all([
         storage.listProcesses(req.user.organizationId),
         storage.listLocations(req.user.organizationId),
       ]);
 
-      console.log('Available processes:', processes.map(p => ({ id: p.id, name: p.name })));
-      console.log('Available locations:', locations.map(l => ({ id: l.id, name: l.name })));
-
-      // Process each row (skip header)
+      // Process each row
       for (let i = 1; i < rows.length; i++) {
-        try {
-          const row = rows[i];
-          if (!row || row.length === 0) continue;
+        const row = rows[i];
+        if (!row.length || row.every(cell => !cell)) continue; // Skip empty rows
 
-          // Map the data using the header mapping
-          const userData: Record<string, any> = {};
-          headers.forEach((header: string, index: number) => {
-            const standardField = headerMapping[header];
-            if (standardField) {
-              userData[standardField] = row[index]?.toString().trim() || '';
-            }
+        try {
+          const userData: Record<string, string> = {};
+          headers.forEach((header, index) => {
+            const fieldName = header.toLowerCase()
+              .replace(/\s+/g, '')
+              .replace(/[*]/g, '');
+            userData[fieldName] = row[index]?.trim() || '';
           });
 
-          console.log(`Processing row ${i}:`, { ...userData, password: '[REDACTED]' });
-
           // Validate required fields
-          const requiredFields = ['username', 'password', 'fullName', 'employeeId', 'role', 'category', 'email', 'phoneNumber', 'processNames'];
-          for (const field of requiredFields) {
-            if (!userData[field]) {
-              throw new Error(`${field} is required`);
-            }
-          }
+          if (!userData.username) throw new Error('Username is required');
+          if (!userData.password) throw new Error('Password is required');
+          if (!userData.fullname) throw new Error('Full Name is required');
+          if (!userData.employeeid) throw new Error('Employee ID is required');
+          if (!userData.email) throw new Error('Email is required');
+          if (!userData.role) throw new Error('Role is required');
+          if (!userData.category) throw new Error('Category is required');
+          if (!userData.phonenumber) throw new Error('Phone Number is required');
 
           // Check username uniqueness
           const existingUser = await storage.getUserByUsername(userData.username);
@@ -686,10 +615,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Find manager if specified
           let managerId: number | null = null;
-          if (userData.managerUsername) {
-            const manager = await storage.getUserByUsername(userData.managerUsername);
+          if (userData.managerusername) {
+            const manager = await storage.getUserByUsername(userData.managerusername);
             if (!manager) {
-              throw new Error(`Manager not found: ${userData.managerUsername}`);
+              throw new Error(`Manager not found: ${userData.managerusername}`);
             }
             managerId = manager.id;
           }
@@ -698,37 +627,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           let locationId: number | null = null;
           if (userData.location) {
             const location = locations.find(l =>
-              l.name.toLowerCase().trim() === userData.location.toLowerCase().trim()
+              l.name.toLowerCase() === userData.location.toLowerCase()
             );
             if (!location) {
-              throw new Error(`Location not found: ${userData.location}. Available locations: ${locations.map(l => l.name).join(', ')}`);
+              throw new Error(`Location not found: ${userData.location}`);
             }
             locationId = location.id;
           }
 
-          // Process the process names field using semicolon separator
+          // Convert process names to IDs
           const processIds: number[] = [];
-          if (userData.processNames) {
-            const processNames = userData.processNames
-              .split(';')
-              .map(name => name.trim())
-              .filter(name => name.length > 0);
-
-            console.log(`Processing processes for user ${userData.username}:`, processNames);
-
+          if (userData.processnames) {
+            const processNames = userData.processnames.split(',').map(name => name.trim());
             for (const name of processNames) {
-              const normalizedName = name.toLowerCase().trim();
-              const process = processes.find(p =>
-                p.name.toLowerCase().trim() === normalizedName
-              );
-
+              const process = processes.find(p => p.name.toLowerCase() === name.toLowerCase());
               if (!process) {
-                throw new Error(`Process not found: "${name}". Available processes: ${processes.map(p => p.name).join(', ')}`);
+                throw new Error(`Process not found: ${name}`);
               }
               processIds.push(process.id);
             }
-
-            console.log(`Matched process IDs:`, processIds);
           }
 
           // Hash the password
@@ -738,14 +655,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const userToCreate = {
             username: userData.username,
             password: hashedPassword,
-            fullName: userData.fullName,
-            employeeId: userData.employeeId,
+            fullName: userData.fullname,
+            employeeId: userData.employeeid,
             role: userData.role.toLowerCase(),
             category: userData.category.toLowerCase(),
             email: userData.email,
-            phoneNumber: userData.phoneNumber,
-            dateOfJoining: userData.dateOfJoining || null,
-            dateOfBirth: userData.dateOfBirth || null,
+            phoneNumber: userData.phonenumber,
+            dateOfJoining: userData.dateofjoining || null,
+            dateOfBirth: userData.dateofbirth || null,
             education: userData.education || null,
             organizationId: req.user.organizationId,
             managerId,
@@ -753,49 +670,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             active: true
           };
 
-          console.log('Creating user with data:', {
-            ...userToCreate,
-            password: '[REDACTED]',
-            processIds,
-            processNames: processes
-              .filter(p => processIds.includes(p.id))
-              .map(p => p.name)
-          });
-
-          const result = await storage.createUserWithProcesses(
-            userToCreate,
-            processIds,
-            req.user.organizationId
-          );
-
-          if (!result || !result.user) {
-            throw new Error('Failed to create user');
-          }
-
-          console.log('User created successfully:', {
-            userId: result.user.id,
-            username: result.user.username,
-            processCount: result.processes.length,
-            processes: result.processes.map(p => ({
-              processId: p.processId,
-              processName: processes.find(proc => proc.id === p.processId)?.name
-            }))
-          });
-
+          console.log('Creating user with processes:', { ...userToCreate, password: '[REDACTED]', processIds });
+          await storage.createUserWithProcesses(userToCreate, processIds, req.user.organizationId);
+          console.log('User created successfully');
           results.success++;
-
         } catch (error: any) {
           console.error(`Row ${i} processing error:`, error);
           results.failures.push({
-            row: i + 1, // Add 1 to match Excel row numbers
+            row: i,
             error: error.message || 'Unknown error occurred'
           });
         }
       }
 
-      console.log('Upload results:', results);
       res.json(results);
-
     } catch (error: any) {
       console.error('File upload error:', error);
       res.status(400).json({
@@ -848,7 +736,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
-        return        return res.status(403).json({ message: "You can only view locations in your own organization" });
+        return res.status(403).json({ message: "You can only view locations in your own organization" });
       }
 
       const locations = await storage.listLocations(orgId);
@@ -893,13 +781,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteUser(userId);
 
       console.log(`User ${userId} deleted successfully`);
-      res.status(200).json({ message: "User deleted successfully"});
+      res.status(200).json({ message: "User deleted successfully" });
     } catch (error: any) {
-      console.error("Error deleting user:", error);
-      res.status(500).json({ message: error.message });
+      console.error("Error in delete user route:", error);
+      res.status(500).json({ message: error.message || "Failed to delete user" });
     }
   });
-  // Route to get user processes  app.get("/api/users/:id/processes", async (req, res) => {
+
+  // Route to get user processes
   app.get("/api/users/:id/processes", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -949,7 +838,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const orgId = parseInt(req.params.id);
-      if (!orgId) {
+if (!orgId) {
         console.log('Invalid organization ID provided');
         return res.status(400).json({ message: "Invalid organization ID" });
       }

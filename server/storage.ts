@@ -664,13 +664,6 @@ export class DatabaseStorage implements IStorage {
     organizationId: number
   ): Promise<{ user: User; processes: UserProcess[] }> {
     try {
-      console.log('Starting createUserWithProcesses with:', {
-        ...user,
-        password: '[REDACTED]',
-        processIds,
-        organizationId
-      });
-
       // Start a transaction to ensure both user and process assignments succeed or fail together
       return await db.transaction(async (tx) => {
         // Create the user first
@@ -679,15 +672,8 @@ export class DatabaseStorage implements IStorage {
           .values(user)
           .returning() as User[];
 
-        console.log('User created successfully:', {
-          userId: newUser.id,
-          username: newUser.username,
-          role: newUser.role
-        });
-
         // If no processes needed (for admin/owner roles) or no processes specified
         if (!processIds?.length || user.role === 'admin' || user.role === 'owner') {
-          console.log('No processes to assign for user:', newUser.id);
           return { user: newUser, processes: [] };
         }
 
@@ -699,17 +685,10 @@ export class DatabaseStorage implements IStorage {
           status: 'assigned'
         }));
 
-        console.log('Creating process assignments:', processAssignments);
-
         const assignedProcesses = await tx
           .insert(userProcesses)
           .values(processAssignments)
           .returning() as UserProcess[];
-
-        console.log('Process assignments created:', assignedProcesses.map(p => ({
-          userId: p.userId,
-          processId: p.processId
-        })));
 
         return {
           user: newUser,
