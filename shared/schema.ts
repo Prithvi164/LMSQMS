@@ -139,6 +139,7 @@ export const users = pgTable("users", {
   dateOfJoining: date("date_of_joining"),
   phoneNumber: text("phone_number"),
   dateOfBirth: date("date_of_birth"),
+  lastWorkingDay: date("last_working_day"),
   organizationId: integer("organization_id")
     .references(() => organizations.id),
   managerId: integer("manager_id")
@@ -519,6 +520,7 @@ export const insertUserSchema = createInsertSchema(users)
     phoneNumber: z.string().regex(/^\d{10}$/, "Phone number must be 10 digits"),
     dateOfJoining: z.string().optional(),
     dateOfBirth: z.string().optional(),
+    lastWorkingDay: z.string().optional(),
     education: z.string().optional(),
     certified: z.boolean().default(false),
     active: z.boolean().default(true),
