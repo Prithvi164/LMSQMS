@@ -35,6 +35,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     fullName: "",
     employeeId: "",
     role: "trainee",
+    category: "", 
     email: "",
     phoneNumber: "",
     education: "",
@@ -109,6 +110,10 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
   const createUserMutation = useMutation({
     mutationFn: async (data: typeof newUserData) => {
       try {
+        if (!data.category) {
+          throw new Error("Please select a category (Active or Trainee)");
+        }
+
         const payload = {
           ...data,
           managerId: data.managerId === "none" ? null : Number(data.managerId),
@@ -139,6 +144,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         fullName: "",
         employeeId: "",
         role: "trainee",
+        category: "", 
         email: "",
         phoneNumber: "",
         education: "",
@@ -613,6 +619,24 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                 }))}
               />
             </div>
+          </div>
+
+          <div>
+            <Label htmlFor="category">Category</Label>
+            <select
+              id="category"
+              className="w-full rounded-md border border-input bg-background px-3 py-2"
+              value={newUserData.category}
+              onChange={(e) => setNewUserData(prev => ({
+                ...prev,
+                category: e.target.value
+              }))}
+              required
+            >
+              <option value="">Select category</option>
+              <option value="active">Active</option>
+              <option value="trainee">Trainee</option>
+            </select>
           </div>
 
           <Button
