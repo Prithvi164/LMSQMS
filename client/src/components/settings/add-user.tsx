@@ -10,8 +10,6 @@ import type { User, Organization, OrganizationLocation, OrganizationProcess } fr
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface AddUserProps {
   users: User[];
@@ -131,14 +129,6 @@ export function AddUser({
     },
   });
 
-  // Handle process selection
-  const handleProcessChange = (processIds: string[]) => {
-    setNewUserData(prev => ({
-      ...prev,
-      processes: processIds.map(id => parseInt(id))
-    }));
-  };
-
   if (!organization || isLoadingSettings || isLoadingProcesses) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -202,7 +192,7 @@ export function AddUser({
             }}
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Username field */}
+              {/* Basic fields */}
               <div>
                 <Label htmlFor="username">Username</Label>
                 <Input
@@ -216,7 +206,6 @@ export function AddUser({
                 />
               </div>
 
-              {/* Full Name field */}
               <div>
                 <Label htmlFor="fullName">Full Name</Label>
                 <Input
@@ -230,7 +219,6 @@ export function AddUser({
                 />
               </div>
 
-              {/* Email field */}
               <div>
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -245,7 +233,6 @@ export function AddUser({
                 />
               </div>
 
-              {/* Manager Select */}
               <div>
                 <Label htmlFor="managerId">Reporting Manager</Label>
                 <Select
@@ -271,7 +258,6 @@ export function AddUser({
                 </Select>
               </div>
 
-              {/* Role Select */}
               <div>
                 <Label htmlFor="role">Role</Label>
                 <Select
@@ -317,22 +303,26 @@ export function AddUser({
               {!['owner', 'admin'].includes(newUserData.role) && (
                 <div className="col-span-2">
                   <Label>Assigned Processes</Label>
-                  <Select
-                    value={newUserData.processes.map(String)}
-                    onValueChange={handleProcessChange}
-                    multiple
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select processes" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {processes.map((process) => (
-                        <SelectItem key={process.id} value={process.id.toString()}>
-                          {process.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex flex-wrap gap-2">
+                    {processes.map((process) => (
+                      <Button
+                        key={process.id}
+                        type="button"
+                        variant={newUserData.processes.includes(process.id) ? "default" : "outline"}
+                        onClick={() => {
+                          setNewUserData(prev => ({
+                            ...prev,
+                            processes: prev.processes.includes(process.id)
+                              ? prev.processes.filter(id => id !== process.id)
+                              : [...prev.processes, process.id]
+                          }));
+                        }}
+                        className="text-sm"
+                      >
+                        {process.name}
+                      </Button>
+                    ))}
+                  </div>
                   {processes.length === 0 && (
                     <p className="text-sm text-muted-foreground mt-1">
                       No processes available for assignment
@@ -341,7 +331,7 @@ export function AddUser({
                 </div>
               )}
 
-              {/* Other fields remain unchanged */}
+              {/* Other fields */}
               <div>
                 <Label htmlFor="locationId">Location</Label>
                 <Select
