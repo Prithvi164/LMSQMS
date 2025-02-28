@@ -1,18 +1,16 @@
-import { useState } from "react";
+import { Route } from "wouter";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./lib/queryClient";
+import { Toaster } from "@/components/ui/toaster";
 
 function App() {
-  const [count, setCount] = useState(0);
-
   return (
-    <div className="min-h-screen bg-background p-8">
-      <h1 className="text-2xl font-bold mb-4">LMS Application</h1>
-      <button 
-        className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-        onClick={() => setCount(count + 1)}
-      >
-        Count: {count}
-      </button>
-    </div>
+    <QueryClientProvider client={queryClient}>
+      <div className="min-h-screen bg-background">
+        <h1 className="text-2xl font-bold p-4">LMS Application</h1>
+        <Toaster />
+      </div>
+    </QueryClientProvider>
   );
 }
 
