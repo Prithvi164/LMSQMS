@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Check, X } from "lucide-react";
+import { Check, X, Loader2 } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
@@ -20,12 +20,7 @@ interface AddUserProps {
   potentialManagers: User[];
 }
 
-export function AddUser({
-  users,
-  user,
-  organization,
-  potentialManagers,
-}: AddUserProps) {
+export function AddUser({ users, user, organization, potentialManagers }: AddUserProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedLOBs, setSelectedLOBs] = useState<number[]>([]);
@@ -47,7 +42,7 @@ export function AddUser({
     processes: [] as number[],
   });
 
-  // Fetch Line of Businesses with caching configuration
+  // Fetch Line of Businesses with optimized caching
   const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery<OrganizationLineOfBusiness[]>({
     queryKey: [`/api/organizations/${organization?.id}/line-of-businesses`],
     enabled: !!organization?.id,
@@ -63,14 +58,13 @@ export function AddUser({
     }
   });
 
-  // Fetch processes for all selected LOBs
-  const { data: processesData = [], isLoading: isLoadingProcesses } = useQuery<OrganizationProcess[]>({
+  // Fetch processes with optimized caching and filtering
+  const { data: processes = [], isLoading: isLoadingProcesses } = useQuery<OrganizationProcess[]>({
     queryKey: [`/api/organizations/${organization?.id}/processes`],
     enabled: !!organization?.id && !['owner', 'admin'].includes(newUserData.role) && selectedLOBs.length > 0,
     staleTime: 5 * 60 * 1000,
     cacheTime: 30 * 60 * 1000,
     onError: (error: any) => {
-      console.error('Error fetching Processes:', error);
       toast({
         title: "Error",
         description: "Failed to load Process data. Please try again.",
@@ -79,12 +73,11 @@ export function AddUser({
     }
   });
 
-  // Get filtered processes based on all selected LOBs
-  const filteredProcesses = processesData.filter(process =>
+  // Filter processes based on selected LOBs - memoize if performance is still an issue
+  const filteredProcesses = processes.filter(process =>
     selectedLOBs.includes(process.lineOfBusinessId)
   );
 
-  // Clear Line of Business selections
   const clearLOBSelections = () => {
     setSelectedLOBs([]);
     setNewUserData(prev => ({
@@ -94,7 +87,6 @@ export function AddUser({
     setOpenLOB(false);
   };
 
-  // Get filtered managers based on role
   const getFilteredManagers = (selectedRole: string) => {
     if (!potentialManagers) return [];
     switch (selectedRole) {
@@ -181,10 +173,8 @@ export function AddUser({
           <CardDescription>Loading organization data...</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="animate-pulse space-y-4">
-            <div className="h-10 bg-gray-200 rounded"></div>
-            <div className="h-10 bg-gray-200 rounded"></div>
-            <div className="h-10 bg-gray-200 rounded"></div>
+          <div className="flex items-center justify-center p-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
           </div>
         </CardContent>
       </Card>
@@ -332,7 +322,6 @@ export function AddUser({
                                       : [...prev, lob.id];
                                     return newSelection;
                                   });
-                                  // Clear process selection when LOBs change
                                   setNewUserData(prev => ({
                                     ...prev,
                                     processes: []
@@ -356,13 +345,20 @@ export function AddUser({
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={clearLOBSelections}
+                        onClick={() => {
+                          setSelectedLOBs([]);
+                          setNewUserData(prev => ({
+                            ...prev,
+                            processes: []
+                          }));
+                        }}
                         title="Clear selections"
                       >
                         <X className="h-4 w-4" />
                       </Button>
                     )}
                   </div>
+                  {/* Show selected LOBs */}
                   {selectedLOBs.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
                       {selectedLOBs.map(lobId => {
@@ -393,15 +389,24 @@ export function AddUser({
                         className="w-full justify-between"
                         disabled={selectedLOBs.length === 0}
                       >
-                        {newUserData.processes.length > 0
-                          ? `${newUserData.processes.length} processes selected`
-                          : "Select processes"}
-                        <Check
-                          className={cn(
-                            "ml-2 h-4 w-4",
-                            newUserData.processes.length > 0 ? "opacity-100" : "opacity-0"
-                          )}
-                        />
+                        {isLoadingProcesses ? (
+                          <div className="flex items-center">
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Loading processes...
+                          </div>
+                        ) : (
+                          <>
+                            {newUserData.processes.length > 0
+                              ? `${newUserData.processes.length} processes selected`
+                              : "Select processes"}
+                            <Check
+                              className={cn(
+                                "ml-2 h-4 w-4",
+                                newUserData.processes.length > 0 ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                          </>
+                        )}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-full p-0">
@@ -437,20 +442,22 @@ export function AddUser({
                       </Command>
                     </PopoverContent>
                   </Popover>
+                  {/* Process selection guidance */}
                   {selectedLOBs.length === 0 && (
                     <p className="text-sm text-muted-foreground mt-1">
                       Please select at least one Line of Business first
                     </p>
                   )}
-                  {selectedLOBs.length > 0 && filteredProcesses.length === 0 && (
+                  {selectedLOBs.length > 0 && filteredProcesses.length === 0 && !isLoadingProcesses && (
                     <p className="text-sm text-muted-foreground mt-1">
                       No processes available for selected Line of Business
                     </p>
                   )}
+                  {/* Show selected processes */}
                   {newUserData.processes.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
                       {newUserData.processes.map(processId => {
-                        const process = processesData.find(p => p.id === processId);
+                        const process = processes.find(p => p.id === processId);
                         const lob = process ? lineOfBusinesses.find(l => l.id === process.lineOfBusinessId) : null;
                         return process ? (
                           <Badge
@@ -575,7 +582,14 @@ export function AddUser({
             className="w-full mt-6"
             disabled={createUserMutation.isPending}
           >
-            Create User
+            {createUserMutation.isPending ? (
+              <div className="flex items-center">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Creating User...
+              </div>
+            ) : (
+              "Create User"
+            )}
           </Button>
         </form>
       </CardContent>
