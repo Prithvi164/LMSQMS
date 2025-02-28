@@ -506,17 +506,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/users/template.csv", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
-    // Define headers
+    // Define headers with exact case matching for upload
     const headers = [
       'Username*', 'Password*', 'FullName*', 'EmployeeID*', 'Role*',
       'Category*', 'Email*', 'PhoneNumber*', 'ProcessNames*', 'Location',
       'ManagerUsername', 'DateOfJoining', 'DateOfBirth', 'Education'
     ];
 
-    // Example data row matching headers
+    // Example data row matching headers exactly
     const exampleData = [
       'john.doe', 'password123', 'John Doe', 'EMP001', 'trainee',
-      'trainee', 'john@example.com', '1234567890', 'Inbound Call Handling,Outbound', 'New York',
+      'trainee', 'john@example.com', '1234567890', 'Process Name 1,Process Name 2', 'New York',
       'manager.username', '01-01-2023', '01-01-1990', 'Bachelors'
     ];
 
@@ -531,7 +531,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ['6. Dates must be in DD-MM-YYYY format'],
       ['7. ManagerUsername is optional - leave blank if no manager'],
       ['8. Location must match existing values in your organization'],
-      ['9. ProcessNames must be comma-separated process names (e.g., "Inbound Call Handling,Outbound")'],
+      ['9. ProcessNames must be comma-separated process names (e.g., "Process Name 1,Process Name 2")'],
       ['10. Category must be either "active" or "trainee"']
     ];
 
@@ -567,12 +567,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const csvContent = req.file.buffer.toString('utf-8');
       const rows = csvContent.split('\n')
         .map(line => line.split(',')
-          .map(cell => cell.trim().replace(/^"|"$/g, '')) // Remove quotes
+          .map(cell => cell.trim().replace(/^"|"$/g, '')) // Remove quotes and trim
         )
         .filter(row => row.some(cell => cell)); // Filter out empty rows
 
-      const headers = rows[0].map(h => h.trim().toLowerCase().replace(/[\r\n*]/g, ''));
+      // Get headers and create a mapping to standardized field names
+      const headers = rows[0].map(h => h.trim().replace(/[\r\n*]/g, ''));
       console.log('Processing file with headers:', headers);
+
+      // Define header mapping to standardized field names
+      const headerMapping: { [key: string]: string } = {
+        'Username': 'username',
+        'Password': 'password',
+        'FullName': 'fullName',
+        'EmployeeID': 'employeeId',
+        'Role': 'role',
+        'Category': 'category',
+        'Email': 'email',
+        'PhoneNumber': 'phoneNumber',
+        'ProcessNames': 'processNames',
+        'Location': 'location',
+        'ManagerUsername': 'managerUsername',
+        'DateOfJoining': 'dateOfJoining',
+        'DateOfBirth': 'dateOfBirth',
+        'Education': 'education'
+      };
 
       // Track results
       const results = {
@@ -586,26 +605,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         storage.listLocations(req.user.organizationId),
       ]);
 
-      console.log('Available processes:', processes.map(p => p.name));
-      console.log('Available locations:', locations.map(l => l.name));
+      console.log('Available processes:', processes.map(p => ({ id: p.id, name: p.name })));
+      console.log('Available locations:', locations.map(l => ({ id: l.id, name: l.name })));
 
       // Process each row (skip header)
       for (let i = 1; i < rows.length; i++) {
         try {
           const row = rows[i];
-          if (!row.length || row.every(cell => !cell)) continue; // Skip empty rows
+          if (!row.length || row.every(cell => !cell)) continue;
 
-          // Create a normalized mapping of the data
+          // Map the data using the header mapping
           const userData: Record<string, any> = {};
           headers.forEach((header, index) => {
-            userData[header] = row[index]?.trim() || '';
+            const standardField = headerMapping[header] || header.toLowerCase();
+            userData[standardField] = row[index]?.trim() || '';
           });
 
+          console.log(`Processing row ${i}:`, { ...userData, password: '[REDACTED]' });
+
           // Validate required fields
-          const requiredFields = ['username', 'password', 'fullname', 'employeeid', 'role', 'category', 'email', 'phonenumber'];
+          const requiredFields = ['username', 'password', 'fullName', 'employeeId', 'role', 'category', 'email', 'phoneNumber'];
           for (const field of requiredFields) {
             if (!userData[field]) {
-              throw new Error(`${field.charAt(0).toUpperCase() + field.slice(1)} is required`);
+              throw new Error(`${field} is required`);
             }
           }
 
@@ -617,10 +639,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Find manager if specified
           let managerId: number | null = null;
-          if (userData.managerusername) {
-            const manager = await storage.getUserByUsername(userData.managerusername);
+          if (userData.managerUsername) {
+            const manager = await storage.getUserByUsername(userData.managerUsername);
             if (!manager) {
-              throw new Error(`Manager not found: ${userData.managerusername}`);
+              throw new Error(`Manager not found: ${userData.managerUsername}`);
             }
             managerId = manager.id;
           }
@@ -639,10 +661,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Convert process names to IDs
           const processIds: number[] = [];
-          if (userData.processnames) {
-            const processNames = userData.processnames.split(',')
+          if (userData.processNames) {
+            const processNames = userData.processNames.split(',')
               .map(name => name.trim())
-              .filter(name => name); // Filter out empty names
+              .filter(name => name);
 
             console.log('Processing process names:', processNames);
 
@@ -664,14 +686,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const userToCreate = {
             username: userData.username,
             password: hashedPassword,
-            fullName: userData.fullname,
-            employeeId: userData.employeeid,
+            fullName: userData.fullName,
+            employeeId: userData.employeeId,
             role: userData.role.toLowerCase(),
             category: userData.category.toLowerCase(),
             email: userData.email,
-            phoneNumber: userData.phonenumber,
-            dateOfJoining: userData.dateofjoining || null,
-            dateOfBirth: userData.dateofbirth || null,
+            phoneNumber: userData.phoneNumber,
+            dateOfJoining: userData.dateOfJoining || null,
+            dateOfBirth: userData.dateOfBirth || null,
             education: userData.education || null,
             organizationId: req.user.organizationId,
             managerId,
@@ -691,7 +713,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             req.user.organizationId
           );
 
-          console.log('User created successfully:', result);
+          console.log('User created successfully:', { 
+            userId: result.user.id, 
+            username: result.user.username,
+            processCount: result.processes.length 
+          });
+
           results.success++;
 
         } catch (error: any) {
