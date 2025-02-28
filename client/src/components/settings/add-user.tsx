@@ -179,7 +179,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
   const downloadTemplate = () => {
     // Download template from server endpoint
     const link = document.createElement('a');
-    link.href = '/api/users/template';
+    link.href = '/api/users/template.csv'; // Changed extension to .csv
     link.setAttribute('download', 'user_upload_template.csv');
     document.body.appendChild(link);
     link.click();
@@ -214,6 +214,17 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    // Verify file type
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      toast({
+        title: "Error",
+        description: "Please upload a CSV file",
+        variant: "destructive",
+      });
+      event.target.value = '';
+      return;
+    }
 
     const formData = new FormData();
     formData.append('file', file);
