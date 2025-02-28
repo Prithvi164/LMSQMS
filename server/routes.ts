@@ -10,6 +10,7 @@ import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { insertOrganizationProcessSchema } from "@shared/schema";
+import * as XLSX from 'xlsx';  // Add XLSX import at the top
 
 // Configure multer for handling file uploads
 const upload = multer({
@@ -506,8 +507,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/users/template", (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
-    const XLSX = require('xlsx');
-
     // Create workbook and worksheet
     const wb = XLSX.utils.book_new();
 
@@ -569,7 +568,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
-      const XLSX = require('xlsx');
       let rows: string[][] = [];
 
       // Parse file based on extension
@@ -835,8 +833,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(processes);
     } catch (error: any) {
       console.error("Error fetching processes:", error);
-      res.status(500).json({ message: error.message });
-    }
+      res.status(500).json({ message: error.message });    }
   });
 
   // Add better error handling and authentication for line of business routes
