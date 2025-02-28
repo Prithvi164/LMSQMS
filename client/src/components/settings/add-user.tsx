@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Check } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
@@ -83,6 +83,16 @@ export function AddUser({
   const filteredProcesses = processes.filter(process => 
     selectedLOBs.includes(process.lineOfBusinessId)
   );
+
+  // Clear Line of Business selections
+  const clearLOBSelections = () => {
+    setSelectedLOBs([]);
+    setNewUserData(prev => ({
+      ...prev,
+      processes: []
+    }));
+    setOpenLOB(false);
+  };
 
   // Get filtered managers based on role
   const getFilteredManagers = (selectedRole: string) => {
@@ -287,59 +297,71 @@ export function AddUser({
               <>
                 <div className="col-span-2">
                   <Label>Line of Business</Label>
-                  <Popover open={openLOB} onOpenChange={setOpenLOB}>
-                    <PopoverTrigger asChild>
+                  <div className="flex gap-2">
+                    <Popover open={openLOB} onOpenChange={setOpenLOB}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={openLOB}
+                          className="w-full justify-between"
+                        >
+                          {selectedLOBs.length > 0
+                            ? `${selectedLOBs.length} LOBs selected`
+                            : "No Line of Business selected"}
+                          <Check
+                            className={cn(
+                              "ml-2 h-4 w-4",
+                              selectedLOBs.length > 0 ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0">
+                        <Command>
+                          <CommandInput placeholder="Search Line of Business..." />
+                          <CommandEmpty>No Line of Business found.</CommandEmpty>
+                          <CommandGroup className="max-h-64 overflow-auto">
+                            {lineOfBusinesses.map((lob) => (
+                              <CommandItem
+                                key={lob.id}
+                                onSelect={() => {
+                                  setSelectedLOBs(prev => {
+                                    const newSelection = prev.includes(lob.id)
+                                      ? prev.filter(id => id !== lob.id)
+                                      : [...prev, lob.id];
+                                    return newSelection;
+                                  });
+                                  setNewUserData(prev => ({
+                                    ...prev,
+                                    processes: []
+                                  }));
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    selectedLOBs.includes(lob.id) ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {lob.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    {selectedLOBs.length > 0 && (
                       <Button
                         variant="outline"
-                        role="combobox"
-                        aria-expanded={openLOB}
-                        className="w-full justify-between"
+                        size="icon"
+                        onClick={clearLOBSelections}
+                        title="Clear selections"
                       >
-                        {selectedLOBs.length > 0
-                          ? `${selectedLOBs.length} LOBs selected`
-                          : "Select Line of Business"}
-                        <Check
-                          className={cn(
-                            "ml-2 h-4 w-4",
-                            selectedLOBs.length > 0 ? "opacity-100" : "opacity-0"
-                          )}
-                        />
+                        <X className="h-4 w-4" />
                       </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
-                      <Command>
-                        <CommandInput placeholder="Search Line of Business..." />
-                        <CommandEmpty>No Line of Business found.</CommandEmpty>
-                        <CommandGroup className="max-h-64 overflow-auto">
-                          {lineOfBusinesses.map((lob) => (
-                            <CommandItem
-                              key={lob.id}
-                              onSelect={() => {
-                                setSelectedLOBs(prev => {
-                                  const newSelection = prev.includes(lob.id)
-                                    ? prev.filter(id => id !== lob.id)
-                                    : [...prev, lob.id];
-                                  return newSelection;
-                                });
-                                setNewUserData(prev => ({
-                                  ...prev,
-                                  processes: []
-                                }));
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  selectedLOBs.includes(lob.id) ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              {lob.name}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                    )}
+                  </div>
                   {selectedLOBs.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
                       {selectedLOBs.map(lobId => {
