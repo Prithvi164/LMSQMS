@@ -1,4 +1,3 @@
-
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import themePlugin from "@replit/vite-plugin-shadcn-theme-json";
@@ -23,12 +22,6 @@ export default defineConfig({
         ]
       : []),
   ],
-  server: {
-    allowedHosts: [
-      "99e565d9-defe-4b43-9370-4d17ce50e7be-00-x7o9p3e30uky.picard.replit.dev",
-      ".replit.dev"
-    ]
-  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "client", "src"),

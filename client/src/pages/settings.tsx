@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import type { User, Organization } from "@shared/schema";
-import { Users, UserCircle, Shield, ChevronLeft, Network, LucideIcon } from "lucide-react";
+import { Users, UserCircle, Shield, ChevronLeft, Network } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
 
@@ -42,10 +42,7 @@ export default function Settings() {
     }
   });
 
-  // Return a loading state instead of null when user is not present
-  if (!user) {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>;
-  }
+  if (!user) return null;
 
   const NavTab = ({
     active,
@@ -54,7 +51,7 @@ export default function Settings() {
     onClick
   }: {
     active: boolean;
-    icon: LucideIcon;
+    icon: any;
     children: React.ReactNode;
     onClick: () => void;
   }) => (
