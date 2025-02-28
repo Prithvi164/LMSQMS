@@ -88,6 +88,9 @@ export interface IStorage {
     processIds: number[],
     organizationId: number
   ): Promise<{ user: User; processes: UserProcess[] }>;
+
+  // Add new method for getting processes by line of business
+  getProcessesByLineOfBusiness(organizationId: number, lobId: number): Promise<OrganizationProcess[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -609,6 +612,22 @@ export class DatabaseStorage implements IStorage {
       }
       console.error('Error in createUserWithProcesses:', error);
       throw error;
+    }
+  }
+
+  // Add implementation for getting processes by line of business
+  async getProcessesByLineOfBusiness(organizationId: number, lobId: number): Promise<OrganizationProcess[]> {
+    try {
+      const processes = await db
+        .select()
+        .from(organizationProcesses)
+        .where(eq(organizationProcesses.organizationId, organizationId))
+        .where(eq(organizationProcesses.lineOfBusinessId, lobId));
+
+      return processes;
+    } catch (error) {
+      console.error('Error fetching processes by LOB:', error);
+      throw new Error('Failed to fetch processes for Line of Business');
     }
   }
 }

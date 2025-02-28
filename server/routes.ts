@@ -5,11 +5,10 @@ import { storage } from "./storage";
 import { Router } from "express";
 import multer from "multer";
 import path from "path";
-import { insertUserSchema, permissionEnum } from "@shared/schema"; // Import permissionEnum from schema
+import { insertUserSchema } from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
-import { insertOrganizationBatchSchema } from "@shared/schema";
 
 // Configure multer for handling file uploads
 const upload = multer({
@@ -105,7 +104,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateRolePermissions(
           organization.id,
           'owner',
-          permissionEnum.enumValues // Owner gets all permissions
+          // Owner gets all permissions
+          [
+            "createUser",
+            "updateUser",
+            "deleteUser",
+            "createOrganization",
+            "updateOrganization",
+            "deleteOrganization",
+            "createBatch",
+            "updateBatch",
+            "deleteBatch",
+            "createLocation",
+            "updateLocation",
+            "deleteLocation",
+            "createProcess",
+            "updateProcess",
+            "deleteProcess",
+            "assignProcessToUser",
+            "unassignProcessFromUser",
+            "viewAllUsers",
+            "viewAllOrganizations",
+            "viewAllBatches",
+            "viewAllLocations",
+            "viewAllProcesses"
+          ]
         );
       }
 
@@ -235,48 +258,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
-  // Organization settings route to fetch all required data for batch creation
-  app.get("/api/organizations/:id/settings", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const orgId = parseInt(req.params.id);
-
-      // Check if user belongs to the organization
-      if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "You can only view your own organization's settings" });
-      }
-
-      console.log(`Fetching settings for organization ${orgId}`);
-
-      // Fetch all required data
-      const [batches, locations] = await Promise.all([
-        storage.listBatches(orgId),
-        storage.listLocations(orgId),
-      ]);
-
-      // Ensure processes and locations are arrays
-      const response = {
-        batches: Array.isArray(batches) ? batches : [],
-        locations: Array.isArray(locations) ? locations : [],
-      };
-
-      // Log response data for debugging
-      console.log('Organization settings response:', {
-        batchCount: response.batches.length,
-        locationCount: response.locations.length,
-      });
-
-      return res.json(response);
-    } catch (err: any) {
-      console.error("Error fetching organization settings:", err);
-      return res.status(500).json({
-        message: "Failed to fetch organization settings",
-        error: err.message
-      });
-    }
-  });
-
   // User management routes
   app.get("/api/users", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
@@ -293,14 +274,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // User routes - Replacing the original with the edited code
+  // Create user endpoint - updated to handle process assignments
   app.post("/api/users", async (req, res) => {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
     try {
-      const {  ...userData } = req.body;
+      const { processes, ...userData } = req.body;
 
       // Hash the password before creating the user
       const hashedPassword = await hashPassword(userData.password);
@@ -313,17 +294,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         organizationId: req.user.organizationId,
       };
 
-      // Create user with processes if provided
+      // Create user with optional processes
       const result = await storage.createUserWithProcesses(
         userToCreate,
-        [],
+        processes || [], // Allow empty process array
         req.user.organizationId
       );
 
       res.status(201).json(result.user);
     } catch (error: any) {
       console.error("User creation error:", error);
-      // Handle unique constraint violations
       if (error.message.includes('already exists')) {
         return res.status(400).json({ message: error.message });
       }
@@ -472,7 +452,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Template download route - update to match CSV upload expectations
+  // Template download route - updated to exclude LOB and process fields
   app.get("/api/users/template", (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -525,7 +505,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       '6. Dates must be in YYYY-MM-DD format (e.g., 2023-01-01)',
       '7. ManagerUsername is optional - leave blank if no manager',
       '8. Location must match existing values in your organization',
-      '9. Process assignments should be done through the user interface after creating the user'
+      '9. Process assignments will be handled through the user interface'
     ].join('\n');
 
     const csvContent = headers + '\n' + example + instructions;
@@ -777,6 +757,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(processes);
     } catch (error: any) {
       console.error("Error fetching user processes:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Add endpoint to get processes by line of business
+  app.get("/api/organizations/:orgId/line-of-businesses/:lobId/processes", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const lobId = parseInt(req.params.lobId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only view processes in your own organization" });
+      }
+
+      const processes = await storage.getProcessesByLineOfBusiness(orgId, lobId);
+      res.json(processes);
+    } catch (error: any) {
+      console.error("Error fetching processes:", error);
       res.status(500).json({ message: error.message });
     }
   });
