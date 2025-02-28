@@ -502,11 +502,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Template download route - updated with correctly aligned columns
+  // Template download route - updated with exact column ordering
   app.get("/api/users/template", (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
-    // Create CSV content with clear column names and proper date format examples
+    // Define headers in exact order matching screenshot
     const headers = [
       'Username*',
       'Password*',
@@ -524,21 +524,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'Education'
     ].join(',');
 
+    // Example data in matching order
     const example = [
-      'john.doe',
-      'password123',
-      'John Doe',
-      'EMP001',
-      'trainee',
-      'trainee',
-      'john@example.com',
-      '1234567890',
-      '1,2,3',
-      'New York',
-      'manager.username',
-      '2023-01-01',
-      '1990-01-01',
-      'Bachelors'
+      'john.doe',           // Username
+      'password123',        // Password
+      'John Doe',          // FullName
+      'EMP001',            // EmployeeID
+      'trainee',           // Role
+      'trainee',           // Category
+      'john@example.com',   // Email
+      '1234567890',        // PhoneNumber
+      '1,2,3',             // ProcessIDs
+      'New York',          // Location
+      'manager.username',   // ManagerUsername
+      '2023-01-01',        // DateOfJoining
+      '1990-01-01',        // DateOfBirth
+      'Bachelors'          // Education
     ].join(',');
 
     const validRoles = [
@@ -856,8 +857,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Creating new line of business - Request:', {
         userId: req.user?.id,
         organizationId: req.params.id,
-        body: req.body
-      });
+        body: req.body      });
 
       if (!req.user) {
         console.log('Unauthorized attempt to create line of business');
