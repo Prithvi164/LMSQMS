@@ -206,15 +206,21 @@ export class DatabaseStorage implements IStorage {
   // Organization settings operations
   async createProcess(process: InsertOrganizationProcess): Promise<OrganizationProcess> {
     try {
+      console.log('Creating process with data:', process);
+
       // First check if process with same name exists in the organization
-      const existingProcess = await db
+      const existingProcesses = await db
         .select()
         .from(organizationProcesses)
-        .where(eq(organizationProcesses.name, process.name))
-        .where(eq(organizationProcesses.organizationId, process.organizationId))
-        .limit(1);
+        .where(eq(organizationProcesses.organizationId, process.organizationId));
 
-      if (existingProcess.length > 0) {
+      console.log('Found existing processes:', existingProcesses);
+
+      const nameExists = existingProcesses.some(
+        existing => existing.name.toLowerCase() === process.name.toLowerCase()
+      );
+
+      if (nameExists) {
         throw new Error('A process with this name already exists in this organization');
       }
 
@@ -223,6 +229,7 @@ export class DatabaseStorage implements IStorage {
         .values(process)
         .returning() as OrganizationProcess[];
 
+      console.log('Successfully created new process:', newProcess);
       return newProcess;
     } catch (error: any) {
       console.error('Error creating process:', error);
