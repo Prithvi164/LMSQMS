@@ -64,6 +64,12 @@ app.use((req, res, next) => {
     host: "0.0.0.0",
     reusePort: true,
   }, () => {
-    log(`serving on port ${port}`);
+    log(`Server running at http://0.0.0.0:${port}`);
+    log(`WebSocket server for HMR enabled`);
+  });
+
+  // Handle server errors
+  server.on('error', (error) => {
+    console.error('Server error:', error);
   });
 })();
