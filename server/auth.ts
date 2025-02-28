@@ -39,19 +39,8 @@ async function comparePasswords(supplied: string, stored: string) {
       return false;
     }
     const [hashed, salt] = stored.split(".");
-    console.log("Password comparison details:");
-    console.log("- Salt:", salt);
-    console.log("- Stored hash length:", hashed.length);
-    console.log("- Stored hash:", hashed);
-
     const hashedBuf = Buffer.from(hashed, "hex");
     const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-    const suppliedHex = suppliedBuf.toString("hex");
-
-    console.log("- Supplied password length:", supplied.length);
-    console.log("- Generated hash:", suppliedHex);
-    console.log("- Generated hash length:", suppliedBuf.length);
-
     return timingSafeEqual(hashedBuf, suppliedBuf);
   } catch (error) {
     console.error("Password comparison error:", error);
@@ -105,8 +94,6 @@ export function setupAuth(app: Express) {
         }
 
         console.log("Found user:", user.username, "role:", user.role);
-        console.log("Stored password format:", user.password);
-
         const isValidPassword = await comparePasswords(password, user.password);
         console.log("Password validation result:", isValidPassword);
 
@@ -161,25 +148,26 @@ export function setupAuth(app: Express) {
         name: data.organizationName,
       });
 
-      // Create owner user
-      const hashedPassword = await hashPassword(data.password);
-      const user = await storage.createUser({
+      // Create owner user with strongly typed object
+      const userPayload = {
         username: data.username,
         email: data.email,
-        password: hashedPassword,
+        password: await hashPassword(data.password),
         organizationId: organization.id,
-        role: "owner", // Changed from admin to owner
-        fullName: data.username, // Default to username
-        employeeId: `EMP${Date.now()}`, // Generate a unique employee ID
-        phoneNumber: "", // Empty string for optional fields
+        role: "owner" as const,
+        fullName: data.username,
+        employeeId: `EMP${Date.now()}`,
+        phoneNumber: "",
         active: true
-      });
+      };
+
+      const user = await storage.createUser(userPayload);
 
       // Set up initial permissions for owner
       await storage.updateRolePermissions(
         organization.id,
         'owner',
-        permissionEnum.enumValues // Owner gets all permissions
+        permissionEnum.enumValues
       );
 
       // Log the user in
@@ -200,7 +188,7 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", (req, res, next) => {
-    passport.authenticate("local", (err, user, info) => {
+    passport.authenticate("local", (err: Error | null, user: SelectUser | false, info: { message: string } | undefined) => {
       if (err) {
         console.error("Login error:", err);
         return res.status(500).json({ message: "Internal server error" });

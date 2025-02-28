@@ -23,15 +23,30 @@ const upload = multer({
         return;
       }
 
-      const ext = path.extname(file.originalname).toLowerCase();
-      console.log('File extension:', ext);
+      console.log('Received file:', {
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size
+      });
 
-      if (ext !== '.csv' && ext !== '.xlsx') {
-        console.error('Invalid file type:', ext);
-        cb(new Error('Only CSV (.csv) and Excel (.xlsx) files are allowed'));
+      // Accept both the official Excel MIME type and the common spreadsheet MIME type
+      const validMimeTypes = [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel',
+        'application/octet-stream' // Some systems might send this for .xlsx
+      ];
+
+      const ext = path.extname(file.originalname).toLowerCase();
+      if (ext !== '.xlsx' || !validMimeTypes.includes(file.mimetype)) {
+        console.error('Invalid file:', {
+          extension: ext,
+          mimeType: file.mimetype
+        });
+        cb(new Error('Only Excel (.xlsx) files are allowed. Please download and use our template.'));
         return;
       }
 
+      console.log('File validation passed');
       cb(null, true);
     } catch (error) {
       console.error('File upload error:', error);
@@ -39,7 +54,7 @@ const upload = multer({
     }
   },
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
+    fileSize: 10 * 1024 * 1024 // Increased to 10MB limit
   }
 });
 
@@ -557,7 +572,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.send(buffer);
   });
 
-  // Update upload route to handle both CSV and Excel with improved error handling
+  // Upload route handling Excel files only
   app.post("/api/users/upload", upload.single('file'), async (req, res) => {
     try {
       if (!req.user) {
@@ -569,31 +584,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       let rows: string[][] = [];
-      const ext = path.extname(req.file.originalname).toLowerCase();
-
       try {
-        if (ext === '.xlsx') {
-          const workbook = XLSX.read(req.file.buffer);
-          const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-          rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        } else if (ext === '.csv') {
-          const csvContent = req.file.buffer.toString('utf-8');
-          rows = csvContent
-            .split('\n')
-            .map(line => line.split(',').map(cell => cell.trim()))
-            .filter(row => row.length > 0 && !row.every(cell => !cell)); // Remove empty rows
-        } else {
-          return res.status(400).json({ message: "Only CSV (.csv) and Excel (.xlsx) files are allowed" });
-        }
+        console.log('Processing Excel file:', req.file.originalname);
+        const workbook = XLSX.read(req.file.buffer);
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        console.log('Successfully parsed Excel file, found rows:', rows.length);
       } catch (error) {
-        console.error('File parsing error:', error);
+        console.error('Excel parsing error:', error);
         return res.status(400).json({
-          message: "Failed to parse file",
-          details: "Please ensure the file matches the template format and is not corrupted"
+          message: "Failed to parse Excel file",
+          details: "Please ensure you're using our template and the file is not corrupted"
         });
       }
 
       // Remove empty rows and get headers
+      rows = rows.filter(row => row.length > 0 && !row.every(cell => !cell));
       const headers = rows[0].map(h => h.trim().replace(/[\r\n*]/g, ''));
       console.log('Processing file with headers:', headers);
 
@@ -831,7 +837,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`User ${userId} deleted successfully`);
       res.status(200).json({ message: "User deleted successfully" });
     } catch (error: any) {
-      console.error("Error in delete user route:", error);      res.status(500).json({ message: error.message || "Failed to delete user" });
+      console.error("Error in delete user route:", error);
+      res.status(500).json({ message: error.message || "Failed to delete user" });
     }
   });
 
