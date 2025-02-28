@@ -7,6 +7,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <div className="min-h-screen bg-background">
         <h1 className="text-2xl font-bold p-4">LMS Application</h1>
+        <p className="p-4">Frontend is now running!</p>
         <Toaster />
       </div>
     </QueryClientProvider>
