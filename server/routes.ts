@@ -259,6 +259,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
+  // Update location route
+  app.patch("/api/organizations/:id/settings/locations/:locationId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.id);
+      const locationId = parseInt(req.params.locationId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only modify locations in your own organization" });
+      }
+
+      console.log('Updating location:', locationId, 'with data:', req.body);
+      const updatedLocation = await storage.updateLocation(locationId, {
+        ...req.body,
+        organizationId: orgId, // Ensure we keep the correct organization ID
+      });
+
+      res.json(updatedLocation);
+    } catch (error: any) {
+      console.error("Location update error:", error);
+      res.status(400).json({ message: error.message || "Failed to update location" });
+    }
+  });
+
+  // Delete location route
+  app.delete("/api/organizations/:id/settings/locations/:locationId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.id);
+      const locationId = parseInt(req.params.locationId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only delete locations in your own organization" });
+      }
+
+      console.log('Deleting location:', locationId);
+      await storage.deleteLocation(locationId);
+
+      res.json({ message: "Location deleted successfully" });
+    } catch (error: any) {
+      console.error("Location deletion error:", error);
+      res.status(400).json({ message: error.message || "Failed to delete location" });
+    }
+  });
+
   // User management routes
   app.get("/api/users", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
@@ -907,8 +956,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ message: error.message });
     }
   });
-
-  // ... rest of the code remains unchanged ...
 
   const httpServer = createServer(app);
   return httpServer;
