@@ -502,7 +502,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Template download route - updated with properly aligned columns
+  // Template download route - updated with correctly aligned columns
   app.get("/api/users/template", (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -516,7 +516,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'Category*',
       'Email*',
       'PhoneNumber*',
-      'ProcessIDs*',  // Moved ProcessIDs column before optional fields
+      'ProcessIDs*',
       'Location',
       'ManagerUsername',
       'DateOfJoining',
@@ -533,7 +533,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'trainee',
       'john@example.com',
       '1234567890',
-      '1,2,3',  // Example process IDs aligned with its header
+      '1,2,3',
       'New York',
       'manager.username',
       '2023-01-01',
@@ -889,7 +889,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(201).json(lob);
     } catch (error: any) {
       console.error("Error creating line of business:", error);
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: error.message || "Failed to create line of business",
         details: error.toString()
       });
