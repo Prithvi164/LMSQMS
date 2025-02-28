@@ -859,8 +859,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get processes by Line of Business (already present in original code)
+  // Update process
+  app.patch("/api/organizations/:id/processes/:processId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
+    try {
+      const orgId = parseInt(req.params.id);
+      const processId = parseInt(req.params.processId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only update processes in your own organization" });
+      }
+
+      console.log('Updating process:', processId, 'with data:', req.body);
+
+      const process = await storage.updateProcess(processId, req.body);
+
+      console.log('Process updated successfully:', process);
+      res.json(process);
+    } catch (error: any) {
+      console.error("Process update error:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Delete process
+  app.delete("/api/organizations/:id/processes/:processId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.id);
+      const processId = parseInt(req.params.processId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only delete processes in your own organization" });
+      }
+
+      console.log('Deleting process:', processId);
+      await storage.deleteProcess(processId);
+
+      console.log('Process deleted successfully');
+      res.status(200).json({ message: "Process deleted successfully" });
+    } catch (error: any) {
+      console.error("Process deletion error:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // ... rest of the code remains unchanged ...
 
   const httpServer = createServer(app);
   return httpServer;

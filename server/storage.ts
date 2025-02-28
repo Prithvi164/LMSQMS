@@ -346,27 +346,77 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateProcess(id: number, process: Partial<InsertOrganizationProcess>): Promise<OrganizationProcess> {
-    const [updatedProcess] = await db
-      .update(organizationProcesses)
-      .set(process)
-      .where(eq(organizationProcesses.id, id))
-      .returning() as OrganizationProcess[];
+    try {
+      console.log(`Attempting to update process with ID: ${id}`);
+      console.log('Update data:', process);
 
-    if (!updatedProcess) {
-      throw new Error('Process not found');
+      // Check if process exists
+      const existingProcess = await this.getProcess(id);
+      if (!existingProcess) {
+        throw new Error('Process not found');
+      }
+
+      // Check if name is being updated and if it would conflict
+      if (process.name && process.name !== existingProcess.name) {
+        const nameExists = await db
+          .select()
+          .from(organizationProcesses)
+          .where(eq(organizationProcesses.organizationId, existingProcess.organizationId))
+          .where(eq(organizationProcesses.name, process.name))
+          .then(results => results.length > 0);
+
+        if (nameExists) {
+          throw new Error('A process with this name already exists in this organization');
+        }
+      }
+
+      const [updatedProcess] = await db
+        .update(organizationProcesses)
+        .set({
+          ...process,
+          updatedAt: new Date()
+        })
+        .where(eq(organizationProcesses.id, id))
+        .returning() as OrganizationProcess[];
+
+      console.log('Process updated successfully:', updatedProcess);
+      return updatedProcess;
+    } catch (error: any) {
+      console.error('Error updating process:', error);
+      throw error;
     }
-
-    return updatedProcess;
   }
 
   async deleteProcess(id: number): Promise<void> {
     try {
+      console.log(`Attempting to delete process with ID: ${id}`);
+
+      // First verify the process exists
+      const process = await this.getProcess(id);
+      if (!process) {
+        console.log(`Process with ID ${id} not found`);
+        throw new Error('Process not found');
+      }
+
+      // Delete any associated user processes first
       await db
+        .delete(userProcesses)
+        .where(eq(userProcesses.processId, id));
+
+      // Then delete the process
+      const result = await db
         .delete(organizationProcesses)
-        .where(eq(organizationProcesses.id, id));
+        .where(eq(organizationProcesses.id, id))
+        .returning();
+
+      if (!result.length) {
+        throw new Error('Process deletion failed');
+      }
+
+      console.log(`Successfully deleted process with ID: ${id}`);
     } catch (error) {
       console.error('Error deleting process:', error);
-      throw new Error('Failed to delete process');
+      throw error;
     }
   }
 
