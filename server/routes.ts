@@ -832,6 +832,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add better error handling and authentication for line of business routes
+  app.post("/api/organizations/:id/line-of-businesses", async (req, res) => {
+    try {
+      console.log('Creating new line of business - Request:', {
+        userId: req.user?.id,
+        organizationId: req.params.id,
+        body: req.body
+      });
+
+      if (!req.user) {
+        console.log('Unauthorized attempt to create line of business');
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const orgId = parseInt(req.params.id);
+      if (!orgId) {
+        console.log('Invalid organization ID provided');
+        return res.status(400).json({ message: "Invalid organization ID" });
+      }
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        console.log(`User ${req.user.id} attempted to create LOB in organization ${orgId}`);
+        return res.status(403).json({ message: "You can only create LOBs in your own organization" });
+      }
+
+      const lobData = {
+        name: req.body.name,
+        description: req.body.description,
+        organizationId: orgId,
+      };
+
+      console.log('Creating LOB with data:', lobData);
+      const lob = await storage.createLineOfBusiness(lobData);
+      console.log('Successfully created LOB:', lob);
+
+      return res.status(201).json(lob);
+    } catch (error: any) {
+      console.error("Error creating line of business:", error);
+      return res.status(400).json({ 
+        message: error.message || "Failed to create line of business",
+        details: error.toString()
+      });
+    }
+  });
+
+  // Update the GET endpoint as well
+  app.get("/api/organizations/:id/line-of-businesses", async (req, res) => {
+    try {
+      console.log('Fetching line of businesses - Request:', {
+        userId: req.user?.id,
+        organizationId: req.params.id
+      });
+
+      if (!req.user) {
+        console.log('Unauthorized attempt to fetch line of businesses');
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const orgId = parseInt(req.params.id);
+      if (!orgId) {
+        console.log('Invalid organization ID provided');
+        return res.status(400).json({ message: "Invalid organization ID" });
+      }
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        console.log(`User ${req.user.id} attempted to access LOBs in organization ${orgId}`);
+        return res.status(403).json({ message: "You can only view LOBs in your own organization" });
+      }
+
+      console.log(`Fetching LOBs for organization ${orgId}`);
+      const lobs = await storage.listLineOfBusinesses(orgId);
+      console.log(`Found ${lobs.length} LOBs:`, lobs);
+
+      return res.json(lobs || []);
+    } catch (error: any) {
+      console.error("Error fetching LOBs:", error);
+      return res.status(500).json({
+        message: "Failed to fetch line of businesses",
+        error: error.message,
+        details: error.toString()
+      });
+    }
+  });
+
   // Add this API endpoint if it doesn't exist or modify the existing one
   app.get("/api/organizations/:id/line-of-businesses", async (req, res) => {
     if (!req.user) {
