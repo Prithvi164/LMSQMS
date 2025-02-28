@@ -380,7 +380,6 @@ export function ProcessDetail() {
                       <TableHead className="text-center">CD</TableHead>
                       <TableHead className="text-center">OJT</TableHead>
                       <TableHead className="text-center">OJTC</TableHead>
-                      <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -400,7 +399,6 @@ export function ProcessDetail() {
                         <TableCell className="text-center">{process.certificationDays}</TableCell>
                         <TableCell className="text-center">{process.ojtDays}</TableCell>
                         <TableCell className="text-center">{process.ojtCertificationDays}</TableCell>
-                        <TableCell>{process.status || "Active"}</TableCell>
                         <TableCell className="text-right space-x-2">
                           <Button
                             variant="outline"
