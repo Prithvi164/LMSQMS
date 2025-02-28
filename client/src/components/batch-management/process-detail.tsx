@@ -464,20 +464,52 @@ export function ProcessDetail() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Process Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter process name" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {/* Process Name and Line of Business in the same row */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Process Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter process name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
+                  <FormField
+                    control={form.control}
+                    name="lineOfBusinessId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Line of Business</FormLabel>
+                        <Select
+                          onValueChange={(value) => field.onChange(parseInt(value, 10))}
+                          value={field.value?.toString()}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select Line of Business" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {lineOfBusinesses.map((lob: LineOfBusiness) => (
+                              <SelectItem key={lob.id} value={lob.id.toString()}>
+                                {lob.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Days input fields in a grid */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <FormField
                     control={form.control}
@@ -574,34 +606,6 @@ export function ProcessDetail() {
                     )}
                   />
                 </div>
-
-                <FormField
-                  control={form.control}
-                  name="lineOfBusinessId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Line of Business</FormLabel>
-                      <Select
-                        onValueChange={(value) => field.onChange(parseInt(value, 10))}
-                        value={field.value?.toString()}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Line of Business" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {lineOfBusinesses.map((lob: LineOfBusiness) => (
-                            <SelectItem key={lob.id} value={lob.id.toString()}>
-                              {lob.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
 
               <DialogFooter>
