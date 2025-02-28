@@ -23,6 +23,7 @@ import {
   type UserProcess,
   type InsertUserProcess,
   type OrganizationLocation,
+  type InsertOrganizationLocation,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -86,8 +87,10 @@ export interface IStorage {
   // Add new method for getting processes by line of business
   getProcessesByLineOfBusiness(organizationId: number, lobId: number): Promise<OrganizationProcess[]>;
 
-  // Add Location operations
+  // Location operations
   listLocations(organizationId: number): Promise<OrganizationLocation[]>;
+  updateLocation(id: number, location: Partial<InsertOrganizationLocation>): Promise<OrganizationLocation>;
+  deleteLocation(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -613,6 +616,53 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error fetching locations:', error);
       throw new Error('Failed to fetch locations');
+    }
+  }
+
+  async updateLocation(id: number, location: Partial<InsertOrganizationLocation>): Promise<OrganizationLocation> {
+    try {
+      console.log(`Updating location with ID: ${id}`, location);
+
+      const [updatedLocation] = await db
+        .update(organizationLocations)
+        .set({
+          ...location,
+          // Ensure we're not overwriting these fields unintentionally
+          id: undefined,
+          createdAt: undefined,
+        })
+        .where(eq(organizationLocations.id, id))
+        .returning() as OrganizationLocation[];
+
+      if (!updatedLocation) {
+        throw new Error('Location not found');
+      }
+
+      console.log('Successfully updated location:', updatedLocation);
+      return updatedLocation;
+    } catch (error) {
+      console.error('Error updating location:', error);
+      throw error;
+    }
+  }
+
+  async deleteLocation(id: number): Promise<void> {
+    try {
+      console.log(`Attempting to delete location with ID: ${id}`);
+
+      const result = await db
+        .delete(organizationLocations)
+        .where(eq(organizationLocations.id, id))
+        .returning();
+
+      if (!result.length) {
+        throw new Error('Location not found or deletion failed');
+      }
+
+      console.log(`Successfully deleted location with ID: ${id}`);
+    } catch (error) {
+      console.error('Error deleting location:', error);
+      throw error;
     }
   }
 }
