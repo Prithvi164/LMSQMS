@@ -146,11 +146,26 @@ export function AddUser({
     },
   });
 
-  if (!organization || isLoadingSettings || isLoadingProcesses || isLoadingLOB) {
+  if (!organization) {
+    return null; // Don't render anything if organization is not available
+  }
+
+  // Show simplified loading state
+  if (isLoadingSettings) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <p>Loading organization settings...</p>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Add New User</CardTitle>
+          <CardDescription>Loading settings...</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="animate-pulse space-y-4">
+            <div className="h-10 bg-gray-200 rounded"></div>
+            <div className="h-10 bg-gray-200 rounded"></div>
+            <div className="h-10 bg-gray-200 rounded"></div>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
