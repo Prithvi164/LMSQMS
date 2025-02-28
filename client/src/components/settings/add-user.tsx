@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,6 +43,14 @@ export function AddUser({
     managerId: "none",
     processes: [] as number[],
   });
+
+  // Sync selectedProcesses with newUserData.processes
+  useEffect(() => {
+    setNewUserData(prev => ({
+      ...prev,
+      processes: selectedProcesses.map(id => parseInt(id))
+    }));
+  }, [selectedProcesses]);
 
   // Fetch organization settings
   const { data: orgSettings, isLoading: isLoadingSettings } = useQuery({
@@ -97,7 +105,7 @@ export function AddUser({
           locationId: data.locationId === "none" ? null : Number(data.locationId),
           managerId: data.managerId === "none" ? null : Number(data.managerId),
           organizationId: organization?.id || null,
-          processes: selectedProcesses.map(id => parseInt(id)), // Use selectedProcesses instead
+          processes: selectedProcesses.map(id => parseInt(id)),
         };
 
         const response = await apiRequest("POST", "/api/users", payload);
@@ -207,7 +215,7 @@ export function AddUser({
             }}
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Basic Information Fields */}
+              {/* Username field */}
               <div>
                 <Label htmlFor="username">Username</Label>
                 <Input
@@ -221,6 +229,7 @@ export function AddUser({
                 />
               </div>
 
+              {/* Full Name field */}
               <div>
                 <Label htmlFor="fullName">Full Name</Label>
                 <Input
@@ -234,6 +243,7 @@ export function AddUser({
                 />
               </div>
 
+              {/* Email field */}
               <div>
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -248,6 +258,7 @@ export function AddUser({
                 />
               </div>
 
+              {/* Role Select */}
               <div>
                 <Label htmlFor="role">Role</Label>
                 <Select
@@ -257,7 +268,6 @@ export function AddUser({
                       ...prev,
                       role: value,
                       managerId: "none",
-                      processes: []
                     }));
                     setSelectedProcesses([]);
                     setSelectedLOB(null);
@@ -300,11 +310,7 @@ export function AddUser({
                       value={selectedLOB || ""}
                       onValueChange={(value) => {
                         setSelectedLOB(value);
-                        setSelectedProcesses([]); // Clear selected processes when LOB changes
-                        setNewUserData(prev => ({
-                          ...prev,
-                          processes: []
-                        }));
+                        setSelectedProcesses([]);
                       }}
                     >
                       <SelectTrigger>
@@ -329,10 +335,6 @@ export function AddUser({
                           ? selectedProcesses.filter(id => id !== value)
                           : [...selectedProcesses, value];
                         setSelectedProcesses(newSelection);
-                        setNewUserData(prev => ({
-                          ...prev,
-                          processes: newSelection.map(id => parseInt(id))
-                        }));
                       }}
                     >
                       <SelectTrigger>
@@ -360,7 +362,7 @@ export function AddUser({
                 </>
               )}
 
-              {/* Other fields */}
+              {/* Manager Select */}
               <div>
                 <Label htmlFor="managerId">Reporting Manager</Label>
                 <Select
@@ -386,7 +388,7 @@ export function AddUser({
                 </Select>
               </div>
 
-              {/* Remaining fields */}
+              {/* Password field */}
               <div>
                 <Label htmlFor="password">Password</Label>
                 <Input
@@ -401,6 +403,7 @@ export function AddUser({
                 />
               </div>
 
+              {/* Employee ID field */}
               <div>
                 <Label htmlFor="employeeId">Employee ID</Label>
                 <Input
@@ -414,6 +417,7 @@ export function AddUser({
                 />
               </div>
 
+              {/* Phone Number field */}
               <div>
                 <Label htmlFor="phoneNumber">Phone Number</Label>
                 <Input
@@ -427,6 +431,7 @@ export function AddUser({
                 />
               </div>
 
+              {/* Date of Joining field */}
               <div>
                 <Label htmlFor="dateOfJoining">Date of Joining</Label>
                 <Input
@@ -441,6 +446,7 @@ export function AddUser({
                 />
               </div>
 
+              {/* Date of Birth field */}
               <div>
                 <Label htmlFor="dateOfBirth">Date of Birth</Label>
                 <Input
@@ -455,6 +461,7 @@ export function AddUser({
                 />
               </div>
 
+              {/* Education field */}
               <div>
                 <Label htmlFor="education">Education</Label>
                 <Input
