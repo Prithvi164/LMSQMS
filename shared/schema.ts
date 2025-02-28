@@ -544,6 +544,13 @@ export const insertCourseSchema = createInsertSchema(courses);
 export const insertLearningPathSchema = createInsertSchema(learningPaths);
 export const insertUserProgressSchema = createInsertSchema(userProgress);
 
+// Add new type for combined user and process creation
+export const insertUserWithProcessesSchema = insertUserSchema.extend({
+  processes: z.array(z.number()).optional(),
+});
+
+export type InsertUserWithProcesses = z.infer<typeof insertUserWithProcessesSchema>;
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
 export type InsertCourse = z.infer<typeof insertCourseSchema>;

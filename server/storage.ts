@@ -81,6 +81,13 @@ export interface IStorage {
   listLineOfBusinesses(organizationId: number): Promise<OrganizationLineOfBusiness[]>;
   updateLineOfBusiness(id: number, lob: Partial<InsertOrganizationLineOfBusiness>): Promise<OrganizationLineOfBusiness>;
   deleteLineOfBusiness(id: number): Promise<void>;
+
+  // Add new method for creating user with processes
+  createUserWithProcesses(
+    user: InsertUser,
+    processIds: number[],
+    organizationId: number
+  ): Promise<{ user: User; processes: UserProcess[] }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -551,6 +558,57 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error removing user process:', error);
       throw new Error('Failed to remove user process');
+    }
+  }
+  async createUserWithProcesses(
+    user: InsertUser,
+    processIds: number[],
+    organizationId: number
+  ): Promise<{ user: User; processes: UserProcess[] }> {
+    try {
+      // Start a transaction to ensure both user and process assignments succeed or fail together
+      return await db.transaction(async (tx) => {
+        // Create the user first
+        const [newUser] = await tx
+          .insert(users)
+          .values(user)
+          .returning() as User[];
+
+        // If no processes needed (for admin/owner roles) or no processes specified
+        if (!processIds?.length || user.role === 'admin' || user.role === 'owner') {
+          return { user: newUser, processes: [] };
+        }
+
+        // Create process assignments
+        const processAssignments = processIds.map(processId => ({
+          userId: newUser.id,
+          processId,
+          organizationId,
+          status: 'assigned'
+        }));
+
+        const assignedProcesses = await tx
+          .insert(userProcesses)
+          .values(processAssignments)
+          .returning() as UserProcess[];
+
+        return {
+          user: newUser,
+          processes: assignedProcesses
+        };
+      });
+    } catch (error: any) {
+      // Handle unique constraint violation
+      if (error.code === '23505') {
+        if (error.constraint.includes('username')) {
+          throw new Error('Username already exists. Please choose a different username.');
+        }
+        if (error.constraint.includes('email')) {
+          throw new Error('Email already exists. Please use a different email address.');
+        }
+      }
+      console.error('Error in createUserWithProcesses:', error);
+      throw error;
     }
   }
 }
