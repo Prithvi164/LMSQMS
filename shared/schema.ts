@@ -6,7 +6,7 @@ import { z } from "zod";
 // Define enums
 export const userCategoryTypeEnum = pgEnum('user_category_type', ['active', 'trainee']);
 
-// Update the role enum section
+// Update the role enum section with proper type definitions
 export const roleEnum = pgEnum('role', [
   'owner',     // Highest level - Full system access
   'admin',     // Organization-wide administration
