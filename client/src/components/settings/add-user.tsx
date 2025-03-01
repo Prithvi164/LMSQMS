@@ -197,17 +197,15 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       });
 
-      // Create download link
+      // Create object URL
       const url = window.URL.createObjectURL(blob);
+
+      // Create download link
       const link = document.createElement('a');
       link.href = url;
       link.download = 'user_upload_template.xlsx';
-
-      // Trigger download
       document.body.appendChild(link);
       link.click();
-
-      // Cleanup
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
