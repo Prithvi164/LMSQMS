@@ -188,17 +188,22 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
 
   const bulkUploadMutation = useMutation({
     mutationFn: async (formData: FormData) => {
-      const response = await apiRequest("POST", "/api/users/upload", formData);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to upload users");
+      try {
+        const response = await apiRequest("POST", "/api/users/upload", formData);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Failed to upload users");
+        }
+        return response.json();
+      } catch (error: any) {
+        console.error('Error uploading users:', error);
+        throw new Error(error.message || "An unexpected error occurred");
       }
-      return response.json();
     },
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "Users uploaded successfully",
+        description: "Users uploaded successfully. Process mappings have been applied.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
     },
@@ -252,7 +257,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         <div className="flex justify-between items-center">
           <div>
             <CardTitle>Add New User</CardTitle>
-            <CardDescription>Create new user account</CardDescription>
+            <CardDescription>Create new user account or bulk upload users</CardDescription>
           </div>
           <div className="flex gap-2">
             <Button
@@ -266,7 +271,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
             <div className="relative">
               <input
                 type="file"
-                accept=".csv"
+                accept=".xlsx"
                 onChange={handleFileUpload}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 disabled={bulkUploadMutation.isPending}
@@ -290,6 +295,13 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
               </Button>
             </div>
           </div>
+        </div>
+        <div className="mt-2 text-sm text-muted-foreground">
+          <p>The template contains two sheets:</p>
+          <ul className="list-disc list-inside ml-4 mt-1">
+            <li>Users: Add basic user information</li>
+            <li>Process Mappings: Map users to processes using their email</li>
+          </ul>
         </div>
       </CardHeader>
       <CardContent>
