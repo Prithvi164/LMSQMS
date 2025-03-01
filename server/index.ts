@@ -1,10 +1,47 @@
 import express, { type Request, Response, NextFunction } from "express";
+import session from "express-session";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Session configuration
+app.use(session({
+  secret: 'your-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+
+// Authentication middleware
+app.use((req, res, next) => {
+  // For development, set a mock user with required fields
+  if (process.env.NODE_ENV !== 'production') {
+    req.user = {
+      id: 1,
+      username: 'admin',
+      password: 'hashed_password',
+      fullName: 'Admin User',
+      employeeId: 'EMP001',
+      role: 'admin',
+      email: 'admin@example.com',
+      organizationId: 1,
+      locationId: 1,
+      managerId: null,
+      active: true,
+      lastLogin: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      certified: true,
+    };
+  }
+  next();
+});
 
 // Enhanced request logging middleware
 app.use((req, res, next) => {
