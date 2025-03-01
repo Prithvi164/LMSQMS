@@ -12,22 +12,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { z } from "zod";
-
-// Define proper types for login and registration
-interface LoginCredentials {
-  username: string;
-  password: string;
-}
-
-interface RegistrationData extends LoginCredentials {
-  email: string;
-  organizationName: string;
-}
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { type LoginData } from "@/hooks/use-auth";
+import { type InsertUser } from "@shared/schema";
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
-  const [passwordMatch, setPasswordMatch] = useState(true);
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { login, register, user } = useAuth();
@@ -42,35 +33,22 @@ export default function AuthPage() {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
-    // For registration, check if passwords match
-    if (!isLogin) {
-      const password = formData.get("password") as string;
-      const confirmPassword = formData.get("confirmPassword") as string;
-
-      if (password !== confirmPassword) {
-        setPasswordMatch(false);
-        toast({
-          title: "Password Mismatch",
-          description: "The passwords you entered do not match.",
-          variant: "destructive"
-        });
-        return;
-      }
-    }
-
     try {
       if (isLogin) {
-        const loginData: LoginCredentials = {
+        const loginData: LoginData = {
           username: formData.get("username") as string,
           password: formData.get("password") as string,
         };
         await login(loginData);
       } else {
-        const registrationData: RegistrationData = {
+        const registrationData: InsertUser = {
           username: formData.get("username") as string,
           password: formData.get("password") as string,
           email: formData.get("email") as string,
           organizationName: formData.get("organizationName") as string,
+          role: "owner",
+          active: true,
+          certified: false,
         };
         await register(registrationData);
       }
@@ -85,7 +63,7 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen grid grid-cols-2">
+    <div className="min-h-screen grid lg:grid-cols-2">
       <div className="flex items-center justify-center p-8">
         <Card className="w-[400px]">
           <CardHeader>
@@ -111,39 +89,26 @@ export default function AuthPage() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="username">Username</Label>
+                      <Label htmlFor="email">Email</Label>
                       <Input 
-                        id="username" 
-                        name="username" 
+                        id="email" 
+                        name="email" 
+                        type="email"
                         required 
-                        placeholder="Choose a username"
+                        placeholder="Enter your work email"
                       />
                     </div>
                   </>
                 )}
-                {isLogin && (
-                  <div>
-                    <Label htmlFor="username">Username</Label>
-                    <Input 
-                      id="username" 
-                      name="username" 
-                      required 
-                      placeholder="Enter your username"
-                    />
-                  </div>
-                )}
-                {!isLogin && (
-                  <div>
-                    <Label htmlFor="email">Email</Label>
-                    <Input 
-                      id="email" 
-                      name="email" 
-                      type="email"
-                      required 
-                      placeholder="Enter your work email"
-                    />
-                  </div>
-                )}
+                <div>
+                  <Label htmlFor="username">Username</Label>
+                  <Input 
+                    id="username" 
+                    name="username" 
+                    required 
+                    placeholder={isLogin ? "Enter your username" : "Choose a username"}
+                  />
+                </div>
                 <div>
                   <Label htmlFor="password">Password</Label>
                   <Input 
@@ -162,7 +127,6 @@ export default function AuthPage() {
                       name="confirmPassword" 
                       type="password" 
                       required 
-                      className={!passwordMatch ? "border-red-500" : ""}
                       placeholder="Re-enter your password"
                     />
                   </div>
@@ -178,10 +142,7 @@ export default function AuthPage() {
                   <button
                     type="button"
                     className="text-primary hover:underline"
-                    onClick={() => {
-                      setIsLogin(!isLogin);
-                      setPasswordMatch(true);
-                    }}
+                    onClick={() => setIsLogin(!isLogin)}
                   >
                     {isLogin ? "Register here" : "Login here"}
                   </button>
@@ -192,17 +153,12 @@ export default function AuthPage() {
         </Card>
       </div>
 
-      <div 
-        className="bg-cover bg-center flex items-center justify-center p-8"
-        style={{
-          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('https://images.unsplash.com/photo-1507679799987-c73779587ccf')`
-        }}
-      >
-        <div className="text-white max-w-lg">
+      <div className="hidden lg:flex bg-muted items-center justify-center p-8">
+        <div className="max-w-lg">
           <h1 className="text-4xl font-bold mb-4">
             Transform Your Contact Center Training
           </h1>
-          <p className="text-lg opacity-90">
+          <p className="text-lg text-muted-foreground">
             CloudLMS helps you create personalized learning paths, 
             track agent performance, and ensure compliance with ease.
           </p>
