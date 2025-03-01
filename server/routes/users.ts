@@ -41,9 +41,9 @@ router.get('/template', async (req, res) => {
     ]);
 
     // Create workbook with both sheets
-    const workbook = XLSX.book_new();
-    XLSX.book_append_sheet(workbook, usersWorksheet, 'Users');
-    XLSX.book_append_sheet(workbook, processMappingsWorksheet, 'Process Mappings');
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, usersWorksheet, 'Users');
+    XLSX.utils.book_append_sheet(workbook, processMappingsWorksheet, 'Process Mappings');
 
     // Add column widths
     usersWorksheet['!cols'] = [

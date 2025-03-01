@@ -177,10 +177,9 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
   });
 
   const downloadTemplate = () => {
-    // Download template from server endpoint
     const link = document.createElement('a');
     link.href = '/api/users/template';
-    link.setAttribute('download', 'user_upload_template.csv');
+    link.setAttribute('download', 'user_upload_template.xlsx');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
