@@ -218,6 +218,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add the batches endpoint near the organization settings routes
+  app.get("/api/batches", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = req.user.organizationId;
+      if (!orgId) return res.status(400).json({ message: "No organization ID found" });
+
+      console.log(`Fetching batches for organization ${orgId}`);
+      const batches = await storage.listBatches(orgId);
+
+      // Transform batches to match frontend interface
+      const transformedBatches = await Promise.all(batches.map(async batch => {
+        // Get related user info for trainer and manager
+        const trainer = batch.trainerId ? await storage.getUser(batch.trainerId) : null;
+        const manager = batch.managerId ? await storage.getUser(batch.managerId) : null;
+
+        return {
+          id: batch.id,
+          name: batch.name,
+          status: batch.status || 'planned',
+          lineOfBusiness: batch.lineOfBusiness,
+          processName: batch.processId ? (await storage.getProcess(batch.processId))?.name : '',
+          location: batch.locationId ? (await storage.getLocation(batch.locationId))?.name : '',
+          trainer: trainer?.fullName || 'Unassigned',
+          manager: manager?.fullName || 'Unassigned',
+          batchNumber: batch.batchNumber,
+          participants: batch.participantCount,
+          capacityLimit: batch.capacityLimit
+        };
+      }));
+
+      console.log(`Successfully transformed ${transformedBatches.length} batches`);
+      return res.json(transformedBatches);
+    } catch (err: any) {
+      console.error("Error fetching batches:", err);
+      return res.status(500).json({ message: err.message || "Failed to fetch batches" });
+    }
+  });
+
   // User management routes
   app.get("/api/users", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
