@@ -219,6 +219,50 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     }
   };
 
+  const downloadTestTemplate = async () => {
+    try {
+      const response = await fetch('/api/users/test-template', {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download test template');
+      }
+
+      // Get array buffer from response
+      const arrayBuffer = await response.arrayBuffer();
+
+      // Create blob with correct MIME type
+      const blob = new Blob([arrayBuffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+
+      // Create object URL
+      const url = window.URL.createObjectURL(blob);
+
+      // Create download link
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'test.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error('Error downloading test template:', error);
+      toast({
+        title: "Error",
+        description: "Failed to download test template. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+
   const bulkUploadMutation = useMutation({
     mutationFn: async (formData: FormData) => {
       try {
@@ -300,6 +344,14 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
             >
               <FileDown className="h-4 w-4" />
               Download Template
+            </Button>
+            <Button
+              variant="outline"
+              onClick={downloadTestTemplate}
+              className="flex items-center gap-2"
+            >
+              <FileDown className="h-4 w-4" />
+              Test Download
             </Button>
             <div className="relative">
               <input

@@ -1,12 +1,43 @@
 import { Router } from 'express';
 import * as XLSX from 'xlsx';
 import { db } from '../db';
-import { organizations, users, processes } from '@shared/schema';
+import { organizations, users } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import multer from 'multer';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
+
+// Test endpoint for blank Excel file
+router.get('/test-template', async (req, res) => {
+  try {
+    // Create a new workbook with a single empty sheet
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([['Test']]);
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+
+    // Write to array buffer
+    const arrayBuffer = XLSX.write(wb, {
+      type: 'array',
+      bookType: 'xlsx'
+    });
+
+    // Convert to Buffer
+    const buffer = Buffer.from(arrayBuffer);
+
+    // Set response headers
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="test.xlsx"');
+    res.setHeader('Content-Length', buffer.length);
+
+    // Send buffer
+    res.send(buffer);
+
+  } catch (error) {
+    console.error('Error generating test template:', error);
+    res.status(500).json({ message: 'Failed to generate test template' });
+  }
+});
 
 // Template download endpoint
 router.get('/template', async (req, res) => {
