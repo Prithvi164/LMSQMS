@@ -416,7 +416,7 @@ export function LocationDetail() {
     setShowTour(false);
     updateMascotState({
       state: 'idle',
-      message: "You can always ask me if you need help with anything!"
+      message: "You can always ask me if you need any help with anything!"
     });
   };
 
@@ -890,15 +890,15 @@ export function LocationDetail() {
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-2xl mb-4">Delete Location</DialogTitle>
+            <DialogTitle className="text-2xl mb-6">Delete Location</DialogTitle>
             <DialogDescription>
-              This action cannot be undone. To confirm deletion, please type:
-              <code className="mx-2 px-2 py-1 bg-muted rounded">delete-{selectedLocation?.name?.toLowerCase()}</code>
+              Are you sure you want to delete this location? This action cannot be undone.
+              To confirm, type "delete-{selectedLocation?.name.toLowerCase()}" below.
             </DialogDescription>
           </DialogHeader>
-          <div className="my-4">
+          <div className="space-y-4">
             <Input
-              placeholder="Type confirmation text"
+              placeholder="Type confirmation text here"
               value={deleteConfirmation}
               onChange={(e) => setDeleteConfirmation(e.target.value)}
             />
@@ -906,7 +906,14 @@ export function LocationDetail() {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setIsDeleteDialogOpen(false)}
+              onClick={() => {
+                setIsDeleteDialogOpen(false);
+                setDeleteConfirmation("");
+                updateMascotState({
+                  state: 'idle',
+                  message: "Need help with anything else?"
+                });
+              }}
             >
               Cancel
             </Button>
@@ -927,12 +934,14 @@ export function LocationDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <Tour
-        steps={tourSteps}
-        isOpen={showTour}
-        onComplete={handleTourComplete}
-        onSkip={handleTourSkip}
-      />
-    </div>v>
+
+      {showTour && (
+        <Tour
+          steps={tourSteps}
+          onComplete={handleTourComplete}
+          onSkip={handleTourSkip}
+        />
+      )}
+    </div>
   );
 }
