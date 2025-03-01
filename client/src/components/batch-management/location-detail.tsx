@@ -933,6 +933,6 @@ export function LocationDetail() {
         onComplete={handleTourComplete}
         onSkip={handleTourSkip}
       />
-    </div>
+    </div>v>
   );
 }

@@ -9,6 +9,15 @@ import { type Server } from "http";
 import viteConfig from "../vite.config";
 import { nanoid } from "nanoid";
 
+import express, { Express } from 'express';
+import { Server } from 'http';
+import { createServer as createViteServer } from 'vite';
+import { createLogger } from 'vite';
+import fs from 'fs';
+import path from 'path';
+import { nanoid } from 'nanoid';
+import viteConfig from '../vite.config';
+
 const viteLogger = createLogger();
 
 export function log(message: string, source = "express") {
