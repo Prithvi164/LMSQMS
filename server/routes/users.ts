@@ -4,17 +4,12 @@ import { db } from '../db';
 import { organizations, users, processes } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import multer from 'multer';
-import { join } from 'path';
-import { writeFileSync, unlinkSync } from 'fs';
-import { randomUUID } from 'crypto';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
 // Template download endpoint
 router.get('/template', async (req, res) => {
-  const tempFilePath = join('/tmp', `template-${randomUUID()}.xlsx`);
-
   try {
     const organizationId = req.user?.organizationId;
     if (!organizationId) {
@@ -67,31 +62,24 @@ router.get('/template', async (req, res) => {
     XLSX.utils.book_append_sheet(wb, ws1, 'Users');
     XLSX.utils.book_append_sheet(wb, ws2, 'Process Mappings');
 
-    // Write to temporary file
-    XLSX.writeFile(wb, tempFilePath);
-
-    // Send file
-    res.download(tempFilePath, 'user_upload_template.xlsx', (err) => {
-      // Clean up temp file after sending
-      try {
-        unlinkSync(tempFilePath);
-      } catch (cleanupError) {
-        console.error('Error cleaning up temp file:', cleanupError);
-      }
-
-      if (err) {
-        console.error('Error sending file:', err);
-      }
+    // Write to array buffer
+    const arrayBuffer = XLSX.write(wb, {
+      type: 'array',
+      bookType: 'xlsx'
     });
 
-  } catch (error) {
-    // Clean up temp file in case of error
-    try {
-      unlinkSync(tempFilePath);
-    } catch (cleanupError) {
-      console.error('Error cleaning up temp file:', cleanupError);
-    }
+    // Convert to Buffer
+    const buffer = Buffer.from(arrayBuffer);
 
+    // Set response headers
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="user_upload_template.xlsx"');
+    res.setHeader('Content-Length', buffer.length);
+
+    // Send buffer
+    res.send(buffer);
+
+  } catch (error) {
     console.error('Error generating template:', error);
     res.status(500).json({ message: 'Failed to generate template' });
   }
