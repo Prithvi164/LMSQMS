@@ -262,13 +262,18 @@ export function UserManagement() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(async (data) => {
               try {
+                // Clean up the data before submission
+                const cleanedData = {
+                  ...data,
+                  locationId: data.locationId === "none" ? null : parseInt(data.locationId!),
+                  managerId: data.managerId === "none" ? null : parseInt(data.managerId!),
+                  // Only include lastWorkingDay if it has a value
+                  lastWorkingDay: data.lastWorkingDay ? data.lastWorkingDay : null,
+                };
+
                 await updateUserMutation.mutateAsync({
                   id: editUser.id,
-                  data: {
-                    ...data,
-                    locationId: data.locationId === "none" ? null : parseInt(data.locationId!),
-                    managerId: data.managerId === "none" ? null : parseInt(data.managerId!),
-                  }
+                  data: cleanedData
                 });
               } catch (error) {
                 console.error('Error updating user:', error);

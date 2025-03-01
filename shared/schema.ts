@@ -520,7 +520,7 @@ export const insertUserSchema = createInsertSchema(users)
     phoneNumber: z.string().regex(/^\d{10}$/, "Phone number must be 10 digits"),
     dateOfJoining: z.string().optional(),
     dateOfBirth: z.string().optional(),
-    lastWorkingDay: z.string().optional(),
+    lastWorkingDay: z.string().optional().nullable(),
     education: z.string().optional(),
     certified: z.boolean().default(false),
     active: z.boolean().default(true),
