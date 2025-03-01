@@ -17,16 +17,7 @@ router.get('/template', async (req, res) => {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    const orgProcesses = await db.query.processes.findMany({
-      where: eq(processes.organizationId, organizationId),
-      columns: {
-        id: true,
-        name: true,
-        lineOfBusinessId: true
-      }
-    });
-
-    // Create workbook and worksheets
+    // Create workbook
     const wb = XLSX.utils.book_new();
 
     // Users sheet data
@@ -73,20 +64,23 @@ router.get('/template', async (req, res) => {
     XLSX.utils.book_append_sheet(wb, ws2, 'Process Mappings');
 
     // Write to buffer
-    const buf = XLSX.write(wb, {
+    const excelBuffer = XLSX.write(wb, { 
       type: 'buffer',
       bookType: 'xlsx',
-      bookSST: false
+      compression: true
     });
 
-    // Set headers
-    res.setHeader('Content-Disposition', 'attachment; filename="user_upload_template.xlsx"');
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Length', buf.length);
-    res.setHeader('Cache-Control', 'no-cache');
+    // Force download headers
+    res.writeHead(200, {
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': 'attachment; filename="user_upload_template.xlsx"',
+      'Content-Length': excelBuffer.length,
+      'Pragma': 'no-cache',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, private'
+    });
 
-    // Send response
-    res.send(buf);
+    // Send the buffer directly
+    return res.end(excelBuffer);
 
   } catch (error) {
     console.error('Error generating template:', error);

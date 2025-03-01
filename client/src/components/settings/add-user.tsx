@@ -181,11 +181,23 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       const response = await fetch('/api/users/template', {
         method: 'GET',
         headers: {
-          'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
         }
       });
 
+      if (!response.ok) {
+        throw new Error('Failed to download template');
+      }
+
       const blob = await response.blob();
+
+      if (blob.type !== 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+        console.error('Incorrect file type received:', blob.type);
+        throw new Error('Invalid file type received from server');
+      }
+
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -194,6 +206,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
+
     } catch (error) {
       console.error('Error downloading template:', error);
       toast({
@@ -243,7 +256,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
 
     try {
       await bulkUploadMutation.mutateAsync(formData);
-      event.target.value = ''; // Clear the input after successful upload
+      event.target.value = ''; 
     } catch (error) {
       console.error('Error uploading file:', error);
     }
