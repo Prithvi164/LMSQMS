@@ -221,36 +221,53 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
 
   const downloadTestTemplate = async () => {
     try {
+      console.log('Initiating test template download...');
+
       const response = await fetch('/api/users/test-template', {
         method: 'GET',
         headers: {
-          'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
         }
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to download test template');
-      }
-
-      // Get array buffer from response
-      const arrayBuffer = await response.arrayBuffer();
-
-      // Create blob with correct MIME type
-      const blob = new Blob([arrayBuffer], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      console.log('Response received:', {
+        status: response.status,
+        contentType: response.headers.get('Content-Type'),
+        contentLength: response.headers.get('Content-Length')
       });
 
-      // Create object URL
-      const url = window.URL.createObjectURL(blob);
+      if (!response.ok) {
+        throw new Error(`Server responded with status: ${response.status}`);
+      }
+
+      // Get the raw buffer
+      const buffer = await response.arrayBuffer();
+      console.log('Received array buffer size:', buffer.byteLength);
+
+      // Create blob
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+      console.log('Created blob:', {
+        size: blob.size,
+        type: blob.type
+      });
 
       // Create download link
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.download = 'test.xlsx';
+
+      // Trigger download
       document.body.appendChild(link);
       link.click();
+
+      // Cleanup
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
+      console.log('Download initiated');
 
     } catch (error) {
       console.error('Error downloading test template:', error);
@@ -261,6 +278,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       });
     }
   };
+
 
 
   const bulkUploadMutation = useMutation({
