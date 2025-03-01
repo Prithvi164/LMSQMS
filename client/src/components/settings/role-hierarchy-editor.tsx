@@ -3,6 +3,10 @@ import { motion, Reorder } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { roleEnum } from "@shared/schema";
 import { defaultPermissions } from "@shared/permissions";
+import { RoleImpactSimulator } from "./role-impact-simulator";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Check, X } from "lucide-react";
 
 interface RoleCardProps {
   role: string;
@@ -33,13 +37,34 @@ const RoleCard = ({ role, isSelected, onClick }: RoleCardProps) => (
 );
 
 export const RoleHierarchyEditor = () => {
-  // Get roles from the enum, excluding system roles
   const initialRoles = roleEnum.enumValues;
   const [roles, setRoles] = useState(initialRoles);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const [editedPermissions, setEditedPermissions] = useState<string[]>([]);
+  const [isEditing, setIsEditing] = useState(false);
 
   const handleRoleSelect = (role: string) => {
-    setSelectedRole(role === selectedRole ? null : role);
+    if (role === selectedRole) {
+      setSelectedRole(null);
+      setEditedPermissions([]);
+      setIsEditing(false);
+    } else {
+      setSelectedRole(role);
+      setEditedPermissions(defaultPermissions[role as keyof typeof defaultPermissions] || []);
+      setIsEditing(false);
+    }
+  };
+
+  const handlePermissionToggle = (permission: string) => {
+    if (!isEditing) return;
+
+    setEditedPermissions(current => {
+      if (current.includes(permission)) {
+        return current.filter(p => p !== permission);
+      } else {
+        return [...current, permission];
+      }
+    });
   };
 
   return (
@@ -66,18 +91,54 @@ export const RoleHierarchyEditor = () => {
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Role Details</h3>
             {selectedRole && (
-              <div className="p-4 bg-muted rounded-lg">
-                <h4 className="font-semibold capitalize mb-2">
-                  {selectedRole.replace('_', ' ')} Permissions
-                </h4>
-                <ul className="list-disc list-inside space-y-1">
-                  {defaultPermissions[selectedRole as keyof typeof defaultPermissions].map((permission) => (
-                    <li key={permission} className="text-sm">
-                      {permission.replace('_', ' ')}
-                    </li>
+              <>
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="font-semibold capitalize">
+                    {selectedRole.replace('_', ' ')} Permissions
+                  </h4>
+                  {selectedRole !== 'owner' && (
+                    <Button
+                      variant={isEditing ? "destructive" : "default"}
+                      onClick={() => setIsEditing(!isEditing)}
+                    >
+                      {isEditing ? 'Cancel' : 'Edit Permissions'}
+                    </Button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {defaultPermissions[selectedRole as keyof typeof defaultPermissions]?.map((permission) => (
+                    <Badge
+                      key={permission}
+                      variant={isEditing ? "outline" : "secondary"}
+                      className={`cursor-pointer ${
+                        isEditing && !editedPermissions.includes(permission)
+                          ? 'opacity-50'
+                          : ''
+                      }`}
+                      onClick={() => handlePermissionToggle(permission)}
+                    >
+                      {isEditing && (
+                        <>
+                          {editedPermissions.includes(permission) ? (
+                            <Check className="h-3 w-3 mr-1" />
+                          ) : (
+                            <X className="h-3 w-3 mr-1" />
+                          )}
+                        </>
+                      )}
+                      {permission.replace(/_/g, ' ')}
+                    </Badge>
                   ))}
-                </ul>
-              </div>
+                </div>
+
+                {/* Show impact simulation when editing */}
+                {isEditing && (
+                  <RoleImpactSimulator
+                    selectedRole={selectedRole}
+                    proposedPermissions={editedPermissions}
+                  />
+                )}
+              </>
             )}
           </div>
         </div>
