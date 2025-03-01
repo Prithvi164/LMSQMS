@@ -176,116 +176,29 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     },
   });
 
-  const downloadTemplate = async () => {
-    try {
-      const response = await fetch('/api/users/template', {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to download template');
-      }
-
-      // Get array buffer from response
-      const arrayBuffer = await response.arrayBuffer();
-
-      // Create blob with correct MIME type
-      const blob = new Blob([arrayBuffer], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      });
-
-      // Create object URL
-      const url = window.URL.createObjectURL(blob);
-
-      // Create download link
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'user_upload_template.xlsx';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-    } catch (error) {
-      console.error('Error downloading template:', error);
-      toast({
-        title: "Error",
-        description: "Failed to download template. Please try again.",
-        variant: "destructive",
-      });
-    }
+  const downloadTemplate = () => {
+    // Download template from server endpoint
+    const link = document.createElement('a');
+    link.href = '/api/users/template';
+    link.setAttribute('download', 'user_upload_template.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
-
-  const downloadTestTemplate = async () => {
-    try {
-      const response = await fetch('/api/users/test-template');
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      // Get the response as blob
-      const blob = await response.blob();
-
-      // Validate blob type
-      if (!blob.type.includes('spreadsheet')) {
-        console.error('Invalid file type:', blob.type);
-        throw new Error('Invalid file type received from server');
-      }
-
-      // Create download URL
-      const url = window.URL.createObjectURL(
-        new Blob([blob], { 
-          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-        })
-      );
-
-      // Create and trigger download
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = 'test.xlsx';
-
-      document.body.appendChild(a);
-      a.click();
-
-      // Cleanup
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
-    } catch (error) {
-      console.error('Download failed:', error);
-      toast({
-        title: "Error",
-        description: "Failed to download template. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-
 
   const bulkUploadMutation = useMutation({
     mutationFn: async (formData: FormData) => {
-      try {
-        const response = await apiRequest("POST", "/api/users/upload", formData);
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || "Failed to upload users");
-        }
-        return response.json();
-      } catch (error: any) {
-        console.error('Error uploading users:', error);
-        throw new Error(error.message || "An unexpected error occurred");
+      const response = await apiRequest("POST", "/api/users/upload", formData);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to upload users");
       }
+      return response.json();
     },
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "Users uploaded successfully. Process mappings have been applied.",
+        description: "Users uploaded successfully",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
     },
@@ -307,7 +220,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
 
     try {
       await bulkUploadMutation.mutateAsync(formData);
-      event.target.value = '';
+      event.target.value = ''; // Clear the input after successful upload
     } catch (error) {
       console.error('Error uploading file:', error);
     }
@@ -339,7 +252,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         <div className="flex justify-between items-center">
           <div>
             <CardTitle>Add New User</CardTitle>
-            <CardDescription>Create new user account or bulk upload users</CardDescription>
+            <CardDescription>Create new user account</CardDescription>
           </div>
           <div className="flex gap-2">
             <Button
@@ -350,18 +263,10 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
               <FileDown className="h-4 w-4" />
               Download Template
             </Button>
-            <Button
-              variant="outline"
-              onClick={downloadTestTemplate}
-              className="flex items-center gap-2"
-            >
-              <FileDown className="h-4 w-4" />
-              Test Download
-            </Button>
             <div className="relative">
               <input
                 type="file"
-                accept=".xlsx"
+                accept=".csv"
                 onChange={handleFileUpload}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 disabled={bulkUploadMutation.isPending}
@@ -385,13 +290,6 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
               </Button>
             </div>
           </div>
-        </div>
-        <div className="mt-2 text-sm text-muted-foreground">
-          <p>The template contains two sheets:</p>
-          <ul className="list-disc list-inside ml-4 mt-1">
-            <li>Users: Add basic user information</li>
-            <li>Process Mappings: Map users to processes using their email</li>
-          </ul>
         </div>
       </CardHeader>
       <CardContent>
