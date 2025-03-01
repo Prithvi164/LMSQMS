@@ -4,9 +4,6 @@ import { db } from '../db';
 import { organizations, users } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import multer from 'multer';
-import { join } from 'path';
-import { writeFileSync, readFileSync, unlinkSync } from 'fs';
-import { randomUUID } from 'crypto';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -14,46 +11,39 @@ const upload = multer({ storage: multer.memoryStorage() });
 // Test endpoint for blank Excel file
 router.get('/test-template', async (req, res) => {
   try {
-    console.log('Creating test Excel file...');
+    // Create workbook with simple data
+    const data = [
+      ['Name', 'Age'],
+      ['John', 30],
+      ['Jane', 25]
+    ];
 
-    // Create a new workbook with a single empty sheet
+    // Create worksheet from data
+    const ws = XLSX.utils.aoa_to_sheet(data);
+
+    // Create new workbook and append worksheet
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet([['Test']]);
-    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+    XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
 
-    // Generate a unique filename
-    const tempFilePath = join('/tmp', `test-${randomUUID()}.xlsx`);
-    console.log('Temporary file path:', tempFilePath);
+    // Generate Excel file
+    const excelBuffer = XLSX.write(wb, { 
+      type: 'buffer', 
+      bookType: 'xlsx',
+      bookSST: false
+    });
 
-    // Write the file to disk first
-    XLSX.writeFile(wb, tempFilePath);
-    console.log('Excel file written to disk');
-
-    // Read the file back
-    const fileBuffer = readFileSync(tempFilePath);
-    console.log('File read back into buffer, size:', fileBuffer.length);
-
-    // Set headers
+    // Set proper headers
     res.writeHead(200, {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'Content-Disposition': 'attachment; filename="test.xlsx"',
-      'Content-Length': fileBuffer.length,
+      'Content-Length': excelBuffer.length,
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       'Pragma': 'no-cache',
       'Expires': '0'
     });
 
-    // Send the file
-    res.end(fileBuffer);
-    console.log('File sent to client');
-
-    // Clean up
-    try {
-      unlinkSync(tempFilePath);
-      console.log('Temporary file cleaned up');
-    } catch (cleanupError) {
-      console.error('Error cleaning up temp file:', cleanupError);
-    }
+    // Send buffer
+    res.end(excelBuffer);
 
   } catch (error) {
     console.error('Error in test template generation:', error);

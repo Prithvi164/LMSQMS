@@ -221,59 +221,46 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
 
   const downloadTestTemplate = async () => {
     try {
-      console.log('Initiating test template download...');
-
-      const response = await fetch('/api/users/test-template', {
-        method: 'GET',
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      });
-
-      console.log('Response received:', {
-        status: response.status,
-        contentType: response.headers.get('Content-Type'),
-        contentLength: response.headers.get('Content-Length')
-      });
+      const response = await fetch('/api/users/test-template');
 
       if (!response.ok) {
-        throw new Error(`Server responded with status: ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      // Get the raw buffer
-      const buffer = await response.arrayBuffer();
-      console.log('Received array buffer size:', buffer.byteLength);
+      // Get the response as blob
+      const blob = await response.blob();
 
-      // Create blob
-      const blob = new Blob([buffer], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      });
-      console.log('Created blob:', {
-        size: blob.size,
-        type: blob.type
-      });
+      // Validate blob type
+      if (!blob.type.includes('spreadsheet')) {
+        console.error('Invalid file type:', blob.type);
+        throw new Error('Invalid file type received from server');
+      }
 
-      // Create download link
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'test.xlsx';
+      // Create download URL
+      const url = window.URL.createObjectURL(
+        new Blob([blob], { 
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+        })
+      );
 
-      // Trigger download
-      document.body.appendChild(link);
-      link.click();
+      // Create and trigger download
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = 'test.xlsx';
+
+      document.body.appendChild(a);
+      a.click();
 
       // Cleanup
-      document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      console.log('Download initiated');
+      document.body.removeChild(a);
 
     } catch (error) {
-      console.error('Error downloading test template:', error);
+      console.error('Download failed:', error);
       toast({
         title: "Error",
-        description: "Failed to download test template. Please try again.",
+        description: "Failed to download template. Please try again.",
         variant: "destructive",
       });
     }
