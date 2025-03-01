@@ -3,12 +3,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import type { User, Organization, OrganizationLocation, InsertUser } from "@shared/schema";
+import type { User, Organization, OrganizationLocation } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Trash2, Search, FileDown } from "lucide-react";
+import { Edit2, Trash2, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -533,59 +533,6 @@ export function UserManagement() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Manage Users</h1>
-        <div className="flex gap-2">
-          <Button
-            onClick={() => {
-              // Create CSV content
-              const headers = [
-                'Username',
-                'Full Name',
-                'Email',
-                'Employee ID',
-                'Role',
-                'Phone Number',
-                'Location',
-                'Manager',
-                'Date of Joining',
-                'Date of Birth',
-                'Education',
-                'Status',
-                'Certified'
-              ].join(',');
-
-              const rows = users.map(u => [
-                u.username,
-                u.fullName || '',
-                u.email,
-                u.employeeId || '',
-                u.role,
-                u.phoneNumber || '',
-                getLocationName(u.locationId),
-                getManagerName(u.managerId),
-                u.dateOfJoining || '',
-                u.dateOfBirth || '',
-                u.education || '',
-                u.active ? 'Active' : 'Inactive',
-                u.certified ? 'Yes' : 'No'
-              ].join(','));
-
-              const csvContent = [headers, ...rows].join('\n');
-
-              // Create a blob and download
-              const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-              const link = document.createElement('a');
-              link.href = URL.createObjectURL(blob);
-              link.setAttribute('download', `users_${new Date().toISOString().split('T')[0]}.csv`);
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-            }}
-            className="mb-4"
-          >
-            <FileDown className="h-4 w-4 mr-2" />
-            Download Users
-          </Button>
-        </div>
       </div>
 
       <Card>

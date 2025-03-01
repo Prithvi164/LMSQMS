@@ -3,45 +3,11 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { Router } from "express";
-import multer from "multer";
-import path from "path";
 import { insertUserSchema } from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { insertOrganizationProcessSchema } from "@shared/schema";
-import * as XLSX from 'xlsx';  // Add XLSX import at the top
-
-// Configure multer for handling file uploads
-const upload = multer({
-  storage: multer.memoryStorage(),
-  fileFilter: (_req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-    try {
-      if (!file) {
-        console.error('No file received');
-        cb(new Error('No file uploaded'));
-        return;
-      }
-
-      const ext = path.extname(file.originalname).toLowerCase();
-      console.log('File extension:', ext);
-
-      if (ext !== '.csv' && ext !== '.xlsx') {
-        console.error('Invalid file type:', ext);
-        cb(new Error('Only CSV (.csv) and Excel (.xlsx) files are allowed'));
-        return;
-      }
-
-      cb(null, true);
-    } catch (error) {
-      console.error('File upload error:', error);
-      cb(error as Error);
-    }
-  },
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
-  }
-});
 
 const scryptAsync = promisify(scrypt);
 
@@ -242,13 +208,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         locations: Array.isArray(locations) ? locations : [],
       };
 
-      // Log response for debugging
-      console.log('Organization settings response:', {
-        orgId,
-        batchCount: response.batches.length,
-        locationCount: response.locations.length
-      });
-
       return res.json(response);
     } catch (err: any) {
       console.error("Error fetching organization settings:", err);
@@ -256,56 +215,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Failed to fetch organization settings",
         error: err.message
       });
-    }
-  });
-
-
-  // Update location route
-  app.patch("/api/organizations/:id/settings/locations/:locationId", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const orgId = parseInt(req.params.id);
-      const locationId = parseInt(req.params.locationId);
-
-      // Check if user belongs to the organization
-      if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "You can only modify locations in your own organization" });
-      }
-
-      console.log('Updating location:', locationId, 'with data:', req.body);
-      const updatedLocation = await storage.updateLocation(locationId, {
-        ...req.body,
-        organizationId: orgId, // Ensure we keep the correct organization ID
-      });
-
-      res.json(updatedLocation);
-    } catch (error: any) {
-      console.error("Location update error:", error);
-      res.status(400).json({ message: error.message || "Failed to update location" });
-    }
-  });
-
-  // Delete location route
-  app.delete("/api/organizations/:id/settings/locations/:locationId", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const orgId = parseInt(req.params.id);
-      const locationId = parseInt(req.params.locationId);
-
-      // Check if user belongs to the organization
-      if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "You can only delete locations in your own organization" });
-      }
-
-      console.log('Deleting location:', locationId);
-      await storage.deleteLocation(locationId);
-
-      res.json({ message: "Location deleted successfully" });
-    } catch (error: any) {
-      console.error("Location deletion error:", error);
-      res.status(400).json({ message: error.message || "Failed to delete location" });
     }
   });
 
@@ -317,7 +226,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log(`Fetching users for organization ${req.user.organizationId}`);
       const users = await storage.listUsers(req.user.organizationId);
-      console.log(`Found ${users.length} users, including ${users.filter(u => u.role === 'trainer').length} trainers`);
+      console.log(`Found ${users.length} users`);
       res.json(users);
     } catch (error: any) {
       console.error("Error fetching users:", error);
@@ -325,7 +234,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create user endpoint - updated to handle process assignments
+  // Create user endpoint
   app.post("/api/users", async (req, res) => {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -448,262 +357,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-
-  // Permissions routes
-  app.get("/api/permissions", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-    if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
-
-    try {
-      const rolePermissions = await storage.listRolePermissions(req.user.organizationId);
-      res.json(rolePermissions);
-    } catch (error: any) {
-      console.error("Error fetching permissions:", error);
-      res.status(500).json({ message: error.message });
+  // Delete user route
+  app.delete("/api/users/:id", async (req, res) => {
+    if (!req.user) {
+      console.log('Delete user request rejected: No authenticated user');
+      return res.status(401).json({ message: "Unauthorized" });
     }
-  });
-
-  app.get("/api/permissions/:role", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-    if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
 
     try {
-      const rolePermission = await storage.getRolePermissions(req.user.organizationId, req.params.role);
-      if (!rolePermission) {
-        return res.status(404).json({ message: "Role permissions not found" });
+      const userId = parseInt(req.params.id);
+      console.log(`Processing delete request for user ID: ${userId} by user: ${req.user.id}`);
+
+      const userToDelete = await storage.getUser(userId);
+      if (!userToDelete) {
+        console.log(`Delete request failed: User ${userId} not found`);
+        return res.status(404).json({ message: "User not found" });
       }
-      res.json(rolePermission);
+
+      // Prevent deleting owner
+      if (userToDelete.role === 'owner') {
+        console.log(`Delete request rejected: Cannot delete owner account`);
+        return res.status(403).json({ message: "Cannot delete owner account" });
+      }
+
+      // Only owners and admins can delete users
+      if (req.user.role !== 'owner' && req.user.role !== 'admin') {
+        console.log(`Delete request rejected: Insufficient permissions for user ${req.user.id}`);
+        return res.status(403).json({ message: "Insufficient permissions to delete users" });
+      }
+
+      console.log(`Proceeding with deletion of user ${userId}`);
+      await storage.deleteUser(userId);
+
+      console.log(`User ${userId} deleted successfully`);
+      res.status(200).json({ message: "User deleted successfully" });
     } catch (error: any) {
-      console.error("Error fetching role permissions:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  app.patch("/api/permissions/:role", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-    if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
-    if (req.user.role !== "admin") return res.status(403).json({ message: "Only admins can modify permissions" });
-
-    try {
-      const { permissions } = req.body;
-      if (!Array.isArray(permissions)) {
-        return res.status(400).json({ message: "Permissions must be an array" });
-      }
-
-      const rolePermission = await storage.updateRolePermissions(
-        req.user.organizationId,
-        req.params.role,
-        permissions
-      );
-
-      res.json(rolePermission);
-    } catch (error: any) {
-      console.error("Error updating permissions:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Template download route - updated to use XLSX format
-  app.get("/api/users/template", (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    // Create workbook and worksheet
-    const wb = XLSX.utils.book_new();
-
-    // Define headers exactly as per screenshot
-    const headers = [
-      'Username*', 'Password*', 'FullName*', 'EmployeeID*', 'Role*',
-      'Category*', 'Email*', 'PhoneNumber*', 'ProcessIDs*', 'Location',
-      'ManagerUsername', 'DateOfJoining', 'DateOfBirth', 'Education'
-    ];
-
-    // Example data row matching headers
-    const exampleData = [
-      'john.doe', 'password123', 'John Doe', 'EMP001', 'trainee',
-      'trainee', 'john@example.com', '1234567890', '1,2,3', 'New York',
-      'manager.username', '01-01-2023', '01-01-1990', 'Bachelors'
-    ];
-
-    // Instructions as separate rows
-    const instructions = [
-      ['Instructions:'],
-      ['1. Fields marked with * are mandatory'],
-      ['2. Role must be one of: trainee, trainer, manager, advisor, team_lead'],
-      ['3. Password must be at least 6 characters'],
-      ['4. Phone number must be 10 digits'],
-      ['5. Email must be valid format'],
-      ['6. Dates must be in DD-MM-YYYY format'],
-      ['7. ManagerUsername is optional - leave blank if no manager'],
-      ['8. Location must match existing values in your organization'],
-      ['9. ProcessIDs must be comma-separated numbers (e.g., 1,2,3)'],
-      ['10. Category must be either "active" or "trainee"']
-    ];
-
-    // Create worksheet with headers and example
-    const ws = XLSX.utils.aoa_to_sheet([headers, exampleData, [], ...instructions]);
-
-    // Add worksheet to workbook
-    XLSX.utils.book_append_sheet(wb, ws, "Template");
-
-    // Set column widths
-    const colWidths = headers.map(() => ({ wch: 20 }));
-    ws['!cols'] = colWidths;
-
-    // Write to buffer
-    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-
-    res.setHeader('Content-Disposition', 'attachment; filename=user_upload_template.xlsx');
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.send(buffer);
-  });
-
-  // Update upload route to handle both CSV and XLSX
-  app.post("/api/users/upload", upload.single('file'), async (req, res) => {
-    try {
-      if (!req.user) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-
-      if (!req.file?.buffer) {
-        return res.status(400).json({ message: "No file uploaded" });
-      }
-
-      let rows: string[][] = [];
-
-      // Parse file based on extension
-      const ext = path.extname(req.file.originalname).toLowerCase();
-      if (ext === '.xlsx') {
-        const workbook = XLSX.read(req.file.buffer);
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-      } else {
-        // CSV handling
-        const csvContent = req.file.buffer.toString('utf-8');
-        rows = csvContent.split('\n').map(line => line.split(',').map(cell => cell.trim()));
-      }
-
-      const headers = rows[0].map(h => h.trim().replace(/[\r\n*]/g, ''));
-      console.log('Processing file with headers:', headers);
-
-      // Process data rows (skip header)
-      const results = {
-        success: 0,
-        failures: [] as { row: number; error: string }[]
-      };
-
-      // Fetch organization settings first
-      const [batches, locations] = await Promise.all([
-        storage.listBatches(req.user.organizationId),
-        storage.listLocations(req.user.organizationId),
-      ]);
-
-      // Process each row
-      for (let i = 1; i < rows.length; i++) {
-        const row = rows[i];
-        if (!row.length || row.every(cell => !cell)) continue; // Skip empty rows
-
-        try {
-          const userData: Record<string, string> = {};
-          headers.forEach((header, index) => {
-            const fieldName = header.toLowerCase()
-              .replace(/\s+/g, '')
-              .replace(/[*]/g, '');
-            userData[fieldName] = row[index]?.trim() || '';
-          });
-
-          // Validate required fields
-          if (!userData.username) throw new Error('Username is required');
-          if (!userData.password) throw new Error('Password is required');
-          if (!userData.fullname) throw new Error('Full Name is required');
-          if (!userData.employeeid) throw new Error('Employee ID is required');
-          if (!userData.email) throw new Error('Email is required');
-          if (!userData.role) throw new Error('Role is required');
-          if (!userData.category) throw new Error('Category is required');
-          if (!userData.phonenumber) throw new Error('Phone Number is required');
-
-          // Check username uniqueness
-          const existingUser = await storage.getUserByUsername(userData.username);
-          if (existingUser) {
-            throw new Error(`Username '${userData.username}' already exists`);
-          }
-
-          // Find manager if specified
-          let managerId: number | null = null;
-          if (userData.managerusername) {
-            const manager = await storage.getUserByUsername(userData.managerusername);
-            if (!manager) {
-              throw new Error(`Manager not found: ${userData.managerusername}`);
-            }
-            managerId = manager.id;
-          }
-
-          // Find location if specified
-          let locationId: number | null = null;
-          if (userData.location) {
-            const location = locations.find(l =>
-              l.name.toLowerCase() === userData.location.toLowerCase()
-            );
-            if (!location) {
-              throw new Error(`Location not found: ${userData.location}`);
-            }
-            locationId = location.id;
-          }
-
-          // Parse process IDs
-          const processIds: number[] = [];
-          if (userData.processids) {
-            const ids = userData.processids.split(',').map(id => id.trim());
-            for (const id of ids) {
-              const processId = parseInt(id);
-              if (isNaN(processId)) {
-                throw new Error(`Invalid process ID: ${id}`);
-              }
-              processIds.push(processId);
-            }
-          }
-
-          // Hash the password
-          const hashedPassword = await hashPassword(userData.password);
-
-          // Create user with validated data
-          const userToCreate = {
-            username: userData.username,
-            password: hashedPassword,
-            fullName: userData.fullname,
-            employeeId: userData.employeeid,
-            role: userData.role.toLowerCase(),
-            category: userData.category.toLowerCase(),
-            email: userData.email,
-            phoneNumber: userData.phonenumber,
-            dateOfJoining: userData.dateofjoining || null,
-            dateOfBirth: userData.dateofbirth || null,
-            education: userData.education || null,
-            organizationId: req.user.organizationId,
-            managerId,
-            locationId,
-            active: true
-          };
-
-          console.log('Creating user with processes:', { ...userToCreate, password: '[REDACTED]', processIds });
-          await storage.createUserWithProcesses(userToCreate, processIds, req.user.organizationId);
-          console.log('User created successfully');
-          results.success++;
-        } catch (error: any) {
-          console.error(`Row ${i} processing error:`, error);
-          results.failures.push({
-            row: i,
-            error: error.message || 'Unknown error occurred'
-          });
-        }
-      }
-
-      res.json(results);
-    } catch (error: any) {
-      console.error('File upload error:', error);
-      res.status(400).json({
-        message: error.message,
-        details: 'Please ensure the file matches the template format'
-      });
+      console.error("Error in delete user route:", error);
+      res.status(500).json({ message: error.message || "Failed to delete user" });
     }
   });
 
@@ -762,43 +452,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add the delete user route to the existing routes
-  app.delete("/api/users/:id", async (req, res) => {
-    if (!req.user) {
-      console.log('Delete user request rejected: No authenticated user');
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+
+  // Permissions routes
+  app.get("/api/permissions", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
 
     try {
-      const userId = parseInt(req.params.id);
-      console.log(`Processing delete request for user ID: ${userId} by user: ${req.user.id}`);
-
-      const userToDelete = await storage.getUser(userId);
-      if (!userToDelete) {
-        console.log(`Delete request failed: User ${userId} not found`);
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      // Prevent deleting owner
-      if (userToDelete.role === 'owner') {
-        console.log(`Delete request rejected: Cannot delete owner account`);
-        return res.status(403).json({ message: "Cannot delete owner account" });
-      }
-
-      // Only owners and admins can delete users
-      if (req.user.role !== 'owner' && req.user.role !== 'admin') {
-        console.log(`Delete request rejected: Insufficient permissions for user ${req.user.id}`);
-        return res.status(403).json({ message: "Insufficient permissions to delete users" });
-      }
-
-      console.log(`Proceeding with deletion of user ${userId}`);
-      await storage.deleteUser(userId);
-
-      console.log(`User ${userId} deleted successfully`);
-      res.status(200).json({ message: "User deleted successfully" });
+      const rolePermissions = await storage.listRolePermissions(req.user.organizationId);
+      res.json(rolePermissions);
     } catch (error: any) {
-      console.error("Error in delete user route:", error);
-      res.status(500).json({ message: error.message || "Failed to delete user" });
+      console.error("Error fetching permissions:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/permissions/:role", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
+
+    try {
+      const rolePermission = await storage.getRolePermissions(req.user.organizationId, req.params.role);
+      if (!rolePermission) {
+        return res.status(404).json({ message: "Role permissions not found" });
+      }
+      res.json(rolePermission);
+    } catch (error: any) {
+      console.error("Error fetching role permissions:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/permissions/:role", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
+    if (req.user.role !== "admin") return res.status(403).json({ message: "Only admins can modify permissions" });
+
+    try {
+      const { permissions } = req.body;
+      if (!Array.isArray(permissions)) {
+        return res.status(400).json({ message: "Permissions must be an array" });
+      }
+
+      const rolePermission = await storage.updateRolePermissions(
+        req.user.organizationId,
+        req.params.role,
+        permissions
+      );
+
+      res.json(rolePermission);
+    } catch (error: any) {
+      console.error("Error updating permissions:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+
+  // Update location route
+  app.patch("/api/organizations/:id/settings/locations/:locationId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.id);
+      const locationId = parseInt(req.params.locationId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only modify locations in your own organization" });
+      }
+
+      console.log('Updating location:', locationId, 'with data:', req.body);
+      const updatedLocation = await storage.updateLocation(locationId, {
+        ...req.body,
+        organizationId: orgId, // Ensure we keep the correct organization ID
+      });
+
+      res.json(updatedLocation);
+    } catch (error: any) {
+      console.error("Location update error:", error);
+      res.status(400).json({ message: error.message || "Failed to update location" });
+    }
+  });
+
+  // Delete location route
+  app.delete("/api/organizations/:id/settings/locations/:locationId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.id);
+      const locationId = parseInt(req.params.locationId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only delete locations in your own organization" });
+      }
+
+      console.log('Deleting location:', locationId);
+      await storage.deleteLocation(locationId);
+
+      res.json({ message: "Location deleted successfully" });
+    } catch (error: any) {
+      console.error("Location deletion error:", error);
+      res.status(400).json({ message: error.message || "Failed to delete location" });
     }
   });
 
@@ -918,37 +673,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Failed to fetch line of businesses",
         error: error.message,
         details: error.toString()
-      });
-    }
-  });
-
-  // Add this API endpoint if it doesn't exist or modify the existing one
-  app.get("/api/organizations/:id/line-of-businesses", async (req, res) => {
-    if (!req.user) {
-      console.log('Unauthorized access attempt to line of businesses');
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const orgId = parseInt(req.params.id);
-      console.log(`Fetching Line of Businesses for organization ${orgId}`);
-
-      // Check if user belongs to the organization
-      if (req.user.organizationId !== orgId) {
-        console.log(`User ${req.user.id} attempted to access organization ${orgId}'s LOBs`);
-        return res.status(403).json({ message: "You can only view LOBs in your own organization" });
-      }
-
-      const lobs = await storage.listLineOfBusinesses(orgId);
-      console.log(`Found ${lobs.length} Line of Businesses:`, lobs);
-
-      // Ensure we're sending a valid JSON response
-      return res.json(lobs || []);
-    } catch (error: any) {
-      console.error("Error fetching LOBs:", error);
-      return res.status(500).json({
-        message: "Failed to fetch line of businesses",
-        error: error.message
       });
     }
   });
@@ -1104,6 +828,5 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  const httpServer = createServer(app);
-  return httpServer;
+  return app;
 }
