@@ -26,14 +26,17 @@ router.get('/template', async (req, res) => {
       }
     });
 
-    // Create users sheet
+    // Create workbook and worksheets
+    const wb = XLSX.utils.book_new();
+
+    // Users sheet data
     const usersData = [
       ['Username*', 'Full Name*', 'Email*', 'Password*', 'Employee ID*', 'Role*', 'Phone Number*', 'Education', 'Date of Joining*', 'Date of Birth*', 'Category*', 'Location Name'],
       ['john_doe', 'John Doe', 'john@example.com', 'password123', 'EMP001', 'trainee', '+1234567890', 'Bachelor\'s', '2024-03-01', '1990-01-01', 'active', 'HQ'],
       ['Example format - Required fields marked with *']
     ];
 
-    // Create process mappings sheet
+    // Process mappings sheet data
     const processMappingsData = [
       ['User Email*', 'Process Name*'],
       ['john@example.com', 'Customer Support'],
@@ -41,14 +44,8 @@ router.get('/template', async (req, res) => {
       ['Example format - Add multiple rows for the same email to assign multiple processes']
     ];
 
-    // Create workbook
-    const wb = XLSX.utils.book_new();
-
-    // Add sheets
+    // Create and format Users sheet
     const ws1 = XLSX.utils.aoa_to_sheet(usersData);
-    const ws2 = XLSX.utils.aoa_to_sheet(processMappingsData);
-
-    // Set column widths
     ws1['!cols'] = [
       { wch: 15 }, // Username
       { wch: 20 }, // Full Name
@@ -64,6 +61,8 @@ router.get('/template', async (req, res) => {
       { wch: 20 }, // Location Name
     ];
 
+    // Create and format Process Mappings sheet
+    const ws2 = XLSX.utils.aoa_to_sheet(processMappingsData);
     ws2['!cols'] = [
       { wch: 25 }, // User Email
       { wch: 25 }, // Process Name
@@ -76,16 +75,18 @@ router.get('/template', async (req, res) => {
     // Write to buffer
     const buf = XLSX.write(wb, {
       type: 'buffer',
-      bookType: 'xlsx'
+      bookType: 'xlsx',
+      bookSST: false
     });
 
     // Set headers
     res.setHeader('Content-Disposition', 'attachment; filename="user_upload_template.xlsx"');
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Length', buf.length);
+    res.setHeader('Cache-Control', 'no-cache');
 
     // Send response
-    res.end(buf);
+    res.send(buf);
 
   } catch (error) {
     console.error('Error generating template:', error);

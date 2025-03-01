@@ -176,13 +176,32 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     },
   });
 
-  const downloadTemplate = () => {
-    const link = document.createElement('a');
-    link.href = '/api/users/template';
-    link.setAttribute('download', 'user_upload_template.xlsx');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const downloadTemplate = async () => {
+    try {
+      const response = await fetch('/api/users/template', {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        }
+      });
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'user_upload_template.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading template:', error);
+      toast({
+        title: "Error",
+        description: "Failed to download template. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const bulkUploadMutation = useMutation({
