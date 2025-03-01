@@ -16,6 +16,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { type LoginData } from "@/hooks/use-auth";
 import { type InsertUser } from "@shared/schema";
+import { SiOpenai } from "react-icons/si";
+import { BarChart2, Users, GraduationCap } from "lucide-react";
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -154,14 +156,32 @@ export default function AuthPage() {
       </div>
 
       <div className="hidden lg:flex bg-muted items-center justify-center p-8">
-        <div className="max-w-lg">
-          <h1 className="text-4xl font-bold mb-4">
-            Transform Your Contact Center Training
-          </h1>
-          <p className="text-lg text-muted-foreground">
-            CloudLMS helps you create personalized learning paths, 
-            track agent performance, and ensure compliance with ease.
-          </p>
+        <div className="max-w-lg space-y-8">
+          <div className="text-center mb-8">
+            <SiOpenai className="w-16 h-16 mx-auto mb-4 text-primary" />
+            <h1 className="text-4xl font-bold mb-4">
+              Transform Your Contact Center Training
+            </h1>
+            <p className="text-lg text-muted-foreground">
+              CloudLMS helps you create personalized learning paths, 
+              track agent performance, and ensure compliance with ease.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4 mt-8">
+            <div className="text-center p-4 rounded-lg bg-background/50 backdrop-blur">
+              <Users className="w-8 h-8 mx-auto mb-2 text-primary" />
+              <h3 className="font-medium">Team Management</h3>
+            </div>
+            <div className="text-center p-4 rounded-lg bg-background/50 backdrop-blur">
+              <GraduationCap className="w-8 h-8 mx-auto mb-2 text-primary" />
+              <h3 className="font-medium">Learning Paths</h3>
+            </div>
+            <div className="text-center p-4 rounded-lg bg-background/50 backdrop-blur">
+              <BarChart2 className="w-8 h-8 mx-auto mb-2 text-primary" />
+              <h3 className="font-medium">Analytics</h3>
+            </div>
+          </div>
         </div>
       </div>
     </div>
