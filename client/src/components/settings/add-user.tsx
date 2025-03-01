@@ -179,30 +179,21 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
   const downloadTemplate = async () => {
     try {
       const response = await fetch('/api/users/template', {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        }
+        method: 'GET'
       });
 
       if (!response.ok) {
         throw new Error('Failed to download template');
       }
 
-      // Get the blob with correct MIME type
+      // Get the blob
       const blob = await response.blob();
 
-      // Create object URL
-      const url = window.URL.createObjectURL(
-        new Blob([blob], { 
-          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        })
-      );
-
       // Create download link
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', 'user_upload_template.xlsx');
+      link.download = 'user_upload_template.xlsx';
 
       // Trigger download
       document.body.appendChild(link);
