@@ -4,19 +4,13 @@ import { db } from '../db';
 import { organizations, users, processes } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import multer from 'multer';
-import { join } from 'path';
-import { writeFileSync, unlinkSync } from 'fs';
-import { randomUUID } from 'crypto';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
 // Template download endpoint
 router.get('/template', async (req, res) => {
-  const tempFilePath = join('/tmp', `template-${randomUUID()}.xlsx`);
-
   try {
-    // Get organization's processes for the template
     const organizationId = req.user?.organizationId;
     if (!organizationId) {
       return res.status(401).json({ message: 'Unauthorized' });
@@ -68,31 +62,27 @@ router.get('/template', async (req, res) => {
     XLSX.utils.book_append_sheet(wb, ws1, 'Users');
     XLSX.utils.book_append_sheet(wb, ws2, 'Process Mappings');
 
-    // Write to temporary file
-    XLSX.writeFile(wb, tempFilePath);
-
-    // Stream file to client
-    res.download(tempFilePath, 'user_upload_template.xlsx', (err) => {
-      // Clean up temp file after sending
-      try {
-        unlinkSync(tempFilePath);
-      } catch (cleanupError) {
-        console.error('Error cleaning up temp file:', cleanupError);
-      }
-
-      if (err) {
-        console.error('Error sending file:', err);
-      }
+    // Generate binary string
+    const wbout = XLSX.write(wb, {
+      bookType: 'xlsx',
+      type: 'binary',
+      bookSST: false,
+      compression: true
     });
 
-  } catch (error) {
-    // Clean up temp file in case of error
-    try {
-      unlinkSync(tempFilePath);
-    } catch (cleanupError) {
-      console.error('Error cleaning up temp file:', cleanupError);
-    }
+    // Convert string to Buffer
+    const buf = Buffer.from(wbout, 'binary');
 
+    // Set headers for Excel file download
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=user_upload_template.xlsx');
+    res.setHeader('Content-Length', buf.length);
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+
+    // Send buffer
+    res.status(200).send(buf);
+
+  } catch (error) {
     console.error('Error generating template:', error);
     res.status(500).json({ message: 'Failed to generate template' });
   }

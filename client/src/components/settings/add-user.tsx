@@ -179,18 +179,27 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
   const downloadTemplate = async () => {
     try {
       const response = await fetch('/api/users/template', {
-        method: 'GET'
+        method: 'GET',
+        headers: {
+          'Accept': 'application/vnd.ms-excel'
+        }
       });
 
       if (!response.ok) {
         throw new Error('Failed to download template');
       }
 
+      // Convert response to blob
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([blob], { 
+        type: 'application/vnd.ms-excel'
+      }));
+
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'user_upload_template.xlsx';
+      link.setAttribute('download', 'user_upload_template.xlsx');
 
       // Trigger download
       document.body.appendChild(link);
@@ -199,7 +208,6 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       // Cleanup
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-
     } catch (error) {
       console.error('Error downloading template:', error);
       toast({
