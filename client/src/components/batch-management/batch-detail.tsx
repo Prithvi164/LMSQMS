@@ -23,15 +23,29 @@ import {
 } from "@/components/ui/table";
 import { CreateBatchForm } from "./create-batch-form";
 
+interface Batch {
+  id: number;
+  name: string;
+  status: 'planned' | 'ongoing' | 'completed';
+  lineOfBusiness: string;
+  processName: string;
+  location: string;
+  trainer: string;
+  manager: string;
+  batchNumber: string;
+  participants: number;
+  capacityLimit: number;
+}
+
 export function BatchDetail() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const {
-    data: batches = [], // Provide default empty array to fix TypeScript error
+    data: batches = [] as Batch[],
     isLoading,
     error
-  } = useQuery({
+  } = useQuery<Batch[]>({
     queryKey: ['/api/batches'],
   });
 
