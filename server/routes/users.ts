@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { utils as XLSX } from 'xlsx';
+import { utils, writeFile } from 'xlsx';
 import { db } from '../db';
 import { organizations, users, processes } from '@shared/schema';
 import { eq } from 'drizzle-orm';
@@ -27,26 +27,33 @@ router.get('/template', async (req, res) => {
     });
 
     // Create users sheet
-    const usersWorksheet = XLSX.aoa_to_sheet([
+    const usersData = [
       ['Username*', 'Full Name*', 'Email*', 'Password*', 'Employee ID*', 'Role*', 'Phone Number*', 'Education', 'Date of Joining*', 'Date of Birth*', 'Category*', 'Location Name'],
       ['john_doe', 'John Doe', 'john@example.com', 'password123', 'EMP001', 'trainee', '+1234567890', 'Bachelor\'s', '2024-03-01', '1990-01-01', 'active', 'HQ'],
       ['Example format - Required fields marked with *']
-    ]);
+    ];
 
     // Create process mappings sheet
-    const processMappingsWorksheet = XLSX.aoa_to_sheet([
+    const processMappingsData = [
       ['User Email*', 'Process Name*'],
       ['john@example.com', 'Customer Support'],
-      ['Example format - Map users to their processes. Add multiple rows for the same email to assign multiple processes.']
-    ]);
+      ['john@example.com', 'Sales Support'],
+      ['Example format - Add multiple rows for the same email to assign multiple processes']
+    ];
 
-    // Create workbook with both sheets
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, usersWorksheet, 'Users');
-    XLSX.utils.book_append_sheet(workbook, processMappingsWorksheet, 'Process Mappings');
+    // Create workbook
+    const workbook = utils.book_new();
 
-    // Add column widths
-    usersWorksheet['!cols'] = [
+    // Add Users sheet
+    const usersSheet = utils.aoa_to_sheet(usersData);
+    utils.book_append_sheet(workbook, usersSheet, 'Users');
+
+    // Add Process Mappings sheet
+    const processMappingsSheet = utils.aoa_to_sheet(processMappingsData);
+    utils.book_append_sheet(workbook, processMappingsSheet, 'Process Mappings');
+
+    // Set column widths
+    usersSheet['!cols'] = [
       { wch: 15 }, // Username
       { wch: 20 }, // Full Name
       { wch: 25 }, // Email
@@ -61,16 +68,25 @@ router.get('/template', async (req, res) => {
       { wch: 20 }, // Location Name
     ];
 
-    processMappingsWorksheet['!cols'] = [
+    processMappingsSheet['!cols'] = [
       { wch: 25 }, // User Email
       { wch: 25 }, // Process Name
     ];
 
-    // Generate the Excel file
-    const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    // Convert workbook to buffer
+    const excelBuffer = utils.write(workbook, { 
+      type: 'buffer',
+      bookType: 'xlsx',
+      bookSST: false,
+      compression: true
+    });
 
+    // Set response headers
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename=user_upload_template.xlsx');
+    res.setHeader('Content-Disposition', 'attachment; filename="user_upload_template.xlsx"');
+    res.setHeader('Content-Length', excelBuffer.length);
+
+    // Send the file
     res.send(excelBuffer);
   } catch (error) {
     console.error('Error generating template:', error);
@@ -91,7 +107,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     }
 
     // Read both sheets from the Excel file
-    const workbook = XLSX.read(req.file.buffer);
+    const workbook = utils.read(req.file.buffer);
     const usersSheet = workbook.Sheets['Users'];
     const processMappingsSheet = workbook.Sheets['Process Mappings'];
 
@@ -102,8 +118,8 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     }
 
     // Parse sheets to JSON
-    const users = XLSX.utils.sheet_to_json(usersSheet);
-    const processMappings = XLSX.utils.sheet_to_json(processMappingsSheet);
+    const users = utils.sheet_to_json(usersSheet);
+    const processMappings = utils.sheet_to_json(processMappingsSheet);
 
     // Validate users data
     for (const user of users) {
