@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
-// Import UI components
+// Import UI components (keeping existing imports)
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -32,7 +32,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { 
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -41,7 +41,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-// Define types
+// Update types
 interface CurrentUser {
   id: number;
   organizationId: number;
@@ -51,12 +51,19 @@ interface CurrentUser {
 interface Process {
   id: number;
   name: string;
+  lineOfBusinessId: number;
   lineOfBusiness: string;
   inductionDays: number;
   trainingDays: number;
   certificationDays: number;
   ojtDays: number;
   ojtCertificationDays: number;
+}
+
+interface LineOfBusiness {
+  id: number;
+  name: string;
+  description: string;
 }
 
 interface Trainer {
@@ -78,6 +85,7 @@ interface Location {
 interface OrganizationSettings {
   processes: Process[];
   locations: Location[];
+  lineOfBusinesses: LineOfBusiness[];
   roles: string[];
 }
 
@@ -145,10 +153,9 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
   const [selectedTrainer, setSelectedTrainer] = useState<Trainer | null>(null);
   const [batchNumber, setBatchNumber] = useState("");
   const [filteredProcesses, setFilteredProcesses] = useState<Process[]>([]);
-  const [uniqueLOBs, setUniqueLOBs] = useState<string[]>([]);
 
-  // Get the current user's organization ID with better error handling
-  const { data: currentUser } = useQuery<CurrentUser>({
+  // Get the current user first
+  const { data: currentUser, isLoading: isUserLoading } = useQuery<CurrentUser>({
     queryKey: ['/api/user'],
     retry: 3,
     onError: (error: Error) => {
@@ -161,32 +168,74 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     }
   });
 
-  // Fetch organization settings with improved error handling
-  const {
-    data: settings,
-    isLoading: isSettingsLoading,
-    error: settingsError
+  console.log('Current User:', currentUser);
+
+  // Get settings data with improved error handling
+  const { 
+    data: settings, 
+    isLoading: isSettingsLoading 
   } = useQuery<OrganizationSettings>({
     queryKey: [`/api/organizations/${currentUser?.organizationId}/settings`],
     enabled: !!currentUser?.organizationId,
     onSuccess: (data) => {
-      console.log('Successfully fetched settings:', data);
-      // Extract unique LOBs from processes
-      if (data?.processes) {
-        const lobs = Array.from(new Set(data.processes.map(p => p.lineOfBusiness)));
-        console.log('Unique LOBs:', lobs);
-        setUniqueLOBs(lobs);
-      }
+      console.log('Settings data received:', {
+        lineOfBusinesses: data.lineOfBusinesses,
+        processes: data.processes,
+        locations: data.locations
+      });
     },
     onError: (error: Error) => {
       console.error('Error fetching settings:', error);
       toast({
-        title: "Error fetching organization settings",
+        title: "Error fetching settings",
         description: error.message,
         variant: "destructive",
       });
     }
   });
+
+  // Filter processes when LOB changes
+  useEffect(() => {
+    const selectedLOB = form.watch('lineOfBusiness');
+    if (selectedLOB && settings?.processes && settings?.lineOfBusinesses) {
+      try {
+        console.log('Filtering processes for LOB:', {
+          selectedLOB,
+          availableLineOfBusinesses: settings.lineOfBusinesses,
+          availableProcesses: settings.processes
+        });
+
+        // Find the selected LOB object
+        const selectedLOBObject = settings.lineOfBusinesses.find(
+          lob => lob.name === selectedLOB
+        );
+
+        if (!selectedLOBObject) {
+          console.log('Selected LOB not found:', selectedLOB);
+          return;
+        }
+
+        console.log('Selected LOB object:', selectedLOBObject);
+
+        // Filter processes based on LOB ID
+        const filtered = settings.processes.filter(
+          process => process.lineOfBusinessId === selectedLOBObject.id
+        );
+
+        console.log('Filtered processes:', filtered);
+        setFilteredProcesses(filtered);
+        form.setValue('processId', '');
+        setSelectedProcess(null);
+      } catch (error) {
+        console.error('Error filtering processes:', error);
+        toast({
+          title: "Error filtering processes",
+          description: "Failed to filter processes for selected line of business",
+          variant: "destructive",
+        });
+      }
+    }
+  }, [form.watch('lineOfBusiness'), settings]);
 
   // Fetch trainers with improved error handling
   const {
@@ -213,8 +262,8 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
           manager: trainer.managerId ? {
             id: trainer.managerId,
             name: data.find(u => u.id === trainer.managerId)?.fullName ||
-                 data.find(u => u.id === trainer.managerId)?.username ||
-                 `Manager ${trainer.managerId}`
+              data.find(u => u.id === trainer.managerId)?.username ||
+              `Manager ${trainer.managerId}`
           } : undefined
         }));
     },
@@ -250,32 +299,6 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     setBatchNumber(generateBatchNumber());
   }, []);
 
-  // Filter processes when LOB changes with improved error handling
-  useEffect(() => {
-    const selectedLOB = form.watch('lineOfBusiness');
-    if (selectedLOB && settings?.processes) {
-      try {
-        console.log('Filtering processes for LOB:', selectedLOB);
-        console.log('Available processes:', settings.processes);
-
-        const filtered = settings.processes.filter(
-          (process: Process) => process.lineOfBusiness === selectedLOB
-        );
-        console.log('Filtered processes:', filtered);
-
-        setFilteredProcesses(filtered);
-        form.setValue('processId', '');
-        setSelectedProcess(null);
-      } catch (error) {
-        console.error('Error filtering processes:', error);
-        toast({
-          title: "Error filtering processes",
-          description: "Failed to filter processes for selected line of business",
-          variant: "destructive",
-        });
-      }
-    }
-  }, [form.watch('lineOfBusiness'), settings?.processes]);
 
   // Update all dates when process or start date changes
   useEffect(() => {
@@ -370,11 +393,15 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
         }),
       });
 
+      console.log('Create Batch API Response:', response);
+
       if (!response.ok) {
         const error = await response.json();
+        console.error('Create Batch API Error:', error);
         throw new Error(error.message || 'Failed to create batch');
       }
 
+      console.log('Create Batch API Response Data:', await response.json());
       return response.json();
     },
     onSuccess: () => {
@@ -403,7 +430,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
   };
 
   // Show loading states
-  if (!currentUser || isSettingsLoading || isTrainersLoading) {
+  if (isUserLoading || isSettingsLoading || isTrainersLoading) {
     return (
       <div className="flex items-center justify-center p-6">
         <Loader2 className="h-6 w-6 animate-spin" />
@@ -413,26 +440,41 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
   }
 
   // Handle API errors
-  if (settingsError || trainersError) {
+  if (trainersError) {
     return (
       <div className="flex items-center justify-center p-6">
         <Button
           variant="outline"
           onClick={() => {
-            queryClient.invalidateQueries({ queryKey: [`/api/organizations/${currentUser.organizationId}/settings`] });
             queryClient.invalidateQueries({ queryKey: ['/api/users', currentUser?.organizationId] });
           }}
         >
-          Retry Loading Data
+          Retry Loading Trainers
         </Button>
       </div>
     );
   }
 
+    if (settingsError) {
+      return (
+        <div className="flex items-center justify-center p-6">
+          <Button
+            variant="outline"
+            onClick={() => {
+              queryClient.invalidateQueries({ queryKey: [`/api/organizations/${currentUser.organizationId}/settings`] });
+            }}
+          >
+            Retry Loading Settings
+          </Button>
+        </div>
+      );
+    }
+
+
   // Return the dialog content with proper accessibility attributes
   return (
     <Dialog>
-      <DialogContent className="max-w-3xl" aria-describedby="batch-form-description">
+      <DialogContent className="max-w-4xl" aria-describedby="batch-form-description">
         <DialogHeader>
           <DialogTitle>Create New Batch</DialogTitle>
           <DialogDescription id="batch-form-description">
@@ -462,8 +504,8 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                           </FormControl>
                           <SelectContent>
                             {settings?.locations?.map((location: Location) => (
-                              <SelectItem 
-                                key={`location-${location.id}`} 
+                              <SelectItem
+                                key={`location-${location.id}`}
                                 value={location.id.toString()}
                               >
                                 {location.name}
@@ -476,6 +518,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                     )}
                   />
 
+                  {/* Line of Business dropdown */}
                   <FormField
                     control={form.control}
                     name="lineOfBusiness"
@@ -489,12 +532,12 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {uniqueLOBs.map((lob: string) => (
-                              <SelectItem 
-                                key={`lob-${lob}`} 
-                                value={lob}
+                            {settings?.lineOfBusinesses?.map((lob: LineOfBusiness) => (
+                              <SelectItem
+                                key={`lob-${lob.id}`}
+                                value={lob.name}
                               >
-                                {lob}
+                                {lob.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -504,6 +547,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                     )}
                   />
 
+                  {/* Process dropdown */}
                   <FormField
                     control={form.control}
                     name="processId"
@@ -514,6 +558,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                           onValueChange={(value) => {
                             field.onChange(value);
                             const process = filteredProcesses.find(p => p.id.toString() === value);
+                            console.log('Selected process:', process);
                             setSelectedProcess(process || null);
                           }}
                           value={field.value}
@@ -526,8 +571,8 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                           </FormControl>
                           <SelectContent>
                             {filteredProcesses.map((process: Process) => (
-                              <SelectItem 
-                                key={`process-${process.id}`} 
+                              <SelectItem
+                                key={`process-${process.id}`}
                                 value={process.id.toString()}
                               >
                                 {process.name}
@@ -561,8 +606,8 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                           </FormControl>
                           <SelectContent>
                             {trainers.map((trainer: Trainer) => (
-                              <SelectItem 
-                                key={`trainer-${trainer.id}`} 
+                              <SelectItem
+                                key={`trainer-${trainer.id}`}
                                 value={trainer.id.toString()}
                               >
                                 {trainer.name}

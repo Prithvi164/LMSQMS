@@ -197,42 +197,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Fetch all required data
-      const [processes, batches, locations] = await Promise.all([
+      const [processes, batches, locations, lineOfBusinesses] = await Promise.all([
         storage.listProcesses(orgId),
         storage.listBatches(orgId),
         storage.listLocations(orgId),
+        storage.listLineOfBusinesses(orgId)
       ]);
 
       console.log('Fetched data:', {
         processCount: processes?.length || 0,
         batchCount: batches?.length || 0,
-        locationCount: locations?.length || 0
+        locationCount: locations?.length || 0,
+        lobCount: lineOfBusinesses?.length || 0
       });
 
-      // Ensure we have arrays and transform data for frontend
+      // Transform data for frontend with proper type checking
       const response = {
-        processes: Array.isArray(processes) ? processes.map(p => ({
+        processes: processes?.map(p => ({
           id: p.id,
           name: p.name,
-          lineOfBusiness: p.lineOfBusiness,
+          lineOfBusinessId: p.lineOfBusinessId,
+          lineOfBusiness: lineOfBusinesses?.find(lob => lob.id === p.lineOfBusinessId)?.name || '',
           inductionDays: p.inductionDays,
           trainingDays: p.trainingDays,
           certificationDays: p.certificationDays,
           ojtDays: p.ojtDays,
           ojtCertificationDays: p.ojtCertificationDays
-        })) : [],
-        batches: Array.isArray(batches) ? batches : [],
-        locations: Array.isArray(locations) ? locations.map(l => ({
+        })) || [],
+        lineOfBusinesses: lineOfBusinesses?.map(lob => ({
+          id: lob.id,
+          name: lob.name,
+          description: lob.description
+        })) || [],
+        locations: locations?.map(l => ({
           id: l.id,
           name: l.name,
           address: l.address,
           city: l.city,
           state: l.state,
           country: l.country
-        })) : [],
+        })) || [],
+        batches: batches || []
       };
 
-      console.log('Sending response:', response);
+      console.log('Sending response:', {
+        processCount: response.processes.length,
+        lobCount: response.lineOfBusinesses.length,
+        locationCount: response.locations.length,
+        batchCount: response.batches.length
+      });
+
       return res.json(response);
     } catch (err: any) {
       console.error("Error fetching organization settings:", err);
@@ -820,7 +834,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.user.organizationId !== orgId) {
         return res.status(403).json({ message: "You can only update processes in your own organization" });
       }
-
       console.log('Updating process:', processId, 'with data:', req.body);
 
       const process = await storage.updateProcess(processId, req.body);
