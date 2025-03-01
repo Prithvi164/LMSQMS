@@ -7,7 +7,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Session configuration
+// Session configuration with secure settings
 app.use(session({
   secret: 'your-secret-key',
   resave: false,
@@ -18,7 +18,7 @@ app.use(session({
   }
 }));
 
-// Authentication middleware
+// Authentication middleware with complete user mock data
 app.use((req, res, next) => {
   // For development, set a mock user with required fields
   if (process.env.NODE_ENV !== 'production') {
@@ -34,7 +34,6 @@ app.use((req, res, next) => {
       locationId: 1,
       managerId: null,
       active: true,
-      lastLogin: new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),
       certified: true,

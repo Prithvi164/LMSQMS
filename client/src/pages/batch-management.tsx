@@ -6,7 +6,14 @@ import { ProcessDetail } from "@/components/batch-management/process-detail";
 import { LobDetail } from "@/components/batch-management/lob-detail";
 import { LocationDetail } from "@/components/batch-management/location-detail";
 import { CreateBatchForm } from "@/components/batch-management/create-batch-form";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger 
+} from "@/components/ui/dialog";
 
 export default function BatchManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -19,7 +26,16 @@ export default function BatchManagement() {
           <DialogTrigger asChild>
             <Button>Add New Batch</Button>
           </DialogTrigger>
-          <DialogContent className="max-w-4xl">
+          <DialogContent 
+            className="max-w-4xl"
+            aria-describedby="batch-form-description"
+          >
+            <DialogHeader>
+              <DialogTitle>Create New Batch</DialogTitle>
+              <DialogDescription id="batch-form-description">
+                Fill in the details to create a new training batch. All dates will be calculated automatically based on the selected process.
+              </DialogDescription>
+            </DialogHeader>
             <CreateBatchForm onClose={() => setIsDialogOpen(false)} />
           </DialogContent>
         </Dialog>
