@@ -35,9 +35,22 @@ app.use((req, res, next) => {
   next();
 });
 
-// Add a test route to verify server is handling requests
-app.get("/health", (_req, res) => {
-  res.json({ status: "ok", mode: app.get("env") });
+// Import the health check utility
+import { checkHealth } from "./health";
+
+// Enhanced health check route
+app.get("/health", async (_req, res) => {
+  try {
+    const healthStatus = await checkHealth();
+    res.json(healthStatus);
+  } catch (error: any) {
+    res.status(500).json({ 
+      status: "error", 
+      message: error.message,
+      mode: app.get("env"),
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 (async () => {

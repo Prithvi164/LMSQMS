@@ -28,6 +28,8 @@ import {
 
 // Add to IStorage interface
 export interface IStorage {
+  // Health check method
+  healthCheck(): Promise<User[]>;
   // User operations
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -98,6 +100,11 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // Health check method
+  async healthCheck(): Promise<User[]> {
+    // Simple query to check database connection
+    return await db.query.users.findMany({ limit: 1 });
+  }
   // User operations
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id)) as User[];
