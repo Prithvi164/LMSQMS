@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { utils, writeFile } from 'xlsx';
+import * as XLSX from 'xlsx';
 import { db } from '../db';
 import { organizations, users, processes } from '@shared/schema';
 import { eq } from 'drizzle-orm';
@@ -42,18 +42,14 @@ router.get('/template', async (req, res) => {
     ];
 
     // Create workbook
-    const workbook = utils.book_new();
+    const wb = XLSX.utils.book_new();
 
-    // Add Users sheet
-    const usersSheet = utils.aoa_to_sheet(usersData);
-    utils.book_append_sheet(workbook, usersSheet, 'Users');
-
-    // Add Process Mappings sheet
-    const processMappingsSheet = utils.aoa_to_sheet(processMappingsData);
-    utils.book_append_sheet(workbook, processMappingsSheet, 'Process Mappings');
+    // Add sheets
+    const ws1 = XLSX.utils.aoa_to_sheet(usersData);
+    const ws2 = XLSX.utils.aoa_to_sheet(processMappingsData);
 
     // Set column widths
-    usersSheet['!cols'] = [
+    ws1['!cols'] = [
       { wch: 15 }, // Username
       { wch: 20 }, // Full Name
       { wch: 25 }, // Email
@@ -68,26 +64,29 @@ router.get('/template', async (req, res) => {
       { wch: 20 }, // Location Name
     ];
 
-    processMappingsSheet['!cols'] = [
+    ws2['!cols'] = [
       { wch: 25 }, // User Email
       { wch: 25 }, // Process Name
     ];
 
-    // Convert workbook to buffer
-    const excelBuffer = utils.write(workbook, { 
+    // Add sheets to workbook
+    XLSX.utils.book_append_sheet(wb, ws1, 'Users');
+    XLSX.utils.book_append_sheet(wb, ws2, 'Process Mappings');
+
+    // Write to buffer
+    const buf = XLSX.write(wb, {
       type: 'buffer',
-      bookType: 'xlsx',
-      bookSST: false,
-      compression: true
+      bookType: 'xlsx'
     });
 
-    // Set response headers
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    // Set headers
     res.setHeader('Content-Disposition', 'attachment; filename="user_upload_template.xlsx"');
-    res.setHeader('Content-Length', excelBuffer.length);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Length', buf.length);
 
-    // Send the file
-    res.send(excelBuffer);
+    // Send response
+    res.end(buf);
+
   } catch (error) {
     console.error('Error generating template:', error);
     res.status(500).json({ message: 'Failed to generate template' });
@@ -107,7 +106,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     }
 
     // Read both sheets from the Excel file
-    const workbook = utils.read(req.file.buffer);
+    const workbook = XLSX.read(req.file.buffer);
     const usersSheet = workbook.Sheets['Users'];
     const processMappingsSheet = workbook.Sheets['Process Mappings'];
 
@@ -118,8 +117,8 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     }
 
     // Parse sheets to JSON
-    const users = utils.sheet_to_json(usersSheet);
-    const processMappings = utils.sheet_to_json(processMappingsSheet);
+    const users = XLSX.utils.sheet_to_json(usersSheet);
+    const processMappings = XLSX.utils.sheet_to_json(processMappingsSheet);
 
     // Validate users data
     for (const user of users) {
