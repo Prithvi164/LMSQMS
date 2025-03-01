@@ -80,9 +80,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             "createOrganization",
             "updateOrganization",
             "deleteOrganization",
-            "createBatch",
-            "updateBatch",
-            "deleteBatch",
             "createLocation",
             "updateLocation",
             "deleteLocation",
@@ -93,7 +90,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             "unassignProcessFromUser",
             "viewAllUsers",
             "viewAllOrganizations",
-            "viewAllBatches",
             "viewAllLocations",
             "viewAllProcesses"
           ]
@@ -118,7 +114,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(organization);
   });
 
-  // Update the PATCH /api/organizations/:id/settings route to remove process handling
+  // Update the PATCH /api/organizations/:id/settings route to remove batch handling
   app.patch("/api/organizations/:id/settings", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -138,12 +134,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let result;
       // Create new setting based on type
       switch (type) {
-        case "batchNames":
-          result = await storage.createBatch({
-            name: value,
-            organizationId: orgId,
-          });
-          break;
         case "locations":
           // Ensure value is an object with all required fields
           if (typeof value !== 'object') {
@@ -176,7 +166,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Organization settings route - Update with proper debugging
+  // Update organization settings route
   app.get("/api/organizations/:id/settings", async (req, res) => {
     console.log("GET /api/organizations/:id/settings - Request params:", req.params);
     console.log("GET /api/organizations/:id/settings - Current user:", req.user);
@@ -197,14 +187,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Fetch all required data
-      const [batches, locations] = await Promise.all([
-        storage.listBatches(orgId),
+      const [locations] = await Promise.all([
         storage.listLocations(orgId),
       ]);
 
       // Ensure we have arrays
       const response = {
-        batches: Array.isArray(batches) ? batches : [],
         locations: Array.isArray(locations) ? locations : [],
       };
 

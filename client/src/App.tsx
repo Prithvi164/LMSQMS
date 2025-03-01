@@ -10,7 +10,6 @@ import Dashboard from "@/pages/dashboard";
 import LearningPaths from "@/pages/learning-paths";
 import Performance from "@/pages/performance";
 import Settings from "@/pages/settings";
-import BatchManagement from "@/pages/batch-management";
 import { ProtectedRoute } from "./lib/protected-route";
 import { SidebarNav } from "./components/sidebar-nav";
 import { UserProfile } from "./components/user-profile";
@@ -36,7 +35,6 @@ function Router() {
           <ProtectedRoute path="/" component={Dashboard} />
           <ProtectedRoute path="/learning-paths" component={LearningPaths} />
           <ProtectedRoute path="/performance" component={Performance} />
-          <ProtectedRoute path="/batch-management" component={BatchManagement} />
           <ProtectedRoute path="/settings" component={Settings} />
           <Route component={NotFound} />
         </Switch>

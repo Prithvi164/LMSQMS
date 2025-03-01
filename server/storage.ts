@@ -4,7 +4,6 @@ import {
   users,
   organizations,
   organizationProcesses,
-  organizationBatches,
   organizationLineOfBusinesses,
   organizationLocations,
   rolePermissions,
@@ -15,8 +14,6 @@ import {
   type InsertOrganization,
   type OrganizationProcess,
   type InsertOrganizationProcess,
-  type OrganizationBatch,
-  type InsertOrganizationBatch,
   type RolePermission,
   type OrganizationLineOfBusiness,
   type InsertOrganizationLineOfBusiness,
@@ -26,7 +23,7 @@ import {
   type InsertOrganizationLocation,
 } from "@shared/schema";
 
-// Add to IStorage interface
+// Update IStorage interface - remove batch operations
 export interface IStorage {
   // User operations
   getUser(id: number): Promise<User | undefined>;
@@ -52,19 +49,12 @@ export interface IStorage {
 
   // Organization settings operations
   createProcess(process: InsertOrganizationProcess): Promise<OrganizationProcess>;
-  createBatch(batch: InsertOrganizationBatch): Promise<OrganizationBatch>;
   listProcesses(organizationId: number): Promise<OrganizationProcess[]>;
-  listBatches(organizationId: number): Promise<OrganizationBatch[]>;
 
   // Role Permissions operations
   listRolePermissions(organizationId: number): Promise<RolePermission[]>;
   getRolePermissions(organizationId: number, role: string): Promise<RolePermission | undefined>;
   updateRolePermissions(organizationId: number, role: string, permissions: string[]): Promise<RolePermission>;
-
-  // Batch Management operations
-  getBatch(id: number): Promise<OrganizationBatch | undefined>;
-  updateBatch(id: number, batch: Partial<InsertOrganizationBatch>): Promise<OrganizationBatch>;
-  deleteBatch(id: number): Promise<void>;
 
   // Process operations
   getProcess(id: number): Promise<OrganizationProcess | undefined>;
@@ -92,8 +82,6 @@ export interface IStorage {
   listLocations(organizationId: number): Promise<OrganizationLocation[]>;
   updateLocation(id: number, location: Partial<InsertOrganizationLocation>): Promise<OrganizationLocation>;
   deleteLocation(id: number): Promise<void>;
-
-  // Add createLocation method
   createLocation(location: InsertOrganizationLocation): Promise<OrganizationLocation>;
 }
 
@@ -296,11 +284,6 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async createBatch(batch: InsertOrganizationBatch): Promise<OrganizationBatch> {
-    const [newBatch] = await db.insert(organizationBatches).values(batch).returning() as OrganizationBatch[];
-    return newBatch;
-  }
-
   async listProcesses(organizationId: number): Promise<OrganizationProcess[]> {
     try {
       console.log(`Fetching processes for organization ${organizationId}`);
@@ -314,21 +297,6 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error fetching processes:', error);
       throw new Error('Failed to fetch processes');
-    }
-  }
-
-  async listBatches(organizationId: number): Promise<OrganizationBatch[]> {
-    try {
-      console.log(`Fetching batches for organization ${organizationId}`);
-      const batches = await db
-        .select()
-        .from(organizationBatches)
-        .where(eq(organizationBatches.organizationId, organizationId)) as OrganizationBatch[];
-      console.log(`Found ${batches.length} batches`);
-      return batches;
-    } catch (error) {
-      console.error('Error fetching batches:', error);
-      throw new Error('Failed to fetch batches');
     }
   }
 
@@ -372,28 +340,6 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getBatch(id: number): Promise<OrganizationBatch | undefined> {
-    const [batch] = await db
-      .select()
-      .from(organizationBatches)
-      .where(eq(organizationBatches.id, id)) as OrganizationBatch[];
-    return batch;
-  }
-
-  async updateBatch(id: number, batch: Partial<InsertOrganizationBatch>): Promise<OrganizationBatch> {
-    const [updatedBatch] = await db
-      .update(organizationBatches)
-      .set(batch)
-      .where(eq(organizationBatches.id, id))
-      .returning() as OrganizationBatch[];
-    return updatedBatch;
-  }
-
-  async deleteBatch(id: number): Promise<void> {
-    await db
-      .delete(organizationBatches)
-      .where(eq(organizationBatches.id, id));
-  }
 
   // Process operations
   async getProcess(id: number): Promise<OrganizationProcess | undefined> {
