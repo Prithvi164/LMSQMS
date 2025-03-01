@@ -35,7 +35,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     password: "",
     fullName: "",
     employeeId: "",
-    role: "trainee",
+    role: "advisor",
     category: "",
     email: "",
     phoneNumber: "",
@@ -130,7 +130,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         password: "",
         fullName: "",
         employeeId: "",
-        role: "trainee",
+        role: "advisor",
         category: "",
         email: "",
         phoneNumber: "",
@@ -252,20 +252,25 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                     <option value="admin">Admin</option>
                     <option value="manager">Manager</option>
                     <option value="team_lead">Team Lead</option>
+                    <option value="qualityassurance">Quality Assurance</option>
                     <option value="trainer">Trainer</option>
-                    <option value="trainee">Trainee</option>
                     <option value="advisor">Advisor</option>
                   </>
                 ) : user.role === "admin" ? (
                   <>
                     <option value="manager">Manager</option>
                     <option value="team_lead">Team Lead</option>
+                    <option value="qualityassurance">Quality Assurance</option>
                     <option value="trainer">Trainer</option>
-                    <option value="trainee">Trainee</option>
                     <option value="advisor">Advisor</option>
                   </>
                 ) : (
-                  <option value="trainee">Trainee</option>
+                  <>
+                    <option value="team_lead">Team Lead</option>
+                    <option value="qualityassurance">Quality Assurance</option>
+                    <option value="trainer">Trainer</option>
+                    <option value="advisor">Advisor</option>
+                  </>
                 )}
               </select>
             </div>
