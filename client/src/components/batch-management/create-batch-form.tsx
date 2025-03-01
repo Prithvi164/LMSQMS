@@ -139,11 +139,12 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
   const [batchNumber, setBatchNumber] = useState("");
   const [filteredProcesses, setFilteredProcesses] = useState<Process[]>([]);
 
-  // Get the current user's organization ID
+  // Get the current user's organization ID with better error handling
   const { data: currentUser } = useQuery<CurrentUser>({
     queryKey: ['/api/user'],
-    retry: false,
+    retry: 3,
     onError: (error: Error) => {
+      console.error('Error fetching user:', error);
       toast({
         title: "Error fetching user data",
         description: error.message,
@@ -152,7 +153,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     }
   });
 
-  // Fetch organization settings with proper typing
+  // Fetch organization settings with improved error handling
   const {
     data: settings,
     isLoading: isSettingsLoading,
@@ -160,7 +161,11 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
   } = useQuery<OrganizationSettings>({
     queryKey: [`/api/organizations/${currentUser?.organizationId}/settings`],
     enabled: !!currentUser?.organizationId,
+    onSuccess: (data) => {
+      console.log('Successfully fetched settings:', data);
+    },
     onError: (error: Error) => {
+      console.error('Error fetching settings:', error);
       toast({
         title: "Error fetching organization settings",
         description: error.message,
@@ -169,7 +174,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     }
   });
 
-  // Fetch trainers with improved error handling and data transformation
+  // Fetch trainers with improved error handling
   const {
     data: trainers = [],
     isLoading: isTrainersLoading,
@@ -177,6 +182,9 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
   } = useQuery<Trainer[]>({
     queryKey: ['/api/users', currentUser?.organizationId],
     enabled: !!currentUser?.organizationId,
+    onSuccess: (data) => {
+      console.log('Successfully fetched trainers:', data);
+    },
     select: (data: any[]) => {
       if (!Array.isArray(data)) {
         console.error('Expected array of users, got:', data);
@@ -186,17 +194,18 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
         .filter(user => user.role === 'trainer')
         .map(trainer => ({
           id: trainer.id,
-          name: trainer.full_name || trainer.username || `Trainer ${trainer.id}`,
+          name: trainer.fullName || trainer.username || `Trainer ${trainer.id}`,
           managerId: trainer.managerId,
           manager: trainer.managerId ? {
             id: trainer.managerId,
-            name: data.find(u => u.id === trainer.managerId)?.full_name ||
+            name: data.find(u => u.id === trainer.managerId)?.fullName ||
                  data.find(u => u.id === trainer.managerId)?.username ||
                  `Manager ${trainer.managerId}`
           } : undefined
         }));
     },
     onError: (error: Error) => {
+      console.error('Error fetching trainers:', error);
       toast({
         title: "Error fetching trainers",
         description: error.message,
@@ -232,12 +241,15 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     const selectedLOB = form.watch('lineOfBusiness');
     if (selectedLOB && settings?.processes) {
       try {
+        console.log('Filtering processes for LOB:', selectedLOB);
+        console.log('Available processes:', settings.processes);
+
         const filtered = settings.processes.filter(
           (process: Process) => process.lineOfBusiness === selectedLOB
         );
-        setFilteredProcesses(filtered);
+        console.log('Filtered processes:', filtered);
 
-        // Reset process selection when LOB changes
+        setFilteredProcesses(filtered);
         form.setValue('processId', '');
         setSelectedProcess(null);
       } catch (error) {

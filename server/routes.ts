@@ -203,13 +203,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         storage.listLocations(orgId),
       ]);
 
-      // Ensure we have arrays
+      console.log('Fetched data:', {
+        processCount: processes?.length || 0,
+        batchCount: batches?.length || 0,
+        locationCount: locations?.length || 0
+      });
+
+      // Ensure we have arrays and transform data for frontend
       const response = {
-        processes: Array.isArray(processes) ? processes : [],
+        processes: Array.isArray(processes) ? processes.map(p => ({
+          id: p.id,
+          name: p.name,
+          lineOfBusiness: p.lineOfBusiness,
+          inductionDays: p.inductionDays,
+          trainingDays: p.trainingDays,
+          certificationDays: p.certificationDays,
+          ojtDays: p.ojtDays,
+          ojtCertificationDays: p.ojtCertificationDays
+        })) : [],
         batches: Array.isArray(batches) ? batches : [],
-        locations: Array.isArray(locations) ? locations : [],
+        locations: Array.isArray(locations) ? locations.map(l => ({
+          id: l.id,
+          name: l.name,
+          address: l.address,
+          city: l.city,
+          state: l.state,
+          country: l.country
+        })) : [],
       };
 
+      console.log('Sending response:', response);
       return res.json(response);
     } catch (err: any) {
       console.error("Error fetching organization settings:", err);
@@ -812,7 +835,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Delete process
   app.delete("/api/organizations/:id/processes/:processId", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user) return res.status(401).json({ message: "Unauthorized"});
 
     try {
       const orgId = parseInt(req.params.id);
