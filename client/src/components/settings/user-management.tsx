@@ -377,17 +377,24 @@ export function UserManagement() {
                               <SelectItem value="admin">Admin</SelectItem>
                               <SelectItem value="manager">Manager</SelectItem>
                               <SelectItem value="team_lead">Team Lead</SelectItem>
+                              <SelectItem value="qualityassurance">Quality Assurance</SelectItem>
                               <SelectItem value="trainer">Trainer</SelectItem>
-                              <SelectItem value="trainee">Trainee</SelectItem>
+                              <SelectItem value="advisor">Advisor</SelectItem>
+                            </>
+                          ) : user?.role === "admin" ? (
+                            <>
+                              <SelectItem value="manager">Manager</SelectItem>
+                              <SelectItem value="team_lead">Team Lead</SelectItem>
+                              <SelectItem value="qualityassurance">Quality Assurance</SelectItem>
+                              <SelectItem value="trainer">Trainer</SelectItem>
                               <SelectItem value="advisor">Advisor</SelectItem>
                             </>
                           ) : (
                             <>
-                              <SelectItem value="trainee">Trainee</SelectItem>
-                              <SelectItem value="manager">Manager</SelectItem>
+                              <SelectItem value="team_lead">Team Lead</SelectItem>
+                              <SelectItem value="qualityassurance">Quality Assurance</SelectItem>
                               <SelectItem value="trainer">Trainer</SelectItem>
                               <SelectItem value="advisor">Advisor</SelectItem>
-                              <SelectItem value="team_lead">Team Lead</SelectItem>
                             </>
                           )}
                         </SelectContent>

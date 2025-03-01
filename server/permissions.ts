@@ -21,16 +21,29 @@ export const defaultPermissions = {
     'manage_courses',
     'view_learning_paths',
     'view_organization',
-    'manage_performance'
+    'manage_performance',
+    'manage_processes',
+    'manage_batches'
+  ],
+  team_lead: [
+    'view_users',
+    'edit_users',
+    'view_courses',
+    'view_learning_paths',
+    'manage_performance',
+    'view_organization'
+  ],
+  qualityassurance: [
+    'view_users',
+    'view_courses',
+    'view_learning_paths',
+    'manage_performance',
+    'export_reports',
+    'view_organization'
   ],
   trainer: [
     'view_users',
     'manage_courses',
-    'view_learning_paths',
-    'view_performance'
-  ],
-  trainee: [
-    'view_courses',
     'view_learning_paths',
     'view_performance'
   ],
@@ -40,13 +53,6 @@ export const defaultPermissions = {
     'view_learning_paths',
     'view_performance',
     'export_reports'
-  ],
-  team_lead: [
-    'view_users',
-    'edit_users',
-    'view_courses',
-    'view_learning_paths',
-    'manage_performance'
   ]
 } as const;
 

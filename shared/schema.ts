@@ -6,15 +6,15 @@ import { z } from "zod";
 // Define enums
 export const userCategoryTypeEnum = pgEnum('user_category_type', ['active', 'trainee']);
 
-// Role enum and permission enum remain unchanged
+// Update the role enum section
 export const roleEnum = pgEnum('role', [
-  'owner',     
-  'admin',     
-  'manager',   
-  'team_lead', 
-  'trainer',   
-  'trainee',   
-  'advisor'    
+  'owner',     // Highest level - Full system access
+  'admin',     // Organization-wide administration
+  'manager',   // Department/team management
+  'team_lead', // Team supervision
+  'qualityassurance', // Quality monitoring and assurance
+  'trainer',   // Training delivery
+  'advisor'    // Support and guidance
 ]);
 
 export const permissionEnum = pgEnum('permission', [
