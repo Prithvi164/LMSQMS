@@ -68,6 +68,12 @@ interface Location {
   parentId?: number;
 }
 
+interface OrganizationSettings {
+  processes: Process[];
+  locations: Location[];
+  roles: string[];
+}
+
 const batchCategoryEnum = z.enum([
   "New_Hire_Training",
   "Upskill_Training",
@@ -136,37 +142,66 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
   // Get the current user's organization ID
   const { data: currentUser } = useQuery<CurrentUser>({
     queryKey: ['/api/user'],
-    retry: false
+    retry: false,
+    onError: (error: Error) => {
+      toast({
+        title: "Error fetching user data",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   });
 
-  // Fetch organization settings
+  // Fetch organization settings with proper typing
   const {
     data: settings,
     isLoading: isSettingsLoading,
     error: settingsError
-  } = useQuery({
+  } = useQuery<OrganizationSettings>({
     queryKey: [`/api/organizations/${currentUser?.organizationId}/settings`],
-    enabled: !!currentUser?.organizationId
+    enabled: !!currentUser?.organizationId,
+    onError: (error: Error) => {
+      toast({
+        title: "Error fetching organization settings",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   });
 
-  // Fetch trainers with proper mapping
+  // Fetch trainers with improved error handling and data transformation
   const {
     data: trainers = [],
     isLoading: isTrainersLoading,
     error: trainersError
   } = useQuery<Trainer[]>({
-    queryKey: ['/api/users'],
+    queryKey: ['/api/users', currentUser?.organizationId],
     enabled: !!currentUser?.organizationId,
     select: (data: any[]) => {
-      return data?.filter(user => user.role === 'trainer').map(trainer => ({
-        id: trainer.id,
-        name: trainer.full_name || trainer.username,
-        managerId: trainer.managerId,
-        manager: trainer.managerId ? {
-          id: trainer.managerId,
-          name: data.find(u => u.id === trainer.managerId)?.full_name
-        } : undefined
-      }));
+      if (!Array.isArray(data)) {
+        console.error('Expected array of users, got:', data);
+        return [];
+      }
+      return data
+        .filter(user => user.role === 'trainer')
+        .map(trainer => ({
+          id: trainer.id,
+          name: trainer.full_name || trainer.username || `Trainer ${trainer.id}`,
+          managerId: trainer.managerId,
+          manager: trainer.managerId ? {
+            id: trainer.managerId,
+            name: data.find(u => u.id === trainer.managerId)?.full_name ||
+                 data.find(u => u.id === trainer.managerId)?.username ||
+                 `Manager ${trainer.managerId}`
+          } : undefined
+        }));
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error fetching trainers",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   });
 
@@ -192,16 +227,27 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     setBatchNumber(generateBatchNumber());
   }, []);
 
-  // Filter processes when LOB changes
+  // Filter processes when LOB changes with improved error handling
   useEffect(() => {
     const selectedLOB = form.watch('lineOfBusiness');
     if (selectedLOB && settings?.processes) {
-      const filtered = settings.processes.filter(
-        (process: Process) => process.lineOfBusiness === selectedLOB
-      );
-      setFilteredProcesses(filtered);
-      form.setValue('processId', '');
-      setSelectedProcess(null);
+      try {
+        const filtered = settings.processes.filter(
+          (process: Process) => process.lineOfBusiness === selectedLOB
+        );
+        setFilteredProcesses(filtered);
+
+        // Reset process selection when LOB changes
+        form.setValue('processId', '');
+        setSelectedProcess(null);
+      } catch (error) {
+        console.error('Error filtering processes:', error);
+        toast({
+          title: "Error filtering processes",
+          description: "Failed to filter processes for selected line of business",
+          variant: "destructive",
+        });
+      }
     }
   }, [form.watch('lineOfBusiness'), settings?.processes]);
 
@@ -234,10 +280,22 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     }
   }, [selectedProcess, form.watch('inductionStartDate')]);
 
-  // Update manager when trainer changes
+  // Improved manager auto-selection with better error handling
   useEffect(() => {
     if (selectedTrainer?.managerId) {
-      form.setValue('managerId', selectedTrainer.managerId.toString());
+      try {
+        const manager = trainers.find(t => t.manager?.id === selectedTrainer.managerId);
+        if (manager) {
+          form.setValue('managerId', selectedTrainer.managerId.toString());
+        }
+      } catch (error) {
+        console.error('Error setting manager:', error);
+        toast({
+          title: "Error setting manager",
+          description: "Failed to auto-select manager for trainer",
+          variant: "destructive",
+        });
+      }
     }
   }, [selectedTrainer]);
 
@@ -336,7 +394,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
           variant="outline"
           onClick={() => {
             queryClient.invalidateQueries({ queryKey: [`/api/organizations/${currentUser.organizationId}/settings`] });
-            queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/users', currentUser?.organizationId] });
           }}
         >
           Retry Loading Data

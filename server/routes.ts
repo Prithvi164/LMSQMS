@@ -176,7 +176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Organization settings route - Update with proper debugging
+  // Update the organization settings endpoint
   app.get("/api/organizations/:id/settings", async (req, res) => {
     console.log("GET /api/organizations/:id/settings - Request params:", req.params);
     console.log("GET /api/organizations/:id/settings - Current user:", req.user);
@@ -197,13 +197,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Fetch all required data
-      const [batches, locations] = await Promise.all([
+      const [processes, batches, locations] = await Promise.all([
+        storage.listProcesses(orgId),
         storage.listBatches(orgId),
         storage.listLocations(orgId),
       ]);
 
       // Ensure we have arrays
       const response = {
+        processes: Array.isArray(processes) ? processes : [],
         batches: Array.isArray(batches) ? batches : [],
         locations: Array.isArray(locations) ? locations : [],
       };
@@ -258,7 +260,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // User management routes
+  // Update the users endpoint to better handle trainers and managers
   app.get("/api/users", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
     if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
@@ -266,8 +268,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log(`Fetching users for organization ${req.user.organizationId}`);
       const users = await storage.listUsers(req.user.organizationId);
-      console.log(`Found ${users.length} users`);
-      res.json(users);
+
+      // Transform users to include manager information
+      const usersWithManagers = users.map(user => {
+        const manager = users.find(u => u.id === user.managerId);
+        return {
+          ...user,
+          manager: manager ? {
+            id: manager.id,
+            name: manager.fullName || manager.username || `User ${manager.id}`,
+          } : null
+        };
+      });
+
+      console.log(`Found ${usersWithManagers.length} users`);
+      res.json(usersWithManagers);
     } catch (error: any) {
       console.error("Error fetching users:", error);
       res.status(500).json({ message: error.message });
