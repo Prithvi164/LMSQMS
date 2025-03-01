@@ -4,12 +4,17 @@ import { db } from '../db';
 import { organizations, users, processes } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import multer from 'multer';
+import { join } from 'path';
+import { writeFileSync, unlinkSync } from 'fs';
+import { randomUUID } from 'crypto';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
 // Template download endpoint
 router.get('/template', async (req, res) => {
+  const tempFilePath = join('/tmp', `template-${randomUUID()}.xlsx`);
+
   try {
     // Get organization's processes for the template
     const organizationId = req.user?.organizationId;
@@ -63,26 +68,31 @@ router.get('/template', async (req, res) => {
     XLSX.utils.book_append_sheet(wb, ws1, 'Users');
     XLSX.utils.book_append_sheet(wb, ws2, 'Process Mappings');
 
-    // Write to buffer
-    const excelBuffer = XLSX.write(wb, { 
-      type: 'buffer',
-      bookType: 'xlsx',
-      compression: true
-    });
+    // Write to temporary file
+    XLSX.writeFile(wb, tempFilePath);
 
-    // Force download headers
-    res.writeHead(200, {
-      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': 'attachment; filename="user_upload_template.xlsx"',
-      'Content-Length': excelBuffer.length,
-      'Pragma': 'no-cache',
-      'Cache-Control': 'no-store, no-cache, must-revalidate, private'
-    });
+    // Stream file to client
+    res.download(tempFilePath, 'user_upload_template.xlsx', (err) => {
+      // Clean up temp file after sending
+      try {
+        unlinkSync(tempFilePath);
+      } catch (cleanupError) {
+        console.error('Error cleaning up temp file:', cleanupError);
+      }
 
-    // Send the buffer directly
-    return res.end(excelBuffer);
+      if (err) {
+        console.error('Error sending file:', err);
+      }
+    });
 
   } catch (error) {
+    // Clean up temp file in case of error
+    try {
+      unlinkSync(tempFilePath);
+    } catch (cleanupError) {
+      console.error('Error cleaning up temp file:', cleanupError);
+    }
+
     console.error('Error generating template:', error);
     res.status(500).json({ message: 'Failed to generate template' });
   }
@@ -106,8 +116,8 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     const processMappingsSheet = workbook.Sheets['Process Mappings'];
 
     if (!usersSheet || !processMappingsSheet) {
-      return res.status(400).json({ 
-        message: 'Invalid template format. Please use the provided template with both Users and Process Mappings sheets.' 
+      return res.status(400).json({
+        message: 'Invalid template format. Please use the provided template with both Users and Process Mappings sheets.'
       });
     }
 
@@ -117,11 +127,11 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 
     // Validate users data
     for (const user of users) {
-      if (!user.Username || !user.Email || !user.Password || !user['Full Name'] || 
-          !user['Employee ID'] || !user.Role || !user['Phone Number'] || 
-          !user['Date of Joining'] || !user['Date of Birth'] || !user.Category) {
-        return res.status(400).json({ 
-          message: `Invalid user data. All required fields must be filled for user ${user.Email || 'unknown'}` 
+      if (!user.Username || !user.Email || !user.Password || !user['Full Name'] ||
+        !user['Employee ID'] || !user.Role || !user['Phone Number'] ||
+        !user['Date of Joining'] || !user['Date of Birth'] || !user.Category) {
+        return res.status(400).json({
+          message: `Invalid user data. All required fields must be filled for user ${user.Email || 'unknown'}`
         });
       }
     }
@@ -146,15 +156,15 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       const processName = mapping['Process Name'];
 
       if (!email || !processName) {
-        return res.status(400).json({ 
-          message: 'Invalid process mapping data. Both User Email and Process Name are required.' 
+        return res.status(400).json({
+          message: 'Invalid process mapping data. Both User Email and Process Name are required.'
         });
       }
 
       const processId = processNameToId.get(processName.toLowerCase());
       if (!processId) {
-        return res.status(400).json({ 
-          message: `Process "${processName}" not found in your organization.` 
+        return res.status(400).json({
+          message: `Process "${processName}" not found in your organization.`
         });
       }
 

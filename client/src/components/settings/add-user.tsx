@@ -179,12 +179,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
   const downloadTemplate = async () => {
     try {
       const response = await fetch('/api/users/template', {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
+        method: 'GET'
       });
 
       if (!response.ok) {
@@ -192,18 +187,16 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       }
 
       const blob = await response.blob();
-
-      if (blob.type !== 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
-        console.error('Incorrect file type received:', blob.type);
-        throw new Error('Invalid file type received from server');
-      }
-
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.download = 'user_upload_template.xlsx';
+
+      // Trigger download
       document.body.appendChild(link);
       link.click();
+
+      // Cleanup
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
