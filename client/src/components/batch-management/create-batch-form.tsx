@@ -427,7 +427,10 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                       </FormControl>
                       <SelectContent>
                         {settings?.locations?.map((location: Location) => (
-                          <SelectItem key={location.id} value={location.id.toString()}>
+                          <SelectItem 
+                            key={`location-${location.id}`} 
+                            value={location.id.toString()}
+                          >
                             {location.name}
                           </SelectItem>
                         ))}
@@ -451,11 +454,15 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {settings?.processes?.map((process: Process) => (
-                          <SelectItem key={process.lineOfBusiness} value={process.lineOfBusiness}>
-                            {process.lineOfBusiness}
-                          </SelectItem>
-                        ))}
+                        {Array.from(new Set(settings?.processes?.map(p => p.lineOfBusiness)))
+                          .map((lob: string) => (
+                            <SelectItem 
+                              key={`lob-${lob}`} 
+                              value={lob}
+                            >
+                              {lob}
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -485,7 +492,10 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                       </FormControl>
                       <SelectContent>
                         {filteredProcesses.map((process: Process) => (
-                          <SelectItem key={process.id} value={process.id.toString()}>
+                          <SelectItem 
+                            key={`process-${process.id}`} 
+                            value={process.id.toString()}
+                          >
                             {process.name}
                           </SelectItem>
                         ))}
@@ -517,7 +527,10 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                       </FormControl>
                       <SelectContent>
                         {trainers.map((trainer: Trainer) => (
-                          <SelectItem key={trainer.id} value={trainer.id.toString()}>
+                          <SelectItem 
+                            key={`trainer-${trainer.id}`} 
+                            value={trainer.id.toString()}
+                          >
                             {trainer.name}
                           </SelectItem>
                         ))}
@@ -548,7 +561,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                           .filter(trainer => trainer.manager)
                           .map(trainer => (
                             <SelectItem
-                              key={trainer.manager?.id}
+                              key={`manager-${trainer.manager?.id}`}
                               value={trainer.manager?.id.toString() || ""}
                             >
                               {trainer.manager?.name}
