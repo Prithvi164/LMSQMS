@@ -23,38 +23,16 @@ import {
 } from "@/components/ui/table";
 import { CreateBatchForm } from "./create-batch-form";
 
-interface Batch {
-  id: number;
-  name: string;
-  status: 'planned' | 'ongoing' | 'completed';
-  lineOfBusiness: string;
-  processName: string;
-  location: string;
-  trainer: string;
-  manager: string;
-  batchNumber: string;
-  participants: number;
-  capacityLimit: number;
-}
-
 export function BatchDetail() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const {
-    data: batches = [] as Batch[],
+    data: batches = [], // Provide default empty array to fix TypeScript error
     isLoading,
-    error,
-    refetch
-  } = useQuery<Batch[]>({
+    error
+  } = useQuery({
     queryKey: ['/api/batches'],
-    onError: (error: Error) => {
-      toast({
-        title: "Error loading batches",
-        description: error.message || "Please try again later",
-        variant: "destructive",
-      });
-    }
   });
 
   const getStatusColor = (status: string) => {
@@ -80,13 +58,8 @@ export function BatchDetail() {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-        <div className="text-destructive text-center">
-          Error loading batches. Please try again.
-        </div>
-        <Button onClick={() => refetch()}>
-          Retry
-        </Button>
+      <div className="flex items-center justify-center min-h-[400px] text-destructive">
+        Error loading batches. Please try again.
       </div>
     );
   }
@@ -130,10 +103,7 @@ export function BatchDetail() {
           <DialogHeader>
             <DialogTitle>Add New Batch</DialogTitle>
           </DialogHeader>
-          <CreateBatchForm onClose={() => {
-            setIsCreateDialogOpen(false);
-            refetch(); // Refresh the list after creating a new batch
-          }} />
+          <CreateBatchForm onClose={() => setIsCreateDialogOpen(false)} />
         </DialogContent>
       </Dialog>
 

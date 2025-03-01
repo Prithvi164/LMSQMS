@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
-// Import UI components (keeping existing imports)
+// Import UI components
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -32,16 +32,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-// Update types
 interface CurrentUser {
   id: number;
   organizationId: number;
@@ -51,19 +43,10 @@ interface CurrentUser {
 interface Process {
   id: number;
   name: string;
-  lineOfBusinessId: number;
   lineOfBusiness: string;
   inductionDays: number;
   trainingDays: number;
   certificationDays: number;
-  ojtDays: number;
-  ojtCertificationDays: number;
-}
-
-interface LineOfBusiness {
-  id: number;
-  name: string;
-  description: string;
 }
 
 interface Trainer {
@@ -79,46 +62,21 @@ interface Trainer {
 interface Location {
   id: number;
   name: string;
-  parentId?: number;
 }
 
-interface OrganizationSettings {
+interface Settings {
   processes: Process[];
   locations: Location[];
-  lineOfBusinesses: LineOfBusiness[];
-  roles: string[];
 }
 
-const batchCategoryEnum = z.enum([
-  "New_Hire_Training",
-  "Upskill_Training",
-  "Recertification"
-]);
-
-const batchStatusEnum = z.enum([
-  "planning",
-  "induction",
-  "training",
-  "certification",
-  "ojt",
-  "ojt_certification",
-  "closed",
-  "cancelled",
-  "rescheduled"
-]);
-
 const formSchema = z.object({
-  // Account Details
   name: z.string().min(1, "Batch name is required"),
   lineOfBusiness: z.string().min(1, "Line of Business is required"),
   processId: z.string().min(1, "Process Name is required"),
   trainerId: z.string().min(1, "Trainer selection is required"),
   managerId: z.string().min(1, "Manager selection is required"),
   locationId: z.string().min(1, "Location is required"),
-
-  // Batch Details
-  category: batchCategoryEnum,
-  status: batchStatusEnum.default("planning"),
+  status: z.enum(["planned", "ongoing", "completed"]),
   participantCount: z.number().min(1, "Participant count must be at least 1"),
   capacityLimit: z.number().min(1, "Capacity limit must be at least 1"),
   inductionStartDate: z.date(),
@@ -127,17 +85,6 @@ const formSchema = z.object({
   trainingEndDate: z.date().optional(),
   certificationStartDate: z.date().optional(),
   certificationEndDate: z.date().optional(),
-
-  // OJT Details
-  ojtStartDate: z.date().optional(),
-  ojtEndDate: z.date().optional(),
-  ojtCertificationStartDate: z.date().optional(),
-  ojtCertificationEndDate: z.date().optional(),
-  handoverToOpsDate: z.date().optional(),
-
-  // For rescheduled batches
-  originalStartDate: z.date().optional(),
-  rescheduleReason: z.string().optional(),
 });
 
 type BatchFormValues = z.infer<typeof formSchema>;
@@ -154,138 +101,50 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
   const [batchNumber, setBatchNumber] = useState("");
   const [filteredProcesses, setFilteredProcesses] = useState<Process[]>([]);
 
-  // Get the current user first
-  const { data: currentUser, isLoading: isUserLoading } = useQuery<CurrentUser>({
+  // First, get the current user's organization ID
+  const { data: currentUser } = useQuery<CurrentUser>({
     queryKey: ['/api/user'],
-    retry: 3,
-    onError: (error: Error) => {
-      console.error('Error fetching user:', error);
-      toast({
-        title: "Error fetching user data",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
+    retry: false
   });
 
-  console.log('Current User:', currentUser);
-
-  // Get settings data with improved error handling
-  const { 
-    data: settings, 
-    isLoading: isSettingsLoading 
-  } = useQuery<OrganizationSettings>({
+  // Then fetch settings using the organization ID
+  const {
+    data: settings,
+    isLoading: isSettingsLoading,
+    error: settingsError
+  } = useQuery<Settings>({
     queryKey: [`/api/organizations/${currentUser?.organizationId}/settings`],
     enabled: !!currentUser?.organizationId,
-    onSuccess: (data) => {
-      console.log('Settings data received:', {
-        lineOfBusinesses: data.lineOfBusinesses,
-        processes: data.processes,
-        locations: data.locations
-      });
-    },
-    onError: (error: Error) => {
-      console.error('Error fetching settings:', error);
-      toast({
-        title: "Error fetching settings",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 10,
+    retry: 1
   });
 
-  // Filter processes when LOB changes
-  useEffect(() => {
-    const selectedLOB = form.watch('lineOfBusiness');
-    if (selectedLOB && settings?.processes && settings?.lineOfBusinesses) {
-      try {
-        console.log('Filtering processes for LOB:', {
-          selectedLOB,
-          availableLineOfBusinesses: settings.lineOfBusinesses,
-          availableProcesses: settings.processes
-        });
-
-        // Find the selected LOB object
-        const selectedLOBObject = settings.lineOfBusinesses.find(
-          lob => lob.name === selectedLOB
-        );
-
-        if (!selectedLOBObject) {
-          console.log('Selected LOB not found:', selectedLOB);
-          return;
-        }
-
-        console.log('Selected LOB object:', selectedLOBObject);
-
-        // Filter processes based on LOB ID
-        const filtered = settings.processes.filter(
-          process => process.lineOfBusinessId === selectedLOBObject.id
-        );
-
-        console.log('Filtered processes:', filtered);
-        setFilteredProcesses(filtered);
-        form.setValue('processId', '');
-        setSelectedProcess(null);
-      } catch (error) {
-        console.error('Error filtering processes:', error);
-        toast({
-          title: "Error filtering processes",
-          description: "Failed to filter processes for selected line of business",
-          variant: "destructive",
-        });
-      }
-    }
-  }, [form.watch('lineOfBusiness'), settings]);
-
-  // Fetch trainers with improved error handling
+  // Fetch trainers with proper mapping
   const {
     data: trainers = [],
     isLoading: isTrainersLoading,
     error: trainersError
   } = useQuery<Trainer[]>({
-    queryKey: ['/api/users', currentUser?.organizationId],
+    queryKey: ['/api/users'],
     enabled: !!currentUser?.organizationId,
-    onSuccess: (data) => {
-      console.log('Successfully fetched trainers:', data);
-    },
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 10,
+    retry: 1,
     select: (data: any[]) => {
-      if (!Array.isArray(data)) {
-        console.error('Expected array of users, got:', data);
-        return [];
-      }
-      return data
-        .filter(user => user.role === 'trainer')
-        .map(trainer => ({
-          id: trainer.id,
-          name: trainer.fullName || trainer.username || `Trainer ${trainer.id}`,
-          managerId: trainer.managerId,
-          manager: trainer.managerId ? {
-            id: trainer.managerId,
-            name: data.find(u => u.id === trainer.managerId)?.fullName ||
-              data.find(u => u.id === trainer.managerId)?.username ||
-              `Manager ${trainer.managerId}`
-          } : undefined
-        }));
-    },
-    onError: (error: Error) => {
-      console.error('Error fetching trainers:', error);
-      toast({
-        title: "Error fetching trainers",
-        description: error.message,
-        variant: "destructive",
-      });
+      console.log('All users data:', data);
+      const filtered = data?.filter(user => user.role === 'trainer').map(trainer => ({
+        id: trainer.id,
+        name: trainer.full_name || trainer.username,
+        managerId: trainer.managerId,
+        manager: trainer.managerId ? {
+          id: trainer.managerId,
+          name: data.find(u => u.id === trainer.managerId)?.full_name || data.find(u => u.id === trainer.managerId)?.username
+        } : undefined
+      }));
+      console.log('Filtered and mapped trainers with managers:', filtered);
+      return filtered;
     }
-  });
-
-  // Initialize form
-  const form = useForm<BatchFormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      status: "planning",
-      category: "New_Hire_Training",
-      participantCount: 1,
-      capacityLimit: 1,
-    },
   });
 
   // Generate batch number
@@ -299,52 +158,52 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     setBatchNumber(generateBatchNumber());
   }, []);
 
+  // Initialize form
+  const form = useForm<BatchFormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      status: "planned",
+      participantCount: 1,
+      capacityLimit: 1,
+    },
+  });
 
-  // Update all dates when process or start date changes
+  // Filter processes when LOB changes
+  useEffect(() => {
+    const selectedLOB = form.watch('lineOfBusiness');
+    if (selectedLOB && settings?.processes) {
+      const filtered = settings.processes.filter(
+        (process: Process) => process.lineOfBusiness === selectedLOB
+      );
+      setFilteredProcesses(filtered);
+      form.setValue('processId', '');
+      setSelectedProcess(null);
+    }
+  }, [form.watch('lineOfBusiness'), settings?.processes]);
+
+  // Update dates when process changes
   useEffect(() => {
     if (selectedProcess && form.getValues('inductionStartDate')) {
       const startDate = form.getValues('inductionStartDate');
 
-      // Calculate all dates based on process durations
       const inductionEndDate = addDays(startDate, selectedProcess.inductionDays);
       const trainingStartDate = addDays(inductionEndDate, 1);
       const trainingEndDate = addDays(trainingStartDate, selectedProcess.trainingDays);
       const certificationStartDate = addDays(trainingEndDate, 1);
       const certificationEndDate = addDays(certificationStartDate, selectedProcess.certificationDays);
-      const ojtStartDate = addDays(certificationEndDate, 1);
-      const ojtEndDate = addDays(ojtStartDate, selectedProcess.ojtDays);
-      const ojtCertificationStartDate = addDays(ojtEndDate, 1);
-      const ojtCertificationEndDate = addDays(ojtCertificationStartDate, selectedProcess.ojtCertificationDays);
 
-      // Update form values
       form.setValue('inductionEndDate', inductionEndDate);
       form.setValue('trainingStartDate', trainingStartDate);
       form.setValue('trainingEndDate', trainingEndDate);
       form.setValue('certificationStartDate', certificationStartDate);
       form.setValue('certificationEndDate', certificationEndDate);
-      form.setValue('ojtStartDate', ojtStartDate);
-      form.setValue('ojtEndDate', ojtEndDate);
-      form.setValue('ojtCertificationStartDate', ojtCertificationStartDate);
-      form.setValue('ojtCertificationEndDate', ojtCertificationEndDate);
     }
   }, [selectedProcess, form.watch('inductionStartDate')]);
 
-  // Improved manager auto-selection with better error handling
+  // Update manager when trainer changes
   useEffect(() => {
     if (selectedTrainer?.managerId) {
-      try {
-        const manager = trainers.find(t => t.manager?.id === selectedTrainer.managerId);
-        if (manager) {
-          form.setValue('managerId', selectedTrainer.managerId.toString());
-        }
-      } catch (error) {
-        console.error('Error setting manager:', error);
-        toast({
-          title: "Error setting manager",
-          description: "Failed to auto-select manager for trainer",
-          variant: "destructive",
-        });
-      }
+      form.setValue('managerId', selectedTrainer.managerId.toString());
     }
   }, [selectedTrainer]);
 
@@ -359,6 +218,10 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
         throw new Error('Organization ID is required');
       }
 
+      if (!values.managerId || values.managerId === "none") {
+        throw new Error('Manager selection is required');
+      }
+
       const response = await fetch('/api/batches', {
         method: 'POST',
         headers: {
@@ -367,7 +230,6 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
         body: JSON.stringify({
           name: values.name,
           batchNumber,
-          category: values.category,
           status: values.status,
           lineOfBusiness: values.lineOfBusiness,
           processId: parseInt(values.processId, 10),
@@ -382,26 +244,16 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
           trainingEndDate: formatDate(values.trainingEndDate),
           certificationStartDate: formatDate(values.certificationStartDate),
           certificationEndDate: formatDate(values.certificationEndDate),
-          ojtStartDate: formatDate(values.ojtStartDate),
-          ojtEndDate: formatDate(values.ojtEndDate),
-          ojtCertificationStartDate: formatDate(values.ojtCertificationStartDate),
-          ojtCertificationEndDate: formatDate(values.ojtCertificationEndDate),
-          handoverToOpsDate: formatDate(values.handoverToOpsDate),
-          originalStartDate: formatDate(values.originalStartDate),
-          rescheduleReason: values.rescheduleReason,
           organizationId: currentUser.organizationId,
         }),
       });
 
-      console.log('Create Batch API Response:', response);
-
       if (!response.ok) {
         const error = await response.json();
-        console.error('Create Batch API Error:', error);
+        console.error("API response error:", error);
         throw new Error(error.message || 'Failed to create batch');
       }
 
-      console.log('Create Batch API Response Data:', await response.json());
       return response.json();
     },
     onSuccess: () => {
@@ -429,8 +281,18 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     }
   };
 
-  // Show loading states
-  if (isUserLoading || isSettingsLoading || isTrainersLoading) {
+  // Show loading state while waiting for user data
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center p-6">
+        <Loader2 className="h-6 w-6 animate-spin" />
+        <span className="ml-2">Loading user data...</span>
+      </div>
+    );
+  }
+
+  // Show loading state while fetching required data
+  if (isSettingsLoading || isTrainersLoading) {
     return (
       <div className="flex items-center justify-center p-6">
         <Loader2 className="h-6 w-6 animate-spin" />
@@ -440,474 +302,382 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
   }
 
   // Handle API errors
-  if (trainersError) {
+  if (settingsError || trainersError) {
+    console.error("Settings Error:", settingsError);
+    console.error("Trainers Error:", trainersError);
     return (
       <div className="flex items-center justify-center p-6">
         <Button
           variant="outline"
           onClick={() => {
-            queryClient.invalidateQueries({ queryKey: ['/api/users', currentUser?.organizationId] });
+            queryClient.invalidateQueries({ queryKey: [`/api/organizations/${currentUser.organizationId}/settings`] });
+            queryClient.invalidateQueries({ queryKey: ['/api/users'] });
           }}
         >
-          Retry Loading Trainers
+          Retry Loading Data
         </Button>
       </div>
     );
   }
 
-    if (settingsError) {
-      return (
-        <div className="flex items-center justify-center p-6">
+  // Ensure we have the required data
+  if (!settings?.processes || !settings?.locations) {
+    console.error("Missing required data:", { settings });
+    return (
+      <div className="flex items-center justify-center p-6">
+        <span>Required data is not available. Please check your connection.</span>
+      </div>
+    );
+  }
+
+  const uniqueLOBs = Array.from(new Set(settings.processes.map((p: Process) => p.lineOfBusiness)));
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        {/* Account Details Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Account Details</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-6">
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Batch Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter batch name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div>
+                <FormLabel>Batch Number</FormLabel>
+                <Input value={batchNumber} disabled />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="lineOfBusiness"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Line of Business</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Line of Business" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {uniqueLOBs.map((lob: string) => (
+                          <SelectItem key={lob} value={lob}>
+                            {lob}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="processId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Process Name</FormLabel>
+                    <Select
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        const process = filteredProcesses.find(p => p.id.toString() === value);
+                        setSelectedProcess(process || null);
+                      }}
+                      value={field.value}
+                      disabled={!form.getValues('lineOfBusiness')}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Process" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {filteredProcesses.map((process: Process) => (
+                          <SelectItem key={process.id} value={process.id.toString()}>
+                            {process.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="trainerId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Select Trainer</FormLabel>
+                    <Select
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        const trainer = trainers.find(t => t.id.toString() === value);
+                        setSelectedTrainer(trainer || null);
+                      }}
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Trainer" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {trainers.map((trainer: Trainer) => (
+                          <SelectItem key={trainer.id} value={trainer.id.toString()}>
+                            {trainer.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="managerId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Manager</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Manager will be auto-selected based on trainer" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">No Manager</SelectItem>
+                        {trainers
+                          .filter(trainer => trainer.manager)
+                          .map(trainer => (
+                            <SelectItem
+                              key={trainer.manager?.id}
+                              value={trainer.manager?.id.toString() || ""}
+                            >
+                              {trainer.manager?.name}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="locationId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Location</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Location" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {settings.locations?.map((location: Location) => (
+                          <SelectItem key={location.id} value={location.id.toString()}>
+                            {location.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Batch Details Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Batch Details</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-6">
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Batch Status</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="planned">Planned</SelectItem>
+                        <SelectItem value="ongoing">Ongoing</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="participantCount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Participant Count</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="Enter participant count"
+                        {...field}
+                        onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="capacityLimit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Capacity Limit</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="Enter capacity limit"
+                        {...field}
+                        onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Training Schedule Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Training & Certification Schedule</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <FormField
+                control={form.control}
+                name="inductionStartDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Induction Start Date</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "MMMM do, yyyy")
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          disabled={(date) => date < new Date()}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {selectedProcess && form.watch('inductionStartDate') && (
+                <div className="mt-4 space-y-2">
+                  <p className="font-medium">Schedule Preview:</p>
+                  <div className="text-sm text-muted-foreground space-y-1 bg-muted p-4 rounded-md">
+                    <p className="flex justify-between">
+                      <span className="font-semibold">Induction:</span>
+                      <span>{format(form.getValues('inductionStartDate'), "MMMM do, yyyy")} to {format(form.getValues('inductionEndDate') || new Date(), "MMMM do, yyyy")}</span>
+                    </p>
+                    <p className="flex justify-between">
+                      <span className="font-semibold">Training:</span>
+                      <span>{format(form.getValues('trainingStartDate') || new Date(), "MMMM do, yyyy")} to {format(form.getValues('trainingEndDate') || new Date(), "MMMM do, yyyy")}</span>
+                    </p>
+                    <p className="flex justify-between">
+                      <span className="font-semibold">Certification:</span>
+                      <span>{format(form.getValues('certificationStartDate') || new Date(), "MMMM do, yyyy")} to {format(form.getValues('certificationEndDate') || new Date(), "MMMM do, yyyy")}</span>
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex justify-end gap-4">
           <Button
             variant="outline"
-            onClick={() => {
-              queryClient.invalidateQueries({ queryKey: [`/api/organizations/${currentUser.organizationId}/settings`] });
-            }}
+            type="button"
+            onClick={onClose}
+            disabled={createBatchMutation.isPending}
           >
-            Retry Loading Settings
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            disabled={createBatchMutation.isPending}
+          >
+            {createBatchMutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              "Add Batch"
+            )}
           </Button>
         </div>
-      );
-    }
-
-
-  // Return the dialog content with proper accessibility attributes
-  return (
-    <Dialog>
-      <DialogContent className="max-w-4xl" aria-describedby="batch-form-description">
-        <DialogHeader>
-          <DialogTitle>Create New Batch</DialogTitle>
-          <DialogDescription id="batch-form-description">
-            Fill in the details to create a new training batch. All dates will be calculated automatically based on the selected process.
-          </DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-            {/* Account Details Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Account Details</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="locationId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Location</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Location" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {settings?.locations?.map((location: Location) => (
-                              <SelectItem
-                                key={`location-${location.id}`}
-                                value={location.id.toString()}
-                              >
-                                {location.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Line of Business dropdown */}
-                  <FormField
-                    control={form.control}
-                    name="lineOfBusiness"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Line of Business</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Line of Business" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {settings?.lineOfBusinesses?.map((lob: LineOfBusiness) => (
-                              <SelectItem
-                                key={`lob-${lob.id}`}
-                                value={lob.name}
-                              >
-                                {lob.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Process dropdown */}
-                  <FormField
-                    control={form.control}
-                    name="processId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Process</FormLabel>
-                        <Select
-                          onValueChange={(value) => {
-                            field.onChange(value);
-                            const process = filteredProcesses.find(p => p.id.toString() === value);
-                            console.log('Selected process:', process);
-                            setSelectedProcess(process || null);
-                          }}
-                          value={field.value}
-                          disabled={!form.getValues('lineOfBusiness')}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Process" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {filteredProcesses.map((process: Process) => (
-                              <SelectItem
-                                key={`process-${process.id}`}
-                                value={process.id.toString()}
-                              >
-                                {process.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="trainerId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Trainer</FormLabel>
-                        <Select
-                          onValueChange={(value) => {
-                            field.onChange(value);
-                            const trainer = trainers.find(t => t.id.toString() === value);
-                            setSelectedTrainer(trainer || null);
-                          }}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Trainer" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {trainers.map((trainer: Trainer) => (
-                              <SelectItem
-                                key={`trainer-${trainer.id}`}
-                                value={trainer.id.toString()}
-                              >
-                                {trainer.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="managerId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Manager</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Manager will be auto-selected based on trainer" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {trainers
-                              .filter(trainer => trainer.manager)
-                              .map(trainer => (
-                                <SelectItem
-                                  key={`manager-${trainer.manager?.id}`}
-                                  value={trainer.manager?.id.toString() || ""}
-                                >
-                                  {trainer.manager?.name}
-                                </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Batch Details Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Batch Details</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Batch Category</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select category" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="New_Hire_Training">New Hire Training</SelectItem>
-                            <SelectItem value="Upskill_Training">Upskill Training</SelectItem>
-                            <SelectItem value="Recertification">Recertification</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Batch Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enter batch name" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div>
-                    <FormLabel>Batch Number</FormLabel>
-                    <Input value={batchNumber} disabled />
-                  </div>
-
-                  <FormField
-                    control={form.control}
-                    name="capacityLimit"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Batch Capacity</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            placeholder="Enter capacity limit"
-                            {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Batch Status</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="planning">Planning</SelectItem>
-                            <SelectItem value="induction">Induction</SelectItem>
-                            <SelectItem value="training">Training</SelectItem>
-                            <SelectItem value="certification">Certification</SelectItem>
-                            <SelectItem value="ojt">OJT</SelectItem>
-                            <SelectItem value="ojt_certification">OJT Certification</SelectItem>
-                            <SelectItem value="closed">Closed</SelectItem>
-                            <SelectItem value="cancelled">Cancelled</SelectItem>
-                            <SelectItem value="rescheduled">Rescheduled</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="participantCount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Participant Count</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            placeholder="Enter participant count"
-                            {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                {/* Schedule Preview */}
-                {selectedProcess && form.watch('inductionStartDate') && (
-                  <div className="mt-4 space-y-2">
-                    <h4 className="font-medium">Schedule Preview</h4>
-                    <div className="text-sm space-y-2 bg-muted p-4 rounded-md">
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                        <div>
-                          <span className="font-medium">Induction:</span>
-                          <div className="text-muted-foreground">
-                            {format(form.getValues('inductionStartDate'), "MMM d, yyyy")} -
-                            {format(form.getValues('inductionEndDate') || new Date(), "MMM d, yyyy")}
-                          </div>
-                        </div>
-
-                        <div>
-                          <span className="font-medium">Training:</span>
-                          <div className="text-muted-foreground">
-                            {format(form.getValues('trainingStartDate') || new Date(), "MMM d, yyyy")} -
-                            {format(form.getValues('trainingEndDate') || new Date(), "MMM d, yyyy")}
-                          </div>
-                        </div>
-
-                        <div>
-                          <span className="font-medium">Certification:</span>
-                          <div className="text-muted-foreground">
-                            {format(form.getValues('certificationStartDate') || new Date(), "MMM d, yyyy")} -
-                            {format(form.getValues('certificationEndDate') || new Date(), "MMM d, yyyy")}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* OJT Details Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle>OJT Details</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {selectedProcess && form.watch('inductionStartDate') && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <span className="font-medium">OJT Period:</span>
-                        <div className="text-muted-foreground">
-                          {format(form.getValues('ojtStartDate') || new Date(), "MMM d, yyyy")} -
-                          {format(form.getValues('ojtEndDate') || new Date(), "MMM d, yyyy")}
-                        </div>
-                      </div>
-
-                      <div>
-                        <span className="font-medium">OJT Certification:</span>
-                        <div className="text-muted-foreground">
-                          {format(form.getValues('ojtCertificationStartDate') || new Date(), "MMM d, yyyy")} -
-                          {format(form.getValues('ojtCertificationEndDate') || new Date(), "MMM d, yyyy")}
-                        </div>
-                      </div>
-                    </div>
-
-                    <FormField
-                      control={form.control}
-                      name="handoverToOpsDate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Handover to Ops Date</FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button
-                                  variant={"outline"}
-                                  className={cn(
-                                    "w-[240px] pl-3 text-left font-normal",
-                                    !field.value && "text-muted-foreground"
-                                  )}
-                                >
-                                  {field.value ? (
-                                    format(field.value, "MMMM d, yyyy")
-                                  ) : (
-                                    <span>Pick a date</span>
-                                  )}
-                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                disabled={(date) =>
-                                  date < (form.getValues('ojtCertificationEndDate') || new Date())
-                                }
-                                initialFocus
-                              />
-                            </PopoverContent>
-                          </Popover>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Form Actions */}
-            <div className="flex justify-end space-x-4">
-              <Button
-                variant="outline"
-                type="button"
-                onClick={onClose}
-                disabled={createBatchMutation.isPending}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={createBatchMutation.isPending}
-              >
-                {createBatchMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  "Create Batch"
-                )}
-              </Button>
-            </div>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+      </form>
+    </Form>
   );
 }

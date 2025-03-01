@@ -176,7 +176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update the organization settings endpoint with improved error handling and data structure
+  // Organization settings route - Update with proper debugging
   app.get("/api/organizations/:id/settings", async (req, res) => {
     console.log("GET /api/organizations/:id/settings - Request params:", req.params);
     console.log("GET /api/organizations/:id/settings - Current user:", req.user);
@@ -197,55 +197,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Fetch all required data
-      const [processes, batches, locations, lineOfBusinesses] = await Promise.all([
-        storage.listProcesses(orgId),
+      const [batches, locations] = await Promise.all([
         storage.listBatches(orgId),
         storage.listLocations(orgId),
-        storage.listLineOfBusinesses(orgId)
       ]);
 
-      console.log('Fetched data:', {
-        processCount: processes?.length || 0,
-        batchCount: batches?.length || 0,
-        locationCount: locations?.length || 0,
-        lobCount: lineOfBusinesses?.length || 0
-      });
-
-      // Transform data for frontend with proper type checking
+      // Ensure we have arrays
       const response = {
-        processes: processes?.map(p => ({
-          id: p.id,
-          name: p.name,
-          lineOfBusinessId: p.lineOfBusinessId,
-          lineOfBusiness: lineOfBusinesses?.find(lob => lob.id === p.lineOfBusinessId)?.name || '',
-          inductionDays: p.inductionDays,
-          trainingDays: p.trainingDays,
-          certificationDays: p.certificationDays,
-          ojtDays: p.ojtDays,
-          ojtCertificationDays: p.ojtCertificationDays
-        })) || [],
-        lineOfBusinesses: lineOfBusinesses?.map(lob => ({
-          id: lob.id,
-          name: lob.name,
-          description: lob.description
-        })) || [],
-        locations: locations?.map(l => ({
-          id: l.id,
-          name: l.name,
-          address: l.address,
-          city: l.city,
-          state: l.state,
-          country: l.country
-        })) || [],
-        batches: batches || []
+        batches: Array.isArray(batches) ? batches : [],
+        locations: Array.isArray(locations) ? locations : [],
       };
-
-      console.log('Sending response:', {
-        processCount: response.processes.length,
-        lobCount: response.lineOfBusinesses.length,
-        locationCount: response.locations.length,
-        batchCount: response.batches.length
-      });
 
       return res.json(response);
     } catch (err: any) {
@@ -257,47 +218,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add the batches endpoint near the organization settings routes
-  app.get("/api/batches", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const orgId = req.user.organizationId;
-      if (!orgId) return res.status(400).json({ message: "No organization ID found" });
-
-      console.log(`Fetching batches for organization ${orgId}`);
-      const batches = await storage.listBatches(orgId);
-
-      // Transform batches to match frontend interface
-      const transformedBatches = await Promise.all(batches.map(async batch => {
-        // Get related user info for trainer and manager
-        const trainer = batch.trainerId ? await storage.getUser(batch.trainerId) : null;
-        const manager = batch.managerId ? await storage.getUser(batch.managerId) : null;
-
-        return {
-          id: batch.id,
-          name: batch.name,
-          status: batch.status || 'planned',
-          lineOfBusiness: batch.lineOfBusiness,
-          processName: batch.processId ? (await storage.getProcess(batch.processId))?.name : '',
-          location: batch.locationId ? (await storage.getLocation(batch.locationId))?.name : '',
-          trainer: trainer?.fullName || 'Unassigned',
-          manager: manager?.fullName || 'Unassigned',
-          batchNumber: batch.batchNumber,
-          participants: batch.participantCount,
-          capacityLimit: batch.capacityLimit
-        };
-      }));
-
-      console.log(`Successfully transformed ${transformedBatches.length} batches`);
-      return res.json(transformedBatches);
-    } catch (err: any) {
-      console.error("Error fetching batches:", err);
-      return res.status(500).json({ message: err.message || "Failed to fetch batches" });
-    }
-  });
-
-  // Update the users endpoint to better handle trainers and managers
+  // User management routes
   app.get("/api/users", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
     if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
@@ -305,21 +226,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log(`Fetching users for organization ${req.user.organizationId}`);
       const users = await storage.listUsers(req.user.organizationId);
-
-      // Transform users to include manager information
-      const usersWithManagers = users.map(user => {
-        const manager = users.find(u => u.id === user.managerId);
-        return {
-          ...user,
-          manager: manager ? {
-            id: manager.id,
-            name: manager.fullName || manager.username || `User ${manager.id}`,
-          } : null
-        };
-      });
-
-      console.log(`Found ${usersWithManagers.length} users`);
-      res.json(usersWithManagers);
+      console.log(`Found ${users.length} users`);
+      res.json(users);
     } catch (error: any) {
       console.error("Error fetching users:", error);
       res.status(500).json({ message: error.message });
@@ -834,6 +742,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.user.organizationId !== orgId) {
         return res.status(403).json({ message: "You can only update processes in your own organization" });
       }
+
       console.log('Updating process:', processId, 'with data:', req.body);
 
       const process = await storage.updateProcess(processId, req.body);
@@ -848,10 +757,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Delete process
   app.delete("/api/organizations/:id/processes/:processId", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized"});
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     try {
-      const orgId= parseInt(req.params.id);
+      const orgId = parseInt(req.params.id);
       const processId = parseInt(req.params.processId);
 
       // Check if user belongs to the organization
