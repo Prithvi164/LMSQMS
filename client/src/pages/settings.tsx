@@ -13,6 +13,7 @@ import { UserProfile } from "@/components/settings/user-profile";
 import { AddUser } from "@/components/settings/add-user";
 import { RolePermissions } from "@/components/settings/role-permissions";
 import { OrganizationTree } from "@/components/settings/organization-tree";
+import { RoleHierarchyEditor } from "@/components/settings/role-hierarchy-editor";
 
 type SettingsTab = "profile" | "users" | "permissions" | "organization-tree";
 type UsersSubTab = "add" | "manage";
@@ -173,7 +174,12 @@ export default function Settings(): React.JSX.Element {
                       )}
                     </>
                   )}
-                  {activeTab === "permissions" && <RolePermissions />}
+                  {activeTab === "permissions" && (
+                    <div className="space-y-6">
+                      <RoleHierarchyEditor />
+                      <RolePermissions />
+                    </div>
+                  )}
                   {activeTab === "organization-tree" && <OrganizationTree />}
                 </>
               )}
