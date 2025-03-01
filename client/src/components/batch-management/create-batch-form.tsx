@@ -138,6 +138,7 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
   const [selectedTrainer, setSelectedTrainer] = useState<Trainer | null>(null);
   const [batchNumber, setBatchNumber] = useState("");
   const [filteredProcesses, setFilteredProcesses] = useState<Process[]>([]);
+  const [uniqueLOBs, setUniqueLOBs] = useState<string[]>([]);
 
   // Get the current user's organization ID with better error handling
   const { data: currentUser } = useQuery<CurrentUser>({
@@ -163,6 +164,12 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
     enabled: !!currentUser?.organizationId,
     onSuccess: (data) => {
       console.log('Successfully fetched settings:', data);
+      // Extract unique LOBs from processes
+      if (data?.processes) {
+        const lobs = Array.from(new Set(data.processes.map(p => p.lineOfBusiness)));
+        console.log('Unique LOBs:', lobs);
+        setUniqueLOBs(lobs);
+      }
     },
     onError: (error: Error) => {
       console.error('Error fetching settings:', error);
@@ -466,15 +473,14 @@ export function CreateBatchForm({ onClose }: CreateBatchFormProps) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {Array.from(new Set(settings?.processes?.map(p => p.lineOfBusiness)))
-                          .map((lob: string) => (
-                            <SelectItem 
-                              key={`lob-${lob}`} 
-                              value={lob}
-                            >
-                              {lob}
-                            </SelectItem>
-                          ))}
+                        {uniqueLOBs.map((lob: string) => (
+                          <SelectItem 
+                            key={`lob-${lob}`} 
+                            value={lob}
+                          >
+                            {lob}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />

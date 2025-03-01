@@ -176,7 +176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update the organization settings endpoint
+  // Update the organization settings endpoint with improved error handling and data structure
   app.get("/api/organizations/:id/settings", async (req, res) => {
     console.log("GET /api/organizations/:id/settings - Request params:", req.params);
     console.log("GET /api/organizations/:id/settings - Current user:", req.user);
@@ -838,7 +838,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.user) return res.status(401).json({ message: "Unauthorized"});
 
     try {
-      const orgId = parseInt(req.params.id);
+      const orgId= parseInt(req.params.id);
       const processId = parseInt(req.params.processId);
 
       // Check if user belongs to the organization
