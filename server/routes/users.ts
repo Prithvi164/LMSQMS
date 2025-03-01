@@ -62,26 +62,24 @@ router.get('/template', async (req, res) => {
     XLSX.utils.book_append_sheet(wb, ws1, 'Users');
     XLSX.utils.book_append_sheet(wb, ws2, 'Process Mappings');
 
-    // Generate binary string
+    // Write workbook to binary string
     const wbout = XLSX.write(wb, {
-      bookType: 'xlsx',
       type: 'binary',
+      bookType: 'xlsx',
       bookSST: false,
       compression: true
     });
 
-    // Convert string to Buffer
+    // Convert binary string to buffer
     const buf = Buffer.from(wbout, 'binary');
 
-    // Set headers for Excel file download
+    // Set headers
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename=user_upload_template.xlsx');
     res.setHeader('Content-Length', buf.length);
-    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
 
     // Send buffer
     res.status(200).send(buf);
-
   } catch (error) {
     console.error('Error generating template:', error);
     res.status(500).json({ message: 'Failed to generate template' });

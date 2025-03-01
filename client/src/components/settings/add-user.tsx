@@ -181,7 +181,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       const response = await fetch('/api/users/template', {
         method: 'GET',
         headers: {
-          'Accept': 'application/vnd.ms-excel'
+          'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         }
       });
 
@@ -189,14 +189,17 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         throw new Error('Failed to download template');
       }
 
-      // Convert response to blob
+      // Get the blob with correct MIME type
       const blob = await response.blob();
 
-      // Create download link
-      const url = window.URL.createObjectURL(new Blob([blob], { 
-        type: 'application/vnd.ms-excel'
-      }));
+      // Create object URL
+      const url = window.URL.createObjectURL(
+        new Blob([blob], { 
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        })
+      );
 
+      // Create download link
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', 'user_upload_template.xlsx');
