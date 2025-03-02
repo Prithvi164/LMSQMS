@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -59,9 +59,8 @@ export function CreateBatchForm() {
       setSelectedLob(null);
       form.setValue('lineOfBusinessId', null);
       form.setValue('processId', null);
-    },
-    onError: (error) => {
-      console.error('Error fetching LOBs:', error);
+      // Also reset trainer when location changes
+      form.setValue('trainerId', null);
     }
   });
 
@@ -74,13 +73,17 @@ export function CreateBatchForm() {
     enabled: !!selectedLob
   });
 
-  // Fetch trainers (users with trainer role)
+  // Fetch trainers with location filter
   const { 
     data: trainers = [], 
     isLoading: isLoadingTrainers
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/users`],
-    select: (users) => users.filter((user) => user.role === 'trainer')
+    select: (users) => users.filter((user) => 
+      user.role === 'trainer' && 
+      (!selectedLocation || user.locationId === selectedLocation)
+    ),
+    enabled: !!user?.organizationId
   });
 
   const form = useForm({
@@ -174,6 +177,7 @@ export function CreateBatchForm() {
                     setSelectedLob(null);
                     form.setValue('lineOfBusinessId', null);
                     form.setValue('processId', null);
+                    form.setValue('trainerId', null); // Reset trainer when location changes
                   }}
                   value={field.value?.toString()}
                   disabled={isLoadingLocations}
@@ -288,11 +292,11 @@ export function CreateBatchForm() {
                 <Select
                   onValueChange={(value) => field.onChange(parseInt(value))}
                   value={field.value?.toString()}
-                  disabled={isLoadingTrainers}
+                  disabled={!selectedLocation || isLoadingTrainers}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select trainer" />
+                      <SelectValue placeholder={selectedLocation ? "Select trainer" : "Select location first"} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
