@@ -38,13 +38,13 @@ export function CreateBatchForm() {
     enabled: !!user?.organizationId,
   });
 
-  // Fetch all processes first
+  // Fetch all processes (same as in add-user.tsx)
   const { data: allProcesses = [], isLoading: isLoadingProcesses } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/processes`],
     enabled: !!user?.organizationId,
   });
 
-  // Filter processes based on selected LOB
+  // Filter processes based on selected LOB (same logic as add-user.tsx)
   const filteredProcesses = selectedLob 
     ? allProcesses.filter(process => process.lineOfBusinessId === selectedLob)
     : [];
