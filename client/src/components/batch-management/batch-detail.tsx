@@ -23,10 +23,6 @@ export function BatchDetail() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold">Batch Management</h1>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Batch
-        </Button>
       </div>
 
       <Card>
@@ -42,7 +38,7 @@ export function BatchDetail() {
               <TabsTrigger value="location">Location</TabsTrigger>
             </TabsList>
             <TabsContent value="batches" className="mt-6">
-              <BatchesTab />
+              <BatchesTab onCreate={() => setIsCreateDialogOpen(true)}/>
             </TabsContent>
             <TabsContent value="lob" className="mt-6">
               <LobDetail />

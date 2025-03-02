@@ -1,9 +1,16 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, Loader2 } from "lucide-react";
+import { Search, Loader2, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -12,9 +19,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CreateBatchForm } from "./create-batch-form";
 
 export function BatchesTab() {
   const { user } = useAuth();
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   const {
     data: batches = [],
@@ -63,7 +72,13 @@ export function BatchesTab() {
             className="pl-8"
           />
         </div>
-        <Button variant="outline">Filter</Button>
+        <Button 
+          onClick={() => setIsCreateDialogOpen(true)}
+          className="gap-2"
+        >
+          <Plus className="h-4 w-4" />
+          Create Batch
+        </Button>
       </div>
 
       {batches.length > 0 ? (
@@ -117,9 +132,26 @@ export function BatchesTab() {
             <p className="mb-4 mt-2 text-sm text-muted-foreground">
               You haven't created any batches yet. Start by creating a new batch.
             </p>
+            <Button 
+              size="sm" 
+              className="relative"
+              onClick={() => setIsCreateDialogOpen(true)}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Create Batch
+            </Button>
           </div>
         </div>
       )}
+
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Create New Batch</DialogTitle>
+          </DialogHeader>
+          <CreateBatchForm />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
