@@ -452,16 +452,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const orgId = parseInt(req.params.orgId);
       const locationId = parseInt(req.params.locationId);
 
+      console.log(`[Route] Received request for LOBs - Location: ${locationId}, Org: ${orgId}, User: ${req.user.id}`);
+
+      if (isNaN(orgId) || isNaN(locationId)) {
+        console.log('[Route] Invalid ID parameters received');
+        return res.status(400).json({ message: "Invalid organization or location ID" });
+      }
+
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
+        console.log(`[Route] Organization mismatch - User org: ${req.user.organizationId}, Requested org: ${orgId}`);
         return res.status(403).json({ message: "You can only view LOBs in your own organization" });
       }
 
-      console.log(`Fetching LOBs through user_processes for location ${locationId} in organization ${orgId}`);
+      console.log(`[Route] Fetching LOBs through user_processes for location ${locationId} in organization ${orgId}`);
       const lobs = await storage.getLineOfBusinessesByLocation(orgId, locationId);
+
+      console.log(`[Route] Successfully retrieved ${lobs.length} LOBs for location ${locationId}`);
       res.json(lobs);
     } catch (error: any) {
-      console.error("Error fetching LOBs by location:", error);
+      console.error("[Route] Error fetching LOBs by location:", error);
       res.status(500).json({ message: error.message });
     }
   });
@@ -1081,16 +1091,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const orgId = parseInt(req.params.orgId);
       const locationId = parseInt(req.params.locationId);
 
+      console.log(`[Route] Received request for LOBs - Location: ${locationId}, Org: ${orgId}, User: ${req.user.id}`);
+
+      if (isNaN(orgId) || isNaN(locationId)) {
+        console.log('[Route] Invalid ID parameters received');
+        return res.status(400).json({ message: "Invalid organization or location ID" });
+      }
+
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
+        console.log(`[Route] Organization mismatch - User org: ${req.user.organizationId}, Requested org: ${orgId}`);
         return res.status(403).json({ message: "You can only view LOBs in your own organization" });
       }
 
-      console.log(`Fetching LOBs through user_processes for location ${locationId} in organization ${orgId}`);
+      console.log(`[Route] Fetching LOBs through user_processes for location ${locationId} in organization ${orgId}`);
       const lobs = await storage.getLineOfBusinessesByLocation(orgId, locationId);
+
+      console.log(`[Route] Successfully retrieved ${lobs.length} LOBs for location ${locationId}`);
       res.json(lobs);
     } catch (error: any) {
-      console.error("Error fetching LOBs by location:", error);
+      console.error("[Route] Error fetching LOBs by location:", error);
       res.status(500).json({ message: error.message });
     }
   });

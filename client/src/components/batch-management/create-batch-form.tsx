@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -36,7 +36,8 @@ export function CreateBatchForm() {
   // Fetch locations
   const { 
     data: locations = [], 
-    isLoading: isLoadingLocations 
+    isLoading: isLoadingLocations,
+    error: locationsError
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations`],
   });
@@ -44,16 +45,32 @@ export function CreateBatchForm() {
   // Fetch LOBs based on selected location
   const { 
     data: lobs = [], 
-    isLoading: isLoadingLobs 
+    isLoading: isLoadingLobs,
+    error: lobsError
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations/${selectedLocation}/line-of-businesses`],
     enabled: !!selectedLocation && !!user?.organizationId,
+    onError: (error: any) => {
+      console.error('Error fetching LOBs:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch line of businesses',
+        variant: 'destructive',
+      });
+    }
   });
+
+  // Log changes to selectedLocation and LOBs data
+  useEffect(() => {
+    console.log('Selected Location:', selectedLocation);
+    console.log('LOBs data:', lobs);
+  }, [selectedLocation, lobs]);
 
   // Fetch processes filtered by selected LOB
   const { 
     data: processes = [], 
-    isLoading: isLoadingProcesses 
+    isLoading: isLoadingProcesses,
+    error: processesError
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${selectedLob}/processes`],
     enabled: !!selectedLob,
@@ -62,7 +79,8 @@ export function CreateBatchForm() {
   // Fetch trainers based on selected location and process
   const { 
     data: trainers = [], 
-    isLoading: isLoadingTrainers 
+    isLoading: isLoadingTrainers,
+    error: trainersError
   } = useQuery({
     queryKey: [`/api/locations/${selectedLocation}/processes/${selectedProcess}/trainers`],
     enabled: !!(selectedLocation && selectedProcess),
@@ -95,6 +113,7 @@ export function CreateBatchForm() {
       setSelectedProcess(null);
     },
     onError: (error) => {
+      console.error('Batch creation error:', error);
       toast({
         title: "Error",
         description: "Failed to create batch. Please try again.",
@@ -104,8 +123,15 @@ export function CreateBatchForm() {
   });
 
   const onSubmit = (data: InsertOrganizationBatch) => {
+    console.log('Submitting batch data:', data);
     createBatchMutation.mutate(data);
   };
+
+  // Show error states
+  if (locationsError || lobsError || processesError || trainersError) {
+    console.error('Form errors:', { locationsError, lobsError, processesError, trainersError });
+    // Consider adding UI feedback for errors here.  For example, a message above the form.
+  }
 
   return (
     <Form {...form}>
@@ -150,6 +176,7 @@ export function CreateBatchForm() {
                 <Select
                   onValueChange={(value) => {
                     const locationId = parseInt(value);
+                    console.log('Location selected:', locationId);
                     field.onChange(locationId);
                     setSelectedLocation(locationId);
                     // Reset dependent fields
@@ -195,6 +222,7 @@ export function CreateBatchForm() {
                 <Select
                   onValueChange={(value) => {
                     const lobId = parseInt(value);
+                    console.log('LOB selected:', lobId);
                     field.onChange(lobId);
                     setSelectedLob(lobId);
                     // Reset dependent fields
@@ -250,12 +278,13 @@ export function CreateBatchForm() {
                 <Select
                   onValueChange={(value) => {
                     const processId = parseInt(value);
+                    console.log('Process selected:', processId);
                     field.onChange(processId);
                     setSelectedProcess(processId);
                     form.setValue('trainerId', undefined);
                   }}
                   value={field.value?.toString()}
-                  //disabled={!selectedLob}  Removed disabled attribute
+                  disabled={!selectedLob}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -291,7 +320,7 @@ export function CreateBatchForm() {
                 <Select
                   onValueChange={(value) => field.onChange(parseInt(value))}
                   value={field.value?.toString()}
-                  //disabled={!selectedProcess} Removed disabled attribute
+                  disabled={!selectedProcess}
                 >
                   <FormControl>
                     <SelectTrigger>

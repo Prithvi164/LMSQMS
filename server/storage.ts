@@ -972,9 +972,17 @@ export class DatabaseStorage implements IStorage {
   }
   async getLineOfBusinessesByLocation(locationId: number, organizationId: number): Promise<OrganizationLineOfBusiness[]> {
     try {
-      console.log(`Fetching LOBs for location ${locationId} in organization ${organizationId}`);
+      console.log(`[Storage] Starting LOBfetch for location ${locationId} in org ${organizationId}`);
 
-      // Get LOBs through user_processes table first getting the processes
+      // Log user processes first to see what we're working with
+      const userProcessesForLocation = await db
+        .select()
+        .from(userProcesses)
+        .where(eq(userProcesses.locationId, locationId));
+
+      console.log(`[Storage] Found ${userProcessesForLocation.length} user processes for location:`, userProcessesForLocation);
+
+      // Get LOBs directly from user_processes table using lineOfBusinessId
       const lobs = await db
         .selectDistinct({
           id: organizationLineOfBusinesses.id,
@@ -983,26 +991,46 @@ export class DatabaseStorage implements IStorage {
           organizationId: organizationLineOfBusinesses.organizationId,
           createdAt: organizationLineOfBusinesses.createdAt
         })
-        .from(organizationProcesses)
-        .innerJoin(
-          userProcesses,
-          eq(userProcesses.processId, organizationProcesses.id)
-        )
+        .from(userProcesses)
         .innerJoin(
           organizationLineOfBusinesses,
-          eq(organizationProcesses.lineOfBusinessId, organizationLineOfBusinesses.id)
+          eq(userProcesses.lineOfBusinessId, organizationLineOfBusinesses.id)
         )
         .where(eq(userProcesses.locationId, locationId))
         .where(eq(organizationLineOfBusinesses.organizationId, organizationId));
 
-      console.log(`Found ${lobs.length} LOBs through user_processes for location ${locationId}:`, lobs);
+      console.log(`[Storage] Found ${lobs.length} unique LOBs:`, lobs);
+
+      if (lobs.length === 0) {
+        console.log('[Storage] No LOBs found. This might indicate missing user_processes entries or incorrect join conditions');
+      }
+
       return lobs as OrganizationLineOfBusiness[];
     } catch (error) {
-      console.error('Error fetching LOBs by location:', error);
+      console.error('[Storage] Error fetching LOBs by location:', error);
       throw error;
     }
   }
 
+  async getActiveTrainersByLocationAndProcess(locationId: number, processId: number): Promise<User[]> {
+    try {
+      // Get all active trainers in this location who are assigned to this process
+      const trainers = await db
+        .select()
+        .from(users)
+        .where(eq(users.locationId, locationId))
+        .where(eq(users.role, 'trainer'))
+        .where(eq(users.active, true))
+        .where(eq(users.category, 'active'))
+        .leftJoin(userProcesses, eq(users.id, userProcesses.userId))
+        .where(eq(userProcesses.processId, processId)) as User[];
+
+      return trainers;
+    } catch (error) {
+      console.error('Error fetching trainers by location and process:', error);
+      throw error;
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();
