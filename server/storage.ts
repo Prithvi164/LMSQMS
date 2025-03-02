@@ -967,75 +967,38 @@ export class DatabaseStorage implements IStorage {
       return trainers;
     } catch (error) {
       console.error('Error fetching trainers by location and process:', error);
-      throw error;
+      throw error      }
     }
   }
   async getLineOfBusinessesByLocation(locationId: number, organizationId: number): Promise<OrganizationLineOfBusiness[]> {
     try {
-      console.log(`[Storage] DEBUG: Starting LOB fetch with params:`, { locationId, organizationId });
+      console.log(`[Storage] DEBUG: Starting LOB fetch for location ${locationId} in org ${organizationId}`);
 
-      // First verify if we have any user_processes entries for this location
-      const allUserProcesses = await db
-        .select()
-        .from(userProcesses)
-        .where(eq(userProcesses.locationId, locationId));
-
-      console.log(`[Storage] DEBUG: All user processes for location:`, allUserProcesses);
-
-      // Get distinct LOB IDs from user_processes
-      const userProcessesWithLobs = await db
+      // Get distinct LOBs from user_processes for this location
+      const result = await db
         .selectDistinct({
-          lineOfBusinessId: userProcesses.lineOfBusinessId
+          id: organizationLineOfBusinesses.id,
+          name: organizationLineOfBusinesses.name,
+          description: organizationLineOfBusinesses.description,
+          organizationId: organizationLineOfBusinesses.organizationId,
+          createdAt: organizationLineOfBusinesses.createdAt
         })
         .from(userProcesses)
+        .innerJoin(
+          organizationLineOfBusinesses,
+          eq(userProcesses.lineOfBusinessId, organizationLineOfBusinesses.id)
+        )
         .where(eq(userProcesses.locationId, locationId))
-        .where(eq(userProcesses.organizationId, organizationId))
-        .where(sql`${userProcesses.lineOfBusinessId} IS NOT NULL`);
+        .where(eq(userProcesses.organizationId, organizationId));
 
-      console.log(`[Storage] DEBUG: User processes with LOBs:`, userProcessesWithLobs);
-
-      if (userProcessesWithLobs.length === 0) {
-        console.log('[Storage] DEBUG: No LOBs found in user_processes');
-        return [];
-      }
-
-      // Get the actual LOB details
-      const lobIds = userProcessesWithLobs.map(up => up.lineOfBusinessId);
-      console.log('[Storage] DEBUG: LOB IDs to fetch:', lobIds);
-
-      const lobs = await db
-        .select()
-        .from(organizationLineOfBusinesses)
-        .where(sql`${organizationLineOfBusinesses.id} IN (${sql.join(lobIds, sql`, `)})`)
-        .where(eq(organizationLineOfBusinesses.organizationId, organizationId));
-
-      console.log(`[Storage] DEBUG: Retrieved LOBs:`, lobs);
-      return lobs as OrganizationLineOfBusiness[];
+      console.log(`[Storage] DEBUG: Found LOBs:`, result);
+      return result as OrganizationLineOfBusiness[];
     } catch (error) {
       console.error('[Storage] Error fetching LOBs by location:', error);
       throw error;
     }
   }
 
-  async getActiveTrainersByLocationAndProcess(locationId: number, processId: number): Promise<User[]> {
-    try {
-      // Get all active trainers in this location who are assigned to this process
-      const trainers = await db
-        .select()
-        .from(users)
-        .where(eq(users.locationId, locationId))
-        .where(eq(users.role, 'trainer'))
-        .where(eq(users.active, true))
-        .where(eq(users.category, 'active'))
-        .leftJoin(userProcesses, eq(users.id, userProcesses.userId))
-        .where(eq(userProcesses.processId, processId)) as User[];
-
-      return trainers;
-    } catch (error) {
-      console.error('Error fetching trainers by location and process:', error);
-      throw error;
-    }
-  }
 }
 
 export const storage = new DatabaseStorage();

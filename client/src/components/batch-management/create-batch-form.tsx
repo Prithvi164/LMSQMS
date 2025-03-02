@@ -31,7 +31,6 @@ export function CreateBatchForm() {
   const queryClient = useQueryClient();
   const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
   const [selectedLob, setSelectedLob] = useState<number | null>(null);
-  const [selectedProcess, setSelectedProcess] = useState<number | null>(null);
 
   // Fetch locations
   const { 
@@ -56,7 +55,7 @@ export function CreateBatchForm() {
         organizationId: user?.organizationId,
         data 
       });
-      // Reset LOB selection when new LOBs are loaded
+      // Reset LOB selection if the current selection is no longer valid
       if (selectedLob && !data.some(lob => lob.id === selectedLob)) {
         setSelectedLob(null);
         form.setValue('lineOfBusinessId', undefined);
@@ -72,34 +71,14 @@ export function CreateBatchForm() {
     }
   });
 
-  // Add debugging logs for LOB changes
+  // Debug logging for state changes
   useEffect(() => {
     console.log('[Batch Form] DEBUG: Location/LOB state changed:', { 
       selectedLocation,
-      lobsData: lobs,
+      lobCount: lobs?.length,
       organizationId: user?.organizationId
     });
   }, [selectedLocation, lobs, user?.organizationId]);
-
-  // Fetch processes filtered by selected LOB
-  const { 
-    data: processes = [], 
-    isLoading: isLoadingProcesses,
-    error: processesError
-  } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${selectedLob}/processes`],
-    enabled: !!selectedLob,
-  });
-
-  // Fetch trainers based on selected location and process
-  const { 
-    data: trainers = [], 
-    isLoading: isLoadingTrainers,
-    error: trainersError
-  } = useQuery({
-    queryKey: [`/api/locations/${selectedLocation}/processes/${selectedProcess}/trainers`],
-    enabled: !!(selectedLocation && selectedProcess),
-  });
 
   const form = useForm<InsertOrganizationBatch>({
     resolver: zodResolver(insertOrganizationBatchSchema),
@@ -125,7 +104,6 @@ export function CreateBatchForm() {
       form.reset();
       setSelectedLocation(null);
       setSelectedLob(null);
-      setSelectedProcess(null);
     },
     onError: (error) => {
       console.error('Batch creation error:', error);
@@ -141,12 +119,6 @@ export function CreateBatchForm() {
     console.log('Submitting batch data:', data);
     createBatchMutation.mutate(data);
   };
-
-  // Show error states
-  if (locationsError || lobsError || processesError || trainersError) {
-    console.error('Form errors:', { locationsError, lobsError, processesError, trainersError });
-    // Consider adding UI feedback for errors here.  For example, a message above the form.
-  }
 
   return (
     <Form {...form}>
@@ -196,10 +168,7 @@ export function CreateBatchForm() {
                     setSelectedLocation(locationId);
                     // Reset dependent fields
                     setSelectedLob(null);
-                    setSelectedProcess(null);
                     form.setValue('lineOfBusinessId', undefined);
-                    form.setValue('processId', undefined);
-                    form.setValue('trainerId', undefined);
                   }}
                   value={field.value?.toString()}
                 >
@@ -240,10 +209,6 @@ export function CreateBatchForm() {
                     console.log('[Batch Form] LOB selected:', lobId);
                     field.onChange(lobId);
                     setSelectedLob(lobId);
-                    // Reset dependent fields
-                    setSelectedProcess(null);
-                    form.setValue('processId', undefined);
-                    form.setValue('trainerId', undefined);
                   }}
                   value={field.value?.toString()}
                   disabled={!selectedLocation || isLoadingLobs}
@@ -274,84 +239,6 @@ export function CreateBatchForm() {
                       lobs.map((lob: any) => (
                         <SelectItem key={lob.id} value={lob.id.toString()}>
                           {lob.name}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Process Selection */}
-          <FormField
-            control={form.control}
-            name="processId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Process</FormLabel>
-                <Select
-                  onValueChange={(value) => {
-                    const processId = parseInt(value);
-                    console.log('Process selected:', processId);
-                    field.onChange(processId);
-                    setSelectedProcess(processId);
-                    form.setValue('trainerId', undefined);
-                  }}
-                  value={field.value?.toString()}
-                  disabled={!selectedLob}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={!selectedLob ? "Select LOB first" : isLoadingProcesses ? "Loading..." : "Select process"} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {isLoadingProcesses ? (
-                      <div className="flex items-center justify-center p-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      </div>
-                    ) : (
-                      processes.map((process: any) => (
-                        <SelectItem key={process.id} value={process.id.toString()}>
-                          {process.name}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Trainer Selection */}
-          <FormField
-            control={form.control}
-            name="trainerId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Trainer</FormLabel>
-                <Select
-                  onValueChange={(value) => field.onChange(parseInt(value))}
-                  value={field.value?.toString()}
-                  disabled={!selectedProcess}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={!selectedProcess ? "Select process first" : isLoadingTrainers ? "Loading..." : "Select trainer"} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {isLoadingTrainers ? (
-                      <div className="flex items-center justify-center p-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      </div>
-                    ) : (
-                      trainers.map((trainer: any) => (
-                        <SelectItem key={trainer.id} value={trainer.id.toString()}>
-                          {trainer.fullName}
                         </SelectItem>
                       ))
                     )}
