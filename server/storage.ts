@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
@@ -940,27 +940,32 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching LOBs for location ${locationId} in organization ${organizationId}`);
 
-      // Get all LOBs for the organization first
-      const lobs = await db
-        .select()
-        .from(organizationLineOfBusinesses)
-        .where(eq(organizationLineOfBusinesses.organizationId, organizationId));
-
-      // Get processes associated with this location
+      // First get processes for this location
       const processes = await db
         .select()
         .from(organizationProcesses)
         .where(eq(organizationProcesses.locationId, locationId));
 
-      // Filter LOBs that have processes in this location
-      const lobIdsWithProcesses = [...new Set(processes.map(p => p.lineOfBusinessId))];
+      // Get unique LOB IDs from processes
+      const lobIds = [...new Set(processes.map(p => p.lineOfBusinessId))].filter(Boolean);
 
-      const filteredLobs = lobs.filter(lob =>
-        lobIdsWithProcesses.includes(lob.id)
-      );
+      // If no LOBs found for this location, return empty array
+      if (lobIds.length === 0) {
+        console.log(`No LOBs found for location ${locationId}`);
+        return [];
+      }
 
-      console.log(`Found ${filteredLobs.length} LOBs for location ${locationId}`);
-      return filteredLobs;
+      // Now get the LOBs for these IDs
+      const lobs = await db
+        .select()
+        .from(organizationLineOfBusinesses)
+        .where(eq(organizationLineOfBusinesses.organizationId, organizationId))
+        .where(
+          sql`${organizationLineOfBusinesses.id} IN (${sql.join(lobIds, sql`, `)})`
+        );
+
+      console.log(`Found ${lobs.length} LOBs for location ${locationId}`);
+      return lobs;
     } catch (error) {
       console.error('Error fetching LOBs by location:', error);
       throw new Error('Failed to fetch LOBs for location');
