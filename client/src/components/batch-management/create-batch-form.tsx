@@ -65,18 +65,20 @@ export function CreateBatchForm() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Filter managers based on location only - any role can be a manager
+  // Filter managers based on location - only active trainers
   const filteredManagers = allUsers.filter(user => {
-    const isActive = user.active;
+    const isTrainer = user.role === 'trainer';
+    const isActive = user.active && user.category === 'active';
     const matchesLocation = !selectedLocation || user.locationId === selectedLocation;
-    return isActive && matchesLocation;
+    return isTrainer && isActive && matchesLocation;
   });
 
   // Filter trainers based on selected manager
   const filteredTrainers = allUsers.filter(user => {
     const isTrainer = user.role === 'trainer';
+    const isActive = user.active && user.category === 'active';
     const matchesManager = !selectedManager || user.managerId === selectedManager;
-    return isTrainer && matchesManager;
+    return isTrainer && isActive && matchesManager;
   });
 
   const form = useForm<InsertOrganizationBatch>({
@@ -272,13 +274,13 @@ export function CreateBatchForm() {
             name="managerId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Manager</FormLabel>
+                <FormLabel>Trainer</FormLabel>
                 <Select
                   onValueChange={(value) => {
                     const managerId = parseInt(value);
                     field.onChange(managerId);
                     setSelectedManager(managerId);
-                    // Reset trainer when manager changes
+                    // Reset trainer when trainer changes
                     form.setValue("trainerId", undefined);
                   }}
                   value={field.value?.toString()}
@@ -286,13 +288,13 @@ export function CreateBatchForm() {
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder={isLoadingUsers ? "Loading managers..." : "Select manager"} />
+                      <SelectValue placeholder={isLoadingUsers ? "Loading trainers..." : "Select trainer"} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {filteredManagers.map((manager) => (
-                      <SelectItem key={manager.id} value={manager.id.toString()}>
-                        {manager.username} ({manager.role})
+                    {filteredManagers.map((trainer) => (
+                      <SelectItem key={trainer.id} value={trainer.id.toString()}>
+                        {trainer.username} ({trainer.role})
                       </SelectItem>
                     ))}
                   </SelectContent>
