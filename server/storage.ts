@@ -141,23 +141,34 @@ export class DatabaseStorage implements IStorage {
         }
       }
 
-      const [updatedUser] = await db
-        .update(users)
-        .set({
-          ...user,
-          // Ensure we're not overwriting these fields unintentionally
-          id: undefined,
-          createdAt: undefined,
-        })
-        .where(eq(users.id, id))
-        .returning() as User[];
+      return await db.transaction(async (tx) => {
+        // Update user
+        const [updatedUser] = await tx
+          .update(users)
+          .set({
+            ...user,
+            // Ensure we're not overwriting these fields unintentionally
+            id: undefined,
+            createdAt: undefined,
+          })
+          .where(eq(users.id, id))
+          .returning() as User[];
 
-      if (!updatedUser) {
-        throw new Error('User not found');
-      }
+        if (!updatedUser) {
+          throw new Error('User not found');
+        }
 
-      console.log('Successfully updated user:', updatedUser);
-      return updatedUser;
+        // If location is being updated, also update user_processes
+        if (user.locationId) {
+          await tx
+            .update(userProcesses)
+            .set({ locationId: user.locationId })
+            .where(eq(userProcesses.userId, id));
+        }
+
+        console.log('Successfully updated user:', updatedUser);
+        return updatedUser;
+      });
     } catch (error: any) {
       console.error('Error updating user:', error);
       throw error;
