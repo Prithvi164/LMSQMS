@@ -30,11 +30,18 @@ export function CreateBatchForm() {
   const queryClient = useQueryClient();
   const [selectedLob, setSelectedLob] = useState<number | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
-  const [selectedTrainer, setSelectedTrainer] = useState<number | null>(null);
-  const [selectedProcess, setSelectedProcess] = useState<number | null>(null); // Added state for selected process
+  const [selectedProcess, setSelectedProcess] = useState<number | null>(null);
+  const [selectedManager, setSelectedManager] = useState<number | null>(null);
 
-  // Fetch LOBs
-  const { data: lobs = [] } = useQuery<OrganizationLineOfBusiness[]>({
+  // Fetch locations
+  const { data: locations = [] } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/locations`],
+    enabled: !!user?.organizationId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Fetch all LOBs
+  const { data: allLobs = [] } = useQuery<OrganizationLineOfBusiness[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses`],
     enabled: !!user?.organizationId,
     staleTime: 5 * 60 * 1000,
@@ -47,18 +54,6 @@ export function CreateBatchForm() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Filter processes based on selected LOB
-  const filteredProcesses = selectedLob
-    ? allProcesses.filter((process) => process.lineOfBusinessId === selectedLob)
-    : [];
-
-  // Fetch locations
-  const { data: locations = [] } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/locations`],
-    enabled: !!user?.organizationId,
-    staleTime: 5 * 60 * 1000,
-  });
-
   // Fetch all users
   const { data: allUsers = [], isLoading: isLoadingUsers } = useQuery<User[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/users`],
@@ -66,22 +61,41 @@ export function CreateBatchForm() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Filter trainers based on location, active status, and selected process
-  const filteredTrainers = allUsers.filter((user) => {
-    const isTrainer = user.role === "trainer";
-    const isActive = user.active && user.category === "active";
+  // Filter LOBs based on selected location
+  const filteredLobs = selectedLocation
+    ? allLobs.filter(lob => {
+        // Find processes in this LOB
+        const lobProcesses = allProcesses.filter(p => p.lineOfBusinessId === lob.id);
+        // Check if any users in these processes are in the selected location
+        return allUsers.some(user => 
+          user.locationId === selectedLocation && 
+          user.processes?.some(processId => 
+            lobProcesses.some(p => p.id === processId)
+          )
+        );
+      })
+    : allLobs;
+
+  // Filter processes based on selected LOB
+  const filteredProcesses = selectedLob
+    ? allProcesses.filter(process => process.lineOfBusinessId === selectedLob)
+    : [];
+
+  // Filter managers based on selected process and location
+  const filteredManagers = allUsers.filter(user => {
+    const isActive = user.active;
     const matchesLocation = !selectedLocation || user.locationId === selectedLocation;
     const matchesProcess = !selectedProcess || (user.processes && user.processes.includes(selectedProcess));
-    return isTrainer && isActive && matchesLocation && matchesProcess;
+    return isActive && matchesLocation && matchesProcess;
   });
 
-  // Filter co-trainers based on selected trainer, active status, and selected process
-  const filteredCoTrainers = allUsers.filter((user) => {
-    const isTrainer = user.role === "trainer";
-    const isActive = user.active && user.category === "active";
-    const matchesTrainer = !selectedTrainer || user.managerId === selectedTrainer;
+  // Filter trainers based on selected manager and process
+  const filteredTrainers = allUsers.filter(user => {
+    const isTrainer = user.role === 'trainer';
+    const isActive = user.active && user.category === 'active';
+    const matchesManager = !selectedManager || user.managerId === selectedManager;
     const matchesProcess = !selectedProcess || (user.processes && user.processes.includes(selectedProcess));
-    return isTrainer && isActive && matchesTrainer && matchesProcess;
+    return isTrainer && isActive && matchesManager && matchesProcess;
   });
 
   const form = useForm<InsertOrganizationBatch>({
@@ -105,8 +119,8 @@ export function CreateBatchForm() {
       form.reset();
       setSelectedLob(null);
       setSelectedLocation(null);
-      setSelectedTrainer(null);
-      setSelectedProcess(null); // Reset selected process
+      setSelectedProcess(null);
+      setSelectedManager(null);
     },
     onError: (error: Error) => {
       toast({
@@ -120,17 +134,6 @@ export function CreateBatchForm() {
   const onSubmit = (data: InsertOrganizationBatch) => {
     createBatchMutation.mutate(data);
   };
-
-  console.log("Current form state:", {
-    selectedLob,
-    selectedLocation,
-    selectedTrainer,
-    filteredTrainers,
-    isLoadingUsers,
-    filteredCoTrainers,
-    filteredProcesses,
-    isLoadingProcesses,
-  });
 
   return (
     <Form {...form}>
@@ -166,81 +169,6 @@ export function CreateBatchForm() {
 
           <FormField
             control={form.control}
-            name="lineOfBusinessId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Line of Business</FormLabel>
-                <Select
-                  onValueChange={(value) => {
-                    const lobId = parseInt(value);
-                    field.onChange(lobId);
-                    setSelectedLob(lobId);
-                    // Reset dependent fields
-                    form.setValue("processId", undefined);
-                    form.setValue("managerId", undefined);
-                    form.setValue("trainerId", undefined);
-                    setSelectedTrainer(null);
-                    setSelectedProcess(null); //Reset selected process when LOB changes
-                  }}
-                  value={field.value?.toString()}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Line of Business" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {lobs.map((lob) => (
-                      <SelectItem key={lob.id} value={lob.id.toString()}>
-                        {lob.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="processId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Process</FormLabel>
-                <Select
-                  onValueChange={(value) => {
-                    const processId = parseInt(value);
-                    field.onChange(processId);
-                    setSelectedProcess(processId); // Update selectedProcess state
-                    // Reset trainer and co-trainer when process changes
-                    form.setValue("managerId", undefined);
-                    form.setValue("trainerId", undefined);
-                    setSelectedTrainer(null);
-                  }}
-                  value={field.value?.toString()}
-                  disabled={!selectedLob || isLoadingProcesses}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={isLoadingProcesses ? "Loading processes..." : "Select process"} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {filteredProcesses.map((process) => (
-                      <SelectItem key={process.id} value={process.id.toString()}>
-                        {process.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
             name="locationId"
             render={({ field }) => (
               <FormItem>
@@ -250,11 +178,14 @@ export function CreateBatchForm() {
                     const locationId = parseInt(value);
                     field.onChange(locationId);
                     setSelectedLocation(locationId);
-                    // Reset trainer and co-trainer when location changes
+                    // Reset dependent fields
+                    form.setValue("lineOfBusinessId", undefined);
+                    form.setValue("processId", undefined);
                     form.setValue("managerId", undefined);
                     form.setValue("trainerId", undefined);
-                    setSelectedTrainer(null);
-                    setSelectedProcess(null); //Reset selected process when location changes
+                    setSelectedLob(null);
+                    setSelectedProcess(null);
+                    setSelectedManager(null);
                   }}
                   value={field.value?.toString()}
                 >
@@ -278,20 +209,96 @@ export function CreateBatchForm() {
 
           <FormField
             control={form.control}
+            name="lineOfBusinessId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Line of Business</FormLabel>
+                <Select
+                  onValueChange={(value) => {
+                    const lobId = parseInt(value);
+                    field.onChange(lobId);
+                    setSelectedLob(lobId);
+                    // Reset dependent fields
+                    form.setValue("processId", undefined);
+                    form.setValue("managerId", undefined);
+                    form.setValue("trainerId", undefined);
+                    setSelectedProcess(null);
+                    setSelectedManager(null);
+                  }}
+                  value={field.value?.toString()}
+                  disabled={!selectedLocation}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Line of Business" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {filteredLobs.map((lob) => (
+                      <SelectItem key={lob.id} value={lob.id.toString()}>
+                        {lob.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="processId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Process</FormLabel>
+                <Select
+                  onValueChange={(value) => {
+                    const processId = parseInt(value);
+                    field.onChange(processId);
+                    setSelectedProcess(processId);
+                    // Reset dependent fields
+                    form.setValue("managerId", undefined);
+                    form.setValue("trainerId", undefined);
+                    setSelectedManager(null);
+                  }}
+                  value={field.value?.toString()}
+                  disabled={!selectedLob}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder={isLoadingProcesses ? "Loading processes..." : "Select process"} />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {filteredProcesses.map((process) => (
+                      <SelectItem key={process.id} value={process.id.toString()}>
+                        {process.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
             name="managerId"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Trainer</FormLabel>
                 <Select
                   onValueChange={(value) => {
-                    const trainerId = parseInt(value);
-                    field.onChange(trainerId);
-                    setSelectedTrainer(trainerId);
-                    // Reset co-trainer when trainer changes
+                    const managerId = parseInt(value);
+                    field.onChange(managerId);
+                    setSelectedManager(managerId);
+                    // Reset trainer when manager changes
                     form.setValue("trainerId", undefined);
                   }}
                   value={field.value?.toString()}
-                  disabled={!selectedLocation || isLoadingUsers}
+                  disabled={!selectedProcess || isLoadingUsers}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -299,9 +306,9 @@ export function CreateBatchForm() {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {filteredTrainers.map((trainer) => (
-                      <SelectItem key={trainer.id} value={trainer.id.toString()}>
-                        {trainer.username} ({trainer.role})
+                    {filteredManagers.map((manager) => (
+                      <SelectItem key={manager.id} value={manager.id.toString()}>
+                        {manager.username} ({manager.role})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -320,7 +327,7 @@ export function CreateBatchForm() {
                 <Select
                   onValueChange={(value) => field.onChange(parseInt(value))}
                   value={field.value?.toString()}
-                  disabled={!selectedTrainer || isLoadingUsers}
+                  disabled={!selectedManager || isLoadingUsers}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -328,7 +335,7 @@ export function CreateBatchForm() {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {filteredCoTrainers.map((trainer) => (
+                    {filteredTrainers.map((trainer) => (
                       <SelectItem key={trainer.id} value={trainer.id.toString()}>
                         {trainer.username} ({trainer.role})
                       </SelectItem>
