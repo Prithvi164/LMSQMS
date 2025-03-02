@@ -46,8 +46,8 @@ export function CreateBatchForm() {
     data: lobs = [], 
     isLoading: isLoadingLobs 
   } = useQuery({
-    queryKey: [`/api/locations/${selectedLocation}/line-of-businesses`],
-    enabled: !!selectedLocation,
+    queryKey: [`/api/organizations/${user?.organizationId}/locations/${selectedLocation}/line-of-businesses`],
+    enabled: !!selectedLocation && !!user?.organizationId,
   });
 
   // Fetch processes filtered by selected LOB

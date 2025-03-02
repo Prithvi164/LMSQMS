@@ -1048,5 +1048,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add the route for getting LOBs by location
+  app.get("/api/organizations/:orgId/locations/:locationId/line-of-businesses", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const locationId = parseInt(req.params.locationId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only view LOBs in your own organization" });
+      }
+
+      console.log(`Fetching LOBs for location ${locationId} in organization ${orgId}`);
+      const lobs = await storage.getLineOfBusinessesByLocation(orgId, locationId);
+      res.json(lobs);
+    } catch (error: any) {
+      console.error("Error fetching LOBs by location:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   return app;
 }

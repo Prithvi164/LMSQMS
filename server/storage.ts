@@ -959,29 +959,29 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching LOBs for location ${locationId} in organization ${organizationId}`);
 
-      // Get LOBs directly from user_processes table
+      // Get unique LOBs from user_processes table that are associated with the location
       const lobs = await db
-        .select({
+        .selectDistinct({
           id: organizationLineOfBusinesses.id,
           name: organizationLineOfBusinesses.name,
-          description: organizationLineOfBusinesses.description,
+          description: organizationLineBusinesses.description,
           organizationId: organizationLineOfBusinesses.organizationId,
-          createdAt: organizationLineOfBusinesses.createdAt
-                })
+          createdAt: organizationLineOfBusinesses.createdAt,
+          updatedAt: organizationLineOfBusinesses.updatedAt
+        })
         .from(userProcesses)
         .innerJoin(
           organizationLineOfBusinesses,
           eq(userProcesses.lineOfBusinessId, organizationLineOfBusinesses.id)
         )
         .where(eq(userProcesses.locationId, locationId))
-        .where(eq(organizationLineOfBusinesses.organizationId, organizationId))
-        .groupBy(organizationLineOfBusinesses.id);
+        .where(eq(organizationLineOfBusinesses.organizationId, organizationId)) as OrganizationLineOfBusiness[];
 
-      console.log(`Found ${lobs.length} LOBs for location ${locationId}`);
-      return lobs as OrganizationLineOfBusiness[];
+      console.log(`Found ${lobs.length} unique LOBs for location ${locationId}:`, lobs);
+      return lobs;
     } catch (error) {
       console.error('Error fetching LOBs by location:', error);
-      throw new Error('Failed to fetch LOBs for location');
+      throw error;
     }
   }
 }
