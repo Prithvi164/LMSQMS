@@ -41,6 +41,12 @@ export function CreateBatchForm() {
   const { data: processes = [], isLoading: isLoadingProcesses } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${selectedLob}/processes`],
     enabled: !!selectedLob,
+    onSuccess: (data) => {
+      console.log('Processes fetched successfully:', data);
+    },
+    onError: (error) => {
+      console.error('Error fetching processes:', error);
+    }
   });
 
   // Fetch locations
@@ -157,6 +163,7 @@ export function CreateBatchForm() {
                     // Reset process when LOB changes
                     form.setValue('processId', undefined);
                     // Invalidate processes query to force refresh
+                    console.log('Selected LOB:', lobId);
                     queryClient.invalidateQueries({ 
                       queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${lobId}/processes`] 
                     });
