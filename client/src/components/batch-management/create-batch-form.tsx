@@ -30,6 +30,7 @@ export function CreateBatchForm() {
   const queryClient = useQueryClient();
   const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
   const [selectedLob, setSelectedLob] = useState<number | null>(null);
+  const [selectedTrainer, setSelectedTrainer] = useState<number | null>(null);
 
   // Step 1: Fetch Locations
   const { 
@@ -61,6 +62,7 @@ export function CreateBatchForm() {
       form.setValue('processId', null);
       // Also reset trainer when location changes
       form.setValue('trainerId', null);
+      setSelectedTrainer(null);
     }
   });
 
@@ -84,6 +86,19 @@ export function CreateBatchForm() {
       (!selectedLocation || user.locationId === selectedLocation)
     ),
     enabled: !!user?.organizationId
+  });
+
+  // Fetch trainer's manager when trainer is selected
+  const {
+    data: trainerManager,
+    isLoading: isLoadingManager
+  } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/users/${selectedTrainer}`],
+    enabled: !!selectedTrainer,
+    select: (trainer) => {
+      if (!trainer?.managerId) return null;
+      return trainers.find(u => u.id === trainer.managerId);
+    }
   });
 
   const form = useForm({
@@ -110,6 +125,7 @@ export function CreateBatchForm() {
       form.reset();
       setSelectedLocation(null);
       setSelectedLob(null);
+      setSelectedTrainer(null);
     },
     onError: (error) => {
       console.error('Error creating batch:', error);
@@ -178,6 +194,7 @@ export function CreateBatchForm() {
                     form.setValue('lineOfBusinessId', null);
                     form.setValue('processId', null);
                     form.setValue('trainerId', null); // Reset trainer when location changes
+                    setSelectedTrainer(null);
                   }}
                   value={field.value?.toString()}
                   disabled={isLoadingLocations}
@@ -290,7 +307,11 @@ export function CreateBatchForm() {
               <FormItem>
                 <FormLabel>Trainer</FormLabel>
                 <Select
-                  onValueChange={(value) => field.onChange(parseInt(value))}
+                  onValueChange={(value) => {
+                    const trainerId = parseInt(value);
+                    field.onChange(trainerId);
+                    setSelectedTrainer(trainerId);
+                  }}
                   value={field.value?.toString()}
                   disabled={!selectedLocation || isLoadingTrainers}
                 >
@@ -311,6 +332,18 @@ export function CreateBatchForm() {
               </FormItem>
             )}
           />
+
+          {/* Reporting Manager (Read-only) */}
+          <FormItem>
+            <FormLabel>Reporting Manager</FormLabel>
+            <FormControl>
+              <Input 
+                value={trainerManager?.fullName || 'No manager assigned'} 
+                disabled={true}
+                readOnly={true}
+              />
+            </FormControl>
+          </FormItem>
 
           {/* Start Date */}
           <FormField
@@ -372,7 +405,8 @@ export function CreateBatchForm() {
               isLoadingLocations || 
               isLoadingLobs || 
               isLoadingProcesses || 
-              isLoadingTrainers
+              isLoadingTrainers ||
+              isLoadingManager
             }
           >
             {createBatchMutation.isPending ? "Creating..." : "Create Batch"}
