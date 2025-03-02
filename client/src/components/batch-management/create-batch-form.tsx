@@ -32,7 +32,7 @@ export function CreateBatchForm() {
   const [selectedLob, setSelectedLob] = useState<number | null>(null);
   const [selectedTrainer, setSelectedTrainer] = useState<number | null>(null);
 
-  // Step 1: Fetch Locations
+  // Step 1: Fetch Locations 
   const {
     data: locations = [],
     isLoading: isLoadingLocations
@@ -99,7 +99,7 @@ export function CreateBatchForm() {
     isLoading: isLoadingManager
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/users/${selectedTrainer}`],
-    enabled: !!selectedTrainer,
+    enabled: !!selectedTrainer && !!user?.organizationId,
     select: (trainer) => {
       console.log('Trainer data:', trainer);
       if (!trainer?.managerId) {
