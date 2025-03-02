@@ -32,24 +32,24 @@ export function CreateBatchForm() {
   const [selectedLob, setSelectedLob] = useState<number | null>(null);
 
   // Step 1: Fetch Locations
-  const { data: locations = [] } = useQuery({
+  const { data: locations = [], isLoading: isLoadingLocations } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations`],
   });
 
   // Step 2: Fetch LOBs based on selected location
-  const { data: lobs = [] } = useQuery({
+  const { data: lobs = [], isLoading: isLoadingLobs } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations/${selectedLocation}/line-of-businesses`],
     enabled: !!selectedLocation,
   });
 
   // Step 3: Fetch processes based on selected LOB
-  const { data: processes = [] } = useQuery({
+  const { data: processes = [], isLoading: isLoadingProcesses } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${selectedLob}/processes`],
     enabled: !!selectedLob,
   });
 
   // Fetch trainers (users with trainer role)
-  const { data: trainers = [] } = useQuery({
+  const { data: trainers = [], isLoading: isLoadingTrainers } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/users`],
     select: (users) => users.filter((user) => user.role === 'trainer'),
   });
@@ -127,6 +127,7 @@ export function CreateBatchForm() {
             )}
           />
 
+          {/* Step 1: Location Selection */}
           <FormField
             control={form.control}
             name="locationId"
@@ -140,9 +141,11 @@ export function CreateBatchForm() {
                     setSelectedLocation(locationId);
                     // Reset dependent fields
                     setSelectedLob(null);
+                    form.setValue('lineOfBusinessId', undefined);
                     form.setValue('processId', undefined);
                   }}
                   value={field.value?.toString()}
+                  disabled={isLoadingLocations}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -162,6 +165,7 @@ export function CreateBatchForm() {
             )}
           />
 
+          {/* Step 2: LOB Selection */}
           <FormField
             control={form.control}
             name="lineOfBusinessId"
@@ -177,7 +181,7 @@ export function CreateBatchForm() {
                     form.setValue('processId', undefined);
                   }}
                   value={field.value?.toString()}
-                  disabled={!selectedLocation}
+                  disabled={!selectedLocation || isLoadingLobs}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -197,6 +201,7 @@ export function CreateBatchForm() {
             )}
           />
 
+          {/* Step 3: Process Selection */}
           <FormField
             control={form.control}
             name="processId"
@@ -206,7 +211,7 @@ export function CreateBatchForm() {
                 <Select
                   onValueChange={(value) => field.onChange(parseInt(value))}
                   value={field.value?.toString()}
-                  disabled={!selectedLob}
+                  disabled={!selectedLob || isLoadingProcesses}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -235,6 +240,7 @@ export function CreateBatchForm() {
                 <Select
                   onValueChange={(value) => field.onChange(parseInt(value))}
                   value={field.value?.toString()}
+                  disabled={isLoadingTrainers}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -306,7 +312,7 @@ export function CreateBatchForm() {
         <div className="flex justify-end space-x-2">
           <Button
             type="submit"
-            disabled={createBatchMutation.isPending}
+            disabled={createBatchMutation.isPending || isLoadingLocations || isLoadingLobs || isLoadingProcesses || isLoadingTrainers}
           >
             Create Batch
           </Button>
