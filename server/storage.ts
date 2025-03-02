@@ -92,6 +92,10 @@ export interface IStorage {
   listBatches(organizationId: number): Promise<OrganizationBatch[]>;
   updateBatch(id: number, batch: Partial<InsertOrganizationBatch>): Promise<OrganizationBatch>;
   deleteBatch(id: number): Promise<void>;
+
+  // Add new methods for user filtering
+  getActiveManagersByLocation(locationId: number): Promise<User[]>;
+  getActiveTrainersByManager(managerId: number): Promise<User[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -872,6 +876,40 @@ export class DatabaseStorage implements IStorage {
       console.log(`Successfully deleted batch with ID: ${id}`);
     } catch (error) {
       console.error('Error deleting batch:', error);
+      throw error;
+    }
+  }
+
+  async getActiveManagersByLocation(locationId: number): Promise<User[]> {
+    try {
+      const managers = await db
+        .select()
+        .from(users)
+        .where(eq(users.locationId, locationId))
+        .where(eq(users.role, 'manager'))
+        .where(eq(users.active, true))
+        .where(eq(users.category, 'active')) as User[];
+
+      return managers;
+    } catch (error) {
+      console.error('Error fetching managers by location:', error);
+      throw error;
+    }
+  }
+
+  async getActiveTrainersByManager(managerId: number): Promise<User[]> {
+    try {
+      const trainers = await db
+        .select()
+        .from(users)
+        .where(eq(users.managerId, managerId))
+        .where(eq(users.role, 'trainer'))
+        .where(eq(users.active, true))
+        .where(eq(users.category, 'active')) as User[];
+
+      return trainers;
+    } catch (error) {
+      console.error('Error fetching trainers by manager:', error);
       throw error;
     }
   }

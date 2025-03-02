@@ -984,5 +984,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add these new endpoints for manager and trainer filtering
+  app.get("/api/locations/:locationId/managers", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const locationId = parseInt(req.params.locationId);
+      const managers = await storage.getActiveManagersByLocation(locationId);
+      res.json(managers);
+    } catch (error: any) {
+      console.error("Error fetching managers:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/managers/:managerId/trainers", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const managerId = parseInt(req.params.managerId);
+      const trainers = await storage.getActiveTrainersByManager(managerId);
+      res.json(trainers);
+    } catch (error: any) {
+      console.error("Error fetching trainers:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   return app;
 }

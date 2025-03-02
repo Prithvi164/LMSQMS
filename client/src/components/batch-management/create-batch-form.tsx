@@ -29,6 +29,8 @@ export function CreateBatchForm() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selectedLob, setSelectedLob] = useState<number | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
+  const [selectedManager, setSelectedManager] = useState<number | null>(null);
 
   // Fetch LOBs
   const { data: lobs = [] } = useQuery({
@@ -46,10 +48,16 @@ export function CreateBatchForm() {
     queryKey: [`/api/organizations/${user?.organizationId}/locations`],
   });
 
-  // Fetch trainers (users with trainer role)
+  // Fetch managers based on selected location
+  const { data: managers = [] } = useQuery({
+    queryKey: [`/api/locations/${selectedLocation}/managers`],
+    enabled: !!selectedLocation,
+  });
+
+  // Fetch trainers based on selected manager
   const { data: trainers = [] } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/users`],
-    select: (users) => users.filter((user) => user.role === 'trainer'),
+    queryKey: [`/api/managers/${selectedManager}/trainers`],
+    enabled: !!selectedManager,
   });
 
   const form = useForm<InsertOrganizationBatch>({
@@ -74,6 +82,9 @@ export function CreateBatchForm() {
         description: "Batch created successfully",
       });
       form.reset();
+      setSelectedLob(null);
+      setSelectedLocation(null);
+      setSelectedManager(null);
     },
     onError: (error) => {
       toast({
@@ -187,7 +198,13 @@ export function CreateBatchForm() {
               <FormItem>
                 <FormLabel>Location</FormLabel>
                 <Select
-                  onValueChange={(value) => field.onChange(parseInt(value))}
+                  onValueChange={(value) => {
+                    const locationId = parseInt(value);
+                    field.onChange(locationId);
+                    setSelectedLocation(locationId);
+                    setSelectedManager(null); // Reset manager when location changes
+                    form.setValue('trainerId', undefined); // Reset trainer when location changes
+                  }}
                   value={field.value?.toString()}
                 >
                   <FormControl>
@@ -208,6 +225,41 @@ export function CreateBatchForm() {
             )}
           />
 
+          {/* New Manager Selection */}
+          {selectedLocation && (
+            <FormField
+              control={form.control}
+              name="managerId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Manager</FormLabel>
+                  <Select
+                    onValueChange={(value) => {
+                      const managerId = parseInt(value);
+                      setSelectedManager(managerId);
+                      form.setValue('trainerId', undefined); // Reset trainer when manager changes
+                    }}
+                    value={selectedManager?.toString()}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select manager" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {managers.map((manager) => (
+                        <SelectItem key={manager.id} value={manager.id.toString()}>
+                          {manager.fullName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+
           <FormField
             control={form.control}
             name="trainerId"
@@ -217,6 +269,7 @@ export function CreateBatchForm() {
                 <Select
                   onValueChange={(value) => field.onChange(parseInt(value))}
                   value={field.value?.toString()}
+                  disabled={!selectedManager}
                 >
                   <FormControl>
                     <SelectTrigger>
