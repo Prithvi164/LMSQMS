@@ -22,7 +22,7 @@ export const roleEnum = pgEnum('role', [
   'advisor'    
 ]);
 
-// Add organizationBatches table
+// Organization Batches table
 export const organizationBatches = pgTable("organization_batches", {
   id: serial("id").primaryKey(),
   batchCode: text("batch_code").notNull().unique(),
@@ -49,7 +49,7 @@ export const organizationBatches = pgTable("organization_batches", {
 
 export type OrganizationBatch = InferSelectModel<typeof organizationBatches>;
 
-// Add relations for batches
+// Relations for batches
 export const organizationBatchesRelations = relations(organizationBatches, ({ one }) => ({
   organization: one(organizations, {
     fields: [organizationBatches.organizationId],
@@ -69,7 +69,7 @@ export const organizationBatchesRelations = relations(organizationBatches, ({ on
   }),
 }));
 
-// Add Zod schema for batch creation/updates
+// Validation schema for batch creation/updates
 export const insertOrganizationBatchSchema = createInsertSchema(organizationBatches)
   .omit({
     id: true,
@@ -80,7 +80,12 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
     batchCode: z.string().min(1, "Batch code is required"),
     name: z.string().min(1, "Batch name is required"),
     startDate: z.string().min(1, "Start date is required"),
-    endDate: z.string().min(1, "End date is required"),
+    endDate: z.string().min(1, "End date is required")
+      .refine((endDate, ctx) => {
+        const start = new Date(ctx.data?.startDate || '');
+        const end = new Date(endDate);
+        return end > start;
+      }, "End date must be after start date"),
     capacityLimit: z.number().int().min(1, "Capacity must be at least 1"),
     status: z.enum(['planned', 'ongoing', 'completed']).default('planned'),
     processId: z.number().int().positive("Process is required"),
@@ -91,8 +96,8 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
 
 export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
 
-// Rest of the enums and tables remain unchanged...
 
+// Rest of the enums and tables remain unchanged...
 export const permissionEnum = pgEnum('permission', [
   'manage_billing',
   'manage_subscription',
