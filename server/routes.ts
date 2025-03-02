@@ -816,5 +816,173 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add batch management routes
+  app.get("/api/organizations/:id/batches", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.id);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only view batches in your own organization" });
+      }
+
+      const batches = await storage.listBatches(orgId);
+
+      // Fetch related data for each batch
+      const batchesWithDetails = await Promise.all(batches.map(async (batch) => {
+        const [process, location, trainer] = await Promise.all([
+          storage.getProcess(batch.processId),
+          storage.getLocation(batch.locationId),
+          storage.getUser(batch.trainerId)
+        ]);
+
+        return {
+          ...batch,
+          process,
+          location,
+          trainer
+        };
+      }));
+
+      res.json(batchesWithDetails);
+    } catch (error: any) {
+      console.error("Error fetching batches:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/organizations/:id/batches", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.id);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only create batches in your own organization" });
+      }
+
+      const batchData = {
+        ...req.body,
+        organizationId: orgId,
+      };
+
+      console.log('Creating batch with data:', batchData);
+
+      const batch = await storage.createBatch(batchData);
+      res.status(201).json(batch);
+    } catch (error: any) {
+      console.error("Batch creation error:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/organizations/:id/batches/:batchId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.id);
+      const batchId = parseInt(req.params.batchId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only view batches in your own organization" });
+      }
+
+      const batch = await storage.getBatch(batchId);
+      if (!batch) {
+        return res.status(404).json({ message: "Batch not found" });
+      }
+
+      // Check if batch belongs to the organization
+      if (batch.organizationId !== orgId) {
+        return res.status(403).json({ message: "Batch not found in your organization" });
+      }
+
+      // Fetch related data
+      const [process, location, trainer] = await Promise.all([
+        storage.getProcess(batch.processId),
+        storage.getLocation(batch.locationId),
+        storage.getUser(batch.trainerId)
+      ]);
+
+      res.json({
+        ...batch,
+        process,
+        location,
+        trainer
+      });
+    } catch (error: any) {
+      console.error("Error fetching batch:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/organizations/:id/batches/:batchId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.id);
+      const batchId = parseInt(req.params.batchId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only update batches in your own organization" });
+      }
+
+      const batch = await storage.getBatch(batchId);
+      if (!batch) {
+        return res.status(404).json({ message: "Batch not found" });
+      }
+
+      // Check if batch belongs to the organization
+      if (batch.organizationId !== orgId) {
+        return res.status(403).json({ message: "Batch not found in your organization" });
+      }
+
+      console.log('Updating batch:', batchId, 'with data:', req.body);
+      const updatedBatch = await storage.updateBatch(batchId, req.body);
+
+      res.json(updatedBatch);
+    } catch (error: any) {
+      console.error("Batch update error:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/organizations/:id/batches/:batchId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.id);
+      const batchId = parseInt(req.params.batchId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only delete batches in your own organization" });
+      }
+
+      const batch = await storage.getBatch(batchId);
+      if (!batch) {
+        return res.status(404).json({ message: "Batch not found" });
+      }
+
+      // Check if batch belongs to the organization
+      if (batch.organizationId !== orgId) {
+        return res.status(403).json({ message: "Batch not found in your organization" });
+      }
+
+      console.log('Deleting batch:', batchId);
+      await storage.deleteBatch(batchId);
+
+      res.json({ message: "Batch deleted successfully" });
+    } catch (error: any) {
+      console.error("Batch deletion error:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
   return app;
 }

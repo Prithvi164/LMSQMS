@@ -4,6 +4,7 @@ import {
   users,
   organizations,
   organizationProcesses,
+  organizationBatches,
   organizationLineOfBusinesses,
   organizationLocations,
   rolePermissions,
@@ -14,6 +15,8 @@ import {
   type InsertOrganization,
   type OrganizationProcess,
   type InsertOrganizationProcess,
+  type OrganizationBatch,
+  type InsertOrganizationBatch,
   type RolePermission,
   type OrganizationLineOfBusiness,
   type InsertOrganizationLineOfBusiness,
@@ -23,7 +26,6 @@ import {
   type InsertOrganizationLocation,
 } from "@shared/schema";
 
-// Update IStorage interface - remove batch operations
 export interface IStorage {
   // User operations
   getUser(id: number): Promise<User | undefined>;
@@ -83,6 +85,13 @@ export interface IStorage {
   updateLocation(id: number, location: Partial<InsertOrganizationLocation>): Promise<OrganizationLocation>;
   deleteLocation(id: number): Promise<void>;
   createLocation(location: InsertOrganizationLocation): Promise<OrganizationLocation>;
+
+  // Batch operations
+  createBatch(batch: InsertOrganizationBatch): Promise<OrganizationBatch>;
+  getBatch(id: number): Promise<OrganizationBatch | undefined>;
+  listBatches(organizationId: number): Promise<OrganizationBatch[]>;
+  updateBatch(id: number, batch: Partial<InsertOrganizationBatch>): Promise<OrganizationBatch>;
+  deleteBatch(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -770,6 +779,99 @@ export class DatabaseStorage implements IStorage {
       return newLocation;
     } catch (error: any) {
       console.error('Error creating location:', error);
+      throw error;
+    }
+  }
+
+  // Batch operations
+  async createBatch(batch: InsertOrganizationBatch): Promise<OrganizationBatch> {
+    try {
+      console.log('Creating batch with data:', batch);
+
+      const [newBatch] = await db
+        .insert(organizationBatches)
+        .values(batch)
+        .returning() as OrganizationBatch[];
+
+      console.log('Successfully created new batch:', newBatch);
+      return newBatch;
+    } catch (error: any) {
+      console.error('Error creating batch:', error);
+      throw error;
+    }
+  }
+
+  async getBatch(id: number): Promise<OrganizationBatch | undefined> {
+    try {
+      const [batch] = await db
+        .select()
+        .from(organizationBatches)
+        .where(eq(organizationBatches.id, id)) as OrganizationBatch[];
+
+      return batch;
+    } catch (error) {
+      console.error('Error fetching batch:', error);
+      throw error;
+    }
+  }
+
+  async listBatches(organizationId: number): Promise<OrganizationBatch[]> {
+    try {
+      console.log(`Fetching batches for organization ${organizationId}`);
+      const batches = await db
+        .select()
+        .from(organizationBatches)
+        .where(eq(organizationBatches.organizationId, organizationId)) as OrganizationBatch[];
+
+      console.log(`Found ${batches.length} batches`);
+      return batches;
+    } catch (error) {
+      console.error('Error fetching batches:', error);
+      throw error;
+    }
+  }
+
+  async updateBatch(id: number, batch: Partial<InsertOrganizationBatch>): Promise<OrganizationBatch> {
+    try {
+      console.log(`Updating batch with ID: ${id}`, batch);
+
+      const [updatedBatch] = await db
+        .update(organizationBatches)
+        .set({
+          ...batch,
+          updatedAt: new Date()
+        })
+        .where(eq(organizationBatches.id, id))
+        .returning() as OrganizationBatch[];
+
+      if (!updatedBatch) {
+        throw new Error('Batch not found');
+      }
+
+      console.log('Successfully updated batch:', updatedBatch);
+      return updatedBatch;
+    } catch (error) {
+      console.error('Error updating batch:', error);
+      throw error;
+    }
+  }
+
+  async deleteBatch(id: number): Promise<void> {
+    try {
+      console.log(`Attempting to delete batch with ID: ${id}`);
+
+      const result = await db
+        .delete(organizationBatches)
+        .where(eq(organizationBatches.id, id))
+        .returning();
+
+      if (!result.length) {
+        throw new Error('Batch not found or deletion failed');
+      }
+
+      console.log(`Successfully deleted batch with ID: ${id}`);
+    } catch (error) {
+      console.error('Error deleting batch:', error);
       throw error;
     }
   }
