@@ -977,10 +977,9 @@ export class DatabaseStorage implements IStorage {
           users,
           eq(users.id, userProcesses.userId)
         )
-        .where(eq(users.locationId, locationId))
+        .where(eq(userProcesses.locationId, locationId))
         .where(eq(organizationLineOfBusinesses.organizationId, organizationId))
         .where(eq(users.active, true))
-        .where(eq(users.category, 'active'))
         .groupBy(organizationLineOfBusinesses.id);
 
       console.log(`Found ${lobs.length} LOBs for location ${locationId}`);
