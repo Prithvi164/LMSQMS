@@ -928,7 +928,7 @@ export class DatabaseStorage implements IStorage {
         )
         .where(eq(userProcesses.locationId, locationId))
         .where(eq(organizationLineOfBusinesses.organizationId, organizationId))
-        .groupBy(organizationLineOfBusinesses.id) as OrganizationLineOfBusiness[];
+        .distinct() as OrganizationLineOfBusiness[];
 
       console.log(`Found LOBs for location ${locationId}:`, {
         count: lobs.length,
