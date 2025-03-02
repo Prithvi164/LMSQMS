@@ -20,10 +20,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CreateBatchForm } from "./create-batch-form";
+import { RescheduleBatchForm } from "./reschedule-batch-form";
 
 export function BatchesTab() {
   const { user } = useAuth();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [selectedBatch, setSelectedBatch] = useState<any>(null);
+  const [isRescheduleDialogOpen, setIsRescheduleDialogOpen] = useState(false);
 
   const {
     data: batches = [],
@@ -35,15 +38,34 @@ export function BatchesTab() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'ongoing':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
-      case 'planned':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
-      case 'completed':
+      case 'planning':
         return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
+      case 'induction':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
+      case 'training':
+        return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300';
+      case 'certification':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
+      case 'ojt':
+        return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-300';
+      case 'ojt_certification':
+        return 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300';
+      case 'closed':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+      case 'manual_cancel':
+        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
+      case 'manual_reschedule':
+        return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300';
       default:
         return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const formatStatus = (status: string) => {
+    return status
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   };
 
   if (isLoading) {
@@ -104,7 +126,7 @@ export function BatchesTab() {
                   <TableCell>{batch.name}</TableCell>
                   <TableCell>
                     <Badge variant="secondary" className={getStatusColor(batch.status)}>
-                      {batch.status.charAt(0).toUpperCase() + batch.status.slice(1)}
+                      {formatStatus(batch.status)}
                     </Badge>
                   </TableCell>
                   <TableCell>{batch.process?.name}</TableCell>
@@ -115,7 +137,17 @@ export function BatchesTab() {
                     {new Date(batch.startDate).toLocaleDateString()} - 
                     {new Date(batch.endDate).toLocaleDateString()}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedBatch(batch);
+                        setIsRescheduleDialogOpen(true);
+                      }}
+                    >
+                      Reschedule
+                    </Button>
                     <Button variant="outline" size="sm">
                       View Details
                     </Button>
@@ -152,6 +184,23 @@ export function BatchesTab() {
           <CreateBatchForm />
         </DialogContent>
       </Dialog>
+
+      {selectedBatch && (
+        <Dialog open={isRescheduleDialogOpen} onOpenChange={setIsRescheduleDialogOpen}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Reschedule Batch</DialogTitle>
+            </DialogHeader>
+            <RescheduleBatchForm
+              batch={selectedBatch}
+              onSuccess={() => {
+                setIsRescheduleDialogOpen(false);
+                setSelectedBatch(null);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
