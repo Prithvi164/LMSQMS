@@ -35,23 +35,24 @@ export function CreateBatchForm() {
   // Fetch LOBs
   const { data: lobs = [] } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses`],
+    enabled: !!user?.organizationId,
   });
 
-  // Fetch processes filtered by selected LOB
-  const { data: processes = [], isLoading: isLoadingProcesses } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${selectedLob}/processes`],
-    enabled: !!selectedLob && !!user?.organizationId,
-    onSuccess: (data) => {
-      console.log('Processes fetched successfully:', data);
-    },
-    onError: (error) => {
-      console.error('Error fetching processes:', error);
-    }
+  // Fetch all processes first
+  const { data: allProcesses = [], isLoading: isLoadingProcesses } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/processes`],
+    enabled: !!user?.organizationId,
   });
+
+  // Filter processes based on selected LOB
+  const filteredProcesses = selectedLob 
+    ? allProcesses.filter(process => process.lineOfBusinessId === selectedLob)
+    : [];
 
   // Fetch locations
   const { data: locations = [] } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations`],
+    enabled: !!user?.organizationId,
   });
 
   // Fetch managers based on selected location
@@ -76,10 +77,7 @@ export function CreateBatchForm() {
 
   const createBatchMutation = useMutation({
     mutationFn: async (data: InsertOrganizationBatch) => {
-      return apiRequest(`/api/organizations/${user?.organizationId}/batches`, {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      return apiRequest("POST", `/api/organizations/${user?.organizationId}/batches`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/batches`] });
@@ -113,7 +111,7 @@ export function CreateBatchForm() {
     isLoadingManagers,
     trainers,
     isLoadingTrainers,
-    processes,
+    filteredProcesses,
     isLoadingProcesses
   });
 
@@ -162,11 +160,6 @@ export function CreateBatchForm() {
                     setSelectedLob(lobId);
                     // Reset process when LOB changes
                     form.setValue('processId', undefined);
-                    // Invalidate processes query to force refresh
-                    console.log('Selected LOB:', lobId);
-                    queryClient.invalidateQueries({ 
-                      queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${lobId}/processes`] 
-                    });
                   }}
                   value={field.value?.toString()}
                 >
@@ -205,7 +198,7 @@ export function CreateBatchForm() {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {processes.map((process) => (
+                    {filteredProcesses.map((process) => (
                       <SelectItem key={process.id} value={process.id.toString()}>
                         {process.name}
                       </SelectItem>
@@ -253,7 +246,6 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Manager Selection - Always visible but disabled until location is selected */}
           <FormField
             control={form.control}
             name="managerId"
@@ -263,12 +255,13 @@ export function CreateBatchForm() {
                 <Select
                   onValueChange={(value) => {
                     const managerId = parseInt(value);
+                    field.onChange(managerId);
                     setSelectedManager(managerId);
                     form.setValue('trainerId', undefined); // Reset trainer when manager changes
                     // Invalidate the trainers query to force a refresh
                     queryClient.invalidateQueries({ queryKey: [`/api/managers/${managerId}/trainers`] });
                   }}
-                  value={selectedManager?.toString()}
+                  value={field.value?.toString()}
                   disabled={!selectedLocation || isLoadingManagers}
                 >
                   <FormControl>
