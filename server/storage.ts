@@ -972,9 +972,17 @@ export class DatabaseStorage implements IStorage {
   }
   async getLineOfBusinessesByLocation(locationId: number, organizationId: number): Promise<OrganizationLineOfBusiness[]> {
     try {
-      console.log(`[Storage]Starting LOB fetch for location ${locationId} in org ${organizationId}`);
+      console.log(`[Storage] DEBUG: Starting LOB fetch with params:`, { locationId, organizationId });
 
-      // First get the distinct lineOfBusinessIds from user_processes for this location and organization
+      // First verify if we have any user_processes entries for this location
+      const allUserProcesses = await db
+        .select()
+        .from(userProcesses)
+        .where(eq(userProcesses.locationId, locationId));
+
+      console.log(`[Storage] DEBUG: All user processes for location:`, allUserProcesses);
+
+      // Get distinct LOB IDs from user_processes
       const userProcessesWithLobs = await db
         .selectDistinct({
           lineOfBusinessId: userProcesses.lineOfBusinessId
@@ -984,16 +992,16 @@ export class DatabaseStorage implements IStorage {
         .where(eq(userProcesses.organizationId, organizationId))
         .where(sql`${userProcesses.lineOfBusinessId} IS NOT NULL`);
 
-      console.log(`[Storage] Found user processes with LOBs:`, userProcessesWithLobs);
+      console.log(`[Storage] DEBUG: User processes with LOBs:`, userProcessesWithLobs);
 
       if (userProcessesWithLobs.length === 0) {
-        console.log('[Storage] No user processes found with LOBs for this location');
+        console.log('[Storage] DEBUG: No LOBs found in user_processes');
         return [];
       }
 
       // Get the actual LOB details
       const lobIds = userProcessesWithLobs.map(up => up.lineOfBusinessId);
-      console.log('[Storage] Fetching LOBs for IDs:', lobIds);
+      console.log('[Storage] DEBUG: LOB IDs to fetch:', lobIds);
 
       const lobs = await db
         .select()
@@ -1001,7 +1009,7 @@ export class DatabaseStorage implements IStorage {
         .where(sql`${organizationLineOfBusinesses.id} IN (${sql.join(lobIds, sql`, `)})`)
         .where(eq(organizationLineOfBusinesses.organizationId, organizationId));
 
-      console.log(`[Storage] Retrieved ${lobs.length} LOBs:`, lobs);
+      console.log(`[Storage] DEBUG: Retrieved LOBs:`, lobs);
       return lobs as OrganizationLineOfBusiness[];
     } catch (error) {
       console.error('[Storage] Error fetching LOBs by location:', error);

@@ -51,7 +51,11 @@ export function CreateBatchForm() {
     queryKey: [`/api/organizations/${user?.organizationId}/locations/${selectedLocation}/line-of-businesses`],
     enabled: !!selectedLocation && !!user?.organizationId,
     onSuccess: (data) => {
-      console.log('[Batch Form] Successfully fetched LOBs:', data);
+      console.log('[Batch Form] DEBUG: LOBs fetched:', { 
+        locationId: selectedLocation,
+        organizationId: user?.organizationId,
+        data 
+      });
       // Reset LOB selection when new LOBs are loaded
       if (selectedLob && !data.some(lob => lob.id === selectedLob)) {
         setSelectedLob(null);
@@ -70,9 +74,12 @@ export function CreateBatchForm() {
 
   // Add debugging logs for LOB changes
   useEffect(() => {
-    console.log('[Batch Form] Location selected:', selectedLocation);
-    console.log('[Batch Form] LOBs data:', lobs);
-  }, [selectedLocation, lobs]);
+    console.log('[Batch Form] DEBUG: Location/LOB state changed:', { 
+      selectedLocation,
+      lobsData: lobs,
+      organizationId: user?.organizationId
+    });
+  }, [selectedLocation, lobs, user?.organizationId]);
 
   // Fetch processes filtered by selected LOB
   const { 
