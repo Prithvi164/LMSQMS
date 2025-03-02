@@ -672,13 +672,35 @@ export class DatabaseStorage implements IStorage {
   async getProcessesByLineOfBusiness(organizationId: number, lobId: number): Promise<OrganizationProcess[]> {
     try {
       console.log(`Fetching processes for LOB ${lobId} in organization ${organizationId}`);
-      const processes = await db
+
+      // First verify the LOB exists and belongs to the organization
+      const lob = await db
         .select()
+        .from(organizationLineOfBusinesses)
+        .where(eq(organizationLineOfBusinesses.id, lobId))
+        .where(eq(organizationLineOfBusinesses.organizationId, organizationId));
+
+      if (!lob.length) {
+        console.log(`No LOB found with ID ${lobId} in organization ${organizationId}`);
+        return [];
+      }
+
+      // Then get all processes for this LOB
+      const processes = await db
+        .select({
+          id: organizationProcesses.id,
+          name: organizationProcesses.name,
+          description: organizationProcesses.description,
+          organizationId: organizationProcesses.organizationId,
+          lineOfBusinessId: organizationProcesses.lineOfBusinessId,
+          createdAt: organizationProcesses.createdAt,
+          updatedAt: organizationProcesses.updatedAt
+        })
         .from(organizationProcesses)
         .where(eq(organizationProcesses.organizationId, organizationId))
         .where(eq(organizationProcesses.lineOfBusinessId, lobId)) as OrganizationProcess[];
 
-      console.log(`Found ${processes.length} processes for LOB`);
+      console.log(`Found ${processes.length} processes for LOB ${lobId}:`, processes);
       return processes;
     } catch (error) {
       console.error('Error fetching processes by LOB:', error);

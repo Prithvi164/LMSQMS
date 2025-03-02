@@ -574,7 +574,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Fetching processes for LOB ${lobId} in organization ${orgId}`);
       const processes = await storage.getProcessesByLineOfBusiness(orgId, lobId);
-      console.log(`Found ${processes.length} processes for LOB ${lobId}`);
+      console.log(`Found ${processes.length} processes for LOB ${lobId}, processes:`, processes);
       res.json(processes);
     } catch (error: any) {
       console.error("Error fetching processes:", error);
@@ -829,7 +829,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Delete LOB route
   app.delete("/api/organizations/:id/line-of-businesses/:lobId", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user) returnres.status(401).json({ message: "Unauthorized" });
 
     try {
       const orgId = parseInt(req.params.id);

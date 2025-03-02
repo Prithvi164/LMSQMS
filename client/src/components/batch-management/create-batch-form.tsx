@@ -40,7 +40,7 @@ export function CreateBatchForm() {
   // Fetch processes filtered by selected LOB
   const { data: processes = [], isLoading: isLoadingProcesses } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${selectedLob}/processes`],
-    enabled: !!selectedLob,
+    enabled: !!selectedLob && !!user?.organizationId,
     onSuccess: (data) => {
       console.log('Processes fetched successfully:', data);
     },
