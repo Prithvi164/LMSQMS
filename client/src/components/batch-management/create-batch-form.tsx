@@ -33,18 +33,18 @@ export function CreateBatchForm() {
   const [selectedTrainer, setSelectedTrainer] = useState<number | null>(null);
 
   // Step 1: Fetch Locations
-  const { 
-    data: locations = [], 
-    isLoading: isLoadingLocations 
+  const {
+    data: locations = [],
+    isLoading: isLoadingLocations
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations`]
   });
 
   // Step 2: Fetch LOBs based on selected location
-  const { 
-    data: lobs = [], 
+  const {
+    data: lobs = [],
     isLoading: isLoadingLobs,
-    error: lobError 
+    error: lobError
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations/${selectedLocation}/line-of-businesses`],
     enabled: !!selectedLocation && !!user?.organizationId,
@@ -67,8 +67,8 @@ export function CreateBatchForm() {
   });
 
   // Step 3: Fetch processes based on selected LOB
-  const { 
-    data: processes = [], 
+  const {
+    data: processes = [],
     isLoading: isLoadingProcesses
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${selectedLob}/processes`],
@@ -76,13 +76,13 @@ export function CreateBatchForm() {
   });
 
   // Fetch trainers with location filter
-  const { 
-    data: trainers = [], 
+  const {
+    data: trainers = [],
     isLoading: isLoadingTrainers
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/users`],
-    select: (users) => users.filter((user) => 
-      user.role === 'trainer' && 
+    select: (users) => users.filter((user) =>
+      user.role === 'trainer' &&
       (!selectedLocation || user.locationId === selectedLocation)
     ),
     enabled: !!user?.organizationId
@@ -96,8 +96,15 @@ export function CreateBatchForm() {
     queryKey: [`/api/organizations/${user?.organizationId}/users/${selectedTrainer}`],
     enabled: !!selectedTrainer,
     select: (trainer) => {
-      if (!trainer?.managerId) return null;
-      return trainers.find(u => u.id === trainer.managerId);
+      console.log('Trainer data:', trainer);
+      if (!trainer?.managerId) {
+        console.log('No manager ID found for trainer');
+        return null;
+      }
+      // Find manager from trainers list
+      const manager = trainers.find(u => u.id === trainer.managerId);
+      console.log('Found manager:', manager);
+      return manager;
     }
   });
 
@@ -240,14 +247,14 @@ export function CreateBatchForm() {
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue 
+                      <SelectValue
                         placeholder={
-                          !selectedLocation 
-                            ? "Select location first" 
-                            : isLoadingLobs 
-                              ? "Loading LOBs..." 
+                          !selectedLocation
+                            ? "Select location first"
+                            : isLoadingLobs
+                              ? "Loading LOBs..."
                               : "Select LOB"
-                        } 
+                        }
                       />
                     </SelectTrigger>
                   </FormControl>
@@ -337,12 +344,14 @@ export function CreateBatchForm() {
           <FormItem>
             <FormLabel>Reporting Manager</FormLabel>
             <FormControl>
-              <Input 
-                value={trainerManager?.fullName || 'No manager assigned'} 
+              <Input
+                value={trainerManager?.fullName || 'No manager assigned'}
                 disabled={true}
                 readOnly={true}
+                placeholder={isLoadingManager ? 'Loading manager...' : 'No manager assigned'}
               />
             </FormControl>
+            {isLoadingManager && <p className="text-sm text-muted-foreground">Loading manager details...</p>}
           </FormItem>
 
           {/* Start Date */}
@@ -401,10 +410,10 @@ export function CreateBatchForm() {
           <Button
             type="submit"
             disabled={
-              createBatchMutation.isPending || 
-              isLoadingLocations || 
-              isLoadingLobs || 
-              isLoadingProcesses || 
+              createBatchMutation.isPending ||
+              isLoadingLocations ||
+              isLoadingLobs ||
+              isLoadingProcesses ||
               isLoadingTrainers ||
               isLoadingManager
             }
