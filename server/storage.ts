@@ -646,7 +646,7 @@ export class DatabaseStorage implements IStorage {
           userId: newUser.id,
           processId,
           organizationId,
-          lineOfBusinessId,
+          lineOfBusinessId, // Add the lineOfBusinessId to each process assignment
           status: 'assigned',
           assignedAt: new Date(),
           createdAt: new Date(),
