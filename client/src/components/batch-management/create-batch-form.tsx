@@ -162,10 +162,12 @@ export function CreateBatchForm() {
                 <Select
                   onValueChange={(value) => {
                     const locationId = parseInt(value);
-                    console.log('Location Selected:', {
-                      locationId,
-                      locationName: locations.find(loc => loc.id === locationId)?.name
+                    console.log('Location Selection:', {
+                      selectedValue: value,
+                      parsedLocationId: locationId,
+                      locationDetails: locations.find(loc => loc.id === locationId)
                     });
+
                     field.onChange(locationId);
                     setSelectedLocation(locationId);
                     // Reset dependent fields

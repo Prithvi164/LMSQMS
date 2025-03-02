@@ -901,9 +901,10 @@ export class DatabaseStorage implements IStorage {
   // Get LOBs from user_processes table based on location
   async getLineOfBusinessesByLocation(organizationId: number, locationId: number): Promise<OrganizationLineOfBusiness[]> {
     try {
-      console.log(`Fetching LOBs - Parameters:`, {
+      console.log(`Starting LOB query - Parameters:`, {
         organizationId,
-        locationId
+        locationId,
+        timestamp: new Date().toISOString()
       });
 
       // First verify if the location exists
@@ -913,12 +914,22 @@ export class DatabaseStorage implements IStorage {
         return [];
       }
 
+      console.log(`Verified location exists:`, {
+        locationId: location.id,
+        locationName: location.name
+      });
+
       // First get distinct line_of_business_ids for the location
       const distinctLobIds = await db
         .selectDistinct({ id: userProcesses.lineOfBusinessId })
         .from(userProcesses)
         .where(eq(userProcesses.locationId, locationId))
         .where(sql`${userProcesses.lineOfBusinessId} is not null`);
+
+      console.log(`Found distinct LOB IDs:`, {
+        locationId,
+        distinctLobIds: distinctLobIds.map(row => row.id)
+      });
 
       // Then get the full LOB details for these IDs
       const lobs = await db
@@ -930,14 +941,14 @@ export class DatabaseStorage implements IStorage {
             distinctLobIds.map(row => row.id)
           )
         )
-        .where(eq(organizationLineOfBusinesses.organizationId, organizationId)) as OrganizationLineOfBusiness[];
+        .where(eq(organizationLineOfBusinesses.organizationId, organizationId));
 
-      console.log(`Found LOBs for location ${locationId}:`, {
+      console.log(`Final LOB results:`, {
+        locationId,
         count: lobs.length,
         lobs: lobs.map(lob => ({
           id: lob.id,
-          name: lob.name,
-          organizationId: lob.organizationId
+          name: lob.name
         }))
       });
 
