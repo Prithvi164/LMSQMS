@@ -687,20 +687,22 @@ export class DatabaseStorage implements IStorage {
 
       // Then get all processes for this LOB
       const processes = await db
-        .select({
-          id: organizationProcesses.id,
-          name: organizationProcesses.name,
-          description: organizationProcesses.description,
-          organizationId: organizationProcesses.organizationId,
-          lineOfBusinessId: organizationProcesses.lineOfBusinessId,
-          createdAt: organizationProcesses.createdAt,
-          updatedAt: organizationProcesses.updatedAt
-        })
+        .select()
         .from(organizationProcesses)
         .where(eq(organizationProcesses.organizationId, organizationId))
         .where(eq(organizationProcesses.lineOfBusinessId, lobId)) as OrganizationProcess[];
 
       console.log(`Found ${processes.length} processes for LOB ${lobId}:`, processes);
+
+      // Log the SQL query parameters for debugging
+      console.log('Query parameters:', {
+        organizationId,
+        lobId,
+        processCount: processes.length,
+        processIds: processes.map(p => p.id),
+        lineOfBusinessIds: processes.map(p => p.lineOfBusinessId)
+      });
+
       return processes;
     } catch (error) {
       console.error('Error fetching processes by LOB:', error);
