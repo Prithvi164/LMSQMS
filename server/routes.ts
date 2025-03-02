@@ -419,7 +419,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add this route to get locations
+  // Remove duplicate location route and update the remaining one
   app.get("/api/organizations/:orgId/locations", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -431,8 +431,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only view locations in your own organization" });
       }
 
+      console.log(`Fetching locations through user_processes for organization ${orgId}`);
       const locations = await storage.listLocations(orgId);
-      console.log('Locations:', locations);
       res.json(locations);
     } catch (error: any) {
       console.error("Error fetching locations:", error);
@@ -440,6 +440,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+  // Add route for getting locations filtered by user_processes
+  //This route is already present, no need to add again.
+
+  // Update LOB by location route to be more explicit about the data source
+  app.get("/api/organizations/:orgId/locations/:locationId/line-of-businesses", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const locationId = parseInt(req.params.locationId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only view LOBs in your own organization" });
+      }
+
+      console.log(`Fetching LOBs through user_processes for location ${locationId} in organization ${orgId}`);
+      const lobs = await storage.getLineOfBusinessesByLocation(orgId, locationId);
+      res.json(lobs);
+    } catch (error: any) {
+      console.error("Error fetching LOBs by location:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
 
   // Permissions routes
   app.get("/api/permissions", async (req, res) => {
@@ -799,7 +824,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const orgId = parseInt(req.params.id);
-      const lobId = parseInt(req.params.lobId);
+      const lobId= parseInt(req.params.lobId);
 
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
@@ -1048,7 +1073,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add the route for getting LOBs by location
+  // Update route for getting LOBs by location
   app.get("/api/organizations/:orgId/locations/:locationId/line-of-businesses", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -1061,7 +1086,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only view LOBs in your own organization" });
       }
 
-      console.log(`Fetching LOBs for location ${locationId} in organization ${orgId}`);
+      console.log(`Fetching LOBs through user_processes for location ${locationId} in organization ${orgId}`);
       const lobs = await storage.getLineOfBusinessesByLocation(orgId, locationId);
       res.json(lobs);
     } catch (error: any) {

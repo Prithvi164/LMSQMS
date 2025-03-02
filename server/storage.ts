@@ -710,16 +710,31 @@ export class DatabaseStorage implements IStorage {
   async listLocations(organizationId: number): Promise<OrganizationLocation[]> {
     try {
       console.log(`Fetching locations for organization ${organizationId}`);
-      const locations = await db
-        .select()
-        .from(organizationLocations)
-        .where(eq(organizationLocations.organizationId, organizationId)) as OrganizationLocation[];
 
-      console.log(`Found ${locations.length} locations`);
-      return locations;
+      // Get locations through user_processes table
+      const locations = await db
+        .selectDistinct({
+          id: organizationLocations.id,
+          name: organizationLocations.name,
+          address: organizationLocations.address,
+          city: organizationLocations.city,
+          state: organizationLocations.state,
+          country: organizationLocations.country,
+          organizationId: organizationLocations.organizationId,
+          createdAt: organizationLocations.createdAt
+        })
+        .from(organizationLocations)
+        .innerJoin(
+          userProcesses,
+          eq(userProcesses.locationId, organizationLocations.id)
+        )
+        .where(eq(organizationLocations.organizationId, organizationId));
+
+      console.log(`Found ${locations.length} locations through user_processes:`, locations);
+      return locations as OrganizationLocation[];
     } catch (error) {
       console.error('Error fetching locations:', error);
-      throw new Error('Failed to fetch locations');
+      throw error;
     }
   }
 
@@ -959,48 +974,29 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching LOBs for location ${locationId} in organization ${organizationId}`);
 
-      // First get all user processes for this location
-      const userProcessesWithLobs = await db
-        .select({
+      // Get LOBs through user_processes table first getting the processes
+      const lobs = await db
+        .selectDistinct({
           id: organizationLineOfBusinesses.id,
           name: organizationLineOfBusinesses.name,
           description: organizationLineOfBusinesses.description,
           organizationId: organizationLineOfBusinesses.organizationId,
-          createdAt: organizationLineOfBusinesses.createdAt,
-          updatedAt: organizationLineOfBusinesses.updatedAt,
-          // Include these for debugging
-          processId: userProcesses.processId,
-          locationId: userProcesses.locationId
+          createdAt: organizationLineOfBusinesses.createdAt
         })
-        .from(userProcesses)
+        .from(organizationProcesses)
+        .innerJoin(
+          userProcesses,
+          eq(userProcesses.processId, organizationProcesses.id)
+        )
         .innerJoin(
           organizationLineOfBusinesses,
-          eq(userProcesses.lineOfBusinessId, organizationLineOfBusinesses.id)
+          eq(organizationProcesses.lineOfBusinessId, organizationLineOfBusinesses.id)
         )
         .where(eq(userProcesses.locationId, locationId))
         .where(eq(organizationLineOfBusinesses.organizationId, organizationId));
 
-      console.log('Raw user processes with LOBs:', userProcessesWithLobs);
-
-      // Get unique LOBs by filtering out duplicates
-      const uniqueLobs = Array.from(
-        new Map(
-          userProcessesWithLobs.map(item => [
-            item.id,
-            {
-              id: item.id,
-              name: item.name,
-              description: item.description,
-              organizationId: item.organizationId,
-              createdAt: item.createdAt,
-              updatedAt: item.updatedAt
-            }
-          ])
-        ).values()
-      );
-
-      console.log(`Found ${uniqueLobs.length} unique LOBs for location ${locationId}:`, uniqueLobs);
-      return uniqueLobs as OrganizationLineOfBusiness[];
+      console.log(`Found ${lobs.length} LOBs through user_processes for location ${locationId}:`, lobs);
+      return lobs as OrganizationLineOfBusiness[];
     } catch (error) {
       console.error('Error fetching LOBs by location:', error);
       throw error;
