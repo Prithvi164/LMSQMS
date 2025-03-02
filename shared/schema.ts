@@ -5,9 +5,15 @@ import { z } from "zod";
 
 // Add batch status enum
 export const batchStatusEnum = pgEnum('batch_status', [
-  'planned',
-  'ongoing',
-  'completed'
+  'planning',
+  'induction',
+  'training',
+  'certification',
+  'ojt',
+  'ojt_certification',
+  'closed',
+  'manual_cancel',
+  'manual_reschedule'
 ]);
 
 // Existing enums remain unchanged...
@@ -29,7 +35,7 @@ export const organizationBatches = pgTable("organization_batches", {
   name: text("name").notNull(),
   startDate: date("start_date").notNull(),
   endDate: date("end_date").notNull(),
-  status: batchStatusEnum("status").default('planned').notNull(),
+  status: batchStatusEnum("status").default('planning').notNull(),
   capacityLimit: integer("capacity_limit").notNull(),
   processId: integer("process_id")
     .references(() => organizationProcesses.id)
@@ -87,7 +93,7 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
         return end > start;
       }, "End date must be after start date"),
     capacityLimit: z.number().int().min(1, "Capacity must be at least 1"),
-    status: z.enum(['planned', 'ongoing', 'completed']).default('planned'),
+    status: z.enum(['planning', 'induction', 'training', 'certification', 'ojt', 'ojt_certification', 'closed', 'manual_cancel', 'manual_reschedule']).default('planning'),
     processId: z.number().int().positive("Process is required"),
     locationId: z.number().int().positive("Location is required"),
     trainerId: z.number().int().positive("Trainer is required"),

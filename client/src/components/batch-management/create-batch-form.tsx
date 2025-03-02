@@ -47,8 +47,8 @@ const calculateBatchDates = (startDate: string, process: any) => {
   const inductionStartDate = new Date(startDate);
 
   // Skip if start date is Sunday
-  const adjustedStartDate = isSunday(inductionStartDate) 
-    ? addDays(inductionStartDate, 1) 
+  const adjustedStartDate = isSunday(inductionStartDate)
+    ? addDays(inductionStartDate, 1)
     : inductionStartDate;
 
   // Calculate end dates using working days
@@ -180,7 +180,7 @@ export function CreateBatchForm() {
   const form = useForm({
     resolver: zodResolver(insertOrganizationBatchSchema),
     defaultValues: {
-      status: 'planned',
+      status: 'planning', // Set default status to 'planning'
       organizationId: user?.organizationId,
     },
   });
@@ -458,14 +458,33 @@ export function CreateBatchForm() {
             )}
           />
 
+          {/* Batch Status */}
+          <FormField
+            control={form.control}
+            name="status"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Batch Status</FormLabel>
+                <FormControl>
+                  <Input
+                    value="Planning – Before training begins"
+                    disabled
+                    readOnly
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
           {/* Display calculated dates */}
           {batchDates && (
             <>
               <FormItem>
                 <FormLabel>Induction End Date</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="date" 
+                  <Input
+                    type="date"
                     value={batchDates.inductionEnd}
                     disabled
                     readOnly
@@ -476,8 +495,8 @@ export function CreateBatchForm() {
               <FormItem>
                 <FormLabel>Training Start Date</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="date" 
+                  <Input
+                    type="date"
                     value={batchDates.trainingStart}
                     disabled
                     readOnly
@@ -488,8 +507,8 @@ export function CreateBatchForm() {
               <FormItem>
                 <FormLabel>Training End Date</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="date" 
+                  <Input
+                    type="date"
                     value={batchDates.trainingEnd}
                     disabled
                     readOnly
@@ -500,8 +519,8 @@ export function CreateBatchForm() {
               <FormItem>
                 <FormLabel>Certification Start Date</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="date" 
+                  <Input
+                    type="date"
                     value={batchDates.certificationStart}
                     disabled
                     readOnly
@@ -512,8 +531,8 @@ export function CreateBatchForm() {
               <FormItem>
                 <FormLabel>Certification End Date</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="date" 
+                  <Input
+                    type="date"
                     value={batchDates.certificationEnd}
                     disabled
                     readOnly
@@ -524,8 +543,8 @@ export function CreateBatchForm() {
               <FormItem>
                 <FormLabel>OJT Start Date</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="date" 
+                  <Input
+                    type="date"
                     value={batchDates.ojtStart}
                     disabled
                     readOnly
@@ -536,8 +555,8 @@ export function CreateBatchForm() {
               <FormItem>
                 <FormLabel>OJT End Date</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="date" 
+                  <Input
+                    type="date"
                     value={batchDates.ojtEnd}
                     disabled
                     readOnly
@@ -548,8 +567,8 @@ export function CreateBatchForm() {
               <FormItem>
                 <FormLabel>OJT Certification Start Date</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="date" 
+                  <Input
+                    type="date"
                     value={batchDates.ojtCertificationStart}
                     disabled
                     readOnly
@@ -560,8 +579,8 @@ export function CreateBatchForm() {
               <FormItem>
                 <FormLabel>OJT Certification End Date</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="date" 
+                  <Input
+                    type="date"
                     value={batchDates.ojtCertificationEnd}
                     disabled
                     readOnly
@@ -572,8 +591,8 @@ export function CreateBatchForm() {
               <FormItem>
                 <FormLabel>BATCH HANDOVER TO OPS DATE</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="date" 
+                  <Input
+                    type="date"
                     value={batchDates.batchHandover}
                     disabled
                     readOnly
