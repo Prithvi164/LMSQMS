@@ -30,8 +30,7 @@ async function hashPassword(password: string) {
   try {
     const salt = randomBytes(16).toString("hex");
     const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-    const hashedPassword = `${buf.toString("hex")}.${salt}`;
-    return hashedPassword;
+    return `${buf.toString("hex")}.${salt}`;
   } catch (error) {
     console.error('Error hashing password:', error);
     throw new Error('Failed to hash password');
@@ -41,7 +40,7 @@ async function hashPassword(password: string) {
 async function comparePasswords(supplied: string, stored: string) {
   try {
     if (!stored || !stored.includes('.')) {
-      console.error('Invalid stored password format');
+      console.error('Invalid stored password format:', stored);
       return false;
     }
 
@@ -57,7 +56,6 @@ async function comparePasswords(supplied: string, stored: string) {
 }
 
 export function setupAuth(app: Express) {
-  // Set up session store
   const sessionStore = new PostgresSessionStore({
     conObject: {
       connectionString: process.env.DATABASE_URL,
@@ -65,7 +63,6 @@ export function setupAuth(app: Express) {
     createTableIfMissing: true,
   });
 
-  // Session middleware
   app.use(
     session({
       store: sessionStore,
@@ -82,7 +79,6 @@ export function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // Passport local strategy
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
@@ -122,45 +118,6 @@ export function setupAuth(app: Express) {
     } catch (error) {
       done(error);
     }
-  });
-
-  // Login endpoint
-  app.post("/api/login", (req, res, next) => {
-    passport.authenticate("local", (err, user, info) => {
-      if (err) {
-        console.error("Authentication error:", err);
-        return res.status(500).json({ message: "Internal server error" });
-      }
-      if (!user) {
-        return res.status(401).json({ message: info?.message || "Invalid credentials" });
-      }
-      req.login(user, (err) => {
-        if (err) {
-          console.error("Session error:", err);
-          return res.status(500).json({ message: "Session error" });
-        }
-        return res.json(user);
-      });
-    })(req, res, next);
-  });
-
-  // Logout endpoint
-  app.post("/api/logout", (req, res) => {
-    req.logout((err) => {
-      if (err) {
-        console.error("Logout error:", err);
-        return res.status(500).json({ message: "Logout failed" });
-      }
-      res.status(200).json({ message: "Logged out successfully" });
-    });
-  });
-
-  // Get current user endpoint
-  app.get("/api/user", (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    res.json(req.user);
   });
 
   // Registration endpoint
@@ -217,5 +174,44 @@ export function setupAuth(app: Express) {
       }
       return res.status(500).json({ message: "Registration failed" });
     }
+  });
+
+  // Login endpoint
+  app.post("/api/login", (req, res, next) => {
+    passport.authenticate("local", (err, user, info) => {
+      if (err) {
+        console.error("Authentication error:", err);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+      if (!user) {
+        return res.status(401).json({ message: info?.message || "Invalid credentials" });
+      }
+      req.login(user, (err) => {
+        if (err) {
+          console.error("Session error:", err);
+          return res.status(500).json({ message: "Session error" });
+        }
+        return res.json(user);
+      });
+    })(req, res, next);
+  });
+
+  // Logout endpoint
+  app.post("/api/logout", (req, res) => {
+    req.logout((err) => {
+      if (err) {
+        console.error("Logout error:", err);
+        return res.status(500).json({ message: "Logout failed" });
+      }
+      res.status(200).json({ message: "Logged out successfully" });
+    });
+  });
+
+  // Get current user endpoint
+  app.get("/api/user", (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    res.json(req.user);
   });
 }
