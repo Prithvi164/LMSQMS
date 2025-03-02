@@ -832,7 +832,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Add new route for getting LOBs by location
   app.get("/api/organizations/:id/locations/:locationId/line-of-businesses", async (req, res) => {
-    if (!req.user) returnres.status(401).json({ message: "Unauthorized" });
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     try {
       const orgId = parseInt(req.params.id);

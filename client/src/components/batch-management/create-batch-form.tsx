@@ -55,6 +55,10 @@ export function CreateBatchForm() {
           name: lob.name
         }))
       });
+      // Reset LOB selection when location changes
+      setSelectedLob(null);
+      form.setValue('lineOfBusinessId', null);
+      form.setValue('processId', null);
     },
     onError: (error) => {
       console.error('Error fetching LOBs:', error);
