@@ -96,6 +96,7 @@ export interface IStorage {
   // Add new methods for user filtering
   getActiveManagersByLocation(locationId: number): Promise<User[]>;
   getActiveTrainersByManager(managerId: number): Promise<User[]>;
+  getActiveTrainersByLocationAndProcess(locationId: number, processId: number): Promise<User[]>;
 
   // Add new method for LOB filtering
   getLineOfBusinessesByLocation(locationId: number, organizationId: number): Promise<OrganizationLineOfBusiness[]>;
@@ -913,6 +914,25 @@ export class DatabaseStorage implements IStorage {
       return trainers;
     } catch (error) {
       console.error('Error fetching trainers by manager:', error);
+      throw error;
+    }
+  }
+  async getActiveTrainersByLocationAndProcess(locationId: number, processId: number): Promise<User[]> {
+    try {
+      // Get all active trainers in this location who are assigned to this process
+      const trainers = await db
+        .select()
+        .from(users)
+        .where(eq(users.locationId, locationId))
+        .where(eq(users.role, 'trainer'))
+        .where(eq(users.active, true))
+        .where(eq(users.category, 'active'))
+        .leftJoin(userProcesses, eq(users.id, userProcesses.userId))
+        .where(eq(userProcesses.processId, processId)) as User[];
+
+      return trainers;
+    } catch (error) {
+      console.error('Error fetching trainers by location and process:', error);
       throw error;
     }
   }

@@ -832,7 +832,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Fetch related data for each batch
       const batchesWithDetails = await Promise.all(batches.map(async (batch) => {
-        const [process, location, trainer] = await Promise.all([
+        const [process, location, trainer] =await Promise.all([
           storage.getProcess(batch.processId),
           storage.getLocation(batch.locationId),
           storage.getUser(batch.trainerId)
@@ -1027,6 +1027,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(lobs);
     } catch (error: any) {
       console.error("Error fetching LOBs by location:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Add route to get trainers by location and process
+  app.get("/api/locations/:locationId/processes/:processId/trainers", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const locationId = parseInt(req.params.locationId);
+      const processId = parseInt(req.params.processId);
+
+      // Get active trainers for this location and process
+      const trainers = await storage.getActiveTrainersByLocationAndProcess(locationId, processId);
+      res.json(trainers);
+    } catch (error: any) {
+      console.error("Error fetching trainers:", error);
       res.status(500).json({ message: error.message });
     }
   });
