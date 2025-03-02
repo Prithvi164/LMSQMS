@@ -49,13 +49,13 @@ export function CreateBatchForm() {
   });
 
   // Fetch managers based on selected location
-  const { data: managers = [] } = useQuery({
+  const { data: managers = [], isLoading: isLoadingManagers } = useQuery({
     queryKey: [`/api/locations/${selectedLocation}/managers`],
     enabled: !!selectedLocation,
   });
 
   // Fetch trainers based on selected manager
-  const { data: trainers = [] } = useQuery({
+  const { data: trainers = [], isLoading: isLoadingTrainers } = useQuery({
     queryKey: [`/api/managers/${selectedManager}/trainers`],
     enabled: !!selectedManager,
   });
@@ -98,6 +98,15 @@ export function CreateBatchForm() {
   const onSubmit = (data: InsertOrganizationBatch) => {
     createBatchMutation.mutate(data);
   };
+
+  console.log('Current form state:', {
+    selectedLocation,
+    selectedManager,
+    managers,
+    isLoadingManagers,
+    trainers,
+    isLoadingTrainers
+  });
 
   return (
     <Form {...form}>
@@ -258,7 +267,6 @@ export function CreateBatchForm() {
               </FormItem>
             )}
           />
-
 
           <FormField
             control={form.control}
