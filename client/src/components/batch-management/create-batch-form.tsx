@@ -201,15 +201,15 @@ export function CreateBatchForm() {
                     form.setValue('trainerId', undefined);
                   }}
                   value={field.value?.toString()}
-                  disabled={!selectedLocation || isLoadingLobs}
+                  disabled={!selectedLocation}
                 >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder={
-                        isLoadingLobs 
-                          ? "Loading..." 
-                          : !selectedLocation 
+                        !selectedLocation 
                           ? "Select a location first"
+                          : isLoadingLobs 
+                          ? "Loading..." 
                           : "Select LOB"
                       } />
                     </SelectTrigger>
@@ -224,7 +224,7 @@ export function CreateBatchForm() {
                         No LOBs available for this location
                       </div>
                     ) : (
-                      lobs.map((lob) => (
+                      lobs.map((lob: any) => (
                         <SelectItem key={lob.id} value={lob.id.toString()}>
                           {lob.name}
                         </SelectItem>

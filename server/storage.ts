@@ -975,15 +975,16 @@ export class DatabaseStorage implements IStorage {
           eq(userProcesses.lineOfBusinessId, organizationLineOfBusinesses.id)
         )
         .where(eq(userProcesses.locationId, locationId))
-        .where(eq(organizationLineOfBusinesses.organizationId, organizationId)) as OrganizationLineOfBusiness[];
+        .where(eq(organizationLineOfBusinesses.organizationId, organizationId));
 
       console.log(`Found ${lobs.length} unique LOBs for location ${locationId}:`, lobs);
-      return lobs;
+      return lobs as OrganizationLineOfBusiness[];
     } catch (error) {
       console.error('Error fetching LOBs by location:', error);
       throw error;
     }
   }
+
 }
 
 export const storage = new DatabaseStorage();
