@@ -13,7 +13,6 @@ import { ProcessDetail } from "./process-detail";
 import { LocationDetail } from "./location-detail";
 import { LobDetail } from "./lob-detail";
 import { CreateBatchForm } from "./create-batch-form";
-import { BatchList } from "./batch-list";
 
 export function BatchDetail() {
   const [activeTab, setActiveTab] = useState("lob");
@@ -53,21 +52,12 @@ export function BatchDetail() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Batches</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <BatchList />
-        </CardContent>
-      </Card>
-
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Create New Batch</DialogTitle>
           </DialogHeader>
-          <CreateBatchForm onClose={() => setIsCreateDialogOpen(false)} />
+          <CreateBatchForm />
         </DialogContent>
       </Dialog>
     </div>
