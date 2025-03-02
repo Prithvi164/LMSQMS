@@ -1048,7 +1048,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add the route for getting LOBs by location
+  // Add endpoint for getting LOBs by location with enhanced logging
   app.get("/api/organizations/:orgId/locations/:locationId/line-of-businesses", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -1056,13 +1056,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const orgId = parseInt(req.params.orgId);
       const locationId = parseInt(req.params.locationId);
 
+      console.log('Fetching LOBs - Request params:', {
+        organizationId: orgId,
+        locationId: locationId,
+        userId: req.user.id,
+        userOrganizationId: req.user.organizationId
+      });
+
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
+        console.log(`User ${req.user.id} attempted to access LOBs in organization ${orgId}`);
         return res.status(403).json({ message: "You can only view LOBs in your own organization" });
       }
 
-      console.log(`Fetching LOBs for location ${locationId} in organization ${orgId}`);
       const lobs = await storage.getLineOfBusinessesByLocation(orgId, locationId);
+      console.log(`Successfully fetched ${lobs.length} LOBs for location ${locationId}:`, lobs);
       res.json(lobs);
     } catch (error: any) {
       console.error("Error fetching LOBs by location:", error);

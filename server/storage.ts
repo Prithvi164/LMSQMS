@@ -959,54 +959,55 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching LOBs for location ${locationId} in organization ${organizationId}`);
 
-      // First get all user processes for this location
-      const userProcessesWithLobs = await db
-        .select({
+      // Get all LOBs that have processes assigned to users in this location
+      const lobs = await db
+        .selectDistinct({
           id: organizationLineOfBusinesses.id,
           name: organizationLineOfBusinesses.name,
           description: organizationLineOfBusinesses.description,
           organizationId: organizationLineOfBusinesses.organizationId,
           createdAt: organizationLineOfBusinesses.createdAt,
-          updatedAt: organizationLineOfBusinesses.updatedAt,
-          // Include these for debugging
-          processId: userProcesses.processId,
-          locationId: userProcesses.locationId
+          updatedAt:organizationLineOfBusinesses.updatedAt
         })
         .from(userProcesses)
         .innerJoin(
+          organizationProcesses,
+          eq(userProcesses.processId, organizationProcesses.id)
+        )
+        .innerJoin(
           organizationLineOfBusinesses,
-          eq(userProcesses.lineOfBusinessId, organizationLineOfBusinesses.id)
+          eq(organizationProcesses.lineOfBusinessId, organizationLineOfBusinesses.id)
         )
         .where(eq(userProcesses.locationId, locationId))
         .where(eq(organizationLineOfBusinesses.organizationId, organizationId));
 
-      console.log('Raw user processes with LOBs:', userProcessesWithLobs);
-
-      // Get unique LOBs by filtering out duplicates
-      const uniqueLobs = Array.from(
-        new Map(
-          userProcessesWithLobs.map(item => [
-            item.id,
-            {
-              id: item.id,
-              name: item.name,
-              description: item.description,
-              organizationId: item.organizationId,
-              createdAt: item.createdAt,
-              updatedAt: item.updatedAt
-            }
-          ])
-        ).values()
-      );
-
-      console.log(`Found ${uniqueLobs.length} unique LOBs for location ${locationId}:`, uniqueLobs);
-      return uniqueLobs as OrganizationLineOfBusiness[];
+      console.log(`Found ${lobs.length} LOBs for location ${locationId}:`, lobs);
+      return lobs as OrganizationLineOfBusiness[];
     } catch (error) {
       console.error('Error fetching LOBs by location:', error);
       throw error;
     }
   }
 
+  getActiveTrainersByLocationAndProcess(locationId: number, processId: number): Promise<User[]> {
+    try {
+      // Get all active trainers in this location who are assigned to this process
+      const trainers = await db
+        .select()
+        .from(users)
+        .where(eq(users.locationId, locationId))
+        .where(eq(users.role, 'trainer'))
+        .where(eq(users.active, true))
+        .where(eq(users.category, 'active'))
+        .leftJoin(userProcesses, eq(users.id, userProcesses.userId))
+        .where(eq(userProcesses.processId, processId)) as User[];
+
+      return trainers;
+    } catch (error) {
+      console.error('Error fetching trainers by location and process:', error);
+      throw error;
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();
