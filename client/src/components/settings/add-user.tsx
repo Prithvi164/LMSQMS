@@ -90,37 +90,24 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
           throw new Error("Please select a category (Active or Trainee)");
         }
 
-        let locationId = null;
-        if (data.locationId !== "none") {
-          const locationExists = locations.some(l => l.id.toString() === data.locationId);
-          if (!locationExists) {
-            throw new Error("Selected location is invalid");
-          }
-          locationId = Number(data.locationId);
-        }
+        // Get the first selected LOB ID when processes are selected
+        const lineOfBusinessId = selectedLOBs.length > 0 ? selectedLOBs[0] : null;
 
-        // Determine if we need lineOfBusinessId based on role and process selection
-        const needsLineOfBusiness = data.processes.length > 0 && 
-                                  data.role !== 'admin' && 
-                                  data.role !== 'owner';
+        // Get locationId
+        const selectedLocationId = data.locationId !== "none" ? Number(data.locationId) : null;
 
-        // Get lineOfBusinessId only if needed
-        const lineOfBusinessId = needsLineOfBusiness 
-          ? (selectedLOBs.length > 0 ? selectedLOBs[0] : null)
-          : null;
-
-        // Validate lineOfBusinessId if needed
-        if (needsLineOfBusiness && !lineOfBusinessId) {
+        // Only validate LOB ID if processes are selected and role requires processes
+        if (data.processes.length > 0 && data.role !== 'admin' && data.role !== 'owner' && !lineOfBusinessId) {
           throw new Error("Please select a Line of Business before assigning processes");
         }
 
         const payload = {
           ...data,
           managerId: data.managerId === "none" ? null : Number(data.managerId),
-          locationId,
+          locationId: selectedLocationId,
           organizationId: organization?.id || null,
           processes: data.processes,
-          lineOfBusinessId // Will be null for admin/owner or when no processes
+          lineOfBusinessId, // Will be passed to user_processes
         };
 
         console.log('Creating user with payload:', payload);

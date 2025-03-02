@@ -636,17 +636,13 @@ export class DatabaseStorage implements IStorage {
           return { user: newUser, processes: [] };
         }
 
-        // Validate lineOfBusinessId is provided when processes are assigned
-        if (!lineOfBusinessId) {
-          throw new Error('Line of Business ID is required when assigning processes');
-        }
-
-        // Create process assignments with lineOfBusinessId
+        // Create process assignments with lineOfBusinessId and locationId
         const processAssignments = processIds.map(processId => ({
           userId: newUser.id,
           processId,
           organizationId,
-          lineOfBusinessId, // Add the lineOfBusinessId to each process assignment
+          lineOfBusinessId, // From the parameter
+          locationId: user.locationId, // From the user object
           status: 'assigned',
           assignedAt: new Date(),
           createdAt: new Date(),
@@ -664,15 +660,6 @@ export class DatabaseStorage implements IStorage {
         };
       });
     } catch (error: any) {
-      // Handle unique constraint violation
-      if (error.code === '23505') {
-        if (error.constraint.includes('username')) {
-          throw new Error('Username already exists. Please choose a different username.');
-        }
-        if (error.constraint.includes('email')) {
-          throw new Error('Email already exists. Please use a different email address.');
-        }
-      }
       console.error('Error in createUserWithProcesses:', error);
       throw error;
     }
