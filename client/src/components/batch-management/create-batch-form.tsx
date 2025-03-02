@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { insertOrganizationBatchSchema } from "@shared/schema";
+import { insertOrganizationBatchSchema, type InsertOrganizationBatch } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
@@ -92,6 +92,22 @@ export function CreateBatchForm() {
   const [selectedProcess, setSelectedProcess] = useState<any>(null);
   const [batchDates, setBatchDates] = useState<any>(null);
 
+  const form = useForm<InsertOrganizationBatch>({
+    resolver: zodResolver(insertOrganizationBatchSchema),
+    defaultValues: {
+      batchCode: "",
+      name: "",
+      status: "planning",
+      startDate: "",
+      endDate: "",
+      capacityLimit: 0,
+      organizationId: user?.organizationId || 0,
+      locationId: undefined,
+      processId: undefined,
+      trainerId: undefined,
+    },
+  });
+
   // Step 1: Fetch Locations 
   const {
     data: locations = [],
@@ -152,16 +168,8 @@ export function CreateBatchForm() {
     }
   });
 
-  const form = useForm({
-    resolver: zodResolver(insertOrganizationBatchSchema),
-    defaultValues: {
-      status: 'planning', // Set default status to 'planning'
-      organizationId: user?.organizationId,
-    },
-  });
-
   const createBatchMutation = useMutation({
-    mutationFn: async (data) => {
+    mutationFn: async (data: InsertOrganizationBatch) => {
       const response = await fetch(`/api/organizations/${user?.organizationId}/batches`, {
         method: 'POST',
         headers: {
@@ -188,7 +196,7 @@ export function CreateBatchForm() {
       setSelectedLob(null);
       setSelectedTrainer(null);
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
         description: error.message || "Failed to create batch. Please try again.",
@@ -210,7 +218,7 @@ export function CreateBatchForm() {
     }
   }, [form.watch('startDate'), selectedProcess]);
 
-  const onSubmit = (data) => {
+  const onSubmit = (data: InsertOrganizationBatch) => {
     // Include all necessary fields
     const batchData = {
       ...data,
@@ -218,7 +226,7 @@ export function CreateBatchForm() {
       status: 'planning',
       endDate: batchDates?.certificationEnd || data.endDate,
     };
-    createBatchMutation.mutate(batchData);
+    createBatchMutation.mutate(batchData as InsertOrganizationBatch);
   };
 
   return (
@@ -609,11 +617,13 @@ export function CreateBatchForm() {
             disabled={
               createBatchMutation.isPending ||
               !form.formState.isValid ||
-              isLoadingLocations ||
-              isLoadingLobs ||
-              isLoadingProcesses ||
-              isLoadingTrainers ||
-              isLoadingManager
+              !form.getValues('batchCode') ||
+              !form.getValues('name') ||
+              !form.getValues('startDate') ||
+              !form.getValues('capacityLimit') ||
+              !form.getValues('locationId') ||
+              !form.getValues('processId') ||
+              !form.getValues('trainerId')
             }
           >
             {createBatchMutation.isPending ? "Creating..." : "Create Batch"}
