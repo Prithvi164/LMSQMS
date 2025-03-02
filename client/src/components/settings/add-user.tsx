@@ -102,11 +102,9 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         // Get the first selected LOB ID when processes are selected
         const lineOfBusinessId = selectedLOBs.length > 0 ? selectedLOBs[0] : null;
 
-        // Only validate LOB ID if processes are selected and the role requires processes
-        if (data.processes.length > 0 && data.role !== 'admin' && data.role !== 'owner') {
-          if (!lineOfBusinessId) {
-            throw new Error("Please select a Line of Business before assigning processes");
-          }
+        // Only validate LOB ID if processes are selected and role requires processes
+        if (data.processes.length > 0 && data.role !== 'admin' && data.role !== 'owner' && !lineOfBusinessId) {
+          throw new Error("Please select a Line of Business before assigning processes");
         }
 
         const payload = {
@@ -116,9 +114,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
           organizationId: organization?.id || null,
           processes: data.processes,
           // Only include lineOfBusinessId if processes are selected and role requires it
-          ...(data.processes.length > 0 && data.role !== 'admin' && data.role !== 'owner' 
-            ? { lineOfBusinessId } 
-            : {})
+          lineOfBusinessId: data.processes.length > 0 && data.role !== 'admin' && data.role !== 'owner' ? lineOfBusinessId : null
         };
 
         console.log('Creating user with payload:', payload);
