@@ -3,14 +3,44 @@ import { db } from "./db";
 import {
   organizationLineOfBusinesses,
   userProcesses,
+  users,
   type OrganizationLineOfBusiness,
+  type User,
 } from "@shared/schema";
 
 export interface IStorage {
   getLineOfBusinessesByLocation(organizationId: number, locationId: number): Promise<OrganizationLineOfBusiness[]>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  getUser(id: number): Promise<User | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    try {
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.username, username)) as User[];
+      return user;
+    } catch (error) {
+      console.error('Error fetching user by username:', error);
+      throw new Error('Failed to fetch user');
+    }
+  }
+
+  async getUser(id: number): Promise<User | undefined> {
+    try {
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, id)) as User[];
+      return user;
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      throw new Error('Failed to fetch user');
+    }
+  }
+
   async getLineOfBusinessesByLocation(organizationId: number, locationId: number): Promise<OrganizationLineOfBusiness[]> {
     try {
       console.log('Fetching LOBs for location:', { locationId, organizationId });
