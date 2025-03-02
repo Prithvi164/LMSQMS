@@ -349,6 +349,16 @@ export function CreateBatchForm() {
                     field.onChange(processId);
                     const process = processes.find(p => p.id === processId);
                     setSelectedProcess(process);
+
+                    // If there's already a start date, recalculate dates
+                    const startDate = form.getValues('startDate');
+                    if (startDate && process) {
+                      const dates = calculateBatchDates(startDate, process);
+                      setBatchDates(dates);
+                      if (dates) {
+                        form.setValue('endDate', dates.certificationEnd);
+                      }
+                    }
                   }}
                   value={field.value?.toString()}
                   disabled={!selectedLob || isLoadingProcesses}
