@@ -227,6 +227,9 @@ export const userProcesses = pgTable("user_processes", {
   processId: integer("process_id")
     .references(() => organizationProcesses.id)
     .notNull(),
+  lineOfBusinessId: integer("line_of_business_id")
+    .references(() => organizationLineOfBusinesses.id)
+    .notNull(),
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
@@ -315,6 +318,10 @@ export const userProcessesRelations = relations(userProcesses, ({ one }) => ({
     fields: [userProcesses.organizationId],
     references: [organizations.id],
   }),
+  lineOfBusiness: one(organizationLineOfBusinesses, {
+    fields: [userProcesses.lineOfBusinessId],
+    references: [organizationLineOfBusinesses.id],
+  })
 }));
 
 export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => ({

@@ -940,36 +940,34 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching LOBs for location ${locationId} in organization ${organizationId}`);
 
-      // Get all LOBs for the organization
+      // Get LOBs based on user_processes table's direct lineOfBusinessId reference
       const lobs = await db
-        .select()
+        .select({
+          id: organizationLineOfBusinesses.id,
+          name: organizationLineOfBusinesses.name,
+          description: organizationLineOfBusinesses.description,
+          organizationId: organizationLineOfBusinesses.organizationId,
+          createdAt: organizationLineOfBusinesses.createdAt
+        })
         .from(organizationLineOfBusinesses)
-        .where(eq(organizationLineOfBusinesses.organizationId, organizationId));
-
-      // Get processes for this location from user processes
-      const processes = await db
-        .select()
-        .from(organizationProcesses)
         .innerJoin(
           userProcesses,
-          eq(userProcesses.processId, organizationProcesses.id)
+          eq(userProcesses.lineOfBusinessId, organizationLineOfBusinesses.id)
         )
         .innerJoin(
           users,
           eq(users.id, userProcesses.userId)
         )
-        .where(eq(users.locationId, locationId));
+        .where(eq(users.locationId, locationId))
+        .where(eq(organizationLineOfBusinesses.organizationId, organizationId))
+        .where(eq(users.active, true))
+        .where(eq(users.category, 'active'))
+        .groupBy(organizationLineOfBusinesses.id);
 
-      // Get unique LOB IDs from processes
-      const lobIds = [...new Set(processes.map(p => p.lineOfBusinessId))].filter(Boolean);
-
-      // Filter LOBs that have processes in this location
-      const filteredLobs = lobs.filter(lob => lobIds.includes(lob.id));
-
-      console.log(`Found ${filteredLobs.length} LOBs for location ${locationId}`);
-      return filteredLobs;
+      console.log(`Found ${lobs.length} LOBs for location ${locationId}`);
+      return lobs as OrganizationLineOfBusiness[];
     } catch (error) {
-      consoleerror('Error fetching LOBs by location:', error);
+      console.error('Error fetching LOBs by location:', error);
       throw new Error('Failed to fetch LOBs for location');
     }
   }
