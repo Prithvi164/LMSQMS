@@ -233,8 +233,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Validate that lineOfBusinessId is provided when processes are specified
       if (processes?.length > 0 && !lineOfBusinessId) {
-        return res.status(400).json({ 
-          message: "Line of Business ID is required when assigning processes" 
+        return res.status(400).json({
+          message: "Line of Business ID is required when assigning processes"
         });
       }
 
@@ -832,7 +832,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Add new route for getting LOBs by location
   app.get("/api/organizations/:id/locations/:locationId/line-of-businesses", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user) returnres.status(401).json({ message: "Unauthorized" });
 
     try {
       const orgId = parseInt(req.params.id);
@@ -846,7 +846,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userOrgId: req.user.organizationId
       });
 
-      //      // Check if user belongs to the organization
+      // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
         console.log(`User ${req.user.id} attempted to access LOBs in organization ${orgId}`);
         return res.status(403).json({ message: "You can only view LOBs in your own organization" });
@@ -859,6 +859,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Location not found" });
       }
 
+      // Get LOBs based on location from user_processes table
       const lobs = await storage.getLineOfBusinessesByLocation(orgId, locationId);
       console.log(`Found LOBs for location ${locationId}:`, {
         count: lobs.length,
