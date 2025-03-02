@@ -225,40 +225,40 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* New Manager Selection */}
-          {selectedLocation && (
-            <FormField
-              control={form.control}
-              name="managerId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Manager</FormLabel>
-                  <Select
-                    onValueChange={(value) => {
-                      const managerId = parseInt(value);
-                      setSelectedManager(managerId);
-                      form.setValue('trainerId', undefined); // Reset trainer when manager changes
-                    }}
-                    value={selectedManager?.toString()}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select manager" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {managers.map((manager) => (
-                        <SelectItem key={manager.id} value={manager.id.toString()}>
-                          {manager.fullName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
+          {/* Manager Selection - Always visible but disabled until location is selected */}
+          <FormField
+            control={form.control}
+            name="managerId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Manager</FormLabel>
+                <Select
+                  onValueChange={(value) => {
+                    const managerId = parseInt(value);
+                    setSelectedManager(managerId);
+                    form.setValue('trainerId', undefined); // Reset trainer when manager changes
+                  }}
+                  value={selectedManager?.toString()}
+                  disabled={!selectedLocation}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select manager" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {managers.map((manager) => (
+                      <SelectItem key={manager.id} value={manager.id.toString()}>
+                        {manager.fullName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
 
           <FormField
             control={form.control}
