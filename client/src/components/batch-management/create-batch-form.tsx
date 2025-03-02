@@ -81,10 +81,15 @@ export function CreateBatchForm() {
     isLoading: isLoadingTrainers
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/users`],
-    select: (users) => users.filter((user) =>
-      user.role === 'trainer' &&
-      (!selectedLocation || user.locationId === selectedLocation)
-    ),
+    select: (users) => {
+      console.log('All users from API:', users);
+      const filteredTrainers = users.filter((user) =>
+        user.role === 'trainer' &&
+        (!selectedLocation || user.locationId === selectedLocation)
+      );
+      console.log('Filtered trainers:', filteredTrainers);
+      return filteredTrainers;
+    },
     enabled: !!user?.organizationId
   });
 
