@@ -17,7 +17,7 @@ const registrationSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   email: z.string().email("Invalid email format"),
   password: z.string().min(6, "Password must be at least 6 characters"),
-  organizationName: z.string().min(2, "Organization name must be at least 2 characters"),
+  fullName: z.string().min(2, "Full name must be at least 2 characters")
 });
 
 declare global {
@@ -29,14 +29,39 @@ declare global {
 async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
   const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-  return `${buf.toString("hex")}.${salt}`;
+  const hashedPassword = `${buf.toString("hex")}.${salt}`;
+  console.log('Password hashing:', {
+    originalLength: password.length,
+    saltLength: salt.length,
+    hashedLength: buf.length,
+    finalFormat: `${hashedPassword.slice(0, 10)}...${hashedPassword.slice(-10)}`
+  });
+  return hashedPassword;
 }
 
 async function comparePasswords(supplied: string, stored: string) {
   try {
+    console.log('Password comparison attempt:', {
+      suppliedLength: supplied.length,
+      storedFormat: stored.includes('.') ? 'valid' : 'invalid',
+      storedLength: stored.length
+    });
+
+    if (!stored || !stored.includes('.')) {
+      console.error('Invalid stored password format');
+      return false;
+    }
+
     const [hashed, salt] = stored.split(".");
     const hashedBuf = Buffer.from(hashed, "hex");
     const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+
+    console.log('Comparison details:', {
+      storedHashLength: hashedBuf.length,
+      generatedHashLength: suppliedBuf.length,
+      match: hashedBuf.length === suppliedBuf.length
+    });
+
     return timingSafeEqual(hashedBuf, suppliedBuf);
   } catch (error) {
     console.error("Password comparison error:", error);
@@ -82,6 +107,7 @@ export function setupAuth(app: Express) {
           return done(null, false, { message: "Invalid username or password" });
         }
 
+        console.log("User found, checking password");
         const isValidPassword = await comparePasswords(password, user.password);
         console.log("Password validation result:", isValidPassword);
 
@@ -89,6 +115,7 @@ export function setupAuth(app: Express) {
           return done(null, false, { message: "Invalid username or password" });
         }
 
+        console.log("Login successful for user:", username);
         return done(null, user);
       } catch (error) {
         console.error("Login error:", error);
@@ -152,6 +179,12 @@ export function setupAuth(app: Express) {
   // Registration endpoint
   app.post("/api/register", async (req, res) => {
     try {
+      console.log("Registration attempt:", { 
+        username: req.body.username,
+        email: req.body.email,
+        fullName: req.body.fullName
+      });
+
       // Validate registration data
       const data = registrationSchema.parse(req.body);
 
@@ -163,13 +196,23 @@ export function setupAuth(app: Express) {
 
       // Create user with hashed password
       const hashedPassword = await hashPassword(data.password);
+      console.log("Creating user with hashed password");
+
       const user = await storage.createUser({
         username: data.username,
         password: hashedPassword,
         email: data.email,
         role: 'user',
         organizationId: 1, // Default organization ID
-        active: true
+        active: true,
+        fullName: data.fullName,
+        employeeId: `EMP${Date.now()}`, // Generate a unique employee ID
+      });
+
+      console.log("User created successfully:", { 
+        id: user.id, 
+        username: user.username,
+        fullName: user.fullName
       });
 
       // Log the user in
