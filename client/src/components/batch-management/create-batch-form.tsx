@@ -111,6 +111,7 @@ export function CreateBatchForm() {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <div className="grid grid-cols-2 gap-4">
+          {/* Batch Code and Name */}
           <FormField
             control={form.control}
             name="batchCode"
@@ -303,6 +304,7 @@ export function CreateBatchForm() {
             )}
           />
 
+          {/* Date Selections */}
           <FormField
             control={form.control}
             name="startDate"
@@ -331,6 +333,7 @@ export function CreateBatchForm() {
             )}
           />
 
+          {/* Capacity Limit */}
           <FormField
             control={form.control}
             name="capacityLimit"
