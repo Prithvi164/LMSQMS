@@ -636,18 +636,20 @@ export class DatabaseStorage implements IStorage {
           return { user: newUser, processes: [] };
         }
 
-        // Create process assignments with lineOfBusinessId and locationId
+        // Create process assignments with locationId from user and lineOfBusinessId from param
         const processAssignments = processIds.map(processId => ({
           userId: newUser.id,
           processId,
           organizationId,
-          lineOfBusinessId, // From the parameter
-          locationId: user.locationId, // From the user object
+          lineOfBusinessId,  // This will be null for admin/owner roles
+          locationId: newUser.locationId,  // This comes from the user object
           status: 'assigned',
           assignedAt: new Date(),
           createdAt: new Date(),
           updatedAt: new Date()
         }));
+
+        console.log('Creating process assignments:', processAssignments);
 
         const assignedProcesses = await tx
           .insert(userProcesses)

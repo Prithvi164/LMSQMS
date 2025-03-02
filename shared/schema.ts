@@ -235,6 +235,10 @@ export const userProcesses = pgTable("user_processes", {
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
+  lineOfBusinessId: integer("line_of_business_id")
+    .references(() => organizationLineOfBusinesses.id),  // Made nullable
+  locationId: integer("location_id")
+    .references(() => organizationLocations.id),  // Made nullable
   status: text("status").default('assigned').notNull(),
   assignedAt: timestamp("assigned_at").defaultNow().notNull(),
   completedAt: timestamp("completed_at"),
@@ -319,6 +323,14 @@ export const userProcessesRelations = relations(userProcesses, ({ one }) => ({
   organization: one(organizations, {
     fields: [userProcesses.organizationId],
     references: [organizations.id],
+  }),
+  lineOfBusiness: one(organizationLineOfBusinesses, {
+    fields: [userProcesses.lineOfBusinessId],
+    references: [organizationLineOfBusinesses.id],
+  }),
+  location: one(organizationLocations, {
+    fields: [userProcesses.locationId],
+    references: [organizationLocations.id],
   }),
 }));
 

@@ -90,24 +90,20 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
           throw new Error("Please select a category (Active or Trainee)");
         }
 
+        // Get the selected location ID
+        const locationId = data.locationId !== "none" ? Number(data.locationId) : null;
+
         // Get the first selected LOB ID when processes are selected
         const lineOfBusinessId = selectedLOBs.length > 0 ? selectedLOBs[0] : null;
 
-        // Get locationId
-        const selectedLocationId = data.locationId !== "none" ? Number(data.locationId) : null;
-
-        // Only validate LOB ID if processes are selected and role requires processes
-        if (data.processes.length > 0 && data.role !== 'admin' && data.role !== 'owner' && !lineOfBusinessId) {
-          throw new Error("Please select a Line of Business before assigning processes");
-        }
-
+        // Create the payload
         const payload = {
           ...data,
           managerId: data.managerId === "none" ? null : Number(data.managerId),
-          locationId: selectedLocationId,
+          locationId,
           organizationId: organization?.id || null,
           processes: data.processes,
-          lineOfBusinessId, // Will be passed to user_processes
+          lineOfBusinessId
         };
 
         console.log('Creating user with payload:', payload);
