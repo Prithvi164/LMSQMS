@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { insertOrganizationBatchSchema, type InsertOrganizationBatch } from "@shared/schema";
+import { insertOrganizationBatchSchema, type InsertOrganizationBatch, type OrganizationProcess, type OrganizationLineOfBusiness } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
@@ -33,44 +33,49 @@ export function CreateBatchForm() {
   const [selectedManager, setSelectedManager] = useState<number | null>(null);
 
   // Fetch LOBs
-  const { data: lobs = [] } = useQuery({
+  const { data: lobs = [] } = useQuery<OrganizationLineOfBusiness[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses`],
     enabled: !!user?.organizationId,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Fetch all processes (same as in add-user.tsx)
-  const { data: allProcesses = [], isLoading: isLoadingProcesses } = useQuery({
+  const { data: allProcesses = [], isLoading: isLoadingProcesses } = useQuery<OrganizationProcess[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/processes`],
     enabled: !!user?.organizationId,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Filter processes based on selected LOB (same logic as add-user.tsx)
-  const filteredProcesses = selectedLob 
-    ? allProcesses.filter(process => process.lineOfBusinessId === selectedLob)
+  const filteredProcesses = selectedLob
+    ? allProcesses.filter((process) => process.lineOfBusinessId === selectedLob)
     : [];
 
   // Fetch locations
   const { data: locations = [] } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations`],
     enabled: !!user?.organizationId,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Fetch managers based on selected location
   const { data: managers = [], isLoading: isLoadingManagers } = useQuery({
     queryKey: [`/api/locations/${selectedLocation}/managers`],
     enabled: !!selectedLocation,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Fetch trainers based on selected manager
   const { data: trainers = [], isLoading: isLoadingTrainers } = useQuery({
     queryKey: [`/api/managers/${selectedManager}/trainers`],
     enabled: !!selectedManager,
+    staleTime: 5 * 60 * 1000,
   });
 
   const form = useForm<InsertOrganizationBatch>({
     resolver: zodResolver(insertOrganizationBatchSchema),
     defaultValues: {
-      status: 'planned',
+      status: "planned",
       organizationId: user?.organizationId,
     },
   });
@@ -103,7 +108,7 @@ export function CreateBatchForm() {
     createBatchMutation.mutate(data);
   };
 
-  console.log('Current form state:', {
+  console.log("Current form state:", {
     selectedLob,
     selectedLocation,
     selectedManager,
@@ -112,7 +117,7 @@ export function CreateBatchForm() {
     trainers,
     isLoadingTrainers,
     filteredProcesses,
-    isLoadingProcesses
+    isLoadingProcesses,
   });
 
   return (
@@ -159,7 +164,7 @@ export function CreateBatchForm() {
                     field.onChange(lobId);
                     setSelectedLob(lobId);
                     // Reset process when LOB changes
-                    form.setValue('processId', undefined);
+                    form.setValue("processId", undefined);
                   }}
                   value={field.value?.toString()}
                 >
@@ -222,7 +227,7 @@ export function CreateBatchForm() {
                     field.onChange(locationId);
                     setSelectedLocation(locationId);
                     setSelectedManager(null); // Reset manager when location changes
-                    form.setValue('trainerId', undefined); // Reset trainer when location changes
+                    form.setValue("trainerId", undefined); // Reset trainer when location changes
                     // Invalidate the managers query to force a refresh
                     queryClient.invalidateQueries({ queryKey: [`/api/locations/${locationId}/managers`] });
                   }}
@@ -257,7 +262,7 @@ export function CreateBatchForm() {
                     const managerId = parseInt(value);
                     field.onChange(managerId);
                     setSelectedManager(managerId);
-                    form.setValue('trainerId', undefined); // Reset trainer when manager changes
+                    form.setValue("trainerId", undefined); // Reset trainer when manager changes
                     // Invalidate the trainers query to force a refresh
                     queryClient.invalidateQueries({ queryKey: [`/api/managers/${managerId}/trainers`] });
                   }}
@@ -361,10 +366,7 @@ export function CreateBatchForm() {
         </div>
 
         <div className="flex justify-end space-x-2">
-          <Button
-            type="submit"
-            disabled={createBatchMutation.isPending}
-          >
+          <Button type="submit" disabled={createBatchMutation.isPending}>
             Create Batch
           </Button>
         </div>
