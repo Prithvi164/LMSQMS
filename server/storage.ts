@@ -898,6 +898,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // Get LOBs from user_processes table based on location
   async getLineOfBusinessesByLocation(organizationId: number, locationId: number): Promise<OrganizationLineOfBusiness[]> {
     try {
       console.log(`Fetching LOBs - Parameters:`, {
@@ -912,7 +913,7 @@ export class DatabaseStorage implements IStorage {
         return [];
       }
 
-      // Get LOBs from user_processes table based on location
+      // Get unique LOBs from user_processes table based on location
       const lobs = await db
         .select({
           id: organizationLineOfBusinesses.id,
@@ -921,14 +922,14 @@ export class DatabaseStorage implements IStorage {
           organizationId: organizationLineOfBusinesses.organizationId,
           createdAt: organizationLineOfBusinesses.createdAt,
         })
-        .from(organizationLineOfBusinesses)
+        .from(userProcesses)
         .innerJoin(
-          userProcesses,
-          eq(organizationLineOfBusinesses.id, userProcesses.lineOfBusinessId)
+          organizationLineOfBusinesses,
+          eq(userProcesses.lineOfBusinessId, organizationLineOfBusinesses.id)
         )
         .where(eq(userProcesses.locationId, locationId))
         .where(eq(organizationLineOfBusinesses.organizationId, organizationId))
-        .distinct() as OrganizationLineOfBusiness[];
+        .groupBy(organizationLineOfBusinesses.id) as OrganizationLineOfBusiness[];
 
       console.log(`Found LOBs for location ${locationId}:`, {
         count: lobs.length,

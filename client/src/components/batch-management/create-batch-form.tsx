@@ -61,10 +61,12 @@ export function CreateBatchForm() {
   const { 
     data: lobs = [], 
     isLoading: isLoadingLobs,
-    error: lobError 
+    error: lobError,
+    refetch: refetchLobs
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations/${selectedLocation}/line-of-businesses`],
     enabled: !!selectedLocation && !!user?.organizationId,
+    retry: 1,
     onSuccess: (data) => {
       console.log('LOBs fetched successfully:', {
         locationId: selectedLocation,
@@ -90,11 +92,6 @@ export function CreateBatchForm() {
         organizationId: user?.organizationId,
         errorMessage: error.message,
         status: error.response?.status
-      });
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || "Failed to load line of businesses. Please try again.",
-        variant: "destructive",
       });
     }
   });
@@ -285,7 +282,11 @@ export function CreateBatchForm() {
                     ))}
                   </SelectContent>
                 </Select>
-                {lobError && <div className="text-red-500 text-sm mt-1">Failed to load line of businesses</div>}
+                {lobError && 
+                  <div className="text-red-500 text-sm mt-1">
+                    Failed to load line of businesses. Please try selecting the location again.
+                  </div>
+                }
                 <FormMessage />
               </FormItem>
             )}
