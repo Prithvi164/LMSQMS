@@ -30,7 +30,7 @@ export function CreateBatchForm() {
   const queryClient = useQueryClient();
   const [selectedLob, setSelectedLob] = useState<number | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
-  const [selectedManager, setSelectedManager] = useState<number | null>(null);
+  const [selectedTrainer, setSelectedTrainer] = useState<number | null>(null);
 
   // Fetch LOBs
   const { data: lobs = [] } = useQuery<OrganizationLineOfBusiness[]>({
@@ -65,20 +65,20 @@ export function CreateBatchForm() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Filter managers based on location - only active trainers
-  const filteredManagers = allUsers.filter(user => {
+  // Filter trainers based on location - only active trainers
+  const filteredTrainers = allUsers.filter(user => {
     const isTrainer = user.role === 'trainer';
     const isActive = user.active && user.category === 'active';
     const matchesLocation = !selectedLocation || user.locationId === selectedLocation;
     return isTrainer && isActive && matchesLocation;
   });
 
-  // Filter trainers based on selected manager
-  const filteredTrainers = allUsers.filter(user => {
+  // Filter co-trainers based on selected trainer
+  const filteredCoTrainers = allUsers.filter(user => {
     const isTrainer = user.role === 'trainer';
     const isActive = user.active && user.category === 'active';
-    const matchesManager = !selectedManager || user.managerId === selectedManager;
-    return isTrainer && isActive && matchesManager;
+    const matchesTrainer = !selectedTrainer || user.managerId === selectedTrainer;
+    return isTrainer && isActive && matchesTrainer;
   });
 
   const form = useForm<InsertOrganizationBatch>({
@@ -102,7 +102,7 @@ export function CreateBatchForm() {
       form.reset();
       setSelectedLob(null);
       setSelectedLocation(null);
-      setSelectedManager(null);
+      setSelectedTrainer(null);
     },
     onError: (error: Error) => {
       toast({
@@ -120,10 +120,10 @@ export function CreateBatchForm() {
   console.log("Current form state:", {
     selectedLob,
     selectedLocation,
-    selectedManager,
-    filteredManagers,
-    isLoadingUsers,
+    selectedTrainer,
     filteredTrainers,
+    isLoadingUsers,
+    filteredCoTrainers,
     filteredProcesses,
     isLoadingProcesses,
   });
@@ -175,7 +175,7 @@ export function CreateBatchForm() {
                     form.setValue("processId", undefined);
                     form.setValue("managerId", undefined);
                     form.setValue("trainerId", undefined);
-                    setSelectedManager(null);
+                    setSelectedTrainer(null);
                   }}
                   value={field.value?.toString()}
                 >
@@ -207,10 +207,10 @@ export function CreateBatchForm() {
                   onValueChange={(value) => {
                     const processId = parseInt(value);
                     field.onChange(processId);
-                    // Reset manager and trainer when process changes
+                    // Reset trainer and co-trainer when process changes
                     form.setValue("managerId", undefined);
                     form.setValue("trainerId", undefined);
-                    setSelectedManager(null);
+                    setSelectedTrainer(null);
                   }}
                   value={field.value?.toString()}
                   disabled={!selectedLob || isLoadingProcesses}
@@ -244,10 +244,10 @@ export function CreateBatchForm() {
                     const locationId = parseInt(value);
                     field.onChange(locationId);
                     setSelectedLocation(locationId);
-                    // Reset manager and trainer when location changes
+                    // Reset trainer and co-trainer when location changes
                     form.setValue("managerId", undefined);
                     form.setValue("trainerId", undefined);
-                    setSelectedManager(null);
+                    setSelectedTrainer(null);
                   }}
                   value={field.value?.toString()}
                 >
@@ -277,10 +277,10 @@ export function CreateBatchForm() {
                 <FormLabel>Trainer</FormLabel>
                 <Select
                   onValueChange={(value) => {
-                    const managerId = parseInt(value);
-                    field.onChange(managerId);
-                    setSelectedManager(managerId);
-                    // Reset trainer when trainer changes
+                    const trainerId = parseInt(value);
+                    field.onChange(trainerId);
+                    setSelectedTrainer(trainerId);
+                    // Reset co-trainer when trainer changes
                     form.setValue("trainerId", undefined);
                   }}
                   value={field.value?.toString()}
@@ -292,7 +292,7 @@ export function CreateBatchForm() {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {filteredManagers.map((trainer) => (
+                    {filteredTrainers.map((trainer) => (
                       <SelectItem key={trainer.id} value={trainer.id.toString()}>
                         {trainer.username} ({trainer.role})
                       </SelectItem>
@@ -309,19 +309,19 @@ export function CreateBatchForm() {
             name="trainerId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Trainer</FormLabel>
+                <FormLabel>Co-Trainer</FormLabel>
                 <Select
                   onValueChange={(value) => field.onChange(parseInt(value))}
                   value={field.value?.toString()}
-                  disabled={!selectedManager || isLoadingUsers}
+                  disabled={!selectedTrainer || isLoadingUsers}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder={isLoadingUsers ? "Loading trainers..." : "Select trainer"} />
+                      <SelectValue placeholder={isLoadingUsers ? "Loading co-trainers..." : "Select co-trainer"} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {filteredTrainers.map((trainer) => (
+                    {filteredCoTrainers.map((trainer) => (
                       <SelectItem key={trainer.id} value={trainer.id.toString()}>
                         {trainer.username} ({trainer.role})
                       </SelectItem>
