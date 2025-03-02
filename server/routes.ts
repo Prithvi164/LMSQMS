@@ -826,7 +826,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "You can only view LOBs in your own organization" });
+        return res.status(403).json({ message: "You can only view LOBsin your own organization" });
       }
 
       // Get location to verify it exists and belongs to the organization
@@ -835,7 +835,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Location not found" });
       }
 
-      const lobs = await storage.listLineOfBusinesses(orgId);
+      const lobs = await storage.getLineOfBusinessesByLocation(orgId, locationId);
       console.log(`Found ${lobs.length} LOBs for location ${locationId}`);
       res.json(lobs);
     } catch (error: any) {

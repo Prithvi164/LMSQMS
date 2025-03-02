@@ -875,6 +875,23 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+  async getLineOfBusinessesByLocation(organizationId: number, locationId: number): Promise<OrganizationLineOfBusiness[]> {
+    try {
+      console.log(`Fetching LOBs for organization ${organizationId} and location ${locationId}`);
+
+      // Get all LOBs for the organization since LOBs are organization-wide
+      const lobs = await db
+        .select()
+        .from(organizationLineOfBusinesses)
+        .where(eq(organizationLineOfBusinesses.organizationId, organizationId)) as OrganizationLineOfBusiness[];
+
+      console.log(`Found ${lobs.length} LOBs for organization`);
+      return lobs;
+    } catch (error) {
+      console.error('Error fetching LOBs by location:', error);
+      throw new Error('Failed to fetch LOBs');
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();
