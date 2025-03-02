@@ -48,13 +48,16 @@ export function CreateBatchForm() {
     queryKey: [`/api/organizations/${user?.organizationId}/locations/${selectedLocation}/line-of-businesses`],
     enabled: !!selectedLocation && !!user?.organizationId,
     onSuccess: (data) => {
-      console.log('LOBs fetched:', data);
-      // Reset LOB selection if current selection is not in new list
-      if (selectedLob && !data.some(lob => lob.id === selectedLob)) {
-        setSelectedLob(null);
-        form.setValue('lineOfBusinessId', null);
-        form.setValue('processId', null);
-      }
+      console.log('LOBs API Response:', {
+        selectedLocation,
+        receivedLobs: data.map(lob => ({
+          id: lob.id,
+          name: lob.name
+        }))
+      });
+    },
+    onError: (error) => {
+      console.error('Error fetching LOBs:', error);
     }
   });
 
@@ -155,6 +158,10 @@ export function CreateBatchForm() {
                 <Select
                   onValueChange={(value) => {
                     const locationId = parseInt(value);
+                    console.log('Location Selected:', {
+                      locationId,
+                      locationName: locations.find(loc => loc.id === locationId)?.name
+                    });
                     field.onChange(locationId);
                     setSelectedLocation(locationId);
                     // Reset dependent fields
@@ -193,6 +200,10 @@ export function CreateBatchForm() {
                 <Select
                   onValueChange={(value) => {
                     const lobId = parseInt(value);
+                    console.log('LOB Selected:', {
+                      lobId,
+                      lobName: lobs.find(lob => lob.id === lobId)?.name
+                    });
                     field.onChange(lobId);
                     setSelectedLob(lobId);
                     form.setValue('processId', null);
