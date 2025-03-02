@@ -901,11 +901,7 @@ export class DatabaseStorage implements IStorage {
   // Get LOBs from user_processes table based on location
   async getLineOfBusinessesByLocation(organizationId: number, locationId: number): Promise<OrganizationLineOfBusiness[]> {
     try {
-      console.log(`Starting LOB query - Parameters:`, {
-        organizationId,
-        locationId,
-        timestamp: new Date().toISOString()
-      });
+      console.log(`Starting LOB query for location ${locationId}`);
 
       // First verify if the location exists
       const location = await this.getLocation(locationId);
@@ -914,37 +910,45 @@ export class DatabaseStorage implements IStorage {
         return [];
       }
 
-      console.log(`Verified location exists:`, {
-        locationId: location.id,
-        locationName: location.name
-      });
-
-      // First get distinct line_of_business_ids for the location
-      const distinctLobIds = await db
-        .selectDistinct({ id: userProcesses.lineOfBusinessId })
-        .from(userProcesses)
-        .where(eq(userProcesses.locationId, locationId))
-        .where(sql`${userProcesses.lineOfBusinessId} is not null`);
-
-      console.log(`Found distinct LOB IDs:`, {
-        locationId,
-        distinctLobIds: distinctLobIds.map(row => row.id)
-      });
-
-      // Then get the full LOB details for these IDs
-      const lobs = await db
+      // Get trainers for this location
+      const trainers = await db
         .select()
-        .from(organizationLineOfBusinesses)
-        .where(
-          inArray(
-            organizationLineOfBusinesses.id,
-            distinctLobIds.map(row => row.id)
-          )
-        )
-        .where(eq(organizationLineOfBusinesses.organizationId, organizationId));
+        .from(users)
+        .where(eq(users.locationId, locationId))
+        .where(eq(users.role, 'trainer'))
+        .where(eq(users.organizationId, organizationId));
 
-      console.log(`Final LOB results:`, {
-        locationId,
+      console.log(`Found trainers for location ${locationId}:`, {
+        trainerCount: trainers.length,
+        trainerIds: trainers.map(t => t.id)
+      });
+
+      if (!trainers.length) {
+        console.log(`No trainers found for location ${locationId}`);
+        return [];
+      }
+
+      // Get LOBs from user_processes for these trainers
+      const lobs = await db
+        .select({
+          id: organizationLineOfBusinesses.id,
+          name: organizationLineOfBusinesses.name,
+          description: organizationLineOfBusinesses.description,
+          organizationId: organizationLineOfBusinesses.organizationId,
+          createdAt: organizationLineOfBusinesses.createdAt
+        })
+        .from(userProcesses)
+        .innerJoin(
+          organizationLineOfBusinesses,
+          eq(userProcesses.lineOfBusinessId, organizationLineOfBusinesses.id)
+        )
+        .where(eq(userProcesses.locationId, locationId))
+        .where(inArray(userProcesses.userId, trainers.map(t => t.id)))
+        .where(eq(organizationLineOfBusinesses.organizationId, organizationId))
+        .groupBy(organizationLineOfBusinesses.id)
+        .orderBy(organizationLineOfBusinesses.name) as OrganizationLineOfBusiness[];
+
+      console.log(`Found LOBs for location ${locationId}:`, {
         count: lobs.length,
         lobs: lobs.map(lob => ({
           id: lob.id,
