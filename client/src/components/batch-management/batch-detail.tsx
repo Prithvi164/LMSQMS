@@ -12,10 +12,11 @@ import {
 import { ProcessDetail } from "./process-detail";
 import { LocationDetail } from "./location-detail";
 import { LobDetail } from "./lob-detail";
+import { BatchesTab } from "./batches-tab";
 import { CreateBatchForm } from "./create-batch-form";
 
 export function BatchDetail() {
-  const [activeTab, setActiveTab] = useState("lob");
+  const [activeTab, setActiveTab] = useState("batches");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   return (
@@ -34,11 +35,15 @@ export function BatchDetail() {
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="batches">Batches</TabsTrigger>
               <TabsTrigger value="lob">Line of Business</TabsTrigger>
               <TabsTrigger value="process">Process</TabsTrigger>
               <TabsTrigger value="location">Location</TabsTrigger>
             </TabsList>
+            <TabsContent value="batches" className="mt-6">
+              <BatchesTab />
+            </TabsContent>
             <TabsContent value="lob" className="mt-6">
               <LobDetail />
             </TabsContent>
