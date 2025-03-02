@@ -28,13 +28,13 @@ export function CreateBatchForm() {
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [selectedLob, setSelectedLob] = useState<number | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
+  const [selectedLob, setSelectedLob] = useState<number | null>(null);
   const [selectedManager, setSelectedManager] = useState<number | null>(null);
 
-  // Fetch LOBs
-  const { data: lobs = [] } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses`],
+  // Fetch locations
+  const { data: locations = [] } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/locations`],
   });
 
   // Fetch processes filtered by selected LOB
@@ -43,9 +43,10 @@ export function CreateBatchForm() {
     enabled: !!selectedLob,
   });
 
-  // Fetch locations
-  const { data: locations = [] } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/locations`],
+  // Fetch LOBs filtered by selected location
+  const { data: lobs = [] } = useQuery({
+    queryKey: [`/api/locations/${selectedLocation}/line-of-businesses`],
+    enabled: !!selectedLocation,
   });
 
   // Fetch managers based on selected location
@@ -82,8 +83,8 @@ export function CreateBatchForm() {
         description: "Batch created successfully",
       });
       form.reset();
-      setSelectedLob(null);
       setSelectedLocation(null);
+      setSelectedLob(null);
       setSelectedManager(null);
     },
     onError: (error) => {
@@ -133,6 +134,42 @@ export function CreateBatchForm() {
 
           <FormField
             control={form.control}
+            name="locationId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Location</FormLabel>
+                <Select
+                  onValueChange={(value) => {
+                    const locationId = parseInt(value);
+                    field.onChange(locationId);
+                    setSelectedLocation(locationId);
+                    setSelectedLob(null); // Reset LOB when location changes
+                    setSelectedManager(null); // Reset manager when location changes
+                    form.setValue('trainerId', undefined); // Reset trainer when location changes
+                    form.setValue('processId', undefined); // Reset process when location changes
+                  }}
+                  value={field.value?.toString()}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select location" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {locations.map((location) => (
+                      <SelectItem key={location.id} value={location.id.toString()}>
+                        {location.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
             name="lineOfBusinessId"
             render={({ field }) => (
               <FormItem>
@@ -141,8 +178,10 @@ export function CreateBatchForm() {
                   onValueChange={(value) => {
                     field.onChange(parseInt(value));
                     setSelectedLob(parseInt(value));
+                    form.setValue('processId', undefined); // Reset process when LOB changes
                   }}
                   value={field.value?.toString()}
+                  disabled={!selectedLocation}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -191,41 +230,6 @@ export function CreateBatchForm() {
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="locationId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Location</FormLabel>
-                <Select
-                  onValueChange={(value) => {
-                    const locationId = parseInt(value);
-                    field.onChange(locationId);
-                    setSelectedLocation(locationId);
-                    setSelectedManager(null); // Reset manager when location changes
-                    form.setValue('trainerId', undefined); // Reset trainer when location changes
-                  }}
-                  value={field.value?.toString()}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select location" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {locations.map((location) => (
-                      <SelectItem key={location.id} value={location.id.toString()}>
-                        {location.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* New Manager Selection */}
           {selectedLocation && (
             <FormField
               control={form.control}

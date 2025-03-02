@@ -1010,6 +1010,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message });
     }
   });
+  // Add route to get LOBs by location
+  app.get("/api/locations/:locationId/line-of-businesses", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const locationId = parseInt(req.params.locationId);
+      const organizationId = req.user.organizationId;
+
+      // Check if user belongs to the organization
+      if (!organizationId) {
+        return res.status(400).json({ message: "No organization ID found" });
+      }
+
+      const lobs = await storage.getLineOfBusinessesByLocation(locationId, organizationId);
+      res.json(lobs);
+    } catch (error: any) {
+      console.error("Error fetching LOBs by location:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
 
   return app;
 }

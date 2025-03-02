@@ -96,6 +96,9 @@ export interface IStorage {
   // Add new methods for user filtering
   getActiveManagersByLocation(locationId: number): Promise<User[]>;
   getActiveTrainersByManager(managerId: number): Promise<User[]>;
+
+  // Add new method for LOB filtering
+  getLineOfBusinessesByLocation(locationId: number, organizationId: number): Promise<OrganizationLineOfBusiness[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -911,6 +914,36 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error fetching trainers by manager:', error);
       throw error;
+    }
+  }
+  async getLineOfBusinessesByLocation(locationId: number, organizationId: number): Promise<OrganizationLineOfBusiness[]> {
+    try {
+      console.log(`Fetching LOBs for location ${locationId} in organization ${organizationId}`);
+
+      // Get all LOBs for the organization first
+      const lobs = await db
+        .select()
+        .from(organizationLineOfBusinesses)
+        .where(eq(organizationLineOfBusinesses.organizationId, organizationId));
+
+      // Get processes associated with this location
+      const processes = await db
+        .select()
+        .from(organizationProcesses)
+        .where(eq(organizationProcesses.locationId, locationId));
+
+      // Filter LOBs that have processes in this location
+      const lobIdsWithProcesses = [...new Set(processes.map(p => p.lineOfBusinessId))];
+
+      const filteredLobs = lobs.filter(lob =>
+        lobIdsWithProcesses.includes(lob.id)
+      );
+
+      console.log(`Found ${filteredLobs.length} LOBs for location ${locationId}`);
+      return filteredLobs;
+    } catch (error) {
+      console.error('Error fetching LOBs by location:', error);
+      throw new Error('Failed to fetch LOBs for location');
     }
   }
 }
