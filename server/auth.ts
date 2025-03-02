@@ -20,6 +20,8 @@ const registrationSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters")
 });
 
+type RegistrationData = z.infer<typeof registrationSchema>;
+
 declare global {
   namespace Express {
     interface User extends SelectUser {}
@@ -81,7 +83,7 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
-        console.log("Login attempt for username:", username);
+        console.log("Login attempt with username:", username);
         const user = await storage.getUserByUsername(username);
 
         if (!user) {
@@ -123,16 +125,14 @@ export function setupAuth(app: Express) {
   app.post("/api/register", async (req, res) => {
     try {
       console.log("Registration attempt with data:", {
-        username: req.body.username,
-        email: req.body.email,
-        fullName: req.body.fullName,
-        passwordLength: req.body.password?.length
+        requestBody: req.body,
+        contentType: req.headers['content-type']
       });
 
       // Validate registration data
       const validationResult = registrationSchema.safeParse(req.body);
       if (!validationResult.success) {
-        console.error("Validation failed:", validationResult.error);
+        console.error("Validation failed:", validationResult.error.errors);
         return res.status(400).json({ 
           message: "Validation failed", 
           errors: validationResult.error.errors 
@@ -169,7 +169,7 @@ export function setupAuth(app: Express) {
         fullName: user.fullName
       });
 
-      // Log the user in
+      // Log the user in after registration
       req.login(user, (err) => {
         if (err) {
           console.error("Login error after registration:", err);
