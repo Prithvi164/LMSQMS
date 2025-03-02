@@ -27,26 +27,19 @@ declare global {
 }
 
 async function hashPassword(password: string) {
-  const salt = randomBytes(16).toString("hex");
-  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-  const hashedPassword = `${buf.toString("hex")}.${salt}`;
-  console.log('Password hashing:', {
-    originalLength: password.length,
-    saltLength: salt.length,
-    hashedLength: buf.length,
-    finalFormat: `${hashedPassword.slice(0, 10)}...${hashedPassword.slice(-10)}`
-  });
-  return hashedPassword;
+  try {
+    const salt = randomBytes(16).toString("hex");
+    const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+    const hashedPassword = `${buf.toString("hex")}.${salt}`;
+    return hashedPassword;
+  } catch (error) {
+    console.error('Error hashing password:', error);
+    throw new Error('Failed to hash password');
+  }
 }
 
 async function comparePasswords(supplied: string, stored: string) {
   try {
-    console.log('Password comparison attempt:', {
-      suppliedLength: supplied.length,
-      storedFormat: stored.includes('.') ? 'valid' : 'invalid',
-      storedLength: stored.length
-    });
-
     if (!stored || !stored.includes('.')) {
       console.error('Invalid stored password format');
       return false;
@@ -55,12 +48,6 @@ async function comparePasswords(supplied: string, stored: string) {
     const [hashed, salt] = stored.split(".");
     const hashedBuf = Buffer.from(hashed, "hex");
     const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-
-    console.log('Comparison details:', {
-      storedHashLength: hashedBuf.length,
-      generatedHashLength: suppliedBuf.length,
-      match: hashedBuf.length === suppliedBuf.length
-    });
 
     return timingSafeEqual(hashedBuf, suppliedBuf);
   } catch (error) {
@@ -107,7 +94,7 @@ export function setupAuth(app: Express) {
           return done(null, false, { message: "Invalid username or password" });
         }
 
-        console.log("User found, checking password");
+        console.log("Found user, checking password");
         const isValidPassword = await comparePasswords(password, user.password);
         console.log("Password validation result:", isValidPassword);
 
