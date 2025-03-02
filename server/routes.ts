@@ -229,7 +229,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      const { processes, ...userData } = req.body;
+      const { processes, lineOfBusinessId, ...userData } = req.body;
+
+      // Validate that lineOfBusinessId is provided when processes are specified
+      if (processes?.length > 0 && !lineOfBusinessId) {
+        return res.status(400).json({ 
+          message: "Line of Business ID is required when assigning processes" 
+        });
+      }
 
       // Hash the password before creating the user
       const hashedPassword = await hashPassword(userData.password);
@@ -242,11 +249,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         organizationId: req.user.organizationId,
       };
 
+      console.log('Creating user with data:', {
+        ...userToCreate,
+        processCount: processes?.length || 0,
+        lineOfBusinessId
+      });
+
       // Create user with optional processes
       const result = await storage.createUserWithProcesses(
         userToCreate,
         processes || [], // Allow empty process array
-        req.user.organizationId
+        req.user.organizationId,
+        lineOfBusinessId // Pass the lineOfBusinessId to storage method
       );
 
       res.status(201).json(result.user);

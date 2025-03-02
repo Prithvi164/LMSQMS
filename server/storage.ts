@@ -74,7 +74,8 @@ export interface IStorage {
   createUserWithProcesses(
     user: InsertUser,
     processIds: number[],
-    organizationId: number
+    organizationId: number,
+    lineOfBusinessId: number
   ): Promise<{ user: User; processes: UserProcess[] }>;
 
   // Add new method for getting processes by line of business
@@ -618,7 +619,8 @@ export class DatabaseStorage implements IStorage {
   async createUserWithProcesses(
     user: InsertUser,
     processIds: number[],
-    organizationId: number
+    organizationId: number,
+    lineOfBusinessId: number
   ): Promise<{ user: User; processes: UserProcess[] }> {
     try {
       // Start a transaction to ensure both user and process assignments succeed or fail together
@@ -634,11 +636,12 @@ export class DatabaseStorage implements IStorage {
           return { user: newUser, processes: [] };
         }
 
-        // Create process assignments
+        // Create process assignments with lineOfBusinessId
         const processAssignments = processIds.map(processId => ({
           userId: newUser.id,
           processId,
           organizationId,
+          lineOfBusinessId, // Add the lineOfBusinessId to each process assignment
           status: 'assigned'
         }));
 
