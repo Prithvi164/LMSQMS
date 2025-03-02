@@ -75,7 +75,7 @@ export interface IStorage {
     user: InsertUser,
     processIds: number[],
     organizationId: number,
-    lineOfBusinessId: number
+    lineOfBusinessId: number | null
   ): Promise<{ user: User; processes: UserProcess[] }>;
 
   // Add new method for getting processes by line of business
@@ -620,7 +620,7 @@ export class DatabaseStorage implements IStorage {
     user: InsertUser,
     processIds: number[],
     organizationId: number,
-    lineOfBusinessId: number
+    lineOfBusinessId: number | null
   ): Promise<{ user: User; processes: UserProcess[] }> {
     try {
       // Start a transaction to ensure both user and process assignments succeed or fail together
@@ -631,7 +631,7 @@ export class DatabaseStorage implements IStorage {
           .values(user)
           .returning() as User[];
 
-        // If no processes needed (for admin/owner roles) or no processes specified
+        // If no processes needed (empty array) or admin/owner roles, return just the user
         if (!processIds?.length || user.role === 'admin' || user.role === 'owner') {
           return { user: newUser, processes: [] };
         }
