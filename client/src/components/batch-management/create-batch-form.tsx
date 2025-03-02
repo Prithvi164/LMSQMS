@@ -293,15 +293,7 @@ export function CreateBatchForm() {
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue
-                        placeholder={
-                          !selectedLocation
-                            ? "Select location first"
-                            : isLoadingLobs
-                              ? "Loading LOBs..."
-                              : "Select LOB"
-                        }
-                      />
+                      <SelectValue placeholder={selectedLocation ? "Select LOB" : "Select location first"} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
