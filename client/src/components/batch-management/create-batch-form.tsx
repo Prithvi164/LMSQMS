@@ -75,6 +75,13 @@ export function CreateBatchForm() {
           name: lob.name
         }))
       });
+
+      // If current LOB is not in the new list, reset it
+      if (selectedLob && !data.some(lob => lob.id === selectedLob)) {
+        setSelectedLob(null);
+        form.setValue('lineOfBusinessId', undefined);
+        form.setValue('processId', undefined);
+      }
     },
     onError: (error: any) => {
       console.error('Error fetching LOBs:', {

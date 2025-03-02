@@ -623,7 +623,6 @@ export class DatabaseStorage implements IStorage {
     lineOfBusinessId: number | null
   ): Promise<{ user: User; processes: UserProcess[] }> {
     try {
-      // Start a transaction to ensure both user and process assignments succeed or fail together
       return await db.transaction(async (tx) => {
         // Create the user first
         const [newUser] = await tx
@@ -636,20 +635,25 @@ export class DatabaseStorage implements IStorage {
           return { user: newUser, processes: [] };
         }
 
-        // Create process assignments with locationId from user and lineOfBusinessId from param
+        // Create process assignments with both locationId and lineOfBusinessId
         const processAssignments = processIds.map(processId => ({
           userId: newUser.id,
           processId,
           organizationId,
-          lineOfBusinessId,  // This will be null for admin/owner roles
-          locationId: newUser.locationId,  // This comes from the user object
+          lineOfBusinessId,  // This can be null for admin/owner roles
+          locationId: user.locationId,  // This comes from the user object
           status: 'assigned',
           assignedAt: new Date(),
           createdAt: new Date(),
           updatedAt: new Date()
         }));
 
-        console.log('Creating process assignments:', processAssignments);
+        console.log('Creating process assignments:', {
+          userId: newUser.id,
+          locationId: user.locationId,
+          lineOfBusinessId,
+          processIds
+        });
 
         const assignedProcesses = await tx
           .insert(userProcesses)
@@ -908,13 +912,25 @@ export class DatabaseStorage implements IStorage {
         return [];
       }
 
-      // Get all LOBs for the organization
+      // Get distinct LOBs from organizationLineOfBusinesses table based on location
       const lobs = await db
-        .select()
+        .select({
+          id: organizationLineOfBusinesses.id,
+          name: organizationLineOfBusinesses.name,
+          description: organizationLineOfBusinesses.description,
+          organizationId: organizationLineOfBusinesses.organizationId,
+          createdAt: organizationLineOfBusinesses.createdAt,
+        })
         .from(organizationLineOfBusinesses)
-        .where(eq(organizationLineOfBusinesses.organizationId, organizationId)) as OrganizationLineOfBusiness[];
+        .innerJoin(
+          userProcesses,
+          eq(organizationLineOfBusinesses.id, userProcesses.lineOfBusinessId)
+        )
+        .where(eq(userProcesses.locationId, locationId))
+        .where(eq(organizationLineOfBusinesses.organizationId, organizationId))
+        .groupBy(organizationLineOfBusinesses.id) as OrganizationLineOfBusiness[];
 
-      console.log(`Found ${lobs.length} LOBs for organization ${organizationId}:`, {
+      console.log(`Found ${lobs.length} LOBs for location ${locationId}:`, {
         lobDetails: lobs.map(lob => ({
           id: lob.id,
           name: lob.name
