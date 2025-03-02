@@ -39,7 +39,7 @@ export function CreateBatchForm() {
 
   // Fetch processes filtered by selected LOB
   const { data: processes = [], isLoading: isLoadingProcesses } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/processes`, selectedLob],
+    queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${selectedLob}/processes`],
     enabled: !!selectedLob,
   });
 
@@ -100,12 +100,15 @@ export function CreateBatchForm() {
   };
 
   console.log('Current form state:', {
+    selectedLob,
     selectedLocation,
     selectedManager,
     managers,
     isLoadingManagers,
     trainers,
-    isLoadingTrainers
+    isLoadingTrainers,
+    processes,
+    isLoadingProcesses
   });
 
   return (
@@ -148,10 +151,15 @@ export function CreateBatchForm() {
                 <FormLabel>Line of Business</FormLabel>
                 <Select
                   onValueChange={(value) => {
-                    field.onChange(parseInt(value));
-                    setSelectedLob(parseInt(value));
+                    const lobId = parseInt(value);
+                    field.onChange(lobId);
+                    setSelectedLob(lobId);
                     // Reset process when LOB changes
                     form.setValue('processId', undefined);
+                    // Invalidate processes query to force refresh
+                    queryClient.invalidateQueries({ 
+                      queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${lobId}/processes`] 
+                    });
                   }}
                   value={field.value?.toString()}
                 >
