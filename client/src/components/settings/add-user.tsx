@@ -99,12 +99,21 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
           locationId = Number(data.locationId);
         }
 
+        // Get the first selected LOB ID when processes are selected
+        const lineOfBusinessId = selectedLOBs.length > 0 ? selectedLOBs[0] : null;
+
+        // Validate LOB ID when processes are selected
+        if (data.processes.length > 0 && !lineOfBusinessId) {
+          throw new Error("Please select a Line of Business before assigning processes");
+        }
+
         const payload = {
           ...data,
           managerId: data.managerId === "none" ? null : Number(data.managerId),
           locationId,
           organizationId: organization?.id || null,
           processes: data.processes,
+          lineOfBusinessId: lineOfBusinessId // Include LOB ID in payload
         };
 
         console.log('Creating user with payload:', payload);
@@ -143,7 +152,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       });
       setSelectedLOBs([]);
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast({
         title: "Error",
         description: error.message,
