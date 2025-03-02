@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -31,27 +31,101 @@ export function CreateBatchForm() {
   const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
   const [selectedLob, setSelectedLob] = useState<number | null>(null);
 
+  useEffect(() => {
+    // Log current user's organization context
+    console.log('User Context:', {
+      userId: user?.id,
+      organizationId: user?.organizationId,
+      role: user?.role
+    });
+  }, [user]);
+
   // Step 1: Fetch Locations
-  const { data: locations = [], isLoading: isLoadingLocations } = useQuery({
+  const { 
+    data: locations = [], 
+    isLoading: isLoadingLocations,
+    error: locationError 
+  } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations`],
+    onError: (error: any) => {
+      console.error('Error fetching locations:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load locations. Please try again.",
+        variant: "destructive",
+      });
+    }
   });
 
   // Step 2: Fetch LOBs based on selected location
-  const { data: lobs = [], isLoading: isLoadingLobs } = useQuery({
+  const { 
+    data: lobs = [], 
+    isLoading: isLoadingLobs,
+    error: lobError 
+  } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations/${selectedLocation}/line-of-businesses`],
-    enabled: !!selectedLocation,
+    enabled: !!selectedLocation && !!user?.organizationId,
+    onSuccess: (data) => {
+      console.log('LOBs fetched successfully:', {
+        locationId: selectedLocation,
+        organizationId: user?.organizationId,
+        lobsCount: data.length,
+        lobs: data.map(lob => ({
+          id: lob.id,
+          name: lob.name
+        }))
+      });
+    },
+    onError: (error: any) => {
+      console.error('Error fetching LOBs:', {
+        error,
+        locationId: selectedLocation,
+        organizationId: user?.organizationId,
+        errorMessage: error.message,
+        status: error.response?.status
+      });
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to load line of businesses. Please try again.",
+        variant: "destructive",
+      });
+    }
   });
 
   // Step 3: Fetch processes based on selected LOB
-  const { data: processes = [], isLoading: isLoadingProcesses } = useQuery({
+  const { 
+    data: processes = [], 
+    isLoading: isLoadingProcesses,
+    error: processError 
+  } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${selectedLob}/processes`],
     enabled: !!selectedLob,
+    onError: (error: any) => {
+      console.error('Error fetching processes:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load processes. Please try again.",
+        variant: "destructive",
+      });
+    }
   });
 
   // Fetch trainers (users with trainer role)
-  const { data: trainers = [], isLoading: isLoadingTrainers } = useQuery({
+  const { 
+    data: trainers = [], 
+    isLoading: isLoadingTrainers,
+    error: trainerError 
+  } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/users`],
-    select: (users) => users.filter((user) => user.role === 'trainer'),
+    select: (users: any[]) => users.filter((user) => user.role === 'trainer'),
+    onError: (error: any) => {
+      console.error('Error fetching trainers:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load trainers. Please try again.",
+        variant: "destructive",
+      });
+    }
   });
 
   const form = useForm<InsertOrganizationBatch>({
@@ -82,7 +156,8 @@ export function CreateBatchForm() {
       setSelectedLocation(null);
       setSelectedLob(null);
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      console.error('Error creating batch:', error);
       toast({
         title: "Error",
         description: "Failed to create batch. Please try again.",
@@ -127,7 +202,6 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Step 1: Location Selection */}
           <FormField
             control={form.control}
             name="locationId"
@@ -153,19 +227,19 @@ export function CreateBatchForm() {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {locations.map((location) => (
+                    {locations.map((location: any) => (
                       <SelectItem key={location.id} value={location.id.toString()}>
                         {location.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {locationError && <div className="text-red-500 text-sm mt-1">Failed to load locations</div>}
                 <FormMessage />
               </FormItem>
             )}
           />
 
-          {/* Step 2: LOB Selection */}
           <FormField
             control={form.control}
             name="lineOfBusinessId"
@@ -185,23 +259,31 @@ export function CreateBatchForm() {
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder={selectedLocation ? "Select LOB" : "Select location first"} />
+                      <SelectValue 
+                        placeholder={
+                          !selectedLocation 
+                            ? "Select location first" 
+                            : isLoadingLobs 
+                              ? "Loading LOBs..." 
+                              : "Select LOB"
+                        } 
+                      />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {lobs.map((lob) => (
+                    {lobs.map((lob: any) => (
                       <SelectItem key={lob.id} value={lob.id.toString()}>
                         {lob.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {lobError && <div className="text-red-500 text-sm mt-1">Failed to load line of businesses</div>}
                 <FormMessage />
               </FormItem>
             )}
           />
 
-          {/* Step 3: Process Selection */}
           <FormField
             control={form.control}
             name="processId"
@@ -219,13 +301,14 @@ export function CreateBatchForm() {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {processes.map((process) => (
+                    {processes.map((process: any) => (
                       <SelectItem key={process.id} value={process.id.toString()}>
                         {process.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {processError && <div className="text-red-500 text-sm mt-1">Failed to load processes</div>}
                 <FormMessage />
               </FormItem>
             )}
@@ -248,13 +331,14 @@ export function CreateBatchForm() {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {trainers.map((trainer) => (
+                    {trainers.map((trainer: any) => (
                       <SelectItem key={trainer.id} value={trainer.id.toString()}>
                         {trainer.fullName}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {trainerError && <div className="text-red-500 text-sm mt-1">Failed to load trainers</div>}
                 <FormMessage />
               </FormItem>
             )}
@@ -312,9 +396,19 @@ export function CreateBatchForm() {
         <div className="flex justify-end space-x-2">
           <Button
             type="submit"
-            disabled={createBatchMutation.isPending || isLoadingLocations || isLoadingLobs || isLoadingProcesses || isLoadingTrainers}
+            disabled={
+              createBatchMutation.isPending || 
+              isLoadingLocations || 
+              isLoadingLobs || 
+              isLoadingProcesses || 
+              isLoadingTrainers ||
+              !!locationError ||
+              !!lobError ||
+              !!processError ||
+              !!trainerError
+            }
           >
-            Create Batch
+            {createBatchMutation.isPending ? "Creating..." : "Create Batch"}
           </Button>
         </div>
       </form>

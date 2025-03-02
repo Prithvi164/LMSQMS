@@ -85,6 +85,7 @@ export interface IStorage {
   updateLocation(id: number, location: Partial<InsertOrganizationLocation>): Promise<OrganizationLocation>;
   deleteLocation(id: number): Promise<void>;
   createLocation(location: InsertOrganizationLocation): Promise<OrganizationLocation>;
+  getLocation(id: number): Promise<OrganizationLocation | undefined>;
 
   // Batch operations
   createBatch(batch: InsertOrganizationBatch): Promise<OrganizationBatch>;
@@ -92,6 +93,7 @@ export interface IStorage {
   listBatches(organizationId: number): Promise<OrganizationBatch[]>;
   updateBatch(id: number, batch: Partial<InsertOrganizationBatch>): Promise<OrganizationBatch>;
   deleteBatch(id: number): Promise<void>;
+  getLineOfBusinessesByLocation(organizationId: number, locationId: number): Promise<OrganizationLineOfBusiness[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -875,17 +877,50 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+
+  async getLocation(id: number): Promise<OrganizationLocation | undefined> {
+    try {
+      console.log(`Fetching location with ID: ${id}`);
+      const [location] = await db
+        .select()
+        .from(organizationLocations)
+        .where(eq(organizationLocations.id, id)) as OrganizationLocation[];
+
+      console.log('Location found:', location);
+      return location;
+    } catch (error) {
+      console.error('Error fetching location:', error);
+      throw error;
+    }
+  }
+
   async getLineOfBusinessesByLocation(organizationId: number, locationId: number): Promise<OrganizationLineOfBusiness[]> {
     try {
-      console.log(`Fetching LOBs for organization ${organizationId} and location ${locationId}`);
+      console.log(`Fetching LOBs - Parameters:`, {
+        organizationId,
+        locationId
+      });
 
-      // Get all LOBs for the organization since LOBs are organization-wide
+      // First verify if the location exists
+      const location = await this.getLocation(locationId);
+      if (!location) {
+        console.log(`Location ${locationId} not found`);
+        return [];
+      }
+
+      // Get all LOBs for the organization
       const lobs = await db
         .select()
         .from(organizationLineOfBusinesses)
         .where(eq(organizationLineOfBusinesses.organizationId, organizationId)) as OrganizationLineOfBusiness[];
 
-      console.log(`Found ${lobs.length} LOBs for organization`);
+      console.log(`Found ${lobs.length} LOBs for organization ${organizationId}:`, {
+        lobDetails: lobs.map(lob => ({
+          id: lob.id,
+          name: lob.name
+        }))
+      });
+
       return lobs;
     } catch (error) {
       console.error('Error fetching LOBs by location:', error);

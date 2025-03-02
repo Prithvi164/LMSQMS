@@ -824,19 +824,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const orgId = parseInt(req.params.id);
       const locationId = parseInt(req.params.locationId);
 
-      // Check if user belongs to the organization
+      console.log('Fetching LOBs - Request details:', {
+        orgId,
+        locationId,
+        userId: req.user.id,
+        userRole: req.user.role,
+        userOrgId: req.user.organizationId
+      });
+
+      //      // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "You can only view LOBsin your own organization" });
+        console.log(`User ${req.user.id} attempted to access LOBs in organization ${orgId}`);
+        return res.status(403).json({ message: "You can only view LOBs in your own organization" });
       }
 
       // Get location to verify it exists and belongs to the organization
       const location = await storage.getLocation(locationId);
       if (!location || location.organizationId !== orgId) {
+        console.log(`Location not found or doesn't belong to organization:`, { locationId, orgId });
         return res.status(404).json({ message: "Location not found" });
       }
 
       const lobs = await storage.getLineOfBusinessesByLocation(orgId, locationId);
-      console.log(`Found ${lobs.length} LOBs for location ${locationId}`);
+      console.log(`Found LOBs for location ${locationId}:`, {
+        count: lobs.length,
+        lobIds: lobs.map(lob => lob.id),
+        lobNames: lobs.map(lob => lob.name)
+      });
+
       res.json(lobs);
     } catch (error: any) {
       console.error("Error fetching LOBs by location:", error);
