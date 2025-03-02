@@ -86,6 +86,8 @@ export function BatchesTab() {
 
   return (
     <div className="space-y-4">
+      <h2 className="text-2xl font-bold tracking-tight">Manage Batch</h2>
+
       <div className="flex items-center space-x-2">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />

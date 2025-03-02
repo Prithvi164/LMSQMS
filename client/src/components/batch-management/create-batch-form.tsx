@@ -103,27 +103,10 @@ export function CreateBatchForm() {
   // Step 2: Fetch LOBs based on selected location
   const {
     data: lobs = [],
-    isLoading: isLoadingLobs,
-    error: lobError
+    isLoading: isLoadingLobs
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations/${selectedLocation}/line-of-businesses`],
-    enabled: !!selectedLocation && !!user?.organizationId,
-    onSuccess: (data) => {
-      console.log('LOBs API Response:', {
-        selectedLocation,
-        receivedLobs: data.map(lob => ({
-          id: lob.id,
-          name: lob.name
-        }))
-      });
-      // Reset LOB selection when location changes
-      setSelectedLob(null);
-      form.setValue('lineOfBusinessId', null);
-      form.setValue('processId', null);
-      // Also reset trainer when location changes
-      form.setValue('trainerId', null);
-      setSelectedTrainer(null);
-    }
+    enabled: !!selectedLocation && !!user?.organizationId
   });
 
   // Step 3: Fetch processes based on selected LOB
@@ -146,15 +129,10 @@ export function CreateBatchForm() {
     isLoading: isLoadingTrainers
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/users`],
-    select: (users) => {
-      console.log('All users from API:', users);
-      const filteredTrainers = users.filter((user) =>
-        user.role === 'trainer' &&
-        (!selectedLocation || user.locationId === selectedLocation)
-      );
-      console.log('Filtered trainers:', filteredTrainers);
-      return filteredTrainers;
-    },
+    select: (users) => users.filter((user) =>
+      user.role === 'trainer' &&
+      (!selectedLocation || user.locationId === selectedLocation)
+    ),
     enabled: !!user?.organizationId
   });
 
@@ -167,13 +145,10 @@ export function CreateBatchForm() {
     enabled: !!selectedTrainer && !!user?.organizationId,
     select: (trainer) => {
       if (!trainer?.managerId) {
-        console.log('No manager ID found for trainer');
         return null;
       }
       // Find manager from trainers list
-      const manager = trainers.find(u => u.id === trainer.managerId);
-      console.log('Found manager:', manager);
-      return manager;
+      return trainers.find(u => u.id === trainer.managerId);
     }
   });
 
@@ -187,10 +162,20 @@ export function CreateBatchForm() {
 
   const createBatchMutation = useMutation({
     mutationFn: async (data) => {
-      return apiRequest(`/api/organizations/${user?.organizationId}/batches`, {
+      const response = await fetch(`/api/organizations/${user?.organizationId}/batches`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(data),
       });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create batch');
+      }
+
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/batches`] });
@@ -204,10 +189,9 @@ export function CreateBatchForm() {
       setSelectedTrainer(null);
     },
     onError: (error) => {
-      console.error('Error creating batch:', error);
       toast({
         title: "Error",
-        description: "Failed to create batch. Please try again.",
+        description: error.message || "Failed to create batch. Please try again.",
         variant: "destructive",
       });
     },
@@ -226,9 +210,20 @@ export function CreateBatchForm() {
     }
   }, [form.watch('startDate'), selectedProcess]);
 
+  const onSubmit = (data) => {
+    // Include all necessary fields
+    const batchData = {
+      ...data,
+      organizationId: user?.organizationId,
+      status: 'planning',
+      endDate: batchDates?.certificationEnd || data.endDate,
+    };
+    createBatchMutation.mutate(batchData);
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(createBatchMutation.mutate)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <div className="grid grid-cols-2 gap-4">
           {/* Batch Code */}
           <FormField
@@ -270,19 +265,13 @@ export function CreateBatchForm() {
                 <Select
                   onValueChange={(value) => {
                     const locationId = parseInt(value);
-                    console.log('Location Selection:', {
-                      selectedValue: value,
-                      parsedLocationId: locationId,
-                      locationDetails: locations.find(loc => loc.id === locationId)
-                    });
-
                     field.onChange(locationId);
                     setSelectedLocation(locationId);
                     // Reset dependent fields
                     setSelectedLob(null);
                     form.setValue('lineOfBusinessId', null);
                     form.setValue('processId', null);
-                    form.setValue('trainerId', null); // Reset trainer when location changes
+                    form.setValue('trainerId', null);
                     setSelectedTrainer(null);
                   }}
                   value={field.value?.toString()}
@@ -316,10 +305,6 @@ export function CreateBatchForm() {
                 <Select
                   onValueChange={(value) => {
                     const lobId = parseInt(value);
-                    console.log('LOB Selected:', {
-                      lobId,
-                      lobName: lobs.find(lob => lob.id === lobId)?.name
-                    });
                     field.onChange(lobId);
                     setSelectedLob(lobId);
                     form.setValue('processId', null);
@@ -340,11 +325,6 @@ export function CreateBatchForm() {
                     ))}
                   </SelectContent>
                 </Select>
-                {lobError && (
-                  <div className="text-red-500 text-sm mt-1">
-                    Failed to load line of businesses
-                  </div>
-                )}
                 <FormMessage />
               </FormItem>
             )}
@@ -440,7 +420,6 @@ export function CreateBatchForm() {
                 placeholder={isLoadingManager ? 'Loading manager...' : 'No manager assigned'}
               />
             </FormControl>
-            {isLoadingManager && <p className="text-sm text-muted-foreground">Loading manager details...</p>}
           </FormItem>
 
           {/* Start Date */}
@@ -629,6 +608,7 @@ export function CreateBatchForm() {
             type="submit"
             disabled={
               createBatchMutation.isPending ||
+              !form.formState.isValid ||
               isLoadingLocations ||
               isLoadingLobs ||
               isLoadingProcesses ||
