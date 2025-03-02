@@ -19,13 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
-  insertOrganizationBatchSchema, 
-  type InsertOrganizationBatch, 
-  type OrganizationLineOfBusiness,
-  type OrganizationProcess,
-  type User
-} from "@shared/schema";
+import { insertOrganizationBatchSchema, type InsertOrganizationBatch } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
@@ -51,7 +45,7 @@ export function CreateBatchForm() {
   const { 
     data: lobs = [], 
     isLoading: isLoadingLobs 
-  } = useQuery<OrganizationLineOfBusiness[]>({
+  } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations/${selectedLocation}/line-of-businesses`],
     enabled: !!selectedLocation && !!user?.organizationId,
   });
@@ -60,7 +54,7 @@ export function CreateBatchForm() {
   const { 
     data: processes = [], 
     isLoading: isLoadingProcesses 
-  } = useQuery<OrganizationProcess[]>({
+  } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${selectedLob}/processes`],
     enabled: !!selectedLob,
   });
@@ -69,7 +63,7 @@ export function CreateBatchForm() {
   const { 
     data: trainers = [], 
     isLoading: isLoadingTrainers 
-  } = useQuery<User[]>({
+  } = useQuery({
     queryKey: [`/api/locations/${selectedLocation}/processes/${selectedProcess}/trainers`],
     enabled: !!(selectedLocation && selectedProcess),
   });
@@ -177,10 +171,6 @@ export function CreateBatchForm() {
                       <div className="flex items-center justify-center p-2">
                         <Loader2 className="h-4 w-4 animate-spin" />
                       </div>
-                    ) : locations.length === 0 ? (
-                      <div className="flex items-center justify-center p-2 text-sm text-muted-foreground">
-                        No locations available
-                      </div>
                     ) : (
                       locations.map((location: any) => (
                         <SelectItem key={location.id} value={location.id.toString()}>
@@ -237,7 +227,7 @@ export function CreateBatchForm() {
                         No LOBs available for this location
                       </div>
                     ) : (
-                      lobs.map((lob: OrganizationLineOfBusiness) => (
+                      lobs.map((lob: any) => (
                         <SelectItem key={lob.id} value={lob.id.toString()}>
                           {lob.name}
                         </SelectItem>
@@ -265,6 +255,7 @@ export function CreateBatchForm() {
                     form.setValue('trainerId', undefined);
                   }}
                   value={field.value?.toString()}
+                  //disabled={!selectedLob}  Removed disabled attribute
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -277,7 +268,7 @@ export function CreateBatchForm() {
                         <Loader2 className="h-4 w-4 animate-spin" />
                       </div>
                     ) : (
-                      processes.map((process: OrganizationProcess) => (
+                      processes.map((process: any) => (
                         <SelectItem key={process.id} value={process.id.toString()}>
                           {process.name}
                         </SelectItem>
@@ -300,6 +291,7 @@ export function CreateBatchForm() {
                 <Select
                   onValueChange={(value) => field.onChange(parseInt(value))}
                   value={field.value?.toString()}
+                  //disabled={!selectedProcess} Removed disabled attribute
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -312,7 +304,7 @@ export function CreateBatchForm() {
                         <Loader2 className="h-4 w-4 animate-spin" />
                       </div>
                     ) : (
-                      trainers.map((trainer: User) => (
+                      trainers.map((trainer: any) => (
                         <SelectItem key={trainer.id} value={trainer.id.toString()}>
                           {trainer.fullName}
                         </SelectItem>
