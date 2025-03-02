@@ -65,15 +65,11 @@ export function CreateBatchForm() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Filter managers based on location and process - any role can be a manager
+  // Filter managers based on location only - any role can be a manager
   const filteredManagers = allUsers.filter(user => {
     const isActive = user.active;
     const matchesLocation = !selectedLocation || user.locationId === selectedLocation;
-    // A manager should be able to manage any process in their LOB
-    const matchesProcess = !selectedLob || allProcesses.some(
-      process => process.lineOfBusinessId === selectedLob && user.processes.includes(process.id)
-    );
-    return isActive && matchesLocation && matchesProcess;
+    return isActive && matchesLocation;
   });
 
   // Filter trainers based on selected manager
@@ -106,7 +102,7 @@ export function CreateBatchForm() {
       setSelectedLocation(null);
       setSelectedManager(null);
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
         description: "Failed to create batch. Please try again.",
@@ -286,7 +282,7 @@ export function CreateBatchForm() {
                     form.setValue("trainerId", undefined);
                   }}
                   value={field.value?.toString()}
-                  disabled={!selectedLocation || !selectedLob || isLoadingUsers}
+                  disabled={!selectedLocation || isLoadingUsers}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -325,7 +321,7 @@ export function CreateBatchForm() {
                   <SelectContent>
                     {filteredTrainers.map((trainer) => (
                       <SelectItem key={trainer.id} value={trainer.id.toString()}>
-                        {trainer.fullName}
+                        {trainer.username} ({trainer.role})
                       </SelectItem>
                     ))}
                   </SelectContent>
