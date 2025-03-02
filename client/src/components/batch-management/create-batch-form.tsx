@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { insertOrganizationBatchSchema, type InsertOrganizationBatch } from "@shared/schema";
+import { insertOrganizationBatchSchema } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
@@ -31,108 +31,52 @@ export function CreateBatchForm() {
   const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
   const [selectedLob, setSelectedLob] = useState<number | null>(null);
 
-  useEffect(() => {
-    // Log current user's organization context
-    console.log('User Context:', {
-      userId: user?.id,
-      organizationId: user?.organizationId,
-      role: user?.role
-    });
-  }, [user]);
-
   // Step 1: Fetch Locations
   const { 
     data: locations = [], 
-    isLoading: isLoadingLocations,
-    error: locationError 
+    isLoading: isLoadingLocations 
   } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/locations`],
-    onError: (error: any) => {
-      console.error('Error fetching locations:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load locations. Please try again.",
-        variant: "destructive",
-      });
-    }
+    queryKey: [`/api/organizations/${user?.organizationId}/locations`]
   });
 
   // Step 2: Fetch LOBs based on selected location
   const { 
     data: lobs = [], 
     isLoading: isLoadingLobs,
-    error: lobError,
-    refetch: refetchLobs
+    error: lobError 
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations/${selectedLocation}/line-of-businesses`],
     enabled: !!selectedLocation && !!user?.organizationId,
-    retry: 1,
     onSuccess: (data) => {
-      console.log('LOBs fetched successfully:', {
-        locationId: selectedLocation,
-        organizationId: user?.organizationId,
-        lobsCount: data.length,
-        lobs: data.map(lob => ({
-          id: lob.id,
-          name: lob.name
-        }))
-      });
-
-      // If current LOB is not in the new list, reset it
+      console.log('LOBs fetched:', data);
+      // Reset LOB selection if current selection is not in new list
       if (selectedLob && !data.some(lob => lob.id === selectedLob)) {
         setSelectedLob(null);
         form.setValue('lineOfBusinessId', null);
         form.setValue('processId', null);
       }
-    },
-    onError: (error: any) => {
-      console.error('Error fetching LOBs:', {
-        error,
-        locationId: selectedLocation,
-        organizationId: user?.organizationId,
-        errorMessage: error.message,
-        status: error.response?.status
-      });
     }
   });
 
   // Step 3: Fetch processes based on selected LOB
   const { 
     data: processes = [], 
-    isLoading: isLoadingProcesses,
-    error: processError 
+    isLoading: isLoadingProcesses
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${selectedLob}/processes`],
-    enabled: !!selectedLob,
-    onError: (error: any) => {
-      console.error('Error fetching processes:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load processes. Please try again.",
-        variant: "destructive",
-      });
-    }
+    enabled: !!selectedLob
   });
 
   // Fetch trainers (users with trainer role)
   const { 
     data: trainers = [], 
-    isLoading: isLoadingTrainers,
-    error: trainerError 
+    isLoading: isLoadingTrainers
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/users`],
-    select: (users: any[]) => users.filter((user) => user.role === 'trainer'),
-    onError: (error: any) => {
-      console.error('Error fetching trainers:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load trainers. Please try again.",
-        variant: "destructive",
-      });
-    }
+    select: (users) => users.filter((user) => user.role === 'trainer')
   });
 
-  const form = useForm<InsertOrganizationBatch>({
+  const form = useForm({
     resolver: zodResolver(insertOrganizationBatchSchema),
     defaultValues: {
       status: 'planned',
@@ -141,12 +85,9 @@ export function CreateBatchForm() {
   });
 
   const createBatchMutation = useMutation({
-    mutationFn: async (data: InsertOrganizationBatch) => {
+    mutationFn: async (data) => {
       return apiRequest(`/api/organizations/${user?.organizationId}/batches`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(data),
       });
     },
@@ -160,7 +101,7 @@ export function CreateBatchForm() {
       setSelectedLocation(null);
       setSelectedLob(null);
     },
-    onError: (error: any) => {
+    onError: (error) => {
       console.error('Error creating batch:', error);
       toast({
         title: "Error",
@@ -170,14 +111,11 @@ export function CreateBatchForm() {
     },
   });
 
-  const onSubmit = (data: InsertOrganizationBatch) => {
-    createBatchMutation.mutate(data);
-  };
-
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(createBatchMutation.mutate)} className="space-y-6">
         <div className="grid grid-cols-2 gap-4">
+          {/* Batch Code */}
           <FormField
             control={form.control}
             name="batchCode"
@@ -192,6 +130,7 @@ export function CreateBatchForm() {
             )}
           />
 
+          {/* Batch Name */}
           <FormField
             control={form.control}
             name="name"
@@ -206,6 +145,7 @@ export function CreateBatchForm() {
             )}
           />
 
+          {/* Location */}
           <FormField
             control={form.control}
             name="locationId"
@@ -231,19 +171,19 @@ export function CreateBatchForm() {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {locations.map((location: any) => (
+                    {locations.map((location) => (
                       <SelectItem key={location.id} value={location.id.toString()}>
                         {location.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {locationError && <div className="text-red-500 text-sm mt-1">Failed to load locations</div>}
                 <FormMessage />
               </FormItem>
             )}
           />
 
+          {/* Line of Business */}
           <FormField
             control={form.control}
             name="lineOfBusinessId"
@@ -255,7 +195,6 @@ export function CreateBatchForm() {
                     const lobId = parseInt(value);
                     field.onChange(lobId);
                     setSelectedLob(lobId);
-                    // Reset process when LOB changes
                     form.setValue('processId', null);
                   }}
                   value={field.value?.toString()}
@@ -275,23 +214,24 @@ export function CreateBatchForm() {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {lobs.map((lob: any) => (
+                    {lobs.map((lob) => (
                       <SelectItem key={lob.id} value={lob.id.toString()}>
                         {lob.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {lobError && 
+                {lobError && (
                   <div className="text-red-500 text-sm mt-1">
-                    Failed to load line of businesses. Please try selecting the location again.
+                    Failed to load line of businesses
                   </div>
-                }
+                )}
                 <FormMessage />
               </FormItem>
             )}
           />
 
+          {/* Process */}
           <FormField
             control={form.control}
             name="processId"
@@ -309,19 +249,19 @@ export function CreateBatchForm() {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {processes.map((process: any) => (
+                    {processes.map((process) => (
                       <SelectItem key={process.id} value={process.id.toString()}>
                         {process.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {processError && <div className="text-red-500 text-sm mt-1">Failed to load processes</div>}
                 <FormMessage />
               </FormItem>
             )}
           />
 
+          {/* Trainer */}
           <FormField
             control={form.control}
             name="trainerId"
@@ -339,19 +279,19 @@ export function CreateBatchForm() {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {trainers.map((trainer: any) => (
+                    {trainers.map((trainer) => (
                       <SelectItem key={trainer.id} value={trainer.id.toString()}>
                         {trainer.fullName}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {trainerError && <div className="text-red-500 text-sm mt-1">Failed to load trainers</div>}
                 <FormMessage />
               </FormItem>
             )}
           />
 
+          {/* Start Date */}
           <FormField
             control={form.control}
             name="startDate"
@@ -366,6 +306,7 @@ export function CreateBatchForm() {
             )}
           />
 
+          {/* End Date */}
           <FormField
             control={form.control}
             name="endDate"
@@ -380,6 +321,7 @@ export function CreateBatchForm() {
             )}
           />
 
+          {/* Capacity Limit */}
           <FormField
             control={form.control}
             name="capacityLimit"
@@ -409,11 +351,7 @@ export function CreateBatchForm() {
               isLoadingLocations || 
               isLoadingLobs || 
               isLoadingProcesses || 
-              isLoadingTrainers ||
-              !!locationError ||
-              !!lobError ||
-              !!processError ||
-              !!trainerError
+              isLoadingTrainers
             }
           >
             {createBatchMutation.isPending ? "Creating..." : "Create Batch"}

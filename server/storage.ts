@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
@@ -913,23 +913,24 @@ export class DatabaseStorage implements IStorage {
         return [];
       }
 
-      // Get unique LOBs from user_processes table based on location
-      const lobs = await db
-        .select({
-          id: organizationLineOfBusinesses.id,
-          name: organizationLineOfBusinesses.name,
-          description: organizationLineOfBusinesses.description,
-          organizationId: organizationLineOfBusinesses.organizationId,
-          createdAt: organizationLineOfBusinesses.createdAt,
-        })
+      // First get distinct line_of_business_ids for the location
+      const distinctLobIds = await db
+        .selectDistinct({ id: userProcesses.lineOfBusinessId })
         .from(userProcesses)
-        .innerJoin(
-          organizationLineOfBusinesses,
-          eq(userProcesses.lineOfBusinessId, organizationLineOfBusinesses.id)
-        )
         .where(eq(userProcesses.locationId, locationId))
-        .where(eq(organizationLineOfBusinesses.organizationId, organizationId))
-        .groupBy(organizationLineOfBusinesses.id) as OrganizationLineOfBusiness[];
+        .where(sql`${userProcesses.lineOfBusinessId} is not null`);
+
+      // Then get the full LOB details for these IDs
+      const lobs = await db
+        .select()
+        .from(organizationLineOfBusinesses)
+        .where(
+          inArray(
+            organizationLineOfBusinesses.id,
+            distinctLobIds.map(row => row.id)
+          )
+        )
+        .where(eq(organizationLineOfBusinesses.organizationId, organizationId)) as OrganizationLineOfBusiness[];
 
       console.log(`Found LOBs for location ${locationId}:`, {
         count: lobs.length,
