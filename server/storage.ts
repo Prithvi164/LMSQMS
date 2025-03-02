@@ -972,17 +972,25 @@ export class DatabaseStorage implements IStorage {
   }
   async getLineOfBusinessesByLocation(locationId: number, organizationId: number): Promise<OrganizationLineOfBusiness[]> {
     try {
-      console.log(`[Storage] Starting LOBfetch for location ${locationId} in org ${organizationId}`);
+      console.log(`[Storage] Fetching LOBs for location ${locationId} in org ${organizationId}`);
 
-      // Log user processes first to see what we're working with
-      const userProcessesForLocation = await db
-        .select()
+      // First get all user processes for this location
+      const userProcesses = await db
+        .select({
+          processId: userProcesses.processId
+        })
         .from(userProcesses)
         .where(eq(userProcesses.locationId, locationId));
 
-      console.log(`[Storage] Found ${userProcessesForLocation.length} user processes for location:`, userProcessesForLocation);
+      if (userProcesses.length === 0) {
+        console.log('[Storage] No user processes found for this location');
+        return [];
+      }
 
-      // Get LOBs directly from user_processes table using lineOfBusinessId
+      const processIds = userProcesses.map(up => up.processId);
+      console.log(`[Storage] Found processes:`, processIds);
+
+      // Get all LOBs associated with these processes
       const lobs = await db
         .selectDistinct({
           id: organizationLineOfBusinesses.id,
@@ -991,20 +999,15 @@ export class DatabaseStorage implements IStorage {
           organizationId: organizationLineOfBusinesses.organizationId,
           createdAt: organizationLineOfBusinesses.createdAt
         })
-        .from(userProcesses)
+        .from(organizationProcesses)
+        .where(sql`${organizationProcesses.id} IN (${sql.join(processIds, sql`, `)})`)
+        .where(eq(organizationProcesses.organizationId, organizationId))
         .innerJoin(
           organizationLineOfBusinesses,
-          eq(userProcesses.lineOfBusinessId, organizationLineOfBusinesses.id)
-        )
-        .where(eq(userProcesses.locationId, locationId))
-        .where(eq(organizationLineOfBusinesses.organizationId, organizationId));
+          eq(organizationProcesses.lineOfBusinessId, organizationLineOfBusinesses.id)
+        );
 
-      console.log(`[Storage] Found ${lobs.length} unique LOBs:`, lobs);
-
-      if (lobs.length === 0) {
-        console.log('[Storage] No LOBs found. This might indicate missing user_processes entries or incorrect join conditions');
-      }
-
+      console.log(`[Storage] Found ${lobs.length} LOBs:`, lobs);
       return lobs as OrganizationLineOfBusiness[];
     } catch (error) {
       console.error('[Storage] Error fetching LOBs by location:', error);

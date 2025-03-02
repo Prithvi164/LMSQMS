@@ -50,8 +50,16 @@ export function CreateBatchForm() {
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations/${selectedLocation}/line-of-businesses`],
     enabled: !!selectedLocation && !!user?.organizationId,
+    onSuccess: (data) => {
+      console.log('[Batch Form] Successfully fetched LOBs:', data);
+      // Reset LOB selection when new LOBs are loaded
+      if (selectedLob && !data.some(lob => lob.id === selectedLob)) {
+        setSelectedLob(null);
+        form.setValue('lineOfBusinessId', undefined);
+      }
+    },
     onError: (error: any) => {
-      console.error('Error fetching LOBs:', error);
+      console.error('[Batch Form] Error fetching LOBs:', error);
       toast({
         title: 'Error',
         description: 'Failed to fetch line of businesses',
@@ -60,10 +68,10 @@ export function CreateBatchForm() {
     }
   });
 
-  // Log changes to selectedLocation and LOBs data
+  // Add debugging logs for LOB changes
   useEffect(() => {
-    console.log('Selected Location:', selectedLocation);
-    console.log('LOBs data:', lobs);
+    console.log('[Batch Form] Location selected:', selectedLocation);
+    console.log('[Batch Form] LOBs data:', lobs);
   }, [selectedLocation, lobs]);
 
   // Fetch processes filtered by selected LOB
@@ -222,7 +230,7 @@ export function CreateBatchForm() {
                 <Select
                   onValueChange={(value) => {
                     const lobId = parseInt(value);
-                    console.log('LOB selected:', lobId);
+                    console.log('[Batch Form] LOB selected:', lobId);
                     field.onChange(lobId);
                     setSelectedLob(lobId);
                     // Reset dependent fields
@@ -231,6 +239,7 @@ export function CreateBatchForm() {
                     form.setValue('trainerId', undefined);
                   }}
                   value={field.value?.toString()}
+                  disabled={!selectedLocation || isLoadingLobs}
                 >
                   <FormControl>
                     <SelectTrigger>
