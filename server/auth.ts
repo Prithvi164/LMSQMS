@@ -47,7 +47,6 @@ async function comparePasswords(supplied: string, stored: string) {
     const [hashed, salt] = stored.split(".");
     const hashedBuf = Buffer.from(hashed, "hex");
     const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-
     return timingSafeEqual(hashedBuf, suppliedBuf);
   } catch (error) {
     console.error("Password comparison error:", error);
@@ -123,24 +122,35 @@ export function setupAuth(app: Express) {
   // Registration endpoint
   app.post("/api/register", async (req, res) => {
     try {
-      console.log("Registration attempt:", { 
+      console.log("Registration attempt with data:", {
         username: req.body.username,
         email: req.body.email,
-        fullName: req.body.fullName
+        fullName: req.body.fullName,
+        passwordLength: req.body.password?.length
       });
 
       // Validate registration data
-      const data = registrationSchema.parse(req.body);
+      const validationResult = registrationSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        console.error("Validation failed:", validationResult.error);
+        return res.status(400).json({ 
+          message: "Validation failed", 
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const data = validationResult.data;
 
       // Check if username already exists
       const existingUser = await storage.getUserByUsername(data.username);
       if (existingUser) {
+        console.log("Username already exists:", data.username);
         return res.status(400).json({ message: "Username already exists" });
       }
 
       // Create user with hashed password
       const hashedPassword = await hashPassword(data.password);
-      console.log("Creating user with hashed password");
+      console.log("Password hashed successfully");
 
       const user = await storage.createUser({
         username: data.username,
@@ -153,8 +163,8 @@ export function setupAuth(app: Express) {
         employeeId: `EMP${Date.now()}`, // Generate a unique employee ID
       });
 
-      console.log("User created successfully:", { 
-        id: user.id, 
+      console.log("User created successfully:", {
+        id: user.id,
         username: user.username,
         fullName: user.fullName
       });
