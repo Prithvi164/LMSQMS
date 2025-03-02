@@ -646,12 +646,13 @@ export class DatabaseStorage implements IStorage {
           .from(organizationProcesses)
           .where(sql`${organizationProcesses.id} IN (${sql.join(processIds, sql`, `)})`);
 
-        // Create process assignments with line of business IDs
+        // Create process assignments with line of business IDs and location ID
         const processAssignments = processes.map(process => ({
           userId: newUser.id,
           processId: process.id,
           organizationId,
           lineOfBusinessId: process.lineOfBusinessId,
+          locationId: newUser.locationId,
           status: 'assigned'
         }));
 

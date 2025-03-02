@@ -218,7 +218,7 @@ export const users = pgTable("users", {
 
 export type User = InferSelectModel<typeof users>;
 
-// User Processes junction table
+// Add locationId to user_processes table
 export const userProcesses = pgTable("user_processes", {
   id: serial("id").primaryKey(),
   userId: integer("user_id")
@@ -229,6 +229,9 @@ export const userProcesses = pgTable("user_processes", {
     .notNull(),
   lineOfBusinessId: integer("line_of_business_id")
     .references(() => organizationLineOfBusinesses.id)
+    .notNull(),
+  locationId: integer("location_id")
+    .references(() => organizationLocations.id)
     .notNull(),
   organizationId: integer("organization_id")
     .references(() => organizations.id)
@@ -305,6 +308,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   batches: many(organizationBatches)
 }));
 
+// Update relations
 export const userProcessesRelations = relations(userProcesses, ({ one }) => ({
   user: one(users, {
     fields: [userProcesses.userId],
@@ -321,6 +325,10 @@ export const userProcessesRelations = relations(userProcesses, ({ one }) => ({
   lineOfBusiness: one(organizationLineOfBusinesses, {
     fields: [userProcesses.lineOfBusinessId],
     references: [organizationLineOfBusinesses.id],
+  }),
+  location: one(organizationLocations, {
+    fields: [userProcesses.locationId],
+    references: [organizationLocations.id],
   })
 }));
 
