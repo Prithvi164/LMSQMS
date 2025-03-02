@@ -959,7 +959,7 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching LOBs for location ${locationId} in organization ${organizationId}`);
 
-      // Get LOBs based on user_processes table's direct lineOfBusinessId reference
+      // Get LOBs directly from user_processes table
       const lobs = await db
         .select({
           id: organizationLineOfBusinesses.id,
@@ -967,19 +967,14 @@ export class DatabaseStorage implements IStorage {
           description: organizationLineOfBusinesses.description,
           organizationId: organizationLineOfBusinesses.organizationId,
           createdAt: organizationLineOfBusinesses.createdAt
-        })
-        .from(organizationLineOfBusinesses)
+                })
+        .from(userProcesses)
         .innerJoin(
-          userProcesses,
+          organizationLineOfBusinesses,
           eq(userProcesses.lineOfBusinessId, organizationLineOfBusinesses.id)
-        )
-        .innerJoin(
-          users,
-          eq(users.id, userProcesses.userId)
         )
         .where(eq(userProcesses.locationId, locationId))
         .where(eq(organizationLineOfBusinesses.organizationId, organizationId))
-        .where(eq(users.active, true))
         .groupBy(organizationLineOfBusinesses.id);
 
       console.log(`Found ${lobs.length} LOBs for location ${locationId}`);
