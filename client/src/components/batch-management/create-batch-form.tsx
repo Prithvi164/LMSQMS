@@ -28,22 +28,24 @@ export function CreateBatchForm() {
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
   const [selectedLob, setSelectedLob] = useState<number | null>(null);
 
-  // Fetch LOBs
-  const { data: lobs = [] } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses`],
-  });
-
-  // Fetch processes filtered by selected LOB
-  const { data: processes = [] } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/processes`, selectedLob],
-    enabled: !!selectedLob,
-  });
-
-  // Fetch locations
+  // Step 1: Fetch Locations
   const { data: locations = [] } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations`],
+  });
+
+  // Step 2: Fetch LOBs based on selected location
+  const { data: lobs = [] } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/locations/${selectedLocation}/line-of-businesses`],
+    enabled: !!selectedLocation,
+  });
+
+  // Step 3: Fetch processes based on selected LOB
+  const { data: processes = [] } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${selectedLob}/processes`],
+    enabled: !!selectedLob,
   });
 
   // Fetch trainers (users with trainer role)
@@ -64,6 +66,9 @@ export function CreateBatchForm() {
     mutationFn: async (data: InsertOrganizationBatch) => {
       return apiRequest(`/api/organizations/${user?.organizationId}/batches`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(data),
       });
     },
@@ -74,6 +79,8 @@ export function CreateBatchForm() {
         description: "Batch created successfully",
       });
       form.reset();
+      setSelectedLocation(null);
+      setSelectedLob(null);
     },
     onError: (error) => {
       toast({
@@ -122,20 +129,59 @@ export function CreateBatchForm() {
 
           <FormField
             control={form.control}
+            name="locationId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Location</FormLabel>
+                <Select
+                  onValueChange={(value) => {
+                    const locationId = parseInt(value);
+                    field.onChange(locationId);
+                    setSelectedLocation(locationId);
+                    // Reset dependent fields
+                    setSelectedLob(null);
+                    form.setValue('processId', undefined);
+                  }}
+                  value={field.value?.toString()}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select location" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {locations.map((location) => (
+                      <SelectItem key={location.id} value={location.id.toString()}>
+                        {location.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
             name="lineOfBusinessId"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Line of Business</FormLabel>
                 <Select
                   onValueChange={(value) => {
-                    field.onChange(parseInt(value));
-                    setSelectedLob(parseInt(value));
+                    const lobId = parseInt(value);
+                    field.onChange(lobId);
+                    setSelectedLob(lobId);
+                    // Reset process when LOB changes
+                    form.setValue('processId', undefined);
                   }}
                   value={field.value?.toString()}
+                  disabled={!selectedLocation}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select LOB" />
+                      <SelectValue placeholder={selectedLocation ? "Select LOB" : "Select location first"} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -164,41 +210,13 @@ export function CreateBatchForm() {
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select process" />
+                      <SelectValue placeholder={selectedLob ? "Select process" : "Select LOB first"} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
                     {processes.map((process) => (
                       <SelectItem key={process.id} value={process.id.toString()}>
                         {process.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="locationId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Location</FormLabel>
-                <Select
-                  onValueChange={(value) => field.onChange(parseInt(value))}
-                  value={field.value?.toString()}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select location" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {locations.map((location) => (
-                      <SelectItem key={location.id} value={location.id.toString()}>
-                        {location.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
