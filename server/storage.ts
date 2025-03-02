@@ -959,15 +959,18 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching LOBs for location ${locationId} in organization ${organizationId}`);
 
-      // Get unique LOBs from user_processes table that are associated with the location
-      const lobs = await db
-        .selectDistinct({
+      // First get all user processes for this location
+      const userProcessesWithLobs = await db
+        .select({
           id: organizationLineOfBusinesses.id,
           name: organizationLineOfBusinesses.name,
           description: organizationLineOfBusinesses.description,
           organizationId: organizationLineOfBusinesses.organizationId,
           createdAt: organizationLineOfBusinesses.createdAt,
-          updatedAt: organizationLineOfBusinesses.updatedAt
+          updatedAt: organizationLineOfBusinesses.updatedAt,
+          // Include these for debugging
+          processId: userProcesses.processId,
+          locationId: userProcesses.locationId
         })
         .from(userProcesses)
         .innerJoin(
@@ -977,8 +980,27 @@ export class DatabaseStorage implements IStorage {
         .where(eq(userProcesses.locationId, locationId))
         .where(eq(organizationLineOfBusinesses.organizationId, organizationId));
 
-      console.log(`Found ${lobs.length} unique LOBs for location ${locationId}:`, lobs);
-      return lobs as OrganizationLineOfBusiness[];
+      console.log('Raw user processes with LOBs:', userProcessesWithLobs);
+
+      // Get unique LOBs by filtering out duplicates
+      const uniqueLobs = Array.from(
+        new Map(
+          userProcessesWithLobs.map(item => [
+            item.id,
+            {
+              id: item.id,
+              name: item.name,
+              description: item.description,
+              organizationId: item.organizationId,
+              createdAt: item.createdAt,
+              updatedAt: item.updatedAt
+            }
+          ])
+        ).values()
+      );
+
+      console.log(`Found ${uniqueLobs.length} unique LOBs for location ${locationId}:`, uniqueLobs);
+      return uniqueLobs as OrganizationLineOfBusiness[];
     } catch (error) {
       console.error('Error fetching LOBs by location:', error);
       throw error;

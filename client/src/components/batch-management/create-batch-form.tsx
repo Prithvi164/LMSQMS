@@ -206,13 +206,15 @@ export function CreateBatchForm() {
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder={
-                        !selectedLocation 
-                          ? "Select a location first"
-                          : isLoadingLobs 
-                          ? "Loading..." 
-                          : "Select LOB"
-                      } />
+                      <SelectValue 
+                        placeholder={
+                          !selectedLocation 
+                            ? "Select a location first" 
+                            : isLoadingLobs 
+                            ? "Loading..." 
+                            : "Select LOB"
+                        } 
+                      />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -253,7 +255,7 @@ export function CreateBatchForm() {
                     form.setValue('trainerId', undefined);
                   }}
                   value={field.value?.toString()}
-                  disabled={!selectedLob}
+                  //disabled={!selectedLob}  Removed disabled attribute
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -289,7 +291,7 @@ export function CreateBatchForm() {
                 <Select
                   onValueChange={(value) => field.onChange(parseInt(value))}
                   value={field.value?.toString()}
-                  disabled={!selectedProcess}
+                  //disabled={!selectedProcess} Removed disabled attribute
                 >
                   <FormControl>
                     <SelectTrigger>
