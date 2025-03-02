@@ -65,15 +65,15 @@ export function CreateBatchForm() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Filter managers based on location and process
+  // Filter managers based on location and process - any role can be a manager
   const filteredManagers = allUsers.filter(user => {
-    const isManager = user.role === 'manager';
+    const isActive = user.active;
     const matchesLocation = !selectedLocation || user.locationId === selectedLocation;
     // A manager should be able to manage any process in their LOB
     const matchesProcess = !selectedLob || allProcesses.some(
       process => process.lineOfBusinessId === selectedLob && user.processes.includes(process.id)
     );
-    return isManager && matchesLocation && matchesProcess;
+    return isActive && matchesLocation && matchesProcess;
   });
 
   // Filter trainers based on selected manager
@@ -296,7 +296,7 @@ export function CreateBatchForm() {
                   <SelectContent>
                     {filteredManagers.map((manager) => (
                       <SelectItem key={manager.id} value={manager.id.toString()}>
-                        {manager.fullName}
+                        {manager.username} ({manager.role})
                       </SelectItem>
                     ))}
                   </SelectContent>
