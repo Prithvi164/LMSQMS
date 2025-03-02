@@ -964,7 +964,7 @@ export class DatabaseStorage implements IStorage {
         .selectDistinct({
           id: organizationLineOfBusinesses.id,
           name: organizationLineOfBusinesses.name,
-          description: organizationLineBusinesses.description,
+          description: organizationLineOfBusinesses.description,
           organizationId: organizationLineOfBusinesses.organizationId,
           createdAt: organizationLineOfBusinesses.createdAt,
           updatedAt: organizationLineOfBusinesses.updatedAt

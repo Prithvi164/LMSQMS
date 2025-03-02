@@ -205,13 +205,23 @@ export function CreateBatchForm() {
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder={isLoadingLobs ? "Loading..." : "Select LOB"} />
+                      <SelectValue placeholder={
+                        isLoadingLobs 
+                          ? "Loading..." 
+                          : !selectedLocation 
+                          ? "Select a location first"
+                          : "Select LOB"
+                      } />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
                     {isLoadingLobs ? (
                       <div className="flex items-center justify-center p-2">
                         <Loader2 className="h-4 w-4 animate-spin" />
+                      </div>
+                    ) : lobs.length === 0 ? (
+                      <div className="flex items-center justify-center p-2 text-sm text-muted-foreground">
+                        No LOBs available for this location
                       </div>
                     ) : (
                       lobs.map((lob) => (
