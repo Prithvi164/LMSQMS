@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { addDays, format } from "date-fns";
+import { addDays, format, isSunday } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -25,19 +25,41 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 
+// Helper function to add working days (skip Sundays)
+const addWorkingDays = (startDate: Date, days: number): Date => {
+  let currentDate = startDate;
+  let remainingDays = days;
+
+  while (remainingDays > 0) {
+    currentDate = addDays(currentDate, 1);
+    if (!isSunday(currentDate)) {
+      remainingDays--;
+    }
+  }
+
+  return currentDate;
+};
+
 // Helper function to calculate batch dates
 const calculateBatchDates = (startDate: string, process: any) => {
   if (!startDate || !process) return null;
 
   const inductionStartDate = new Date(startDate);
-  const inductionEndDate = addDays(inductionStartDate, process.inductionDays - 1);
-  const trainingStartDate = addDays(inductionEndDate, 1);
-  const trainingEndDate = addDays(trainingStartDate, process.trainingDays - 1);
-  const certificationStartDate = addDays(trainingEndDate, 1);
-  const certificationEndDate = addDays(certificationStartDate, process.certificationDays - 1);
+
+  // Skip if start date is Sunday
+  const adjustedStartDate = isSunday(inductionStartDate) 
+    ? addDays(inductionStartDate, 1) 
+    : inductionStartDate;
+
+  // Calculate end dates using working days
+  const inductionEndDate = addWorkingDays(adjustedStartDate, process.inductionDays - 1);
+  const trainingStartDate = addWorkingDays(inductionEndDate, 1);
+  const trainingEndDate = addWorkingDays(trainingStartDate, process.trainingDays - 1);
+  const certificationStartDate = addWorkingDays(trainingEndDate, 1);
+  const certificationEndDate = addWorkingDays(certificationStartDate, process.certificationDays - 1);
 
   return {
-    inductionStart: format(inductionStartDate, 'yyyy-MM-dd'),
+    inductionStart: format(adjustedStartDate, 'yyyy-MM-dd'),
     inductionEnd: format(inductionEndDate, 'yyyy-MM-dd'),
     trainingStart: format(trainingStartDate, 'yyyy-MM-dd'),
     trainingEnd: format(trainingEndDate, 'yyyy-MM-dd'),
