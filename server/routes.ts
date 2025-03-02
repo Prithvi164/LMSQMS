@@ -419,7 +419,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Remove duplicate location route and update the remaining one
+  // Add this route to get locations
   app.get("/api/organizations/:orgId/locations", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -431,8 +431,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only view locations in your own organization" });
       }
 
-      console.log(`Fetching locations through user_processes for organization ${orgId}`);
       const locations = await storage.listLocations(orgId);
+      console.log('Locations:', locations);
       res.json(locations);
     } catch (error: any) {
       console.error("Error fetching locations:", error);
@@ -440,41 +440,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-
-  // Add route for getting locations filtered by user_processes
-  //This route is already present, no need to add again.
-
-  // Update LOB by location route to be more explicit about the data source
-  app.get("/api/organizations/:orgId/locations/:locationId/line-of-businesses", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const orgId = parseInt(req.params.orgId);
-      const locationId = parseInt(req.params.locationId);
-
-      console.log(`[Route] Received request for LOBs - Location: ${locationId}, Org: ${orgId}, User: ${req.user.id}`);
-
-      if (isNaN(orgId) || isNaN(locationId)) {
-        console.log('[Route] Invalid ID parameters received');
-        return res.status(400).json({ message: "Invalid organization or location ID" });
-      }
-
-      // Check if user belongs to the organization
-      if (req.user.organizationId !== orgId) {
-        console.log(`[Route] Organization mismatch - User org: ${req.user.organizationId}, Requested org: ${orgId}`);
-        return res.status(403).json({ message: "You can only view LOBs in your own organization" });
-      }
-
-      console.log(`[Route] Fetching LOBs through user_processes for location ${locationId} in organization ${orgId}`);
-      const lobs = await storage.getLineOfBusinessesByLocation(orgId, locationId);
-
-      console.log(`[Route] Successfully retrieved ${lobs.length} LOBs for location ${locationId}`);
-      res.json(lobs);
-    } catch (error: any) {
-      console.error("[Route] Error fetching LOBs by location:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
 
   // Permissions routes
   app.get("/api/permissions", async (req, res) => {
@@ -821,7 +786,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         organizationId: orgId, // Ensure we keep the correct organization ID
       });
 
-      res.json(updatedLob);    } catch (error: any) {
+      res.json(updatedLob);
+    } catch (error: any) {
       console.error("LOB update error:", error);
       res.status(400).json({ message: error.message || "Failed to update Line of Business" });
     }
@@ -833,7 +799,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const orgId = parseInt(req.params.id);
-      const lobId= parseInt(req.params.lobId);
+      const lobId = parseInt(req.params.lobId);
 
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
@@ -866,7 +832,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Fetch related data for each batch
       const batchesWithDetails = await Promise.all(batches.map(async (batch) => {
-        const [process, location, trainer] =await Promise.all([
+        const [process, location, trainer] = await Promise.all([
           storage.getProcess(batch.processId),
           storage.getLocation(batch.locationId),
           storage.getUser(batch.trainerId)
@@ -1015,102 +981,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Batch deletion error:", error);
       res.status(400).json({ message: error.message });
-    }
-  });
-
-  // Add these new endpoints for manager and trainer filtering
-  app.get("/api/locations/:locationId/managers", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const locationId = parseInt(req.params.locationId);
-      const managers = await storage.getActiveManagersByLocation(locationId);
-      res.json(managers);
-    } catch (error: any) {
-      console.error("Error fetching managers:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  app.get("/api/managers/:managerId/trainers", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const managerId = parseInt(req.params.managerId);
-      const trainers = await storage.getActiveTrainersByManager(managerId);
-      res.json(trainers);
-    } catch (error: any) {
-      console.error("Error fetching trainers:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-  // Add route to get LOBs by location
-  app.get("/api/locations/:locationId/line-of-businesses", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const locationId = parseInt(req.params.locationId);
-      const organizationId = req.user.organizationId;
-
-      // Check if user belongs to the organization
-      if (!organizationId) {
-        return res.status(400).json({ message: "No organization ID found" });
-      }
-
-      const lobs = await storage.getLineOfBusinessesByLocation(locationId, organizationId);
-      res.json(lobs);
-    } catch (error: any) {
-      console.error("Error fetching LOBs by location:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Add route to get trainers by location and process
-  app.get("/api/locations/:locationId/processes/:processId/trainers", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const locationId = parseInt(req.params.locationId);
-      const processId = parseInt(req.params.processId);
-
-      // Get active trainers for this location and process
-      const trainers = await storage.getActiveTrainersByLocationAndProcess(locationId, processId);
-      res.json(trainers);
-    } catch (error: any) {
-      console.error("Error fetching trainers:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Update route for getting LOBs by location
-  app.get("/api/organizations/:orgId/locations/:locationId/line-of-businesses", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const orgId = parseInt(req.params.orgId);
-      const locationId = parseInt(req.params.locationId);
-
-      console.log(`[Route] Received request for LOBs - Location: ${locationId}, Org: ${orgId}, User: ${req.user.id}`);
-
-      if (isNaN(orgId) || isNaN(locationId)) {
-        console.log('[Route] Invalid ID parameters received');
-        return res.status(400).json({ message: "Invalid organization or location ID" });
-      }
-
-      // Check if user belongs to the organization
-      if (req.user.organizationId !== orgId) {
-        console.log(`[Route] Organization mismatch - User org: ${req.user.organizationId}, Requested org: ${orgId}`);
-        return res.status(403).json({ message: "You can only view LOBs in your own organization" });
-      }
-
-      console.log(`[Route] Fetching LOBs through user_processes for location ${locationId} in organization ${orgId}`);
-      const lobs = await storage.getLineOfBusinessesByLocation(orgId, locationId);
-
-      console.log(`[Route] Successfully retrieved ${lobs.length} LOBs for location ${locationId}`);
-      res.json(lobs);
-    } catch (error: any) {
-      console.error("[Route] Error fetching LOBs by location:", error);
-      res.status(500).json({ message: error.message });
     }
   });
 

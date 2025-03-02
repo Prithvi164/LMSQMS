@@ -218,7 +218,7 @@ export const users = pgTable("users", {
 
 export type User = InferSelectModel<typeof users>;
 
-// Add locationId to user_processes table
+// User Processes junction table
 export const userProcesses = pgTable("user_processes", {
   id: serial("id").primaryKey(),
   userId: integer("user_id")
@@ -226,12 +226,6 @@ export const userProcesses = pgTable("user_processes", {
     .notNull(),
   processId: integer("process_id")
     .references(() => organizationProcesses.id)
-    .notNull(),
-  lineOfBusinessId: integer("line_of_business_id")
-    .references(() => organizationLineOfBusinesses.id)
-    .notNull(),
-  locationId: integer("location_id")
-    .references(() => organizationLocations.id)
     .notNull(),
   organizationId: integer("organization_id")
     .references(() => organizations.id)
@@ -308,7 +302,6 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   batches: many(organizationBatches)
 }));
 
-// Update relations
 export const userProcessesRelations = relations(userProcesses, ({ one }) => ({
   user: one(users, {
     fields: [userProcesses.userId],
@@ -322,14 +315,6 @@ export const userProcessesRelations = relations(userProcesses, ({ one }) => ({
     fields: [userProcesses.organizationId],
     references: [organizations.id],
   }),
-  lineOfBusiness: one(organizationLineOfBusinesses, {
-    fields: [userProcesses.lineOfBusinessId],
-    references: [organizationLineOfBusinesses.id],
-  }),
-  location: one(organizationLocations, {
-    fields: [userProcesses.locationId],
-    references: [organizationLocations.id],
-  })
 }));
 
 export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => ({

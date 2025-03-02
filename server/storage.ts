@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
@@ -92,14 +92,6 @@ export interface IStorage {
   listBatches(organizationId: number): Promise<OrganizationBatch[]>;
   updateBatch(id: number, batch: Partial<InsertOrganizationBatch>): Promise<OrganizationBatch>;
   deleteBatch(id: number): Promise<void>;
-
-  // Add new methods for user filtering
-  getActiveManagersByLocation(locationId: number): Promise<User[]>;
-  getActiveTrainersByManager(managerId: number): Promise<User[]>;
-  getActiveTrainersByLocationAndProcess(locationId: number, processId: number): Promise<User[]>;
-
-  // Add new method for LOB filtering
-  getLineOfBusinessesByLocation(locationId: number, organizationId: number): Promise<OrganizationLineOfBusiness[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -141,34 +133,23 @@ export class DatabaseStorage implements IStorage {
         }
       }
 
-      return await db.transaction(async (tx) => {
-        // Update user
-        const [updatedUser] = await tx
-          .update(users)
-          .set({
-            ...user,
-            // Ensure we're not overwriting these fields unintentionally
-            id: undefined,
-            createdAt: undefined,
-          })
-          .where(eq(users.id, id))
-          .returning() as User[];
+      const [updatedUser] = await db
+        .update(users)
+        .set({
+          ...user,
+          // Ensure we're not overwriting these fields unintentionally
+          id: undefined,
+          createdAt: undefined,
+        })
+        .where(eq(users.id, id))
+        .returning() as User[];
 
-        if (!updatedUser) {
-          throw new Error('User not found');
-        }
+      if (!updatedUser) {
+        throw new Error('User not found');
+      }
 
-        // If location is being updated, also update user_processes
-        if (user.locationId) {
-          await tx
-            .update(userProcesses)
-            .set({ locationId: user.locationId })
-            .where(eq(userProcesses.userId, id));
-        }
-
-        console.log('Successfully updated user:', updatedUser);
-        return updatedUser;
-      });
+      console.log('Successfully updated user:', updatedUser);
+      return updatedUser;
     } catch (error: any) {
       console.error('Error updating user:', error);
       throw error;
@@ -651,19 +632,11 @@ export class DatabaseStorage implements IStorage {
           return { user: newUser, processes: [] };
         }
 
-        // Get the processes to get their line of business IDs
-        const processes = await tx
-          .select()
-          .from(organizationProcesses)
-          .where(sql`${organizationProcesses.id} IN (${sql.join(processIds, sql`, `)})`);
-
-        // Create process assignments with line of business IDs and location ID
-        const processAssignments = processes.map(process => ({
+        // Create process assignments
+        const processAssignments = processIds.map(processId => ({
           userId: newUser.id,
-          processId: process.id,
+          processId,
           organizationId,
-          lineOfBusinessId: process.lineOfBusinessId,
-          locationId: newUser.locationId,
           status: 'assigned'
         }));
 
@@ -710,31 +683,16 @@ export class DatabaseStorage implements IStorage {
   async listLocations(organizationId: number): Promise<OrganizationLocation[]> {
     try {
       console.log(`Fetching locations for organization ${organizationId}`);
-
-      // Get locations through user_processes table
       const locations = await db
-        .selectDistinct({
-          id: organizationLocations.id,
-          name: organizationLocations.name,
-          address: organizationLocations.address,
-          city: organizationLocations.city,
-          state: organizationLocations.state,
-          country: organizationLocations.country,
-          organizationId: organizationLocations.organizationId,
-          createdAt: organizationLocations.createdAt
-        })
+        .select()
         .from(organizationLocations)
-        .innerJoin(
-          userProcesses,
-          eq(userProcesses.locationId, organizationLocations.id)
-        )
-        .where(eq(organizationLocations.organizationId, organizationId));
+        .where(eq(organizationLocations.organizationId, organizationId)) as OrganizationLocation[];
 
-      console.log(`Found ${locations.length} locations through user_processes:`, locations);
-      return locations as OrganizationLocation[];
+      console.log(`Found ${locations.length} locations`);
+      return locations;
     } catch (error) {
       console.error('Error fetching locations:', error);
-      throw error;
+      throw new Error('Failed to fetch locations');
     }
   }
 
@@ -917,88 +875,6 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-
-  async getActiveManagersByLocation(locationId: number): Promise<User[]> {
-    try {
-      const managers = await db
-        .select()
-        .from(users)
-        .where(eq(users.locationId, locationId))
-        .where(eq(users.role, 'manager'))
-        .where(eq(users.active, true))
-        .where(eq(users.category, 'active')) as User[];
-
-      return managers;
-    } catch (error) {
-      console.error('Error fetching managers by location:', error);
-      throw error;
-    }
-  }
-
-  async getActiveTrainersByManager(managerId: number): Promise<User[]> {
-    try {
-      const trainers = await db
-        .select()
-        .from(users)
-        .where(eq(users.managerId, managerId))
-        .where(eq(users.role, 'trainer'))
-        .where(eq(users.active, true))
-        .where(eq(users.category, 'active')) as User[];
-
-      return trainers;
-    } catch (error) {
-      console.error('Error fetching trainers by manager:', error);
-      throw error;
-    }
-  }
-  async getActiveTrainersByLocationAndProcess(locationId: number, processId: number): Promise<User[]> {
-    try {
-      // Get all active trainers in this location who are assigned to this process
-      const trainers = await db
-        .select()
-        .from(users)
-        .where(eq(users.locationId, locationId))
-        .where(eq(users.role, 'trainer'))
-        .where(eq(users.active, true))
-        .where(eq(users.category, 'active'))
-        .leftJoin(userProcesses, eq(users.id, userProcesses.userId))
-        .where(eq(userProcesses.processId, processId)) as User[];
-
-      return trainers;
-    } catch (error) {
-      console.error('Error fetching trainers by location and process:', error);
-      throw error      }
-    }
-  }
-  async getLineOfBusinessesByLocation(locationId: number, organizationId: number): Promise<OrganizationLineOfBusiness[]> {
-    try {
-      console.log(`[Storage] DEBUG: Starting LOB fetch for location ${locationId} in org ${organizationId}`);
-
-      // Get distinct LOBs from user_processes for this location
-      const result = await db
-        .selectDistinct({
-          id: organizationLineOfBusinesses.id,
-          name: organizationLineOfBusinesses.name,
-          description: organizationLineOfBusinesses.description,
-          organizationId: organizationLineOfBusinesses.organizationId,
-          createdAt: organizationLineOfBusinesses.createdAt
-        })
-        .from(userProcesses)
-        .innerJoin(
-          organizationLineOfBusinesses,
-          eq(userProcesses.lineOfBusinessId, organizationLineOfBusinesses.id)
-        )
-        .where(eq(userProcesses.locationId, locationId))
-        .where(eq(userProcesses.organizationId, organizationId));
-
-      console.log(`[Storage] DEBUG: Found LOBs:`, result);
-      return result as OrganizationLineOfBusiness[];
-    } catch (error) {
-      console.error('[Storage] Error fetching LOBs by location:', error);
-      throw error;
-    }
-  }
-
 }
 
 export const storage = new DatabaseStorage();

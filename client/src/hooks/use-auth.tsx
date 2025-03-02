@@ -30,63 +30,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryKey: ["/api/user"],
     queryFn: async () => {
       try {
-        console.log("[Auth] Fetching user data");
-        const res = await fetch("/api/user", {
-          credentials: "include",
-          headers: {
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-          }
-        });
-
-        console.log("[Auth] User data response status:", res.status);
-
-        if (res.status === 401) {
-          console.log("[Auth] User not authenticated");
-          return null;
-        }
-
-        if (!res.ok) {
-          throw new Error(`Failed to fetch user: ${res.statusText}`);
-        }
-
-        const data = await res.json();
-        console.log("[Auth] User data retrieved:", data);
-        return data;
+        const res = await fetch("/api/user", { credentials: "include" });
+        if (res.status === 401) return null;
+        if (!res.ok) throw new Error("Failed to fetch user");
+        return res.json();
       } catch (err) {
-        console.error("[Auth] Error fetching user data:", err);
-        return null;
+        throw err;
       }
     },
-    retry: false,
-    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
-      console.log("[Auth] Attempting login");
-      const res = await fetch("/api/login", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(credentials),
-      });
-
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Invalid username or password");
-      }
-
+      const res = await apiRequest("POST", "/api/login", credentials);
       return res.json();
     },
     onSuccess: (user: User) => {
-      console.log("[Auth] Login successful");
       queryClient.setQueryData(["/api/user"], user);
     },
     onError: (error: Error) => {
-      console.error("[Auth] Login error:", error);
       toast({
         title: "Login failed",
         description: error.message,
@@ -97,29 +59,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const registerMutation = useMutation({
     mutationFn: async (data: InsertUser) => {
-      console.log("[Auth] Attempting registration");
-      const res = await fetch("/api/register", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Registration failed");
-      }
-
+      const res = await apiRequest("POST", "/api/register", data);
       return res.json();
     },
     onSuccess: (user: User) => {
-      console.log("[Auth] Registration successful");
       queryClient.setQueryData(["/api/user"], user);
     },
     onError: (error: Error) => {
-      console.error("[Auth] Registration error:", error);
       toast({
         title: "Registration failed",
         description: error.message,
@@ -130,23 +76,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      console.log("[Auth] Attempting logout");
-      const res = await fetch("/api/logout", {
-        method: "POST",
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Logout failed");
-      }
+      await apiRequest("POST", "/api/logout");
     },
     onSuccess: () => {
-      console.log("[Auth] Logout successful");
       queryClient.setQueryData(["/api/user"], null);
     },
     onError: (error: Error) => {
-      console.error("[Auth] Logout error:", error);
       toast({
         title: "Logout failed",
         description: error.message,
