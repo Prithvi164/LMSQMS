@@ -3,22 +3,95 @@ import { createInsertSchema } from "drizzle-zod";
 import { relations, type InferSelectModel } from "drizzle-orm";
 import { z } from "zod";
 
-// Define enums
-export const userCategoryTypeEnum = pgEnum('user_category_type', ['active', 'trainee']);
-
-// Role enum section with proper type definitions
-export const roleEnum = pgEnum('role', [
-  'owner',     // Highest level - Full system access
-  'admin',     // Organization-wide administration
-  'manager',   // Department/team management
-  'team_lead', // Team supervision
-  'qualityassurance', // Quality monitoring and assurance
-  'trainer',   // Training delivery
-  'advisor'    // Support and guidance
+// Add batch status enum
+export const batchStatusEnum = pgEnum('batch_status', [
+  'planned',
+  'ongoing',
+  'completed'
 ]);
 
+// Existing enums remain unchanged...
+export const userCategoryTypeEnum = pgEnum('user_category_type', ['active', 'trainee']);
+export const roleEnum = pgEnum('role', [
+  'owner',     
+  'admin',     
+  'manager',   
+  'team_lead', 
+  'qualityassurance',
+  'trainer',   
+  'advisor'    
+]);
+
+// Add organizationBatches table
+export const organizationBatches = pgTable("organization_batches", {
+  id: serial("id").primaryKey(),
+  batchCode: text("batch_code").notNull().unique(),
+  name: text("name").notNull(),
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date").notNull(),
+  status: batchStatusEnum("status").default('planned').notNull(),
+  capacityLimit: integer("capacity_limit").notNull(),
+  processId: integer("process_id")
+    .references(() => organizationProcesses.id)
+    .notNull(),
+  locationId: integer("location_id")
+    .references(() => organizationLocations.id)
+    .notNull(),
+  trainerId: integer("trainer_id")
+    .references(() => users.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type OrganizationBatch = InferSelectModel<typeof organizationBatches>;
+
+// Add relations for batches
+export const organizationBatchesRelations = relations(organizationBatches, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [organizationBatches.organizationId],
+    references: [organizations.id],
+  }),
+  process: one(organizationProcesses, {
+    fields: [organizationBatches.processId],
+    references: [organizationProcesses.id],
+  }),
+  location: one(organizationLocations, {
+    fields: [organizationBatches.locationId],
+    references: [organizationLocations.id],
+  }),
+  trainer: one(users, {
+    fields: [organizationBatches.trainerId],
+    references: [users.id],
+  }),
+}));
+
+// Add Zod schema for batch creation/updates
+export const insertOrganizationBatchSchema = createInsertSchema(organizationBatches)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    batchCode: z.string().min(1, "Batch code is required"),
+    name: z.string().min(1, "Batch name is required"),
+    startDate: z.string().min(1, "Start date is required"),
+    endDate: z.string().min(1, "End date is required"),
+    capacityLimit: z.number().int().min(1, "Capacity must be at least 1"),
+    status: z.enum(['planned', 'ongoing', 'completed']).default('planned'),
+    processId: z.number().int().positive("Process is required"),
+    locationId: z.number().int().positive("Location is required"),
+    trainerId: z.number().int().positive("Trainer is required"),
+    organizationId: z.number().int().positive("Organization is required"),
+  });
+
+export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
+
 // Rest of the enums and tables remain unchanged...
-// Only removed batch-related schemas and kept all other existing schemas
 
 export const permissionEnum = pgEnum('permission', [
   'manage_billing',
@@ -189,9 +262,10 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   locations: many(organizationLocations),
   lineOfBusinesses: many(organizationLineOfBusinesses),
   rolePermissions: many(rolePermissions),
+  batches: many(organizationBatches)
 }));
 
-export const organizationProcessesRelations = relations(organizationProcesses, ({ one }) => ({
+export const organizationProcessesRelations = relations(organizationProcesses, ({ one, many }) => ({
   organization: one(organizations, {
     fields: [organizationProcesses.organizationId],
     references: [organizations.id],
@@ -200,13 +274,15 @@ export const organizationProcessesRelations = relations(organizationProcesses, (
     fields: [organizationProcesses.lineOfBusinessId],
     references: [organizationLineOfBusinesses.id],
   }),
+  batches: many(organizationBatches)
 }));
 
-export const organizationLocationsRelations = relations(organizationLocations, ({ one }) => ({
+export const organizationLocationsRelations = relations(organizationLocations, ({ one, many }) => ({
   organization: one(organizations, {
     fields: [organizationLocations.organizationId],
     references: [organizations.id],
   }),
+  batches: many(organizationBatches)
 }));
 
 export const usersRelations = relations(users, ({ one, many }) => ({
@@ -223,6 +299,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     references: [organizationLocations.id],
   }),
   managedProcesses: many(userProcesses),
+  batches: many(organizationBatches)
 }));
 
 export const userProcessesRelations = relations(userProcesses, ({ one }) => ({
@@ -326,6 +403,7 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
 export type InsertOrganizationProcess = z.infer<typeof insertOrganizationProcessSchema>;
 export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
+export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
 
 export type {
   Organization,
@@ -338,5 +416,7 @@ export type {
   InsertUser,
   InsertOrganization,
   InsertOrganizationProcess,
-  InsertRolePermission
+  InsertRolePermission,
+  OrganizationBatch,
+  InsertOrganizationBatch
 };
