@@ -671,12 +671,14 @@ export class DatabaseStorage implements IStorage {
 
   async getProcessesByLineOfBusiness(organizationId: number, lobId: number): Promise<OrganizationProcess[]> {
     try {
+      console.log(`Fetching processes for LOB ${lobId} in organization ${organizationId}`);
       const processes = await db
         .select()
         .from(organizationProcesses)
         .where(eq(organizationProcesses.organizationId, organizationId))
         .where(eq(organizationProcesses.lineOfBusinessId, lobId)) as OrganizationProcess[];
 
+      console.log(`Found ${processes.length} processes for LOB`);
       return processes;
     } catch (error) {
       console.error('Error fetching processes by LOB:', error);
@@ -882,6 +884,7 @@ export class DatabaseStorage implements IStorage {
 
   async getActiveManagersByLocation(locationId: number): Promise<User[]> {
     try {
+      console.log(`Fetching active managers for location ${locationId}`);
       const managers = await db
         .select()
         .from(users)
@@ -890,6 +893,7 @@ export class DatabaseStorage implements IStorage {
         .where(eq(users.active, true))
         .where(eq(users.category, 'active')) as User[];
 
+      console.log(`Found ${managers.length} active managers`);
       return managers;
     } catch (error) {
       console.error('Error fetching managers by location:', error);
@@ -899,6 +903,7 @@ export class DatabaseStorage implements IStorage {
 
   async getActiveTrainersByManager(managerId: number): Promise<User[]> {
     try {
+      console.log(`Fetching active trainers for manager ${managerId}`);
       const trainers = await db
         .select()
         .from(users)
@@ -907,6 +912,7 @@ export class DatabaseStorage implements IStorage {
         .where(eq(users.active, true))
         .where(eq(users.category, 'active')) as User[];
 
+      console.log(`Found ${trainers.length} active trainers`);
       return trainers;
     } catch (error) {
       console.error('Error fetching trainers by manager:', error);

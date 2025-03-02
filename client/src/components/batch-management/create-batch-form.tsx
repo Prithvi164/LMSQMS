@@ -38,7 +38,7 @@ export function CreateBatchForm() {
   });
 
   // Fetch processes filtered by selected LOB
-  const { data: processes = [] } = useQuery({
+  const { data: processes = [], isLoading: isLoadingProcesses } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/processes`, selectedLob],
     enabled: !!selectedLob,
   });
@@ -150,6 +150,8 @@ export function CreateBatchForm() {
                   onValueChange={(value) => {
                     field.onChange(parseInt(value));
                     setSelectedLob(parseInt(value));
+                    // Reset process when LOB changes
+                    form.setValue('processId', undefined);
                   }}
                   value={field.value?.toString()}
                 >
@@ -180,11 +182,11 @@ export function CreateBatchForm() {
                 <Select
                   onValueChange={(value) => field.onChange(parseInt(value))}
                   value={field.value?.toString()}
-                  disabled={!selectedLob}
+                  disabled={!selectedLob || isLoadingProcesses}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select process" />
+                      <SelectValue placeholder={isLoadingProcesses ? "Loading processes..." : "Select process"} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
