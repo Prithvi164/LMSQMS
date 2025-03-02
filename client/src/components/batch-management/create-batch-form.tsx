@@ -213,6 +213,8 @@ export function CreateBatchForm() {
                     setSelectedLocation(locationId);
                     setSelectedManager(null); // Reset manager when location changes
                     form.setValue('trainerId', undefined); // Reset trainer when location changes
+                    // Invalidate the managers query to force a refresh
+                    queryClient.invalidateQueries({ queryKey: [`/api/locations/${locationId}/managers`] });
                   }}
                   value={field.value?.toString()}
                 >
@@ -246,13 +248,15 @@ export function CreateBatchForm() {
                     const managerId = parseInt(value);
                     setSelectedManager(managerId);
                     form.setValue('trainerId', undefined); // Reset trainer when manager changes
+                    // Invalidate the trainers query to force a refresh
+                    queryClient.invalidateQueries({ queryKey: [`/api/managers/${managerId}/trainers`] });
                   }}
                   value={selectedManager?.toString()}
-                  disabled={!selectedLocation}
+                  disabled={!selectedLocation || isLoadingManagers}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select manager" />
+                      <SelectValue placeholder={isLoadingManagers ? "Loading managers..." : "Select manager"} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -277,11 +281,11 @@ export function CreateBatchForm() {
                 <Select
                   onValueChange={(value) => field.onChange(parseInt(value))}
                   value={field.value?.toString()}
-                  disabled={!selectedManager}
+                  disabled={!selectedManager || isLoadingTrainers}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select trainer" />
+                      <SelectValue placeholder={isLoadingTrainers ? "Loading trainers..." : "Select trainer"} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
