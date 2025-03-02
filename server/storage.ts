@@ -912,7 +912,7 @@ export class DatabaseStorage implements IStorage {
         return [];
       }
 
-      // Get distinct LOBs from organizationLineOfBusinesses table based on location
+      // Get distinct LOBs from user_processes table based on location
       const lobs = await db
         .select({
           id: organizationLineOfBusinesses.id,
@@ -930,10 +930,12 @@ export class DatabaseStorage implements IStorage {
         .where(eq(organizationLineOfBusinesses.organizationId, organizationId))
         .groupBy(organizationLineOfBusinesses.id) as OrganizationLineOfBusiness[];
 
-      console.log(`Found ${lobs.length} LOBs for location ${locationId}:`, {
-        lobDetails: lobs.map(lob => ({
+      console.log(`Found LOBs for location ${locationId}:`, {
+        count: lobs.length,
+        lobs: lobs.map(lob => ({
           id: lob.id,
-          name: lob.name
+          name: lob.name,
+          organizationId: lob.organizationId
         }))
       });
 
