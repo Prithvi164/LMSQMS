@@ -58,6 +58,15 @@ const calculateBatchDates = (startDate: string, process: any) => {
   const certificationStartDate = addWorkingDays(trainingEndDate, 1);
   const certificationEndDate = addWorkingDays(certificationStartDate, process.certificationDays - 1);
 
+  // Calculate OJT dates
+  const ojtStartDate = addWorkingDays(certificationEndDate, 1);
+  const ojtEndDate = addWorkingDays(ojtStartDate, process.ojtDays - 1);
+  const ojtCertificationStartDate = addWorkingDays(ojtEndDate, 1);
+  const ojtCertificationEndDate = addWorkingDays(ojtCertificationStartDate, process.ojtCertificationDays - 1);
+
+  // Batch handover date is the next working day after OJT certification ends
+  const batchHandoverDate = addWorkingDays(ojtCertificationEndDate, 1);
+
   return {
     inductionStart: format(adjustedStartDate, 'yyyy-MM-dd'),
     inductionEnd: format(inductionEndDate, 'yyyy-MM-dd'),
@@ -65,6 +74,11 @@ const calculateBatchDates = (startDate: string, process: any) => {
     trainingEnd: format(trainingEndDate, 'yyyy-MM-dd'),
     certificationStart: format(certificationStartDate, 'yyyy-MM-dd'),
     certificationEnd: format(certificationEndDate, 'yyyy-MM-dd'),
+    ojtStart: format(ojtStartDate, 'yyyy-MM-dd'),
+    ojtEnd: format(ojtEndDate, 'yyyy-MM-dd'),
+    ojtCertificationStart: format(ojtCertificationStartDate, 'yyyy-MM-dd'),
+    ojtCertificationEnd: format(ojtCertificationEndDate, 'yyyy-MM-dd'),
+    batchHandover: format(batchHandoverDate, 'yyyy-MM-dd')
   };
 };
 
@@ -496,11 +510,71 @@ export function CreateBatchForm() {
               </FormItem>
 
               <FormItem>
-                <FormLabel>Certification End Date (Batch End)</FormLabel>
+                <FormLabel>Certification End Date</FormLabel>
                 <FormControl>
                   <Input 
                     type="date" 
                     value={batchDates.certificationEnd}
+                    disabled
+                    readOnly
+                  />
+                </FormControl>
+              </FormItem>
+
+              <FormItem>
+                <FormLabel>OJT Start Date</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="date" 
+                    value={batchDates.ojtStart}
+                    disabled
+                    readOnly
+                  />
+                </FormControl>
+              </FormItem>
+
+              <FormItem>
+                <FormLabel>OJT End Date</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="date" 
+                    value={batchDates.ojtEnd}
+                    disabled
+                    readOnly
+                  />
+                </FormControl>
+              </FormItem>
+
+              <FormItem>
+                <FormLabel>OJT Certification Start Date</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="date" 
+                    value={batchDates.ojtCertificationStart}
+                    disabled
+                    readOnly
+                  />
+                </FormControl>
+              </FormItem>
+
+              <FormItem>
+                <FormLabel>OJT Certification End Date</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="date" 
+                    value={batchDates.ojtCertificationEnd}
+                    disabled
+                    readOnly
+                  />
+                </FormControl>
+              </FormItem>
+
+              <FormItem>
+                <FormLabel>BATCH HANDOVER TO OPS DATE</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="date" 
+                    value={batchDates.batchHandover}
                     disabled
                     readOnly
                   />
