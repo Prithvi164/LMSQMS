@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { addDays, format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -24,6 +25,27 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 
+// Helper function to calculate batch dates
+const calculateBatchDates = (startDate: string, process: any) => {
+  if (!startDate || !process) return null;
+
+  const inductionStartDate = new Date(startDate);
+  const inductionEndDate = addDays(inductionStartDate, process.inductionDays - 1);
+  const trainingStartDate = addDays(inductionEndDate, 1);
+  const trainingEndDate = addDays(trainingStartDate, process.trainingDays - 1);
+  const certificationStartDate = addDays(trainingEndDate, 1);
+  const certificationEndDate = addDays(certificationStartDate, process.certificationDays - 1);
+
+  return {
+    inductionStart: format(inductionStartDate, 'yyyy-MM-dd'),
+    inductionEnd: format(inductionEndDate, 'yyyy-MM-dd'),
+    trainingStart: format(trainingStartDate, 'yyyy-MM-dd'),
+    trainingEnd: format(trainingEndDate, 'yyyy-MM-dd'),
+    certificationStart: format(certificationStartDate, 'yyyy-MM-dd'),
+    certificationEnd: format(certificationEndDate, 'yyyy-MM-dd'),
+  };
+};
+
 export function CreateBatchForm() {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -31,6 +53,8 @@ export function CreateBatchForm() {
   const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
   const [selectedLob, setSelectedLob] = useState<number | null>(null);
   const [selectedTrainer, setSelectedTrainer] = useState<number | null>(null);
+  const [selectedProcess, setSelectedProcess] = useState<any>(null);
+  const [batchDates, setBatchDates] = useState<any>(null);
 
   // Step 1: Fetch Locations 
   const {
@@ -72,7 +96,12 @@ export function CreateBatchForm() {
     isLoading: isLoadingProcesses
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${selectedLob}/processes`],
-    enabled: !!selectedLob
+    enabled: !!selectedLob,
+    onSuccess: (data) => {
+      // Reset selected process when processes change
+      setSelectedProcess(null);
+      setBatchDates(null);
+    }
   });
 
   // Fetch trainers with location filter
@@ -147,6 +176,19 @@ export function CreateBatchForm() {
       });
     },
   });
+
+  // Effect to update batch dates when start date or process changes
+  useEffect(() => {
+    const startDate = form.getValues('startDate');
+    if (startDate && selectedProcess) {
+      const dates = calculateBatchDates(startDate, selectedProcess);
+      setBatchDates(dates);
+      // Update end date in form
+      if (dates) {
+        form.setValue('endDate', dates.certificationEnd);
+      }
+    }
+  }, [form.watch('startDate'), selectedProcess]);
 
   return (
     <Form {...form}>
@@ -280,7 +322,7 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Process */}
+          {/* Process selection - updated to store selected process */}
           <FormField
             control={form.control}
             name="processId"
@@ -288,7 +330,12 @@ export function CreateBatchForm() {
               <FormItem>
                 <FormLabel>Process</FormLabel>
                 <Select
-                  onValueChange={(value) => field.onChange(parseInt(value))}
+                  onValueChange={(value) => {
+                    const processId = parseInt(value);
+                    field.onChange(processId);
+                    const process = processes.find(p => p.id === processId);
+                    setSelectedProcess(process);
+                  }}
                   value={field.value?.toString()}
                   disabled={!selectedLob || isLoadingProcesses}
                 >
@@ -364,7 +411,7 @@ export function CreateBatchForm() {
             name="startDate"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Start Date</FormLabel>
+                <FormLabel>Batch Start Date (Induction Start)</FormLabel>
                 <FormControl>
                   <Input type="date" {...field} />
                 </FormControl>
@@ -373,20 +420,70 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* End Date */}
-          <FormField
-            control={form.control}
-            name="endDate"
-            render={({ field }) => (
+          {/* Display calculated dates */}
+          {batchDates && (
+            <>
               <FormItem>
-                <FormLabel>End Date</FormLabel>
+                <FormLabel>Induction End Date</FormLabel>
                 <FormControl>
-                  <Input type="date" {...field} />
+                  <Input 
+                    type="date" 
+                    value={batchDates.inductionEnd}
+                    disabled
+                    readOnly
+                  />
                 </FormControl>
-                <FormMessage />
               </FormItem>
-            )}
-          />
+
+              <FormItem>
+                <FormLabel>Training Start Date</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="date" 
+                    value={batchDates.trainingStart}
+                    disabled
+                    readOnly
+                  />
+                </FormControl>
+              </FormItem>
+
+              <FormItem>
+                <FormLabel>Training End Date</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="date" 
+                    value={batchDates.trainingEnd}
+                    disabled
+                    readOnly
+                  />
+                </FormControl>
+              </FormItem>
+
+              <FormItem>
+                <FormLabel>Certification Start Date</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="date" 
+                    value={batchDates.certificationStart}
+                    disabled
+                    readOnly
+                  />
+                </FormControl>
+              </FormItem>
+
+              <FormItem>
+                <FormLabel>Certification End Date (Batch End)</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="date" 
+                    value={batchDates.certificationEnd}
+                    disabled
+                    readOnly
+                  />
+                </FormControl>
+              </FormItem>
+            </>
+          )}
 
           {/* Capacity Limit */}
           <FormField
