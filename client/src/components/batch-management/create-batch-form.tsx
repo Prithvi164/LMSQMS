@@ -31,6 +31,7 @@ export function CreateBatchForm() {
   const [selectedLob, setSelectedLob] = useState<number | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
   const [selectedTrainer, setSelectedTrainer] = useState<number | null>(null);
+  const [selectedProcess, setSelectedProcess] = useState<number | null>(null); // Added state for selected process
 
   // Fetch LOBs
   const { data: lobs = [] } = useQuery<OrganizationLineOfBusiness[]>({
@@ -65,20 +66,22 @@ export function CreateBatchForm() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Filter trainers based on location - only active trainers
-  const filteredTrainers = allUsers.filter(user => {
-    const isTrainer = user.role === 'trainer';
-    const isActive = user.active && user.category === 'active';
+  // Filter trainers based on location, active status, and selected process
+  const filteredTrainers = allUsers.filter((user) => {
+    const isTrainer = user.role === "trainer";
+    const isActive = user.active && user.category === "active";
     const matchesLocation = !selectedLocation || user.locationId === selectedLocation;
-    return isTrainer && isActive && matchesLocation;
+    const matchesProcess = !selectedProcess || (user.processes && user.processes.includes(selectedProcess));
+    return isTrainer && isActive && matchesLocation && matchesProcess;
   });
 
-  // Filter co-trainers based on selected trainer
-  const filteredCoTrainers = allUsers.filter(user => {
-    const isTrainer = user.role === 'trainer';
-    const isActive = user.active && user.category === 'active';
+  // Filter co-trainers based on selected trainer, active status, and selected process
+  const filteredCoTrainers = allUsers.filter((user) => {
+    const isTrainer = user.role === "trainer";
+    const isActive = user.active && user.category === "active";
     const matchesTrainer = !selectedTrainer || user.managerId === selectedTrainer;
-    return isTrainer && isActive && matchesTrainer;
+    const matchesProcess = !selectedProcess || (user.processes && user.processes.includes(selectedProcess));
+    return isTrainer && isActive && matchesTrainer && matchesProcess;
   });
 
   const form = useForm<InsertOrganizationBatch>({
@@ -103,6 +106,7 @@ export function CreateBatchForm() {
       setSelectedLob(null);
       setSelectedLocation(null);
       setSelectedTrainer(null);
+      setSelectedProcess(null); // Reset selected process
     },
     onError: (error: Error) => {
       toast({
@@ -176,6 +180,7 @@ export function CreateBatchForm() {
                     form.setValue("managerId", undefined);
                     form.setValue("trainerId", undefined);
                     setSelectedTrainer(null);
+                    setSelectedProcess(null); //Reset selected process when LOB changes
                   }}
                   value={field.value?.toString()}
                 >
@@ -207,6 +212,7 @@ export function CreateBatchForm() {
                   onValueChange={(value) => {
                     const processId = parseInt(value);
                     field.onChange(processId);
+                    setSelectedProcess(processId); // Update selectedProcess state
                     // Reset trainer and co-trainer when process changes
                     form.setValue("managerId", undefined);
                     form.setValue("trainerId", undefined);
@@ -248,6 +254,7 @@ export function CreateBatchForm() {
                     form.setValue("managerId", undefined);
                     form.setValue("trainerId", undefined);
                     setSelectedTrainer(null);
+                    setSelectedProcess(null); //Reset selected process when location changes
                   }}
                   value={field.value?.toString()}
                 >
