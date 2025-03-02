@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { insertOrganizationBatchSchema, type InsertOrganizationBatch, type OrganizationProcess, type OrganizationLineOfBusiness } from "@shared/schema";
+import { insertOrganizationBatchSchema, type InsertOrganizationBatch, type OrganizationProcess, type OrganizationLineOfBusiness, type User } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
@@ -39,14 +39,14 @@ export function CreateBatchForm() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Fetch all processes (same as in add-user.tsx)
+  // Fetch all processes
   const { data: allProcesses = [], isLoading: isLoadingProcesses } = useQuery<OrganizationProcess[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/processes`],
     enabled: !!user?.organizationId,
     staleTime: 5 * 60 * 1000,
   });
 
-  // Filter processes based on selected LOB (same logic as add-user.tsx)
+  // Filter processes based on selected LOB
   const filteredProcesses = selectedLob
     ? allProcesses.filter((process) => process.lineOfBusinessId === selectedLob)
     : [];
@@ -58,18 +58,29 @@ export function CreateBatchForm() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Fetch managers based on selected location
-  const { data: managers = [], isLoading: isLoadingManagers } = useQuery({
-    queryKey: [`/api/locations/${selectedLocation}/managers`],
-    enabled: !!selectedLocation,
+  // Fetch all users
+  const { data: allUsers = [], isLoading: isLoadingUsers } = useQuery<User[]>({
+    queryKey: [`/api/organizations/${user?.organizationId}/users`],
+    enabled: !!user?.organizationId,
     staleTime: 5 * 60 * 1000,
   });
 
-  // Fetch trainers based on selected manager
-  const { data: trainers = [], isLoading: isLoadingTrainers } = useQuery({
-    queryKey: [`/api/managers/${selectedManager}/trainers`],
-    enabled: !!selectedManager,
-    staleTime: 5 * 60 * 1000,
+  // Filter managers based on location and process
+  const filteredManagers = allUsers.filter(user => {
+    const isManager = user.role === 'manager';
+    const matchesLocation = !selectedLocation || user.locationId === selectedLocation;
+    // A manager should be able to manage any process in their LOB
+    const matchesProcess = !selectedLob || allProcesses.some(
+      process => process.lineOfBusinessId === selectedLob && user.processes.includes(process.id)
+    );
+    return isManager && matchesLocation && matchesProcess;
+  });
+
+  // Filter trainers based on selected manager
+  const filteredTrainers = allUsers.filter(user => {
+    const isTrainer = user.role === 'trainer';
+    const matchesManager = !selectedManager || user.managerId === selectedManager;
+    return isTrainer && matchesManager;
   });
 
   const form = useForm<InsertOrganizationBatch>({
@@ -112,10 +123,9 @@ export function CreateBatchForm() {
     selectedLob,
     selectedLocation,
     selectedManager,
-    managers,
-    isLoadingManagers,
-    trainers,
-    isLoadingTrainers,
+    filteredManagers,
+    isLoadingUsers,
+    filteredTrainers,
     filteredProcesses,
     isLoadingProcesses,
   });
@@ -163,14 +173,17 @@ export function CreateBatchForm() {
                     const lobId = parseInt(value);
                     field.onChange(lobId);
                     setSelectedLob(lobId);
-                    // Reset process when LOB changes
+                    // Reset dependent fields
                     form.setValue("processId", undefined);
+                    form.setValue("managerId", undefined);
+                    form.setValue("trainerId", undefined);
+                    setSelectedManager(null);
                   }}
                   value={field.value?.toString()}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select LOB" />
+                      <SelectValue placeholder="Select Line of Business" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -193,7 +206,14 @@ export function CreateBatchForm() {
               <FormItem>
                 <FormLabel>Process</FormLabel>
                 <Select
-                  onValueChange={(value) => field.onChange(parseInt(value))}
+                  onValueChange={(value) => {
+                    const processId = parseInt(value);
+                    field.onChange(processId);
+                    // Reset manager and trainer when process changes
+                    form.setValue("managerId", undefined);
+                    form.setValue("trainerId", undefined);
+                    setSelectedManager(null);
+                  }}
                   value={field.value?.toString()}
                   disabled={!selectedLob || isLoadingProcesses}
                 >
@@ -226,10 +246,10 @@ export function CreateBatchForm() {
                     const locationId = parseInt(value);
                     field.onChange(locationId);
                     setSelectedLocation(locationId);
-                    setSelectedManager(null); // Reset manager when location changes
-                    form.setValue("trainerId", undefined); // Reset trainer when location changes
-                    // Invalidate the managers query to force a refresh
-                    queryClient.invalidateQueries({ queryKey: [`/api/locations/${locationId}/managers`] });
+                    // Reset manager and trainer when location changes
+                    form.setValue("managerId", undefined);
+                    form.setValue("trainerId", undefined);
+                    setSelectedManager(null);
                   }}
                   value={field.value?.toString()}
                 >
@@ -262,20 +282,19 @@ export function CreateBatchForm() {
                     const managerId = parseInt(value);
                     field.onChange(managerId);
                     setSelectedManager(managerId);
-                    form.setValue("trainerId", undefined); // Reset trainer when manager changes
-                    // Invalidate the trainers query to force a refresh
-                    queryClient.invalidateQueries({ queryKey: [`/api/managers/${managerId}/trainers`] });
+                    // Reset trainer when manager changes
+                    form.setValue("trainerId", undefined);
                   }}
                   value={field.value?.toString()}
-                  disabled={!selectedLocation || isLoadingManagers}
+                  disabled={!selectedLocation || !selectedLob || isLoadingUsers}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder={isLoadingManagers ? "Loading managers..." : "Select manager"} />
+                      <SelectValue placeholder={isLoadingUsers ? "Loading managers..." : "Select manager"} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {managers.map((manager) => (
+                    {filteredManagers.map((manager) => (
                       <SelectItem key={manager.id} value={manager.id.toString()}>
                         {manager.fullName}
                       </SelectItem>
@@ -296,15 +315,15 @@ export function CreateBatchForm() {
                 <Select
                   onValueChange={(value) => field.onChange(parseInt(value))}
                   value={field.value?.toString()}
-                  disabled={!selectedManager || isLoadingTrainers}
+                  disabled={!selectedManager || isLoadingUsers}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder={isLoadingTrainers ? "Loading trainers..." : "Select trainer"} />
+                      <SelectValue placeholder={isLoadingUsers ? "Loading trainers..." : "Select trainer"} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {trainers.map((trainer) => (
+                    {filteredTrainers.map((trainer) => (
                       <SelectItem key={trainer.id} value={trainer.id.toString()}>
                         {trainer.fullName}
                       </SelectItem>
