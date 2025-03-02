@@ -101,7 +101,6 @@ export function CreateBatchForm() {
     queryKey: [`/api/organizations/${user?.organizationId}/users/${selectedTrainer}`],
     enabled: !!selectedTrainer && !!user?.organizationId,
     select: (trainer) => {
-      console.log('Trainer data:', trainer);
       if (!trainer?.managerId) {
         console.log('No manager ID found for trainer');
         return null;
