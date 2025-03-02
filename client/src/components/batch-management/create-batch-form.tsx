@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -55,13 +55,9 @@ export function CreateBatchForm() {
           name: lob.name
         }))
       });
-
-      // Reset LOB selection if current selection is not in new list
-      if (selectedLob && !data.some(lob => lob.id === selectedLob)) {
-        setSelectedLob(null);
-        form.setValue('lineOfBusinessId', null);
-        form.setValue('processId', null);
-      }
+    },
+    onError: (error) => {
+      console.error('Error fetching LOBs:', error);
     }
   });
 
@@ -77,7 +73,7 @@ export function CreateBatchForm() {
   // Fetch trainers (users with trainer role)
   const { 
     data: trainers = [], 
-    isLoading: isLoadingTrainers 
+    isLoading: isLoadingTrainers
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/users`],
     select: (users) => users.filter((user) => user.role === 'trainer')
