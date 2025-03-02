@@ -821,8 +821,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         organizationId: orgId, // Ensure we keep the correct organization ID
       });
 
-      res.json(updatedLob);
-    } catch (error: any) {
+      res.json(updatedLob);    } catch (error: any) {
       console.error("LOB update error:", error);
       res.status(400).json({ message: error.message || "Failed to update Line of Business" });
     }
