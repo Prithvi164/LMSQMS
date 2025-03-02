@@ -940,34 +940,36 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching LOBs for location ${locationId} in organization ${organizationId}`);
 
-      // First get processes for this location
+      // Get all LOBs for the organization
+      const lobs = await db
+        .select()
+        .from(organizationLineOfBusinesses)
+        .where(eq(organizationLineOfBusinesses.organizationId, organizationId));
+
+      // Get processes for this location from user processes
       const processes = await db
         .select()
         .from(organizationProcesses)
-        .where(eq(organizationProcesses.locationId, locationId));
+        .innerJoin(
+          userProcesses,
+          eq(userProcesses.processId, organizationProcesses.id)
+        )
+        .innerJoin(
+          users,
+          eq(users.id, userProcesses.userId)
+        )
+        .where(eq(users.locationId, locationId));
 
       // Get unique LOB IDs from processes
       const lobIds = [...new Set(processes.map(p => p.lineOfBusinessId))].filter(Boolean);
 
-      // If no LOBs found for this location, return empty array
-      if (lobIds.length === 0) {
-        console.log(`No LOBs found for location ${locationId}`);
-        return [];
-      }
+      // Filter LOBs that have processes in this location
+      const filteredLobs = lobs.filter(lob => lobIds.includes(lob.id));
 
-      // Now get the LOBs for these IDs
-      const lobs = await db
-        .select()
-        .from(organizationLineOfBusinesses)
-        .where(eq(organizationLineOfBusinesses.organizationId, organizationId))
-        .where(
-          sql`${organizationLineOfBusinesses.id} IN (${sql.join(lobIds, sql`, `)})`
-        );
-
-      console.log(`Found ${lobs.length} LOBs for location ${locationId}`);
-      return lobs;
+      console.log(`Found ${filteredLobs.length} LOBs for location ${locationId}`);
+      return filteredLobs;
     } catch (error) {
-      console.error('Error fetching LOBs by location:', error);
+      consoleerror('Error fetching LOBs by location:', error);
       throw new Error('Failed to fetch LOBs for location');
     }
   }
