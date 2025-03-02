@@ -113,7 +113,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
           locationId,
           organizationId: organization?.id || null,
           processes: data.processes,
-          lineOfBusinessId: lineOfBusinessId // Include LOB ID in payload
+          lineOfBusinessId // Include LOB ID in payload
         };
 
         console.log('Creating user with payload:', payload);

@@ -636,13 +636,21 @@ export class DatabaseStorage implements IStorage {
           return { user: newUser, processes: [] };
         }
 
+        // Validate lineOfBusinessId is provided when processes are assigned
+        if (!lineOfBusinessId) {
+          throw new Error('Line of Business ID is required when assigning processes');
+        }
+
         // Create process assignments with lineOfBusinessId
         const processAssignments = processIds.map(processId => ({
           userId: newUser.id,
           processId,
           organizationId,
-          lineOfBusinessId, // Add the lineOfBusinessId to each process assignment
-          status: 'assigned'
+          lineOfBusinessId,
+          status: 'assigned',
+          assignedAt: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date()
         }));
 
         const assignedProcesses = await tx
