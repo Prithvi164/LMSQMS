@@ -572,45 +572,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only view processes in your own organization" });
       }
 
-      console.log(`Fetching processes for LOB ${lobId} in organization ${orgId}`);
       const processes = await storage.getProcessesByLineOfBusiness(orgId, lobId);
-      console.log(`Found ${processes.length} processes for LOB ${lobId}, processes:`, processes);
       res.json(processes);
     } catch (error: any) {
       console.error("Error fetching processes:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Add these new endpoints for manager and trainer filtering
-  app.get("/api/locations/:locationId/managers", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const locationId = parseInt(req.params.locationId);
-      console.log(`Fetching managers for location ${locationId}`);
-      const managers = await storage.getActiveManagersByLocation(locationId);
-      console.log(`Found ${managers.length} active managers`);
-      res.json(managers);
-    } catch (error: any) {
-      console.error("Error fetching managers:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  app.get("/api/managers/:managerId/trainers", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const managerId = parseInt(req.params.managerId);
-      console.log(`Fetching trainers for manager ${managerId}`);
-      const trainers = await storage.getActiveTrainersByManager(managerId);
-      console.log(`Found ${trainers.length} active trainers`);
-      res.json(trainers);
-    } catch (error: any) {
-      console.error("Error fetching trainers:", error);
-      res.status(500).json({ message: error.message });
-    }
+      res.status(500).json({ message: error.message });    }
   });
 
   // Add better error handling and authentication for line of business routes
@@ -829,7 +795,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Delete LOB route
   app.delete("/api/organizations/:id/line-of-businesses/:lobId", async (req, res) => {
-    if (!req.user) returnres.status(401).json({ message: "Unauthorized" });
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     try {
       const orgId = parseInt(req.params.id);
@@ -1024,9 +990,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const locationId = parseInt(req.params.locationId);
-      console.log(`Fetching managers for location ${locationId}`);
       const managers = await storage.getActiveManagersByLocation(locationId);
-      console.log(`Found ${managers.length} active managers`);
       res.json(managers);
     } catch (error: any) {
       console.error("Error fetching managers:", error);
@@ -1039,9 +1003,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const managerId = parseInt(req.params.managerId);
-      console.log(`Fetching trainers for manager ${managerId}`);
       const trainers = await storage.getActiveTrainersByManager(managerId);
-      console.log(`Found ${trainers.length} active trainers`);
       res.json(trainers);
     } catch (error: any) {
       console.error("Error fetching trainers:", error);
