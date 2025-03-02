@@ -47,8 +47,8 @@ export default function AuthPage() {
           username: formData.get("username") as string,
           password: formData.get("password") as string,
           email: formData.get("email") as string,
-          organizationName: formData.get("organizationName") as string,
-          role: "owner",
+          fullName: formData.get("fullName") as string,
+          role: "user",
           active: true,
           certified: false,
         };
@@ -73,7 +73,7 @@ export default function AuthPage() {
             <CardDescription>
               {isLogin ? 
                 "Login to your account" : 
-                "Register a new organization"}
+                "Register a new account"}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -82,12 +82,12 @@ export default function AuthPage() {
                 {!isLogin && (
                   <>
                     <div>
-                      <Label htmlFor="organizationName">Organization Name</Label>
+                      <Label htmlFor="fullName">Full Name</Label>
                       <Input 
-                        id="organizationName" 
-                        name="organizationName" 
+                        id="fullName" 
+                        name="fullName" 
                         required 
-                        placeholder="Enter your organization name"
+                        placeholder="Enter your full name"
                       />
                     </div>
                     <div>
