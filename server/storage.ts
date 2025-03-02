@@ -912,7 +912,7 @@ export class DatabaseStorage implements IStorage {
         return [];
       }
 
-      // Get distinct LOBs from user_processes table based on location
+      // Get LOBs from user_processes table based on location
       const lobs = await db
         .select({
           id: organizationLineOfBusinesses.id,

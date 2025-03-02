@@ -79,8 +79,8 @@ export function CreateBatchForm() {
       // If current LOB is not in the new list, reset it
       if (selectedLob && !data.some(lob => lob.id === selectedLob)) {
         setSelectedLob(null);
-        form.setValue('lineOfBusinessId', undefined);
-        form.setValue('processId', undefined);
+        form.setValue('lineOfBusinessId', null);
+        form.setValue('processId', null);
       }
     },
     onError: (error: any) => {
@@ -222,8 +222,8 @@ export function CreateBatchForm() {
                     setSelectedLocation(locationId);
                     // Reset dependent fields
                     setSelectedLob(null);
-                    form.setValue('lineOfBusinessId', undefined);
-                    form.setValue('processId', undefined);
+                    form.setValue('lineOfBusinessId', null);
+                    form.setValue('processId', null);
                   }}
                   value={field.value?.toString()}
                   disabled={isLoadingLocations}
@@ -259,7 +259,7 @@ export function CreateBatchForm() {
                     field.onChange(lobId);
                     setSelectedLob(lobId);
                     // Reset process when LOB changes
-                    form.setValue('processId', undefined);
+                    form.setValue('processId', null);
                   }}
                   value={field.value?.toString()}
                   disabled={!selectedLocation || isLoadingLobs}
