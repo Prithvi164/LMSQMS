@@ -152,6 +152,7 @@ export function CreateBatchForm() {
                     const locationId = parseInt(value);
                     field.onChange(locationId);
                     setSelectedLocation(locationId);
+                    // Reset dependent fields
                     setSelectedLob(null);
                     setSelectedProcess(null);
                     form.setValue('lineOfBusinessId', undefined);
@@ -171,7 +172,7 @@ export function CreateBatchForm() {
                         <Loader2 className="h-4 w-4 animate-spin" />
                       </div>
                     ) : (
-                      locations.map((location) => (
+                      locations.map((location: any) => (
                         <SelectItem key={location.id} value={location.id.toString()}>
                           {location.name}
                         </SelectItem>
@@ -196,12 +197,12 @@ export function CreateBatchForm() {
                     const lobId = parseInt(value);
                     field.onChange(lobId);
                     setSelectedLob(lobId);
+                    // Reset dependent fields
                     setSelectedProcess(null);
                     form.setValue('processId', undefined);
                     form.setValue('trainerId', undefined);
                   }}
                   value={field.value?.toString()}
-                  disabled={!selectedLocation}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -252,11 +253,11 @@ export function CreateBatchForm() {
                     form.setValue('trainerId', undefined);
                   }}
                   value={field.value?.toString()}
-                  disabled={!selectedLob || isLoadingProcesses}
+                  disabled={!selectedLob}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder={isLoadingProcesses ? "Loading..." : "Select process"} />
+                      <SelectValue placeholder={!selectedLob ? "Select LOB first" : isLoadingProcesses ? "Loading..." : "Select process"} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -265,7 +266,7 @@ export function CreateBatchForm() {
                         <Loader2 className="h-4 w-4 animate-spin" />
                       </div>
                     ) : (
-                      processes.map((process) => (
+                      processes.map((process: any) => (
                         <SelectItem key={process.id} value={process.id.toString()}>
                           {process.name}
                         </SelectItem>
@@ -288,11 +289,11 @@ export function CreateBatchForm() {
                 <Select
                   onValueChange={(value) => field.onChange(parseInt(value))}
                   value={field.value?.toString()}
-                  disabled={!selectedProcess || isLoadingTrainers}
+                  disabled={!selectedProcess}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder={isLoadingTrainers ? "Loading..." : "Select trainer"} />
+                      <SelectValue placeholder={!selectedProcess ? "Select process first" : isLoadingTrainers ? "Loading..." : "Select trainer"} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -301,7 +302,7 @@ export function CreateBatchForm() {
                         <Loader2 className="h-4 w-4 animate-spin" />
                       </div>
                     ) : (
-                      trainers.map((trainer) => (
+                      trainers.map((trainer: any) => (
                         <SelectItem key={trainer.id} value={trainer.id.toString()}>
                           {trainer.fullName}
                         </SelectItem>
