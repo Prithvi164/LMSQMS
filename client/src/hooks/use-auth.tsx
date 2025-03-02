@@ -30,6 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryKey: ["/api/user"],
     queryFn: async () => {
       try {
+        console.log("[Auth] Fetching user data");
         const res = await fetch("/api/user", {
           credentials: "include",
           headers: {
@@ -38,7 +39,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         });
 
+        console.log("[Auth] User data response status:", res.status);
+
         if (res.status === 401) {
+          console.log("[Auth] User not authenticated");
           return null;
         }
 
@@ -47,36 +51,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         const data = await res.json();
+        console.log("[Auth] User data retrieved:", data);
         return data;
       } catch (err) {
-        console.error("Auth error:", err);
+        console.error("[Auth] Error fetching user data:", err);
         return null;
       }
     },
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
   });
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
-      const res = await apiRequest("/api/login", {
+      console.log("[Auth] Attempting login");
+      const res = await fetch("/api/login", {
         method: "POST",
-        body: JSON.stringify(credentials),
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include",
+        body: JSON.stringify(credentials),
       });
+
       if (!res.ok) {
-        throw new Error("Invalid username or password");
+        const error = await res.json();
+        throw new Error(error.message || "Invalid username or password");
       }
+
       return res.json();
     },
     onSuccess: (user: User) => {
+      console.log("[Auth] Login successful");
       queryClient.setQueryData(["/api/user"], user);
     },
     onError: (error: Error) => {
+      console.error("[Auth] Login error:", error);
       toast({
         title: "Login failed",
         description: error.message,
@@ -87,23 +97,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const registerMutation = useMutation({
     mutationFn: async (data: InsertUser) => {
-      const res = await apiRequest("/api/register", {
+      console.log("[Auth] Attempting registration");
+      const res = await fetch("/api/register", {
         method: "POST",
-        body: JSON.stringify(data),
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include",
+        body: JSON.stringify(data),
       });
+
       if (!res.ok) {
-        throw new Error("Registration failed");
+        const error = await res.json();
+        throw new Error(error.message || "Registration failed");
       }
+
       return res.json();
     },
     onSuccess: (user: User) => {
+      console.log("[Auth] Registration successful");
       queryClient.setQueryData(["/api/user"], user);
     },
     onError: (error: Error) => {
+      console.error("[Auth] Registration error:", error);
       toast({
         title: "Registration failed",
         description: error.message,
@@ -114,18 +130,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("/api/logout", {
+      console.log("[Auth] Attempting logout");
+      const res = await fetch("/api/logout", {
         method: "POST",
         credentials: "include",
       });
+
       if (!res.ok) {
-        throw new Error("Logout failed");
+        const error = await res.json();
+        throw new Error(error.message || "Logout failed");
       }
     },
     onSuccess: () => {
+      console.log("[Auth] Logout successful");
       queryClient.setQueryData(["/api/user"], null);
     },
     onError: (error: Error) => {
+      console.error("[Auth] Logout error:", error);
       toast({
         title: "Logout failed",
         description: error.message,
