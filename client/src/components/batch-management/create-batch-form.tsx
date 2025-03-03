@@ -139,29 +139,36 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
 
   const createBatchMutation = useMutation({
     mutationFn: async (data: InsertOrganizationBatch) => {
+      const formattedData = {
+        ...data,
+        startDate: format(new Date(data.startDate), 'yyyy-MM-dd'),
+        endDate: format(new Date(data.endDate), 'yyyy-MM-dd'),
+        capacityLimit: Number(data.capacityLimit),
+        processId: Number(data.processId),
+        locationId: Number(data.locationId),
+        trainerId: Number(data.trainerId),
+        organizationId: Number(user?.organizationId),
+      };
+
+      console.log('Submitting batch data:', formattedData);
+
       const response = await fetch(`/api/organizations/${user?.organizationId}/batches`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...data,
-          startDate: format(new Date(data.startDate), 'yyyy-MM-dd'),
-          endDate: format(new Date(data.endDate), 'yyyy-MM-dd'),
-          capacityLimit: Number(data.capacityLimit),
-          processId: Number(data.processId),
-          locationId: Number(data.locationId),
-          trainerId: Number(data.trainerId),
-          organizationId: Number(user?.organizationId),
-        }),
+        body: JSON.stringify(formattedData),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('Server error:', errorData);
         throw new Error(errorData.message || 'Failed to create batch');
       }
 
-      return response.json();
+      const result = await response.json();
+      console.log('Server response:', result);
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/batches`] });
@@ -176,6 +183,7 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
       onSuccess();
     },
     onError: (error: Error) => {
+      console.error('Error creating batch:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to create batch. Please try again.",
@@ -201,6 +209,9 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
         throw new Error('Organization ID is required');
       }
 
+      // Log form data
+      console.log('Form submitted with data:', data);
+
       const batchData = {
         ...data,
         organizationId: Number(user.organizationId),
@@ -212,8 +223,12 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
         trainerId: Number(data.trainerId),
       };
 
+      // Log processed data
+      console.log('Processed batch data:', batchData);
+
       await createBatchMutation.mutateAsync(batchData);
     } catch (error) {
+      console.error('Form submission error:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to create batch",
@@ -224,7 +239,13 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form 
+        onSubmit={form.handleSubmit(onSubmit)} 
+        className="space-y-6"
+        onError={(errors) => {
+          console.error('Form validation errors:', errors);
+        }}
+      >
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -572,6 +593,10 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
           <Button
             type="submit"
             disabled={createBatchMutation.isPending}
+            onClick={() => {
+              console.log('Form state:', form.getValues());
+              console.log('Form errors:', form.formState.errors);
+            }}
           >
             {createBatchMutation.isPending ? "Creating..." : "Create Batch"}
           </Button>
