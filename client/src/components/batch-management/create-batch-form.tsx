@@ -23,7 +23,10 @@ import {
 import { insertOrganizationBatchSchema, type InsertOrganizationBatch } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { apiRequest } from "@/lib/queryClient";
+
+interface CreateBatchFormProps {
+  onSuccess: () => void;
+}
 
 // Helper function to add working days (skip Sundays)
 const addWorkingDays = (startDate: Date, days: number): Date => {
@@ -45,26 +48,20 @@ const calculateBatchDates = (startDate: string, process: any) => {
   if (!startDate || !process) return null;
 
   const inductionStartDate = new Date(startDate);
-
-  // Skip if start date is Sunday
   const adjustedStartDate = isSunday(inductionStartDate)
     ? addDays(inductionStartDate, 1)
     : inductionStartDate;
 
-  // Calculate end dates using working days
   const inductionEndDate = addWorkingDays(adjustedStartDate, process.inductionDays - 1);
   const trainingStartDate = addWorkingDays(inductionEndDate, 1);
   const trainingEndDate = addWorkingDays(trainingStartDate, process.trainingDays - 1);
   const certificationStartDate = addWorkingDays(trainingEndDate, 1);
   const certificationEndDate = addWorkingDays(certificationStartDate, process.certificationDays - 1);
 
-  // Calculate OJT dates
   const ojtStartDate = addWorkingDays(certificationEndDate, 1);
   const ojtEndDate = addWorkingDays(ojtStartDate, process.ojtDays - 1);
   const ojtCertificationStartDate = addWorkingDays(ojtEndDate, 1);
   const ojtCertificationEndDate = addWorkingDays(ojtCertificationStartDate, process.ojtCertificationDays - 1);
-
-  // Batch handover date is the next working day after OJT certification ends
   const batchHandoverDate = addWorkingDays(ojtCertificationEndDate, 1);
 
   return {
@@ -82,7 +79,7 @@ const calculateBatchDates = (startDate: string, process: any) => {
   };
 };
 
-export function CreateBatchForm() {
+export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -108,100 +105,63 @@ export function CreateBatchForm() {
     },
   });
 
-  // Step 1: Fetch Locations 
-  const {
-    data: locations = [],
-    isLoading: isLoadingLocations
-  } = useQuery({
+  const { data: locations = [], isLoading: isLoadingLocations } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations`]
   });
 
-  // Step 2: Fetch LOBs based on selected location
-  const {
-    data: lobs = [],
-    isLoading: isLoadingLobs
-  } = useQuery({
+  const { data: lobs = [], isLoading: isLoadingLobs } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations/${selectedLocation}/line-of-businesses`],
     enabled: !!selectedLocation && !!user?.organizationId
   });
 
-  // Step 3: Fetch processes based on selected LOB
-  const {
-    data: processes = [],
-    isLoading: isLoadingProcesses
-  } = useQuery({
+  const { data: processes = [], isLoading: isLoadingProcesses } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${selectedLob}/processes`],
-    enabled: !!selectedLob,
-    onSuccess: (data) => {
-      // Reset selected process when processes change
-      setSelectedProcess(null);
-      setBatchDates(null);
-    }
+    enabled: !!selectedLob
   });
 
-  // Fetch trainers with location filter
-  const {
-    data: trainers = [],
-    isLoading: isLoadingTrainers
-  } = useQuery({
+  const { data: trainers = [], isLoading: isLoadingTrainers } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/users`],
-    select: (users) => users.filter((user) =>
+    select: (users: any[]) => users.filter((user) =>
       user.role === 'trainer' &&
       (!selectedLocation || user.locationId === selectedLocation)
     ),
     enabled: !!user?.organizationId
   });
 
-  // Fetch trainer's manager when trainer is selected
-  const {
-    data: trainerManager,
-    isLoading: isLoadingManager
-  } = useQuery({
+  const { data: trainerManager, isLoading: isLoadingManager } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/users/${selectedTrainer}`],
     enabled: !!selectedTrainer && !!user?.organizationId,
-    select: (trainer) => {
-      if (!trainer?.managerId) {
-        return null;
-      }
-      // Find manager from trainers list
+    select: (trainer: any) => {
+      if (!trainer?.managerId) return null;
       return trainers.find(u => u.id === trainer.managerId);
     }
   });
 
   const createBatchMutation = useMutation({
     mutationFn: async (data: InsertOrganizationBatch) => {
-      try {
-        console.log('Submitting batch data:', data); // Debug log
-        const response = await fetch(`/api/organizations/${user?.organizationId}/batches`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            ...data,
-            startDate: format(new Date(data.startDate), 'yyyy-MM-dd'),
-            endDate: format(new Date(data.endDate), 'yyyy-MM-dd'),
-            capacityLimit: Number(data.capacityLimit),
-            processId: Number(data.processId),
-            locationId: Number(data.locationId),
-            trainerId: Number(data.trainerId),
-            organizationId: user?.organizationId,
-          }),
-        });
+      const response = await fetch(`/api/organizations/${user?.organizationId}/batches`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...data,
+          startDate: format(new Date(data.startDate), 'yyyy-MM-dd'),
+          endDate: format(new Date(data.endDate), 'yyyy-MM-dd'),
+          capacityLimit: Number(data.capacityLimit),
+          processId: Number(data.processId),
+          locationId: Number(data.locationId),
+          trainerId: Number(data.trainerId),
+          organizationId: user?.organizationId,
+        }),
+      });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error('Server error:', errorData); // Debug log
-          throw new Error(errorData.message || 'Failed to create batch');
-        }
-
-        const result = await response.json();
-        console.log('Server response:', result); // Debug log
-        return result;
-      } catch (error) {
-        console.error('Mutation error:', error); // Debug log
-        throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create batch');
       }
+
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/batches`] });
@@ -213,9 +173,9 @@ export function CreateBatchForm() {
       setSelectedLocation(null);
       setSelectedLob(null);
       setSelectedTrainer(null);
+      onSuccess();
     },
     onError: (error: Error) => {
-      console.error('Error details:', error); // Debug log
       toast({
         title: "Error",
         description: error.message || "Failed to create batch. Please try again.",
@@ -224,13 +184,11 @@ export function CreateBatchForm() {
     },
   });
 
-  // Effect to update batch dates when start date or process changes
   useEffect(() => {
     const startDate = form.getValues('startDate');
     if (startDate && selectedProcess) {
       const dates = calculateBatchDates(startDate, selectedProcess);
       setBatchDates(dates);
-      // Update end date in form
       if (dates) {
         form.setValue('endDate', dates.certificationEnd);
       }
@@ -238,32 +196,19 @@ export function CreateBatchForm() {
   }, [form.watch('startDate'), selectedProcess]);
 
   const onSubmit = (data: InsertOrganizationBatch) => {
-    try {
-      console.log('Form data before submission:', data); // Debug log
-      // Include all necessary fields
-      const batchData = {
-        ...data,
-        organizationId: user?.organizationId,
-        status: 'planning',
-        endDate: batchDates?.certificationEnd || data.endDate,
-      };
-      console.log('Processed batch data:', batchData); // Debug log
-      createBatchMutation.mutate(batchData);
-    } catch (error) {
-      console.error('Submit error:', error); // Debug log
-      toast({
-        title: "Error",
-        description: "Failed to process form data. Please try again.",
-        variant: "destructive",
-      });
-    }
+    const batchData = {
+      ...data,
+      organizationId: user?.organizationId,
+      status: 'planning',
+      endDate: batchDates?.certificationEnd || data.endDate,
+    };
+    createBatchMutation.mutate(batchData);
   };
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <div className="grid grid-cols-2 gap-4">
-          {/* Batch Code */}
           <FormField
             control={form.control}
             name="batchCode"
@@ -278,7 +223,6 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Batch Name */}
           <FormField
             control={form.control}
             name="name"
@@ -293,7 +237,6 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Location */}
           <FormField
             control={form.control}
             name="locationId"
@@ -305,7 +248,6 @@ export function CreateBatchForm() {
                     const locationId = parseInt(value);
                     field.onChange(locationId);
                     setSelectedLocation(locationId);
-                    // Reset dependent fields
                     setSelectedLob(null);
                     form.setValue('processId', 0);
                     form.setValue('trainerId', 0);
@@ -331,7 +273,6 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Line of Business */}
           <FormField
             control={form.control}
             name="lineOfBusinessId"
@@ -366,7 +307,6 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Process selection - updated to store selected process */}
           <FormField
             control={form.control}
             name="processId"
@@ -379,8 +319,6 @@ export function CreateBatchForm() {
                     field.onChange(processId);
                     const process = processes.find(p => p.id === processId);
                     setSelectedProcess(process);
-
-                    // If there's already a start date, recalculate dates
                     const startDate = form.getValues('startDate');
                     if (startDate && process) {
                       const dates = calculateBatchDates(startDate, process);
@@ -411,7 +349,6 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Trainer */}
           <FormField
             control={form.control}
             name="trainerId"
@@ -445,7 +382,6 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Reporting Manager (Read-only) */}
           <FormItem>
             <FormLabel>Reporting Manager</FormLabel>
             <FormControl>
@@ -458,7 +394,6 @@ export function CreateBatchForm() {
             </FormControl>
           </FormItem>
 
-          {/* Start Date */}
           <FormField
             control={form.control}
             name="startDate"
@@ -473,7 +408,6 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Batch Status */}
           <FormField
             control={form.control}
             name="status"
@@ -492,7 +426,6 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Display calculated dates */}
           {batchDates && (
             <>
               <FormItem>
@@ -617,7 +550,6 @@ export function CreateBatchForm() {
             </>
           )}
 
-          {/* Capacity Limit */}
           <FormField
             control={form.control}
             name="capacityLimit"

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -182,8 +183,11 @@ export function BatchesTab() {
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Create New Batch</DialogTitle>
+            <DialogDescription>
+              Create a new training batch by filling out the form below.
+            </DialogDescription>
           </DialogHeader>
-          <CreateBatchForm />
+          <CreateBatchForm onSuccess={() => setIsCreateDialogOpen(false)} />
         </DialogContent>
       </Dialog>
 
@@ -192,6 +196,9 @@ export function BatchesTab() {
           <DialogContent className="max-w-3xl">
             <DialogHeader>
               <DialogTitle>Reschedule Batch</DialogTitle>
+              <DialogDescription>
+                Reschedule the selected batch by updating the dates below.
+              </DialogDescription>
             </DialogHeader>
             <RescheduleBatchForm
               batch={selectedBatch}
