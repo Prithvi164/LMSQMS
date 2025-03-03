@@ -36,6 +36,8 @@ export function CreateBatchForm() {
     defaultValues: {
       status: 'planned',
       organizationId: user?.organizationId,
+      startDate: '',
+      endDate: '',
     },
   });
 
@@ -357,7 +359,11 @@ export function CreateBatchForm() {
               <FormItem>
                 <FormLabel>Start Date</FormLabel>
                 <FormControl>
-                  <Input type="date" {...field} />
+                  <Input 
+                    type="date" 
+                    value={field.value || ''} 
+                    onChange={(e) => field.onChange(e.target.value || '')}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -372,7 +378,11 @@ export function CreateBatchForm() {
               <FormItem>
                 <FormLabel>End Date</FormLabel>
                 <FormControl>
-                  <Input type="date" {...field} />
+                  <Input 
+                    type="date" 
+                    value={field.value || ''} 
+                    onChange={(e) => field.onChange(e.target.value || '')}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
