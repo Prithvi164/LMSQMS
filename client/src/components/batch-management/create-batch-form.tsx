@@ -97,14 +97,14 @@ export function CreateBatchForm() {
     defaultValues: {
       batchCode: "",
       name: "",
-      status: "planning",
       startDate: "",
       endDate: "",
-      capacityLimit: 0,
+      capacityLimit: 50,
+      status: "planning",
+      processId: 0,
+      locationId: 0,
+      trainerId: 0,
       organizationId: user?.organizationId || 0,
-      locationId: undefined,
-      processId: undefined,
-      trainerId: undefined,
     },
   });
 
@@ -170,20 +170,24 @@ export function CreateBatchForm() {
 
   const createBatchMutation = useMutation({
     mutationFn: async (data: InsertOrganizationBatch) => {
-      const response = await fetch(`/api/organizations/${user?.organizationId}/batches`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
+      try {
+        const response = await fetch(`/api/organizations/${user?.organizationId}/batches`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to create batch');
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Failed to create batch');
+        }
+
+        return response.json();
+      } catch (error) {
+        throw new Error(error instanceof Error ? error.message : 'Failed to create batch');
       }
-
-      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/batches`] });
@@ -226,7 +230,7 @@ export function CreateBatchForm() {
       status: 'planning',
       endDate: batchDates?.certificationEnd || data.endDate,
     };
-    createBatchMutation.mutate(batchData as InsertOrganizationBatch);
+    createBatchMutation.mutate(batchData);
   };
 
   return (
@@ -277,13 +281,11 @@ export function CreateBatchForm() {
                     setSelectedLocation(locationId);
                     // Reset dependent fields
                     setSelectedLob(null);
-                    form.setValue('lineOfBusinessId', null);
-                    form.setValue('processId', null);
-                    form.setValue('trainerId', null);
+                    form.setValue('processId', 0);
+                    form.setValue('trainerId', 0);
                     setSelectedTrainer(null);
                   }}
                   value={field.value?.toString()}
-                  disabled={isLoadingLocations}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -315,7 +317,7 @@ export function CreateBatchForm() {
                     const lobId = parseInt(value);
                     field.onChange(lobId);
                     setSelectedLob(lobId);
-                    form.setValue('processId', null);
+                    form.setValue('processId', 0);
                   }}
                   value={field.value?.toString()}
                   disabled={!selectedLocation || isLoadingLobs}
@@ -423,8 +425,8 @@ export function CreateBatchForm() {
             <FormControl>
               <Input
                 value={trainerManager?.fullName || 'No manager assigned'}
-                disabled={true}
-                readOnly={true}
+                disabled
+                readOnly
                 placeholder={isLoadingManager ? 'Loading manager...' : 'No manager assigned'}
               />
             </FormControl>
@@ -614,17 +616,7 @@ export function CreateBatchForm() {
         <div className="flex justify-end space-x-2">
           <Button
             type="submit"
-            disabled={
-              createBatchMutation.isPending ||
-              !form.formState.isValid ||
-              !form.getValues('batchCode') ||
-              !form.getValues('name') ||
-              !form.getValues('startDate') ||
-              !form.getValues('capacityLimit') ||
-              !form.getValues('locationId') ||
-              !form.getValues('processId') ||
-              !form.getValues('trainerId')
-            }
+            disabled={createBatchMutation.isPending}
           >
             {createBatchMutation.isPending ? "Creating..." : "Create Batch"}
           </Button>
