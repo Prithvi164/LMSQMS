@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { addDays, format, isSunday } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -20,166 +19,87 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { insertOrganizationBatchSchema, type InsertOrganizationBatch } from "@shared/schema";
+import { insertOrganizationBatchSchema } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { apiRequest } from "@/lib/queryClient";
 
-interface CreateBatchFormProps {
-  onSuccess: () => void;
-}
-
-// Helper function to add working days (skip Sundays)
-const addWorkingDays = (startDate: Date, days: number): Date => {
-  let currentDate = startDate;
-  let remainingDays = days;
-
-  while (remainingDays > 0) {
-    currentDate = addDays(currentDate, 1);
-    if (!isSunday(currentDate)) {
-      remainingDays--;
-    }
-  }
-
-  return currentDate;
-};
-
-// Helper function to calculate batch dates
-const calculateBatchDates = (startDate: string, process: any) => {
-  if (!startDate || !process) return null;
-
-  const inductionStartDate = new Date(startDate);
-  const adjustedStartDate = isSunday(inductionStartDate)
-    ? addDays(inductionStartDate, 1)
-    : inductionStartDate;
-
-  // Calculate all dates based on process durations
-  const inductionEndDate = addWorkingDays(adjustedStartDate, process.inductionDays - 1);
-  const trainingStartDate = addWorkingDays(inductionEndDate, 1);
-  const trainingEndDate = addWorkingDays(trainingStartDate, process.trainingDays - 1);
-  const certificationStartDate = addWorkingDays(trainingEndDate, 1);
-  const certificationEndDate = addWorkingDays(certificationStartDate, process.certificationDays - 1);
-  const ojtStartDate = addWorkingDays(certificationEndDate, 1);
-  const ojtEndDate = addWorkingDays(ojtStartDate, process.ojtDays - 1);
-  const ojtCertificationStartDate = addWorkingDays(ojtEndDate, 1);
-  const ojtCertificationEndDate = addWorkingDays(ojtCertificationStartDate, process.ojtCertificationDays - 1);
-  const batchHandoverDate = addWorkingDays(ojtCertificationEndDate, 1);
-
-  return {
-    inductionStart: format(adjustedStartDate, 'yyyy-MM-dd'),
-    inductionEnd: format(inductionEndDate, 'yyyy-MM-dd'),
-    trainingStart: format(trainingStartDate, 'yyyy-MM-dd'),
-    trainingEnd: format(trainingEndDate, 'yyyy-MM-dd'),
-    certificationStart: format(certificationStartDate, 'yyyy-MM-dd'),
-    certificationEnd: format(certificationEndDate, 'yyyy-MM-dd'),
-    ojtStart: format(ojtStartDate, 'yyyy-MM-dd'),
-    ojtEnd: format(ojtEndDate, 'yyyy-MM-dd'),
-    ojtCertificationStart: format(ojtCertificationStartDate, 'yyyy-MM-dd'),
-    ojtCertificationEnd: format(ojtCertificationEndDate, 'yyyy-MM-dd'),
-    batchHandover: format(batchHandoverDate, 'yyyy-MM-dd')
-  };
-};
-
-export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
+export function CreateBatchForm() {
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
   const [selectedLob, setSelectedLob] = useState<number | null>(null);
-  const [selectedTrainer, setSelectedTrainer] = useState<number | null>(null);
-  const [selectedProcess, setSelectedProcess] = useState<any>(null);
-  const [batchDates, setBatchDates] = useState<any>(null);
-
-  const form = useForm<InsertOrganizationBatch>({
-    resolver: zodResolver(insertOrganizationBatchSchema),
-    defaultValues: {
-      batchCode: "",
-      name: "",
-      startDate: "",
-      endDate: "",
-      capacityLimit: 50,
-      status: "planning",
-      processId: 0,
-      locationId: 0,
-      trainerId: 0,
-      organizationId: user?.organizationId || 0,
-      lineOfBusinessId: 0,
-    },
-  });
 
   // Step 1: Fetch Locations
-  const { data: locations = [] } = useQuery({
+  const { 
+    data: locations = [], 
+    isLoading: isLoadingLocations 
+  } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations`]
   });
 
   // Step 2: Fetch LOBs based on selected location
-  const { data: lobs = [] } = useQuery({
+  const { 
+    data: lobs = [], 
+    isLoading: isLoadingLobs,
+    error: lobError 
+  } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations/${selectedLocation}/line-of-businesses`],
-    enabled: !!selectedLocation && !!user?.organizationId
+    enabled: !!selectedLocation && !!user?.organizationId,
+    onSuccess: (data) => {
+      console.log('LOBs API Response:', {
+        selectedLocation,
+        receivedLobs: data.map(lob => ({
+          id: lob.id,
+          name: lob.name
+        }))
+      });
+      // Reset LOB selection when location changes
+      setSelectedLob(null);
+      form.setValue('lineOfBusinessId', null);
+      form.setValue('processId', null);
+      // Also reset trainer when location changes
+      form.setValue('trainerId', null);
+    }
   });
 
   // Step 3: Fetch processes based on selected LOB
-  const { data: processes = [] } = useQuery({
+  const { 
+    data: processes = [], 
+    isLoading: isLoadingProcesses
+  } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${selectedLob}/processes`],
     enabled: !!selectedLob
   });
 
-  // Step 4: Fetch trainers
-  const { data: trainers = [] } = useQuery({
+  // Fetch trainers with location filter
+  const { 
+    data: trainers = [], 
+    isLoading: isLoadingTrainers
+  } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/users`],
-    select: (users: any[]) => users.filter((user) =>
-      user.role === 'trainer' &&
+    select: (users) => users.filter((user) => 
+      user.role === 'trainer' && 
       (!selectedLocation || user.locationId === selectedLocation)
     ),
     enabled: !!user?.organizationId
   });
 
-  // Step 5: Fetch trainer's manager
-  const { data: trainerManager } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/users/${selectedTrainer}`],
-    enabled: !!selectedTrainer && !!user?.organizationId,
-    select: (trainer: any) => {
-      if (!trainer?.managerId) return null;
-      return trainers.find(u => u.id === trainer.managerId);
-    }
+  const form = useForm({
+    resolver: zodResolver(insertOrganizationBatchSchema),
+    defaultValues: {
+      status: 'planned',
+      organizationId: user?.organizationId,
+    },
   });
 
   const createBatchMutation = useMutation({
-    mutationFn: async (data: InsertOrganizationBatch) => {
-      try {
-        console.log('Submitting batch data:', data);
-        const formattedData = {
-          ...data,
-          startDate: format(new Date(data.startDate), 'yyyy-MM-dd'),
-          endDate: format(new Date(data.endDate), 'yyyy-MM-dd'),
-          capacityLimit: Number(data.capacityLimit),
-          processId: Number(data.processId),
-          locationId: Number(data.locationId),
-          trainerId: Number(data.trainerId),
-          lineOfBusinessId: Number(data.lineOfBusinessId),
-          organizationId: Number(user?.organizationId),
-        };
-
-        const response = await fetch(`/api/organizations/${user?.organizationId}/batches`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(formattedData),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error('Server error:', errorData);
-          throw new Error(errorData.message || 'Failed to create batch');
-        }
-
-        const result = await response.json();
-        console.log('Server response:', result);
-        return result;
-      } catch (error) {
-        console.error('Mutation error:', error);
-        throw error;
-      }
+    mutationFn: async (data) => {
+      return apiRequest(`/api/organizations/${user?.organizationId}/batches`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/batches`] });
@@ -190,63 +110,22 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
       form.reset();
       setSelectedLocation(null);
       setSelectedLob(null);
-      setSelectedTrainer(null);
-      onSuccess();
     },
-    onError: (error: Error) => {
-      console.error('Error details:', error);
+    onError: (error) => {
+      console.error('Error creating batch:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to create batch. Please try again.",
+        description: "Failed to create batch. Please try again.",
         variant: "destructive",
       });
     },
   });
 
-  // Update batch dates when start date or process changes
-  useEffect(() => {
-    const startDate = form.getValues('startDate');
-    if (startDate && selectedProcess) {
-      const dates = calculateBatchDates(startDate, selectedProcess);
-      setBatchDates(dates);
-      if (dates) {
-        form.setValue('endDate', dates.certificationEnd);
-      }
-    }
-  }, [form.watch('startDate'), selectedProcess]);
-
-  const onSubmit = async (data: InsertOrganizationBatch) => {
-    try {
-      if (!user?.organizationId) {
-        throw new Error('Organization ID is required');
-      }
-
-      console.log('Form submitted with data:', data);
-
-      const batchData = {
-        ...data,
-        organizationId: Number(user.organizationId),
-        status: 'planning' as const,
-        endDate: batchDates?.certificationEnd || data.endDate,
-        lineOfBusinessId: Number(selectedLob),
-      };
-
-      console.log('Processed batch data:', batchData);
-      await createBatchMutation.mutateAsync(batchData);
-    } catch (error) {
-      console.error('Form submission error:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to create batch",
-        variant: "destructive",
-      });
-    }
-  };
-
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(createBatchMutation.mutate)} className="space-y-6">
         <div className="grid grid-cols-2 gap-4">
+          {/* Batch Code */}
           <FormField
             control={form.control}
             name="batchCode"
@@ -261,6 +140,7 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
             )}
           />
 
+          {/* Batch Name */}
           <FormField
             control={form.control}
             name="name"
@@ -275,6 +155,7 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
             )}
           />
 
+          {/* Location */}
           <FormField
             control={form.control}
             name="locationId"
@@ -284,15 +165,22 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
                 <Select
                   onValueChange={(value) => {
                     const locationId = parseInt(value);
+                    console.log('Location Selection:', {
+                      selectedValue: value,
+                      parsedLocationId: locationId,
+                      locationDetails: locations.find(loc => loc.id === locationId)
+                    });
+
                     field.onChange(locationId);
                     setSelectedLocation(locationId);
+                    // Reset dependent fields
                     setSelectedLob(null);
-                    form.setValue('lineOfBusinessId', 0);
-                    form.setValue('processId', 0);
-                    form.setValue('trainerId', 0);
-                    setSelectedTrainer(null);
+                    form.setValue('lineOfBusinessId', null);
+                    form.setValue('processId', null);
+                    form.setValue('trainerId', null); // Reset trainer when location changes
                   }}
-                  value={field.value?.toString() || ""}
+                  value={field.value?.toString()}
+                  disabled={isLoadingLocations}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -300,7 +188,7 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {locations.map((location: any) => (
+                    {locations.map((location) => (
                       <SelectItem key={location.id} value={location.id.toString()}>
                         {location.name}
                       </SelectItem>
@@ -312,6 +200,7 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
             )}
           />
 
+          {/* Line of Business */}
           <FormField
             control={form.control}
             name="lineOfBusinessId"
@@ -321,31 +210,49 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
                 <Select
                   onValueChange={(value) => {
                     const lobId = parseInt(value);
+                    console.log('LOB Selected:', {
+                      lobId,
+                      lobName: lobs.find(lob => lob.id === lobId)?.name
+                    });
                     field.onChange(lobId);
                     setSelectedLob(lobId);
-                    form.setValue('processId', 0);
+                    form.setValue('processId', null);
                   }}
-                  value={field.value?.toString() || ""}
-                  disabled={!selectedLocation}
+                  value={field.value?.toString()}
+                  disabled={!selectedLocation || isLoadingLobs}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder={selectedLocation ? "Select LOB" : "Select location first"} />
+                      <SelectValue 
+                        placeholder={
+                          !selectedLocation 
+                            ? "Select location first" 
+                            : isLoadingLobs 
+                              ? "Loading LOBs..." 
+                              : "Select LOB"
+                        } 
+                      />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {lobs.map((lob: any) => (
+                    {lobs.map((lob) => (
                       <SelectItem key={lob.id} value={lob.id.toString()}>
                         {lob.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {lobError && (
+                  <div className="text-red-500 text-sm mt-1">
+                    Failed to load line of businesses
+                  </div>
+                )}
                 <FormMessage />
               </FormItem>
             )}
           />
 
+          {/* Process */}
           <FormField
             control={form.control}
             name="processId"
@@ -353,22 +260,9 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
               <FormItem>
                 <FormLabel>Process</FormLabel>
                 <Select
-                  onValueChange={(value) => {
-                    const processId = parseInt(value);
-                    field.onChange(processId);
-                    const process = processes.find((p: any) => p.id === processId);
-                    setSelectedProcess(process);
-                    const startDate = form.getValues('startDate');
-                    if (startDate && process) {
-                      const dates = calculateBatchDates(startDate, process);
-                      setBatchDates(dates);
-                      if (dates) {
-                        form.setValue('endDate', dates.certificationEnd);
-                      }
-                    }
-                  }}
-                  value={field.value?.toString() || ""}
-                  disabled={!selectedLob}
+                  onValueChange={(value) => field.onChange(parseInt(value))}
+                  value={field.value?.toString()}
+                  disabled={!selectedLob || isLoadingProcesses}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -376,7 +270,7 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {processes.map((process: any) => (
+                    {processes.map((process) => (
                       <SelectItem key={process.id} value={process.id.toString()}>
                         {process.name}
                       </SelectItem>
@@ -388,6 +282,7 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
             )}
           />
 
+          {/* Trainer */}
           <FormField
             control={form.control}
             name="trainerId"
@@ -395,13 +290,9 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
               <FormItem>
                 <FormLabel>Trainer</FormLabel>
                 <Select
-                  onValueChange={(value) => {
-                    const trainerId = parseInt(value);
-                    field.onChange(trainerId);
-                    setSelectedTrainer(trainerId);
-                  }}
-                  value={field.value?.toString() || ""}
-                  disabled={!selectedLocation}
+                  onValueChange={(value) => field.onChange(parseInt(value))}
+                  value={field.value?.toString()}
+                  disabled={!selectedLocation || isLoadingTrainers}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -409,7 +300,7 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {trainers.map((trainer: any) => (
+                    {trainers.map((trainer) => (
                       <SelectItem key={trainer.id} value={trainer.id.toString()}>
                         {trainer.fullName}
                       </SelectItem>
@@ -421,18 +312,7 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
             )}
           />
 
-          <FormItem>
-            <FormLabel>Reporting Manager</FormLabel>
-            <FormControl>
-              <Input
-                value={trainerManager?.fullName || 'No manager assigned'}
-                disabled
-                readOnly
-                placeholder="No manager assigned"
-              />
-            </FormControl>
-          </FormItem>
-
+          {/* Start Date */}
           <FormField
             control={form.control}
             name="startDate"
@@ -447,6 +327,22 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
             )}
           />
 
+          {/* End Date */}
+          <FormField
+            control={form.control}
+            name="endDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>End Date</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Capacity Limit */}
           <FormField
             control={form.control}
             name="capacityLimit"
@@ -466,145 +362,18 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
               </FormItem>
             )}
           />
-
-          <FormField
-            control={form.control}
-            name="status"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Batch Status</FormLabel>
-                <FormControl>
-                  <Input
-                    value="Planning – Before training begins"
-                    disabled
-                    readOnly
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {batchDates && (
-            <>
-              <FormItem>
-                <FormLabel>Induction End Date</FormLabel>
-                <FormControl>
-                  <Input
-                    type="date"
-                    value={batchDates.inductionEnd}
-                    disabled
-                    readOnly
-                  />
-                </FormControl>
-              </FormItem>
-              <FormItem>
-                <FormLabel>Training Start Date</FormLabel>
-                <FormControl>
-                  <Input
-                    type="date"
-                    value={batchDates.trainingStart}
-                    disabled
-                    readOnly
-                  />
-                </FormControl>
-              </FormItem>
-              <FormItem>
-                <FormLabel>Training End Date</FormLabel>
-                <FormControl>
-                  <Input
-                    type="date"
-                    value={batchDates.trainingEnd}
-                    disabled
-                    readOnly
-                  />
-                </FormControl>
-              </FormItem>
-              <FormItem>
-                <FormLabel>Certification Start Date</FormLabel>
-                <FormControl>
-                  <Input
-                    type="date"
-                    value={batchDates.certificationStart}
-                    disabled
-                    readOnly
-                  />
-                </FormControl>
-              </FormItem>
-              <FormItem>
-                <FormLabel>Certification End Date</FormLabel>
-                <FormControl>
-                  <Input
-                    type="date"
-                    value={batchDates.certificationEnd}
-                    disabled
-                    readOnly
-                  />
-                </FormControl>
-              </FormItem>
-              <FormItem>
-                <FormLabel>OJT Start Date</FormLabel>
-                <FormControl>
-                  <Input
-                    type="date"
-                    value={batchDates.ojtStart}
-                    disabled
-                    readOnly
-                  />
-                </FormControl>
-              </FormItem>
-              <FormItem>
-                <FormLabel>OJT End Date</FormLabel>
-                <FormControl>
-                  <Input
-                    type="date"
-                    value={batchDates.ojtEnd}
-                    disabled
-                    readOnly
-                  />
-                </FormControl>
-              </FormItem>
-              <FormItem>
-                <FormLabel>OJT Certification Start Date</FormLabel>
-                <FormControl>
-                  <Input
-                    type="date"
-                    value={batchDates.ojtCertificationStart}
-                    disabled
-                    readOnly
-                  />
-                </FormControl>
-              </FormItem>
-              <FormItem>
-                <FormLabel>OJT Certification End Date</FormLabel>
-                <FormControl>
-                  <Input
-                    type="date"
-                    value={batchDates.ojtCertificationEnd}
-                    disabled
-                    readOnly
-                  />
-                </FormControl>
-              </FormItem>
-              <FormItem>
-                <FormLabel>BATCH HANDOVER TO OPS DATE</FormLabel>
-                <FormControl>
-                  <Input
-                    type="date"
-                    value={batchDates.batchHandover}
-                    disabled
-                    readOnly
-                  />
-                </FormControl>
-              </FormItem>
-            </>
-          )}
         </div>
 
         <div className="flex justify-end space-x-2">
           <Button
             type="submit"
-            disabled={createBatchMutation.isPending}
+            disabled={
+              createBatchMutation.isPending || 
+              isLoadingLocations || 
+              isLoadingLobs || 
+              isLoadingProcesses || 
+              isLoadingTrainers
+            }
           >
             {createBatchMutation.isPending ? "Creating..." : "Create Batch"}
           </Button>
