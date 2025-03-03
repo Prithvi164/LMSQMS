@@ -102,24 +102,25 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
       locationId: 0,
       trainerId: 0,
       organizationId: user?.organizationId || 0,
+      lineOfBusinessId: 0, // Added lineOfBusinessId
     },
   });
 
-  const { data: locations = [], isLoading: isLoadingLocations } = useQuery({
+  const { data: locations = [] } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations`]
   });
 
-  const { data: lobs = [], isLoading: isLoadingLobs } = useQuery({
+  const { data: lobs = [] } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations/${selectedLocation}/line-of-businesses`],
     enabled: !!selectedLocation && !!user?.organizationId
   });
 
-  const { data: processes = [], isLoading: isLoadingProcesses } = useQuery({
+  const { data: processes = [] } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${selectedLob}/processes`],
     enabled: !!selectedLob
   });
 
-  const { data: trainers = [], isLoading: isLoadingTrainers } = useQuery({
+  const { data: trainers = [] } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/users`],
     select: (users: any[]) => users.filter((user) =>
       user.role === 'trainer' &&
@@ -128,7 +129,7 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
     enabled: !!user?.organizationId
   });
 
-  const { data: trainerManager, isLoading: isLoadingManager } = useQuery({
+  const { data: trainerManager } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/users/${selectedTrainer}`],
     enabled: !!selectedTrainer && !!user?.organizationId,
     select: (trainer: any) => {
@@ -147,6 +148,7 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
         processId: Number(data.processId),
         locationId: Number(data.locationId),
         trainerId: Number(data.trainerId),
+        lineOfBusinessId: Number(data.lineOfBusinessId), // Added lineOfBusinessId
         organizationId: Number(user?.organizationId),
       };
 
@@ -166,9 +168,7 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
         throw new Error(errorData.message || 'Failed to create batch');
       }
 
-      const result = await response.json();
-      console.log('Server response:', result);
-      return result;
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/batches`] });
@@ -209,21 +209,15 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
         throw new Error('Organization ID is required');
       }
 
-      console.log('Form submitted with data:', data);
-
       const batchData = {
         ...data,
-        startDate: data.startDate,
-        endDate: batchDates?.certificationEnd || data.endDate,
-        capacityLimit: Number(data.capacityLimit),
-        processId: Number(data.processId),
-        locationId: Number(data.locationId),
-        trainerId: Number(data.trainerId),
         organizationId: Number(user.organizationId),
         status: 'planning' as const,
+        endDate: batchDates?.certificationEnd || data.endDate,
+        lineOfBusinessId: selectedLob || 0, //Added lineOfBusinessId
       };
 
-      console.log('Processed batch data:', batchData);
+      console.log('Form submitted with data:', batchData);
       await createBatchMutation.mutateAsync(batchData);
     } catch (error) {
       console.error('Form submission error:', error);
@@ -237,10 +231,7 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
 
   return (
     <Form {...form}>
-      <form 
-        onSubmit={form.handleSubmit(onSubmit)} 
-        className="space-y-6"
-      >
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -297,6 +288,40 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
                     {locations.map((location: any) => (
                       <SelectItem key={location.id} value={location.id.toString()}>
                         {location.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="lineOfBusinessId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Line of Business</FormLabel>
+                <Select
+                  onValueChange={(value) => {
+                    const lobId = parseInt(value);
+                    field.onChange(lobId);
+                    setSelectedLob(lobId);
+                    form.setValue('processId', 0);
+                  }}
+                  value={field.value?.toString() || ""}
+                  disabled={!selectedLocation}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder={selectedLocation ? "Select LOB" : "Select location first"} />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {lobs.map((lob: any) => (
+                      <SelectItem key={lob.id} value={lob.id.toString()}>
+                        {lob.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -388,7 +413,7 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
                 value={trainerManager?.fullName || 'No manager assigned'}
                 disabled
                 readOnly
-                placeholder={isLoadingManager ? 'Loading manager...' : 'No manager assigned'}
+                placeholder="No manager assigned"
               />
             </FormControl>
           </FormItem>
