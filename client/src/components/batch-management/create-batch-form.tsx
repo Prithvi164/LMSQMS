@@ -152,7 +152,7 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
           processId: Number(data.processId),
           locationId: Number(data.locationId),
           trainerId: Number(data.trainerId),
-          organizationId: user?.organizationId,
+          organizationId: Number(user?.organizationId),
         }),
       });
 
@@ -195,14 +195,31 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
     }
   }, [form.watch('startDate'), selectedProcess]);
 
-  const onSubmit = (data: InsertOrganizationBatch) => {
-    const batchData = {
-      ...data,
-      organizationId: user?.organizationId,
-      status: 'planning',
-      endDate: batchDates?.certificationEnd || data.endDate,
-    };
-    createBatchMutation.mutate(batchData);
+  const onSubmit = async (data: InsertOrganizationBatch) => {
+    try {
+      if (!user?.organizationId) {
+        throw new Error('Organization ID is required');
+      }
+
+      const batchData = {
+        ...data,
+        organizationId: Number(user.organizationId),
+        status: 'planning' as const,
+        endDate: batchDates?.certificationEnd || data.endDate,
+        capacityLimit: Number(data.capacityLimit),
+        processId: Number(data.processId),
+        locationId: Number(data.locationId),
+        trainerId: Number(data.trainerId),
+      };
+
+      await createBatchMutation.mutateAsync(batchData);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to create batch",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -222,7 +239,6 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
               </FormItem>
             )}
           />
-
           <FormField
             control={form.control}
             name="name"
@@ -236,7 +252,6 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
               </FormItem>
             )}
           />
-
           <FormField
             control={form.control}
             name="locationId"
@@ -272,7 +287,6 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
               </FormItem>
             )}
           />
-
           <FormField
             control={form.control}
             name="lineOfBusinessId"
@@ -306,7 +320,6 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
               </FormItem>
             )}
           />
-
           <FormField
             control={form.control}
             name="processId"
@@ -348,7 +361,6 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
               </FormItem>
             )}
           />
-
           <FormField
             control={form.control}
             name="trainerId"
@@ -381,7 +393,6 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
               </FormItem>
             )}
           />
-
           <FormItem>
             <FormLabel>Reporting Manager</FormLabel>
             <FormControl>
@@ -393,7 +404,6 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
               />
             </FormControl>
           </FormItem>
-
           <FormField
             control={form.control}
             name="startDate"
@@ -407,7 +417,6 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
               </FormItem>
             )}
           />
-
           <FormField
             control={form.control}
             name="status"
@@ -425,7 +434,6 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
               </FormItem>
             )}
           />
-
           {batchDates && (
             <>
               <FormItem>
@@ -439,7 +447,6 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
                   />
                 </FormControl>
               </FormItem>
-
               <FormItem>
                 <FormLabel>Training Start Date</FormLabel>
                 <FormControl>
@@ -451,7 +458,6 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
                   />
                 </FormControl>
               </FormItem>
-
               <FormItem>
                 <FormLabel>Training End Date</FormLabel>
                 <FormControl>
@@ -463,7 +469,6 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
                   />
                 </FormControl>
               </FormItem>
-
               <FormItem>
                 <FormLabel>Certification Start Date</FormLabel>
                 <FormControl>
@@ -475,7 +480,6 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
                   />
                 </FormControl>
               </FormItem>
-
               <FormItem>
                 <FormLabel>Certification End Date</FormLabel>
                 <FormControl>
@@ -487,7 +491,6 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
                   />
                 </FormControl>
               </FormItem>
-
               <FormItem>
                 <FormLabel>OJT Start Date</FormLabel>
                 <FormControl>
@@ -499,7 +502,6 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
                   />
                 </FormControl>
               </FormItem>
-
               <FormItem>
                 <FormLabel>OJT End Date</FormLabel>
                 <FormControl>
@@ -511,7 +513,6 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
                   />
                 </FormControl>
               </FormItem>
-
               <FormItem>
                 <FormLabel>OJT Certification Start Date</FormLabel>
                 <FormControl>
@@ -523,7 +524,6 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
                   />
                 </FormControl>
               </FormItem>
-
               <FormItem>
                 <FormLabel>OJT Certification End Date</FormLabel>
                 <FormControl>
@@ -535,7 +535,6 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
                   />
                 </FormControl>
               </FormItem>
-
               <FormItem>
                 <FormLabel>BATCH HANDOVER TO OPS DATE</FormLabel>
                 <FormControl>
@@ -549,7 +548,6 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
               </FormItem>
             </>
           )}
-
           <FormField
             control={form.control}
             name="capacityLimit"
@@ -570,7 +568,6 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
             )}
           />
         </div>
-
         <div className="flex justify-end space-x-2">
           <Button
             type="submit"
