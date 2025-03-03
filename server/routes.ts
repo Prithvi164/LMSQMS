@@ -929,11 +929,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('Creating batch with data:', batchData);
 
-      const batch = await storage.createBatch(batchData);
+      // Validate the data using the schema
+      const validatedData = insertOrganizationBatchSchema.parse(batchData);
+      const batch = await storage.createBatch(validatedData);
+
+      console.log('Batch created successfully:', batch);
       res.status(201).json(batch);
     } catch (error: any) {
       console.error("Batch creation error:", error);
-      res.status(400).json({ message: error.message });
+      res.status(400).json({ message: error.message || "Failed to create batch" });
     }
   });
 

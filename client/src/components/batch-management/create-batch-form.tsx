@@ -171,22 +171,36 @@ export function CreateBatchForm() {
   const createBatchMutation = useMutation({
     mutationFn: async (data: InsertOrganizationBatch) => {
       try {
+        console.log('Submitting batch data:', data); // Debug log
         const response = await fetch(`/api/organizations/${user?.organizationId}/batches`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(data),
+          body: JSON.stringify({
+            ...data,
+            startDate: format(new Date(data.startDate), 'yyyy-MM-dd'),
+            endDate: format(new Date(data.endDate), 'yyyy-MM-dd'),
+            capacityLimit: Number(data.capacityLimit),
+            processId: Number(data.processId),
+            locationId: Number(data.locationId),
+            trainerId: Number(data.trainerId),
+            organizationId: user?.organizationId,
+          }),
         });
 
         if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.message || 'Failed to create batch');
+          const errorData = await response.json();
+          console.error('Server error:', errorData); // Debug log
+          throw new Error(errorData.message || 'Failed to create batch');
         }
 
-        return response.json();
+        const result = await response.json();
+        console.log('Server response:', result); // Debug log
+        return result;
       } catch (error) {
-        throw new Error(error instanceof Error ? error.message : 'Failed to create batch');
+        console.error('Mutation error:', error); // Debug log
+        throw error;
       }
     },
     onSuccess: () => {
@@ -201,6 +215,7 @@ export function CreateBatchForm() {
       setSelectedTrainer(null);
     },
     onError: (error: Error) => {
+      console.error('Error details:', error); // Debug log
       toast({
         title: "Error",
         description: error.message || "Failed to create batch. Please try again.",
@@ -223,14 +238,25 @@ export function CreateBatchForm() {
   }, [form.watch('startDate'), selectedProcess]);
 
   const onSubmit = (data: InsertOrganizationBatch) => {
-    // Include all necessary fields
-    const batchData = {
-      ...data,
-      organizationId: user?.organizationId,
-      status: 'planning',
-      endDate: batchDates?.certificationEnd || data.endDate,
-    };
-    createBatchMutation.mutate(batchData);
+    try {
+      console.log('Form data before submission:', data); // Debug log
+      // Include all necessary fields
+      const batchData = {
+        ...data,
+        organizationId: user?.organizationId,
+        status: 'planning',
+        endDate: batchDates?.certificationEnd || data.endDate,
+      };
+      console.log('Processed batch data:', batchData); // Debug log
+      createBatchMutation.mutate(batchData);
+    } catch (error) {
+      console.error('Submit error:', error); // Debug log
+      toast({
+        title: "Error",
+        description: "Failed to process form data. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
