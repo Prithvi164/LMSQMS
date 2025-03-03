@@ -1,4 +1,4 @@
-import { eq, inArray, sql } from "drizzle-orm";
+import { eq, inArray, sql, desc } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
@@ -866,7 +866,8 @@ export class DatabaseStorage implements IStorage {
       const batches = await db
         .select()
         .from(organizationBatches)
-        .where(eq(organizationBatches.organizationId, organizationId)) as OrganizationBatch[];
+        .where(eq(organizationBatches.organizationId, organizationId))
+        .orderBy(desc(organizationBatches.createdAt)) as OrganizationBatch[];
 
       console.log(`Found ${batches.length} batches`);
       return batches;
