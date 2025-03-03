@@ -57,7 +57,6 @@ const calculateBatchDates = (startDate: string, process: any) => {
   const trainingEndDate = addWorkingDays(trainingStartDate, process.trainingDays - 1);
   const certificationStartDate = addWorkingDays(trainingEndDate, 1);
   const certificationEndDate = addWorkingDays(certificationStartDate, process.certificationDays - 1);
-
   const ojtStartDate = addWorkingDays(certificationEndDate, 1);
   const ojtEndDate = addWorkingDays(ojtStartDate, process.ojtDays - 1);
   const ojtCertificationStartDate = addWorkingDays(ojtEndDate, 1);
@@ -101,18 +100,12 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
       processId: 0,
       locationId: 0,
       trainerId: 0,
-      organizationId: user?.organizationId || 0,
-      lineOfBusinessId: 0, // Added lineOfBusinessId
-    },
+      organizationId: user?.organizationId || 0
+    }
   });
 
   const { data: locations = [] } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations`]
-  });
-
-  const { data: lobs = [] } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/locations/${selectedLocation}/line-of-businesses`],
-    enabled: !!selectedLocation && !!user?.organizationId
   });
 
   const { data: processes = [] } = useQuery({
@@ -148,11 +141,8 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
         processId: Number(data.processId),
         locationId: Number(data.locationId),
         trainerId: Number(data.trainerId),
-        lineOfBusinessId: Number(data.lineOfBusinessId), // Added lineOfBusinessId
-        organizationId: Number(user?.organizationId),
+        organizationId: Number(user?.organizationId)
       };
-
-      console.log('Submitting batch data:', formattedData);
 
       const response = await fetch(`/api/organizations/${user?.organizationId}/batches`, {
         method: 'POST',
@@ -164,7 +154,6 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('Server error:', errorData);
         throw new Error(errorData.message || 'Failed to create batch');
       }
 
@@ -183,7 +172,6 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
       onSuccess();
     },
     onError: (error: Error) => {
-      console.error('Error creating batch:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to create batch. Please try again.",
@@ -213,14 +201,11 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
         ...data,
         organizationId: Number(user.organizationId),
         status: 'planning' as const,
-        endDate: batchDates?.certificationEnd || data.endDate,
-        lineOfBusinessId: selectedLob || 0, //Added lineOfBusinessId
+        endDate: batchDates?.certificationEnd || data.endDate
       };
 
-      console.log('Form submitted with data:', batchData);
       await createBatchMutation.mutateAsync(batchData);
     } catch (error) {
-      console.error('Form submission error:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to create batch",
@@ -297,39 +282,6 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="lineOfBusinessId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Line of Business</FormLabel>
-                <Select
-                  onValueChange={(value) => {
-                    const lobId = parseInt(value);
-                    field.onChange(lobId);
-                    setSelectedLob(lobId);
-                    form.setValue('processId', 0);
-                  }}
-                  value={field.value?.toString() || ""}
-                  disabled={!selectedLocation}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={selectedLocation ? "Select LOB" : "Select location first"} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {lobs.map((lob: any) => (
-                      <SelectItem key={lob.id} value={lob.id.toString()}>
-                        {lob.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
 
           <FormField
             control={form.control}
@@ -353,11 +305,11 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
                     }
                   }}
                   value={field.value?.toString() || ""}
-                  disabled={!selectedLob}
+                  disabled={!selectedLocation}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder={selectedLob ? "Select process" : "Select LOB first"} />
+                      <SelectValue placeholder={selectedLocation ? "Select process" : "Select location first"} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
