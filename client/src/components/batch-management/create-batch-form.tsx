@@ -22,7 +22,6 @@ import {
 import { insertOrganizationBatchSchema, type InsertOrganizationBatch } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { apiRequest } from "@/lib/queryClient";
 
 export function CreateBatchForm() {
   const { toast } = useToast();
@@ -35,12 +34,16 @@ export function CreateBatchForm() {
     resolver: zodResolver(insertOrganizationBatchSchema),
     defaultValues: {
       status: 'planned',
-      organizationId: user?.organizationId,
+      organizationId: user?.organizationId || undefined, //Added undefined for better handling
       startDate: '',
       endDate: '',
-      capacityLimit: undefined,
+      capacityLimit: 1, // Added default value to prevent undefined error
       batchCode: '',
       name: '',
+      locationId: undefined, //Added undefined for better handling
+      lineOfBusinessId: undefined, //Added undefined for better handling
+      processId: undefined, //Added undefined for better handling
+      trainerId: undefined, //Added undefined for better handling
     },
   });
 
@@ -77,37 +80,38 @@ export function CreateBatchForm() {
     isLoading: isLoadingTrainers
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/users`],
-    select: (users) => users.filter((user) => 
+    select: (users) => users?.filter((user) => 
       user.role === 'trainer' && 
       (!selectedLocation || user.locationId === selectedLocation)
-    ),
+    ) || [], // Handle potential null or undefined users
     enabled: !!user?.organizationId
   });
 
   const createBatchMutation = useMutation({
-    mutationFn: async (data: InsertOrganizationBatch) => {
-      console.log('Attempting to create batch with data:', {
-        ...data,
-        organizationId: user?.organizationId
-      });
-
+    mutationFn: async (values: InsertOrganizationBatch) => {
       if (!user?.organizationId) {
         throw new Error('Organization ID is required');
       }
 
-      const response = await apiRequest(`/api/organizations/${user.organizationId}/batches`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...data,
-          organizationId: user.organizationId
-        }),
-      });
+      try {
+        const response = await fetch(`/api/organizations/${user.organizationId}/batches`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(values),
+        });
 
-      console.log('Batch creation response:', response);
-      return response;
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to create batch');
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error('API Error:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/batches`] });
@@ -131,23 +135,17 @@ export function CreateBatchForm() {
 
   async function onSubmit(values: InsertOrganizationBatch) {
     try {
-      console.log('Form values before submission:', {
-        ...values,
-        startDate: values.startDate,
-        endDate: values.endDate,
-        capacityLimit: values.capacityLimit
-      });
-
-      // Validate all required fields
+      //Added stricter validation
       if (!values.batchCode) throw new Error('Batch code is required');
       if (!values.name) throw new Error('Batch name is required');
-      if (!values.locationId) throw new Error('Location is required');
-      if (!values.lineOfBusinessId) throw new Error('Line of Business is required');
-      if (!values.processId) throw new Error('Process is required');
-      if (!values.trainerId) throw new Error('Trainer is required');
+      if (values.locationId === undefined) throw new Error('Location is required');
+      if (values.lineOfBusinessId === undefined) throw new Error('Line of Business is required');
+      if (values.processId === undefined) throw new Error('Process is required');
+      if (values.trainerId === undefined) throw new Error('Trainer is required');
       if (!values.startDate) throw new Error('Start date is required');
       if (!values.endDate) throw new Error('End date is required');
-      if (!values.capacityLimit) throw new Error('Capacity limit is required');
+      if (values.capacityLimit === undefined) throw new Error('Capacity limit is required');
+
 
       await createBatchMutation.mutateAsync(values);
     } catch (error) {
@@ -204,14 +202,8 @@ export function CreateBatchForm() {
                 <Select
                   onValueChange={(value) => {
                     const locationId = parseInt(value);
-                    console.log('Location Selection:', {
-                      selectedValue: value,
-                      parsedLocationId: locationId,
-                      locationDetails: locations.find(loc => loc.id === locationId)
-                    });
                     field.onChange(locationId);
                     setSelectedLocation(locationId);
-                    // Reset dependent fields
                     setSelectedLob(null);
                     form.setValue('lineOfBusinessId', undefined);
                     form.setValue('processId', undefined);
@@ -248,10 +240,6 @@ export function CreateBatchForm() {
                 <Select
                   onValueChange={(value) => {
                     const lobId = parseInt(value);
-                    console.log('LOB Selected:', {
-                      lobId,
-                      lobName: lobs.find(lob => lob.id === lobId)?.name
-                    });
                     field.onChange(lobId);
                     setSelectedLob(lobId);
                     form.setValue('processId', undefined);
@@ -261,15 +249,7 @@ export function CreateBatchForm() {
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue 
-                        placeholder={
-                          !selectedLocation 
-                            ? "Select location first" 
-                            : isLoadingLobs 
-                              ? "Loading LOBs..." 
-                              : "Select LOB"
-                        } 
-                      />
+                      <SelectValue placeholder={selectedLocation ? "Select LOB" : "Select location first"} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -295,10 +275,6 @@ export function CreateBatchForm() {
                 <Select
                   onValueChange={(value) => {
                     const processId = parseInt(value);
-                    console.log('Process Selected:', {
-                      processId,
-                      processName: processes.find(p => p.id === processId)?.name
-                    });
                     field.onChange(processId);
                   }}
                   value={field.value?.toString()}
@@ -332,10 +308,6 @@ export function CreateBatchForm() {
                 <Select
                   onValueChange={(value) => {
                     const trainerId = parseInt(value);
-                    console.log('Trainer Selected:', {
-                      trainerId,
-                      trainerName: trainers.find(t => t.id === trainerId)?.fullName
-                    });
                     field.onChange(trainerId);
                   }}
                   value={field.value?.toString()}
@@ -370,10 +342,7 @@ export function CreateBatchForm() {
                   <Input 
                     type="date" 
                     value={field.value || ''} 
-                    onChange={(e) => {
-                      console.log('Start date changed:', e.target.value);
-                      field.onChange(e.target.value);
-                    }}
+                    onChange={(e) => field.onChange(e.target.value)}
                   />
                 </FormControl>
                 <FormMessage />
@@ -392,10 +361,7 @@ export function CreateBatchForm() {
                   <Input 
                     type="date" 
                     value={field.value || ''} 
-                    onChange={(e) => {
-                      console.log('End date changed:', e.target.value);
-                      field.onChange(e.target.value);
-                    }}
+                    onChange={(e) => field.onChange(e.target.value)}
                   />
                 </FormControl>
                 <FormMessage />
@@ -418,7 +384,6 @@ export function CreateBatchForm() {
                     value={field.value || ''}
                     onChange={(e) => {
                       const value = e.target.value ? parseInt(e.target.value) : undefined;
-                      console.log('Capacity changed:', value);
                       field.onChange(value);
                     }}
                   />
