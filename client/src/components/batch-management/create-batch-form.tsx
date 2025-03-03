@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { insertOrganizationBatchSchema } from "@shared/schema";
+import { insertOrganizationBatchSchema, type InsertOrganizationBatch } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
@@ -36,32 +36,17 @@ export function CreateBatchForm() {
     data: locations = [], 
     isLoading: isLoadingLocations 
   } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/locations`]
+    queryKey: [`/api/organizations/${user?.organizationId}/locations`],
+    enabled: !!user?.organizationId
   });
 
   // Step 2: Fetch LOBs based on selected location
   const { 
     data: lobs = [], 
-    isLoading: isLoadingLobs,
-    error: lobError 
+    isLoading: isLoadingLobs 
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations/${selectedLocation}/line-of-businesses`],
-    enabled: !!selectedLocation && !!user?.organizationId,
-    onSuccess: (data) => {
-      console.log('LOBs API Response:', {
-        selectedLocation,
-        receivedLobs: data.map(lob => ({
-          id: lob.id,
-          name: lob.name
-        }))
-      });
-      // Reset LOB selection when location changes
-      setSelectedLob(null);
-      form.setValue('lineOfBusinessId', null);
-      form.setValue('processId', null);
-      // Also reset trainer when location changes
-      form.setValue('trainerId', null);
-    }
+    enabled: !!selectedLocation && !!user?.organizationId
   });
 
   // Step 3: Fetch processes based on selected LOB
@@ -70,7 +55,7 @@ export function CreateBatchForm() {
     isLoading: isLoadingProcesses
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${selectedLob}/processes`],
-    enabled: !!selectedLob
+    enabled: !!selectedLob && !!user?.organizationId
   });
 
   // Fetch trainers with location filter
@@ -86,20 +71,21 @@ export function CreateBatchForm() {
     enabled: !!user?.organizationId
   });
 
-  const form = useForm({
+  const form = useForm<InsertOrganizationBatch>({
     resolver: zodResolver(insertOrganizationBatchSchema),
     defaultValues: {
       status: 'planned',
-      organizationId: user?.organizationId,
-    },
+      organizationId: user?.organizationId || undefined,
+    }
   });
 
   const createBatchMutation = useMutation({
-    mutationFn: async (data) => {
-      return apiRequest(`/api/organizations/${user?.organizationId}/batches`, {
+    mutationFn: async (data: InsertOrganizationBatch) => {
+      const response = await apiRequest(`/api/organizations/${user?.organizationId}/batches`, {
         method: 'POST',
         body: JSON.stringify(data),
       });
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/batches`] });
@@ -111,19 +97,28 @@ export function CreateBatchForm() {
       setSelectedLocation(null);
       setSelectedLob(null);
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       console.error('Error creating batch:', error);
       toast({
         title: "Error",
-        description: "Failed to create batch. Please try again.",
+        description: error.message || "Failed to create batch. Please try again.",
         variant: "destructive",
       });
     },
   });
 
+  async function onSubmit(data: InsertOrganizationBatch) {
+    try {
+      console.log('Submitting batch data:', data);
+      await createBatchMutation.mutateAsync(data);
+    } catch (error) {
+      console.error('Form submission error:', error);
+    }
+  }
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(createBatchMutation.mutate)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <div className="grid grid-cols-2 gap-4">
           {/* Batch Code */}
           <FormField
@@ -170,14 +165,12 @@ export function CreateBatchForm() {
                       parsedLocationId: locationId,
                       locationDetails: locations.find(loc => loc.id === locationId)
                     });
-
                     field.onChange(locationId);
                     setSelectedLocation(locationId);
-                    // Reset dependent fields
                     setSelectedLob(null);
-                    form.setValue('lineOfBusinessId', null);
-                    form.setValue('processId', null);
-                    form.setValue('trainerId', null); // Reset trainer when location changes
+                    form.setValue('lineOfBusinessId', undefined);
+                    form.setValue('processId', undefined);
+                    form.setValue('trainerId', undefined);
                   }}
                   value={field.value?.toString()}
                   disabled={isLoadingLocations}
@@ -216,7 +209,7 @@ export function CreateBatchForm() {
                     });
                     field.onChange(lobId);
                     setSelectedLob(lobId);
-                    form.setValue('processId', null);
+                    form.setValue('processId', undefined);
                   }}
                   value={field.value?.toString()}
                   disabled={!selectedLocation || isLoadingLobs}
@@ -242,11 +235,6 @@ export function CreateBatchForm() {
                     ))}
                   </SelectContent>
                 </Select>
-                {lobError && (
-                  <div className="text-red-500 text-sm mt-1">
-                    Failed to load line of businesses
-                  </div>
-                )}
                 <FormMessage />
               </FormItem>
             )}
