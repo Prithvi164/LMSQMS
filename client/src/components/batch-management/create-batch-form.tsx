@@ -38,6 +38,9 @@ export function CreateBatchForm() {
       organizationId: user?.organizationId,
       startDate: '',
       endDate: '',
+      capacityLimit: undefined,
+      batchCode: '',
+      name: '',
     },
   });
 
@@ -128,7 +131,12 @@ export function CreateBatchForm() {
 
   async function onSubmit(values: InsertOrganizationBatch) {
     try {
-      console.log('Form values before submission:', values);
+      console.log('Form values before submission:', {
+        ...values,
+        startDate: values.startDate,
+        endDate: values.endDate,
+        capacityLimit: values.capacityLimit
+      });
 
       // Validate all required fields
       if (!values.batchCode) throw new Error('Batch code is required');
@@ -362,7 +370,10 @@ export function CreateBatchForm() {
                   <Input 
                     type="date" 
                     value={field.value || ''} 
-                    onChange={(e) => field.onChange(e.target.value || '')}
+                    onChange={(e) => {
+                      console.log('Start date changed:', e.target.value);
+                      field.onChange(e.target.value);
+                    }}
                   />
                 </FormControl>
                 <FormMessage />
@@ -381,7 +392,10 @@ export function CreateBatchForm() {
                   <Input 
                     type="date" 
                     value={field.value || ''} 
-                    onChange={(e) => field.onChange(e.target.value || '')}
+                    onChange={(e) => {
+                      console.log('End date changed:', e.target.value);
+                      field.onChange(e.target.value);
+                    }}
                   />
                 </FormControl>
                 <FormMessage />
@@ -401,8 +415,12 @@ export function CreateBatchForm() {
                     type="number"
                     min={1}
                     placeholder="Enter capacity"
-                    {...field}
-                    onChange={(e) => field.onChange(parseInt(e.target.value))}
+                    value={field.value || ''}
+                    onChange={(e) => {
+                      const value = e.target.value ? parseInt(e.target.value) : undefined;
+                      console.log('Capacity changed:', value);
+                      field.onChange(value);
+                    }}
                   />
                 </FormControl>
                 <FormMessage />
