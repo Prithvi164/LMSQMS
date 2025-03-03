@@ -792,14 +792,53 @@ export class DatabaseStorage implements IStorage {
   // Batch operations
   async createBatch(batch: InsertOrganizationBatch): Promise<OrganizationBatch> {
     try {
-      console.log('Creating batch with data:', batch);
+      console.log('Creating batch with data:', {
+        ...batch,
+        password: '[REDACTED]' // Ensure we don't log sensitive data
+      });
 
+      // Verify the location exists
+      const location = await this.getLocation(batch.locationId);
+      if (!location) {
+        throw new Error('Location not found');
+      }
+
+      // Verify the LOB exists
+      const lob = await this.getLineOfBusiness(batch.lineOfBusinessId);
+      if (!lob) {
+        throw new Error('Line of Business not found');
+      }
+
+      // Verify the process exists and belongs to the LOB
+      const process = await this.getProcess(batch.processId);
+      if (!process) {
+        throw new Error('Process not found');
+      }
+      if (process.lineOfBusinessId !== batch.lineOfBusinessId) {
+        throw new Error('Process does not belong to the selected Line of Business');
+      }
+
+      // Verify the trainer exists and is assigned to the location
+      const trainer = await this.getUser(batch.trainerId);
+      if (!trainer) {
+        throw new Error('Trainer not found');
+      }
+      if (trainer.locationId !== batch.locationId) {
+        throw new Error('Trainer is not assigned to the selected location');
+      }
+
+      // Create the batch
       const [newBatch] = await db
         .insert(organizationBatches)
         .values(batch)
         .returning() as OrganizationBatch[];
 
-      console.log('Successfully created new batch:', newBatch);
+      console.log('Successfully created new batch:', {
+        id: newBatch.id,
+        name: newBatch.name,
+        batchCode: newBatch.batchCode
+      });
+
       return newBatch;
     } catch (error: any) {
       console.error('Error creating batch:', error);

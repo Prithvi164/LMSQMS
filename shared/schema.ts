@@ -37,6 +37,9 @@ export const organizationBatches = pgTable("organization_batches", {
   locationId: integer("location_id")
     .references(() => organizationLocations.id)
     .notNull(),
+  lineOfBusinessId: integer("line_of_business_id")
+    .references(() => organizationLineOfBusinesses.id)
+    .notNull(),
   trainerId: integer("trainer_id")
     .references(() => users.id)
     .notNull(),
@@ -49,7 +52,7 @@ export const organizationBatches = pgTable("organization_batches", {
 
 export type OrganizationBatch = InferSelectModel<typeof organizationBatches>;
 
-// Relations for batches
+// Add relations for batches
 export const organizationBatchesRelations = relations(organizationBatches, ({ one }) => ({
   organization: one(organizations, {
     fields: [organizationBatches.organizationId],
@@ -62,6 +65,10 @@ export const organizationBatchesRelations = relations(organizationBatches, ({ on
   location: one(organizationLocations, {
     fields: [organizationBatches.locationId],
     references: [organizationLocations.id],
+  }),
+  lob: one(organizationLineOfBusinesses, {
+    fields: [organizationBatches.lineOfBusinessId],
+    references: [organizationLineOfBusinesses.id],
   }),
   trainer: one(users, {
     fields: [organizationBatches.trainerId],
@@ -90,6 +97,7 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
     status: z.enum(['planned', 'ongoing', 'completed']).default('planned'),
     processId: z.number().int().positive("Process is required"),
     locationId: z.number().int().positive("Location is required"),
+    lineOfBusinessId: z.number().int().positive("Line of Business is required"),
     trainerId: z.number().int().positive("Trainer is required"),
     organizationId: z.number().int().positive("Organization is required"),
   });
