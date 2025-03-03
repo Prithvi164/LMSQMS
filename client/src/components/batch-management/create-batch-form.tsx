@@ -209,23 +209,21 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
         throw new Error('Organization ID is required');
       }
 
-      // Log form data
       console.log('Form submitted with data:', data);
 
       const batchData = {
         ...data,
-        organizationId: Number(user.organizationId),
-        status: 'planning' as const,
+        startDate: data.startDate,
         endDate: batchDates?.certificationEnd || data.endDate,
         capacityLimit: Number(data.capacityLimit),
         processId: Number(data.processId),
         locationId: Number(data.locationId),
         trainerId: Number(data.trainerId),
+        organizationId: Number(user.organizationId),
+        status: 'planning' as const,
       };
 
-      // Log processed data
       console.log('Processed batch data:', batchData);
-
       await createBatchMutation.mutateAsync(batchData);
     } catch (error) {
       console.error('Form submission error:', error);
@@ -242,9 +240,6 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
       <form 
         onSubmit={form.handleSubmit(onSubmit)} 
         className="space-y-6"
-        onError={(errors) => {
-          console.error('Form validation errors:', errors);
-        }}
       >
         <div className="grid grid-cols-2 gap-4">
           <FormField
@@ -260,6 +255,7 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
               </FormItem>
             )}
           />
+
           <FormField
             control={form.control}
             name="name"
@@ -273,6 +269,7 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
               </FormItem>
             )}
           />
+
           <FormField
             control={form.control}
             name="locationId"
@@ -289,7 +286,7 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
                     form.setValue('trainerId', 0);
                     setSelectedTrainer(null);
                   }}
-                  value={field.value?.toString()}
+                  value={field.value?.toString() || ""}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -297,7 +294,7 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {locations.map((location) => (
+                    {locations.map((location: any) => (
                       <SelectItem key={location.id} value={location.id.toString()}>
                         {location.name}
                       </SelectItem>
@@ -308,39 +305,7 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
               </FormItem>
             )}
           />
-          <FormField
-            control={form.control}
-            name="lineOfBusinessId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Line of Business</FormLabel>
-                <Select
-                  onValueChange={(value) => {
-                    const lobId = parseInt(value);
-                    field.onChange(lobId);
-                    setSelectedLob(lobId);
-                    form.setValue('processId', 0);
-                  }}
-                  value={field.value?.toString()}
-                  disabled={!selectedLocation || isLoadingLobs}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={selectedLocation ? "Select LOB" : "Select location first"} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {lobs.map((lob) => (
-                      <SelectItem key={lob.id} value={lob.id.toString()}>
-                        {lob.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+
           <FormField
             control={form.control}
             name="processId"
@@ -351,7 +316,7 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
                   onValueChange={(value) => {
                     const processId = parseInt(value);
                     field.onChange(processId);
-                    const process = processes.find(p => p.id === processId);
+                    const process = processes.find((p: any) => p.id === processId);
                     setSelectedProcess(process);
                     const startDate = form.getValues('startDate');
                     if (startDate && process) {
@@ -362,8 +327,8 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
                       }
                     }
                   }}
-                  value={field.value?.toString()}
-                  disabled={!selectedLob || isLoadingProcesses}
+                  value={field.value?.toString() || ""}
+                  disabled={!selectedLob}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -371,7 +336,7 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {processes.map((process) => (
+                    {processes.map((process: any) => (
                       <SelectItem key={process.id} value={process.id.toString()}>
                         {process.name}
                       </SelectItem>
@@ -382,6 +347,7 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
               </FormItem>
             )}
           />
+
           <FormField
             control={form.control}
             name="trainerId"
@@ -394,8 +360,8 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
                     field.onChange(trainerId);
                     setSelectedTrainer(trainerId);
                   }}
-                  value={field.value?.toString()}
-                  disabled={!selectedLocation || isLoadingTrainers}
+                  value={field.value?.toString() || ""}
+                  disabled={!selectedLocation}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -403,7 +369,7 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {trainers.map((trainer) => (
+                    {trainers.map((trainer: any) => (
                       <SelectItem key={trainer.id} value={trainer.id.toString()}>
                         {trainer.fullName}
                       </SelectItem>
@@ -414,6 +380,7 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
               </FormItem>
             )}
           />
+
           <FormItem>
             <FormLabel>Reporting Manager</FormLabel>
             <FormControl>
@@ -425,12 +392,13 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
               />
             </FormControl>
           </FormItem>
+
           <FormField
             control={form.control}
             name="startDate"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Batch Start Date (Induction Start)</FormLabel>
+                <FormLabel>Start Date</FormLabel>
                 <FormControl>
                   <Input type="date" {...field} />
                 </FormControl>
@@ -438,6 +406,27 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
               </FormItem>
             )}
           />
+
+          <FormField
+            control={form.control}
+            name="capacityLimit"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Capacity Limit</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    min={1}
+                    placeholder="Enter capacity"
+                    {...field}
+                    onChange={(e) => field.onChange(parseInt(e.target.value))}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
           <FormField
             control={form.control}
             name="status"
@@ -455,6 +444,7 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
               </FormItem>
             )}
           />
+
           {batchDates && (
             <>
               <FormItem>
@@ -569,34 +559,12 @@ export function CreateBatchForm({ onSuccess }: CreateBatchFormProps) {
               </FormItem>
             </>
           )}
-          <FormField
-            control={form.control}
-            name="capacityLimit"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Capacity Limit</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    min={1}
-                    placeholder="Enter capacity"
-                    {...field}
-                    onChange={(e) => field.onChange(parseInt(e.target.value))}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
         </div>
+
         <div className="flex justify-end space-x-2">
           <Button
             type="submit"
             disabled={createBatchMutation.isPending}
-            onClick={() => {
-              console.log('Form state:', form.getValues());
-              console.log('Form errors:', form.formState.errors);
-            }}
           >
             {createBatchMutation.isPending ? "Creating..." : "Create Batch"}
           </Button>
