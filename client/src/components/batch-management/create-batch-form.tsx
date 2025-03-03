@@ -31,6 +31,14 @@ export function CreateBatchForm() {
   const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
   const [selectedLob, setSelectedLob] = useState<number | null>(null);
 
+  const form = useForm<InsertOrganizationBatch>({
+    resolver: zodResolver(insertOrganizationBatchSchema),
+    defaultValues: {
+      status: 'planned',
+      organizationId: user?.organizationId,
+    },
+  });
+
   // Step 1: Fetch Locations
   const { 
     data: locations = [], 
@@ -71,20 +79,29 @@ export function CreateBatchForm() {
     enabled: !!user?.organizationId
   });
 
-  const form = useForm<InsertOrganizationBatch>({
-    resolver: zodResolver(insertOrganizationBatchSchema),
-    defaultValues: {
-      status: 'planned',
-      organizationId: user?.organizationId || undefined,
-    }
-  });
-
   const createBatchMutation = useMutation({
     mutationFn: async (data: InsertOrganizationBatch) => {
-      const response = await apiRequest(`/api/organizations/${user?.organizationId}/batches`, {
-        method: 'POST',
-        body: JSON.stringify(data),
+      console.log('Attempting to create batch with data:', {
+        ...data,
+        organizationId: user?.organizationId
       });
+
+      if (!user?.organizationId) {
+        throw new Error('Organization ID is required');
+      }
+
+      const response = await apiRequest(`/api/organizations/${user.organizationId}/batches`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...data,
+          organizationId: user.organizationId
+        }),
+      });
+
+      console.log('Batch creation response:', response);
       return response;
     },
     onSuccess: () => {
@@ -107,12 +124,29 @@ export function CreateBatchForm() {
     },
   });
 
-  async function onSubmit(data: InsertOrganizationBatch) {
+  async function onSubmit(values: InsertOrganizationBatch) {
     try {
-      console.log('Submitting batch data:', data);
-      await createBatchMutation.mutateAsync(data);
+      console.log('Form values before submission:', values);
+
+      // Validate all required fields
+      if (!values.batchCode) throw new Error('Batch code is required');
+      if (!values.name) throw new Error('Batch name is required');
+      if (!values.locationId) throw new Error('Location is required');
+      if (!values.lineOfBusinessId) throw new Error('Line of Business is required');
+      if (!values.processId) throw new Error('Process is required');
+      if (!values.trainerId) throw new Error('Trainer is required');
+      if (!values.startDate) throw new Error('Start date is required');
+      if (!values.endDate) throw new Error('End date is required');
+      if (!values.capacityLimit) throw new Error('Capacity limit is required');
+
+      await createBatchMutation.mutateAsync(values);
     } catch (error) {
       console.error('Form submission error:', error);
+      toast({
+        title: "Validation Error",
+        description: error instanceof Error ? error.message : "Please fill all required fields",
+        variant: "destructive",
+      });
     }
   }
 
@@ -167,6 +201,7 @@ export function CreateBatchForm() {
                     });
                     field.onChange(locationId);
                     setSelectedLocation(locationId);
+                    // Reset dependent fields
                     setSelectedLob(null);
                     form.setValue('lineOfBusinessId', undefined);
                     form.setValue('processId', undefined);
@@ -248,7 +283,14 @@ export function CreateBatchForm() {
               <FormItem>
                 <FormLabel>Process</FormLabel>
                 <Select
-                  onValueChange={(value) => field.onChange(parseInt(value))}
+                  onValueChange={(value) => {
+                    const processId = parseInt(value);
+                    console.log('Process Selected:', {
+                      processId,
+                      processName: processes.find(p => p.id === processId)?.name
+                    });
+                    field.onChange(processId);
+                  }}
                   value={field.value?.toString()}
                   disabled={!selectedLob || isLoadingProcesses}
                 >
@@ -278,7 +320,14 @@ export function CreateBatchForm() {
               <FormItem>
                 <FormLabel>Trainer</FormLabel>
                 <Select
-                  onValueChange={(value) => field.onChange(parseInt(value))}
+                  onValueChange={(value) => {
+                    const trainerId = parseInt(value);
+                    console.log('Trainer Selected:', {
+                      trainerId,
+                      trainerName: trainers.find(t => t.id === trainerId)?.fullName
+                    });
+                    field.onChange(trainerId);
+                  }}
                   value={field.value?.toString()}
                   disabled={!selectedLocation || isLoadingTrainers}
                 >
