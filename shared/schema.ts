@@ -87,12 +87,7 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
     batchCode: z.string().min(1, "Batch code is required"),
     name: z.string().min(1, "Batch name is required"),
     startDate: z.string().min(1, "Start date is required"),
-    endDate: z.string().min(1, "End date is required")
-      .refine((endDate, ctx) => {
-        const start = new Date(ctx.data?.startDate || '');
-        const end = new Date(endDate);
-        return end > start;
-      }, "End date must be after start date"),
+    endDate: z.string().min(1, "End date is required"),
     capacityLimit: z.number().int().min(1, "Capacity must be at least 1"),
     status: z.enum(['planned', 'ongoing', 'completed']).default('planned'),
     processId: z.number().int().positive("Process is required"),
@@ -100,7 +95,22 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
     lineOfBusinessId: z.number().int().positive("Line of Business is required"),
     trainerId: z.number().int().positive("Trainer is required"),
     organizationId: z.number().int().positive("Organization is required"),
-  });
+  })
+  .refine(
+    (data) => {
+      try {
+        const startDate = new Date(data.startDate);
+        const endDate = new Date(data.endDate);
+        return endDate > startDate;
+      } catch {
+        return false;
+      }
+    },
+    {
+      message: "End date must be after start date",
+      path: ["endDate"], // This specifies which field the error is associated with
+    }
+  );
 
 export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
 
