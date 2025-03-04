@@ -457,7 +457,7 @@ export function CreateBatchForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-h-[calc(100vh-100px)] overflow-y-auto pr-4">
         {isCreating && (
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm font-medium">
