@@ -360,12 +360,14 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     }
   };
 
+  // Example date calculation function
   const addWorkingDays = (startDate: Date, days: number): Date => {
     let currentDate = startDate;
     let remainingDays = days;
 
     while (remainingDays > 0) {
       currentDate = addDays(currentDate, 1);
+      // Skip Sundays when counting working days
       if (!isSunday(currentDate)) {
         remainingDays--;
       }
@@ -544,31 +546,67 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     }
   }, [editMode, batchData]);
 
-  // Update the date calculation effect to work with both create and edit modes
+  // Date calculation effect
   useEffect(() => {
     const process = processes.find(p => p.id === form.getValues('processId'));
     const startDateStr = form.getValues('startDate');
 
     if (process && startDateStr) {
       try {
+        // Example: If batch starts on March 5, 2025 (Wednesday)
         const startDate = new Date(startDateStr);
 
-        // Set induction start date to match the batch start date
+        // Set induction dates
+        // Start: March 5 (Wed)
+        // 5 working days + skip Sunday March 9
+        // End: March 11 (Tue)
         form.setValue('inductionStartDate', format(startDate, 'yyyy-MM-dd'));
-
-        // Calculate all subsequent dates based on the process duration
         const inductionEnd = addWorkingDays(startDate, process.inductionDays);
+        form.setValue('inductionEndDate', format(inductionEnd, 'yyyy-MM-dd'));
+
+        // Set training dates
+        // Start: March 12 (Wed) - one working day after induction
+        // 10 working days + skip Sundays March 16, 23
+        // End: March 25 (Tue)
         const trainingStart = addWorkingDays(inductionEnd, 1);
         const trainingEnd = addWorkingDays(trainingStart, process.trainingDays);
+        form.setValue('trainingStartDate', format(trainingStart, 'yyyy-MM-dd'));
+        form.setValue('trainingEndDate', format(trainingEnd, 'yyyy-MM-dd'));
+
+        // Set certification dates
+        // Start: March 26 (Wed) - one working day after training
+        // 3 working days + skip Sunday March 30
+        // End: March 28 (Fri)
         const certificationStart = addWorkingDays(trainingEnd, 1);
         const certificationEnd = addWorkingDays(certificationStart, process.certificationDays);
+        form.setValue('certificationStartDate', format(certificationStart, 'yyyy-MM-dd'));
+        form.setValue('certificationEndDate', format(certificationEnd, 'yyyy-MM-dd'));
+
+        // Set OJT dates
+        // Start: March 31 (Mon) - one working day after certification
+        // 15 working days + skip Sundays April 6, 13
+        // End: April 18 (Fri)
         const ojtStart = addWorkingDays(certificationEnd, 1);
         const ojtEnd = addWorkingDays(ojtStart, process.ojtDays);
+        form.setValue('ojtStartDate', format(ojtStart, 'yyyy-MM-dd'));
+        form.setValue('ojtEndDate', format(ojtEnd, 'yyyy-MM-dd'));
+
+        // Set OJT Certification dates
+        // Start: April 21 (Mon) - one working day after OJT
+        // 2 working days
+        // End: April 22 (Tue)
         const ojtCertificationStart = addWorkingDays(ojtEnd, 1);
         const ojtCertificationEnd = addWorkingDays(ojtCertificationStart, process.ojtCertificationDays);
-        const handoverToOps = addWorkingDays(ojtCertificationEnd, 1);
+        form.setValue('ojtCertificationStartDate', format(ojtCertificationStart, 'yyyy-MM-dd'));
+        form.setValue('ojtCertificationEndDate', format(ojtCertificationEnd, 'yyyy-MM-dd'));
 
-        // Update the date ranges for visual feedback
+        // Set handover date
+        // Start: April 23 (Wed) - one working day after OJT Certification
+        const handoverToOps = addWorkingDays(ojtCertificationEnd, 1);
+        form.setValue('handoverToOpsDate', format(handoverToOps, 'yyyy-MM-dd'));
+        form.setValue('endDate', format(handoverToOps, 'yyyy-MM-dd'));
+
+        // Add visual date ranges for the calendar
         setDateRanges([
           {
             start: startDate,
@@ -601,19 +639,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
             status: 'ojt-certification'
           }
         ]);
-
-        // Update all form fields with the new dates
-        form.setValue('endDate', format(handoverToOps, 'yyyy-MM-dd'));
-        form.setValue('inductionEndDate', format(inductionEnd, 'yyyy-MM-dd'));
-        form.setValue('trainingStartDate', format(trainingStart, 'yyyy-MM-dd'));
-        form.setValue('trainingEndDate', format(trainingEnd, 'yyyy-MM-dd'));
-        form.setValue('certificationStartDate', format(certificationStart, 'yyyy-MM-dd'));
-        form.setValue('certificationEndDate', format(certificationEnd, 'yyyy-MM-dd'));
-        form.setValue('ojtStartDate', format(ojtStart, 'yyyy-MM-dd'));
-        form.setValue('ojtEndDate', format(ojtEnd, 'yyyy-MM-dd'));
-        form.setValue('ojtCertificationStartDate', format(ojtCertificationStart, 'yyyy-MM-dd'));
-        form.setValue('ojtCertificationEndDate', format(ojtCertificationEnd, 'yyyy-MM-dd'));
-        form.setValue('handoverToOpsDate', format(handoverToOps, 'yyyy-MM-dd'));
 
       } catch (error) {
         console.error('Error calculating dates:', error);
@@ -872,7 +897,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                   <SelectContent>
                     {processes.map((process) => (
                       <SelectItem key={process.id} value={process.id.toString()}>
-                        {process.name}
+                                                {process.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -935,7 +960,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                         ) : (
                           <span>Pick a date</span>
                         )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        <CalendarIcon className="ml-auto h-4 w4 opacity-50" />
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
