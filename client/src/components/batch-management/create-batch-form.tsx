@@ -114,7 +114,6 @@ export function CreateBatchForm() {
       endDate: '',
       inductionStartDate: '',
       capacityLimit: 1,
-      batchCode: '',
       name: '',
       inductionEndDate: '',
       trainingStartDate: '',
@@ -126,7 +125,7 @@ export function CreateBatchForm() {
       ojtCertificationStartDate: '',
       ojtCertificationEndDate: '',
       handoverToOpsDate: '',
-      batchCategory:''
+      batchCategory: 'new_training'  // Set default category
     },
   });
 
@@ -244,29 +243,46 @@ export function CreateBatchForm() {
     const template = templates.find(t => t.id.toString() === templateId);
     if (template) {
       try {
-        // First set location and update selectedLocation state
-        setSelectedLocation(template.locationId);
-        form.setValue('locationId', template.locationId);
+        // First set location
+        const locationId = parseInt(template.locationId.toString());
+        if (!isNaN(locationId)) {
+          setSelectedLocation(locationId);
+          form.setValue('locationId', locationId);
+        }
 
-        // Wait briefly for the location change to trigger LOB loading
+        // Wait briefly for location change to trigger LOB loading
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        // Set LOB and update selectedLob state
-        setSelectedLob(template.lineOfBusinessId);
-        form.setValue('lineOfBusinessId', template.lineOfBusinessId);
+        // Set LOB
+        const lobId = parseInt(template.lineOfBusinessId.toString());
+        if (!isNaN(lobId)) {
+          setSelectedLob(lobId);
+          form.setValue('lineOfBusinessId', lobId);
+        }
 
-        // Wait briefly for the LOB change to trigger process loading
+        // Wait for LOB change to trigger process loading
         await new Promise(resolve => setTimeout(resolve, 100));
 
         // Set process
-        form.setValue('processId', template.processId);
+        const processId = parseInt(template.processId.toString());
+        if (!isNaN(processId)) {
+          form.setValue('processId', processId);
+        }
 
         // Set trainer
-        form.setValue('trainerId', template.trainerId);
+        const trainerId = parseInt(template.trainerId.toString());
+        if (!isNaN(trainerId)) {
+          form.setValue('trainerId', trainerId);
+        }
 
-        // Set capacity limit
-        form.setValue('capacityLimit', template.capacityLimit);
-        form.setValue('batchCategory', template.batchCategory); //Added this line
+        // Set other fields
+        if (template.capacityLimit) {
+          form.setValue('capacityLimit', parseInt(template.capacityLimit.toString()));
+        }
+
+        if (template.batchCategory) {
+          form.setValue('batchCategory', template.batchCategory);
+        }
 
         toast({
           title: "Template Loaded",
@@ -288,18 +304,18 @@ export function CreateBatchForm() {
     try {
       if (!templateName) throw new Error('Template name is required');
 
-      const currentLocationId = form.getValues('locationId');
-      const currentLineOfBusinessId = form.getValues('lineOfBusinessId');
-      const currentProcessId = form.getValues('processId');
-      const currentTrainerId = form.getValues('trainerId');
-      const currentCapacityLimit = form.getValues('capacityLimit');
+      const currentLocationId = parseInt(form.getValues('locationId')?.toString() || '');
+      const currentLineOfBusinessId = parseInt(form.getValues('lineOfBusinessId')?.toString() || '');
+      const currentProcessId = parseInt(form.getValues('processId')?.toString() || '');
+      const currentTrainerId = parseInt(form.getValues('trainerId')?.toString() || '');
+      const currentCapacityLimit = parseInt(form.getValues('capacityLimit')?.toString() || '');
       const currentBatchCategory = form.getValues('batchCategory');
 
-      if (!currentLocationId) throw new Error('Please select a location before saving template');
-      if (!currentLineOfBusinessId) throw new Error('Please select a line of business before saving template');
-      if (!currentProcessId) throw new Error('Please select a process before saving template');
-      if (!currentTrainerId) throw new Error('Please select a trainer before saving template');
-      if (!currentCapacityLimit || currentCapacityLimit < 1) throw new Error('Please set a valid capacity limit');
+      if (isNaN(currentLocationId)) throw new Error('Please select a location before saving template');
+      if (isNaN(currentLineOfBusinessId)) throw new Error('Please select a line of business before saving template');
+      if (isNaN(currentProcessId)) throw new Error('Please select a process before saving template');
+      if (isNaN(currentTrainerId)) throw new Error('Please select a trainer before saving template');
+      if (isNaN(currentCapacityLimit) || currentCapacityLimit < 1) throw new Error('Please set a valid capacity limit');
       if (!currentBatchCategory) throw new Error('Please select a batch category before saving template');
 
       const template: InsertBatchTemplate = {
@@ -925,7 +941,7 @@ export function CreateBatchForm() {
                     placeholder="Enter capacity"
                     value={field.value || ''}
                     onChange={(e) => {
-                      const value = e.target.value ? parseInt(e.target.value) : undefined;
+                      const value= e.target.value ? parseInt(e.target.value) : undefined;
                       field.onChange(value);
                     }}
                   />
