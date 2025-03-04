@@ -44,6 +44,7 @@ export function BatchesTab() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
   const [selectedBatch, setSelectedBatch] = useState<OrganizationBatch | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
 
   // Check if user has permission to edit/delete batches
   const canManageBatches = user?.role === 'admin' || user?.role === 'owner';
@@ -74,6 +75,7 @@ export function BatchesTab() {
         description: "Batch deleted successfully",
       });
       setDeleteDialogOpen(false);
+      setDeleteConfirmation('');
     },
     onError: (error: Error) => {
       toast({
@@ -84,8 +86,8 @@ export function BatchesTab() {
     }
   });
 
-  const handleDeleteClick = (batchId: number, status: string) => {
-    if (status !== 'planned') {
+  const handleDeleteClick = (batch: OrganizationBatch) => {
+    if (batch.status !== 'planned') {
       toast({
         title: "Cannot Delete",
         description: "Only batches with 'Planned' status can be deleted",
@@ -93,7 +95,8 @@ export function BatchesTab() {
       });
       return;
     }
-    setSelectedBatchId(batchId);
+    setSelectedBatch(batch);
+    setSelectedBatchId(batch.id);
     setDeleteDialogOpen(true);
   };
 
@@ -111,9 +114,18 @@ export function BatchesTab() {
   };
 
   const handleConfirmDelete = async () => {
-    if (selectedBatchId) {
-      await deleteBatchMutation.mutateAsync(selectedBatchId);
+    if (!selectedBatch || !selectedBatchId) return;
+
+    if (deleteConfirmation !== selectedBatch.name) {
+      toast({
+        title: "Error",
+        description: "Batch name confirmation does not match",
+        variant: "destructive",
+      });
+      return;
     }
+
+    await deleteBatchMutation.mutateAsync(selectedBatchId);
   };
 
   const getStatusColor = (status: string) => {
@@ -220,7 +232,7 @@ export function BatchesTab() {
                         <Button 
                           variant="outline" 
                           size="sm"
-                          onClick={() => handleDeleteClick(batch.id, batch.status)}
+                          onClick={() => handleDeleteClick(batch)}
                           disabled={batch.status !== 'planned'}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -294,12 +306,27 @@ export function BatchesTab() {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the batch.
+              This action cannot be undone. Please type "{selectedBatch?.name}" to confirm deletion.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="py-4">
+            <Input
+              placeholder="Type batch name to confirm"
+              value={deleteConfirmation}
+              onChange={(e) => setDeleteConfirmation(e.target.value)}
+            />
+          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete}>
+            <AlertDialogCancel onClick={() => {
+              setDeleteConfirmation('');
+              setDeleteDialogOpen(false);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={deleteConfirmation !== selectedBatch?.name || deleteBatchMutation.isPending}
+            >
               {deleteBatchMutation.isPending ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
