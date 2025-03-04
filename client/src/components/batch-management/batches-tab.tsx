@@ -104,8 +104,8 @@ export function BatchesTab() {
     (!dateRange.to || new Date(batch.startDate) <= dateRange.to)
   );
 
-  // Get unique batch categories - handle undefined values
-  const uniqueBatchCategories = [...new Set(batches.map(batch => batch.batchCategory).filter(Boolean))];
+  // Get unique batch categories with proper typing
+  const uniqueBatchCategories = ["new_training", "upskill"] as const;
 
   const formatBatchCategory = (category: string | undefined | null) => {
     if (!category) return 'Uncategorized';
@@ -587,18 +587,18 @@ export function BatchesTab() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          <Select value={selectedCategory || 'all'} onValueChange={(value) => setSelectedCategory(value === 'all' ? null : value)}>
-            <SelectTrigger>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+          <Select
+            value={selectedCategory || 'all'}
+            onValueChange={(value) => setSelectedCategory(value === 'all' ? null : value)}
+          >
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Filter by Category" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
-              {uniqueBatchCategories.map((category) => (
-                <SelectItem key={category} value={category}>
-                  {formatBatchCategory(category)}
-                </SelectItem>
-              ))}
+              <SelectItem value="new_training">New Training</SelectItem>
+              <SelectItem value="upskill">Upskill</SelectItem>
             </SelectContent>
           </Select>
 
@@ -658,41 +658,6 @@ export function BatchesTab() {
             </SelectContent>
           </Select>
 
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className={dateRange.from ? 'text-primary' : ''}>
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateRange.from ? (
-                  dateRange.to ? (
-                    <>
-                      {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
-                    </>
-                  ) : (
-                    format(dateRange.from, "LLL dd, y")
-                  )
-                ) : (
-                  "Filter by Date Range"
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={dateRange.from}
-                selected={{
-                  from: dateRange.from,
-                  to: dateRange.to,
-                }}
-                onSelect={(range) => setDateRange({
-                  from: range?.from,
-                  to: range?.to,
-                })}
-                numberOfMonths={2}
-              />
-            </PopoverContent>
-          </Popover>
-
           <Button
             variant="outline"
             onClick={resetFilters}
@@ -703,6 +668,40 @@ export function BatchesTab() {
           </Button>
         </div>
 
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className={dateRange.from ? 'text-primary w-full' : 'w-full'}>
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {dateRange.from ? (
+                dateRange.to ? (
+                  <>
+                    {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
+                  </>
+                ) : (
+                  format(dateRange.from, "LLL dd, y")
+                )
+              ) : (
+                "Filter by Date Range"
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              initialFocus
+              mode="range"
+              defaultMonth={dateRange.from}
+              selected={{
+                from: dateRange.from,
+                to: dateRange.to,
+              }}
+              onSelect={(range) => setDateRange({
+                from: range?.from,
+                to: range?.to,
+              })}
+              numberOfMonths={2}
+            />
+          </PopoverContent>
+        </Popover>
         {batches.length > 0 ? (
           <Tabs defaultValue="table" className="w-full">
             <TabsList>
@@ -804,14 +803,15 @@ export function BatchesTab() {
                 onSuccess={() => setIsEditDialogOpen(false)}
               />
             )}
-          </DialogContent>        </Dialog>
+          </DialogContent>
+        </Dialog>
 
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This action cannot be undone. Please type "{selectedBatch?.name}" toconfirm deletion.
+                This action cannot be undone. Please type "{selectedBatch?.name}" to confirm deletion.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="py-4">
