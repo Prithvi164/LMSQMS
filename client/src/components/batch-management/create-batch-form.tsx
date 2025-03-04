@@ -122,13 +122,24 @@ export function CreateBatchForm() {
     },
   });
 
-  // Fetch templates
+  // Add proper type checking for templates query
   const {
     data: templates = [],
-    isLoading: isLoadingTemplates
-  } = useQuery({
+    isLoading: isLoadingTemplates,
+    error: templatesError
+  } = useQuery<BatchTemplate[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batch-templates`],
-    enabled: !!user?.organizationId
+    enabled: !!user?.organizationId,
+    staleTime: 30000,
+    retry: 1,
+    onError: (error) => {
+      console.error('Error loading templates:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load templates. Please try again.",
+        variant: "destructive",
+      });
+    }
   });
 
   const {
@@ -167,27 +178,39 @@ export function CreateBatchForm() {
     enabled: !!user?.organizationId
   });
 
-  // Save template mutation
+  // Template save mutation with improved validation and error handling
   const saveTemplateMutation = useMutation({
     mutationFn: async (template: InsertBatchTemplate) => {
       if (!user?.organizationId) {
         throw new Error('Organization ID is required');
       }
 
-      const response = await fetch(`/api/organizations/${user.organizationId}/batch-templates`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(template),
-      });
+      try {
+        if (!template.name) throw new Error('Template name is required');
+        if (!template.locationId) throw new Error('Location is required');
+        if (!template.lineOfBusinessId) throw new Error('Line of Business is required');
+        if (!template.processId) throw new Error('Process is required');
+        if (!template.trainerId) throw new Error('Trainer is required');
+        if (!template.capacityLimit || template.capacityLimit < 1) throw new Error('Capacity must be at least 1');
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save template');
+        const response = await fetch(`/api/organizations/${user.organizationId}/batch-templates`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(template),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to save template');
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error('Template save error:', error);
+        throw error instanceof Error ? error : new Error('Failed to save template');
       }
-
-      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/batch-templates`] });
@@ -222,20 +245,32 @@ export function CreateBatchForm() {
     }
   };
 
-  // Function to save current configuration as template
+  // Function to save current configuration as template with validation
   const handleSaveTemplate = async () => {
     try {
       if (!templateName) throw new Error('Template name is required');
+
+      const currentLocationId = form.getValues('locationId');
+      const currentLineOfBusinessId = form.getValues('lineOfBusinessId');
+      const currentProcessId = form.getValues('processId');
+      const currentTrainerId = form.getValues('trainerId');
+      const currentCapacityLimit = form.getValues('capacityLimit');
+
+      if (!currentLocationId) throw new Error('Please select a location before saving template');
+      if (!currentLineOfBusinessId) throw new Error('Please select a line of business before saving template');
+      if (!currentProcessId) throw new Error('Please select a process before saving template');
+      if (!currentTrainerId) throw new Error('Please select a trainer before saving template');
+      if (!currentCapacityLimit || currentCapacityLimit < 1) throw new Error('Please set a valid capacity limit');
 
       const template: InsertBatchTemplate = {
         name: templateName,
         description: templateDescription,
         organizationId: user?.organizationId!,
-        locationId: form.getValues('locationId')!,
-        lineOfBusinessId: form.getValues('lineOfBusinessId')!,
-        processId: form.getValues('processId')!,
-        trainerId: form.getValues('trainerId')!,
-        capacityLimit: form.getValues('capacityLimit')!
+        locationId: currentLocationId,
+        lineOfBusinessId: currentLineOfBusinessId,
+        processId: currentProcessId,
+        trainerId: currentTrainerId,
+        capacityLimit: currentCapacityLimit
       };
 
       await saveTemplateMutation.mutateAsync(template);
