@@ -3,14 +3,18 @@ import { createInsertSchema } from "drizzle-zod";
 import { relations, type InferSelectModel } from "drizzle-orm";
 import { z } from "zod";
 
-// Add batch status enum
+// Update the batch status enum to include all phases
 export const batchStatusEnum = pgEnum('batch_status', [
   'planned',
-  'ongoing',
+  'induction',
+  'training',
+  'certification',
+  'ojt',
+  'ojt_certification',
   'completed'
 ]);
 
-// Existing enums remain unchanged...
+// Existing enums remain unchanged
 export const userCategoryTypeEnum = pgEnum('user_category_type', ['active', 'trainee']);
 export const roleEnum = pgEnum('role', [
   'owner',     
@@ -183,7 +187,7 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
     ojtCertificationEndDate: z.string().optional(),
     handoverToOpsDate: z.string().optional(),
     capacityLimit: z.number().int().min(1, "Capacity must be at least 1"),
-    status: z.enum(['planned', 'ongoing', 'completed']).default('planned'),
+    status: z.enum(['planned', 'induction', 'training', 'certification', 'ojt', 'ojt_certification', 'completed']).default('planned'),
     processId: z.number().int().positive("Process is required"),
     locationId: z.number().int().positive("Location is required"),
     lineOfBusinessId: z.number().int().positive("Line of Business is required"),
@@ -192,7 +196,6 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
   });
 
 export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
-
 
 export const permissionEnum = pgEnum('permission', [
   'manage_billing',

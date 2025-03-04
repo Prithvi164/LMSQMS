@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format, addDays, isSunday } from "date-fns";
+import { format, addDays, isSunday, isWithinInterval } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -45,6 +45,45 @@ interface DateRange {
   label: string;
   status: 'induction' | 'training' | 'certification' | 'ojt' | 'ojt-certification';
 }
+
+// Function to determine batch status based on current date and phase dates
+const determineBatchStatus = (batch: InsertOrganizationBatch): string => {
+  const today = new Date();
+
+  // Convert string dates to Date objects
+  const dates = {
+    inductionStart: new Date(batch.inductionStartDate),
+    inductionEnd: batch.inductionEndDate ? new Date(batch.inductionEndDate) : null,
+    trainingStart: batch.trainingStartDate ? new Date(batch.trainingStartDate) : null,
+    trainingEnd: batch.trainingEndDate ? new Date(batch.trainingEndDate) : null,
+    certificationStart: batch.certificationStartDate ? new Date(batch.certificationStartDate) : null,
+    certificationEnd: batch.certificationEndDate ? new Date(batch.certificationEndDate) : null,
+    ojtStart: batch.ojtStartDate ? new Date(batch.ojtStartDate) : null,
+    ojtEnd: batch.ojtEndDate ? new Date(batch.ojtEndDate) : null,
+    ojtCertificationStart: batch.ojtCertificationStartDate ? new Date(batch.ojtCertificationStartDate) : null,
+    ojtCertificationEnd: batch.ojtCertificationEndDate ? new Date(batch.ojtCertificationEndDate) : null,
+    handoverToOps: batch.handoverToOpsDate ? new Date(batch.handoverToOpsDate) : null
+  };
+
+  // Check which phase we're in based on current date
+  if (today < dates.inductionStart) {
+    return 'planned';
+  } else if (dates.inductionEnd && isWithinInterval(today, { start: dates.inductionStart, end: dates.inductionEnd })) {
+    return 'induction';
+  } else if (dates.trainingEnd && isWithinInterval(today, { start: dates.trainingStart!, end: dates.trainingEnd })) {
+    return 'training';
+  } else if (dates.certificationEnd && isWithinInterval(today, { start: dates.certificationStart!, end: dates.certificationEnd })) {
+    return 'certification';
+  } else if (dates.ojtEnd && isWithinInterval(today, { start: dates.ojtStart!, end: dates.ojtEnd })) {
+    return 'ojt';
+  } else if (dates.ojtCertificationEnd && isWithinInterval(today, { start: dates.ojtCertificationStart!, end: dates.ojtCertificationEnd })) {
+    return 'ojt_certification';
+  } else if (dates.handoverToOps && today >= dates.handoverToOps) {
+    return 'completed';
+  }
+
+  return 'planned'; // Default status
+};
 
 export function CreateBatchForm() {
   const { toast } = useToast();
@@ -224,12 +263,6 @@ export function CreateBatchForm() {
     return currentDate;
   };
 
-  interface DateRange {
-    start: Date;
-    end: Date;
-    label: string;
-    status: 'induction' | 'training' | 'certification' | 'ojt' | 'ojt-certification';
-  }
 
   const createBatchMutation = useMutation({
     mutationFn: async (values: InsertOrganizationBatch) => {
@@ -294,7 +327,14 @@ export function CreateBatchForm() {
       if (values.trainerId === undefined) throw new Error('Trainer is required');
       if (values.capacityLimit === undefined) throw new Error('Capacity limit is required');
 
-      await createBatchMutation.mutateAsync(values);
+      // Set the initial status based on the current date and batch dates
+      const currentStatus = determineBatchStatus(values);
+      const formattedValues = {
+        ...values,
+        status: currentStatus
+      };
+
+      await createBatchMutation.mutateAsync(formattedValues);
     } catch (error) {
       console.error('Form submission error:', error);
       toast({
