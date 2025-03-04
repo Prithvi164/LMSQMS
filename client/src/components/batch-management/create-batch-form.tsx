@@ -37,6 +37,7 @@ import { CalendarIcon } from "lucide-react";
 import { insertOrganizationBatchSchema, type InsertOrganizationBatch, insertBatchTemplateSchema, type InsertBatchTemplate, type BatchTemplate } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { motion } from "framer-motion";
 
 // Interface for date range
 interface DateRange {
@@ -455,6 +456,112 @@ export function CreateBatchForm() {
     }
   }, [isCreating]);
 
+  const BatchProgressVisualizer = ({ dateRanges, currentStatus }: { dateRanges: DateRange[], currentStatus: string }) => {
+    const getProgressPercentage = () => {
+      if (!dateRanges.length) return 0;
+      const firstDate = dateRanges[0].start;
+      const lastDate = dateRanges[dateRanges.length - 1].end;
+      const today = new Date();
+
+      if (today < firstDate) return 0;
+      if (today > lastDate) return 100;
+
+      const totalDuration = lastDate.getTime() - firstDate.getTime();
+      const elapsed = today.getTime() - firstDate.getTime();
+      return Math.round((elapsed / totalDuration) * 100);
+    };
+
+    const progressPercentage = getProgressPercentage();
+
+    return (
+      <div className="col-span-2 space-y-4 p-6 border rounded-lg bg-card">
+        <h3 className="font-semibold text-lg mb-4">Batch Progress Visualization</h3>
+
+        {/* Overall Progress */}
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span>Overall Progress</span>
+            <span>{progressPercentage}%</span>
+          </div>
+          <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
+            <motion.div
+              className="absolute h-full bg-primary"
+              initial={{ width: 0 }}
+              animate={{ width: `${progressPercentage}%` }}
+              transition={{ duration: 0.5 }}
+            />
+          </div>
+        </div>
+
+        {/* Phase Timeline */}
+        <div className="grid grid-cols-5 gap-2 mt-6">
+          {dateRanges.map((range, index) => (
+            <motion.div
+              key={index}
+              className={cn(
+                "relative p-4 rounded-lg",
+                {
+                  'bg-blue-100 border-blue-500': range.status === 'induction',
+                  'bg-green-100 border-green-500': range.status === 'training',
+                  'bg-yellow-100 border-yellow-500': range.status === 'certification',
+                  'bg-purple-100 border-purple-500': range.status === 'ojt',
+                  'bg-pink-100 border-pink-500': range.status === 'ojt-certification',
+                },
+                currentStatus === range.status ? 'border-2' : 'border',
+              )}
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ 
+                scale: currentStatus === range.status ? 1.05 : 1,
+                opacity: 1,
+              }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="text-center">
+                <motion.div
+                  className="font-medium mb-1"
+                  animate={{ 
+                    scale: currentStatus === range.status ? 1.1 : 1,
+                  }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {range.label}
+                </motion.div>
+                <div className="text-xs opacity-75">
+                  {format(range.start, "MMM d")} - {format(range.end, "MMM d")}
+                </div>
+              </div>
+              {currentStatus === range.status && (
+                <motion.div
+                  className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-primary"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ duration: 0.3 }}
+                />
+              )}
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Connection Lines */}
+        <div className="relative h-1 -mt-8 mb-4">
+          <div className="absolute w-full h-0.5 bg-gray-200 top-1/2 transform -translate-y-1/2" />
+          {dateRanges.map((_, index) => (
+            index < dateRanges.length - 1 && (
+              <motion.div
+                key={index}
+                className="absolute h-2 w-2 rounded-full bg-gray-400"
+                style={{ left: `${(index + 1) * (100 / dateRanges.length)}%` }}
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: index * 0.1 }}
+              />
+            )
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -844,6 +951,14 @@ export function CreateBatchForm() {
             )}
           />
         </div>
+
+        {/* Add the BatchProgressVisualizer component */}
+        {dateRanges.length > 0 && (
+          <BatchProgressVisualizer 
+            dateRanges={dateRanges} 
+            currentStatus={form.getValues('status')}
+          />
+        )}
 
         <div className="col-span-2 flex justify-end space-x-2">
           <Button
