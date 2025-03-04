@@ -50,6 +50,7 @@ export function CreateBatchForm() {
   const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
   const [selectedLob, setSelectedLob] = useState<number | null>(null);
   const [calculatedDates, setCalculatedDates] = useState<{
+    inductionStart: string;
     inductionEnd: string;
     trainingStart: string;
     trainingEnd: string;
@@ -61,6 +62,7 @@ export function CreateBatchForm() {
     ojtCertificationEnd: string;
     handoverToOps: string;
   }>({
+    inductionStart: '',
     inductionEnd: '',
     trainingStart: '',
     trainingEnd: '',
@@ -229,8 +231,9 @@ export function CreateBatchForm() {
         form.setValue('ojtCertificationEndDate', formatDate(ojtCertificationEnd));
         form.setValue('handoverToOpsDate', formatDate(handoverToOps));
 
-        // Update displayed dates
+        // Update displayed dates including inductionStart
         setCalculatedDates({
+          inductionStart: startDateStr, // Add the start date to calculated dates
           inductionEnd: formatDate(inductionEnd),
           trainingStart: formatDate(trainingStart),
           trainingEnd: formatDate(trainingEnd),
