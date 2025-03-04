@@ -93,24 +93,23 @@ export function BatchesTab() {
   // Get unique batch categories with proper typing
   const uniqueBatchCategories = ["new_training", "upskill"] as const;
 
-  // Filter batches with all conditions
+  // Filter batches with debug logging
   const filteredBatches = batches.filter(batch => {
-    console.log('Filtering batch:', {
+    const matchesCategory = selectedCategory === null || batch.batchCategory === selectedCategory;
+
+    console.log('Debug - Filtering Batch:', {
       batchName: batch.name,
       batchCategory: batch.batchCategory,
-      selectedCategory: selectedCategory,
-      searchQuery: searchQuery,
-      matchesSearch: searchQuery === '' ||
-        batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        batch.status.toLowerCase().includes(searchQuery.toLowerCase()),
-      matchesCategory: selectedCategory === null || batch.batchCategory === selectedCategory,
+      selectedCategory,
+      matchesCategory,
+      comparisonResult: `${batch.batchCategory} === ${selectedCategory}`
     });
 
     return (
       (searchQuery === '' ||
         batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         batch.status.toLowerCase().includes(searchQuery.toLowerCase())) &&
-      (selectedCategory === null || batch.batchCategory === selectedCategory) &&
+      matchesCategory &&
       (selectedStatus === null || batch.status === selectedStatus) &&
       (selectedLocation === null || batch.location?.name === selectedLocation) &&
       (selectedLineOfBusiness === null || batch.line_of_business?.name === selectedLineOfBusiness) &&
@@ -553,23 +552,25 @@ export function BatchesTab() {
     setSelectedCategory(null);
   };
 
-  // Add debug logging
+  // Add detailed logging for batches
   useEffect(() => {
-    console.log('Raw batches:', batches);
-    console.log('Raw batch categories:', batches.map(b => b.batchCategory));
-    console.log('Available categories:', uniqueBatchCategories);
+    console.log('Debug - Batch Data:', {
+      allBatches: batches,
+      batchCategories: batches.map(b => ({
+        name: b.name,
+        category: b.batchCategory,
+        type: typeof b.batchCategory
+      }))
+    });
   }, [batches]);
 
+  // Add logging for category selection
   useEffect(() => {
-    console.log('Filter state:', {
+    console.log('Debug - Category Selection:', {
       selectedCategory,
-      batches: batches.map(b => ({
-        name: b.name,
-        category: b.batchCategory
-      })),
-      filteredCount: filteredBatches.length
+      type: typeof selectedCategory
     });
-  }, [selectedCategory, batches, filteredBatches]);
+  }, [selectedCategory]);
 
   if (isLoading) {
     return (
@@ -614,7 +615,13 @@ export function BatchesTab() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <Select
             value={selectedCategory || 'all'}
-            onValueChange={(value) => setSelectedCategory(value === 'all' ? null : value)}
+            onValueChange={(value) => {
+              console.log('Debug - Category Changed:', {
+                newValue: value,
+                willBecome: value === 'all' ? null : value
+              });
+              setSelectedCategory(value === 'all' ? null : value);
+            }}
           >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Filter by Category" />
@@ -806,8 +813,7 @@ export function BatchesTab() {
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogContent className="max-w-3xl">
             <DialogHeader>
-              <DialogTitle>Create New Batch</DialogTitle>
-            </DialogHeader>
+              <DialogTitle>Create New Batch</DialogTitle>            </DialogHeader>
             <CreateBatchForm />
           </DialogContent>
         </Dialog>
