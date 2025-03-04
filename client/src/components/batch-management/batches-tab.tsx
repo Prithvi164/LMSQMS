@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, Loader2, Plus, Trash2, Edit } from "lucide-react";
+import { Search, Loader2, Plus, Trash2, Edit, LayoutGrid, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -34,6 +34,8 @@ import {
 import { CreateBatchForm } from "./create-batch-form";
 import { useToast } from "@/hooks/use-toast";
 import type { OrganizationBatch } from "@shared/schema";
+import { BatchCalendarView } from "./batch-calendar-view";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function BatchesTab() {
   const { user } = useAuth();
@@ -166,113 +168,132 @@ export function BatchesTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center space-x-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search batches..."
-            className="pl-8"
-          />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2 flex-1">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search batches..."
+              className="pl-8"
+            />
+          </div>
+          {canManageBatches && (
+            <Button 
+              onClick={() => setIsCreateDialogOpen(true)}
+              className="gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Create Batch
+            </Button>
+          )}
         </div>
-        {canManageBatches && (
-          <Button 
-            onClick={() => setIsCreateDialogOpen(true)}
-            className="gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Create Batch
-          </Button>
-        )}
       </div>
 
-      {batches.length > 0 ? (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Process</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Trainer</TableHead>
-                <TableHead>Capacity</TableHead>
-                <TableHead>Timeline</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {batches.map((batch) => (
-                <TableRow key={batch.id}>
-                  <TableCell>{batch.name}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {formatBatchCategory(batch.batchCategory)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className={getStatusColor(batch.status)}>
-                      {batch.status.charAt(0).toUpperCase() + batch.status.slice(1)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{batch.process?.name}</TableCell>
-                  <TableCell>{batch.location?.name}</TableCell>
-                  <TableCell>{batch.trainer?.fullName}</TableCell>
-                  <TableCell>{batch.capacityLimit}</TableCell>
-                  <TableCell>
-                    {new Date(batch.startDate).toLocaleDateString()} - 
-                    {new Date(batch.endDate).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell className="text-right space-x-2">
-                    <Button variant="outline" size="sm">
-                      View Details
-                    </Button>
-                    {canManageBatches && (
-                      <>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleDeleteClick(batch)}
-                          disabled={batch.status !== 'planned'}
-                        >
-                          <Trash2 className="h-4 w-4" />
+      <Tabs defaultValue="table" className="w-full">
+        <TabsList>
+          <TabsTrigger value="table" className="gap-2">
+            <LayoutGrid className="h-4 w-4" />
+            Table View
+          </TabsTrigger>
+          <TabsTrigger value="calendar" className="gap-2">
+            <Calendar className="h-4 w-4" />
+            Calendar View
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="table">
+          {batches.length > 0 ? (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Process</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Trainer</TableHead>
+                    <TableHead>Capacity</TableHead>
+                    <TableHead>Timeline</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {batches.map((batch) => (
+                    <TableRow key={batch.id}>
+                      <TableCell>{batch.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {formatBatchCategory(batch.batchCategory)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className={getStatusColor(batch.status)}>
+                          {batch.status.charAt(0).toUpperCase() + batch.status.slice(1)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{batch.process?.name}</TableCell>
+                      <TableCell>{batch.location?.name}</TableCell>
+                      <TableCell>{batch.trainer?.fullName}</TableCell>
+                      <TableCell>{batch.capacityLimit}</TableCell>
+                      <TableCell>
+                        {new Date(batch.startDate).toLocaleDateString()} - 
+                        {new Date(batch.endDate).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Button variant="outline" size="sm">
+                          View Details
                         </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleEditClick(batch)}
-                          disabled={batch.status !== 'planned'}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      ) : (
-        <div className="flex min-h-[400px] flex-col items-center justify-center rounded-md border border-dashed p-8 text-center animate-in fade-in-50">
-          <div className="mx-auto flex max-w-[420px] flex-col items-center justify-center text-center">
-            <h3 className="mt-4 text-lg font-semibold">No batches found</h3>
-            <p className="mb-4 mt-2 text-sm text-muted-foreground">
-              You haven't created any batches yet. Start by creating a new batch.
-            </p>
-            {canManageBatches && (
-              <Button 
-                size="sm" 
-                className="relative"
-                onClick={() => setIsCreateDialogOpen(true)}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Create Batch
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
+                        {canManageBatches && (
+                          <>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleDeleteClick(batch)}
+                              disabled={batch.status !== 'planned'}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleEditClick(batch)}
+                              disabled={batch.status !== 'planned'}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="flex min-h-[400px] flex-col items-center justify-center rounded-md border border-dashed p-8 text-center animate-in fade-in-50">
+              <div className="mx-auto flex max-w-[420px] flex-col items-center justify-center text-center">
+                <h3 className="mt-4 text-lg font-semibold">No batches found</h3>
+                <p className="mb-4 mt-2 text-sm text-muted-foreground">
+                  You haven't created any batches yet. Start by creating a new batch.
+                </p>
+                {canManageBatches && (
+                  <Button 
+                    size="sm" 
+                    className="relative"
+                    onClick={() => setIsCreateDialogOpen(true)}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Batch
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </TabsContent>
+        <TabsContent value="calendar">
+          <BatchCalendarView />
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="max-w-3xl">
