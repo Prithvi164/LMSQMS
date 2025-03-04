@@ -20,12 +20,8 @@ export function BatchCalendarView() {
 
   const getEventColor = (status: string) => {
     switch (status) {
-      case 'ongoing':
-        return '#22c55e'; // Green
       case 'planned':
         return '#3b82f6'; // Blue
-      case 'completed':
-        return '#6b7280'; // Gray
       case 'induction':
         return '#8b5cf6'; // Purple
       case 'training':
@@ -36,6 +32,8 @@ export function BatchCalendarView() {
         return '#06b6d4'; // Cyan
       case 'ojt_certification':
         return '#14b8a6'; // Teal
+      case 'completed':
+        return '#6b7280'; // Gray
       default:
         return '#6b7280'; // Default gray
     }
@@ -63,7 +61,7 @@ export function BatchCalendarView() {
         <div className="text-xs">
           <Badge variant="secondary" className="mr-1">
             {eventInfo.event.extendedProps.status.charAt(0).toUpperCase() + 
-             eventInfo.event.extendedProps.status.slice(1)}
+             eventInfo.event.extendedProps.status.slice(1).replace('_', ' ')}
           </Badge>
           {eventInfo.event.extendedProps.process}
         </div>
@@ -116,6 +114,18 @@ export function BatchCalendarView() {
         }}
         height="auto"
         aspectRatio={1.8}
+        eventDisplay="block"
+        eventTimeFormat={{
+          hour: 'numeric',
+          minute: '2-digit',
+          meridiem: 'short'
+        }}
+        slotMinTime="07:00:00"
+        slotMaxTime="22:00:00"
+        dayMaxEvents={4}
+        eventOverlap={false}
+        eventBorderColor="transparent"
+        eventClassNames="rounded-md shadow-sm"
       />
     </Card>
   );
