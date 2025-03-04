@@ -37,7 +37,6 @@ import { CalendarIcon } from "lucide-react";
 import { insertOrganizationBatchSchema, type InsertOrganizationBatch, insertBatchTemplateSchema, type InsertBatchTemplate, type BatchTemplate } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { motion } from "framer-motion";
 
 // Interface for date range
 interface DateRange {
@@ -175,32 +174,20 @@ export function CreateBatchForm() {
         throw new Error('Organization ID is required');
       }
 
-      try {
-        const response = await fetch(`/api/organizations/${user.organizationId}/batch-templates`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(template),
-        });
+      const response = await fetch(`/api/organizations/${user.organizationId}/batch-templates`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(template),
+      });
 
-        if (!response.ok) {
-          // Try to parse error response as JSON
-          try {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Failed to save template');
-          } catch (parseError) {
-            // If JSON parsing fails, use the response status text
-            throw new Error(`Failed to save template: ${response.statusText}`);
-          }
-        }
-
-        const data = await response.json();
-        return data;
-      } catch (error) {
-        console.error('Template save error:', error);
-        throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save template');
       }
+
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/batch-templates`] });
@@ -213,7 +200,6 @@ export function CreateBatchForm() {
       setTemplateDescription('');
     },
     onError: (error: Error) => {
-      console.error('Template save error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to save template",
@@ -469,117 +455,11 @@ export function CreateBatchForm() {
     }
   }, [isCreating]);
 
-  const BatchProgressVisualizer = ({ dateRanges, currentStatus }: { dateRanges: DateRange[], currentStatus: string }) => {
-    const getProgressPercentage = () => {
-      if (!dateRanges.length) return 0;
-      const firstDate = dateRanges[0].start;
-      const lastDate = dateRanges[dateRanges.length - 1].end;
-      const today = new Date();
-
-      if (today < firstDate) return 0;
-      if (today > lastDate) return 100;
-
-      const totalDuration = lastDate.getTime() - firstDate.getTime();
-      const elapsed = today.getTime() - firstDate.getTime();
-      return Math.round((elapsed / totalDuration) * 100);
-    };
-
-    const progressPercentage = getProgressPercentage();
-
-    return (
-      <div className="col-span-2 space-y-4 p-6 border rounded-lg bg-card">
-        <h3 className="font-semibold text-lg mb-4">Batch Progress Visualization</h3>
-
-        {/* Overall Progress */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span>Overall Progress</span>
-            <span>{progressPercentage}%</span>
-          </div>
-          <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
-            <motion.div
-              className="absolute h-full bg-primary"
-              initial={{ width: 0 }}
-              animate={{ width: `${progressPercentage}%` }}
-              transition={{ duration: 0.5 }}
-            />
-          </div>
-        </div>
-
-        {/* Phase Timeline */}
-        <div className="grid grid-cols-5 gap-2 mt-6">
-          {dateRanges.map((range, index) => (
-            <motion.div
-              key={index}
-              className={cn(
-                "relative p-4 rounded-lg",
-                {
-                  'bg-blue-100 border-blue-500': range.status === 'induction',
-                  'bg-green-100 border-green-500': range.status === 'training',
-                  'bg-yellow-100 border-yellow-500': range.status === 'certification',
-                  'bg-purple-100 border-purple-500': range.status === 'ojt',
-                  'bg-pink-100 border-pink-500': range.status === 'ojt-certification',
-                },
-                currentStatus === range.status ? 'border-2' : 'border',
-              )}
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{
-                scale: currentStatus === range.status ? 1.05 : 1,
-                opacity: 1,
-              }}
-              transition={{ duration: 0.3 }}
-            >
-              <div className="text-center">
-                <motion.div
-                  className="font-medium mb-1"
-                  animate={{
-                    scale: currentStatus === range.status ? 1.1 : 1,
-                  }}
-                  transition={{ duration: 0.3 }}
-                >
-                  {range.label}
-                </motion.div>
-                <div className="text-xs opacity-75">
-                  {format(range.start, "MMM d")} - {format(range.end, "MMM d")}
-                </div>
-              </div>
-              {currentStatus === range.status && (
-                <motion.div
-                  className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-primary"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ duration: 0.3 }}
-                />
-              )}
-            </motion.div>
-          ))}
-        </div>
-
-        {/* Connection Lines */}
-        <div className="relative h-1 -mt-8 mb-4">
-          <div className="absolute w-full h-0.5 bg-gray-200 top-1/2 transform -translate-y-1/2" />
-          {dateRanges.map((_, index) => (
-            index < dateRanges.length - 1 && (
-              <motion.div
-                key={index}
-                className="absolute h-2 w-2 rounded-full bg-gray-400"
-                style={{ left: `${(index + 1) * (100 / dateRanges.length)}%` }}
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: index * 0.1 }}
-              />
-            )
-          ))}
-        </div>
-      </div>
-    );
-  };
-
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         {isCreating && (
-          <div className="sticky top-0 z-10 bg-background space-y-2 p-4 border-b">
+          <div className="space-y-2">
             <div className="flex items-center justify-between text-sm font-medium">
               <span>Creating batch...</span>
               <span>{progress}%</span>
@@ -588,413 +468,398 @@ export function CreateBatchForm() {
           </div>
         )}
 
-        <div className="p-4 space-y-6">
-          <div className="space-y-4 border rounded-lg overflow-hidden">
-            <h3 className="font-semibold p-4 bg-muted">Date Range Preview</h3>
-            <div className="p-4 overflow-x-auto">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 min-w-[600px]">
-                {dateRanges.map((range, index) => (
-                  <div
-                    key={index}
-                    className={cn(
-                      "p-2 rounded text-sm",
-                      {
-                        'bg-blue-200': range.status === 'induction',
-                        'bg-green-200': range.status === 'training',
-                        'bg-yellow-200': range.status === 'certification',
-                        'bg-purple-200': range.status === 'ojt',
-                        'bg-pink-200': range.status === 'ojt-certification',
-                      }
-                    )}
-                  >
-                    <div className="font-medium">{range.label}</div>
-                    <div className="text-xs">
-                      {format(range.start, "MMM d, yyyy")} - {format(range.end, "MMM d, yyyy")}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+        <div className="grid grid-cols-2 gap-4">
+          {/* Template Selection */}
+          <FormField
+            control={form.control}
+            name="template"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Load from Template</FormLabel>
+                <Select
+                  onValueChange={handleTemplateSelect}
+                  disabled={isLoadingTemplates}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a template" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {templates.map((template) => (
+                      <SelectItem key={template.id} value={template.id.toString()}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-          {dateRanges.length > 0 && (
-            <div className="space-y-4 border rounded-lg overflow-hidden">
-              <div className="p-4 overflow-x-auto">
-                <BatchProgressVisualizer
-                  dateRanges={dateRanges}
-                  currentStatus={form.getValues('status')}
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
-            <FormField
-              control={form.control}
-              name="template"
-              render={({ field }) => (
-                <FormItem className="col-span-1 md:col-span-2">
-                  <FormLabel>Load from Template</FormLabel>
-                  <Select
-                    onValueChange={handleTemplateSelect}
-                    disabled={isLoadingTemplates}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a template" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {templates.map((template) => (
-                        <SelectItem key={template.id} value={template.id.toString()}>
-                          {template.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
+          {/* Save Template Dialog */}
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!form.getValues('locationId') || !form.getValues('processId')}
+              >
+                Save as Template
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Save as Template</DialogTitle>
+                <DialogDescription>
+                  Save the current batch configuration as a template for future use.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <FormItem>
+                  <FormLabel>Template Name</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Enter template name"
+                      value={templateName}
+                      onChange={(e) => setTemplateName(e.target.value)}
+                    />
+                  </FormControl>
                 </FormItem>
-              )}
-            />
+                <FormItem>
+                  <FormLabel>Description (Optional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Enter template description"
+                      value={templateDescription}
+                      onChange={(e) => setTemplateDescription(e.target.value)}
+                    />
+                  </FormControl>
+                </FormItem>
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  onClick={handleSaveTemplate}
+                  disabled={saveTemplateMutation.isPending}
+                >
+                  {saveTemplateMutation.isPending ? "Saving..." : "Save Template"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
-            <div className="col-span-1 md:col-span-2 flex justify-end">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={!form.getValues('locationId') || !form.getValues('processId')}
-                  >
-                    Save as Template
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Save as Template</DialogTitle>
-                    <DialogDescription>
-                      Save the current batch configuration as a template for future use.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <FormItem>
-                      <FormLabel>Template Name</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Enter template name"
-                          value={templateName}
-                          onChange={(e) => setTemplateName(e.target.value)}
-                        />
-                      </FormControl>
-                    </FormItem>
-                    <FormItem>
-                      <FormLabel>Description (Optional)</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Enter template description"
-                          value={templateDescription}
-                          onChange={(e) => setTemplateDescription(e.target.value)}
-                        />
-                      </FormControl>
-                    </FormItem>
+          {/* Batch Code */}
+          <FormField
+            control={form.control}
+            name="batchCode"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Batch Code</FormLabel>
+                <FormControl>
+                  <Input placeholder="Enter batch code" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Batch Name */}
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Batch Name</FormLabel>
+                <FormControl>
+                  <Input placeholder="Enter batch name" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Location */}
+          <FormField
+            control={form.control}
+            name="locationId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Location</FormLabel>
+                <Select
+                  onValueChange={(value) => {
+                    const locationId = parseInt(value);
+                    field.onChange(locationId);
+                    setSelectedLocation(locationId);
+                    setSelectedLob(null);
+                    form.setValue('lineOfBusinessId', undefined);
+                    form.setValue('processId', undefined);
+                    form.setValue('trainerId', undefined);
+                  }}
+                  value={field.value?.toString()}
+                  disabled={isLoadingLocations}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select location" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {locations.map((location) => (
+                      <SelectItem key={location.id} value={location.id.toString()}>
+                        {location.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Line of Business */}
+          <FormField
+            control={form.control}
+            name="lineOfBusinessId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Line of Business</FormLabel>
+                <Select
+                  onValueChange={(value) => {
+                    const lobId = parseInt(value);
+                    field.onChange(lobId);
+                    setSelectedLob(lobId);
+                    form.setValue('processId', undefined);
+                  }}
+                  value={field.value?.toString()}
+                  disabled={!selectedLocation || isLoadingLobs}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder={selectedLocation ? "Select LOB" : "Select location first"} />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {lobs.map((lob) => (
+                      <SelectItem key={lob.id} value={lob.id.toString()}>
+                        {lob.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Process */}
+          <FormField
+            control={form.control}
+            name="processId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Process</FormLabel>
+                <Select
+                  onValueChange={(value) => {
+                    const processId = parseInt(value);
+                    field.onChange(processId);
+                  }}
+                  value={field.value?.toString()}
+                  disabled={!selectedLob || isLoadingProcesses}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder={selectedLob ? "Select process" : "Select LOB first"} />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {processes.map((process) => (
+                      <SelectItem key={process.id} value={process.id.toString()}>
+                        {process.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Trainer */}
+          <FormField
+            control={form.control}
+            name="trainerId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Trainer</FormLabel>
+                <Select
+                  onValueChange={(value) => {
+                    const trainerId = parseInt(value);
+                    field.onChange(trainerId);
+                  }}
+                  value={field.value?.toString()}
+                  disabled={!selectedLocation || isLoadingTrainers}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder={selectedLocation ? "Select trainer" : "Select location first"} />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {trainers.map((trainer) => (
+                      <SelectItem key={trainer.id} value={trainer.id.toString()}>
+                        {trainer.fullName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Batch Start Date */}
+          <FormField
+            control={form.control}
+            name="startDate"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Batch Start Date</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full pl-3 text-left font-normal",
+                          !field.value && "text-muted-foreground"
+                        )}
+                      >
+                        {field.value ? (
+                          format(new Date(field.value), "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value ? new Date(field.value) : undefined}
+                      onSelect={(date) => field.onChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                      disabled={(date) => isSunday(date) || date < new Date()}
+                      modifiers={{
+                        highlighted: dateRanges.flatMap(range => {
+                          const dates = [];
+                          let current = range.start;
+                          while (current <= range.end) {
+                            dates.push(current);
+                            current = addDays(current, 1);
+                          }
+                          return dates;
+                        })
+                      }}
+                      modifiersClassNames={{
+                        highlighted: (date) => getDateRangeClassName(date)
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Batch End Date */}
+          <FormField
+            control={form.control}
+            name="endDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Batch End Date</FormLabel>
+                <FormControl>
+                  <Input
+                    type="text"
+                    value={field.value ? format(new Date(field.value), "PPP") : ''}
+                    disabled
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Date Range Preview */}
+          <div className="col-span-2 space-y-2 p-4 border rounded-lg">
+            <h3 className="font-semibold">Date Range Preview</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {dateRanges.map((range, index) => (
+                <div
+                  key={index}
+                  className={cn(
+                    "p-2 rounded",
+                    {
+                      'bg-blue-200': range.status === 'induction',
+                      'bg-green-200': range.status === 'training',
+                      'bg-yellow-200': range.status === 'certification',
+                      'bg-purple-200': range.status === 'ojt',
+                      'bg-pink-200': range.status === 'ojt-certification',
+                    }
+                  )}
+                >
+                  <div className="font-medium">{range.label}</div>
+                  <div className="text-sm">
+                    {format(range.start, "MMM d, yyyy")} - {format(range.end, "MMM d, yyyy")}
                   </div>
-                  <DialogFooter>
-                    <Button
-                      type="button"
-                      onClick={handleSaveTemplate}
-                      disabled={saveTemplateMutation.isPending}
-                    >
-                      {saveTemplateMutation.isPending ? "Saving..." : "Save Template"}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            <div className="space-y-4 col-span-1">
-              <FormField
-                control={form.control}
-                name="batchCode"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Batch Code</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter batch code" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Batch Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter batch name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="space-y-4 col-span-1">
-              <FormField
-                control={form.control}
-                name="locationId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Location</FormLabel>
-                    <Select
-                      onValueChange={(value) => {
-                        const locationId = parseInt(value);
-                        field.onChange(locationId);
-                        setSelectedLocation(locationId);
-                        setSelectedLob(null);
-                        form.setValue('lineOfBusinessId', undefined);
-                        form.setValue('processId', undefined);
-                        form.setValue('trainerId', undefined);
-                      }}
-                      value={field.value?.toString()}
-                      disabled={isLoadingLocations}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select location" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {locations.map((location) => (
-                          <SelectItem key={location.id} value={location.id.toString()}>
-                            {location.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="lineOfBusinessId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Line of Business</FormLabel>
-                    <Select
-                      onValueChange={(value) => {
-                        const lobId = parseInt(value);
-                        field.onChange(lobId);
-                        setSelectedLob(lobId);
-                        form.setValue('processId', undefined);
-                      }}
-                      value={field.value?.toString()}
-                      disabled={!selectedLocation || isLoadingLobs}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={selectedLocation ? "Select LOB" : "Select location first"} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {lobs.map((lob) => (
-                          <SelectItem key={lob.id} value={lob.id.toString()}>
-                            {lob.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="space-y-4 col-span-1">
-              <FormField
-                control={form.control}
-                name="processId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Process</FormLabel>
-                    <Select
-                      onValueChange={(value) => {
-                        const processId = parseInt(value);
-                        field.onChange(processId);
-                      }}
-                      value={field.value?.toString()}
-                      disabled={!selectedLob || isLoadingProcesses}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={selectedLob ? "Select process" : "Select LOB first"} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {processes.map((process) => (
-                          <SelectItem key={process.id} value={process.id.toString()}>
-                            {process.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="trainerId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Trainer</FormLabel>
-                    <Select
-                      onValueChange={(value) => {
-                        const trainerId = parseInt(value);
-                        field.onChange(trainerId);
-                      }}
-                      value={field.value?.toString()}
-                      disabled={!selectedLocation || isLoadingTrainers}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={selectedLocation ? "Select trainer" : "Select location first"} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {trainers.map((trainer) => (
-                          <SelectItem key={trainer.id} value={trainer.id.toString()}>
-                            {trainer.fullName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="space-y-4 col-span-1">
-              <FormField
-                control={form.control}
-                name="startDate"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Batch Start Date</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(new Date(field.value), "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value ? new Date(field.value) : undefined}
-                          onSelect={(date) => field.onChange(date ? format(date, 'yyyy-MM-dd') : '')}
-                                                    disabled={(date) => isSunday(date) || date < new Date()}
-                          modifiers={{
-                            highlighted: dateRanges.flatMap(range => {
-                              const dates = [];
-                              let current = new Date(range.start);
-                              const end = new Date(range.end);
-                              while (current <= end) {
-                                dates.push(new Date(current));
-                                current = addDays(current, 1);
-                              }
-                              return dates;
-                            })
-                          }}
-                          modifiersClassNames={{
-                            highlighted: (date) => getDateRangeClassName(new Date(date))
-                          }}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="endDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Batch End Date</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="text"
-                        value={field.value ? format(new Date(field.value), "PPP") : ''}
-                        disabled
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="col-span-1 md:col-span-2">
-              <FormField
-                control={form.control}
-                name="capacityLimit"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Capacity Limit</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={1}
-                        placeholder="Enter capacity limit"
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                </div>
+              ))}
             </div>
           </div>
+
+          {/* Capacity Limit */}
+          <FormField
+            control={form.control}
+            name="capacityLimit"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Capacity Limit</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    min={1}
+                    placeholder="Enter capacity"
+                    value={field.value || ''}
+                    onChange={(e) => {
+                      const value = e.target.value ? parseInt(e.target.value) : undefined;
+                      field.onChange(value);
+                    }}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
 
-        <div className="sticky bottom-0 left-0 right-0 p-4 bg-background border-t mt-auto flex justify-end">
-          <div className="col-span-2 flex justify-end">
-            <Button
-              type="submit"
-              size="lg"
-              disabled={
-                createBatchMutation.isPending ||
-                isLoadingLocations ||
-                isLoadingLobs ||
-                isLoadingProcesses ||
-                isLoadingTrainers ||
-                isLoadingTemplates
-              }
-            >
-              {createBatchMutation.isPending ? "Creating..." : "Create Batch"}
-            </Button>
-          </div>
+        <div className="col-span-2 flex justify-end space-x-2">
+          <Button
+            type="submit"
+            disabled={
+              createBatchMutation.isPending ||
+              isCreating ||
+              isLoadingLocations ||
+              isLoadingLobs ||
+              isLoadingProcesses ||
+              isLoadingTrainers ||
+              isLoadingTemplates
+            }
+          >
+            {createBatchMutation.isPending ? "Creating..." : "Create Batch"}
+          </Button>
         </div>
       </form>
     </Form>
