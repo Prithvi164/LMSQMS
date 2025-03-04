@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format, addDays, isSunday } from "date-fns";
+import { format, addDays, isSunday, parse } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -20,6 +20,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { CalendarIcon } from "lucide-react";
 import { insertOrganizationBatchSchema, type InsertOrganizationBatch } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -250,6 +254,56 @@ export function CreateBatchForm() {
   }, [form.watch('inductionStartDate'), form.watch('processId'), processes]);
 
   // Add date fields to the form
+  const renderDateField = (
+    name: keyof InsertOrganizationBatch,
+    label: string,
+    disabled: boolean = false
+  ) => (
+    <FormField
+      control={form.control}
+      name={name}
+      render={({ field }) => (
+        <FormItem className="flex flex-col">
+          <FormLabel>{label}</FormLabel>
+          <Popover>
+            <PopoverTrigger asChild>
+              <FormControl>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-full pl-3 text-left font-normal",
+                    !field.value && "text-muted-foreground"
+                  )}
+                  disabled={disabled}
+                >
+                  {field.value ? (
+                    format(new Date(field.value), "PPP")
+                  ) : (
+                    <span>Pick a date</span>
+                  )}
+                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                </Button>
+              </FormControl>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={field.value ? new Date(field.value) : undefined}
+                onSelect={field.onChange}
+                disabled={(date) => {
+                  // Disable Sundays and past dates
+                  return isSunday(date) || date < new Date();
+                }}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -424,22 +478,7 @@ export function CreateBatchForm() {
           />
 
           {/* Start Date */}
-          <FormField
-            control={form.control}
-            name="inductionStartDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Induction Start Date</FormLabel>
-                <FormControl>
-                  <Input
-                    type="date"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {renderDateField("inductionStartDate", "Induction Start Date")}
 
           {/* Display calculated dates as read-only fields */}
           <FormField
@@ -450,8 +489,8 @@ export function CreateBatchForm() {
                 <FormLabel>Induction End Date</FormLabel>
                 <FormControl>
                   <Input
-                    type="date"
-                    value={calculatedDates.inductionEnd}
+                    type="text"
+                    value={calculatedDates.inductionEnd ? format(new Date(calculatedDates.inductionEnd), "PPP") : ''}
                     disabled
                   />
                 </FormControl>
@@ -468,8 +507,8 @@ export function CreateBatchForm() {
                 <FormLabel>Training Start Date</FormLabel>
                 <FormControl>
                   <Input
-                    type="date"
-                    value={calculatedDates.trainingStart}
+                    type="text"
+                    value={calculatedDates.trainingStart ? format(new Date(calculatedDates.trainingStart), "PPP") : ''}
                     disabled
                   />
                 </FormControl>
@@ -485,8 +524,8 @@ export function CreateBatchForm() {
                 <FormLabel>Training End Date</FormLabel>
                 <FormControl>
                   <Input
-                    type="date"
-                    value={calculatedDates.trainingEnd}
+                    type="text"
+                    value={calculatedDates.trainingEnd ? format(new Date(calculatedDates.trainingEnd), "PPP") : ''}
                     disabled
                   />
                 </FormControl>
@@ -503,8 +542,8 @@ export function CreateBatchForm() {
                 <FormLabel>Certification Start Date</FormLabel>
                 <FormControl>
                   <Input
-                    type="date"
-                    value={calculatedDates.certificationStart}
+                    type="text"
+                    value={calculatedDates.certificationStart ? format(new Date(calculatedDates.certificationStart), "PPP") : ''}
                     disabled
                   />
                 </FormControl>
@@ -519,8 +558,8 @@ export function CreateBatchForm() {
                 <FormLabel>Certification End Date</FormLabel>
                 <FormControl>
                   <Input
-                    type="date"
-                    value={calculatedDates.certificationEnd}
+                    type="text"
+                    value={calculatedDates.certificationEnd ? format(new Date(calculatedDates.certificationEnd), "PPP") : ''}
                     disabled
                   />
                 </FormControl>
@@ -537,8 +576,8 @@ export function CreateBatchForm() {
                 <FormLabel>OJT Start Date</FormLabel>
                 <FormControl>
                   <Input
-                    type="date"
-                    value={calculatedDates.ojtStart}
+                    type="text"
+                    value={calculatedDates.ojtStart ? format(new Date(calculatedDates.ojtStart), "PPP") : ''}
                     disabled
                   />
                 </FormControl>
@@ -553,8 +592,8 @@ export function CreateBatchForm() {
                 <FormLabel>OJT End Date</FormLabel>
                 <FormControl>
                   <Input
-                    type="date"
-                    value={calculatedDates.ojtEnd}
+                    type="text"
+                    value={calculatedDates.ojtEnd ? format(new Date(calculatedDates.ojtEnd), "PPP") : ''}
                     disabled
                   />
                 </FormControl>
@@ -571,8 +610,8 @@ export function CreateBatchForm() {
                 <FormLabel>OJT Certification Start Date</FormLabel>
                 <FormControl>
                   <Input
-                    type="date"
-                    value={calculatedDates.ojtCertificationStart}
+                    type="text"
+                    value={calculatedDates.ojtCertificationStart ? format(new Date(calculatedDates.ojtCertificationStart), "PPP") : ''}
                     disabled
                   />
                 </FormControl>
@@ -587,8 +626,8 @@ export function CreateBatchForm() {
                 <FormLabel>OJT Certification End Date</FormLabel>
                 <FormControl>
                   <Input
-                    type="date"
-                    value={calculatedDates.ojtCertificationEnd}
+                    type="text"
+                    value={calculatedDates.ojtCertificationEnd ? format(new Date(calculatedDates.ojtCertificationEnd), "PPP") : ''}
                     disabled
                   />
                 </FormControl>
@@ -605,8 +644,8 @@ export function CreateBatchForm() {
                 <FormLabel>Handover to Ops Date</FormLabel>
                 <FormControl>
                   <Input
-                    type="date"
-                    value={calculatedDates.handoverToOps}
+                    type="text"
+                    value={calculatedDates.handoverToOps ? format(new Date(calculatedDates.handoverToOps), "PPP") : ''}
                     disabled
                   />
                 </FormControl>
