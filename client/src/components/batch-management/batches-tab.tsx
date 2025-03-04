@@ -191,54 +191,63 @@ export function BatchesTab() {
                   <div
                     className={`
                       w-full p-1 text-xs cursor-pointer truncate rounded border
+                      transform transition-all duration-200 ease-in-out
+                      hover:scale-[1.02] hover:shadow-md
                       ${batch.status === 'planned' 
                         ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300' 
                         : batch.status === 'completed'
                         ? 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 dark:bg-gray-900/30 dark:border-gray-800 dark:text-gray-300'
                         : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-900/30 dark:border-green-800 dark:text-green-300'}
+                      hover:border-opacity-100 hover:z-10
                     `}
                   >
                     {batch.name}
                   </div>
                 </PopoverTrigger>
-                <PopoverContent className="w-96 p-4" align="start">
+                <PopoverContent 
+                  className="w-96 p-4 animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95" 
+                  align="start"
+                >
                   <div className="space-y-4">
                     <div className="flex justify-between items-start border-b pb-2">
                       <div>
-                        <h4 className="font-semibold text-lg">{batch.name}</h4>
-                        <Badge variant="outline" className="mt-2">
+                        <h4 className="font-semibold text-lg group-hover:text-primary transition-colors">
+                          {batch.name}
+                        </h4>
+                        <Badge 
+                          variant="outline" 
+                          className="mt-2 transition-colors hover:bg-secondary"
+                        >
                           {formatBatchCategory(batch.batchCategory)}
                         </Badge>
                       </div>
-                      <Badge variant="secondary" className={getStatusColor(batch.status)}>
+                      <Badge 
+                        variant="secondary" 
+                        className={`${getStatusColor(batch.status)} transition-all hover:scale-105`}
+                      >
                         {batch.status.charAt(0).toUpperCase() + batch.status.slice(1)}
                       </Badge>
                     </div>
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       <div className="col-span-2 space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground">Process:</span>
-                          <span className="font-medium">{batch.process?.name}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground">Location:</span>
-                          <span className="font-medium">{batch.location?.name}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground">Trainer:</span>
-                          <span className="font-medium">{batch.trainer?.fullName}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground">Capacity:</span>
-                          <span className="font-medium">{batch.capacityLimit}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground">Timeline:</span>
-                          <span className="font-medium">
-                            {format(new Date(batch.startDate), 'MMM d, yyyy')} -
-                            {format(new Date(batch.endDate), 'MMM d, yyyy')}
-                          </span>
-                        </div>
+                        {[
+                          { label: 'Process', value: batch.process?.name },
+                          { label: 'Location', value: batch.location?.name },
+                          { label: 'Trainer', value: batch.trainer?.fullName },
+                          { label: 'Capacity', value: batch.capacityLimit },
+                          { 
+                            label: 'Timeline', 
+                            value: `${format(new Date(batch.startDate), 'MMM d, yyyy')} - ${format(new Date(batch.endDate), 'MMM d, yyyy')}`
+                          }
+                        ].map(({ label, value }) => (
+                          <div 
+                            key={label}
+                            className="flex justify-between items-center p-1 rounded hover:bg-secondary/10 transition-colors"
+                          >
+                            <span className="text-muted-foreground">{label}:</span>
+                            <span className="font-medium">{value}</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
                     {canManageBatches && batch.status === 'planned' && (
@@ -247,6 +256,7 @@ export function BatchesTab() {
                           variant="outline"
                           size="sm"
                           onClick={() => handleEditClick(batch)}
+                          className="transition-all hover:scale-105 hover:bg-secondary/20"
                         >
                           <Edit className="h-4 w-4 mr-1" />
                           Edit
@@ -255,6 +265,7 @@ export function BatchesTab() {
                           variant="outline"
                           size="sm"
                           onClick={() => handleDeleteClick(batch)}
+                          className="transition-all hover:scale-105 hover:bg-destructive/20"
                         >
                           <Trash2 className="h-4 w-4 mr-1" />
                           Delete
