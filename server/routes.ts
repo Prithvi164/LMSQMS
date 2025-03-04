@@ -8,6 +8,7 @@ import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { insertOrganizationProcessSchema } from "@shared/schema";
+import {insertBatchTemplateSchema} from "@shared/schema"; // Added import
 
 const scryptAsync = promisify(scrypt);
 
@@ -1042,5 +1043,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  return app;
+  // Add these batch template routes after existing routes
+  // Get batch templates
+  app.get("/api/organizations/:id/batch-templates", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.id);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only view templates in your own organization" });
+      }
+
+      console.log(`Fetching batch templates for organization ${orgId}`);
+      const templates = await storage.listBatchTemplates(orgId);
+      console.log(`Found ${templates.length} templates`);
+      res.json(templates);
+    } catch (error: any) {
+      console.error("Error fetching templates:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Create batch template
+  app.post("/api/organizations/:id/batch-templates", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.id);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only create templates in your own organization" });
+      }
+
+      const templateData = {
+        ...req.body,
+        organizationId: orgId,
+      };
+
+      console.log('Creating template with data:', templateData);
+
+      const validatedData = insertBatchTemplateSchema.parse(templateData);
+      const template = await storage.createBatchTemplate(validatedData);
+
+      console.log('Template created successfully:', template);
+      res.status(201).json(template);
+    } catch (error: any) {
+      console.error("Template creation error:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Get single template
+  app.get("/api/organizations/:id/batch-templates/:templateId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.id);
+      const templateId = parseInt(req.params.templateId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only view templates in your own organization" });
+      }
+
+      const template = await storage.getBatchTemplate(templateId);
+      if (!template || template.organizationId !== orgId) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+
+      res.json(template);
+    } catch (error: any) {
+      console.error("Error fetching template:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Delete template
+  app.delete("/api/organizations/:id/batch-templates/:templateId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.id);
+      const templateId = parseInt(req.params.templateId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only delete templates in your own organization" });
+      }
+
+      // Check if template exists and belongs to organization
+      const template = await storage.getBatchTemplate(templateId);
+      if (!template || template.organizationId !== orgId) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+
+      await storage.deleteBatchTemplate(templateId);
+      res.json({ message: "Template deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting template:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  return createServer(app);
 }
