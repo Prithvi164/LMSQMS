@@ -95,14 +95,16 @@ export function BatchesTab() {
 
   // Filter batches with debug logging
   const filteredBatches = batches.filter(batch => {
-    const matchesCategory = selectedCategory === null || batch.batchCategory === selectedCategory;
+    // Check if batch category is defined and matches selected category
+    const matchesCategory = selectedCategory === null || 
+      (batch.batchCategory && batch.batchCategory.toString() === selectedCategory);
 
     console.log('Debug - Filtering Batch:', {
       batchName: batch.name,
-      batchCategory: batch.batchCategory,
+      batchCategory: batch.batchCategory || 'undefined',
       selectedCategory,
       matchesCategory,
-      comparisonResult: `${batch.batchCategory} === ${selectedCategory}`
+      comparisonResult: `${batch.batchCategory || 'undefined'} === ${selectedCategory}`
     });
 
     return (
