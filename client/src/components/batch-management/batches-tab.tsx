@@ -33,14 +33,17 @@ import {
 } from "@/components/ui/table";
 import { CreateBatchForm } from "./create-batch-form";
 import { useToast } from "@/hooks/use-toast";
+import type { OrganizationBatch } from "@shared/schema";
 
 export function BatchesTab() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
+  const [selectedBatch, setSelectedBatch] = useState<OrganizationBatch | null>(null);
 
   // Check if user has permission to edit/delete batches
   const canManageBatches = user?.role === 'admin' || user?.role === 'owner';
@@ -49,8 +52,9 @@ export function BatchesTab() {
     data: batches = [],
     isLoading,
     error
-  } = useQuery({
+  } = useQuery<OrganizationBatch[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches`],
+    enabled: !!user?.organizationId
   });
 
   const deleteBatchMutation = useMutation({
@@ -91,6 +95,19 @@ export function BatchesTab() {
     }
     setSelectedBatchId(batchId);
     setDeleteDialogOpen(true);
+  };
+
+  const handleEditClick = (batch: OrganizationBatch) => {
+    if (batch.status !== 'planned') {
+      toast({
+        title: "Cannot Edit",
+        description: "Only batches with 'Planned' status can be edited",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSelectedBatch(batch);
+    setIsEditDialogOpen(true);
   };
 
   const handleConfirmDelete = async () => {
@@ -211,7 +228,7 @@ export function BatchesTab() {
                         <Button 
                           variant="outline" 
                           size="sm"
-                          onClick={() => {/* TODO: Implement edit */}}
+                          onClick={() => handleEditClick(batch)}
                           disabled={batch.status !== 'planned'}
                         >
                           <Edit className="h-4 w-4" />
@@ -251,6 +268,24 @@ export function BatchesTab() {
             <DialogTitle>Create New Batch</DialogTitle>
           </DialogHeader>
           <CreateBatchForm />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Edit Batch</DialogTitle>
+            <DialogDescription>
+              Make changes to the batch details.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedBatch && (
+            <CreateBatchForm 
+              editMode={true} 
+              batchData={selectedBatch} 
+              onSuccess={() => setIsEditDialogOpen(false)}
+            />
+          )}
         </DialogContent>
       </Dialog>
 

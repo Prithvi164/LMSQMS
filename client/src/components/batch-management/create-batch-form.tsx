@@ -33,10 +33,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react";
 import { insertOrganizationBatchSchema, type InsertOrganizationBatch, insertBatchTemplateSchema, type InsertBatchTemplate, type BatchTemplate } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+
 
 // Interface for date range
 interface DateRange {
@@ -44,6 +45,13 @@ interface DateRange {
   end: Date;
   label: string;
   status: 'induction' | 'training' | 'certification' | 'ojt' | 'ojt-certification';
+}
+
+// Interface for CreateBatchForm props
+interface CreateBatchFormProps {
+  editMode?: boolean;
+  batchData?: any;
+  onSuccess?: () => void;
 }
 
 // Function to determine batch status based on current date and phase dates
@@ -92,7 +100,7 @@ const batchCategories = [
   { value: 'recertification', label: 'Recertification' }
 ] as const;
 
-export function CreateBatchForm() {
+export function CreateBatchForm({ editMode = false, batchData, onSuccess }: CreateBatchFormProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -107,7 +115,22 @@ export function CreateBatchForm() {
 
   const form = useForm<InsertOrganizationBatch>({
     resolver: zodResolver(insertOrganizationBatchSchema),
-    defaultValues: {
+    defaultValues: editMode && batchData ? {
+      ...batchData,
+      startDate: batchData.startDate ? format(new Date(batchData.startDate), 'yyyy-MM-dd') : '',
+      endDate: batchData.endDate ? format(new Date(batchData.endDate), 'yyyy-MM-dd') : '',
+      inductionStartDate: batchData.inductionStartDate ? format(new Date(batchData.inductionStartDate), 'yyyy-MM-dd') : '',
+      inductionEndDate: batchData.inductionEndDate ? format(new Date(batchData.inductionEndDate), 'yyyy-MM-dd') : '',
+      trainingStartDate: batchData.trainingStartDate ? format(new Date(batchData.trainingStartDate), 'yyyy-MM-dd') : '',
+      trainingEndDate: batchData.trainingEndDate ? format(new Date(batchData.trainingEndDate), 'yyyy-MM-dd') : '',
+      certificationStartDate: batchData.certificationStartDate ? format(new Date(batchData.certificationStartDate), 'yyyy-MM-dd') : '',
+      certificationEndDate: batchData.certificationEndDate ? format(new Date(batchData.certificationEndDate), 'yyyy-MM-dd') : '',
+      ojtStartDate: batchData.ojtStartDate ? format(new Date(batchData.ojtStartDate), 'yyyy-MM-dd') : '',
+      ojtEndDate: batchData.ojtEndDate ? format(new Date(batchData.ojtEndDate), 'yyyy-MM-dd') : '',
+      ojtCertificationStartDate: batchData.ojtCertificationStartDate ? format(new Date(batchData.ojtCertificationStartDate), 'yyyy-MM-dd') : '',
+      ojtCertificationEndDate: batchData.ojtCertificationEndDate ? format(new Date(batchData.ojtCertificationEndDate), 'yyyy-MM-dd') : '',
+      handoverToOpsDate: batchData.handoverToOpsDate ? format(new Date(batchData.handoverToOpsDate), 'yyyy-MM-dd') : '',
+    } : {
       status: 'planned',
       organizationId: user?.organizationId || undefined,
       startDate: '',
@@ -125,11 +148,10 @@ export function CreateBatchForm() {
       ojtCertificationStartDate: '',
       ojtCertificationEndDate: '',
       handoverToOpsDate: '',
-      batchCategory: 'new_training'  // Set default category
+      batchCategory: 'new_training'
     },
   });
 
-  // Add proper type checking for templates query
   const {
     data: templates = [],
     isLoading: isLoadingTemplates,
@@ -185,7 +207,6 @@ export function CreateBatchForm() {
     enabled: !!user?.organizationId
   });
 
-  // Template save mutation with improved validation and error handling
   const saveTemplateMutation = useMutation({
     mutationFn: async (template: InsertBatchTemplate) => {
       if (!user?.organizationId) {
@@ -238,44 +259,36 @@ export function CreateBatchForm() {
     }
   });
 
-  // Function to handle template selection
   const handleTemplateSelect = async (templateId: string) => {
     const template = templates.find(t => t.id.toString() === templateId);
     if (template) {
       try {
-        // First set location
         const locationId = parseInt(template.locationId.toString());
         if (!isNaN(locationId)) {
           setSelectedLocation(locationId);
           form.setValue('locationId', locationId);
         }
 
-        // Wait briefly for location change to trigger LOB loading
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        // Set LOB
         const lobId = parseInt(template.lineOfBusinessId.toString());
         if (!isNaN(lobId)) {
           setSelectedLob(lobId);
           form.setValue('lineOfBusinessId', lobId);
         }
 
-        // Wait for LOB change to trigger process loading
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        // Set process
         const processId = parseInt(template.processId.toString());
         if (!isNaN(processId)) {
           form.setValue('processId', processId);
         }
 
-        // Set trainer
         const trainerId = parseInt(template.trainerId.toString());
         if (!isNaN(trainerId)) {
           form.setValue('trainerId', trainerId);
         }
 
-        // Set other fields
         if (template.capacityLimit) {
           form.setValue('capacityLimit', parseInt(template.capacityLimit.toString()));
         }
@@ -299,7 +312,6 @@ export function CreateBatchForm() {
     }
   };
 
-  // Function to save current configuration as template with validation
   const handleSaveTemplate = async () => {
     try {
       if (!templateName) throw new Error('Template name is required');
@@ -355,7 +367,6 @@ export function CreateBatchForm() {
     return currentDate;
   };
 
-
   const createBatchMutation = useMutation({
     mutationFn: async (values: InsertOrganizationBatch) => {
       if (!user?.organizationId) {
@@ -397,6 +408,9 @@ export function CreateBatchForm() {
       setSelectedLocation(null);
       setSelectedLob(null);
       setDateRanges([]);
+      if (onSuccess) {
+        onSuccess();
+      }
     },
     onError: (error: Error) => {
       console.error('Error creating batch:', error);
@@ -407,6 +421,59 @@ export function CreateBatchForm() {
       });
     }
   });
+
+  const updateBatchMutation = useMutation({
+    mutationFn: async (values: InsertOrganizationBatch) => {
+      if (!user?.organizationId || !batchData?.id) {
+        throw new Error('Organization ID and Batch ID are required for update');
+      }
+
+      try {
+        setIsCreating(true);
+        const response = await fetch(`/api/organizations/${user.organizationId}/batches/${batchData.id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(values),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to update batch');
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error('API Error:', error);
+        throw error;
+      } finally {
+        setTimeout(() => {
+          setIsCreating(false);
+        }, 500);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/batches`] });
+      toast({
+        title: "Success",
+        description: "Batch updated successfully",
+      });
+      form.reset();
+      if (onSuccess) {
+        onSuccess();
+      }
+    },
+    onError: (error: Error) => {
+      console.error('Error updating batch:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update batch. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+
 
   async function onSubmit(values: InsertOrganizationBatch) {
     try {
@@ -420,14 +487,17 @@ export function CreateBatchForm() {
       if (values.batchCategory === undefined) throw new Error('Batch Category is required');
 
 
-      // Set the initial status based on the current date and batch dates
       const currentStatus = determineBatchStatus(values);
       const formattedValues = {
         ...values,
         status: currentStatus
       };
 
-      await createBatchMutation.mutateAsync(formattedValues);
+      if (editMode) {
+        await updateBatchMutation.mutateAsync(formattedValues);
+      } else {
+        await createBatchMutation.mutateAsync(formattedValues);
+      }
     } catch (error) {
       console.error('Form submission error:', error);
       toast({
@@ -562,7 +632,6 @@ export function CreateBatchForm() {
         )}
 
         <div className="grid grid-cols-2 gap-6">
-          {/* Template Selection */}
           <FormField
             control={form.control}
             name="template"
@@ -591,7 +660,6 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Save Template Dialog */}
           <Dialog>
             <DialogTrigger asChild>
               <Button
@@ -643,7 +711,6 @@ export function CreateBatchForm() {
             </DialogContent>
           </Dialog>
 
-          {/* Batch Category */}
           <FormField
             control={form.control}
             name="batchCategory"
@@ -672,7 +739,6 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Batch Name */}
           <FormField
             control={form.control}
             name="name"
@@ -687,7 +753,6 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Location */}
           <FormField
             control={form.control}
             name="locationId"
@@ -725,7 +790,6 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Line of Business */}
           <FormField
             control={form.control}
             name="lineOfBusinessId"
@@ -760,7 +824,6 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Process */}
           <FormField
             control={form.control}
             name="processId"
@@ -793,7 +856,6 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Trainer */}
           <FormField
             control={form.control}
             name="trainerId"
@@ -826,7 +888,6 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Batch Start Date */}
           <FormField
             control={form.control}
             name="startDate"
@@ -881,7 +942,6 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Batch End Date */}
           <FormField
             control={form.control}
             name="endDate"
@@ -900,7 +960,6 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Date Range Preview */}
           <div className="col-span-2 space-y-2 p-4 border rounded-lg">
             <h3 className="font-semibold">Date Range Preview</h3>
             <div className="grid grid-cols-2 gap-2">
@@ -927,7 +986,6 @@ export function CreateBatchForm() {
             </div>
           </div>
 
-          {/* Capacity Limit */}
           <FormField
             control={form.control}
             name="capacityLimit"
@@ -941,7 +999,7 @@ export function CreateBatchForm() {
                     placeholder="Enter capacity"
                     value={field.value || ''}
                     onChange={(e) => {
-                      const value= e.target.value ? parseInt(e.target.value) : undefined;
+                      const value = e.target.value ? parseInt(e.target.value) : undefined;
                       field.onChange(value);
                     }}
                   />
@@ -952,12 +1010,12 @@ export function CreateBatchForm() {
           />
         </div>
 
-        {/* Submit button as part of normal flow */}
-        <div className="mt-8">
+        <div className="mt-8 flex justify-end"> {/* Adjusted to right-align the button */}
           <Button
             type="submit"
             disabled={
               createBatchMutation.isPending ||
+              updateBatchMutation.isPending ||
               isCreating ||
               isLoadingLocations ||
               isLoadingLobs ||
@@ -966,7 +1024,14 @@ export function CreateBatchForm() {
               isLoadingTemplates
             }
           >
-            {createBatchMutation.isPending ? "Creating..." : "Create Batch"}
+            {isCreating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {editMode ? "Updating..." : "Creating..."}
+              </>
+            ) : (
+              editMode ? "Update Batch" : "Create Batch"
+            )}
           </Button>
         </div>
       </form>
