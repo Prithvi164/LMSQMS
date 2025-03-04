@@ -96,13 +96,15 @@ export function BatchesTab() {
     // Access the raw value of batchCategory
     const batchCategory = String(batch.batchCategory || '');
 
-    // Debug logging
-    console.log('Processing batch:', {
-      name: batch.name,
-      batchCategory,
-      selectedCategory,
-      match: selectedCategory === null || batchCategory === selectedCategory
-    });
+    // Debug logging for upskill category
+    if (selectedCategory === 'upskill') {
+      console.log('Filtering upskill batch:', {
+        name: batch.name,
+        batchCategory,
+        selectedCategory,
+        match: selectedCategory === null || batchCategory === selectedCategory
+      });
+    }
 
     return (
       (searchQuery === '' ||
@@ -817,7 +819,7 @@ export function BatchesTab() {
                 <Button
                   size="sm"
                   className="relative"
-                                    onClick={() => setIsCreateDialogOpen(true)}
+                  onClick={() => setIsCreateDialogOpen(true)}
                 >
                   <Plus className="mr-2 h-4 w-4" />
                   Create Batch
