@@ -20,6 +20,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Progress } from "@/components/ui/progress";
@@ -101,6 +110,17 @@ const BatchStatusVisualizer = ({ currentPhase }: { currentPhase: string }) => {
   );
 };
 
+interface Template {
+  id: number;
+  name: string;
+  description?: string;
+  locationId: number;
+  lineOfBusinessId: number;
+  processId: number;
+  trainerId: number;
+  capacityLimit: number;
+}
+
 export function CreateBatchForm() {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -118,7 +138,7 @@ export function CreateBatchForm() {
     resolver: zodResolver(insertOrganizationBatchSchema),
     defaultValues: {
       status: 'planned',
-      organizationId: user?.organizationId || undefined,
+      organizationId: user?.organizationId,
       startDate: '',
       endDate: '',
       inductionStartDate: '',
@@ -142,7 +162,7 @@ export function CreateBatchForm() {
   const {
     data: templates = [],
     isLoading: isLoadingTemplates
-  } = useQuery({
+  } = useQuery<Template[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batch-templates`],
     enabled: !!user?.organizationId
   });
@@ -176,7 +196,7 @@ export function CreateBatchForm() {
     isLoading: isLoadingTrainers
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/users`],
-    select: (users) => users?.filter((user) =>
+    select: (users: any[]) => users?.filter((user) =>
       user.role === 'trainer' &&
       (!selectedLocation || user.locationId === selectedLocation)
     ) || [],
@@ -185,7 +205,7 @@ export function CreateBatchForm() {
 
   // Save template mutation
   const saveTemplateMutation = useMutation({
-    mutationFn: async (template: any) => { //Type needs to be fixed based on the actual template schema
+    mutationFn: async (template: Template) => {
       if (!user?.organizationId) {
         throw new Error('Organization ID is required');
       }
@@ -243,10 +263,10 @@ export function CreateBatchForm() {
     try {
       if (!templateName) throw new Error('Template name is required');
 
-      const template: any = { //Type needs to be fixed based on the actual template schema
+      const template: Template = {
+        id: 0, // This will be set by the server
         name: templateName,
         description: templateDescription,
-        organizationId: user?.organizationId!,
         locationId: form.getValues('locationId')!,
         lineOfBusinessId: form.getValues('lineOfBusinessId')!,
         processId: form.getValues('processId')!,
@@ -278,7 +298,6 @@ export function CreateBatchForm() {
 
     return currentDate;
   };
-
 
   const createBatchMutation = useMutation({
     mutationFn: async (values: InsertOrganizationBatch) => {
@@ -361,7 +380,7 @@ export function CreateBatchForm() {
   }
 
   useEffect(() => {
-    const process = processes.find(p => p.id === form.getValues('processId'));
+    const process = processes.find((p: any) => p.id === form.getValues('processId'));
     const startDateStr = form.getValues('startDate');
 
     if (process && startDateStr) {
@@ -391,7 +410,7 @@ export function CreateBatchForm() {
         form.setValue('ojtCertificationStartDate', format(ojtCertificationStart, 'yyyy-MM-dd'));
         form.setValue('ojtCertificationEndDate', format(ojtCertificationEnd, 'yyyy-MM-dd'));
         form.setValue('handoverToOpsDate', format(handoverToOps, 'yyyy-MM-dd'));
-        setCurrentStatus(determineBatchStatus({...form.getValues(), status: ''}))
+        setCurrentStatus(determineBatchStatus({...form.getValues(), status: 'planned'}))
 
       } catch (error) {
         console.error('Error calculating dates:', error);
@@ -571,7 +590,7 @@ export function CreateBatchForm() {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {locations.map((location) => (
+                    {locations.map((location: any) => (
                       <SelectItem key={location.id} value={location.id.toString()}>
                         {location.name}
                       </SelectItem>
@@ -606,7 +625,7 @@ export function CreateBatchForm() {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {lobs.map((lob) => (
+                    {lobs.map((lob: any) => (
                       <SelectItem key={lob.id} value={lob.id.toString()}>
                         {lob.name}
                       </SelectItem>
@@ -639,7 +658,7 @@ export function CreateBatchForm() {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {processes.map((process) => (
+                    {processes.map((process: any) => (
                       <SelectItem key={process.id} value={process.id.toString()}>
                         {process.name}
                       </SelectItem>
@@ -672,7 +691,7 @@ export function CreateBatchForm() {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {trainers.map((trainer) => (
+                    {trainers.map((trainer: any) => (
                       <SelectItem key={trainer.id} value={trainer.id.toString()}>
                         {trainer.fullName}
                       </SelectItem>
