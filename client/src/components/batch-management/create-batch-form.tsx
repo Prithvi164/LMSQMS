@@ -360,10 +360,13 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     }
   };
 
-  // Example date calculation function
-  const addWorkingDays = (startDate: Date, days: number): Date => {
+  // Example date calculation function - updated to handle end dates correctly
+  const addWorkingDays = (startDate: Date, days: number, isEndDate: boolean = false): Date => {
+    if (days === 0) return startDate;
+
     let currentDate = startDate;
-    let remainingDays = days;
+    let daysToAdd = isEndDate ? days - 1 : days; // Subtract 1 for end dates
+    let remainingDays = daysToAdd;
 
     while (remainingDays > 0) {
       currentDate = addDays(currentDate, 1);
@@ -553,58 +556,45 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
 
     if (process && startDateStr) {
       try {
-        // Example: If batch starts on March 5, 2025 (Wednesday)
+        // Example: If batch starts on March 12, 2025 (Wednesday)
         const startDate = new Date(startDateStr);
 
         // Set induction dates
-        // Start: March 5 (Wed)
-        // 5 working days + skip Sunday March 9
-        // End: March 11 (Tue)
+        // If inductionDays = 1, start and end date will be the same
         form.setValue('inductionStartDate', format(startDate, 'yyyy-MM-dd'));
-        const inductionEnd = addWorkingDays(startDate, process.inductionDays);
+        const inductionEnd = addWorkingDays(startDate, process.inductionDays, true);
         form.setValue('inductionEndDate', format(inductionEnd, 'yyyy-MM-dd'));
 
         // Set training dates
-        // Start: March 12 (Wed) - one working day after induction
-        // 10 working days + skip Sundays March 16, 23
-        // End: March 25 (Tue)
+        // Start: Next working day after induction
+        // End: Start date + trainingDays - 1
         const trainingStart = addWorkingDays(inductionEnd, 1);
-        const trainingEnd = addWorkingDays(trainingStart, process.trainingDays);
+        const trainingEnd = addWorkingDays(trainingStart, process.trainingDays, true);
         form.setValue('trainingStartDate', format(trainingStart, 'yyyy-MM-dd'));
         form.setValue('trainingEndDate', format(trainingEnd, 'yyyy-MM-dd'));
 
         // Set certification dates
-        // Start: March 26 (Wed) - one working day after training
-        // 3 working days + skip Sunday March 30
-        // End: March 28 (Fri)
         const certificationStart = addWorkingDays(trainingEnd, 1);
-        const certificationEnd = addWorkingDays(certificationStart, process.certificationDays);
+        const certificationEnd = addWorkingDays(certificationStart, process.certificationDays, true);
         form.setValue('certificationStartDate', format(certificationStart, 'yyyy-MM-dd'));
         form.setValue('certificationEndDate', format(certificationEnd, 'yyyy-MM-dd'));
 
         // Set OJT dates
-        // Start: March 31 (Mon) - one working day after certification
-        // 15 working days + skip Sundays April 6, 13
-        // End: April 18 (Fri)
         const ojtStart = addWorkingDays(certificationEnd, 1);
-        const ojtEnd = addWorkingDays(ojtStart, process.ojtDays);
+        const ojtEnd = addWorkingDays(ojtStart, process.ojtDays, true);
         form.setValue('ojtStartDate', format(ojtStart, 'yyyy-MM-dd'));
         form.setValue('ojtEndDate', format(ojtEnd, 'yyyy-MM-dd'));
 
         // Set OJT Certification dates
-        // Start: April 21 (Mon) - one working day after OJT
-        // 2 working days
-        // End: April 22 (Tue)
         const ojtCertificationStart = addWorkingDays(ojtEnd, 1);
-        const ojtCertificationEnd = addWorkingDays(ojtCertificationStart, process.ojtCertificationDays);
+        const ojtCertificationEnd = addWorkingDays(ojtCertificationStart, process.ojtCertificationDays, true);
         form.setValue('ojtCertificationStartDate', format(ojtCertificationStart, 'yyyy-MM-dd'));
         form.setValue('ojtCertificationEndDate', format(ojtCertificationEnd, 'yyyy-MM-dd'));
 
-        // Set handover date
-        // Start: April 23 (Wed) - one working day after OJT Certification
+        // Set handover date and batch end date
         const handoverToOps = addWorkingDays(ojtCertificationEnd, 1);
         form.setValue('handoverToOpsDate', format(handoverToOps, 'yyyy-MM-dd'));
-        form.setValue('endDate', format(handoverToOps, 'yyyy-MM-dd'));
+        form.setValue('endDate', format(handoverToOps, 'yyyy-MM-dd')); // Batch end date equals handover date
 
         // Add visual date ranges for the calendar
         setDateRanges([
@@ -897,7 +887,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                   <SelectContent>
                     {processes.map((process) => (
                       <SelectItem key={process.id} value={process.id.toString()}>
-                                                {process.name}
+                        {process.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -912,8 +902,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
             name="trainerId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Trainer</FormLabel>
-                <Select
+                <FormLabel>Trainer</FormLabel>                <Select
                   onValueChange={(value) => {
                     const trainerId = parseInt(value);
                     field.onChange(trainerId);
