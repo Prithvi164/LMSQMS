@@ -179,30 +179,27 @@ export function BatchesTab() {
   const renderCalendarDay = (day: Date) => {
     const dayBatches = getBatchesForDate(day);
     return (
-      <div className="w-full h-full min-h-[100px] p-2">
+      <div className="w-full h-full min-h-[100px] p-2 relative">
         <div className="font-medium border-b border-gray-100 dark:border-gray-800 pb-1 mb-2">
           {format(day, 'd')}
         </div>
         {dayBatches.length > 0 && (
-          <div className="flex flex-col gap-1">
+          <div className="absolute bottom-2 left-0 right-0 flex flex-wrap gap-1 justify-center">
             {dayBatches.map((batch) => (
               <Popover key={batch.id}>
                 <PopoverTrigger asChild>
                   <div
                     className={`
-                      w-full p-1 text-xs cursor-pointer truncate rounded border
+                      w-2 h-2 rounded-full cursor-pointer
                       transform transition-all duration-200 ease-in-out
-                      hover:scale-[1.02] hover:shadow-md
+                      hover:scale-150
                       ${batch.status === 'planned' 
-                        ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300' 
+                        ? 'bg-blue-500 hover:bg-blue-600' 
                         : batch.status === 'completed'
-                        ? 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 dark:bg-gray-900/30 dark:border-gray-800 dark:text-gray-300'
-                        : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-900/30 dark:border-green-800 dark:text-green-300'}
-                      hover:border-opacity-100 hover:z-10
+                        ? 'bg-gray-500 hover:bg-gray-600'
+                        : 'bg-green-500 hover:bg-green-600'}
                     `}
-                  >
-                    {batch.name}
-                  </div>
+                  />
                 </PopoverTrigger>
                 <PopoverContent 
                   className="w-96 p-4 animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95" 
