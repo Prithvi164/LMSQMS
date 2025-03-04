@@ -90,22 +90,35 @@ export function BatchesTab() {
   const processes = [...new Set(batches.map(batch => batch.process?.name).filter(Boolean))];
   const statuses = [...new Set(batches.map(batch => batch.status))];
 
-  // Filter batches with all conditions
-  const filteredBatches = batches.filter(batch =>
-    (searchQuery === '' ||
-      batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      batch.status.toLowerCase().includes(searchQuery.toLowerCase())) &&
-    (selectedCategory === null || (batch.batchCategory && batch.batchCategory === selectedCategory)) &&
-    (selectedStatus === null || batch.status === selectedStatus) &&
-    (selectedLocation === null || batch.location?.name === selectedLocation) &&
-    (selectedLineOfBusiness === null || batch.line_of_business?.name === selectedLineOfBusiness) &&
-    (selectedProcess === null || batch.process?.name === selectedProcess) &&
-    (!dateRange.from || new Date(batch.startDate) >= dateRange.from) &&
-    (!dateRange.to || new Date(batch.startDate) <= dateRange.to)
-  );
-
   // Get unique batch categories with proper typing
   const uniqueBatchCategories = ["new_training", "upskill"] as const;
+
+  // Filter batches with all conditions
+  const filteredBatches = batches.filter(batch => {
+    console.log('Filtering batch:', {
+      batchName: batch.name,
+      batchCategory: batch.batchCategory,
+      selectedCategory: selectedCategory,
+      searchQuery: searchQuery,
+      matchesSearch: searchQuery === '' ||
+        batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        batch.status.toLowerCase().includes(searchQuery.toLowerCase()),
+      matchesCategory: selectedCategory === null || batch.batchCategory === selectedCategory,
+    });
+
+    return (
+      (searchQuery === '' ||
+        batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        batch.status.toLowerCase().includes(searchQuery.toLowerCase())) &&
+      (selectedCategory === null || batch.batchCategory === selectedCategory) &&
+      (selectedStatus === null || batch.status === selectedStatus) &&
+      (selectedLocation === null || batch.location?.name === selectedLocation) &&
+      (selectedLineOfBusiness === null || batch.line_of_business?.name === selectedLineOfBusiness) &&
+      (selectedProcess === null || batch.process?.name === selectedProcess) &&
+      (!dateRange.from || new Date(batch.startDate) >= dateRange.from) &&
+      (!dateRange.to || new Date(batch.startDate) <= dateRange.to)
+    );
+  });
 
   const formatBatchCategory = (category: string | undefined | null) => {
     if (!category) return 'Uncategorized';
@@ -546,6 +559,17 @@ export function BatchesTab() {
     console.log('Raw batch categories:', batches.map(b => b.batchCategory));
     console.log('Available categories:', uniqueBatchCategories);
   }, [batches]);
+
+  useEffect(() => {
+    console.log('Filter state:', {
+      selectedCategory,
+      batches: batches.map(b => ({
+        name: b.name,
+        category: b.batchCategory
+      })),
+      filteredCount: filteredBatches.length
+    });
+  }, [selectedCategory, batches, filteredBatches]);
 
   if (isLoading) {
     return (
