@@ -107,12 +107,11 @@ export const batchTemplatesRelations = relations(batchTemplates, ({ one }) => ({
 }));
 
 
-// Update organization batches table to include category
+// Remove batch_code from organizationBatches table
 export const organizationBatches = pgTable("organization_batches", {
   id: serial("id").primaryKey(),
   batchCategory: batchCategoryEnum("batch_category").notNull(),
-  batchCode: text("batch_code").notNull().unique(),
-  name: text("name").notNull().unique(), // Added unique constraint
+  name: text("name").notNull().unique(),
   startDate: date("start_date").notNull(),
   endDate: date("end_date").notNull(),
   status: batchStatusEnum("status").default('planned').notNull(),
@@ -173,7 +172,7 @@ export const organizationBatchesRelations = relations(organizationBatches, ({ on
   }),
 }));
 
-// Update validation schema for batch creation/updates
+// Update validation schema to remove batch_code
 export const insertOrganizationBatchSchema = createInsertSchema(organizationBatches)
   .omit({
     id: true,
@@ -182,7 +181,6 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
   })
   .extend({
     batchCategory: z.enum(['new_training', 'upskill', 'recertification']),
-    batchCode: z.string().min(1, "Batch code is required"),
     name: z.string().min(1, "Batch name is required"),
     startDate: z.string().min(1, "Start date is required"),
     endDate: z.string().min(1, "End date is required"),
