@@ -105,10 +105,7 @@ export function BatchesTab() {
   );
 
   // Get unique batch categories - handle undefined values
-  const batchCategories = [...new Set(batches
-    .map(batch => batch.batchCategory)
-    .filter((category): category is string => category !== null && category !== undefined)
-  )];
+  const batchCategories = ['new_training', 'upskill']; // Hardcode the valid categories
 
   const formatBatchCategory = (category: string | undefined | null) => {
     if (!category) return 'Uncategorized';
@@ -543,12 +540,12 @@ export function BatchesTab() {
     setSelectedCategory(null);
   };
 
-  // Add console logging for debugging
+  // Add debug logging
   useEffect(() => {
     console.log('Raw batches:', batches);
     console.log('Raw batch categories:', batches.map(b => b.batchCategory));
-    console.log('Filtered batch categories:', batchCategories);
-  }, [batches, batchCategories]);
+    console.log('Available categories:', batchCategories);
+  }, [batches]);
 
   if (isLoading) {
     return (
@@ -815,7 +812,7 @@ export function BatchesTab() {
             <AlertDialogHeader>
               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This action cannot be undone. Please type "{selectedBatch?.name}" to confirm deletion.
+                This action cannot be undone. Please type "{selectedBatch?.name}" toconfirm deletion.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="py-4">
