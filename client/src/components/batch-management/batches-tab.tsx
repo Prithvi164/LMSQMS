@@ -454,13 +454,16 @@ export function BatchesTab() {
                 }}
                 className="w-full"
                 classNames={{
-                  cell: "h-24 w-24 p-0 border-2 border-gray-100 dark:border-gray-800", // Reduced cell size
+                  cell: "h-24 w-24 p-0 border-2 border-gray-100 dark:border-gray-800",
                   head_cell: "text-muted-foreground font-normal border-b-2 border-gray-100 dark:border-gray-800 p-2",
                   table: "border-collapse border-spacing-0 border-2 border-gray-100 dark:border-gray-800",
                   day: "h-full rounded-none hover:bg-gray-50 dark:hover:bg-gray-800 focus-visible:bg-gray-50 dark:focus-visible:bg-gray-800",
-                  nav_button: "border-2 border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800",
-                  nav: "space-x-1 border-b-2 border-gray-100 dark:border-gray-800 pb-4 mb-4",
-                  caption: "text-lg font-semibold"
+                  nav_button: "h-9 w-9 bg-transparent p-0 opacity-50 hover:opacity-100 absolute top-[50%] -translate-y-1/2 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-all",
+                  nav_button_previous: "left-1",
+                  nav_button_next: "right-1",
+                  nav: "relative flex items-center justify-between pt-2 pb-8 px-2 border-b-2 border-gray-100 dark:border-gray-800",
+                  caption: "text-2xl font-semibold text-center flex-1",
+                  caption_label: "text-sm font-medium"
                 }}
               />
               <div className="mt-6 flex items-center gap-6 text-sm border-t pt-4">
