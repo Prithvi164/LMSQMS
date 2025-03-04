@@ -64,6 +64,119 @@ interface FilterGroup {
   operator: FilterOperator;
 }
 
+const handleSort = (key: string) => {
+  let direction: 'asc' | 'desc' = 'asc';
+
+  if (sortConfig && sortConfig.key === key) {
+    direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
+  }
+
+  setSortConfig({ key, direction });
+};
+
+const sortData = (data: OrganizationBatch[], key: string, direction: 'asc' | 'desc') => {
+  return [...data].sort((a, b) => {
+    let aValue: any;
+    let bValue: any;
+
+    switch (key) {
+      case 'location':
+        aValue = a.location?.name ?? '';
+        bValue = b.location?.name ?? '';
+        break;
+      case 'line_of_business':
+        aValue = a.line_of_business?.name ?? '';
+        bValue = b.line_of_business?.name ?? '';
+        break;
+      case 'process':
+        aValue = a.process?.name ?? '';
+        bValue = b.process?.name ?? '';
+        break;
+      case 'startDate':
+        aValue = new Date(a.startDate).getTime();
+        bValue = new Date(b.startDate).getTime();
+        break;
+      default:
+        aValue = (a as any)[key] ?? '';
+        bValue = (b as any)[key] ?? '';
+    }
+
+    if (direction === 'asc') {
+      return aValue > bValue ? 1 : -1;
+    } else {
+      return aValue < bValue ? 1 : -1;
+    }
+  });
+};
+
+const applyCondition = (batch: OrganizationBatch, condition: FilterCondition): boolean => {
+  if (!condition.value) return true;
+
+  switch (condition.field) {
+    case 'category':
+      return batch.batchCategory === condition.value;
+    case 'status':
+      return batch.status === condition.value;
+    case 'location':
+      return batch.location?.name === condition.value;
+    case 'lineOfBusiness':
+      return batch.line_of_business?.name === condition.value;
+    case 'process':
+      return batch.process?.name === condition.value;
+    case 'date':
+      // Implement date comparison logic here
+      return true;
+    default:
+      return true;
+  }
+};
+
+const applyAdvancedFilters = (batch: OrganizationBatch, groups: FilterGroup[]): boolean => {
+  // If no filter groups, return true
+  if (groups.length === 0) return true;
+
+  // Apply filter groups (outer level uses OR logic between groups)
+  return groups.some(group => {
+    // Apply conditions within the group based on group.operator
+    return group.operator === 'AND'
+      ? group.conditions.every(condition => applyCondition(batch, condition))
+      : group.conditions.some(condition => applyCondition(batch, condition));
+  });
+};
+
+// Apply all filters in a single function to avoid circular dependencies
+const getFilteredAndSortedBatches = () => {
+  // First apply all filters
+  const filtered = batches.filter(batch =>
+    (searchQuery === '' ||
+      batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      batch.status.toLowerCase().includes(searchQuery.toLowerCase())) &&
+    (selectedCategory === null || (batch.batchCategory && batch.batchCategory === selectedCategory)) &&
+    (selectedStatus === null || batch.status === selectedStatus) &&
+    (selectedLocation === null || batch.location?.name === selectedLocation) &&
+    (selectedLineOfBusiness === null || batch.line_of_business?.name === selectedLineOfBusiness) &&
+    (selectedProcess === null || batch.process?.name === selectedProcess) &&
+    (!dateRange.from || new Date(batch.startDate) >= dateRange.from) &&
+    (!dateRange.to || new Date(batch.startDate) <= dateRange.to) &&
+    applyAdvancedFilters(batch, filterGroups)
+  );
+
+  // Then apply sorting if needed
+  return sortConfig
+    ? sortData(filtered, sortConfig.key, sortConfig.direction)
+    : filtered;
+};
+
+
+const getBatchesForDate = (date: Date) => {
+  const filteredBatches = getFilteredAndSortedBatches();
+  return filteredBatches.filter(batch => {
+    const startDate = new Date(batch.startDate);
+    const endDate = new Date(batch.endDate);
+    return date >= startDate && date <= endDate;
+  });
+};
+
 export function BatchesTab() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -293,6 +406,9 @@ export function BatchesTab() {
       .join(' ');
   };
 
+  // Get the filtered and sorted batches
+  const sortedBatches = getFilteredAndSortedBatches();
+
   const deleteBatchMutation = useMutation({
     mutationFn: async (batchId: number) => {
       const response = await fetch(`/api/organizations/${user?.organizationId}/batches/${batchId}`, {
@@ -511,57 +627,6 @@ export function BatchesTab() {
     );
   };
 
-  const sortData = (data: OrganizationBatch[], key: string, direction: 'asc' | 'desc') => {
-    return [...data].sort((a, b) => {
-      let aValue: any;
-      let bValue: any;
-
-      // Handle nested properties and special cases
-      switch (key) {
-        case 'location':
-          aValue = a.location?.name ?? '';
-          bValue = b.location?.name ?? '';
-          break;
-        case 'line_of_business':
-          aValue = a.line_of_business?.name ?? '';
-          bValue = b.line_of_business?.name ?? '';
-          break;
-        case 'process':
-          aValue = a.process?.name ?? '';
-          bValue = b.process?.name ?? '';
-          break;
-        case 'startDate':
-          aValue = new Date(a.startDate).getTime();
-          bValue = new Date(b.startDate).getTime();
-          break;
-        default:
-          aValue = (a as any)[key] ?? '';
-          bValue = (b as any)[key] ?? '';
-      }
-
-      if (direction === 'asc') {
-        return aValue > bValue ? 1 : -1;
-      } else {
-        return aValue < bValue ? 1 : -1;
-      }
-    });
-  };
-
-  const handleSort = (key: string) => {
-    let direction: 'asc' | 'desc' = 'asc';
-
-    if (sortConfig && sortConfig.key === key) {
-      direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
-    }
-
-    setSortConfig({ key, direction });
-  };
-
-  // Sort the filtered batches
-  const sortedBatches = sortConfig
-    ? sortData(filteredBatches, sortConfig.key, sortConfig.direction)
-    : filteredBatches;
-
   const renderBatchTable = (batchList: OrganizationBatch[]) => (
     <div className="rounded-md border">
       <Table>
@@ -699,14 +764,6 @@ export function BatchesTab() {
     </div>
   );
 
-  const getBatchesForDate = (date: Date) => {
-    return filteredBatches.filter(batch => {
-      const startDate = new Date(batch.startDate);
-      const endDate = new Date(batch.endDate);
-      return date >= startDate && date <= endDate;
-    });
-  };
-
   const resetFilters = () => {
     setSelectedStatus(null);
     setSelectedLocation(null);
@@ -724,59 +781,6 @@ export function BatchesTab() {
     console.log('Raw batch categories:', batches.map(b => b.batchCategory));
     console.log('Available categories:', batchCategories);
   }, [batches]);
-
-  // Add this function after the existing filter functions
-  const applyAdvancedFilters = (batch: OrganizationBatch, groups: FilterGroup[]): boolean => {
-    // If no filter groups, return true
-    if (groups.length === 0) return true;
-
-    // Apply filter groups (outer level uses OR logic between groups)
-    return groups.some(group => {
-      // Apply conditions within the group based on group.operator
-      return group.operator === 'AND'
-        ? group.conditions.every(condition => applyCondition(batch, condition))
-        : group.conditions.some(condition => applyCondition(batch, condition));
-    });
-  };
-
-  const applyCondition = (batch: OrganizationBatch, condition: FilterCondition): boolean => {
-    if (!condition.value) return true;
-
-    switch (condition.field) {
-      case 'category':
-        return batch.batchCategory === condition.value;
-      case 'status':
-        return batch.status === condition.value;
-      case 'location':
-        return batch.location?.name === condition.value;
-      case 'lineOfBusiness':
-        return batch.line_of_business?.name === condition.value;
-      case 'process':
-        return batch.process?.name === condition.value;
-      case 'date':
-        // Implement date comparison logic here.  For now, always true.
-        return true;
-      default:
-        return true;
-    }
-  };
-
-  // Define filteredBatches before it's used in any other function
-  const filteredBatches = batches.filter(batch =>
-    // Apply basic filters
-    (searchQuery === '' ||
-      batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      batch.status.toLowerCase().includes(searchQuery.toLowerCase())) &&
-    (selectedCategory === null || (batch.batchCategory && batch.batchCategory === selectedCategory)) &&
-    (selectedStatus === null || batch.status === selectedStatus) &&
-    (selectedLocation === null || batch.location?.name === selectedLocation) &&
-    (selectedLineOfBusiness === null || batch.line_of_business?.name === selectedLineOfBusiness) &&
-    (selectedProcess === null || batch.process?.name === selectedProcess) &&
-    (!dateRange.from || new Date(batch.startDate) >= dateRange.from) &&
-    (!dateRange.to || new Date(batch.startDate) <= dateRange.to) &&
-    // Apply advanced filters if they exist
-    applyAdvancedFilters(batch, filterGroups)
-  );
 
   if (isLoading) {
     return (
