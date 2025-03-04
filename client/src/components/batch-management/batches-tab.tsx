@@ -3,8 +3,15 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, Loader2, Plus, Trash2, Edit, Eye, Calendar as CalendarIcon, List, ArrowUpDown } from "lucide-react";
+import { Search, Loader2, Plus, Trash2, Edit, Eye, Calendar as CalendarIcon, List, ArrowUpDown, Filter } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -53,6 +60,17 @@ export function BatchesTab() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
+  const [selectedLineOfBusiness, setSelectedLineOfBusiness] = useState<string | null>(null);
+  const [selectedProcess, setSelectedProcess] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<{
+    from: Date | undefined;
+    to: Date | undefined;
+  }>({
+    from: undefined,
+    to: undefined,
+  });
 
   // Check if user has permission to edit/delete batches
   const canManageBatches = user?.role === 'admin' || user?.role === 'owner';
@@ -66,12 +84,24 @@ export function BatchesTab() {
     enabled: !!user?.organizationId
   });
 
-  // Filter batches
+  // Get unique values for filters
+  const locations = [...new Set(batches.map(batch => batch.location?.name).filter(Boolean))];
+  const lineOfBusinesses = [...new Set(batches.map(batch => batch.line_of_business?.name).filter(Boolean))];
+  const processes = [...new Set(batches.map(batch => batch.process?.name).filter(Boolean))];
+  const statuses = [...new Set(batches.map(batch => batch.status))];
+
+  // Filter batches with all conditions
   const filteredBatches = batches.filter(batch =>
     (searchQuery === '' ||
       batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       batch.status.toLowerCase().includes(searchQuery.toLowerCase())) &&
-    (selectedCategory === null || (batch.batchCategory && batch.batchCategory === selectedCategory))
+    (selectedCategory === null || (batch.batchCategory && batch.batchCategory === selectedCategory)) &&
+    (selectedStatus === null || batch.status === selectedStatus) &&
+    (selectedLocation === null || batch.location?.name === selectedLocation) &&
+    (selectedLineOfBusiness === null || batch.line_of_business?.name === selectedLineOfBusiness) &&
+    (selectedProcess === null || batch.process?.name === selectedProcess) &&
+    (!dateRange.from || new Date(batch.startDate) >= dateRange.from) &&
+    (!dateRange.to || new Date(batch.startDate) <= dateRange.to)
   );
 
   // Get unique batch categories - handle undefined values
@@ -353,7 +383,7 @@ export function BatchesTab() {
   };
 
   // Sort the filtered batches
-  const sortedBatches = sortConfig 
+  const sortedBatches = sortConfig
     ? sortData(filteredBatches, sortConfig.key, sortConfig.direction)
     : filteredBatches;
 
@@ -502,6 +532,16 @@ export function BatchesTab() {
     });
   };
 
+  const resetFilters = () => {
+    setSelectedStatus(null);
+    setSelectedLocation(null);
+    setSelectedLineOfBusiness(null);
+    setSelectedProcess(null);
+    setDateRange({ from: undefined, to: undefined });
+    setSearchQuery('');
+    setSelectedCategory(null);
+  };
+
 
   if (isLoading) {
     return (
@@ -521,8 +561,8 @@ export function BatchesTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center space-x-2">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -535,12 +575,114 @@ export function BatchesTab() {
           {canManageBatches && (
             <Button
               onClick={() => setIsCreateDialogOpen(true)}
-              className="gap-2"
+              className="gap-2 ml-4"
             >
               <Plus className="h-4 w-4" />
               Create Batch
             </Button>
           )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <Select value={selectedStatus || ''} onValueChange={(value) => setSelectedStatus(value || null)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Filter by Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All Statuses</SelectItem>
+              {statuses.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedLocation || ''} onValueChange={(value) => setSelectedLocation(value || null)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Filter by Location" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All Locations</SelectItem>
+              {locations.map((location) => (
+                <SelectItem key={location} value={location}>
+                  {location}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedLineOfBusiness || ''} onValueChange={(value) => setSelectedLineOfBusiness(value || null)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Filter by Line of Business" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All Lines of Business</SelectItem>
+              {lineOfBusinesses.map((lob) => (
+                <SelectItem key={lob} value={lob}>
+                  {lob}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedProcess || ''} onValueChange={(value) => setSelectedProcess(value || null)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Filter by Process" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All Processes</SelectItem>
+              {processes.map((process) => (
+                <SelectItem key={process} value={process}>
+                  {process}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className={dateRange.from ? 'text-primary' : ''}>
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateRange.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
+                    </>
+                  ) : (
+                    format(dateRange.from, "LLL dd, y")
+                  )
+                ) : (
+                  "Filter by Date Range"
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={dateRange.from}
+                selected={{
+                  from: dateRange.from,
+                  to: dateRange.to,
+                }}
+                onSelect={(range) => setDateRange({
+                  from: range?.from,
+                  to: range?.to,
+                })}
+                numberOfMonths={2}
+              />
+            </PopoverContent>
+          </Popover>
+
+          <Button
+            variant="outline"
+            onClick={resetFilters}
+            className="flex items-center gap-2"
+          >
+            <Filter className="h-4 w-4" />
+            Reset Filters
+          </Button>
         </div>
 
         <div className="flex flex-wrap gap-2">
