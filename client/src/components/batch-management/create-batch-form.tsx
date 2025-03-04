@@ -47,10 +47,10 @@ interface DateRange {
   status: 'induction' | 'training' | 'certification' | 'ojt' | 'ojt-certification';
 }
 
-// Interface for CreateBatchForm props
+// Update CreateBatchFormProps interface
 interface CreateBatchFormProps {
   editMode?: boolean;
-  batchData?: any;
+  batchData?: OrganizationBatch;
   onSuccess?: () => void;
 }
 
@@ -130,6 +130,14 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       ojtCertificationStartDate: batchData.ojtCertificationStartDate ? format(new Date(batchData.ojtCertificationStartDate), 'yyyy-MM-dd') : '',
       ojtCertificationEndDate: batchData.ojtCertificationEndDate ? format(new Date(batchData.ojtCertificationEndDate), 'yyyy-MM-dd') : '',
       handoverToOpsDate: batchData.handoverToOpsDate ? format(new Date(batchData.handoverToOpsDate), 'yyyy-MM-dd') : '',
+      organizationId: user?.organizationId || undefined,
+      locationId: batchData.locationId,
+      lineOfBusinessId: batchData.lineOfBusinessId,
+      processId: batchData.processId,
+      trainerId: batchData.trainerId,
+      capacityLimit: batchData.capacityLimit,
+      batchCategory: batchData.batchCategory,
+      status: batchData.status
     } : {
       status: 'planned',
       organizationId: user?.organizationId || undefined,
@@ -529,6 +537,15 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     );
   };
 
+  // Initialize state based on batchData if in edit mode
+  useEffect(() => {
+    if (editMode && batchData) {
+      setSelectedLocation(batchData.locationId);
+      setSelectedLob(batchData.lineOfBusinessId);
+    }
+  }, [editMode, batchData]);
+
+  // Update the date calculation effect to work with both create and edit modes
   useEffect(() => {
     const process = processes.find(p => p.id === form.getValues('processId'));
     const startDateStr = form.getValues('startDate');
@@ -536,8 +553,11 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     if (process && startDateStr) {
       try {
         const startDate = new Date(startDateStr);
+
+        // Set induction start date to match the batch start date
         form.setValue('inductionStartDate', format(startDate, 'yyyy-MM-dd'));
 
+        // Calculate all subsequent dates based on the process duration
         const inductionEnd = addWorkingDays(startDate, process.inductionDays);
         const trainingStart = addWorkingDays(inductionEnd, 1);
         const trainingEnd = addWorkingDays(trainingStart, process.trainingDays);
@@ -549,6 +569,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
         const ojtCertificationEnd = addWorkingDays(ojtCertificationStart, process.ojtCertificationDays);
         const handoverToOps = addWorkingDays(ojtCertificationEnd, 1);
 
+        // Update the date ranges for visual feedback
         setDateRanges([
           {
             start: startDate,
@@ -582,6 +603,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
           }
         ]);
 
+        // Update all form fields with the new dates
         form.setValue('endDate', format(handoverToOps, 'yyyy-MM-dd'));
         form.setValue('inductionEndDate', format(inductionEnd, 'yyyy-MM-dd'));
         form.setValue('trainingStartDate', format(trainingStart, 'yyyy-MM-dd'));
@@ -596,6 +618,11 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
 
       } catch (error) {
         console.error('Error calculating dates:', error);
+        toast({
+          title: "Error",
+          description: "Failed to calculate batch dates. Please try again.",
+          variant: "destructive",
+        });
       }
     }
   }, [form.watch('startDate'), form.watch('processId'), processes]);
@@ -893,7 +920,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
             name="startDate"
             render={({ field }) => (
               <FormItem className="flex flex-col">
-                <FormLabel>Batch Start Date</FormLabel>
+                <FormLabel>Start Date</FormLabel>
                 <Popover>
                   <PopoverTrigger asChild>
                     <FormControl>
@@ -917,22 +944,12 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                     <Calendar
                       mode="single"
                       selected={field.value ? new Date(field.value) : undefined}
-                      onSelect={(date) => field.onChange(date ? format(date, 'yyyy-MM-dd') : '')}
-                      disabled={(date) => isSunday(date) || date < new Date()}
-                      modifiers={{
-                        highlighted: dateRanges.flatMap(range => {
-                          const dates = [];
-                          let current = range.start;
-                          while (current <= range.end) {
-                            dates.push(current);
-                            current = addDays(current, 1);
-                          }
-                          return dates;
-                        })
+                      onSelect={(date) => {
+                        field.onChange(date ? format(date, 'yyyy-MM-dd') : '');
                       }}
-                      modifiersClassNames={{
-                        highlighted: (date) => getDateRangeClassName(date)
-                      }}
+                      disabled={(date) =>
+                        date < new Date() || isSunday(date)
+                      }
                       initialFocus
                     />
                   </PopoverContent>
