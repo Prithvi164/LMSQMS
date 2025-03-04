@@ -98,14 +98,16 @@ export function BatchesTab() {
       name: batch.name,
       rawCategory: batch.batchCategory,
       selectedCategory: selectedCategory,
-      match: selectedCategory === null || batch.batchCategory === selectedCategory
+      match: selectedCategory === null || 
+             (batch.batchCategory && batch.batchCategory.toLowerCase() === (selectedCategory || '').toLowerCase())
     });
 
     return (
       (searchQuery === '' ||
         batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         batch.status.toLowerCase().includes(searchQuery.toLowerCase())) &&
-      (selectedCategory === null || batch.batchCategory === selectedCategory) &&
+      (selectedCategory === null || 
+       (batch.batchCategory && batch.batchCategory.toLowerCase() === (selectedCategory || '').toLowerCase())) &&
       (selectedStatus === null || batch.status === selectedStatus) &&
       (selectedLocation === null || batch.location?.name === selectedLocation) &&
       (selectedLineOfBusiness === null || batch.line_of_business?.name === selectedLineOfBusiness) &&
