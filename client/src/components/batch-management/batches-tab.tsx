@@ -367,6 +367,10 @@ export function BatchesTab() {
           aValue = new Date(a.startDate).getTime();
           bValue = new Date(b.startDate).getTime();
           break;
+        case 'batchCategory':
+          aValue = a.batchCategory ?? '';
+          bValue = b.batchCategory ?? '';
+          break;
         default:
           aValue = (a as any)[key] ?? '';
           bValue = (b as any)[key] ?? '';
@@ -418,6 +422,17 @@ export function BatchesTab() {
               <div className="flex items-center justify-center gap-1">
                 Batch Name
                 {sortConfig?.key === 'name' && (
+                  <ArrowUpDown className={`h-4 w-4 ${sortConfig.direction === 'asc' ? 'rotate-0' : 'rotate-180'}`} />
+                )}
+              </div>
+            </TableHead>
+            <TableHead
+              className="text-center cursor-pointer hover:bg-muted/70 transition-colors"
+              onClick={() => handleSort('batchCategory')}
+            >
+              <div className="flex items-center justify-center gap-1">
+                Category
+                {sortConfig?.key === 'batchCategory' && (
                   <ArrowUpDown className={`h-4 w-4 ${sortConfig.direction === 'asc' ? 'rotate-0' : 'rotate-180'}`} />
                 )}
               </div>
@@ -482,6 +497,18 @@ export function BatchesTab() {
                 <div className="font-semibold group-hover:text-primary transition-colors">
                   {batch.name}
                 </div>
+              </TableCell>
+              <TableCell className="text-center">
+                <Badge
+                  variant="outline"
+                  className={`
+                    ${batch.batchCategory === 'new_training' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' : ''}
+                    ${batch.batchCategory === 'upskill' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' : ''}
+                    px-2 py-1 inline-flex justify-center
+                  `}
+                >
+                  {formatBatchCategory(batch.batchCategory)}
+                </Badge>
               </TableCell>
               <TableCell className="text-center">{batch.location?.name || '-'}</TableCell>
               <TableCell className="text-center">{batch.line_of_business?.name || '-'}</TableCell>
