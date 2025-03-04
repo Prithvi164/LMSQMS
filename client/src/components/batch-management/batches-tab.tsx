@@ -93,16 +93,13 @@ export function BatchesTab() {
 
   // Filter batches with all conditions
   const filteredBatches = batches.filter(batch => {
-    // Access the raw value of batchCategory
-    const batchCategory = String(batch.batchCategory || '');
-
-    // Debug logging for upskill category
+    // Log each batch for upskill category debugging
     if (selectedCategory === 'upskill') {
       console.log('Filtering upskill batch:', {
         name: batch.name,
-        batchCategory,
-        selectedCategory,
-        match: selectedCategory === null || batchCategory === selectedCategory
+        batchCategory: batch.batchCategory,
+        selectedCategory: selectedCategory,
+        match: selectedCategory === null || batch.batchCategory === selectedCategory
       });
     }
 
@@ -110,7 +107,7 @@ export function BatchesTab() {
       (searchQuery === '' ||
         batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         batch.status.toLowerCase().includes(searchQuery.toLowerCase())) &&
-      (selectedCategory === null || batchCategory === selectedCategory) &&
+      (selectedCategory === null || batch.batchCategory === selectedCategory) &&
       (selectedStatus === null || batch.status === selectedStatus) &&
       (selectedLocation === null || batch.location?.name === selectedLocation) &&
       (selectedLineOfBusiness === null || batch.line_of_business?.name === selectedLineOfBusiness) &&
@@ -565,19 +562,18 @@ export function BatchesTab() {
     setSelectedCategory(value === 'all' ? null : value);
   };
 
-  // Add debug logging for category filtering
+  // Add debug logging for the API response
   useEffect(() => {
-    if (selectedCategory) {
-      console.log('Category filter debug:', {
-        selectedCategory,
-        allCategories: batches.map(b => ({
-          name: b.name,
-          category: String(b.batchCategory || ''),
-          raw: b.batchCategory
-        }))
-      });
-    }
+    console.log('Debug - Category filter state:', {
+      selectedCategory,
+      allCategories: batches.map(b => ({
+        name: b.name,
+        category: b.batchCategory,
+        type: typeof b.batchCategory
+      }))
+    });
   }, [selectedCategory, batches]);
+
 
   useEffect(() => {
     console.log('Debug - Batch Data:', {

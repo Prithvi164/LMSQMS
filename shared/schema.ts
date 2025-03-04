@@ -106,7 +106,7 @@ export const batchTemplatesRelations = relations(batchTemplates, ({ one }) => ({
 }));
 
 
-// Remove batch_code from organizationBatches table
+// Update the batch table definition to ensure proper enum handling
 export const organizationBatches = pgTable("organization_batches", {
   id: serial("id").primaryKey(),
   batchCategory: batchCategoryEnum("batch_category").notNull(),
@@ -171,7 +171,7 @@ export const organizationBatchesRelations = relations(organizationBatches, ({ on
   }),
 }));
 
-// Update validation schema to remove batch_code
+// Update validation schema to properly handle the enum
 export const insertOrganizationBatchSchema = createInsertSchema(organizationBatches)
   .omit({
     id: true,
