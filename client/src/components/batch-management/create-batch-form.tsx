@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
 import { insertOrganizationBatchSchema, type InsertOrganizationBatch } from "@shared/schema";
@@ -58,6 +59,8 @@ export function CreateBatchForm() {
   const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
   const [selectedLob, setSelectedLob] = useState<number | null>(null);
   const [dateRanges, setDateRanges] = useState<DateRange[]>([]);
+  const [progress, setProgress] = useState(0);
+  const [isCreating, setIsCreating] = useState(false);
   const [calculatedDates, setCalculatedDates] = useState<{
     inductionEnd: string;
     trainingStart: string;
@@ -142,6 +145,25 @@ export function CreateBatchForm() {
     enabled: !!user?.organizationId
   });
 
+  // Add progress animation effect
+  useEffect(() => {
+    if (isCreating) {
+      const timer = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(timer);
+            return 100;
+          }
+          return prev + 10;
+        });
+      }, 100);
+
+      return () => clearInterval(timer);
+    } else {
+      setProgress(0);
+    }
+  }, [isCreating]);
+
   const createBatchMutation = useMutation({
     mutationFn: async (values: InsertOrganizationBatch) => {
       if (!user?.organizationId) {
@@ -149,6 +171,7 @@ export function CreateBatchForm() {
       }
 
       try {
+        setIsCreating(true);
         const response = await fetch(`/api/organizations/${user.organizationId}/batches`, {
           method: 'POST',
           headers: {
@@ -166,6 +189,11 @@ export function CreateBatchForm() {
       } catch (error) {
         console.error('API Error:', error);
         throw error;
+      } finally {
+        // Ensure progress completes before resetting
+        setTimeout(() => {
+          setIsCreating(false);
+        }, 500);
       }
     },
     onSuccess: () => {
@@ -186,7 +214,7 @@ export function CreateBatchForm() {
         description: error.message || "Failed to create batch. Please try again.",
         variant: "destructive",
       });
-    },
+    }
   });
 
   async function onSubmit(values: InsertOrganizationBatch) {
@@ -213,8 +241,8 @@ export function CreateBatchForm() {
 
   const getDateRangeClassName = (date: Date): string => {
     const dateStr = format(date, 'yyyy-MM-dd');
-    const range = dateRanges.find(r => 
-      dateStr >= format(r.start, 'yyyy-MM-dd') && 
+    const range = dateRanges.find(r =>
+      dateStr >= format(r.start, 'yyyy-MM-dd') &&
       dateStr <= format(r.end, 'yyyy-MM-dd')
     );
 
@@ -319,6 +347,16 @@ export function CreateBatchForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {isCreating && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm font-medium">
+              <span>Creating batch...</span>
+              <span>{progress}%</span>
+            </div>
+            <Progress value={progress} className="w-full" />
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-4">
           {/* Batch Code */}
           <FormField
@@ -620,6 +658,7 @@ export function CreateBatchForm() {
             type="submit"
             disabled={
               createBatchMutation.isPending ||
+              isCreating ||
               isLoadingLocations ||
               isLoadingLobs ||
               isLoadingProcesses ||
