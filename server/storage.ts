@@ -875,12 +875,47 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching batches for organization ${organizationId}`);
       const batches = await db
-        .select()
+        .select({
+          id: organizationBatches.id,
+          name: organizationBatches.name,
+          startDate: organizationBatches.startDate,
+          endDate: organizationBatches.endDate,
+          status: organizationBatches.status,
+          capacityLimit: organizationBatches.capacityLimit,
+          locationId: organizationBatches.locationId,
+          processId: organizationBatches.processId,
+          lineOfBusinessId: organizationBatches.lineOfBusinessId,
+          trainerId: organizationBatches.trainerId,
+          organizationId: organizationBatches.organizationId,
+          location: organizationLocations,
+          process: organizationProcesses,
+          line_of_business: organizationLineOfBusinesses,
+        })
         .from(organizationBatches)
+        .leftJoin(
+          organizationLocations,
+          eq(organizationBatches.locationId, organizationLocations.id)
+        )
+        .leftJoin(
+          organizationProcesses,
+          eq(organizationBatches.processId, organizationProcesses.id)
+        )
+        .leftJoin(
+          organizationLineOfBusinesses,
+          eq(organizationBatches.lineOfBusinessId, organizationLineOfBusinesses.id)
+        )
         .where(eq(organizationBatches.organizationId, organizationId))
         .orderBy(desc(organizationBatches.createdAt)) as OrganizationBatch[];
 
-      console.log(`Found ${batches.length} batches`);
+      console.log(`Found ${batches.length} batches with details:`, 
+        batches.map(b => ({
+          id: b.id,
+          name: b.name,
+          location: b.location?.name,
+          process: b.process?.name,
+          line_of_business: b.line_of_business?.name
+        }))
+      );
       return batches;
     } catch (error) {
       console.error('Error fetching batches:', error);
@@ -976,7 +1011,7 @@ export class DatabaseStorage implements IStorage {
 
       if (!trainers.length) {
         console.log(`No trainers found for location ${locationId}`);
-                return [];
+        return [];
       }
 
       // Get LOBs from user_processes for these trainers
