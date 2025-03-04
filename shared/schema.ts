@@ -441,7 +441,6 @@ export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => 
   }),
 }));
 
-// Update validation schema for processes
 export const insertOrganizationProcessSchema = createInsertSchema(organizationProcesses)
   .omit({
     id: true,
