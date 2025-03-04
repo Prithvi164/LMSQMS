@@ -96,8 +96,7 @@ const determineBatchStatus = (batch: InsertOrganizationBatch): string => {
 // Add this near the top where other fields are defined
 const batchCategories = [
   { value: 'new_training', label: 'New Training' },
-  { value: 'upskill', label: 'Upskill' },
-  { value: 'recertification', label: 'Recertification' }
+  { value: 'upskill', label: 'Upskill' }
 ] as const;
 
 export function CreateBatchForm({ editMode = false, batchData, onSuccess }: CreateBatchFormProps) {

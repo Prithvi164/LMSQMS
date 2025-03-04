@@ -6,8 +6,7 @@ import { z } from "zod";
 // Add batch category enum
 export const batchCategoryEnum = pgEnum('batch_category', [
   'new_training',
-  'upskill',
-  'recertification'
+  'upskill'
 ]);
 
 // Existing enums remain unchanged
@@ -76,7 +75,7 @@ export const insertBatchTemplateSchema = createInsertSchema(batchTemplates)
     locationId: z.number().int().positive("Location is required"),
     lineOfBusinessId: z.number().int().positive("Line of Business is required"),
     trainerId: z.number().int().positive("Trainer is required"),
-    batchCategory: z.enum(['new_training', 'upskill', 'recertification']),
+    batchCategory: z.enum(['new_training', 'upskill']),
     capacityLimit: z.number().int().min(1, "Capacity must be at least 1"),
   });
 
@@ -180,7 +179,7 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
     updatedAt: true,
   })
   .extend({
-    batchCategory: z.enum(['new_training', 'upskill', 'recertification']),
+    batchCategory: z.enum(['new_training', 'upskill']),
     name: z.string().min(1, "Batch name is required"),
     startDate: z.string().min(1, "Start date is required"),
     endDate: z.string().min(1, "End date is required"),
