@@ -21,8 +21,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
 import { insertOrganizationBatchSchema, type InsertOrganizationBatch } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -79,6 +77,7 @@ export function CreateBatchForm() {
       status: 'planned',
       organizationId: user?.organizationId || undefined,
       startDate: '',
+      endDate: '',
       inductionStartDate: '',
       capacityLimit: 1,
       batchCode: '',
@@ -213,8 +212,8 @@ export function CreateBatchForm() {
         ojtEndDate: typeof values.ojtEndDate === 'string' ? values.ojtEndDate : format(values.ojtEndDate as unknown as Date, 'yyyy-MM-dd'),
         ojtCertificationStartDate: typeof values.ojtCertificationStartDate === 'string' ? values.ojtCertificationStartDate : format(values.ojtCertificationStartDate as unknown as Date, 'yyyy-MM-dd'),
         ojtCertificationEndDate: typeof values.ojtCertificationEndDate === 'string' ? values.ojtCertificationEndDate : format(values.ojtCertificationEndDate as unknown as Date, 'yyyy-MM-dd'),
-        handoverToOpsDate: typeof values.handoverToOpsDate === 'string' ? values.handoverToOpsDate : format(values.handoverToOpsDate as unknown as Date, 'yyyy-MM-dd')
-
+        handoverToOpsDate: typeof values.handoverToOpsDate === 'string' ? values.handoverToOpsDate : format(values.handoverToOpsDate as unknown as Date, 'yyyy-MM-dd'),
+        endDate: typeof values.endDate === 'string' ? values.endDate : format(values.endDate as unknown as Date, 'yyyy-MM-dd')
       };
 
       console.log('Submitting with formatted values:', formattedValues);
@@ -229,7 +228,6 @@ export function CreateBatchForm() {
     }
   }
 
-  // Add effect to calculate dates when process and start date change
   useEffect(() => {
     const process = processes.find(p => p.id === form.getValues('processId'));
     const startDateStr = form.getValues('inductionStartDate');
@@ -250,7 +248,10 @@ export function CreateBatchForm() {
         const ojtCertificationEnd = addWorkingDays(ojtCertificationStart, process.ojtCertificationDays);
         const handoverToOps = addWorkingDays(ojtCertificationEnd, 1);
 
-        // Update form values with formatted dates
+        // Set the batch end date to be the same as handover to ops date
+        form.setValue('endDate', format(handoverToOps, 'yyyy-MM-dd'));
+
+        // Update form values
         const formatDate = (date: Date) => format(date, 'yyyy-MM-dd');
 
         form.setValue('inductionEndDate', formatDate(inductionEnd));
@@ -507,50 +508,39 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Start Date */}
+          {/* Batch End Date */}
+          <FormField
+            control={form.control}
+            name="endDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Batch End Date</FormLabel>
+                <FormControl>
+                  <Input
+                    type="text"
+                    value={field.value ? format(new Date(field.value), "PPP") : ''}
+                    disabled
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Induction Start Date (Read-only) */}
           <FormField
             control={form.control}
             name="inductionStartDate"
             render={({ field }) => (
-              <FormItem className="flex flex-col">
+              <FormItem>
                 <FormLabel>Induction Start Date</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full pl-3 text-left font-normal",
-                          !field.value && "text-muted-foreground"
-                        )}
-                      >
-                        {field.value ? (
-                          format(new Date(field.value), "PPP")
-                        ) : (
-                          <span>Pick a date</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value ? new Date(field.value) : undefined}
-                      onSelect={(date) => {
-                        // Convert Date to string in YYYY-MM-DD format
-                        const dateStr = date ? format(date, 'yyyy-MM-dd') : '';
-                        console.log('Selected date:', dateStr);
-                        field.onChange(dateStr);
-                      }}
-                      disabled={(date) => {
-                        // Disable Sundays and past dates
-                        return isSunday(date) || date < new Date();
-                      }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <FormControl>
+                  <Input
+                    type="text"
+                    value={field.value ? format(new Date(field.value), "PPP") : ''}
+                    disabled
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
