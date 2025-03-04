@@ -20,29 +20,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
-import { insertOrganizationBatchSchema, type InsertOrganizationBatch } from "@shared/schema";
+import { insertOrganizationBatchSchema, type InsertOrganizationBatch, insertBatchTemplateSchema, type InsertBatchTemplate, type BatchTemplate } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-
-// Utility function to calculate working days excluding Sundays
-const addWorkingDays = (startDate: Date, days: number): Date => {
-  let currentDate = startDate;
-  let remainingDays = days;
-
-  while (remainingDays > 0) {
-    currentDate = addDays(currentDate, 1);
-    if (!isSunday(currentDate)) {
-      remainingDays--;
-    }
-  }
-
-  return currentDate;
-};
 
 // Interface for date range
 interface DateRange {
@@ -61,29 +55,9 @@ export function CreateBatchForm() {
   const [dateRanges, setDateRanges] = useState<DateRange[]>([]);
   const [progress, setProgress] = useState(0);
   const [isCreating, setIsCreating] = useState(false);
-  const [calculatedDates, setCalculatedDates] = useState<{
-    inductionEnd: string;
-    trainingStart: string;
-    trainingEnd: string;
-    certificationStart: string;
-    certificationEnd: string;
-    ojtStart: string;
-    ojtEnd: string;
-    ojtCertificationStart: string;
-    ojtCertificationEnd: string;
-    handoverToOps: string;
-  }>({
-    inductionEnd: '',
-    trainingStart: '',
-    trainingEnd: '',
-    certificationStart: '',
-    certificationEnd: '',
-    ojtStart: '',
-    ojtEnd: '',
-    ojtCertificationStart: '',
-    ojtCertificationEnd: '',
-    handoverToOps: ''
-  });
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [templateDescription, setTemplateDescription] = useState('');
 
   const form = useForm<InsertOrganizationBatch>({
     resolver: zodResolver(insertOrganizationBatchSchema),
@@ -107,6 +81,15 @@ export function CreateBatchForm() {
       ojtCertificationEndDate: '',
       handoverToOpsDate: ''
     },
+  });
+
+  // Fetch templates
+  const {
+    data: templates = [],
+    isLoading: isLoadingTemplates
+  } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/batch-templates`],
+    enabled: !!user?.organizationId
   });
 
   const {
@@ -145,24 +128,108 @@ export function CreateBatchForm() {
     enabled: !!user?.organizationId
   });
 
-  // Add progress animation effect
-  useEffect(() => {
-    if (isCreating) {
-      const timer = setInterval(() => {
-        setProgress(prev => {
-          if (prev >= 100) {
-            clearInterval(timer);
-            return 100;
-          }
-          return prev + 10;
-        });
-      }, 100);
+  // Save template mutation
+  const saveTemplateMutation = useMutation({
+    mutationFn: async (template: InsertBatchTemplate) => {
+      if (!user?.organizationId) {
+        throw new Error('Organization ID is required');
+      }
 
-      return () => clearInterval(timer);
-    } else {
-      setProgress(0);
+      const response = await fetch(`/api/organizations/${user.organizationId}/batch-templates`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(template),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save template');
+      }
+
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/batch-templates`] });
+      toast({
+        title: "Success",
+        description: "Template saved successfully",
+      });
+      setIsSavingTemplate(false);
+      setTemplateName('');
+      setTemplateDescription('');
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save template",
+        variant: "destructive",
+      });
     }
-  }, [isCreating]);
+  });
+
+  // Function to handle template selection
+  const handleTemplateSelect = (templateId: string) => {
+    const template = templates.find(t => t.id.toString() === templateId);
+    if (template) {
+      setSelectedLocation(template.locationId);
+      setSelectedLob(template.lineOfBusinessId);
+      form.setValue('locationId', template.locationId);
+      form.setValue('lineOfBusinessId', template.lineOfBusinessId);
+      form.setValue('processId', template.processId);
+      form.setValue('trainerId', template.trainerId);
+      form.setValue('capacityLimit', template.capacityLimit);
+    }
+  };
+
+  // Function to save current configuration as template
+  const handleSaveTemplate = async () => {
+    try {
+      if (!templateName) throw new Error('Template name is required');
+
+      const template: InsertBatchTemplate = {
+        name: templateName,
+        description: templateDescription,
+        organizationId: user?.organizationId!,
+        locationId: form.getValues('locationId')!,
+        lineOfBusinessId: form.getValues('lineOfBusinessId')!,
+        processId: form.getValues('processId')!,
+        trainerId: form.getValues('trainerId')!,
+        capacityLimit: form.getValues('capacityLimit')!
+      };
+
+      await saveTemplateMutation.mutateAsync(template);
+    } catch (error) {
+      console.error('Error saving template:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save template",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const addWorkingDays = (startDate: Date, days: number): Date => {
+    let currentDate = startDate;
+    let remainingDays = days;
+
+    while (remainingDays > 0) {
+      currentDate = addDays(currentDate, 1);
+      if (!isSunday(currentDate)) {
+        remainingDays--;
+      }
+    }
+
+    return currentDate;
+  };
+
+  interface DateRange {
+    start: Date;
+    end: Date;
+    label: string;
+    status: 'induction' | 'training' | 'certification' | 'ojt' | 'ojt-certification';
+  }
 
   const createBatchMutation = useMutation({
     mutationFn: async (values: InsertOrganizationBatch) => {
@@ -190,7 +257,6 @@ export function CreateBatchForm() {
         console.error('API Error:', error);
         throw error;
       } finally {
-        // Ensure progress completes before resetting
         setTimeout(() => {
           setIsCreating(false);
         }, 500);
@@ -280,7 +346,6 @@ export function CreateBatchForm() {
         const ojtCertificationEnd = addWorkingDays(ojtCertificationStart, process.ojtCertificationDays);
         const handoverToOps = addWorkingDays(ojtCertificationEnd, 1);
 
-        // Update date ranges for visualization
         setDateRanges([
           {
             start: startDate,
@@ -326,23 +391,29 @@ export function CreateBatchForm() {
         form.setValue('ojtCertificationEndDate', format(ojtCertificationEnd, 'yyyy-MM-dd'));
         form.setValue('handoverToOpsDate', format(handoverToOps, 'yyyy-MM-dd'));
 
-        setCalculatedDates({
-          inductionEnd: format(inductionEnd, 'yyyy-MM-dd'),
-          trainingStart: format(trainingStart, 'yyyy-MM-dd'),
-          trainingEnd: format(trainingEnd, 'yyyy-MM-dd'),
-          certificationStart: format(certificationStart, 'yyyy-MM-dd'),
-          certificationEnd: format(certificationEnd, 'yyyy-MM-dd'),
-          ojtStart: format(ojtStart, 'yyyy-MM-dd'),
-          ojtEnd: format(ojtEnd, 'yyyy-MM-dd'),
-          ojtCertificationStart: format(ojtCertificationStart, 'yyyy-MM-dd'),
-          ojtCertificationEnd: format(ojtCertificationEnd, 'yyyy-MM-dd'),
-          handoverToOps: format(handoverToOps, 'yyyy-MM-dd')
-        });
       } catch (error) {
         console.error('Error calculating dates:', error);
       }
     }
   }, [form.watch('startDate'), form.watch('processId'), processes]);
+
+  useEffect(() => {
+    if (isCreating) {
+      const timer = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(timer);
+            return 100;
+          }
+          return prev + 10;
+        });
+      }, 100);
+
+      return () => clearInterval(timer);
+    } else {
+      setProgress(0);
+    }
+  }, [isCreating]);
 
   return (
     <Form {...form}>
@@ -358,6 +429,87 @@ export function CreateBatchForm() {
         )}
 
         <div className="grid grid-cols-2 gap-4">
+          {/* Template Selection */}
+          <FormField
+            control={form.control}
+            name="template"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Load from Template</FormLabel>
+                <Select
+                  onValueChange={handleTemplateSelect}
+                  disabled={isLoadingTemplates}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a template" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {templates.map((template) => (
+                      <SelectItem key={template.id} value={template.id.toString()}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Save Template Dialog */}
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!form.getValues('locationId') || !form.getValues('processId')}
+              >
+                Save as Template
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Save as Template</DialogTitle>
+                <DialogDescription>
+                  Save the current batch configuration as a template for future use.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <FormItem>
+                  <FormLabel>Template Name</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Enter template name"
+                      value={templateName}
+                      onChange={(e) => setTemplateName(e.target.value)}
+                    />
+                  </FormControl>
+                </FormItem>
+                <FormItem>
+                  <FormLabel>Description (Optional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Enter template description"
+                      value={templateDescription}
+                      onChange={(e) => setTemplateDescription(e.target.value)}
+                    />
+                  </FormControl>
+                </FormItem>
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  onClick={handleSaveTemplate}
+                  disabled={saveTemplateMutation.isPending}
+                >
+                  {saveTemplateMutation.isPending ? "Saving..." : "Save Template"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           {/* Batch Code */}
           <FormField
             control={form.control}
@@ -662,7 +814,8 @@ export function CreateBatchForm() {
               isLoadingLocations ||
               isLoadingLobs ||
               isLoadingProcesses ||
-              isLoadingTrainers
+              isLoadingTrainers ||
+              isLoadingTemplates
             }
           >
             {createBatchMutation.isPending ? "Creating..." : "Create Batch"}

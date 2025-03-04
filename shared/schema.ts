@@ -22,6 +22,78 @@ export const roleEnum = pgEnum('role', [
   'advisor'    
 ]);
 
+// Add batch template table
+export const batchTemplates = pgTable("batch_templates", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  processId: integer("process_id")
+    .references(() => organizationProcesses.id)
+    .notNull(),
+  locationId: integer("location_id")
+    .references(() => organizationLocations.id)
+    .notNull(),
+  lineOfBusinessId: integer("line_of_business_id")
+    .references(() => organizationLineOfBusinesses.id)
+    .notNull(),
+  trainerId: integer("trainer_id")
+    .references(() => users.id)
+    .notNull(),
+  capacityLimit: integer("capacity_limit").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type BatchTemplate = InferSelectModel<typeof batchTemplates>;
+
+// Add template schema validation
+export const insertBatchTemplateSchema = createInsertSchema(batchTemplates)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    name: z.string().min(1, "Template name is required"),
+    description: z.string().optional(),
+    organizationId: z.number().int().positive("Organization is required"),
+    processId: z.number().int().positive("Process is required"),
+    locationId: z.number().int().positive("Location is required"),
+    lineOfBusinessId: z.number().int().positive("Line of Business is required"),
+    trainerId: z.number().int().positive("Trainer is required"),
+    capacityLimit: z.number().int().min(1, "Capacity must be at least 1"),
+  });
+
+export type InsertBatchTemplate = z.infer<typeof insertBatchTemplateSchema>;
+
+// Add relations for batch templates
+export const batchTemplatesRelations = relations(batchTemplates, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [batchTemplates.organizationId],
+    references: [organizations.id],
+  }),
+  process: one(organizationProcesses, {
+    fields: [batchTemplates.processId],
+    references: [organizationProcesses.id],
+  }),
+  location: one(organizationLocations, {
+    fields: [batchTemplates.locationId],
+    references: [organizationLocations.id],
+  }),
+  lob: one(organizationLineOfBusinesses, {
+    fields: [batchTemplates.lineOfBusinessId],
+    references: [organizationLineOfBusinesses.id],
+  }),
+  trainer: one(users, {
+    fields: [batchTemplates.trainerId],
+    references: [users.id],
+  }),
+}));
+
+
 // Organization Batches table
 export const organizationBatches = pgTable("organization_batches", {
   id: serial("id").primaryKey(),
@@ -122,7 +194,6 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
 export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
 
 
-// Rest of the enums and tables remain unchanged...
 export const permissionEnum = pgEnum('permission', [
   'manage_billing',
   'manage_subscription',
@@ -160,7 +231,6 @@ export const processStatusEnum = pgEnum('process_status', [
   'archived'
 ]);
 
-// Keep all the existing tables and their relations that are not batch-related
 export const organizations = pgTable("organizations", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -169,7 +239,6 @@ export const organizations = pgTable("organizations", {
 
 export type Organization = InferSelectModel<typeof organizations>;
 
-// Organization Processes table
 export const organizationProcesses = pgTable("organization_processes", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
@@ -192,7 +261,6 @@ export const organizationProcesses = pgTable("organization_processes", {
 
 export type OrganizationProcess = typeof organizationProcesses.$inferSelect;
 
-// Organization Locations table
 export const organizationLocations = pgTable("organization_locations", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
@@ -208,7 +276,6 @@ export const organizationLocations = pgTable("organization_locations", {
 
 export type OrganizationLocation = InferSelectModel<typeof organizationLocations>;
 
-// Organization Line of Business table
 export const organizationLineOfBusinesses = pgTable("organization_line_of_businesses", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
@@ -221,7 +288,6 @@ export const organizationLineOfBusinesses = pgTable("organization_line_of_busine
 
 export type OrganizationLineOfBusiness = InferSelectModel<typeof organizationLineOfBusinesses>;
 
-// Users table
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
@@ -248,7 +314,6 @@ export const users = pgTable("users", {
 
 export type User = InferSelectModel<typeof users>;
 
-// User Processes junction table
 export const userProcesses = pgTable("user_processes", {
   id: serial("id").primaryKey(),
   userId: integer("user_id")
@@ -277,7 +342,6 @@ export const userProcesses = pgTable("user_processes", {
 
 export type UserProcess = typeof userProcesses.$inferSelect;
 
-// Role Permissions table
 export const rolePermissions = pgTable("role_permissions", {
   id: serial("id").primaryKey(),
   role: roleEnum("role").notNull(),
@@ -289,7 +353,6 @@ export const rolePermissions = pgTable("role_permissions", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Relations
 export const organizationsRelations = relations(organizations, ({ many }) => ({
   users: many(users),
   processes: many(organizationProcesses),
@@ -308,7 +371,8 @@ export const organizationProcessesRelations = relations(organizationProcesses, (
     fields: [organizationProcesses.lineOfBusinessId],
     references: [organizationLineOfBusinesses.id],
   }),
-  batches: many(organizationBatches)
+  batches: many(organizationBatches),
+  templates: many(batchTemplates)
 }));
 
 export const organizationLocationsRelations = relations(organizationLocations, ({ one, many }) => ({
@@ -366,7 +430,6 @@ export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => 
   }),
 }));
 
-// Export Zod schemas
 export const insertOrganizationProcessSchema = createInsertSchema(organizationProcesses)
   .omit({
     id: true,
@@ -435,7 +498,6 @@ export const insertRolePermissionSchema = createInsertSchema(rolePermissions).om
   updatedAt: true,
 });
 
-// Add new type for combined user and process creation
 export const insertUserWithProcessesSchema = insertUserSchema.extend({
   processes: z.array(z.number()).optional(),
 });
@@ -446,6 +508,7 @@ export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
 export type InsertOrganizationProcess = z.infer<typeof insertOrganizationProcessSchema>;
 export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
 export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
+export type InsertBatchTemplate = z.infer<typeof insertBatchTemplateSchema>;
 
 export type {
   Organization,
@@ -460,5 +523,7 @@ export type {
   InsertOrganizationProcess,
   InsertRolePermission,
   OrganizationBatch,
-  InsertOrganizationBatch
+  InsertOrganizationBatch,
+  BatchTemplate,
+  InsertBatchTemplate
 };
