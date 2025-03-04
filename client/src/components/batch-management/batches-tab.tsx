@@ -179,19 +179,23 @@ export function BatchesTab() {
   const renderCalendarDay = (day: Date) => {
     const dayBatches = getBatchesForDate(day);
     return (
-      <div className="w-full h-full min-h-[100px] p-2 relative">
-        <div className="font-medium">{format(day, 'd')}</div>
+      <div className="w-full h-full min-h-[100px] p-2">
+        <div className="font-medium border-b border-gray-100 dark:border-gray-800 pb-1 mb-2">
+          {format(day, 'd')}
+        </div>
         {dayBatches.length > 0 && (
-          <div className="flex flex-col gap-1 mt-2">
+          <div className="flex flex-col gap-1">
             {dayBatches.map((batch) => (
               <Popover key={batch.id}>
                 <PopoverTrigger asChild>
                   <div
                     className={`
-                      w-full p-1 rounded text-xs cursor-pointer truncate
-                      ${batch.status === 'planned' ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' :
-                        batch.status === 'completed' ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' :
-                        'bg-green-100 text-green-700 hover:bg-green-200'}
+                      w-full p-1 text-xs cursor-pointer truncate rounded border
+                      ${batch.status === 'planned' 
+                        ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300' 
+                        : batch.status === 'completed'
+                        ? 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 dark:bg-gray-900/30 dark:border-gray-800 dark:text-gray-300'
+                        : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-900/30 dark:border-green-800 dark:text-green-300'}
                     `}
                   >
                     {batch.name}
@@ -410,9 +414,13 @@ export function BatchesTab() {
                 }}
                 className="w-full"
                 classNames={{
-                  cell: "h-32 w-32 p-0",
-                  head_cell: "text-muted-foreground font-normal",
-                  table: "border-collapse border-spacing-0",
+                  cell: "h-32 w-32 p-0 border-2 border-gray-100 dark:border-gray-800",
+                  head_cell: "text-muted-foreground font-normal border-b-2 border-gray-100 dark:border-gray-800 p-2",
+                  table: "border-collapse border-spacing-0 border-2 border-gray-100 dark:border-gray-800",
+                  day: "h-full rounded-none hover:bg-gray-50 dark:hover:bg-gray-800 focus-visible:bg-gray-50 dark:focus-visible:bg-gray-800",
+                  nav_button: "border-2 border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800",
+                  nav: "space-x-1 border-b-2 border-gray-100 dark:border-gray-800 pb-4 mb-4",
+                  caption: "text-lg font-semibold"
                 }}
               />
               <div className="mt-6 flex items-center gap-6 text-sm border-t pt-4">
