@@ -37,7 +37,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format, isSameDay } from "date-fns";
+import { format } from "date-fns";
 import type { OrganizationBatch } from "@shared/schema";
 
 export function BatchesTab() {
@@ -51,6 +51,7 @@ export function BatchesTab() {
   const [selectedBatch, setSelectedBatch] = useState<OrganizationBatch | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   // Check if user has permission to edit/delete batches
   const canManageBatches = user?.role === 'admin' || user?.role === 'owner';
@@ -66,10 +67,14 @@ export function BatchesTab() {
 
   // Filter batches
   const filteredBatches = batches.filter(batch =>
-    batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    batch.status.toLowerCase().includes(searchQuery.toLowerCase())
+    (searchQuery === '' || 
+      batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      batch.status.toLowerCase().includes(searchQuery.toLowerCase())) &&
+    (selectedCategory === null || batch.batchCategory === selectedCategory)
   );
 
+  // Get unique batch categories
+  const batchCategories = [...new Set(batches.map(batch => batch.batchCategory))];
 
   const deleteBatchMutation = useMutation({
     mutationFn: async (batchId: number) => {
@@ -161,16 +166,6 @@ export function BatchesTab() {
       .join(' ');
   };
 
-  // Function to get batches for a specific date
-  const getBatchesForDate = (date: Date) => {
-    return filteredBatches.filter(batch => {
-      const startDate = new Date(batch.startDate);
-      const endDate = new Date(batch.endDate);
-      return date >= startDate && date <= endDate;
-    });
-  };
-
-  // Custom calendar day render function
   const renderCalendarDay = (day: Date) => {
     const dayBatches = getBatchesForDate(day);
     const maxVisibleBatches = 4;
@@ -311,11 +306,11 @@ export function BatchesTab() {
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50">
-            <TableHead className="w-[200px]">Date</TableHead>
+            <TableHead className="w-[150px]">Start Date</TableHead>
+            <TableHead>Batch Name</TableHead>
             <TableHead>Location</TableHead>
             <TableHead>Line of Business</TableHead>
             <TableHead>Process</TableHead>
-            <TableHead>Batch Name</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -327,23 +322,16 @@ export function BatchesTab() {
               className="hover:bg-muted/50 transition-colors group"
             >
               <TableCell className="font-medium text-right whitespace-nowrap">
-                {format(new Date(batch.startDate), 'MMM d, yyyy')} -
-                {format(new Date(batch.endDate), 'MMM d, yyyy')}
+                {format(new Date(batch.startDate), 'MMM d, yyyy')}
               </TableCell>
-              <TableCell>{batch.location?.name}</TableCell>
-              <TableCell>{batch.lineOfBusiness?.name}</TableCell>
-              <TableCell>{batch.process?.name}</TableCell>
               <TableCell>
                 <div className="font-semibold group-hover:text-primary transition-colors">
                   {batch.name}
                 </div>
-                <Badge
-                  variant="outline"
-                  className="mt-1 text-xs"
-                >
-                  {formatBatchCategory(batch.batchCategory)}
-                </Badge>
               </TableCell>
+              <TableCell>{batch.location?.name}</TableCell>
+              <TableCell>{batch.lineOfBusiness?.name}</TableCell>
+              <TableCell>{batch.process?.name}</TableCell>
               <TableCell>
                 <Badge
                   variant="secondary"
@@ -390,6 +378,15 @@ export function BatchesTab() {
     </div>
   );
 
+  const getBatchesForDate = (date: Date) => {
+    return filteredBatches.filter(batch => {
+      const startDate = new Date(batch.startDate);
+      const endDate = new Date(batch.endDate);
+      return date >= startDate && date <= endDate;
+    });
+  };
+
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -408,25 +405,49 @@ export function BatchesTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center space-x-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search batches..."
-            className="pl-8"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center space-x-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search batches..."
+              className="pl-8"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          {canManageBatches && (
+            <Button
+              onClick={() => setIsCreateDialogOpen(true)}
+              className="gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Create Batch
+            </Button>
+          )}
         </div>
-        {canManageBatches && (
+
+        <div className="flex flex-wrap gap-2">
           <Button
-            onClick={() => setIsCreateDialogOpen(true)}
-            className="gap-2"
+            variant={selectedCategory === null ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setSelectedCategory(null)}
+            className="transition-colors"
           >
-            <Plus className="h-4 w-4" />
-            Create Batch
+            All Categories
           </Button>
-        )}
+          {batchCategories.map((category) => (
+            <Button
+              key={category}
+              variant={selectedCategory === category ? "secondary" : "outline"}
+              size="sm"
+              onClick={() => setSelectedCategory(category)}
+              className="transition-colors"
+            >
+              {formatBatchCategory(category)}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {batches.length > 0 ? (
