@@ -551,6 +551,18 @@ export function BatchesTab() {
     setSelectedCategory(null);
   };
 
+  // Get unique batch categories
+  const batchCategories = ['new_training', 'upskill'] as const;
+
+  // Category selection handling
+  const handleCategoryChange = (value: string) => {
+    console.log('Debug - Category Changed:', {
+      newValue: value,
+      willBecome: value === 'all' ? null : value
+    });
+    setSelectedCategory(value === 'all' ? null : value);
+  };
+
   // Add debug logging for category filtering
   useEffect(() => {
     if (selectedCategory) {
@@ -559,7 +571,7 @@ export function BatchesTab() {
         allCategories: batches.map(b => ({
           name: b.name,
           category: String(b.batchCategory || ''),
-          rawValue: b.batchCategory
+          raw: b.batchCategory
         }))
       });
     }
@@ -626,13 +638,7 @@ export function BatchesTab() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <Select
             value={selectedCategory || 'all'}
-            onValueChange={(value) => {
-              console.log('Debug - Category Changed:', {
-                newValue: value,
-                willBecome: value === 'all' ? null : value
-              });
-              setSelectedCategory(value === 'all' ? null : value);
-            }}
+            onValueChange={handleCategoryChange}
           >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Filter by Category" />
@@ -811,7 +817,7 @@ export function BatchesTab() {
                 <Button
                   size="sm"
                   className="relative"
-                  onClick={() => setIsCreateDialogOpen(true)}
+                                    onClick={() => setIsCreateDialogOpen(true)}
                 >
                   <Plus className="mr-2 h-4 w-4" />
                   Create Batch
