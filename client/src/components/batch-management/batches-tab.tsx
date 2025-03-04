@@ -329,9 +329,9 @@ export function BatchesTab() {
                   {batch.name}
                 </div>
               </TableCell>
-              <TableCell className="text-center">{batch.locationName}</TableCell>
-              <TableCell className="text-center">{batch.lineOfBusinessName}</TableCell>
-              <TableCell className="text-center">{batch.processName}</TableCell>
+              <TableCell className="text-center">{batch.location}</TableCell>
+              <TableCell className="text-center">{batch.lineOfBusiness}</TableCell>
+              <TableCell className="text-center">{batch.process}</TableCell>
               <TableCell className="text-center">
                 <Badge
                   variant="secondary"
