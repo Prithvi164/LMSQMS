@@ -3,7 +3,14 @@ import { createInsertSchema } from "drizzle-zod";
 import { relations, type InferSelectModel } from "drizzle-orm";
 import { z } from "zod";
 
-// Update the batch status enum to include all phases
+// Add batch category enum
+export const batchCategoryEnum = pgEnum('batch_category', [
+  'new_training',
+  'upskill',
+  'recertification'
+]);
+
+// Existing enums remain unchanged
 export const batchStatusEnum = pgEnum('batch_status', [
   'planned',
   'induction',
@@ -98,9 +105,10 @@ export const batchTemplatesRelations = relations(batchTemplates, ({ one }) => ({
 }));
 
 
-// Organization Batches table
+// Update organization batches table to include category
 export const organizationBatches = pgTable("organization_batches", {
   id: serial("id").primaryKey(),
+  batchCategory: batchCategoryEnum("batch_category").notNull(),
   batchCode: text("batch_code").notNull().unique(),
   name: text("name").notNull().unique(), // Added unique constraint
   startDate: date("start_date").notNull(),
@@ -163,7 +171,7 @@ export const organizationBatchesRelations = relations(organizationBatches, ({ on
   }),
 }));
 
-// Validation schema for batch creation/updates
+// Update validation schema for batch creation/updates
 export const insertOrganizationBatchSchema = createInsertSchema(organizationBatches)
   .omit({
     id: true,
@@ -171,6 +179,7 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
     updatedAt: true,
   })
   .extend({
+    batchCategory: z.enum(['new_training', 'upskill', 'recertification']),
     batchCode: z.string().min(1, "Batch code is required"),
     name: z.string().min(1, "Batch name is required"),
     startDate: z.string().min(1, "Start date is required"),

@@ -85,6 +85,13 @@ const determineBatchStatus = (batch: InsertOrganizationBatch): string => {
   return 'planned'; // Default status
 };
 
+// Add this near the top where other fields are defined
+const batchCategories = [
+  { value: 'new_training', label: 'New Training' },
+  { value: 'upskill', label: 'Upskill' },
+  { value: 'recertification', label: 'Recertification' }
+] as const;
+
 export function CreateBatchForm() {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -107,7 +114,7 @@ export function CreateBatchForm() {
       endDate: '',
       inductionStartDate: '',
       capacityLimit: 1,
-      batchCode: '',
+      batchCode: '', //This line remains
       name: '',
       inductionEndDate: '',
       trainingStartDate: '',
@@ -118,7 +125,8 @@ export function CreateBatchForm() {
       ojtEndDate: '',
       ojtCertificationStartDate: '',
       ojtCertificationEndDate: '',
-      handoverToOpsDate: ''
+      handoverToOpsDate: '',
+      batchCategory:'' //Added this line
     },
   });
 
@@ -382,7 +390,6 @@ export function CreateBatchForm() {
 
   async function onSubmit(values: InsertOrganizationBatch) {
     try {
-      if (!values.batchCode) throw new Error('Batch code is required');
       if (!values.name) throw new Error('Batch name is required');
       if (!values.startDate) throw new Error('Batch start date is required');
       if (values.locationId === undefined) throw new Error('Location is required');
@@ -390,6 +397,8 @@ export function CreateBatchForm() {
       if (values.processId === undefined) throw new Error('Process is required');
       if (values.trainerId === undefined) throw new Error('Trainer is required');
       if (values.capacityLimit === undefined) throw new Error('Capacity limit is required');
+      if (values.batchCategory === undefined) throw new Error('Batch Category is required'); //Added this line
+
 
       // Set the initial status based on the current date and batch dates
       const currentStatus = determineBatchStatus(values);
@@ -614,16 +623,30 @@ export function CreateBatchForm() {
             </DialogContent>
           </Dialog>
 
-          {/* Batch Code */}
+          {/* Batch Category */}
           <FormField
             control={form.control}
-            name="batchCode"
+            name="batchCategory"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Batch Code</FormLabel>
-                <FormControl>
-                  <Input placeholder="Enter batch code" {...field} />
-                </FormControl>
+                <FormLabel>Batch Category</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  value={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {batchCategories.map((category) => (
+                      <SelectItem key={category.value} value={category.value}>
+                        {category.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
