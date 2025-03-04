@@ -105,7 +105,7 @@ export function BatchesTab() {
   );
 
   // Get unique batch categories - handle undefined values
-  const batchCategories = ['new_training', 'upskill']; // Hardcode the valid categories
+  const uniqueBatchCategories = [...new Set(batches.map(batch => batch.batchCategory).filter(Boolean))];
 
   const formatBatchCategory = (category: string | undefined | null) => {
     if (!category) return 'Uncategorized';
@@ -544,7 +544,7 @@ export function BatchesTab() {
   useEffect(() => {
     console.log('Raw batches:', batches);
     console.log('Raw batch categories:', batches.map(b => b.batchCategory));
-    console.log('Available categories:', batchCategories);
+    console.log('Available categories:', uniqueBatchCategories);
   }, [batches]);
 
   if (isLoading) {
@@ -594,7 +594,7 @@ export function BatchesTab() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
-              {batchCategories.map((category) => (
+              {uniqueBatchCategories.map((category) => (
                 <SelectItem key={category} value={category}>
                   {formatBatchCategory(category)}
                 </SelectItem>
@@ -804,8 +804,7 @@ export function BatchesTab() {
                 onSuccess={() => setIsEditDialogOpen(false)}
               />
             )}
-          </DialogContent>
-        </Dialog>
+          </DialogContent>        </Dialog>
 
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <AlertDialogContent>
