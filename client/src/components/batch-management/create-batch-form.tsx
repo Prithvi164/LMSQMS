@@ -577,7 +577,7 @@ export function CreateBatchForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="relative space-y-6 h-[calc(100vh-4rem)] flex flex-col">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         {isCreating && (
           <div className="sticky top-0 z-10 bg-background space-y-2 p-4 border-b">
             <div className="flex items-center justify-between text-sm font-medium">
@@ -588,7 +588,7 @@ export function CreateBatchForm() {
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        <div className="p-4 space-y-6">
           <div className="space-y-4 border rounded-lg overflow-hidden">
             <h3 className="font-semibold p-4 bg-muted">Date Range Preview</h3>
             <div className="p-4 overflow-x-auto">
@@ -908,9 +908,9 @@ export function CreateBatchForm() {
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
                           mode="single"
-                                                    selected={field.value ? new Date(field.value) : undefined}
+                          selected={field.value ? new Date(field.value) : undefined}
                           onSelect={(date) => field.onChange(date ? format(date, 'yyyy-MM-dd') : '')}
-                          disabled={(date) => isSunday(date) || date < new Date()}
+                                                    disabled={(date) => isSunday(date) || date < new Date()}
                           modifiers={{
                             highlighted: dateRanges.flatMap(range => {
                               const dates = [];
@@ -979,21 +979,22 @@ export function CreateBatchForm() {
         </div>
 
         <div className="sticky bottom-0 left-0 right-0 p-4 bg-background border-t mt-auto flex justify-end">
-          <Button
-            type="submit"
-            size="lg"
-            disabled={
-              createBatchMutation.isPending ||
-              isCreating ||
-              isLoadingLocations ||
-              isLoadingLobs ||
-              isLoadingProcesses ||
-              isLoadingTrainers ||
-              isLoadingTemplates
-            }
-          >
-            {createBatchMutation.isPending ? "Creating..." : "Create Batch"}
-          </Button>
+          <div className="col-span-2 flex justify-end">
+            <Button
+              type="submit"
+              size="lg"
+              disabled={
+                createBatchMutation.isPending ||
+                isLoadingLocations ||
+                isLoadingLobs ||
+                isLoadingProcesses ||
+                isLoadingTrainers ||
+                isLoadingTemplates
+              }
+            >
+              {createBatchMutation.isPending ? "Creating..." : "Create Batch"}
+            </Button>
+          </div>
         </div>
       </form>
     </Form>
