@@ -178,6 +178,11 @@ export function BatchesTab() {
   // Custom calendar day render function
   const renderCalendarDay = (day: Date) => {
     const dayBatches = getBatchesForDate(day);
+    const maxVisibleBatches = 4;
+    const hasMoreBatches = dayBatches.length > maxVisibleBatches;
+    const visibleBatches = hasMoreBatches ? dayBatches.slice(0, maxVisibleBatches) : dayBatches;
+    const extraBatchesCount = dayBatches.length - maxVisibleBatches;
+
     return (
       <div className="w-full h-full min-h-[100px] p-2 relative">
         <div className="font-medium border-b border-gray-100 dark:border-gray-800 pb-1 mb-2">
@@ -185,7 +190,7 @@ export function BatchesTab() {
         </div>
         {dayBatches.length > 0 && (
           <div className="absolute bottom-2 left-0 right-0 flex flex-wrap gap-1 justify-center">
-            {dayBatches.map((batch) => (
+            {visibleBatches.map((batch) => (
               <Popover key={batch.id}>
                 <PopoverTrigger asChild>
                   <div
@@ -193,16 +198,16 @@ export function BatchesTab() {
                       w-2 h-2 rounded-full cursor-pointer
                       transform transition-all duration-200 ease-in-out
                       hover:scale-150
-                      ${batch.status === 'planned' 
-                        ? 'bg-blue-500 hover:bg-blue-600' 
+                      ${batch.status === 'planned'
+                        ? 'bg-blue-500 hover:bg-blue-600'
                         : batch.status === 'completed'
                         ? 'bg-gray-500 hover:bg-gray-600'
                         : 'bg-green-500 hover:bg-green-600'}
                     `}
                   />
                 </PopoverTrigger>
-                <PopoverContent 
-                  className="w-96 p-4 animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95" 
+                <PopoverContent
+                  className="w-96 p-4 animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
                   align="start"
                 >
                   <div className="space-y-4">
@@ -211,15 +216,15 @@ export function BatchesTab() {
                         <h4 className="font-semibold text-lg group-hover:text-primary transition-colors">
                           {batch.name}
                         </h4>
-                        <Badge 
-                          variant="outline" 
+                        <Badge
+                          variant="outline"
                           className="mt-2 transition-colors hover:bg-secondary"
                         >
                           {formatBatchCategory(batch.batchCategory)}
                         </Badge>
                       </div>
-                      <Badge 
-                        variant="secondary" 
+                      <Badge
+                        variant="secondary"
                         className={`${getStatusColor(batch.status)} transition-all hover:scale-105`}
                       >
                         {batch.status.charAt(0).toUpperCase() + batch.status.slice(1)}
@@ -232,12 +237,12 @@ export function BatchesTab() {
                           { label: 'Location', value: batch.location?.name },
                           { label: 'Trainer', value: batch.trainer?.fullName },
                           { label: 'Capacity', value: batch.capacityLimit },
-                          { 
-                            label: 'Timeline', 
+                          {
+                            label: 'Timeline',
                             value: `${format(new Date(batch.startDate), 'MMM d, yyyy')} - ${format(new Date(batch.endDate), 'MMM d, yyyy')}`
                           }
                         ].map(({ label, value }) => (
-                          <div 
+                          <div
                             key={label}
                             className="flex justify-between items-center p-1 rounded hover:bg-secondary/10 transition-colors"
                           >
@@ -273,6 +278,33 @@ export function BatchesTab() {
                 </PopoverContent>
               </Popover>
             ))}
+            {hasMoreBatches && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <div className="text-xs font-medium text-muted-foreground cursor-pointer hover:text-primary transition-colors">
+                    +{extraBatchesCount} more
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-2">
+                  <div className="space-y-1">
+                    {dayBatches.slice(maxVisibleBatches).map((batch) => (
+                      <div
+                        key={batch.id}
+                        className="flex items-center justify-between p-2 rounded hover:bg-secondary/10 transition-colors"
+                      >
+                        <span className="text-sm font-medium">{batch.name}</span>
+                        <Badge
+                          variant="secondary"
+                          className={getStatusColor(batch.status)}
+                        >
+                          {batch.status.charAt(0).toUpperCase() + batch.status.slice(1)}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
           </div>
         )}
       </div>
@@ -422,7 +454,7 @@ export function BatchesTab() {
                 }}
                 className="w-full"
                 classNames={{
-                  cell: "h-32 w-32 p-0 border-2 border-gray-100 dark:border-gray-800",
+                  cell: "h-24 w-24 p-0 border-2 border-gray-100 dark:border-gray-800", // Reduced cell size
                   head_cell: "text-muted-foreground font-normal border-b-2 border-gray-100 dark:border-gray-800 p-2",
                   table: "border-collapse border-spacing-0 border-2 border-gray-100 dark:border-gray-800",
                   day: "h-full rounded-none hover:bg-gray-50 dark:hover:bg-gray-800 focus-visible:bg-gray-50 dark:focus-visible:bg-gray-800",
