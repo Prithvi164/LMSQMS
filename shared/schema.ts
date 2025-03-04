@@ -441,6 +441,7 @@ export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => 
   }),
 }));
 
+// Update validation schema for organization process to allow 0 days
 export const insertOrganizationProcessSchema = createInsertSchema(organizationProcesses)
   .omit({
     id: true,
@@ -451,9 +452,9 @@ export const insertOrganizationProcessSchema = createInsertSchema(organizationPr
     name: z.string().min(1, "Process name is required"),
     description: z.string().optional(),
     status: z.enum(['active', 'inactive', 'archived']).default('active'),
-    inductionDays: z.number().min(1, "Induction days must be at least 1"),
-    trainingDays: z.number().min(1, "Training days must be at least 1"),
-    certificationDays: z.number().min(1, "Certification days must be at least 1"),
+    inductionDays: z.number().min(0, "Induction days cannot be negative"),
+    trainingDays: z.number().min(0, "Training days cannot be negative"),
+    certificationDays: z.number().min(0, "Certification days cannot be negative"),
     ojtDays: z.number().min(0, "OJT days cannot be negative"),
     ojtCertificationDays: z.number().min(0, "OJT certification days cannot be negative"),
     lineOfBusinessId: z.number().int().positive("Line of Business is required"),

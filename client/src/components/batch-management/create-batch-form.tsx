@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format, addDays, isSunday, isWithinInterval } from "date-fns";
+import { format, addDays, isSunday, isWithinInterval, isSameDay } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -360,12 +360,14 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     }
   };
 
-  // Example date calculation function - updated to handle end dates correctly
+  // Update the date calculation functions with new logic for 0-day phases
   const addWorkingDays = (startDate: Date, days: number, isEndDate: boolean = false): Date => {
-    if (days === 0) return startDate;
+    // For 0 days or when it's not an end date calculation, return the start date
+    if (days === 0 || !isEndDate) return startDate;
 
+    // For actual end date calculation when days > 0
     let currentDate = startDate;
-    let daysToAdd = isEndDate ? days - 1 : days; // Subtract 1 for end dates
+    let daysToAdd = days - 1; // Subtract 1 for end date calculation
     let remainingDays = daysToAdd;
 
     while (remainingDays > 0) {
@@ -549,54 +551,55 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     }
   }, [editMode, batchData]);
 
-  // Date calculation effect
+  // Update the useEffect for date calculations
   useEffect(() => {
     const process = processes.find(p => p.id === form.getValues('processId'));
     const startDateStr = form.getValues('startDate');
 
     if (process && startDateStr) {
       try {
-        // Example: If batch starts on March 12, 2025 (Wednesday)
         const startDate = new Date(startDateStr);
 
         // Set induction dates
-        // If inductionDays = 1, start and end date will be the same
         form.setValue('inductionStartDate', format(startDate, 'yyyy-MM-dd'));
         const inductionEnd = addWorkingDays(startDate, process.inductionDays, true);
         form.setValue('inductionEndDate', format(inductionEnd, 'yyyy-MM-dd'));
 
-        // Set training dates
-        // Start: Next working day after induction
-        // End: Start date + trainingDays - 1
-        const trainingStart = addWorkingDays(inductionEnd, 1);
+        // Set training dates - handle 0-day scenario
+        const trainingStart = process.inductionDays > 0 ?
+          addWorkingDays(inductionEnd, 1) : inductionEnd;
         const trainingEnd = addWorkingDays(trainingStart, process.trainingDays, true);
         form.setValue('trainingStartDate', format(trainingStart, 'yyyy-MM-dd'));
         form.setValue('trainingEndDate', format(trainingEnd, 'yyyy-MM-dd'));
 
-        // Set certification dates
-        const certificationStart = addWorkingDays(trainingEnd, 1);
+        // Set certification dates - handle 0-day scenario
+        const certificationStart = process.trainingDays > 0 ?
+          addWorkingDays(trainingEnd, 1) : trainingEnd;
         const certificationEnd = addWorkingDays(certificationStart, process.certificationDays, true);
         form.setValue('certificationStartDate', format(certificationStart, 'yyyy-MM-dd'));
         form.setValue('certificationEndDate', format(certificationEnd, 'yyyy-MM-dd'));
 
-        // Set OJT dates
-        const ojtStart = addWorkingDays(certificationEnd, 1);
+        // Set OJT dates - handle 0-day scenario
+        const ojtStart = process.certificationDays > 0 ?
+          addWorkingDays(certificationEnd, 1) : certificationEnd;
         const ojtEnd = addWorkingDays(ojtStart, process.ojtDays, true);
         form.setValue('ojtStartDate', format(ojtStart, 'yyyy-MM-dd'));
         form.setValue('ojtEndDate', format(ojtEnd, 'yyyy-MM-dd'));
 
-        // Set OJT Certification dates
-        const ojtCertificationStart = addWorkingDays(ojtEnd, 1);
+        // Set OJT Certification dates - handle 0-day scenario
+        const ojtCertificationStart = process.ojtDays > 0 ?
+          addWorkingDays(ojtEnd, 1) : ojtEnd;
         const ojtCertificationEnd = addWorkingDays(ojtCertificationStart, process.ojtCertificationDays, true);
         form.setValue('ojtCertificationStartDate', format(ojtCertificationStart, 'yyyy-MM-dd'));
         form.setValue('ojtCertificationEndDate', format(ojtCertificationEnd, 'yyyy-MM-dd'));
 
         // Set handover date and batch end date
-        const handoverToOps = addWorkingDays(ojtCertificationEnd, 1);
+        const handoverToOps = process.ojtCertificationDays > 0 ?
+          addWorkingDays(ojtCertificationEnd, 1) : ojtCertificationEnd;
         form.setValue('handoverToOpsDate', format(handoverToOps, 'yyyy-MM-dd'));
         form.setValue('endDate', format(handoverToOps, 'yyyy-MM-dd')); // Batch end date equals handover date
 
-        // Add visual date ranges for the calendar
+        // Update visual date ranges for the calendar
         setDateRanges([
           {
             start: startDate,
@@ -628,7 +631,10 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
             label: 'OJT Certification',
             status: 'ojt-certification'
           }
-        ]);
+        ].filter(range =>
+          // Only show ranges for phases that have days > 0
+          !isSameDay(range.start, range.end)
+        ));
 
       } catch (error) {
         console.error('Error calculating dates:', error);
