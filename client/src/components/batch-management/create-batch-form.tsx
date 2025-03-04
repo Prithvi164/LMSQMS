@@ -131,7 +131,7 @@ export function CreateBatchForm() {
     select: (users) => users?.filter((user) =>
       user.role === 'trainer' &&
       (!selectedLocation || user.locationId === selectedLocation)
-    ) || [], // Handle potential null or undefined users
+    ) || [],
     enabled: !!user?.organizationId
   });
 
@@ -142,6 +142,7 @@ export function CreateBatchForm() {
       }
 
       try {
+        console.log('Submitting batch data:', values);
         const response = await fetch(`/api/organizations/${user.organizationId}/batches`, {
           method: 'POST',
           headers: {
@@ -183,18 +184,36 @@ export function CreateBatchForm() {
 
   async function onSubmit(values: InsertOrganizationBatch) {
     try {
-      //Added stricter validation
       if (!values.batchCode) throw new Error('Batch code is required');
       if (!values.name) throw new Error('Batch name is required');
+      if (!values.inductionStartDate) throw new Error('Induction Start date is required');
       if (values.locationId === undefined) throw new Error('Location is required');
       if (values.lineOfBusinessId === undefined) throw new Error('Line of Business is required');
       if (values.processId === undefined) throw new Error('Process is required');
       if (values.trainerId === undefined) throw new Error('Trainer is required');
-      if (!values.inductionStartDate) throw new Error('Start date is required');
-      if (!values.capacityLimit) throw new Error('Capacity limit is required');
+      if (values.capacityLimit === undefined) throw new Error('Capacity limit is required');
 
+      // Convert any Date objects to strings before submitting
+      const formattedValues: InsertOrganizationBatch = {
+        ...values,
+        inductionStartDate: typeof values.inductionStartDate === 'string' 
+          ? values.inductionStartDate 
+          : format(values.inductionStartDate as unknown as Date, 'yyyy-MM-dd'),
+        inductionEndDate: typeof values.inductionEndDate === 'string' ? values.inductionEndDate : format(values.inductionEndDate as unknown as Date, 'yyyy-MM-dd'),
+        trainingStartDate: typeof values.trainingStartDate === 'string' ? values.trainingStartDate : format(values.trainingStartDate as unknown as Date, 'yyyy-MM-dd'),
+        trainingEndDate: typeof values.trainingEndDate === 'string' ? values.trainingEndDate : format(values.trainingEndDate as unknown as Date, 'yyyy-MM-dd'),
+        certificationStartDate: typeof values.certificationStartDate === 'string' ? values.certificationStartDate : format(values.certificationStartDate as unknown as Date, 'yyyy-MM-dd'),
+        certificationEndDate: typeof values.certificationEndDate === 'string' ? values.certificationEndDate : format(values.certificationEndDate as unknown as Date, 'yyyy-MM-dd'),
+        ojtStartDate: typeof values.ojtStartDate === 'string' ? values.ojtStartDate : format(values.ojtStartDate as unknown as Date, 'yyyy-MM-dd'),
+        ojtEndDate: typeof values.ojtEndDate === 'string' ? values.ojtEndDate : format(values.ojtEndDate as unknown as Date, 'yyyy-MM-dd'),
+        ojtCertificationStartDate: typeof values.ojtCertificationStartDate === 'string' ? values.ojtCertificationStartDate : format(values.ojtCertificationStartDate as unknown as Date, 'yyyy-MM-dd'),
+        ojtCertificationEndDate: typeof values.ojtCertificationEndDate === 'string' ? values.ojtCertificationEndDate : format(values.ojtCertificationEndDate as unknown as Date, 'yyyy-MM-dd'),
+        handoverToOpsDate: typeof values.handoverToOpsDate === 'string' ? values.handoverToOpsDate : format(values.handoverToOpsDate as unknown as Date, 'yyyy-MM-dd')
 
-      await createBatchMutation.mutateAsync(values);
+      };
+
+      console.log('Submitting with formatted values:', formattedValues);
+      await createBatchMutation.mutateAsync(formattedValues);
     } catch (error) {
       console.error('Form submission error:', error);
       toast({
@@ -211,98 +230,53 @@ export function CreateBatchForm() {
     const startDateStr = form.getValues('inductionStartDate');
 
     if (process && startDateStr) {
-      const startDate = new Date(startDateStr);
+      try {
+        const startDate = new Date(startDateStr);
 
-      // Calculate all dates based on process days
-      const inductionEnd = addWorkingDays(startDate, process.inductionDays);
-      const trainingStart = addWorkingDays(inductionEnd, 1);
-      const trainingEnd = addWorkingDays(trainingStart, process.trainingDays);
-      const certificationStart = addWorkingDays(trainingEnd, 1);
-      const certificationEnd = addWorkingDays(certificationStart, process.certificationDays);
-      const ojtStart = addWorkingDays(certificationEnd, 1);
-      const ojtEnd = addWorkingDays(ojtStart, process.ojtDays);
-      const ojtCertificationStart = addWorkingDays(ojtEnd, 1);
-      const ojtCertificationEnd = addWorkingDays(ojtCertificationStart, process.ojtCertificationDays);
-      const handoverToOps = addWorkingDays(ojtCertificationEnd, 1);
+        // Calculate all dates based on process days
+        const inductionEnd = addWorkingDays(startDate, process.inductionDays);
+        const trainingStart = addWorkingDays(inductionEnd, 1);
+        const trainingEnd = addWorkingDays(trainingStart, process.trainingDays);
+        const certificationStart = addWorkingDays(trainingEnd, 1);
+        const certificationEnd = addWorkingDays(certificationStart, process.certificationDays);
+        const ojtStart = addWorkingDays(certificationEnd, 1);
+        const ojtEnd = addWorkingDays(ojtStart, process.ojtDays);
+        const ojtCertificationStart = addWorkingDays(ojtEnd, 1);
+        const ojtCertificationEnd = addWorkingDays(ojtCertificationStart, process.ojtCertificationDays);
+        const handoverToOps = addWorkingDays(ojtCertificationEnd, 1);
 
-      // Update form values
-      form.setValue('inductionEndDate', format(inductionEnd, 'yyyy-MM-dd'));
-      form.setValue('trainingStartDate', format(trainingStart, 'yyyy-MM-dd'));
-      form.setValue('trainingEndDate', format(trainingEnd, 'yyyy-MM-dd'));
-      form.setValue('certificationStartDate', format(certificationStart, 'yyyy-MM-dd'));
-      form.setValue('certificationEndDate', format(certificationEnd, 'yyyy-MM-dd'));
-      form.setValue('ojtStartDate', format(ojtStart, 'yyyy-MM-dd'));
-      form.setValue('ojtEndDate', format(ojtEnd, 'yyyy-MM-dd'));
-      form.setValue('ojtCertificationStartDate', format(ojtCertificationStart, 'yyyy-MM-dd'));
-      form.setValue('ojtCertificationEndDate', format(ojtCertificationEnd, 'yyyy-MM-dd'));
-      form.setValue('handoverToOpsDate', format(handoverToOps, 'yyyy-MM-dd'));
+        // Update form values with formatted dates
+        const formatDate = (date: Date) => format(date, 'yyyy-MM-dd');
 
-      // Update displayed dates
-      setCalculatedDates({
-        inductionEnd: format(inductionEnd, 'yyyy-MM-dd'),
-        trainingStart: format(trainingStart, 'yyyy-MM-dd'),
-        trainingEnd: format(trainingEnd, 'yyyy-MM-dd'),
-        certificationStart: format(certificationStart, 'yyyy-MM-dd'),
-        certificationEnd: format(certificationEnd, 'yyyy-MM-dd'),
-        ojtStart: format(ojtStart, 'yyyy-MM-dd'),
-        ojtEnd: format(ojtEnd, 'yyyy-MM-dd'),
-        ojtCertificationStart: format(ojtCertificationStart, 'yyyy-MM-dd'),
-        ojtCertificationEnd: format(ojtCertificationEnd, 'yyyy-MM-dd'),
-        handoverToOps: format(handoverToOps, 'yyyy-MM-dd')
-      });
+        form.setValue('inductionEndDate', formatDate(inductionEnd));
+        form.setValue('trainingStartDate', formatDate(trainingStart));
+        form.setValue('trainingEndDate', formatDate(trainingEnd));
+        form.setValue('certificationStartDate', formatDate(certificationStart));
+        form.setValue('certificationEndDate', formatDate(certificationEnd));
+        form.setValue('ojtStartDate', formatDate(ojtStart));
+        form.setValue('ojtEndDate', formatDate(ojtEnd));
+        form.setValue('ojtCertificationStartDate', formatDate(ojtCertificationStart));
+        form.setValue('ojtCertificationEndDate', formatDate(ojtCertificationEnd));
+        form.setValue('handoverToOpsDate', formatDate(handoverToOps));
+
+        // Update displayed dates
+        setCalculatedDates({
+          inductionEnd: formatDate(inductionEnd),
+          trainingStart: formatDate(trainingStart),
+          trainingEnd: formatDate(trainingEnd),
+          certificationStart: formatDate(certificationStart),
+          certificationEnd: formatDate(certificationEnd),
+          ojtStart: formatDate(ojtStart),
+          ojtEnd: formatDate(ojtEnd),
+          ojtCertificationStart: formatDate(ojtCertificationStart),
+          ojtCertificationEnd: formatDate(ojtCertificationEnd),
+          handoverToOps: formatDate(handoverToOps)
+        });
+      } catch (error) {
+        console.error('Error calculating dates:', error);
+      }
     }
   }, [form.watch('inductionStartDate'), form.watch('processId'), processes]);
-
-  // Add date fields to the form
-  const renderDateField = (
-    name: keyof InsertOrganizationBatch,
-    label: string,
-    disabled: boolean = false
-  ) => (
-    <FormField
-      control={form.control}
-      name={name}
-      render={({ field }) => (
-        <FormItem className="flex flex-col">
-          <FormLabel>{label}</FormLabel>
-          <Popover>
-            <PopoverTrigger asChild>
-              <FormControl>
-                <Button
-                  variant={"outline"}
-                  className={cn(
-                    "w-full pl-3 text-left font-normal",
-                    !field.value && "text-muted-foreground"
-                  )}
-                  disabled={disabled}
-                >
-                  {field.value ? (
-                    format(new Date(field.value), "PPP")
-                  ) : (
-                    <span>Pick a date</span>
-                  )}
-                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                </Button>
-              </FormControl>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={field.value ? new Date(field.value) : undefined}
-                onSelect={field.onChange}
-                disabled={(date) => {
-                  // Disable Sundays and past dates
-                  return isSunday(date) || date < new Date();
-                }}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-          <FormMessage />
-        </FormItem>
-      )}
-    />
-  );
 
   return (
     <Form {...form}>
@@ -478,7 +452,53 @@ export function CreateBatchForm() {
           />
 
           {/* Start Date */}
-          {renderDateField("inductionStartDate", "Induction Start Date")}
+          <FormField
+            control={form.control}
+            name="inductionStartDate"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Induction Start Date</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full pl-3 text-left font-normal",
+                          !field.value && "text-muted-foreground"
+                        )}
+                      >
+                        {field.value ? (
+                          format(new Date(field.value), "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value ? new Date(field.value) : undefined}
+                      onSelect={(date) => {
+                        // Convert Date to string in YYYY-MM-DD format
+                        const dateStr = date ? format(date, 'yyyy-MM-dd') : '';
+                        console.log('Selected date:', dateStr);
+                        field.onChange(dateStr);
+                      }}
+                      disabled={(date) => {
+                        // Disable Sundays and past dates
+                        return isSunday(date) || date < new Date();
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
           {/* Display calculated dates as read-only fields */}
           <FormField
