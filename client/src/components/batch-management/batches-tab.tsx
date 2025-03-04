@@ -65,7 +65,7 @@ export function BatchesTab() {
   });
 
   // Filter and group batches
-  const filteredBatches = batches.filter(batch => 
+  const filteredBatches = batches.filter(batch =>
     batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     batch.status.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -179,26 +179,30 @@ export function BatchesTab() {
   const renderCalendarDay = (day: Date) => {
     const dayBatches = getBatchesForDate(day);
     return (
-      <div className="w-full h-full">
-        <div className="text-center">{format(day, 'd')}</div>
+      <div className="w-full h-full min-h-[100px] p-2 relative">
+        <div className="font-medium">{format(day, 'd')}</div>
         {dayBatches.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-1">
+          <div className="flex flex-col gap-1 mt-2">
             {dayBatches.map((batch) => (
               <Popover key={batch.id}>
                 <PopoverTrigger asChild>
                   <div
-                    className={`w-2 h-2 rounded-full cursor-pointer ${
-                      batch.status === 'planned' ? 'bg-blue-500' :
-                      batch.status === 'completed' ? 'bg-gray-500' : 'bg-green-500'
-                    }`}
-                  />
+                    className={`
+                      w-full p-1 rounded text-xs cursor-pointer truncate
+                      ${batch.status === 'planned' ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' :
+                        batch.status === 'completed' ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' :
+                        'bg-green-100 text-green-700 hover:bg-green-200'}
+                    `}
+                  >
+                    {batch.name}
+                  </div>
                 </PopoverTrigger>
-                <PopoverContent className="w-80">
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-start">
+                <PopoverContent className="w-96 p-4" align="start">
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-start border-b pb-2">
                       <div>
-                        <h4 className="font-semibold">{batch.name}</h4>
-                        <Badge variant="outline" className="mt-1">
+                        <h4 className="font-semibold text-lg">{batch.name}</h4>
+                        <Badge variant="outline" className="mt-2">
                           {formatBatchCategory(batch.batchCategory)}
                         </Badge>
                       </div>
@@ -206,36 +210,50 @@ export function BatchesTab() {
                         {batch.status.charAt(0).toUpperCase() + batch.status.slice(1)}
                       </Badge>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div className="text-muted-foreground">Process:</div>
-                      <div>{batch.process?.name}</div>
-                      <div className="text-muted-foreground">Location:</div>
-                      <div>{batch.location?.name}</div>
-                      <div className="text-muted-foreground">Trainer:</div>
-                      <div>{batch.trainer?.fullName}</div>
-                      <div className="text-muted-foreground">Capacity:</div>
-                      <div>{batch.capacityLimit}</div>
-                      <div className="text-muted-foreground">Timeline:</div>
-                      <div>
-                        {format(new Date(batch.startDate), 'MMM d, yyyy')} - 
-                        {format(new Date(batch.endDate), 'MMM d, yyyy')}
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="col-span-2 space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">Process:</span>
+                          <span className="font-medium">{batch.process?.name}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">Location:</span>
+                          <span className="font-medium">{batch.location?.name}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">Trainer:</span>
+                          <span className="font-medium">{batch.trainer?.fullName}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">Capacity:</span>
+                          <span className="font-medium">{batch.capacityLimit}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">Timeline:</span>
+                          <span className="font-medium">
+                            {format(new Date(batch.startDate), 'MMM d, yyyy')} -
+                            {format(new Date(batch.endDate), 'MMM d, yyyy')}
+                          </span>
+                        </div>
                       </div>
                     </div>
                     {canManageBatches && batch.status === 'planned' && (
-                      <div className="flex justify-end gap-2 mt-2">
-                        <Button 
-                          variant="outline" 
+                      <div className="flex justify-end gap-2 pt-2 border-t">
+                        <Button
+                          variant="outline"
                           size="sm"
                           onClick={() => handleEditClick(batch)}
                         >
-                          <Edit className="h-4 w-4" />
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
                         </Button>
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
                           onClick={() => handleDeleteClick(batch)}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Delete
                         </Button>
                       </div>
                     )}
@@ -284,7 +302,7 @@ export function BatchesTab() {
               <TableCell>{batch.trainer?.fullName}</TableCell>
               <TableCell>{batch.capacityLimit}</TableCell>
               <TableCell>
-                {new Date(batch.startDate).toLocaleDateString()} - 
+                {new Date(batch.startDate).toLocaleDateString()} -
                 {new Date(batch.endDate).toLocaleDateString()}
               </TableCell>
               <TableCell className="text-right space-x-2">
@@ -293,16 +311,16 @@ export function BatchesTab() {
                 </Button>
                 {canManageBatches && (
                   <>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       onClick={() => handleDeleteClick(batch)}
                       disabled={batch.status !== 'planned'}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       onClick={() => handleEditClick(batch)}
                       disabled={batch.status !== 'planned'}
@@ -348,7 +366,7 @@ export function BatchesTab() {
           />
         </div>
         {canManageBatches && (
-          <Button 
+          <Button
             onClick={() => setIsCreateDialogOpen(true)}
             className="gap-2"
           >
@@ -383,7 +401,7 @@ export function BatchesTab() {
           </TabsContent>
 
           <TabsContent value="calendar" className="space-y-6">
-            <div className="rounded-md border p-4">
+            <div className="rounded-md border p-6">
               <Calendar
                 mode="single"
                 disabled={false}
@@ -391,19 +409,24 @@ export function BatchesTab() {
                   Day: ({ date }) => renderCalendarDay(date)
                 }}
                 className="w-full"
+                classNames={{
+                  cell: "h-32 w-32 p-0",
+                  head_cell: "text-muted-foreground font-normal",
+                  table: "border-collapse border-spacing-0",
+                }}
               />
-              <div className="mt-4 flex items-center gap-4 text-sm">
+              <div className="mt-6 flex items-center gap-6 text-sm border-t pt-4">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-blue-500" />
-                  <span>Planned</span>
+                  <span className="font-medium">Planned</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-green-500" />
-                  <span>Ongoing</span>
+                  <span className="font-medium">Ongoing</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-gray-500" />
-                  <span>Completed</span>
+                  <span className="font-medium">Completed</span>
                 </div>
               </div>
             </div>
@@ -417,8 +440,8 @@ export function BatchesTab() {
               You haven't created any batches yet. Start by creating a new batch.
             </p>
             {canManageBatches && (
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 className="relative"
                 onClick={() => setIsCreateDialogOpen(true)}
               >
@@ -448,9 +471,9 @@ export function BatchesTab() {
             </DialogDescription>
           </DialogHeader>
           {selectedBatch && (
-            <CreateBatchForm 
-              editMode={true} 
-              batchData={selectedBatch} 
+            <CreateBatchForm
+              editMode={true}
+              batchData={selectedBatch}
               onSuccess={() => setIsEditDialogOpen(false)}
             />
           )}
