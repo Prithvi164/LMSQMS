@@ -53,6 +53,7 @@ export const batchTemplates = pgTable("batch_templates", {
   trainerId: integer("trainer_id")
     .references(() => users.id)
     .notNull(),
+  batchCategory: batchCategoryEnum("batch_category").notNull(),
   capacityLimit: integer("capacity_limit").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -75,6 +76,7 @@ export const insertBatchTemplateSchema = createInsertSchema(batchTemplates)
     locationId: z.number().int().positive("Location is required"),
     lineOfBusinessId: z.number().int().positive("Line of Business is required"),
     trainerId: z.number().int().positive("Trainer is required"),
+    batchCategory: z.enum(['new_training', 'upskill', 'recertification']),
     capacityLimit: z.number().int().min(1, "Capacity must be at least 1"),
   });
 

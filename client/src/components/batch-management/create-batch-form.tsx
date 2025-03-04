@@ -114,7 +114,7 @@ export function CreateBatchForm() {
       endDate: '',
       inductionStartDate: '',
       capacityLimit: 1,
-      batchCode: '', //This line remains
+      batchCode: '',
       name: '',
       inductionEndDate: '',
       trainingStartDate: '',
@@ -126,7 +126,7 @@ export function CreateBatchForm() {
       ojtCertificationStartDate: '',
       ojtCertificationEndDate: '',
       handoverToOpsDate: '',
-      batchCategory:'' //Added this line
+      batchCategory:''
     },
   });
 
@@ -266,6 +266,7 @@ export function CreateBatchForm() {
 
         // Set capacity limit
         form.setValue('capacityLimit', template.capacityLimit);
+        form.setValue('batchCategory', template.batchCategory); //Added this line
 
         toast({
           title: "Template Loaded",
@@ -292,12 +293,14 @@ export function CreateBatchForm() {
       const currentProcessId = form.getValues('processId');
       const currentTrainerId = form.getValues('trainerId');
       const currentCapacityLimit = form.getValues('capacityLimit');
+      const currentBatchCategory = form.getValues('batchCategory');
 
       if (!currentLocationId) throw new Error('Please select a location before saving template');
       if (!currentLineOfBusinessId) throw new Error('Please select a line of business before saving template');
       if (!currentProcessId) throw new Error('Please select a process before saving template');
       if (!currentTrainerId) throw new Error('Please select a trainer before saving template');
       if (!currentCapacityLimit || currentCapacityLimit < 1) throw new Error('Please set a valid capacity limit');
+      if (!currentBatchCategory) throw new Error('Please select a batch category before saving template');
 
       const template: InsertBatchTemplate = {
         name: templateName,
@@ -307,7 +310,8 @@ export function CreateBatchForm() {
         lineOfBusinessId: currentLineOfBusinessId,
         processId: currentProcessId,
         trainerId: currentTrainerId,
-        capacityLimit: currentCapacityLimit
+        capacityLimit: currentCapacityLimit,
+        batchCategory: currentBatchCategory
       };
 
       await saveTemplateMutation.mutateAsync(template);
@@ -397,7 +401,7 @@ export function CreateBatchForm() {
       if (values.processId === undefined) throw new Error('Process is required');
       if (values.trainerId === undefined) throw new Error('Trainer is required');
       if (values.capacityLimit === undefined) throw new Error('Capacity limit is required');
-      if (values.batchCategory === undefined) throw new Error('Batch Category is required'); //Added this line
+      if (values.batchCategory === undefined) throw new Error('Batch Category is required');
 
 
       // Set the initial status based on the current date and batch dates
