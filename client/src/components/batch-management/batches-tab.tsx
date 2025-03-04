@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, Loader2, Plus, Trash2, Edit } from "lucide-react";
+import { Search, Loader2, Plus, Trash2, Edit, Calendar as CalendarIcon, List } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -31,8 +31,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Calendar } from "@/components/ui/calendar";
 import { CreateBatchForm } from "./create-batch-form";
 import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { OrganizationBatch } from "@shared/schema";
 
 export function BatchesTab() {
@@ -45,6 +48,7 @@ export function BatchesTab() {
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
   const [selectedBatch, setSelectedBatch] = useState<OrganizationBatch | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Check if user has permission to edit/delete batches
   const canManageBatches = user?.role === 'admin' || user?.role === 'owner';
@@ -58,6 +62,19 @@ export function BatchesTab() {
     enabled: !!user?.organizationId
   });
 
+  // Filter and group batches
+  const filteredBatches = batches.filter(batch => 
+    batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    batch.status.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const groupedBatches = {
+    planned: filteredBatches.filter(b => b.status === 'planned'),
+    ongoing: filteredBatches.filter(b => ['induction', 'training', 'certification', 'ojt', 'ojt_certification'].includes(b.status)),
+    completed: filteredBatches.filter(b => b.status === 'completed')
+  };
+
+  // Delete mutation remains the same
   const deleteBatchMutation = useMutation({
     mutationFn: async (batchId: number) => {
       const response = await fetch(`/api/organizations/${user?.organizationId}/batches/${batchId}`, {
@@ -148,6 +165,76 @@ export function BatchesTab() {
       .join(' ');
   };
 
+  const renderBatchTable = (batchList: OrganizationBatch[]) => (
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Category</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Process</TableHead>
+            <TableHead>Location</TableHead>
+            <TableHead>Trainer</TableHead>
+            <TableHead>Capacity</TableHead>
+            <TableHead>Timeline</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {batchList.map((batch) => (
+            <TableRow key={batch.id}>
+              <TableCell>{batch.name}</TableCell>
+              <TableCell>
+                <Badge variant="outline">
+                  {formatBatchCategory(batch.batchCategory)}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <Badge variant="secondary" className={getStatusColor(batch.status)}>
+                  {batch.status.charAt(0).toUpperCase() + batch.status.slice(1)}
+                </Badge>
+              </TableCell>
+              <TableCell>{batch.process?.name}</TableCell>
+              <TableCell>{batch.location?.name}</TableCell>
+              <TableCell>{batch.trainer?.fullName}</TableCell>
+              <TableCell>{batch.capacityLimit}</TableCell>
+              <TableCell>
+                {new Date(batch.startDate).toLocaleDateString()} - 
+                {new Date(batch.endDate).toLocaleDateString()}
+              </TableCell>
+              <TableCell className="text-right space-x-2">
+                <Button variant="outline" size="sm">
+                  View Details
+                </Button>
+                {canManageBatches && (
+                  <>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleDeleteClick(batch)}
+                      disabled={batch.status !== 'planned'}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleEditClick(batch)}
+                      disabled={batch.status !== 'planned'}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -172,6 +259,8 @@ export function BatchesTab() {
           <Input
             placeholder="Search batches..."
             className="pl-8"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
         {canManageBatches && (
@@ -186,73 +275,93 @@ export function BatchesTab() {
       </div>
 
       {batches.length > 0 ? (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Process</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Trainer</TableHead>
-                <TableHead>Capacity</TableHead>
-                <TableHead>Timeline</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {batches.map((batch) => (
-                <TableRow key={batch.id}>
-                  <TableCell>{batch.name}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {formatBatchCategory(batch.batchCategory)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className={getStatusColor(batch.status)}>
-                      {batch.status.charAt(0).toUpperCase() + batch.status.slice(1)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{batch.process?.name}</TableCell>
-                  <TableCell>{batch.location?.name}</TableCell>
-                  <TableCell>{batch.trainer?.fullName}</TableCell>
-                  <TableCell>{batch.capacityLimit}</TableCell>
-                  <TableCell>
-                    {new Date(batch.startDate).toLocaleDateString()} - 
-                    {new Date(batch.endDate).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell className="text-right space-x-2">
-                    <Button variant="outline" size="sm">
-                      View Details
-                    </Button>
-                    {canManageBatches && (
-                      <>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleDeleteClick(batch)}
-                          disabled={batch.status !== 'planned'}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleEditClick(batch)}
-                          disabled={batch.status !== 'planned'}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <Tabs defaultValue="table" className="w-full">
+          <TabsList>
+            <TabsTrigger value="table" className="flex items-center gap-2">
+              <List className="h-4 w-4" />
+              Table View
+            </TabsTrigger>
+            <TabsTrigger value="cards" className="flex items-center gap-2">
+              <CalendarIcon className="h-4 w-4" />
+              Card View
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="table" className="space-y-6">
+            {Object.entries(groupedBatches).map(([status, batchList]) => (
+              batchList.length > 0 && (
+                <div key={status} className="space-y-4">
+                  <h3 className="text-lg font-semibold capitalize">{status} Batches</h3>
+                  {renderBatchTable(batchList)}
+                </div>
+              )
+            ))}
+          </TabsContent>
+
+          <TabsContent value="cards" className="space-y-6">
+            {Object.entries(groupedBatches).map(([status, batchList]) => (
+              batchList.length > 0 && (
+                <div key={status} className="space-y-4">
+                  <h3 className="text-lg font-semibold capitalize">{status} Batches</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {batchList.map((batch) => (
+                      <Card key={batch.id}>
+                        <CardHeader>
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <CardTitle>{batch.name}</CardTitle>
+                              <Badge variant="outline" className="mt-2">
+                                {formatBatchCategory(batch.batchCategory)}
+                              </Badge>
+                            </div>
+                            <Badge variant="secondary" className={getStatusColor(batch.status)}>
+                              {batch.status.charAt(0).toUpperCase() + batch.status.slice(1)}
+                            </Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div className="text-muted-foreground">Process:</div>
+                            <div>{batch.process?.name}</div>
+                            <div className="text-muted-foreground">Location:</div>
+                            <div>{batch.location?.name}</div>
+                            <div className="text-muted-foreground">Trainer:</div>
+                            <div>{batch.trainer?.fullName}</div>
+                            <div className="text-muted-foreground">Capacity:</div>
+                            <div>{batch.capacityLimit}</div>
+                            <div className="text-muted-foreground">Timeline:</div>
+                            <div>
+                              {new Date(batch.startDate).toLocaleDateString()} - 
+                              {new Date(batch.endDate).toLocaleDateString()}
+                            </div>
+                          </div>
+                          {canManageBatches && batch.status === 'planned' && (
+                            <div className="flex justify-end gap-2 mt-4">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleEditClick(batch)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleDeleteClick(batch)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )
+            ))}
+          </TabsContent>
+        </Tabs>
       ) : (
         <div className="flex min-h-[400px] flex-col items-center justify-center rounded-md border border-dashed p-8 text-center animate-in fade-in-50">
           <div className="mx-auto flex max-w-[420px] flex-col items-center justify-center text-center">
