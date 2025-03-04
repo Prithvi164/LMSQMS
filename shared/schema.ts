@@ -27,6 +27,24 @@ export const organizationBatches = pgTable("organization_batches", {
   id: serial("id").primaryKey(),
   batchCode: text("batch_code").notNull().unique(),
   name: text("name").notNull(),
+  startDate: date("start_date").notNull(),
+  status: batchStatusEnum("status").default('planned').notNull(),
+  capacityLimit: integer("capacity_limit").notNull(),
+  processId: integer("process_id")
+    .references(() => organizationProcesses.id)
+    .notNull(),
+  locationId: integer("location_id")
+    .references(() => organizationLocations.id)
+    .notNull(),
+  trainerId: integer("trainer_id")
+    .references(() => users.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  lineOfBusinessId: integer("line_of_business_id")
+    .references(() => organizationLineOfBusinesses.id)
+    .notNull(),
   inductionStartDate: date("induction_start_date").notNull(),
   inductionEndDate: date("induction_end_date"),
   trainingStartDate: date("training_start_date"),
@@ -38,23 +56,6 @@ export const organizationBatches = pgTable("organization_batches", {
   ojtCertificationStartDate: date("ojt_certification_start_date"),
   ojtCertificationEndDate: date("ojt_certification_end_date"),
   handoverToOpsDate: date("handover_to_ops_date"),
-  status: batchStatusEnum("status").default('planned').notNull(),
-  capacityLimit: integer("capacity_limit").notNull(),
-  processId: integer("process_id")
-    .references(() => organizationProcesses.id)
-    .notNull(),
-  locationId: integer("location_id")
-    .references(() => organizationLocations.id)
-    .notNull(),
-  lineOfBusinessId: integer("line_of_business_id")
-    .references(() => organizationLineOfBusinesses.id)
-    .notNull(),
-  trainerId: integer("trainer_id")
-    .references(() => users.id)
-    .notNull(),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -95,6 +96,7 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
   .extend({
     batchCode: z.string().min(1, "Batch code is required"),
     name: z.string().min(1, "Batch name is required"),
+    startDate: z.string().min(1, "Start date is required"),
     inductionStartDate: z.string().min(1, "Induction Start date is required"),
     inductionEndDate: z.string().optional(),
     trainingStartDate: z.string().optional(),

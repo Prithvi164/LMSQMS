@@ -78,20 +78,21 @@ export function CreateBatchForm() {
     defaultValues: {
       status: 'planned',
       organizationId: user?.organizationId || undefined,
+      startDate: '',
       inductionStartDate: '',
       capacityLimit: 1,
       batchCode: '',
       name: '',
-      inductionEndDate:'',
-      trainingStartDate:'',
-      trainingEndDate:'',
-      certificationStartDate:'',
-      certificationEndDate:'',
-      ojtStartDate:'',
-      ojtEndDate:'',
-      ojtCertificationStartDate:'',
-      ojtCertificationEndDate:'',
-      handoverToOpsDate:''
+      inductionEndDate: '',
+      trainingStartDate: '',
+      trainingEndDate: '',
+      certificationStartDate: '',
+      certificationEndDate: '',
+      ojtStartDate: '',
+      ojtEndDate: '',
+      ojtCertificationStartDate: '',
+      ojtCertificationEndDate: '',
+      handoverToOpsDate: ''
     },
   });
 
@@ -186,6 +187,7 @@ export function CreateBatchForm() {
     try {
       if (!values.batchCode) throw new Error('Batch code is required');
       if (!values.name) throw new Error('Batch name is required');
+      if (!values.startDate) throw new Error('Batch start date is required');
       if (!values.inductionStartDate) throw new Error('Induction Start date is required');
       if (values.locationId === undefined) throw new Error('Location is required');
       if (values.lineOfBusinessId === undefined) throw new Error('Line of Business is required');
@@ -196,8 +198,11 @@ export function CreateBatchForm() {
       // Convert any Date objects to strings before submitting
       const formattedValues: InsertOrganizationBatch = {
         ...values,
-        inductionStartDate: typeof values.inductionStartDate === 'string' 
-          ? values.inductionStartDate 
+        startDate: typeof values.startDate === 'string'
+          ? values.startDate
+          : format(values.startDate as unknown as Date, 'yyyy-MM-dd'),
+        inductionStartDate: typeof values.inductionStartDate === 'string'
+          ? values.inductionStartDate
           : format(values.inductionStartDate as unknown as Date, 'yyyy-MM-dd'),
         inductionEndDate: typeof values.inductionEndDate === 'string' ? values.inductionEndDate : format(values.inductionEndDate as unknown as Date, 'yyyy-MM-dd'),
         trainingStartDate: typeof values.trainingStartDate === 'string' ? values.trainingStartDate : format(values.trainingStartDate as unknown as Date, 'yyyy-MM-dd'),
@@ -446,6 +451,57 @@ export function CreateBatchForm() {
                     ))}
                   </SelectContent>
                 </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Batch Start Date */}
+          <FormField
+            control={form.control}
+            name="startDate"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Batch Start Date</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full pl-3 text-left font-normal",
+                          !field.value && "text-muted-foreground"
+                        )}
+                      >
+                        {field.value ? (
+                          format(new Date(field.value), "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value ? new Date(field.value) : undefined}
+                      onSelect={(date) => {
+                        // Convert Date to string in YYYY-MM-DD format
+                        const dateStr = date ? format(date, 'yyyy-MM-dd') : '';
+                        console.log('Selected batch start date:', dateStr);
+                        field.onChange(dateStr);
+                        // Set the same date for induction start
+                        form.setValue('inductionStartDate', dateStr);
+                      }}
+                      disabled={(date) => {
+                        // Disable Sundays and past dates
+                        return isSunday(date) || date < new Date();
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
                 <FormMessage />
               </FormItem>
             )}
