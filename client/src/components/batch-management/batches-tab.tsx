@@ -117,6 +117,7 @@ export function BatchesTab() {
     );
   });
 
+  // Format function for batch category display
   const formatBatchCategory = (category: string | undefined | null) => {
     if (!category) return 'Uncategorized';
     return category
@@ -399,6 +400,7 @@ export function BatchesTab() {
     ? sortData(filteredBatches, sortConfig.key, sortConfig.direction)
     : filteredBatches;
 
+  // Table rendering function
   const renderBatchTable = (batchList: OrganizationBatch[]) => (
     <div className="rounded-md border">
       <Table>
@@ -437,55 +439,15 @@ export function BatchesTab() {
                 )}
               </div>
             </TableHead>
-            <TableHead
-              className="text-center cursor-pointer hover:bg-muted/70 transition-colors"
-              onClick={() => handleSort('location')}
-            >
-              <div className="flex items-center justify-center gap-1">
-                Location
-                {sortConfig?.key === 'location' && (
-                  <ArrowUpDown className={`h-4 w-4 ${sortConfig.direction === 'asc' ? 'rotate-0' : 'rotate-180'}`} />
-                )}
-              </div>
-            </TableHead>
-            <TableHead
-              className="text-center cursor-pointer hover:bg-muted/70 transition-colors"
-              onClick={() => handleSort('line_of_business')}
-            >
-              <div className="flex items-center justify-center gap-1">
-                Line of Business
-                {sortConfig?.key === 'line_of_business' && (
-                  <ArrowUpDown className={`h-4 w-4 ${sortConfig.direction === 'asc' ? 'rotate-0' : 'rotate-180'}`} />
-                )}
-              </div>
-            </TableHead>
-            <TableHead
-              className="text-center cursor-pointer hover:bg-muted/70 transition-colors"
-              onClick={() => handleSort('process')}
-            >
-              <div className="flex items-center justify-center gap-1">
-                Process
-                {sortConfig?.key === 'process' && (
-                  <ArrowUpDown className={`h-4 w-4 ${sortConfig.direction === 'asc' ? 'rotate-0' : 'rotate-180'}`} />
-                )}
-              </div>
-            </TableHead>
-            <TableHead
-              className="text-center cursor-pointer hover:bg-muted/70 transition-colors"
-              onClick={() => handleSort('status')}
-            >
-              <div className="flex items-center justify-center gap-1">
-                Status
-                {sortConfig?.key === 'status' && (
-                  <ArrowUpDown className={`h-4 w-4 ${sortConfig.direction === 'asc' ? 'rotate-0' : 'rotate-180'}`} />
-                )}
-              </div>
-            </TableHead>
+            <TableHead className="text-center">Location</TableHead>
+            <TableHead className="text-center">Line of Business</TableHead>
+            <TableHead className="text-center">Process</TableHead>
+            <TableHead className="text-center">Status</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {sortedBatches.map((batch) => (
+          {batchList.map((batch) => (
             <TableRow
               key={batch.id}
               className="hover:bg-muted/50 transition-colors group"
