@@ -761,7 +761,7 @@ export function BatchesTab() {
     }
   };
 
-  // Update the filteredBatches definition
+  // Define filteredBatches before it's used in any other function
   const filteredBatches = batches.filter(batch =>
     // Apply basic filters
     (searchQuery === '' ||
@@ -870,7 +870,7 @@ export function BatchesTab() {
                   {status.charAt(0).toUpperCase() + status.slice(1)}
                 </SelectItem>
               ))}
-                        </SelectContent>
+            </SelectContent>
           </Select>
 
           <Select value={selectedLocation || 'all'} onValueChange={(value) => setSelectedLocation(value === 'all' ? null : value)}>
