@@ -584,12 +584,12 @@ export function BatchesTab() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          <Select value={selectedStatus || ''} onValueChange={(value) => setSelectedStatus(value || null)}>
+          <Select value={selectedStatus || 'all'} onValueChange={(value) => setSelectedStatus(value === 'all' ? null : value)}>
             <SelectTrigger>
               <SelectValue placeholder="Filter by Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Statuses</SelectItem>
+              <SelectItem value="all">All Statuses</SelectItem>
               {statuses.map((status) => (
                 <SelectItem key={status} value={status}>
                   {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -598,12 +598,12 @@ export function BatchesTab() {
             </SelectContent>
           </Select>
 
-          <Select value={selectedLocation || ''} onValueChange={(value) => setSelectedLocation(value || null)}>
+          <Select value={selectedLocation || 'all'} onValueChange={(value) => setSelectedLocation(value === 'all' ? null : value)}>
             <SelectTrigger>
               <SelectValue placeholder="Filter by Location" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Locations</SelectItem>
+              <SelectItem value="all">All Locations</SelectItem>
               {locations.map((location) => (
                 <SelectItem key={location} value={location}>
                   {location}
@@ -612,12 +612,12 @@ export function BatchesTab() {
             </SelectContent>
           </Select>
 
-          <Select value={selectedLineOfBusiness || ''} onValueChange={(value) => setSelectedLineOfBusiness(value || null)}>
+          <Select value={selectedLineOfBusiness || 'all'} onValueChange={(value) => setSelectedLineOfBusiness(value === 'all' ? null : value)}>
             <SelectTrigger>
               <SelectValue placeholder="Filter by Line of Business" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Lines of Business</SelectItem>
+              <SelectItem value="all">All Lines of Business</SelectItem>
               {lineOfBusinesses.map((lob) => (
                 <SelectItem key={lob} value={lob}>
                   {lob}
@@ -626,12 +626,12 @@ export function BatchesTab() {
             </SelectContent>
           </Select>
 
-          <Select value={selectedProcess || ''} onValueChange={(value) => setSelectedProcess(value || null)}>
+          <Select value={selectedProcess || 'all'} onValueChange={(value) => setSelectedProcess(value === 'all' ? null : value)}>
             <SelectTrigger>
               <SelectValue placeholder="Filter by Process" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Processes</SelectItem>
+              <SelectItem value="all">All Processes</SelectItem>
               {processes.map((process) => (
                 <SelectItem key={process} value={process}>
                   {process}
