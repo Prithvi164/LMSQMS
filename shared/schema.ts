@@ -27,8 +27,17 @@ export const organizationBatches = pgTable("organization_batches", {
   id: serial("id").primaryKey(),
   batchCode: text("batch_code").notNull().unique(),
   name: text("name").notNull(),
-  startDate: date("start_date").notNull(),
-  endDate: date("end_date").notNull(),
+  inductionStartDate: date("induction_start_date").notNull(),
+  inductionEndDate: date("induction_end_date"),
+  trainingStartDate: date("training_start_date"),
+  trainingEndDate: date("training_end_date"),
+  certificationStartDate: date("certification_start_date"),
+  certificationEndDate: date("certification_end_date"),
+  ojtStartDate: date("ojt_start_date"),
+  ojtEndDate: date("ojt_end_date"),
+  ojtCertificationStartDate: date("ojt_certification_start_date"),
+  ojtCertificationEndDate: date("ojt_certification_end_date"),
+  handoverToOpsDate: date("handover_to_ops_date"),
   status: batchStatusEnum("status").default('planned').notNull(),
   capacityLimit: integer("capacity_limit").notNull(),
   processId: integer("process_id")
@@ -86,8 +95,17 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
   .extend({
     batchCode: z.string().min(1, "Batch code is required"),
     name: z.string().min(1, "Batch name is required"),
-    startDate: z.string().min(1, "Start date is required"),
-    endDate: z.string().min(1, "End date is required"),
+    inductionStartDate: z.string().min(1, "Induction Start date is required"),
+    inductionEndDate: z.string().optional(),
+    trainingStartDate: z.string().optional(),
+    trainingEndDate: z.string().optional(),
+    certificationStartDate: z.string().optional(),
+    certificationEndDate: z.string().optional(),
+    ojtStartDate: z.string().optional(),
+    ojtEndDate: z.string().optional(),
+    ojtCertificationStartDate: z.string().optional(),
+    ojtCertificationEndDate: z.string().optional(),
+    handoverToOpsDate: z.string().optional(),
     capacityLimit: z.number().int().min(1, "Capacity must be at least 1"),
     status: z.enum(['planned', 'ongoing', 'completed']).default('planned'),
     processId: z.number().int().positive("Process is required"),
@@ -95,22 +113,7 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
     lineOfBusinessId: z.number().int().positive("Line of Business is required"),
     trainerId: z.number().int().positive("Trainer is required"),
     organizationId: z.number().int().positive("Organization is required"),
-  })
-  .refine(
-    (data) => {
-      try {
-        const startDate = new Date(data.startDate);
-        const endDate = new Date(data.endDate);
-        return endDate > startDate;
-      } catch {
-        return false;
-      }
-    },
-    {
-      message: "End date must be after start date",
-      path: ["endDate"], // This specifies which field the error is associated with
-    }
-  );
+  });
 
 export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
 

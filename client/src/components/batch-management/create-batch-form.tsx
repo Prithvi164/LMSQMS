@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { format, addDays, isSunday } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -23,51 +24,94 @@ import { insertOrganizationBatchSchema, type InsertOrganizationBatch } from "@sh
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 
+// Utility function to calculate working days excluding Sundays
+const addWorkingDays = (startDate: Date, days: number): Date => {
+  let currentDate = startDate;
+  let remainingDays = days;
+
+  while (remainingDays > 0) {
+    currentDate = addDays(currentDate, 1);
+    if (!isSunday(currentDate)) {
+      remainingDays--;
+    }
+  }
+
+  return currentDate;
+};
+
 export function CreateBatchForm() {
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
   const [selectedLob, setSelectedLob] = useState<number | null>(null);
+  const [calculatedDates, setCalculatedDates] = useState<{
+    inductionEnd: string;
+    trainingStart: string;
+    trainingEnd: string;
+    certificationStart: string;
+    certificationEnd: string;
+    ojtStart: string;
+    ojtEnd: string;
+    ojtCertificationStart: string;
+    ojtCertificationEnd: string;
+    handoverToOps: string;
+  }>({
+    inductionEnd: '',
+    trainingStart: '',
+    trainingEnd: '',
+    certificationStart: '',
+    certificationEnd: '',
+    ojtStart: '',
+    ojtEnd: '',
+    ojtCertificationStart: '',
+    ojtCertificationEnd: '',
+    handoverToOps: ''
+  });
 
   const form = useForm<InsertOrganizationBatch>({
     resolver: zodResolver(insertOrganizationBatchSchema),
     defaultValues: {
       status: 'planned',
-      organizationId: user?.organizationId || undefined, //Added undefined for better handling
-      startDate: '',
-      endDate: '',
-      capacityLimit: 1, // Added default value to prevent undefined error
+      organizationId: user?.organizationId || undefined,
+      inductionStartDate: '',
+      capacityLimit: 1,
       batchCode: '',
       name: '',
-      locationId: undefined, //Added undefined for better handling
-      lineOfBusinessId: undefined, //Added undefined for better handling
-      processId: undefined, //Added undefined for better handling
-      trainerId: undefined, //Added undefined for better handling
+      inductionEndDate:'',
+      trainingStartDate:'',
+      trainingEndDate:'',
+      certificationStartDate:'',
+      certificationEndDate:'',
+      ojtStartDate:'',
+      ojtEndDate:'',
+      ojtCertificationStartDate:'',
+      ojtCertificationEndDate:'',
+      handoverToOpsDate:''
     },
   });
 
   // Step 1: Fetch Locations
-  const { 
-    data: locations = [], 
-    isLoading: isLoadingLocations 
+  const {
+    data: locations = [],
+    isLoading: isLoadingLocations
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations`],
     enabled: !!user?.organizationId
   });
 
   // Step 2: Fetch LOBs based on selected location
-  const { 
-    data: lobs = [], 
-    isLoading: isLoadingLobs 
+  const {
+    data: lobs = [],
+    isLoading: isLoadingLobs
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations/${selectedLocation}/line-of-businesses`],
     enabled: !!selectedLocation && !!user?.organizationId
   });
 
   // Step 3: Fetch processes based on selected LOB
-  const { 
-    data: processes = [], 
+  const {
+    data: processes = [],
     isLoading: isLoadingProcesses
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${selectedLob}/processes`],
@@ -75,13 +119,13 @@ export function CreateBatchForm() {
   });
 
   // Fetch trainers with location filter
-  const { 
-    data: trainers = [], 
+  const {
+    data: trainers = [],
     isLoading: isLoadingTrainers
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/users`],
-    select: (users) => users?.filter((user) => 
-      user.role === 'trainer' && 
+    select: (users) => users?.filter((user) =>
+      user.role === 'trainer' &&
       (!selectedLocation || user.locationId === selectedLocation)
     ) || [], // Handle potential null or undefined users
     enabled: !!user?.organizationId
@@ -142,9 +186,8 @@ export function CreateBatchForm() {
       if (values.lineOfBusinessId === undefined) throw new Error('Line of Business is required');
       if (values.processId === undefined) throw new Error('Process is required');
       if (values.trainerId === undefined) throw new Error('Trainer is required');
-      if (!values.startDate) throw new Error('Start date is required');
-      if (!values.endDate) throw new Error('End date is required');
-      if (values.capacityLimit === undefined) throw new Error('Capacity limit is required');
+      if (!values.inductionStartDate) throw new Error('Start date is required');
+      if (!values.capacityLimit) throw new Error('Capacity limit is required');
 
 
       await createBatchMutation.mutateAsync(values);
@@ -158,6 +201,55 @@ export function CreateBatchForm() {
     }
   }
 
+  // Add effect to calculate dates when process and start date change
+  useEffect(() => {
+    const process = processes.find(p => p.id === form.getValues('processId'));
+    const startDateStr = form.getValues('inductionStartDate');
+
+    if (process && startDateStr) {
+      const startDate = new Date(startDateStr);
+
+      // Calculate all dates based on process days
+      const inductionEnd = addWorkingDays(startDate, process.inductionDays);
+      const trainingStart = addWorkingDays(inductionEnd, 1);
+      const trainingEnd = addWorkingDays(trainingStart, process.trainingDays);
+      const certificationStart = addWorkingDays(trainingEnd, 1);
+      const certificationEnd = addWorkingDays(certificationStart, process.certificationDays);
+      const ojtStart = addWorkingDays(certificationEnd, 1);
+      const ojtEnd = addWorkingDays(ojtStart, process.ojtDays);
+      const ojtCertificationStart = addWorkingDays(ojtEnd, 1);
+      const ojtCertificationEnd = addWorkingDays(ojtCertificationStart, process.ojtCertificationDays);
+      const handoverToOps = addWorkingDays(ojtCertificationEnd, 1);
+
+      // Update form values
+      form.setValue('inductionEndDate', format(inductionEnd, 'yyyy-MM-dd'));
+      form.setValue('trainingStartDate', format(trainingStart, 'yyyy-MM-dd'));
+      form.setValue('trainingEndDate', format(trainingEnd, 'yyyy-MM-dd'));
+      form.setValue('certificationStartDate', format(certificationStart, 'yyyy-MM-dd'));
+      form.setValue('certificationEndDate', format(certificationEnd, 'yyyy-MM-dd'));
+      form.setValue('ojtStartDate', format(ojtStart, 'yyyy-MM-dd'));
+      form.setValue('ojtEndDate', format(ojtEnd, 'yyyy-MM-dd'));
+      form.setValue('ojtCertificationStartDate', format(ojtCertificationStart, 'yyyy-MM-dd'));
+      form.setValue('ojtCertificationEndDate', format(ojtCertificationEnd, 'yyyy-MM-dd'));
+      form.setValue('handoverToOpsDate', format(handoverToOps, 'yyyy-MM-dd'));
+
+      // Update displayed dates
+      setCalculatedDates({
+        inductionEnd: format(inductionEnd, 'yyyy-MM-dd'),
+        trainingStart: format(trainingStart, 'yyyy-MM-dd'),
+        trainingEnd: format(trainingEnd, 'yyyy-MM-dd'),
+        certificationStart: format(certificationStart, 'yyyy-MM-dd'),
+        certificationEnd: format(certificationEnd, 'yyyy-MM-dd'),
+        ojtStart: format(ojtStart, 'yyyy-MM-dd'),
+        ojtEnd: format(ojtEnd, 'yyyy-MM-dd'),
+        ojtCertificationStart: format(ojtCertificationStart, 'yyyy-MM-dd'),
+        ojtCertificationEnd: format(ojtCertificationEnd, 'yyyy-MM-dd'),
+        handoverToOps: format(handoverToOps, 'yyyy-MM-dd')
+      });
+    }
+  }, [form.watch('inductionStartDate'), form.watch('processId'), processes]);
+
+  // Add date fields to the form
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -334,15 +426,14 @@ export function CreateBatchForm() {
           {/* Start Date */}
           <FormField
             control={form.control}
-            name="startDate"
+            name="inductionStartDate"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Start Date</FormLabel>
+                <FormLabel>Induction Start Date</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="date" 
-                    value={field.value || ''} 
-                    onChange={(e) => field.onChange(e.target.value)}
+                  <Input
+                    type="date"
+                    {...field}
                   />
                 </FormControl>
                 <FormMessage />
@@ -350,21 +441,175 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* End Date */}
+          {/* Display calculated dates as read-only fields */}
           <FormField
             control={form.control}
-            name="endDate"
+            name="inductionEndDate"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>End Date</FormLabel>
+                <FormLabel>Induction End Date</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="date" 
-                    value={field.value || ''} 
-                    onChange={(e) => field.onChange(e.target.value)}
+                  <Input
+                    type="date"
+                    value={calculatedDates.inductionEnd}
+                    disabled
                   />
                 </FormControl>
-                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Training Start/End */}
+          <FormField
+            control={form.control}
+            name="trainingStartDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Training Start Date</FormLabel>
+                <FormControl>
+                  <Input
+                    type="date"
+                    value={calculatedDates.trainingStart}
+                    disabled
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="trainingEndDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Training End Date</FormLabel>
+                <FormControl>
+                  <Input
+                    type="date"
+                    value={calculatedDates.trainingEnd}
+                    disabled
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
+          {/* Certification Start/End */}
+          <FormField
+            control={form.control}
+            name="certificationStartDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Certification Start Date</FormLabel>
+                <FormControl>
+                  <Input
+                    type="date"
+                    value={calculatedDates.certificationStart}
+                    disabled
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="certificationEndDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Certification End Date</FormLabel>
+                <FormControl>
+                  <Input
+                    type="date"
+                    value={calculatedDates.certificationEnd}
+                    disabled
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
+          {/* OJT Start/End */}
+          <FormField
+            control={form.control}
+            name="ojtStartDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>OJT Start Date</FormLabel>
+                <FormControl>
+                  <Input
+                    type="date"
+                    value={calculatedDates.ojtStart}
+                    disabled
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="ojtEndDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>OJT End Date</FormLabel>
+                <FormControl>
+                  <Input
+                    type="date"
+                    value={calculatedDates.ojtEnd}
+                    disabled
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
+          {/* OJT Certification Start/End */}
+          <FormField
+            control={form.control}
+            name="ojtCertificationStartDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>OJT Certification Start Date</FormLabel>
+                <FormControl>
+                  <Input
+                    type="date"
+                    value={calculatedDates.ojtCertificationStart}
+                    disabled
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="ojtCertificationEndDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>OJT Certification End Date</FormLabel>
+                <FormControl>
+                  <Input
+                    type="date"
+                    value={calculatedDates.ojtCertificationEnd}
+                    disabled
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
+          {/* Handover to Ops */}
+          <FormField
+            control={form.control}
+            name="handoverToOpsDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Handover to Ops Date</FormLabel>
+                <FormControl>
+                  <Input
+                    type="date"
+                    value={calculatedDates.handoverToOps}
+                    disabled
+                  />
+                </FormControl>
               </FormItem>
             )}
           />
@@ -394,14 +639,14 @@ export function CreateBatchForm() {
           />
         </div>
 
-        <div className="flex justify-end space-x-2">
+        <div className="col-span-2 flex justify-end space-x-2">
           <Button
             type="submit"
             disabled={
-              createBatchMutation.isPending || 
-              isLoadingLocations || 
-              isLoadingLobs || 
-              isLoadingProcesses || 
+              createBatchMutation.isPending ||
+              isLoadingLocations ||
+              isLoadingLobs ||
+              isLoadingProcesses ||
               isLoadingTrainers
             }
           >
