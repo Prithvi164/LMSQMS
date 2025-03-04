@@ -70,11 +70,14 @@ export function BatchesTab() {
     (searchQuery === '' ||
       batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       batch.status.toLowerCase().includes(searchQuery.toLowerCase())) &&
-    (selectedCategory === null || batch.batchCategory === selectedCategory)
+    (selectedCategory === null || (batch.batchCategory && batch.batchCategory === selectedCategory))
   );
 
-  // Get unique batch categories
-  const batchCategories = [...new Set(batches.map(batch => batch.batchCategory))];
+  // Get unique batch categories - handle undefined values
+  const batchCategories = [...new Set(batches
+    .map(batch => batch.batchCategory)
+    .filter(Boolean) // Remove undefined/null values
+  )];
 
   const deleteBatchMutation = useMutation({
     mutationFn: async (batchId: number) => {
@@ -159,7 +162,8 @@ export function BatchesTab() {
     }
   };
 
-  const formatBatchCategory = (category: string) => {
+  const formatBatchCategory = (category: string | undefined | null) => {
+    if (!category) return 'Uncategorized';
     return category
       .split('_')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
