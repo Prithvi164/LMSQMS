@@ -43,12 +43,21 @@ const addWorkingDays = (startDate: Date, days: number): Date => {
   return currentDate;
 };
 
+// Interface for date range
+interface DateRange {
+  start: Date;
+  end: Date;
+  label: string;
+  status: 'induction' | 'training' | 'certification' | 'ojt' | 'ojt-certification';
+}
+
 export function CreateBatchForm() {
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
   const [selectedLob, setSelectedLob] = useState<number | null>(null);
+  const [dateRanges, setDateRanges] = useState<DateRange[]>([]);
   const [calculatedDates, setCalculatedDates] = useState<{
     inductionEnd: string;
     trainingStart: string;
@@ -140,7 +149,6 @@ export function CreateBatchForm() {
       }
 
       try {
-        console.log('Submitting batch data:', values);
         const response = await fetch(`/api/organizations/${user.organizationId}/batches`, {
           method: 'POST',
           headers: {
@@ -169,6 +177,7 @@ export function CreateBatchForm() {
       form.reset();
       setSelectedLocation(null);
       setSelectedLob(null);
+      setDateRanges([]);
     },
     onError: (error: Error) => {
       console.error('Error creating batch:', error);
@@ -202,6 +211,27 @@ export function CreateBatchForm() {
     }
   }
 
+  const getDateRangeClassName = (date: Date): string => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const range = dateRanges.find(r => 
+      dateStr >= format(r.start, 'yyyy-MM-dd') && 
+      dateStr <= format(r.end, 'yyyy-MM-dd')
+    );
+
+    if (!range) return '';
+
+    return cn(
+      'bg-opacity-50',
+      {
+        'bg-blue-200': range.status === 'induction',
+        'bg-green-200': range.status === 'training',
+        'bg-yellow-200': range.status === 'certification',
+        'bg-purple-200': range.status === 'ojt',
+        'bg-pink-200': range.status === 'ojt-certification',
+      }
+    );
+  };
+
   useEffect(() => {
     const process = processes.find(p => p.id === form.getValues('processId'));
     const startDateStr = form.getValues('startDate');
@@ -209,11 +239,8 @@ export function CreateBatchForm() {
     if (process && startDateStr) {
       try {
         const startDate = new Date(startDateStr);
-
-        // Set induction start date same as batch start date
         form.setValue('inductionStartDate', format(startDate, 'yyyy-MM-dd'));
 
-        // Calculate all dates based on process days
         const inductionEnd = addWorkingDays(startDate, process.inductionDays);
         const trainingStart = addWorkingDays(inductionEnd, 1);
         const trainingEnd = addWorkingDays(trainingStart, process.trainingDays);
@@ -225,10 +252,41 @@ export function CreateBatchForm() {
         const ojtCertificationEnd = addWorkingDays(ojtCertificationStart, process.ojtCertificationDays);
         const handoverToOps = addWorkingDays(ojtCertificationEnd, 1);
 
-        // Set the batch end date to be the same as handover to ops date
-        form.setValue('endDate', format(handoverToOps, 'yyyy-MM-dd'));
+        // Update date ranges for visualization
+        setDateRanges([
+          {
+            start: startDate,
+            end: inductionEnd,
+            label: 'Induction',
+            status: 'induction'
+          },
+          {
+            start: trainingStart,
+            end: trainingEnd,
+            label: 'Training',
+            status: 'training'
+          },
+          {
+            start: certificationStart,
+            end: certificationEnd,
+            label: 'Certification',
+            status: 'certification'
+          },
+          {
+            start: ojtStart,
+            end: ojtEnd,
+            label: 'OJT',
+            status: 'ojt'
+          },
+          {
+            start: ojtCertificationStart,
+            end: ojtCertificationEnd,
+            label: 'OJT Certification',
+            status: 'ojt-certification'
+          }
+        ]);
 
-        // Update form values
+        form.setValue('endDate', format(handoverToOps, 'yyyy-MM-dd'));
         form.setValue('inductionEndDate', format(inductionEnd, 'yyyy-MM-dd'));
         form.setValue('trainingStartDate', format(trainingStart, 'yyyy-MM-dd'));
         form.setValue('trainingEndDate', format(trainingEnd, 'yyyy-MM-dd'));
@@ -240,7 +298,6 @@ export function CreateBatchForm() {
         form.setValue('ojtCertificationEndDate', format(ojtCertificationEnd, 'yyyy-MM-dd'));
         form.setValue('handoverToOpsDate', format(handoverToOps, 'yyyy-MM-dd'));
 
-        // Update displayed dates
         setCalculatedDates({
           inductionEnd: format(inductionEnd, 'yyyy-MM-dd'),
           trainingStart: format(trainingStart, 'yyyy-MM-dd'),
@@ -462,12 +519,21 @@ export function CreateBatchForm() {
                     <Calendar
                       mode="single"
                       selected={field.value ? new Date(field.value) : undefined}
-                      onSelect={(date) => {
-                        const dateStr = date ? format(date, 'yyyy-MM-dd') : '';
-                        field.onChange(dateStr);
+                      onSelect={(date) => field.onChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                      disabled={(date) => isSunday(date) || date < new Date()}
+                      modifiers={{
+                        highlighted: dateRanges.flatMap(range => {
+                          const dates = [];
+                          let current = range.start;
+                          while (current <= range.end) {
+                            dates.push(current);
+                            current = addDays(current, 1);
+                          }
+                          return dates;
+                        })
                       }}
-                      disabled={(date) => {
-                        return isSunday(date) || date < new Date();
+                      modifiersClassNames={{
+                        highlighted: (date) => getDateRangeClassName(date)
                       }}
                       initialFocus
                     />
@@ -497,197 +563,32 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Induction Start Date */}
-          <FormField
-            control={form.control}
-            name="inductionStartDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Induction Start Date</FormLabel>
-                <FormControl>
-                  <Input
-                    type="text"
-                    value={field.value ? format(new Date(field.value), "PPP") : ''}
-                    disabled
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Display calculated dates as read-only fields */}
-          <FormField
-            control={form.control}
-            name="inductionEndDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Induction End Date</FormLabel>
-                <FormControl>
-                  <Input
-                    type="text"
-                    value={calculatedDates.inductionEnd ? format(new Date(calculatedDates.inductionEnd), "PPP") : ''}
-                    disabled
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-
-          {/* Training Start/End */}
-          <FormField
-            control={form.control}
-            name="trainingStartDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Training Start Date</FormLabel>
-                <FormControl>
-                  <Input
-                    type="text"
-                    value={calculatedDates.trainingStart ? format(new Date(calculatedDates.trainingStart), "PPP") : ''}
-                    disabled
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="trainingEndDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Training End Date</FormLabel>
-                <FormControl>
-                  <Input
-                    type="text"
-                    value={calculatedDates.trainingEnd ? format(new Date(calculatedDates.trainingEnd), "PPP") : ''}
-                    disabled
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-
-          {/* Certification Start/End */}
-          <FormField
-            control={form.control}
-            name="certificationStartDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Certification Start Date</FormLabel>
-                <FormControl>
-                  <Input
-                    type="text"
-                    value={calculatedDates.certificationStart ? format(new Date(calculatedDates.certificationStart), "PPP") : ''}
-                    disabled
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="certificationEndDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Certification End Date</FormLabel>
-                <FormControl>
-                  <Input
-                    type="text"
-                    value={calculatedDates.certificationEnd ? format(new Date(calculatedDates.certificationEnd), "PPP") : ''}
-                    disabled
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-
-          {/* OJT Start/End */}
-          <FormField
-            control={form.control}
-            name="ojtStartDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>OJT Start Date</FormLabel>
-                <FormControl>
-                  <Input
-                    type="text"
-                    value={calculatedDates.ojtStart ? format(new Date(calculatedDates.ojtStart), "PPP") : ''}
-                    disabled
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="ojtEndDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>OJT End Date</FormLabel>
-                <FormControl>
-                  <Input
-                    type="text"
-                    value={calculatedDates.ojtEnd ? format(new Date(calculatedDates.ojtEnd), "PPP") : ''}
-                    disabled
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-
-          {/* OJT Certification Start/End */}
-          <FormField
-            control={form.control}
-            name="ojtCertificationStartDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>OJT Certification Start Date</FormLabel>
-                <FormControl>
-                  <Input
-                    type="text"
-                    value={calculatedDates.ojtCertificationStart ? format(new Date(calculatedDates.ojtCertificationStart), "PPP") : ''}
-                    disabled
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="ojtCertificationEndDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>OJT Certification End Date</FormLabel>
-                <FormControl>
-                  <Input
-                    type="text"
-                    value={calculatedDates.ojtCertificationEnd ? format(new Date(calculatedDates.ojtCertificationEnd), "PPP") : ''}
-                    disabled
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-
-          {/* Handover to Ops */}
-          <FormField
-            control={form.control}
-            name="handoverToOpsDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Handover to Ops Date</FormLabel>
-                <FormControl>
-                  <Input
-                    type="text"
-                    value={calculatedDates.handoverToOps ? format(new Date(calculatedDates.handoverToOps), "PPP") : ''}
-                    disabled
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
+          {/* Date Range Preview */}
+          <div className="col-span-2 space-y-2 p-4 border rounded-lg">
+            <h3 className="font-semibold">Date Range Preview</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {dateRanges.map((range, index) => (
+                <div
+                  key={index}
+                  className={cn(
+                    "p-2 rounded",
+                    {
+                      'bg-blue-200': range.status === 'induction',
+                      'bg-green-200': range.status === 'training',
+                      'bg-yellow-200': range.status === 'certification',
+                      'bg-purple-200': range.status === 'ojt',
+                      'bg-pink-200': range.status === 'ojt-certification',
+                    }
+                  )}
+                >
+                  <div className="font-medium">{range.label}</div>
+                  <div className="text-sm">
+                    {format(range.start, "MMM d, yyyy")} - {format(range.end, "MMM d, yyyy")}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
 
           {/* Capacity Limit */}
           <FormField
