@@ -685,12 +685,15 @@ export function BatchesTab() {
           </Button>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 mt-4 border-t pt-4">
+          <div className="w-full mb-2">
+            <h3 className="text-sm font-medium text-muted-foreground">Batch Categories</h3>
+          </div>
           <Button
             variant={selectedCategory === null ? "secondary" : "outline"}
             size="sm"
             onClick={() => setSelectedCategory(null)}
-            className="transition-colors"
+            className="transition-colors hover:bg-secondary/80"
           >
             All Categories
           </Button>
@@ -700,12 +703,13 @@ export function BatchesTab() {
               variant={selectedCategory === category ? "secondary" : "outline"}
               size="sm"
               onClick={() => setSelectedCategory(category)}
-              className="transition-colors"
+              className="transition-colors hover:bg-secondary/80"
             >
               {formatBatchCategory(category)}
             </Button>
           ))}
         </div>
+
       </div>
 
       {batches.length > 0 ? (
