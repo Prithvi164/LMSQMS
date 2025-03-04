@@ -75,13 +75,14 @@ export function BatchesTab() {
   // Check if user has permission to edit/delete batches
   const canManageBatches = user?.role === 'admin' || user?.role === 'owner';
 
+  // Add logging to see the full API response
   const {
     data: batches = [],
     isLoading,
     error
   } = useQuery<OrganizationBatch[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches`],
-    enabled: !!user?.organizationId
+    enabled: !!user?.organizationId,
   });
 
   // Get unique values for filters
@@ -90,28 +91,21 @@ export function BatchesTab() {
   const processes = [...new Set(batches.map(batch => batch.process?.name).filter(Boolean))];
   const statuses = [...new Set(batches.map(batch => batch.status))];
 
-  // Get unique batch categories with proper typing
-  const uniqueBatchCategories = ["new_training", "upskill"] as const;
-
-  // Filter batches with debug logging
+  // Filter batches with all conditions
   const filteredBatches = batches.filter(batch => {
-    // Check if batch category is defined and matches selected category
-    const matchesCategory = selectedCategory === null || 
-      (batch.batchCategory && batch.batchCategory.toString() === selectedCategory);
-
-    console.log('Debug - Filtering Batch:', {
-      batchName: batch.name,
-      batchCategory: batch.batchCategory || 'undefined',
-      selectedCategory,
-      matchesCategory,
-      comparisonResult: `${batch.batchCategory || 'undefined'} === ${selectedCategory}`
+    // Log each batch and its category for debugging
+    console.log('Processing batch:', {
+      name: batch.name,
+      rawCategory: batch.batchCategory,
+      selectedCategory: selectedCategory,
+      match: selectedCategory === null || batch.batchCategory === selectedCategory
     });
 
     return (
       (searchQuery === '' ||
         batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         batch.status.toLowerCase().includes(searchQuery.toLowerCase())) &&
-      matchesCategory &&
+      (selectedCategory === null || batch.batchCategory === selectedCategory) &&
       (selectedStatus === null || batch.status === selectedStatus) &&
       (selectedLocation === null || batch.location?.name === selectedLocation) &&
       (selectedLineOfBusiness === null || batch.line_of_business?.name === selectedLineOfBusiness) &&
@@ -554,7 +548,20 @@ export function BatchesTab() {
     setSelectedCategory(null);
   };
 
-  // Add detailed logging for batches
+  // Add debug logging for category filtering
+  useEffect(() => {
+    if (selectedCategory) {
+      console.log('Category filter debug:', {
+        selectedCategory,
+        totalBatches: batches.length,
+        filteredBatches: filteredBatches.length,
+        batchesWithCategory: batches.filter(b => b.batchCategory === selectedCategory).length,
+        categories: batches.map(b => ({ name: b.name, category: b.batchCategory }))
+      });
+    }
+  }, [selectedCategory, batches, filteredBatches]);
+
+
   useEffect(() => {
     console.log('Debug - Batch Data:', {
       allBatches: batches,
@@ -566,7 +573,6 @@ export function BatchesTab() {
     });
   }, [batches]);
 
-  // Add logging for category selection
   useEffect(() => {
     console.log('Debug - Category Selection:', {
       selectedCategory,
