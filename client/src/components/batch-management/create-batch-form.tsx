@@ -282,7 +282,7 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Batch Start Date */}
+          {/* Batch Start Date (Induction Start Date) */}
           <FormField
             control={form.control}
             name="inductionStartDate"
@@ -328,17 +328,17 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Batch End Date */}
+          {/* Batch End Date (OJT End Date) */}
           <FormField
             control={form.control}
-            name="handoverToOpsDate"
+            name="ojtEndDate"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Batch End Date</FormLabel>
                 <FormControl>
                   <Input
                     type="text"
-                    value={calculatedDates.handoverToOps ? format(new Date(calculatedDates.handoverToOps), "PPP") : ''}
+                    value={calculatedDates.ojtEnd ? format(new Date(calculatedDates.ojtEnd), "PPP") : ''}
                     disabled
                   />
                 </FormControl>
@@ -520,7 +520,6 @@ export function CreateBatchForm() {
               </FormItem>
             )}
           />
-
           <FormField
             control={form.control}
             name="trainingEndDate"

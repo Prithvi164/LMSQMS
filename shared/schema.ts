@@ -34,10 +34,10 @@ export const organizationBatches = pgTable("organization_batches", {
   certificationStartDate: date("certification_start_date"),
   certificationEndDate: date("certification_end_date"),
   ojtStartDate: date("ojt_start_date"),
-  ojtEndDate: date("ojt_end_date"),
+  ojtEndDate: date("ojt_end_date"), // This is also Batch End Date
   ojtCertificationStartDate: date("ojt_certification_start_date"),
   ojtCertificationEndDate: date("ojt_certification_end_date"),
-  handoverToOpsDate: date("handover_to_ops_date"), // This is also Batch End Date
+  handoverToOpsDate: date("handover_to_ops_date"),
   status: batchStatusEnum("status").default('planned').notNull(),
   capacityLimit: integer("capacity_limit").notNull(),
   processId: integer("process_id")
@@ -102,7 +102,7 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
     certificationStartDate: z.string().optional(),
     certificationEndDate: z.string().optional(),
     ojtStartDate: z.string().optional(),
-    ojtEndDate: z.string().optional(),
+    ojtEndDate: z.string().optional(), // This will be the Batch End Date
     ojtCertificationStartDate: z.string().optional(),
     ojtCertificationEndDate: z.string().optional(),
     handoverToOpsDate: z.string().optional(),
