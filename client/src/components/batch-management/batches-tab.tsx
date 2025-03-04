@@ -93,28 +93,22 @@ export function BatchesTab() {
 
   // Filter batches with all conditions
   const filteredBatches = batches.filter(batch => {
-    // Debug logging for category matching
-    console.log('Category Changed:', {
-      newValue: selectedCategory,
-      willBecome: selectedCategory === 'all' ? null : selectedCategory
-    });
+    // Access the raw value of batchCategory
+    const batchCategory = String(batch.batchCategory || '');
 
-    // Category filter debug
-    console.log('Category filter debug:', { 
-      selectedCategory: selectedCategory,
-      filteringBatch: {
-        name: batch.name,
-        rawCategory: batch.batchCategory,
-        match: selectedCategory === null || 
-               batch.batchCategory === selectedCategory
-      }
+    // Debug logging
+    console.log('Processing batch:', {
+      name: batch.name,
+      batchCategory,
+      selectedCategory,
+      match: selectedCategory === null || batchCategory === selectedCategory
     });
 
     return (
       (searchQuery === '' ||
         batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         batch.status.toLowerCase().includes(searchQuery.toLowerCase())) &&
-      (selectedCategory === null || batch.batchCategory === selectedCategory) &&
+      (selectedCategory === null || batchCategory === selectedCategory) &&
       (selectedStatus === null || batch.status === selectedStatus) &&
       (selectedLocation === null || batch.location?.name === selectedLocation) &&
       (selectedLineOfBusiness === null || batch.line_of_business?.name === selectedLineOfBusiness) &&
@@ -562,14 +556,14 @@ export function BatchesTab() {
     if (selectedCategory) {
       console.log('Category filter debug:', {
         selectedCategory,
-        totalBatches: batches.length,
-        filteredBatches: filteredBatches.length,
-        batchesWithCategory: batches.filter(b => b.batchCategory === selectedCategory).length,
-        categories: batches.map(b => ({ name: b.name, category: b.batchCategory }))
+        allCategories: batches.map(b => ({
+          name: b.name,
+          category: String(b.batchCategory || ''),
+          rawValue: b.batchCategory
+        }))
       });
     }
-  }, [selectedCategory, batches, filteredBatches]);
-
+  }, [selectedCategory, batches]);
 
   useEffect(() => {
     console.log('Debug - Batch Data:', {
