@@ -522,15 +522,26 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     }
   }
 
+  // Update the date ranges part of useEffect to include zero-day phases
   const getDateRangeClassName = (date: Date): string => {
     const dateStr = format(date, 'yyyy-MM-dd');
-    const range = dateRanges.find(r =>
+    const ranges = dateRanges.filter(r =>
       dateStr >= format(r.start, 'yyyy-MM-dd') &&
       dateStr <= format(r.end, 'yyyy-MM-dd')
     );
 
-    if (!range) return '';
+    if (ranges.length === 0) return '';
 
+    // If multiple phases on same day, use a special combined style
+    if (ranges.length > 1) {
+      return cn(
+        'bg-gradient-to-r',
+        'from-blue-200 via-green-200 to-yellow-200',
+        'bg-opacity-50'
+      );
+    }
+
+    const range = ranges[0];
     return cn(
       'bg-opacity-50',
       {
@@ -539,6 +550,10 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
         'bg-yellow-200': range.status === 'certification',
         'bg-purple-200': range.status === 'ojt',
         'bg-pink-200': range.status === 'ojt-certification',
+      },
+      // Add a border for zero-day phases
+      {
+        'border-2 border-dashed': isSameDay(range.start, range.end)
       }
     );
   };
@@ -631,10 +646,17 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
             label: 'OJT Certification',
             status: 'ojt-certification'
           }
-        ].filter(range =>
-          // Only show ranges for phases that have days > 0
-          !isSameDay(range.start, range.end)
-        ));
+        ].filter(range => {
+          // Include ranges where:
+          // 1. The phase has days (start != end)
+          // 2. OR it's a zero-day phase that coincides with previous phase's end
+          const isZeroDayPhase = isSameDay(range.start, range.end);
+          if (!isZeroDayPhase) return true;
+
+          // For zero-day phases, check if it's part of a valid transition
+          const previousRange = dateRanges[dateRanges.length -1]; //using previous dateRanges here is fine, as the array is not yet updated in this useEffect
+          return previousRange && isSameDay(previousRange.end, range.start);
+        }));
 
       } catch (error) {
         console.error('Error calculating dates:', error);
