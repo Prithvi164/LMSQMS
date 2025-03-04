@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, Loader2, Plus, Trash2, Edit, Calendar as CalendarIcon, List } from "lucide-react";
+import { Search, Loader2, Plus, Trash2, Edit, Eye, Calendar as CalendarIcon, List } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -310,66 +310,78 @@ export function BatchesTab() {
     <div className="rounded-md border">
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead>Date</TableHead>
+          <TableRow className="bg-muted/50">
+            <TableHead className="w-[200px]">Date</TableHead>
             <TableHead>Location</TableHead>
             <TableHead>Line of Business</TableHead>
             <TableHead>Process</TableHead>
             <TableHead>Batch Name</TableHead>
-            <TableHead>Category</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Trainer</TableHead>
-            <TableHead>Capacity</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {filteredBatches.map((batch) => (
-            <TableRow key={batch.id}>
-              <TableCell>
+            <TableRow
+              key={batch.id}
+              className="hover:bg-muted/50 transition-colors group"
+            >
+              <TableCell className="font-medium text-right whitespace-nowrap">
                 {format(new Date(batch.startDate), 'MMM d, yyyy')} -
                 {format(new Date(batch.endDate), 'MMM d, yyyy')}
               </TableCell>
               <TableCell>{batch.location?.name}</TableCell>
               <TableCell>{batch.lineOfBusiness?.name}</TableCell>
               <TableCell>{batch.process?.name}</TableCell>
-              <TableCell>{batch.name}</TableCell>
               <TableCell>
-                <Badge variant="outline">
+                <div className="font-semibold group-hover:text-primary transition-colors">
+                  {batch.name}
+                </div>
+                <Badge
+                  variant="outline"
+                  className="mt-1 text-xs"
+                >
                   {formatBatchCategory(batch.batchCategory)}
                 </Badge>
               </TableCell>
               <TableCell>
-                <Badge variant="secondary" className={getStatusColor(batch.status)}>
+                <Badge
+                  variant="secondary"
+                  className={`${getStatusColor(batch.status)} px-2 py-1`}
+                >
                   {batch.status.charAt(0).toUpperCase() + batch.status.slice(1)}
                 </Badge>
               </TableCell>
-              <TableCell>{batch.trainer?.fullName}</TableCell>
-              <TableCell>{batch.capacityLimit}</TableCell>
-              <TableCell className="text-right space-x-2">
-                <Button variant="outline" size="sm">
-                  View Details
-                </Button>
-                {canManageBatches && (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEditClick(batch)}
-                      disabled={batch.status !== 'planned'}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteClick(batch)}
-                      disabled={batch.status !== 'planned'}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </>
-                )}
+              <TableCell className="text-right">
+                <div className="flex items-center justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  {canManageBatches && batch.status === 'planned' && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditClick(batch)}
+                        className="h-8 w-8 p-0 hover:text-primary"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteClick(batch)}
+                        className="h-8 w-8 p-0 hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                </div>
               </TableCell>
             </TableRow>
           ))}
