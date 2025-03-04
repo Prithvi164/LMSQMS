@@ -46,6 +46,13 @@ export function BatchesTab() {
     }
   };
 
+  const formatBatchCategory = (category: string) => {
+    return category
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -86,8 +93,8 @@ export function BatchesTab() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Batch Code</TableHead>
                 <TableHead>Name</TableHead>
+                <TableHead>Category</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Process</TableHead>
                 <TableHead>Location</TableHead>
@@ -100,8 +107,12 @@ export function BatchesTab() {
             <TableBody>
               {batches.map((batch) => (
                 <TableRow key={batch.id}>
-                  <TableCell className="font-medium">{batch.batchCode}</TableCell>
                   <TableCell>{batch.name}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">
+                      {formatBatchCategory(batch.batchCategory)}
+                    </Badge>
+                  </TableCell>
                   <TableCell>
                     <Badge variant="secondary" className={getStatusColor(batch.status)}>
                       {batch.status.charAt(0).toUpperCase() + batch.status.slice(1)}
