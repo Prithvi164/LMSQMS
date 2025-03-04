@@ -10,7 +10,7 @@ export const batchStatusEnum = pgEnum('batch_status', [
   'completed'
 ]);
 
-// Existing enums remain unchanged
+// Existing enums remain unchanged...
 export const userCategoryTypeEnum = pgEnum('user_category_type', ['active', 'trainee']);
 export const roleEnum = pgEnum('role', [
   'owner',     
@@ -27,9 +27,7 @@ export const organizationBatches = pgTable("organization_batches", {
   id: serial("id").primaryKey(),
   batchCode: text("batch_code").notNull().unique(),
   name: text("name").notNull(),
-  batchStartDate: date("batch_start_date").notNull(),  
-  batchEndDate: date("batch_end_date"),                
-  inductionStartDate: date("induction_start_date"),   
+  inductionStartDate: date("induction_start_date").notNull(),
   inductionEndDate: date("induction_end_date"),
   trainingStartDate: date("training_start_date"),
   trainingEndDate: date("training_end_date"),
@@ -97,9 +95,7 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
   .extend({
     batchCode: z.string().min(1, "Batch code is required"),
     name: z.string().min(1, "Batch name is required"),
-    batchStartDate: z.string().min(1, "Batch Start date is required"),
-    batchEndDate: z.string().optional(),
-    inductionStartDate: z.string().optional(),
+    inductionStartDate: z.string().min(1, "Induction Start date is required"),
     inductionEndDate: z.string().optional(),
     trainingStartDate: z.string().optional(),
     trainingEndDate: z.string().optional(),
@@ -122,7 +118,7 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
 export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
 
 
-// Rest of the enums and tables remain unchanged
+// Rest of the enums and tables remain unchanged...
 export const permissionEnum = pgEnum('permission', [
   'manage_billing',
   'manage_subscription',
@@ -261,9 +257,9 @@ export const userProcesses = pgTable("user_processes", {
     .references(() => organizations.id)
     .notNull(),
   lineOfBusinessId: integer("line_of_business_id")
-    .references(() => organizationLineOfBusinesses.id),  
+    .references(() => organizationLineOfBusinesses.id),  // Made nullable
   locationId: integer("location_id")
-    .references(() => organizationLocations.id),  
+    .references(() => organizationLocations.id),  // Made nullable
   status: text("status").default('assigned').notNull(),
   assignedAt: timestamp("assigned_at").defaultNow().notNull(),
   completedAt: timestamp("completed_at"),
