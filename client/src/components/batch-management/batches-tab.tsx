@@ -67,7 +67,7 @@ export function BatchesTab() {
 
   // Filter batches
   const filteredBatches = batches.filter(batch =>
-    (searchQuery === '' || 
+    (searchQuery === '' ||
       batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       batch.status.toLowerCase().includes(searchQuery.toLowerCase())) &&
     (selectedCategory === null || batch.batchCategory === selectedCategory)
@@ -306,12 +306,12 @@ export function BatchesTab() {
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50">
-            <TableHead className="w-[150px]">Start Date</TableHead>
-            <TableHead>Batch Name</TableHead>
-            <TableHead>Location</TableHead>
-            <TableHead>Line of Business</TableHead>
-            <TableHead>Process</TableHead>
-            <TableHead>Status</TableHead>
+            <TableHead className="w-[150px] text-center">Start Date</TableHead>
+            <TableHead className="text-center">Batch Name</TableHead>
+            <TableHead className="text-center">Location</TableHead>
+            <TableHead className="text-center">Line of Business</TableHead>
+            <TableHead className="text-center">Process</TableHead>
+            <TableHead className="text-center">Status</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -321,21 +321,21 @@ export function BatchesTab() {
               key={batch.id}
               className="hover:bg-muted/50 transition-colors group"
             >
-              <TableCell className="font-medium text-right whitespace-nowrap">
+              <TableCell className="font-medium text-center whitespace-nowrap">
                 {format(new Date(batch.startDate), 'MMM d, yyyy')}
               </TableCell>
-              <TableCell>
+              <TableCell className="text-center">
                 <div className="font-semibold group-hover:text-primary transition-colors">
                   {batch.name}
                 </div>
               </TableCell>
-              <TableCell>{batch.location?.name}</TableCell>
-              <TableCell>{batch.lineOfBusiness?.name}</TableCell>
-              <TableCell>{batch.process?.name}</TableCell>
-              <TableCell>
+              <TableCell className="text-center">{batch.location?.name}</TableCell>
+              <TableCell className="text-center">{batch.lineOfBusiness?.name}</TableCell>
+              <TableCell className="text-center">{batch.process?.name}</TableCell>
+              <TableCell className="text-center">
                 <Badge
                   variant="secondary"
-                  className={`${getStatusColor(batch.status)} px-2 py-1`}
+                  className={`${getStatusColor(batch.status)} px-2 py-1 inline-flex justify-center`}
                 >
                   {batch.status.charAt(0).toUpperCase() + batch.status.slice(1)}
                 </Badge>
