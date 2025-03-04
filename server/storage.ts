@@ -25,6 +25,11 @@ import {
   type OrganizationLocation,
   type InsertOrganizationLocation,
 } from "@shared/schema";
+import { 
+  batchTemplates,
+  type BatchTemplate,
+  type InsertBatchTemplate,
+} from "@shared/schema";
 
 export interface IStorage {
   // User operations
@@ -95,6 +100,12 @@ export interface IStorage {
   updateBatch(id: number, batch: Partial<InsertOrganizationBatch>): Promise<OrganizationBatch>;
   deleteBatch(id: number): Promise<void>;
   getLineOfBusinessesByLocation(organizationId: number, locationId: number): Promise<OrganizationLineOfBusiness[]>;
+
+  // Batch Template operations
+  createBatchTemplate(template: InsertBatchTemplate): Promise<BatchTemplate>;
+  listBatchTemplates(organizationId: number): Promise<BatchTemplate[]>;
+  getBatchTemplate(id: number): Promise<BatchTemplate | undefined>;
+  deleteBatchTemplate(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -965,7 +976,7 @@ export class DatabaseStorage implements IStorage {
 
       if (!trainers.length) {
         console.log(`No trainers found for location ${locationId}`);
-        return [];
+                return [];
       }
 
       // Get LOBs from user_processes for these trainers
@@ -1000,6 +1011,78 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error fetching LOBs by location:', error);
       throw new Error('Failed to fetch LOBs');
+    }
+  }
+  // Batch Template operations
+  async createBatchTemplate(template: InsertBatchTemplate): Promise<BatchTemplate> {
+    try {
+      console.log('Creating batch template with data:', {
+        ...template,
+        organizationId: template.organizationId
+      });
+
+      const [newTemplate] = await db
+        .insert(batchTemplates)
+        .values(template)
+        .returning() as BatchTemplate[];
+
+      console.log('Successfully created batch template:', newTemplate);
+      return newTemplate;
+    } catch (error: any) {
+      console.error('Error creating batch template:', error);
+      throw error;
+    }
+  }
+
+  async listBatchTemplates(organizationId: number): Promise<BatchTemplate[]> {
+    try {
+      console.log(`Fetching batch templates for organization ${organizationId}`);
+      const templates = await db
+        .select()
+        .from(batchTemplates)
+        .where(eq(batchTemplates.organizationId, organizationId)) as BatchTemplate[];
+
+      console.log(`Found ${templates.length} templates`);
+      return templates;
+    } catch (error) {
+      console.error('Error fetching batch templates:', error);
+      throw error;
+    }
+  }
+
+  async getBatchTemplate(id: number): Promise<BatchTemplate | undefined> {
+    try {
+      console.log(`Fetching batch template with ID: ${id}`);
+      const [template] = await db
+        .select()
+        .from(batchTemplates)
+        .where(eq(batchTemplates.id, id)) as BatchTemplate[];
+
+      console.log('Template found:', template);
+      return template;
+    } catch (error) {
+      console.error('Error fetching batch template:', error);
+      throw error;
+    }
+  }
+
+  async deleteBatchTemplate(id: number): Promise<void> {
+    try {
+      console.log(`Attempting to delete batch template with ID: ${id}`);
+
+      const result = await db
+        .delete(batchTemplates)
+        .where(eq(batchTemplates.id, id))
+        .returning();
+
+      if (!result.length) {
+        throw new Error('Batch template not found or deletion failed');
+      }
+
+      console.log(`Successfully deleted batch template with ID: ${id}`);
+    } catch (error) {
+      console.error('Error deleting batch template:', error);
+      throw error;
     }
   }
 }
