@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format, addDays, isSunday, parse } from "date-fns";
+import { format, addDays, isSunday } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -82,16 +82,6 @@ export function CreateBatchForm() {
       capacityLimit: 1,
       batchCode: '',
       name: '',
-      inductionEndDate:'',
-      trainingStartDate:'',
-      trainingEndDate:'',
-      certificationStartDate:'',
-      certificationEndDate:'',
-      ojtStartDate:'',
-      ojtEndDate:'',
-      ojtCertificationStartDate:'',
-      ojtCertificationEndDate:'',
-      handoverToOpsDate:''
     },
   });
 
@@ -186,34 +176,14 @@ export function CreateBatchForm() {
     try {
       if (!values.batchCode) throw new Error('Batch code is required');
       if (!values.name) throw new Error('Batch name is required');
-      if (!values.inductionStartDate) throw new Error('Induction Start date is required');
+      if (!values.inductionStartDate) throw new Error('Batch Start date is required');
       if (values.locationId === undefined) throw new Error('Location is required');
       if (values.lineOfBusinessId === undefined) throw new Error('Line of Business is required');
       if (values.processId === undefined) throw new Error('Process is required');
       if (values.trainerId === undefined) throw new Error('Trainer is required');
       if (values.capacityLimit === undefined) throw new Error('Capacity limit is required');
 
-      // Convert any Date objects to strings before submitting
-      const formattedValues: InsertOrganizationBatch = {
-        ...values,
-        inductionStartDate: typeof values.inductionStartDate === 'string' 
-          ? values.inductionStartDate 
-          : format(values.inductionStartDate as unknown as Date, 'yyyy-MM-dd'),
-        inductionEndDate: typeof values.inductionEndDate === 'string' ? values.inductionEndDate : format(values.inductionEndDate as unknown as Date, 'yyyy-MM-dd'),
-        trainingStartDate: typeof values.trainingStartDate === 'string' ? values.trainingStartDate : format(values.trainingStartDate as unknown as Date, 'yyyy-MM-dd'),
-        trainingEndDate: typeof values.trainingEndDate === 'string' ? values.trainingEndDate : format(values.trainingEndDate as unknown as Date, 'yyyy-MM-dd'),
-        certificationStartDate: typeof values.certificationStartDate === 'string' ? values.certificationStartDate : format(values.certificationStartDate as unknown as Date, 'yyyy-MM-dd'),
-        certificationEndDate: typeof values.certificationEndDate === 'string' ? values.certificationEndDate : format(values.certificationEndDate as unknown as Date, 'yyyy-MM-dd'),
-        ojtStartDate: typeof values.ojtStartDate === 'string' ? values.ojtStartDate : format(values.ojtStartDate as unknown as Date, 'yyyy-MM-dd'),
-        ojtEndDate: typeof values.ojtEndDate === 'string' ? values.ojtEndDate : format(values.ojtEndDate as unknown as Date, 'yyyy-MM-dd'),
-        ojtCertificationStartDate: typeof values.ojtCertificationStartDate === 'string' ? values.ojtCertificationStartDate : format(values.ojtCertificationStartDate as unknown as Date, 'yyyy-MM-dd'),
-        ojtCertificationEndDate: typeof values.ojtCertificationEndDate === 'string' ? values.ojtCertificationEndDate : format(values.ojtCertificationEndDate as unknown as Date, 'yyyy-MM-dd'),
-        handoverToOpsDate: typeof values.handoverToOpsDate === 'string' ? values.handoverToOpsDate : format(values.handoverToOpsDate as unknown as Date, 'yyyy-MM-dd')
-
-      };
-
-      console.log('Submitting with formatted values:', formattedValues);
-      await createBatchMutation.mutateAsync(formattedValues);
+      await createBatchMutation.mutateAsync(values);
     } catch (error) {
       console.error('Form submission error:', error);
       toast({
@@ -308,6 +278,70 @@ export function CreateBatchForm() {
                   <Input placeholder="Enter batch name" {...field} />
                 </FormControl>
                 <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Batch Start Date */}
+          <FormField
+            control={form.control}
+            name="inductionStartDate"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Batch Start Date</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full pl-3 text-left font-normal",
+                          !field.value && "text-muted-foreground"
+                        )}
+                      >
+                        {field.value ? (
+                          format(new Date(field.value), "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value ? new Date(field.value) : undefined}
+                      onSelect={(date) => {
+                        const dateStr = date ? format(date, 'yyyy-MM-dd') : '';
+                        field.onChange(dateStr);
+                      }}
+                      disabled={(date) => {
+                        return isSunday(date) || date < new Date();
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Batch End Date */}
+          <FormField
+            control={form.control}
+            name="handoverToOpsDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Batch End Date</FormLabel>
+                <FormControl>
+                  <Input
+                    type="text"
+                    value={calculatedDates.handoverToOps ? format(new Date(calculatedDates.handoverToOps), "PPP") : ''}
+                    disabled
+                  />
+                </FormControl>
               </FormItem>
             )}
           />
@@ -451,56 +485,7 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Start Date */}
-          <FormField
-            control={form.control}
-            name="inductionStartDate"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Induction Start Date</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full pl-3 text-left font-normal",
-                          !field.value && "text-muted-foreground"
-                        )}
-                      >
-                        {field.value ? (
-                          format(new Date(field.value), "PPP")
-                        ) : (
-                          <span>Pick a date</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value ? new Date(field.value) : undefined}
-                      onSelect={(date) => {
-                        // Convert Date to string in YYYY-MM-DD format
-                        const dateStr = date ? format(date, 'yyyy-MM-dd') : '';
-                        console.log('Selected date:', dateStr);
-                        field.onChange(dateStr);
-                      }}
-                      disabled={(date) => {
-                        // Disable Sundays and past dates
-                        return isSunday(date) || date < new Date();
-                      }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Display calculated dates as read-only fields */}
+          {/* Induction End Date */}
           <FormField
             control={form.control}
             name="inductionEndDate"

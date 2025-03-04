@@ -27,7 +27,7 @@ export const organizationBatches = pgTable("organization_batches", {
   id: serial("id").primaryKey(),
   batchCode: text("batch_code").notNull().unique(),
   name: text("name").notNull(),
-  inductionStartDate: date("induction_start_date").notNull(),
+  inductionStartDate: date("induction_start_date").notNull(), // This is also Batch Start Date
   inductionEndDate: date("induction_end_date"),
   trainingStartDate: date("training_start_date"),
   trainingEndDate: date("training_end_date"),
@@ -37,7 +37,7 @@ export const organizationBatches = pgTable("organization_batches", {
   ojtEndDate: date("ojt_end_date"),
   ojtCertificationStartDate: date("ojt_certification_start_date"),
   ojtCertificationEndDate: date("ojt_certification_end_date"),
-  handoverToOpsDate: date("handover_to_ops_date"),
+  handoverToOpsDate: date("handover_to_ops_date"), // This is also Batch End Date
   status: batchStatusEnum("status").default('planned').notNull(),
   capacityLimit: integer("capacity_limit").notNull(),
   processId: integer("process_id")
@@ -95,7 +95,7 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
   .extend({
     batchCode: z.string().min(1, "Batch code is required"),
     name: z.string().min(1, "Batch name is required"),
-    inductionStartDate: z.string().min(1, "Induction Start date is required"),
+    inductionStartDate: z.string().min(1, "Batch Start date is required"), // Updated validation message
     inductionEndDate: z.string().optional(),
     trainingStartDate: z.string().optional(),
     trainingEndDate: z.string().optional(),
