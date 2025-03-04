@@ -1,16 +1,28 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, Loader2, Plus } from "lucide-react";
+import { Search, Loader2, Plus, Trash2, Edit } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Table,
   TableBody,
@@ -20,10 +32,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CreateBatchForm } from "./create-batch-form";
+import { useToast } from "@/hooks/use-toast";
 
 export function BatchesTab() {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
+
+  // Check if user has permission to edit/delete batches
+  const canManageBatches = user?.role === 'admin' || user?.role === 'owner';
 
   const {
     data: batches = [],
@@ -32,6 +52,52 @@ export function BatchesTab() {
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/batches`],
   });
+
+  const deleteBatchMutation = useMutation({
+    mutationFn: async (batchId: number) => {
+      const response = await fetch(`/api/organizations/${user?.organizationId}/batches/${batchId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to delete batch');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/batches`] });
+      toast({
+        title: "Success",
+        description: "Batch deleted successfully",
+      });
+      setDeleteDialogOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete batch",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleDeleteClick = (batchId: number, status: string) => {
+    if (status !== 'planned') {
+      toast({
+        title: "Cannot Delete",
+        description: "Only batches with 'Planned' status can be deleted",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSelectedBatchId(batchId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (selectedBatchId) {
+      await deleteBatchMutation.mutateAsync(selectedBatchId);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -79,13 +145,15 @@ export function BatchesTab() {
             className="pl-8"
           />
         </div>
-        <Button 
-          onClick={() => setIsCreateDialogOpen(true)}
-          className="gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Create Batch
-        </Button>
+        {canManageBatches && (
+          <Button 
+            onClick={() => setIsCreateDialogOpen(true)}
+            className="gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Create Batch
+          </Button>
+        )}
       </div>
 
       {batches.length > 0 ? (
@@ -126,10 +194,30 @@ export function BatchesTab() {
                     {new Date(batch.startDate).toLocaleDateString()} - 
                     {new Date(batch.endDate).toLocaleDateString()}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right space-x-2">
                     <Button variant="outline" size="sm">
                       View Details
                     </Button>
+                    {canManageBatches && (
+                      <>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDeleteClick(batch.id, batch.status)}
+                          disabled={batch.status !== 'planned'}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {/* TODO: Implement edit */}}
+                          disabled={batch.status !== 'planned'}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -143,14 +231,16 @@ export function BatchesTab() {
             <p className="mb-4 mt-2 text-sm text-muted-foreground">
               You haven't created any batches yet. Start by creating a new batch.
             </p>
-            <Button 
-              size="sm" 
-              className="relative"
-              onClick={() => setIsCreateDialogOpen(true)}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Create Batch
-            </Button>
+            {canManageBatches && (
+              <Button 
+                size="sm" 
+                className="relative"
+                onClick={() => setIsCreateDialogOpen(true)}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Create Batch
+              </Button>
+            )}
           </div>
         </div>
       )}
@@ -163,6 +253,23 @@ export function BatchesTab() {
           <CreateBatchForm />
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the batch.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete}>
+              {deleteBatchMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
