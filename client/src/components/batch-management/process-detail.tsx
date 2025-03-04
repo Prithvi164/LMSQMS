@@ -61,12 +61,12 @@ interface Process {
   status?: string;
 }
 
-// Form schema simplified to remove location, role, and user
+// Form schema updated to allow 0 days
 const processFormSchema = z.object({
   name: z.string().min(1, "Process name is required"),
-  inductionDays: z.number().min(1, "Induction days must be at least 1"),
-  trainingDays: z.number().min(1, "Training days must be at least 1"),
-  certificationDays: z.number().min(1, "Certification days must be at least 1"),
+  inductionDays: z.number().min(0, "Induction days cannot be negative"),
+  trainingDays: z.number().min(0, "Training days cannot be negative"),
+  certificationDays: z.number().min(0, "Certification days cannot be negative"),
   ojtDays: z.number().min(0, "OJT days cannot be negative"),
   ojtCertificationDays: z.number().min(0, "OJT certification days cannot be negative"),
   lineOfBusinessId: z.number().min(1, "Line of Business is required"),
@@ -130,9 +130,9 @@ export function ProcessDetail() {
     resolver: zodResolver(processFormSchema),
     defaultValues: {
       name: "",
-      inductionDays: 1,
-      trainingDays: 1,
-      certificationDays: 1,
+      inductionDays: 0,
+      trainingDays: 0,
+      certificationDays: 0,
       ojtDays: 0,
       ojtCertificationDays: 0,
       lineOfBusinessId: undefined,
@@ -143,9 +143,9 @@ export function ProcessDetail() {
     resolver: zodResolver(processFormSchema),
     defaultValues: {
       name: "",
-      inductionDays: 1,
-      trainingDays: 1,
-      certificationDays: 1,
+      inductionDays: 0,
+      trainingDays: 0,
+      certificationDays: 0,
       ojtDays: 0,
       ojtCertificationDays: 0,
       lineOfBusinessId: undefined,
@@ -519,7 +519,7 @@ export function ProcessDetail() {
                         <FormControl>
                           <Input
                             type="number"
-                            min="1"
+                            min="0"
                             {...field}
                             onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
                           />
@@ -538,7 +538,7 @@ export function ProcessDetail() {
                         <FormControl>
                           <Input
                             type="number"
-                            min="1"
+                            min="0"
                             {...field}
                             onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
                           />
@@ -557,7 +557,7 @@ export function ProcessDetail() {
                         <FormControl>
                           <Input
                             type="number"
-                            min="1"
+                            min="0"
                             {...field}
                             onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
                           />
@@ -666,7 +666,7 @@ export function ProcessDetail() {
                         <FormControl>
                           <Input
                             type="number"
-                            min="1"
+                            min="0"
                             {...field}
                             onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
                           />
@@ -685,7 +685,7 @@ export function ProcessDetail() {
                         <FormControl>
                           <Input
                             type="number"
-                            min="1"
+                            min="0"
                             {...field}
                             onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
                           />
@@ -704,7 +704,7 @@ export function ProcessDetail() {
                         <FormControl>
                           <Input
                             type="number"
-                            min="1"
+                            min="0"
                             {...field}
                             onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
                           />
