@@ -36,6 +36,8 @@ import { CreateBatchForm } from "./create-batch-form";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format, isSameDay } from "date-fns";
 import type { OrganizationBatch } from "@shared/schema";
 
 export function BatchesTab() {
@@ -74,7 +76,6 @@ export function BatchesTab() {
     completed: filteredBatches.filter(b => b.status === 'completed')
   };
 
-  // Delete mutation remains the same
   const deleteBatchMutation = useMutation({
     mutationFn: async (batchId: number) => {
       const response = await fetch(`/api/organizations/${user?.organizationId}/batches/${batchId}`, {
@@ -163,6 +164,89 @@ export function BatchesTab() {
       .split('_')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
+  };
+
+  // Function to get batches for a specific date
+  const getBatchesForDate = (date: Date) => {
+    return filteredBatches.filter(batch => {
+      const startDate = new Date(batch.startDate);
+      const endDate = new Date(batch.endDate);
+      return date >= startDate && date <= endDate;
+    });
+  };
+
+  // Custom calendar day render function
+  const renderCalendarDay = (day: Date) => {
+    const dayBatches = getBatchesForDate(day);
+    return (
+      <div className="w-full h-full">
+        <div className="text-center">{format(day, 'd')}</div>
+        {dayBatches.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {dayBatches.map((batch) => (
+              <Popover key={batch.id}>
+                <PopoverTrigger asChild>
+                  <div
+                    className={`w-2 h-2 rounded-full cursor-pointer ${
+                      batch.status === 'planned' ? 'bg-blue-500' :
+                      batch.status === 'completed' ? 'bg-gray-500' : 'bg-green-500'
+                    }`}
+                  />
+                </PopoverTrigger>
+                <PopoverContent className="w-80">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-semibold">{batch.name}</h4>
+                        <Badge variant="outline" className="mt-1">
+                          {formatBatchCategory(batch.batchCategory)}
+                        </Badge>
+                      </div>
+                      <Badge variant="secondary" className={getStatusColor(batch.status)}>
+                        {batch.status.charAt(0).toUpperCase() + batch.status.slice(1)}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="text-muted-foreground">Process:</div>
+                      <div>{batch.process?.name}</div>
+                      <div className="text-muted-foreground">Location:</div>
+                      <div>{batch.location?.name}</div>
+                      <div className="text-muted-foreground">Trainer:</div>
+                      <div>{batch.trainer?.fullName}</div>
+                      <div className="text-muted-foreground">Capacity:</div>
+                      <div>{batch.capacityLimit}</div>
+                      <div className="text-muted-foreground">Timeline:</div>
+                      <div>
+                        {format(new Date(batch.startDate), 'MMM d, yyyy')} - 
+                        {format(new Date(batch.endDate), 'MMM d, yyyy')}
+                      </div>
+                    </div>
+                    {canManageBatches && batch.status === 'planned' && (
+                      <div className="flex justify-end gap-2 mt-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleEditClick(batch)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDeleteClick(batch)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   const renderBatchTable = (batchList: OrganizationBatch[]) => (
@@ -281,9 +365,9 @@ export function BatchesTab() {
               <List className="h-4 w-4" />
               Table View
             </TabsTrigger>
-            <TabsTrigger value="cards" className="flex items-center gap-2">
+            <TabsTrigger value="calendar" className="flex items-center gap-2">
               <CalendarIcon className="h-4 w-4" />
-              Card View
+              Calendar View
             </TabsTrigger>
           </TabsList>
 
@@ -298,68 +382,31 @@ export function BatchesTab() {
             ))}
           </TabsContent>
 
-          <TabsContent value="cards" className="space-y-6">
-            {Object.entries(groupedBatches).map(([status, batchList]) => (
-              batchList.length > 0 && (
-                <div key={status} className="space-y-4">
-                  <h3 className="text-lg font-semibold capitalize">{status} Batches</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {batchList.map((batch) => (
-                      <Card key={batch.id}>
-                        <CardHeader>
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <CardTitle>{batch.name}</CardTitle>
-                              <Badge variant="outline" className="mt-2">
-                                {formatBatchCategory(batch.batchCategory)}
-                              </Badge>
-                            </div>
-                            <Badge variant="secondary" className={getStatusColor(batch.status)}>
-                              {batch.status.charAt(0).toUpperCase() + batch.status.slice(1)}
-                            </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="space-y-2">
-                          <div className="grid grid-cols-2 gap-2 text-sm">
-                            <div className="text-muted-foreground">Process:</div>
-                            <div>{batch.process?.name}</div>
-                            <div className="text-muted-foreground">Location:</div>
-                            <div>{batch.location?.name}</div>
-                            <div className="text-muted-foreground">Trainer:</div>
-                            <div>{batch.trainer?.fullName}</div>
-                            <div className="text-muted-foreground">Capacity:</div>
-                            <div>{batch.capacityLimit}</div>
-                            <div className="text-muted-foreground">Timeline:</div>
-                            <div>
-                              {new Date(batch.startDate).toLocaleDateString()} - 
-                              {new Date(batch.endDate).toLocaleDateString()}
-                            </div>
-                          </div>
-                          {canManageBatches && batch.status === 'planned' && (
-                            <div className="flex justify-end gap-2 mt-4">
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => handleEditClick(batch)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => handleDeleteClick(batch)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+          <TabsContent value="calendar" className="space-y-6">
+            <div className="rounded-md border p-4">
+              <Calendar
+                mode="single"
+                disabled={false}
+                components={{
+                  Day: ({ date }) => renderCalendarDay(date)
+                }}
+                className="w-full"
+              />
+              <div className="mt-4 flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-blue-500" />
+                  <span>Planned</span>
                 </div>
-              )
-            ))}
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-green-500" />
+                  <span>Ongoing</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-gray-500" />
+                  <span>Completed</span>
+                </div>
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
       ) : (
