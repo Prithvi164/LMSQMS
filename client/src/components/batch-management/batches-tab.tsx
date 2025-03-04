@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
@@ -107,8 +107,16 @@ export function BatchesTab() {
   // Get unique batch categories - handle undefined values
   const batchCategories = [...new Set(batches
     .map(batch => batch.batchCategory)
-    .filter(Boolean) // Remove undefined/null values
+    .filter((category): category is string => category !== null && category !== undefined)
   )];
+
+  const formatBatchCategory = (category: string | undefined | null) => {
+    if (!category) return 'Uncategorized';
+    return category
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
 
   const deleteBatchMutation = useMutation({
     mutationFn: async (batchId: number) => {
@@ -193,13 +201,6 @@ export function BatchesTab() {
     }
   };
 
-  const formatBatchCategory = (category: string | undefined | null) => {
-    if (!category) return 'Uncategorized';
-    return category
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-  };
 
   const renderCalendarDay = (day: Date) => {
     const dayBatches = getBatchesForDate(day);
@@ -542,6 +543,12 @@ export function BatchesTab() {
     setSelectedCategory(null);
   };
 
+  // Add console logging for debugging
+  useEffect(() => {
+    console.log('Raw batches:', batches);
+    console.log('Raw batch categories:', batches.map(b => b.batchCategory));
+    console.log('Filtered batch categories:', batchCategories);
+  }, [batches, batchCategories]);
 
   if (isLoading) {
     return (
@@ -803,9 +810,8 @@ export function BatchesTab() {
           <DialogHeader>
             <DialogTitle>Edit Batch</DialogTitle>
             <DialogDescription>
-              Make changes to the batch details.
-            </DialogDescription>
-          </DialogHeader>
+              Make changes to              the batch details.
+            </DialogDescription>          </DialogHeader>
           {selectedBatch && (
             <CreateBatchForm
               editMode={true}
