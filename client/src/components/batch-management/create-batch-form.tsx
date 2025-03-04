@@ -232,16 +232,45 @@ export function CreateBatchForm() {
   });
 
   // Function to handle template selection
-  const handleTemplateSelect = (templateId: string) => {
+  const handleTemplateSelect = async (templateId: string) => {
     const template = templates.find(t => t.id.toString() === templateId);
     if (template) {
-      setSelectedLocation(template.locationId);
-      setSelectedLob(template.lineOfBusinessId);
-      form.setValue('locationId', template.locationId);
-      form.setValue('lineOfBusinessId', template.lineOfBusinessId);
-      form.setValue('processId', template.processId);
-      form.setValue('trainerId', template.trainerId);
-      form.setValue('capacityLimit', template.capacityLimit);
+      try {
+        // First set location and update selectedLocation state
+        setSelectedLocation(template.locationId);
+        form.setValue('locationId', template.locationId);
+
+        // Wait briefly for the location change to trigger LOB loading
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Set LOB and update selectedLob state
+        setSelectedLob(template.lineOfBusinessId);
+        form.setValue('lineOfBusinessId', template.lineOfBusinessId);
+
+        // Wait briefly for the LOB change to trigger process loading
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Set process
+        form.setValue('processId', template.processId);
+
+        // Set trainer
+        form.setValue('trainerId', template.trainerId);
+
+        // Set capacity limit
+        form.setValue('capacityLimit', template.capacityLimit);
+
+        toast({
+          title: "Template Loaded",
+          description: "All template values have been applied successfully.",
+        });
+      } catch (error) {
+        console.error('Error applying template:', error);
+        toast({
+          title: "Error",
+          description: "Failed to apply template values. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
