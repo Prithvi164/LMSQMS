@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, Loader2, Plus, Trash2, Edit, Eye, Calendar as CalendarIcon, List, ArrowUpDown, Filter } from "lucide-react";
+import { Search, Loader2, Plus, Trash2, Edit, Eye, Calendar as CalendarIcon, List, ArrowUpDown, Filter, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -47,6 +47,23 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import type { OrganizationBatch } from "@shared/schema";
 
+// Define types for filter conditions
+type FilterOperator = 'AND' | 'OR';
+type FilterField = 'category' | 'status' | 'location' | 'lineOfBusiness' | 'process' | 'date';
+
+interface FilterCondition {
+  id: string;
+  field: FilterField;
+  value: string | null;
+  operator: FilterOperator;
+}
+
+interface FilterGroup {
+  id: string;
+  conditions: FilterCondition[];
+  operator: FilterOperator;
+}
+
 export function BatchesTab() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -71,6 +88,8 @@ export function BatchesTab() {
     from: undefined,
     to: undefined,
   });
+  const [filterGroups, setFilterGroups] = useState<FilterGroup[]>([]);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   // Check if user has permission to edit/delete batches
   const canManageBatches = user?.role === 'admin' || user?.role === 'owner';
@@ -90,19 +109,178 @@ export function BatchesTab() {
   const processes = [...new Set(batches.map(batch => batch.process?.name).filter(Boolean))];
   const statuses = [...new Set(batches.map(batch => batch.status))];
 
-  // Filter batches with all conditions
-  const filteredBatches = batches.filter(batch =>
-    (searchQuery === '' ||
-      batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      batch.status.toLowerCase().includes(searchQuery.toLowerCase())) &&
-    (selectedCategory === null || (batch.batchCategory && batch.batchCategory === selectedCategory)) &&
-    (selectedStatus === null || batch.status === selectedStatus) &&
-    (selectedLocation === null || batch.location?.name === selectedLocation) &&
-    (selectedLineOfBusiness === null || batch.line_of_business?.name === selectedLineOfBusiness) &&
-    (selectedProcess === null || batch.process?.name === selectedProcess) &&
-    (!dateRange.from || new Date(batch.startDate) >= dateRange.from) &&
-    (!dateRange.to || new Date(batch.startDate) <= dateRange.to)
+  // Helper function to create a new filter condition
+  const createFilterCondition = (): FilterCondition => ({
+    id: Math.random().toString(36).substring(7),
+    field: 'status',
+    value: null,
+    operator: 'AND'
+  });
+
+  // Helper function to create a new filter group
+  const createFilterGroup = (): FilterGroup => ({
+    id: Math.random().toString(36).substring(7),
+    conditions: [createFilterCondition()],
+    operator: 'AND'
+  });
+
+  // Add a condition to a group
+  const addCondition = (groupId: string) => {
+    setFilterGroups(groups => groups.map(group => {
+      if (group.id === groupId) {
+        return {
+          ...group,
+          conditions: [...group.conditions, createFilterCondition()]
+        };
+      }
+      return group;
+    }));
+  };
+
+  // Remove a condition from a group
+  const removeCondition = (groupId: string, conditionId: string) => {
+    setFilterGroups(groups => groups.map(group => {
+      if (group.id === groupId) {
+        return {
+          ...group,
+          conditions: group.conditions.filter(c => c.id !== conditionId)
+        };
+      }
+      return group;
+    }));
+  };
+
+  // Update a condition
+  const updateCondition = (
+    groupId: string,
+    conditionId: string,
+    updates: Partial<FilterCondition>
+  ) => {
+    setFilterGroups(groups => groups.map(group => {
+      if (group.id === groupId) {
+        return {
+          ...group,
+          conditions: group.conditions.map(condition => {
+            if (condition.id === conditionId) {
+              return { ...condition, ...updates };
+            }
+            return condition;
+          })
+        };
+      }
+      return group;
+    }));
+  };
+
+  // Toggle group operator
+  const toggleGroupOperator = (groupId: string) => {
+    setFilterGroups(groups => groups.map(group => {
+      if (group.id === groupId) {
+        return {
+          ...group,
+          operator: group.operator === 'AND' ? 'OR' : 'AND'
+        };
+      }
+      return group;
+    }));
+  };
+
+  // Add a new filter group
+  const addFilterGroup = () => {
+    setFilterGroups(groups => [...groups, createFilterGroup()]);
+  };
+
+  // Remove a filter group
+  const removeFilterGroup = (groupId: string) => {
+    setFilterGroups(groups => groups.filter(group => group.id !== groupId));
+  };
+
+  // Render filter condition
+  const renderFilterCondition = (condition: FilterCondition, groupId: string) => (
+    <div key={condition.id} className="flex items-center gap-2 mb-2">
+      <Select
+        value={condition.field}
+        onValueChange={(value: FilterField) =>
+          updateCondition(groupId, condition.id, { field: value })
+        }
+      >
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Select field" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="category">Category</SelectItem>
+          <SelectItem value="status">Status</SelectItem>
+          <SelectItem value="location">Location</SelectItem>
+          <SelectItem value="lineOfBusiness">Line of Business</SelectItem>
+          <SelectItem value="process">Process</SelectItem>
+          <SelectItem value="date">Date</SelectItem>
+        </SelectContent>
+      </Select>
+
+      <Select
+        value={condition.value || ''}
+        onValueChange={(value) =>
+          updateCondition(groupId, condition.id, { value: value || null })
+        }
+      >
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Select value" />
+        </SelectTrigger>
+        <SelectContent>
+          {condition.field === 'category' && batchCategories.map(category => (
+            <SelectItem key={category} value={category}>
+              {formatBatchCategory(category)}
+            </SelectItem>
+          ))}
+          {condition.field === 'status' && statuses.map(status => (
+            <SelectItem key={status} value={status}>
+              {status.charAt(0).toUpperCase() + status.slice(1)}
+            </SelectItem>
+          ))}
+          {/* Add other field options based on condition.field */}
+        </SelectContent>
+      </Select>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => removeCondition(groupId, condition.id)}
+      >
+        <X className="h-4 w-4" />
+      </Button>
+    </div>
   );
+
+  // Render filter group
+  const renderFilterGroup = (group: FilterGroup) => (
+    <Card key={group.id} className="p-4 mb-4">
+      <div className="flex items-center justify-between mb-4">
+        <Button
+          variant="outline"
+          onClick={() => toggleGroupOperator(group.id)}
+        >
+          {group.operator}
+        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => addCondition(group.id)}
+          >
+            Add Condition
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => removeFilterGroup(group.id)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+      {group.conditions.map(condition => renderFilterCondition(condition, group.id))}
+    </Card>
+  );
+
 
   // Get unique batch categories - handle undefined values
   const batchCategories = ['new_training', 'upskill']; // Hardcode the valid categories
@@ -197,7 +375,6 @@ export function BatchesTab() {
         return 'bg-gray-100 text-gray-800';
     }
   };
-
 
   const renderCalendarDay = (day: Date) => {
     const dayBatches = getBatchesForDate(day);
@@ -340,7 +517,7 @@ export function BatchesTab() {
       let bValue: any;
 
       // Handle nested properties and special cases
-      switch(key) {
+      switch (key) {
         case 'location':
           aValue = a.location?.name ?? '';
           bValue = b.location?.name ?? '';
@@ -538,6 +715,7 @@ export function BatchesTab() {
     setDateRange({ from: undefined, to: undefined });
     setSearchQuery('');
     setSelectedCategory(null);
+    setFilterGroups([]); //reset advanced filters
   };
 
   // Add debug logging
@@ -546,6 +724,59 @@ export function BatchesTab() {
     console.log('Raw batch categories:', batches.map(b => b.batchCategory));
     console.log('Available categories:', batchCategories);
   }, [batches]);
+
+  // Add this function after the existing filter functions
+  const applyAdvancedFilters = (batch: OrganizationBatch, groups: FilterGroup[]): boolean => {
+    // If no filter groups, return true
+    if (groups.length === 0) return true;
+
+    // Apply filter groups (outer level uses OR logic between groups)
+    return groups.some(group => {
+      // Apply conditions within the group based on group.operator
+      return group.operator === 'AND'
+        ? group.conditions.every(condition => applyCondition(batch, condition))
+        : group.conditions.some(condition => applyCondition(batch, condition));
+    });
+  };
+
+  const applyCondition = (batch: OrganizationBatch, condition: FilterCondition): boolean => {
+    if (!condition.value) return true;
+
+    switch (condition.field) {
+      case 'category':
+        return batch.batchCategory === condition.value;
+      case 'status':
+        return batch.status === condition.value;
+      case 'location':
+        return batch.location?.name === condition.value;
+      case 'lineOfBusiness':
+        return batch.line_of_business?.name === condition.value;
+      case 'process':
+        return batch.process?.name === condition.value;
+      case 'date':
+        // Implement date comparison logic here.  For now, always true.
+        return true;
+      default:
+        return true;
+    }
+  };
+
+  // Update the filteredBatches definition
+  const filteredBatches = batches.filter(batch =>
+    // Apply basic filters
+    (searchQuery === '' ||
+      batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      batch.status.toLowerCase().includes(searchQuery.toLowerCase())) &&
+    (selectedCategory === null || (batch.batchCategory && batch.batchCategory === selectedCategory)) &&
+    (selectedStatus === null || batch.status === selectedStatus) &&
+    (selectedLocation === null || batch.location?.name === selectedLocation) &&
+    (selectedLineOfBusiness === null || batch.line_of_business?.name === selectedLineOfBusiness) &&
+    (selectedProcess === null || batch.process?.name === selectedProcess) &&
+    (!dateRange.from || new Date(batch.startDate) >= dateRange.from) &&
+    (!dateRange.to || new Date(batch.startDate) <= dateRange.to) &&
+    // Apply advanced filters if they exist
+    applyAdvancedFilters(batch, filterGroups)
+  );
 
   if (isLoading) {
     return (
@@ -587,6 +818,32 @@ export function BatchesTab() {
           )}
         </div>
 
+        {/* Advanced filters toggle */}
+        <Button
+          variant="outline"
+          onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+          className="w-full"
+        >
+          <Filter className="mr-2 h-4 w-4" />
+          {showAdvancedFilters ? 'Hide Advanced Filters' : 'Show Advanced Filters'}
+        </Button>
+
+        {/* Advanced filters section */}
+        {showAdvancedFilters && (
+          <div className="space-y-4 border rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Advanced Filters</h3>
+              <Button
+                variant="outline"
+                onClick={addFilterGroup}
+              >
+                Add Filter Group
+              </Button>
+            </div>
+            {filterGroups.map(renderFilterGroup)}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           <Select value={selectedCategory || 'all'} onValueChange={(value) => setSelectedCategory(value === 'all' ? null : value)}>
             <SelectTrigger>
@@ -613,7 +870,7 @@ export function BatchesTab() {
                   {status.charAt(0).toUpperCase() + status.slice(1)}
                 </SelectItem>
               ))}
-            </SelectContent>
+                        </SelectContent>
           </Select>
 
           <Select value={selectedLocation || 'all'} onValueChange={(value) => setSelectedLocation(value === 'all' ? null : value)}>
