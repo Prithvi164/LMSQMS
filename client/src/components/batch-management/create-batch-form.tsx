@@ -34,13 +34,23 @@ import { Calendar } from "@/components/ui/calendar";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
-import { insertOrganizationBatchSchema, type InsertOrganizationBatch } from "@shared/schema";
+import { insertOrganizationBatchSchema, type InsertOrganizationBatch, insertBatchTemplateSchema, type InsertBatchTemplate, type BatchTemplate } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+
+// Interface for date range
+interface DateRange {
+  start: Date;
+  end: Date;
+  label: string;
+  status: 'induction' | 'training' | 'certification' | 'ojt' | 'ojt-certification';
+}
 
 // Function to determine batch status based on current date and phase dates
 const determineBatchStatus = (batch: InsertOrganizationBatch): string => {
   const today = new Date();
+
+  // Convert string dates to Date objects
   const dates = {
     inductionStart: new Date(batch.inductionStartDate),
     inductionEnd: batch.inductionEndDate ? new Date(batch.inductionEndDate) : null,
@@ -55,71 +65,25 @@ const determineBatchStatus = (batch: InsertOrganizationBatch): string => {
     handoverToOps: batch.handoverToOpsDate ? new Date(batch.handoverToOpsDate) : null
   };
 
-  if (today < dates.inductionStart) return 'planned';
-  if (dates.inductionEnd && isWithinInterval(today, { start: dates.inductionStart, end: dates.inductionEnd })) return 'induction';
-  if (dates.trainingEnd && isWithinInterval(today, { start: dates.trainingStart!, end: dates.trainingEnd })) return 'training';
-  if (dates.certificationEnd && isWithinInterval(today, { start: dates.certificationStart!, end: dates.certificationEnd })) return 'certification';
-  if (dates.ojtEnd && isWithinInterval(today, { start: dates.ojtStart!, end: dates.ojtEnd })) return 'ojt';
-  if (dates.ojtCertificationEnd && isWithinInterval(today, { start: dates.ojtCertificationStart!, end: dates.ojtCertificationEnd })) return 'ojt_certification';
-  if (dates.handoverToOps && today >= dates.handoverToOps) return 'completed';
-  return 'planned';
+  // Check which phase we're in based on current date
+  if (today < dates.inductionStart) {
+    return 'planned';
+  } else if (dates.inductionEnd && isWithinInterval(today, { start: dates.inductionStart, end: dates.inductionEnd })) {
+    return 'induction';
+  } else if (dates.trainingEnd && isWithinInterval(today, { start: dates.trainingStart!, end: dates.trainingEnd })) {
+    return 'training';
+  } else if (dates.certificationEnd && isWithinInterval(today, { start: dates.certificationStart!, end: dates.certificationEnd })) {
+    return 'certification';
+  } else if (dates.ojtEnd && isWithinInterval(today, { start: dates.ojtStart!, end: dates.ojtEnd })) {
+    return 'ojt';
+  } else if (dates.ojtCertificationEnd && isWithinInterval(today, { start: dates.ojtCertificationStart!, end: dates.ojtCertificationEnd })) {
+    return 'ojt_certification';
+  } else if (dates.handoverToOps && today >= dates.handoverToOps) {
+    return 'completed';
+  }
+
+  return 'planned'; // Default status
 };
-
-// Status Progress Visualizer Component
-const BatchStatusVisualizer = ({ currentPhase }: { currentPhase: string }) => {
-  const phases = ['planned', 'induction', 'training', 'certification', 'ojt', 'ojt_certification', 'completed'];
-  const currentIndex = phases.indexOf(currentPhase);
-  const progress = ((currentIndex + 1) / phases.length) * 100;
-
-  return (
-    <div className="space-y-4 p-4 border rounded-lg bg-card">
-      <h3 className="font-semibold text-center">Batch Progress</h3>
-      <div className="relative">
-        <Progress value={progress} className="h-2" />
-        <div className="flex justify-between mt-2">
-          {phases.map((phase, index) => (
-            <div
-              key={phase}
-              className={cn(
-                "flex flex-col items-center transition-all duration-300",
-                {
-                  'text-primary font-medium scale-110': currentPhase === phase,
-                  'text-muted-foreground': currentPhase !== phase,
-                }
-              )}
-              style={{ 
-                flexBasis: `${100 / phases.length}%`,
-                transform: currentPhase === phase ? 'translateY(-4px)' : 'none'
-              }}
-            >
-              <div 
-                className={cn(
-                  "w-3 h-3 rounded-full mb-1",
-                  {
-                    'bg-primary': index <= currentIndex,
-                    'bg-muted': index > currentIndex
-                  }
-                )}
-              />
-              <span className="text-xs capitalize whitespace-nowrap">{phase.replace('_', ' ')}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-interface Template {
-  id: number;
-  name: string;
-  description?: string;
-  locationId: number;
-  lineOfBusinessId: number;
-  processId: number;
-  trainerId: number;
-  capacityLimit: number;
-}
 
 export function CreateBatchForm() {
   const { toast } = useToast();
@@ -127,18 +91,18 @@ export function CreateBatchForm() {
   const queryClient = useQueryClient();
   const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
   const [selectedLob, setSelectedLob] = useState<number | null>(null);
+  const [dateRanges, setDateRanges] = useState<DateRange[]>([]);
   const [progress, setProgress] = useState(0);
   const [isCreating, setIsCreating] = useState(false);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [templateDescription, setTemplateDescription] = useState('');
-  const [currentStatus, setCurrentStatus] = useState('planned');
 
   const form = useForm<InsertOrganizationBatch>({
     resolver: zodResolver(insertOrganizationBatchSchema),
     defaultValues: {
       status: 'planned',
-      organizationId: user?.organizationId,
+      organizationId: user?.organizationId || undefined,
       startDate: '',
       endDate: '',
       inductionStartDate: '',
@@ -162,7 +126,7 @@ export function CreateBatchForm() {
   const {
     data: templates = [],
     isLoading: isLoadingTemplates
-  } = useQuery<Template[]>({
+  } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/batch-templates`],
     enabled: !!user?.organizationId
   });
@@ -196,7 +160,7 @@ export function CreateBatchForm() {
     isLoading: isLoadingTrainers
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/users`],
-    select: (users: any[]) => users?.filter((user) =>
+    select: (users) => users?.filter((user) =>
       user.role === 'trainer' &&
       (!selectedLocation || user.locationId === selectedLocation)
     ) || [],
@@ -205,7 +169,7 @@ export function CreateBatchForm() {
 
   // Save template mutation
   const saveTemplateMutation = useMutation({
-    mutationFn: async (template: Template) => {
+    mutationFn: async (template: InsertBatchTemplate) => {
       if (!user?.organizationId) {
         throw new Error('Organization ID is required');
       }
@@ -263,10 +227,10 @@ export function CreateBatchForm() {
     try {
       if (!templateName) throw new Error('Template name is required');
 
-      const template: Template = {
-        id: 0, // This will be set by the server
+      const template: InsertBatchTemplate = {
         name: templateName,
         description: templateDescription,
+        organizationId: user?.organizationId!,
         locationId: form.getValues('locationId')!,
         lineOfBusinessId: form.getValues('lineOfBusinessId')!,
         processId: form.getValues('processId')!,
@@ -298,6 +262,7 @@ export function CreateBatchForm() {
 
     return currentDate;
   };
+
 
   const createBatchMutation = useMutation({
     mutationFn: async (values: InsertOrganizationBatch) => {
@@ -339,6 +304,7 @@ export function CreateBatchForm() {
       form.reset();
       setSelectedLocation(null);
       setSelectedLob(null);
+      setDateRanges([]);
     },
     onError: (error: Error) => {
       console.error('Error creating batch:', error);
@@ -379,8 +345,29 @@ export function CreateBatchForm() {
     }
   }
 
+  const getDateRangeClassName = (date: Date): string => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const range = dateRanges.find(r =>
+      dateStr >= format(r.start, 'yyyy-MM-dd') &&
+      dateStr <= format(r.end, 'yyyy-MM-dd')
+    );
+
+    if (!range) return '';
+
+    return cn(
+      'bg-opacity-50',
+      {
+        'bg-blue-200': range.status === 'induction',
+        'bg-green-200': range.status === 'training',
+        'bg-yellow-200': range.status === 'certification',
+        'bg-purple-200': range.status === 'ojt',
+        'bg-pink-200': range.status === 'ojt-certification',
+      }
+    );
+  };
+
   useEffect(() => {
-    const process = processes.find((p: any) => p.id === form.getValues('processId'));
+    const process = processes.find(p => p.id === form.getValues('processId'));
     const startDateStr = form.getValues('startDate');
 
     if (process && startDateStr) {
@@ -399,6 +386,39 @@ export function CreateBatchForm() {
         const ojtCertificationEnd = addWorkingDays(ojtCertificationStart, process.ojtCertificationDays);
         const handoverToOps = addWorkingDays(ojtCertificationEnd, 1);
 
+        setDateRanges([
+          {
+            start: startDate,
+            end: inductionEnd,
+            label: 'Induction',
+            status: 'induction'
+          },
+          {
+            start: trainingStart,
+            end: trainingEnd,
+            label: 'Training',
+            status: 'training'
+          },
+          {
+            start: certificationStart,
+            end: certificationEnd,
+            label: 'Certification',
+            status: 'certification'
+          },
+          {
+            start: ojtStart,
+            end: ojtEnd,
+            label: 'OJT',
+            status: 'ojt'
+          },
+          {
+            start: ojtCertificationStart,
+            end: ojtCertificationEnd,
+            label: 'OJT Certification',
+            status: 'ojt-certification'
+          }
+        ]);
+
         form.setValue('endDate', format(handoverToOps, 'yyyy-MM-dd'));
         form.setValue('inductionEndDate', format(inductionEnd, 'yyyy-MM-dd'));
         form.setValue('trainingStartDate', format(trainingStart, 'yyyy-MM-dd'));
@@ -410,7 +430,6 @@ export function CreateBatchForm() {
         form.setValue('ojtCertificationStartDate', format(ojtCertificationStart, 'yyyy-MM-dd'));
         form.setValue('ojtCertificationEndDate', format(ojtCertificationEnd, 'yyyy-MM-dd'));
         form.setValue('handoverToOpsDate', format(handoverToOps, 'yyyy-MM-dd'));
-        setCurrentStatus(determineBatchStatus({...form.getValues(), status: 'planned'}))
 
       } catch (error) {
         console.error('Error calculating dates:', error);
@@ -448,9 +467,6 @@ export function CreateBatchForm() {
             <Progress value={progress} className="w-full" />
           </div>
         )}
-
-        {/* Status Progress Visualizer */}
-        <BatchStatusVisualizer currentPhase={currentStatus} />
 
         <div className="grid grid-cols-2 gap-4">
           {/* Template Selection */}
@@ -590,7 +606,7 @@ export function CreateBatchForm() {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {locations.map((location: any) => (
+                    {locations.map((location) => (
                       <SelectItem key={location.id} value={location.id.toString()}>
                         {location.name}
                       </SelectItem>
@@ -625,7 +641,7 @@ export function CreateBatchForm() {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {lobs.map((lob: any) => (
+                    {lobs.map((lob) => (
                       <SelectItem key={lob.id} value={lob.id.toString()}>
                         {lob.name}
                       </SelectItem>
@@ -658,7 +674,7 @@ export function CreateBatchForm() {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {processes.map((process: any) => (
+                    {processes.map((process) => (
                       <SelectItem key={process.id} value={process.id.toString()}>
                         {process.name}
                       </SelectItem>
@@ -691,7 +707,7 @@ export function CreateBatchForm() {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {trainers.map((trainer: any) => (
+                    {trainers.map((trainer) => (
                       <SelectItem key={trainer.id} value={trainer.id.toString()}>
                         {trainer.fullName}
                       </SelectItem>
@@ -735,6 +751,20 @@ export function CreateBatchForm() {
                       selected={field.value ? new Date(field.value) : undefined}
                       onSelect={(date) => field.onChange(date ? format(date, 'yyyy-MM-dd') : '')}
                       disabled={(date) => isSunday(date) || date < new Date()}
+                      modifiers={{
+                        highlighted: dateRanges.flatMap(range => {
+                          const dates = [];
+                          let current = range.start;
+                          while (current <= range.end) {
+                            dates.push(current);
+                            current = addDays(current, 1);
+                          }
+                          return dates;
+                        })
+                      }}
+                      modifiersClassNames={{
+                        highlighted: (date) => getDateRangeClassName(date)
+                      }}
                       initialFocus
                     />
                   </PopoverContent>
@@ -762,6 +792,33 @@ export function CreateBatchForm() {
               </FormItem>
             )}
           />
+
+          {/* Date Range Preview */}
+          <div className="col-span-2 space-y-2 p-4 border rounded-lg">
+            <h3 className="font-semibold">Date Range Preview</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {dateRanges.map((range, index) => (
+                <div
+                  key={index}
+                  className={cn(
+                    "p-2 rounded",
+                    {
+                      'bg-blue-200': range.status === 'induction',
+                      'bg-green-200': range.status === 'training',
+                      'bg-yellow-200': range.status === 'certification',
+                      'bg-purple-200': range.status === 'ojt',
+                      'bg-pink-200': range.status === 'ojt-certification',
+                    }
+                  )}
+                >
+                  <div className="font-medium">{range.label}</div>
+                  <div className="text-sm">
+                    {format(range.start, "MMM d, yyyy")} - {format(range.end, "MMM d, yyyy")}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
 
           {/* Capacity Limit */}
           <FormField
