@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format, addDays, isSunday, parse } from "date-fns";
+import { format, addDays, isSunday } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -21,6 +21,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
 import { insertOrganizationBatchSchema, type InsertOrganizationBatch } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -95,7 +97,6 @@ export function CreateBatchForm() {
     },
   });
 
-  // Step 1: Fetch Locations
   const {
     data: locations = [],
     isLoading: isLoadingLocations
@@ -104,7 +105,6 @@ export function CreateBatchForm() {
     enabled: !!user?.organizationId
   });
 
-  // Step 2: Fetch LOBs based on selected location
   const {
     data: lobs = [],
     isLoading: isLoadingLobs
@@ -113,7 +113,6 @@ export function CreateBatchForm() {
     enabled: !!selectedLocation && !!user?.organizationId
   });
 
-  // Step 3: Fetch processes based on selected LOB
   const {
     data: processes = [],
     isLoading: isLoadingProcesses
@@ -122,7 +121,6 @@ export function CreateBatchForm() {
     enabled: !!selectedLob && !!user?.organizationId
   });
 
-  // Fetch trainers with location filter
   const {
     data: trainers = [],
     isLoading: isLoadingTrainers
@@ -187,37 +185,13 @@ export function CreateBatchForm() {
       if (!values.batchCode) throw new Error('Batch code is required');
       if (!values.name) throw new Error('Batch name is required');
       if (!values.startDate) throw new Error('Batch start date is required');
-      if (!values.inductionStartDate) throw new Error('Induction Start date is required');
       if (values.locationId === undefined) throw new Error('Location is required');
       if (values.lineOfBusinessId === undefined) throw new Error('Line of Business is required');
       if (values.processId === undefined) throw new Error('Process is required');
       if (values.trainerId === undefined) throw new Error('Trainer is required');
       if (values.capacityLimit === undefined) throw new Error('Capacity limit is required');
 
-      // Convert any Date objects to strings before submitting
-      const formattedValues: InsertOrganizationBatch = {
-        ...values,
-        startDate: typeof values.startDate === 'string'
-          ? values.startDate
-          : format(values.startDate as unknown as Date, 'yyyy-MM-dd'),
-        inductionStartDate: typeof values.inductionStartDate === 'string'
-          ? values.inductionStartDate
-          : format(values.inductionStartDate as unknown as Date, 'yyyy-MM-dd'),
-        inductionEndDate: typeof values.inductionEndDate === 'string' ? values.inductionEndDate : format(values.inductionEndDate as unknown as Date, 'yyyy-MM-dd'),
-        trainingStartDate: typeof values.trainingStartDate === 'string' ? values.trainingStartDate : format(values.trainingStartDate as unknown as Date, 'yyyy-MM-dd'),
-        trainingEndDate: typeof values.trainingEndDate === 'string' ? values.trainingEndDate : format(values.trainingEndDate as unknown as Date, 'yyyy-MM-dd'),
-        certificationStartDate: typeof values.certificationStartDate === 'string' ? values.certificationStartDate : format(values.certificationStartDate as unknown as Date, 'yyyy-MM-dd'),
-        certificationEndDate: typeof values.certificationEndDate === 'string' ? values.certificationEndDate : format(values.certificationEndDate as unknown as Date, 'yyyy-MM-dd'),
-        ojtStartDate: typeof values.ojtStartDate === 'string' ? values.ojtStartDate : format(values.ojtStartDate as unknown as Date, 'yyyy-MM-dd'),
-        ojtEndDate: typeof values.ojtEndDate === 'string' ? values.ojtEndDate : format(values.ojtEndDate as unknown as Date, 'yyyy-MM-dd'),
-        ojtCertificationStartDate: typeof values.ojtCertificationStartDate === 'string' ? values.ojtCertificationStartDate : format(values.ojtCertificationStartDate as unknown as Date, 'yyyy-MM-dd'),
-        ojtCertificationEndDate: typeof values.ojtCertificationEndDate === 'string' ? values.ojtCertificationEndDate : format(values.ojtCertificationEndDate as unknown as Date, 'yyyy-MM-dd'),
-        handoverToOpsDate: typeof values.handoverToOpsDate === 'string' ? values.handoverToOpsDate : format(values.handoverToOpsDate as unknown as Date, 'yyyy-MM-dd'),
-        endDate: typeof values.endDate === 'string' ? values.endDate : format(values.endDate as unknown as Date, 'yyyy-MM-dd')
-      };
-
-      console.log('Submitting with formatted values:', formattedValues);
-      await createBatchMutation.mutateAsync(formattedValues);
+      await createBatchMutation.mutateAsync(values);
     } catch (error) {
       console.error('Form submission error:', error);
       toast({
@@ -230,11 +204,14 @@ export function CreateBatchForm() {
 
   useEffect(() => {
     const process = processes.find(p => p.id === form.getValues('processId'));
-    const startDateStr = form.getValues('inductionStartDate');
+    const startDateStr = form.getValues('startDate');
 
     if (process && startDateStr) {
       try {
         const startDate = new Date(startDateStr);
+
+        // Set induction start date same as batch start date
+        form.setValue('inductionStartDate', format(startDate, 'yyyy-MM-dd'));
 
         // Calculate all dates based on process days
         const inductionEnd = addWorkingDays(startDate, process.inductionDays);
@@ -252,37 +229,35 @@ export function CreateBatchForm() {
         form.setValue('endDate', format(handoverToOps, 'yyyy-MM-dd'));
 
         // Update form values
-        const formatDate = (date: Date) => format(date, 'yyyy-MM-dd');
-
-        form.setValue('inductionEndDate', formatDate(inductionEnd));
-        form.setValue('trainingStartDate', formatDate(trainingStart));
-        form.setValue('trainingEndDate', formatDate(trainingEnd));
-        form.setValue('certificationStartDate', formatDate(certificationStart));
-        form.setValue('certificationEndDate', formatDate(certificationEnd));
-        form.setValue('ojtStartDate', formatDate(ojtStart));
-        form.setValue('ojtEndDate', formatDate(ojtEnd));
-        form.setValue('ojtCertificationStartDate', formatDate(ojtCertificationStart));
-        form.setValue('ojtCertificationEndDate', formatDate(ojtCertificationEnd));
-        form.setValue('handoverToOpsDate', formatDate(handoverToOps));
+        form.setValue('inductionEndDate', format(inductionEnd, 'yyyy-MM-dd'));
+        form.setValue('trainingStartDate', format(trainingStart, 'yyyy-MM-dd'));
+        form.setValue('trainingEndDate', format(trainingEnd, 'yyyy-MM-dd'));
+        form.setValue('certificationStartDate', format(certificationStart, 'yyyy-MM-dd'));
+        form.setValue('certificationEndDate', format(certificationEnd, 'yyyy-MM-dd'));
+        form.setValue('ojtStartDate', format(ojtStart, 'yyyy-MM-dd'));
+        form.setValue('ojtEndDate', format(ojtEnd, 'yyyy-MM-dd'));
+        form.setValue('ojtCertificationStartDate', format(ojtCertificationStart, 'yyyy-MM-dd'));
+        form.setValue('ojtCertificationEndDate', format(ojtCertificationEnd, 'yyyy-MM-dd'));
+        form.setValue('handoverToOpsDate', format(handoverToOps, 'yyyy-MM-dd'));
 
         // Update displayed dates
         setCalculatedDates({
-          inductionEnd: formatDate(inductionEnd),
-          trainingStart: formatDate(trainingStart),
-          trainingEnd: formatDate(trainingEnd),
-          certificationStart: formatDate(certificationStart),
-          certificationEnd: formatDate(certificationEnd),
-          ojtStart: formatDate(ojtStart),
-          ojtEnd: formatDate(ojtEnd),
-          ojtCertificationStart: formatDate(ojtCertificationStart),
-          ojtCertificationEnd: formatDate(ojtCertificationEnd),
-          handoverToOps: formatDate(handoverToOps)
+          inductionEnd: format(inductionEnd, 'yyyy-MM-dd'),
+          trainingStart: format(trainingStart, 'yyyy-MM-dd'),
+          trainingEnd: format(trainingEnd, 'yyyy-MM-dd'),
+          certificationStart: format(certificationStart, 'yyyy-MM-dd'),
+          certificationEnd: format(certificationEnd, 'yyyy-MM-dd'),
+          ojtStart: format(ojtStart, 'yyyy-MM-dd'),
+          ojtEnd: format(ojtEnd, 'yyyy-MM-dd'),
+          ojtCertificationStart: format(ojtCertificationStart, 'yyyy-MM-dd'),
+          ojtCertificationEnd: format(ojtCertificationEnd, 'yyyy-MM-dd'),
+          handoverToOps: format(handoverToOps, 'yyyy-MM-dd')
         });
       } catch (error) {
         console.error('Error calculating dates:', error);
       }
     }
-  }, [form.watch('inductionStartDate'), form.watch('processId'), processes]);
+  }, [form.watch('startDate'), form.watch('processId'), processes]);
 
   return (
     <Form {...form}>
@@ -488,15 +463,10 @@ export function CreateBatchForm() {
                       mode="single"
                       selected={field.value ? new Date(field.value) : undefined}
                       onSelect={(date) => {
-                        // Convert Date to string in YYYY-MM-DD format
                         const dateStr = date ? format(date, 'yyyy-MM-dd') : '';
-                        console.log('Selected batch start date:', dateStr);
                         field.onChange(dateStr);
-                        // Set the same date for induction start
-                        form.setValue('inductionStartDate', dateStr);
                       }}
                       disabled={(date) => {
-                        // Disable Sundays and past dates
                         return isSunday(date) || date < new Date();
                       }}
                       initialFocus
@@ -527,7 +497,7 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Induction Start Date (Read-only) */}
+          {/* Induction Start Date */}
           <FormField
             control={form.control}
             name="inductionStartDate"
