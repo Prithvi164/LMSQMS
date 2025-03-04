@@ -83,6 +83,15 @@ export function BatchesTab() {
   } = useQuery<OrganizationBatch[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches`],
     enabled: !!user?.organizationId,
+    onSuccess: (data) => {
+      // Log the raw API response
+      console.log('Batches API Response:', data.map(batch => ({
+        id: batch.id,
+        name: batch.name,
+        rawCategory: batch.batchCategory,
+        typeofCategory: typeof batch.batchCategory
+      })));
+    }
   });
 
   // Get unique values for filters
@@ -119,7 +128,7 @@ export function BatchesTab() {
 
   // Format function for batch category display
   const formatBatchCategory = (category: string | undefined | null) => {
-    if (!category) return 'Uncategorized';
+    if (!category) return 'N/A';  // Changed from 'Uncategorized' to 'N/A' for clearer indication
     return category
       .split('_')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -553,6 +562,17 @@ export function BatchesTab() {
 
   // Add debug logging for the API response
   useEffect(() => {
+    console.log('Debug - API Response:', {
+      batches: batches.map(b => ({
+        id: b.id,
+        name: b.name,
+        batchCategory: b.batchCategory,
+        rawBatchCategory: JSON.stringify(b.batchCategory)
+      }))
+    });
+  }, [batches]);
+
+  useEffect(() => {
     console.log('Debug - Category filter state:', {
       selectedCategory,
       allCategories: batches.map(b => ({
@@ -817,7 +837,8 @@ export function BatchesTab() {
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogContent className="max-w-3xl">
             <DialogHeader>
-              <DialogTitle>Create New Batch</DialogTitle>            </DialogHeader>
+              <DialogTitle>Create New Batch</DialogTitle>
+            </DialogHeader>
             <CreateBatchForm />
           </DialogContent>
         </Dialog>

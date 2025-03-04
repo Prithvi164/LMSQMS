@@ -874,10 +874,13 @@ export class DatabaseStorage implements IStorage {
   async listBatches(organizationId: number): Promise<OrganizationBatch[]> {
     try {
       console.log(`Fetching batches for organization ${organizationId}`);
+
+      // Explicitly select and cast the batch_category field
       const batches = await db
         .select({
           id: organizationBatches.id,
           name: organizationBatches.name,
+          batchCategory: sql<string>`${organizationBatches.batchCategory}::text`,
           startDate: organizationBatches.startDate,
           endDate: organizationBatches.endDate,
           status: organizationBatches.status,
@@ -887,6 +890,19 @@ export class DatabaseStorage implements IStorage {
           lineOfBusinessId: organizationBatches.lineOfBusinessId,
           trainerId: organizationBatches.trainerId,
           organizationId: organizationBatches.organizationId,
+          inductionStartDate: organizationBatches.inductionStartDate,
+          inductionEndDate: organizationBatches.inductionEndDate,
+          trainingStartDate: organizationBatches.trainingStartDate,
+          trainingEndDate: organizationBatches.trainingEndDate,
+          certificationStartDate: organizationBatches.certificationStartDate,
+          certificationEndDate: organizationBatches.certificationEndDate,
+          ojtStartDate: organizationBatches.ojtStartDate,
+          ojtEndDate: organizationBatches.ojtEndDate,
+          ojtCertificationStartDate: organizationBatches.ojtCertificationStartDate,
+          ojtCertificationEndDate: organizationBatches.ojtCertificationEndDate,
+          handoverToOpsDate: organizationBatches.handoverToOpsDate,
+          createdAt: organizationBatches.createdAt,
+          updatedAt: organizationBatches.updatedAt,
           location: organizationLocations,
           process: organizationProcesses,
           line_of_business: organizationLineOfBusinesses,
@@ -905,18 +921,17 @@ export class DatabaseStorage implements IStorage {
           eq(organizationBatches.lineOfBusinessId, organizationLineOfBusinesses.id)
         )
         .where(eq(organizationBatches.organizationId, organizationId))
-        .orderBy(desc(organizationBatches.createdAt)) as OrganizationBatch[];
+        .orderBy(desc(organizationBatches.createdAt));
 
-      console.log(`Found ${batches.length} batches with details:`, 
-        batches.map(b => ({
-          id: b.id,
-          name: b.name,
-          location: b.location?.name,
-          process: b.process?.name,
-          line_of_business: b.line_of_business?.name
-        }))
-      );
-      return batches;
+      // Debug log to verify the data
+      console.log('Raw batch data:', batches.map(b => ({
+        id: b.id,
+        name: b.name,
+        category: b.batchCategory,
+        rawCategory: JSON.stringify(b.batchCategory)
+      })));
+
+      return batches as OrganizationBatch[];
     } catch (error) {
       console.error('Error fetching batches:', error);
       throw error;
@@ -976,8 +991,7 @@ export class DatabaseStorage implements IStorage {
         .from(organizationLocations)
         .where(eq(organizationLocations.id, id)) as OrganizationLocation[];
 
-      console.log('Location found:', location);
-      return location;
+      console.log('Location found:', location);      return location;
     } catch (error) {
       console.error('Error fetching location:', error);
       throw error;
