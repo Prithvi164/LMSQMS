@@ -234,7 +234,7 @@ export function CreateBatchForm() {
         form.setValue('ojtEndDate', formatDate(ojtEnd));
         form.setValue('ojtCertificationStartDate', formatDate(ojtCertificationStart));
         form.setValue('ojtCertificationEndDate', formatDate(ojtCertificationEnd));
-        form.setValue('handoverToOpsDate', formatDate(ojtEnd)); // Set handover date same as batch end (ojt end)
+        form.setValue('handoverToOpsDate', formatDate(handoverToOps)); // Set handover date same as batch end
 
         // Update displayed dates
         setCalculatedDates({
@@ -250,7 +250,7 @@ export function CreateBatchForm() {
           ojtEnd: formatDate(ojtEnd),
           ojtCertificationStart: formatDate(ojtCertificationStart),
           ojtCertificationEnd: formatDate(ojtCertificationEnd),
-          handoverToOps: formatDate(ojtEnd)
+          handoverToOps: formatDate(handoverToOps)
         });
       } catch (error) {
         console.error('Error calculating dates:', error);
