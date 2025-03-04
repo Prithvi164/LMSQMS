@@ -93,21 +93,28 @@ export function BatchesTab() {
 
   // Filter batches with all conditions
   const filteredBatches = batches.filter(batch => {
-    // Log each batch and its category for debugging
-    console.log('Processing batch:', {
-      name: batch.name,
-      rawCategory: batch.batchCategory,
+    // Debug logging for category matching
+    console.log('Category Changed:', {
+      newValue: selectedCategory,
+      willBecome: selectedCategory === 'all' ? null : selectedCategory
+    });
+
+    // Category filter debug
+    console.log('Category filter debug:', { 
       selectedCategory: selectedCategory,
-      match: selectedCategory === null || 
-             (batch.batchCategory && batch.batchCategory.toLowerCase() === (selectedCategory || '').toLowerCase())
+      filteringBatch: {
+        name: batch.name,
+        rawCategory: batch.batchCategory,
+        match: selectedCategory === null || 
+               batch.batchCategory === selectedCategory
+      }
     });
 
     return (
       (searchQuery === '' ||
         batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         batch.status.toLowerCase().includes(searchQuery.toLowerCase())) &&
-      (selectedCategory === null || 
-       (batch.batchCategory && batch.batchCategory.toLowerCase() === (selectedCategory || '').toLowerCase())) &&
+      (selectedCategory === null || batch.batchCategory === selectedCategory) &&
       (selectedStatus === null || batch.status === selectedStatus) &&
       (selectedLocation === null || batch.location?.name === selectedLocation) &&
       (selectedLineOfBusiness === null || batch.line_of_business?.name === selectedLineOfBusiness) &&
