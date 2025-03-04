@@ -591,6 +591,20 @@ export function BatchesTab() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <Select value={selectedCategory || 'all'} onValueChange={(value) => setSelectedCategory(value === 'all' ? null : value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Filter by Category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {batchCategories.map((category) => (
+                <SelectItem key={category} value={category}>
+                  {formatBatchCategory(category)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <Select value={selectedStatus || 'all'} onValueChange={(value) => setSelectedStatus(value === 'all' ? null : value)}>
             <SelectTrigger>
               <SelectValue placeholder="Filter by Status" />
@@ -692,167 +706,142 @@ export function BatchesTab() {
           </Button>
         </div>
 
-        <div className="flex flex-wrap gap-2 mt-4 border-t pt-4">
-          <div className="w-full mb-2">
-            <h3 className="text-sm font-medium text-muted-foreground">Batch Categories</h3>
-          </div>
-          <Button
-            variant={selectedCategory === null ? "secondary" : "outline"}
-            size="sm"
-            onClick={() => setSelectedCategory(null)}
-            className="transition-colors hover:bg-secondary/80"
-          >
-            All Categories
-          </Button>
-          {batchCategories.map((category) => (
-            <Button
-              key={category}
-              variant={selectedCategory === category ? "secondary" : "outline"}
-              size="sm"
-              onClick={() => setSelectedCategory(category)}
-              className="transition-colors hover:bg-secondary/80"
-            >
-              {formatBatchCategory(category)}
-            </Button>
-          ))}
-        </div>
+        {batches.length > 0 ? (
+          <Tabs defaultValue="table" className="w-full">
+            <TabsList>
+              <TabsTrigger value="table" className="flex items-center gap-2">
+                <List className="h-4 w-4" />
+                Table View
+              </TabsTrigger>
+              <TabsTrigger value="calendar" className="flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4" />
+                Calendar View
+              </TabsTrigger>
+            </TabsList>
 
-      </div>
+            <TabsContent value="table" className="space-y-6">
+              {renderBatchTable(sortedBatches)}
+            </TabsContent>
 
-      {batches.length > 0 ? (
-        <Tabs defaultValue="table" className="w-full">
-          <TabsList>
-            <TabsTrigger value="table" className="flex items-center gap-2">
-              <List className="h-4 w-4" />
-              Table View
-            </TabsTrigger>
-            <TabsTrigger value="calendar" className="flex items-center gap-2">
-              <CalendarIcon className="h-4 w-4" />
-              Calendar View
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="table" className="space-y-6">
-            {renderBatchTable(sortedBatches)}
-          </TabsContent>
-
-          <TabsContent value="calendar" className="space-y-6">
-            <div className="rounded-md border p-6">
-              <Calendar
-                mode="single"
-                disabled={false}
-                components={{
-                  Day: ({ date }) => renderCalendarDay(date)
-                }}
-                className="w-full"
-                classNames={{
-                  cell: "h-24 w-24 p-0 border-2 border-gray-100 dark:border-gray-800",
-                  head_cell: "text-muted-foreground font-normal border-b-2 border-gray-100 dark:border-gray-800 p-2",
-                  table: "border-collapse border-spacing-0 border-2 border-gray-100 dark:border-gray-800",
-                  day: "h-full rounded-none hover:bg-gray-50 dark:hover:bg-gray-800 focus-visible:bg-gray-50 dark:focus-visible:bg-gray-800",
-                  nav_button: "h-12 w-12 bg-primary/10 hover:bg-primary/20 p-0 opacity-90 hover:opacity-100 absolute top-[50%] -translate-y-1/2 flex items-center justify-center rounded-full transition-all shadow-sm hover:shadow-md border border-primary/20",
-                  nav_button_previous: "left-4",
-                  nav_button_next: "right-4",
-                  nav: "relative flex items-center justify-between pt-4 pb-10 px-2 border-b-2 border-gray-100 dark:border-gray-800 mb-4",
-                  caption: "text-2xl font-semibold text-center flex-1 px-10",
-                  caption_label: "text-lg font-medium"
-                }}
-              />
-              <div className="mt-6 flex items-center gap-6 text-sm border-t pt-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-blue-500" />
-                  <span className="font-medium">Planned</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-green-500" />
-                  <span className="font-medium">Ongoing</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-gray-500" />
-                  <span className="font-medium">Completed</span>
+            <TabsContent value="calendar" className="space-y-6">
+              <div className="rounded-md border p-6">
+                <Calendar
+                  mode="single"
+                  disabled={false}
+                  components={{
+                    Day: ({ date }) => renderCalendarDay(date)
+                  }}
+                  className="w-full"
+                  classNames={{
+                    cell: "h-24 w-24 p-0 border-2 border-gray-100 dark:border-gray-800",
+                    head_cell: "text-muted-foreground font-normal border-b-2 border-gray-100 dark:border-gray-800 p-2",
+                    table: "border-collapse border-spacing-0 border-2 border-gray-100 dark:border-gray-800",
+                    day: "h-full rounded-none hover:bg-gray-50 dark:hover:bg-gray-800 focus-visible:bg-gray-50 dark:focus-visible:bg-gray-800",
+                    nav_button: "h-12 w-12 bg-primary/10 hover:bg-primary/20 p-0 opacity-90 hover:opacity-100 absolute top-[50%] -translate-y-1/2 flex items-center justify-center rounded-full transition-all shadow-sm hover:shadow-md border border-primary/20",
+                    nav_button_previous: "left-4",
+                    nav_button_next: "right-4",
+                    nav: "relative flex items-center justify-between pt-4 pb-10 px-2 border-b-2 border-gray-100 dark:border-gray-800 mb-4",
+                    caption: "text-2xl font-semibold text-center flex-1 px-10",
+                    caption_label: "text-lg font-medium"
+                  }}
+                />
+                <div className="mt-6 flex items-center gap-6 text-sm border-t pt-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-blue-500" />
+                    <span className="font-medium">Planned</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-green-500" />
+                    <span className="font-medium">Ongoing</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-gray-500" />
+                    <span className="font-medium">Completed</span>
+                  </div>
                 </div>
               </div>
+            </TabsContent>
+          </Tabs>
+        ) : (
+          <div className="flex min-h-[400px] flex-col items-center justify-center rounded-md border border-dashed p-8 text-center animate-in fade-in-50">
+            <div className="mx-auto flex max-w-[420px] flex-col items-center justify-center text-center">
+              <h3 className="mt-4 text-lg font-semibold">No batches found</h3>
+              <p className="mb-4 mt-2 text-sm text-muted-foreground">
+                You haven't created any batches yet. Start by creating a new batch.
+              </p>
+              {canManageBatches && (
+                <Button
+                  size="sm"
+                  className="relative"
+                  onClick={() => setIsCreateDialogOpen(true)}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Batch
+                </Button>
+              )}
             </div>
-          </TabsContent>
-        </Tabs>
-      ) : (
-        <div className="flex min-h-[400px] flex-col items-center justify-center rounded-md border border-dashed p-8 text-center animate-in fade-in-50">
-          <div className="mx-auto flex max-w-[420px] flex-col items-center justify-center text-center">
-            <h3 className="mt-4 text-lg font-semibold">No batches found</h3>
-            <p className="mb-4 mt-2 text-sm text-muted-foreground">
-              You haven't created any batches yet. Start by creating a new batch.
-            </p>
-            {canManageBatches && (
-              <Button
-                size="sm"
-                className="relative"
-                onClick={() => setIsCreateDialogOpen(true)}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Create Batch
-              </Button>
+          </div>
+        )}
+
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Create New Batch</DialogTitle>
+            </DialogHeader>
+            <CreateBatchForm />
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Edit Batch</DialogTitle>
+              <DialogDescription>
+                Make changes to the batch details.
+              </DialogDescription>
+            </DialogHeader>
+            {selectedBatch && (
+              <CreateBatchForm
+                editMode={true}
+                batchData={selectedBatch}
+                onSuccess={() => setIsEditDialogOpen(false)}
+              />
             )}
-          </div>
-        </div>
-      )}
+          </DialogContent>
+        </Dialog>
 
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Create New Batch</DialogTitle>
-          </DialogHeader>
-          <CreateBatchForm />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Edit Batch</DialogTitle>
-            <DialogDescription>
-              Make changes to              the batch details.
-            </DialogDescription>          </DialogHeader>
-          {selectedBatch && (
-            <CreateBatchForm
-              editMode={true}
-              batchData={selectedBatch}
-              onSuccess={() => setIsEditDialogOpen(false)}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. Please type "{selectedBatch?.name}" to confirm deletion.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="py-4">
-            <Input
-              placeholder="Type batch name to confirm"
-              value={deleteConfirmation}
-              onChange={(e) => setDeleteConfirmation(e.target.value)}
-            />
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => {
-              setDeleteConfirmation('');
-              setDeleteDialogOpen(false);
-            }}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              disabled={deleteConfirmation !== selectedBatch?.name || deleteBatchMutation.isPending}
-            >
-              {deleteBatchMutation.isPending ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. Please type "{selectedBatch?.name}" to confirm deletion.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="py-4">
+              <Input
+                placeholder="Type batch name to confirm"
+                value={deleteConfirmation}
+                onChange={(e) => setDeleteConfirmation(e.target.value)}
+              />
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => {
+                setDeleteConfirmation('');
+                setDeleteDialogOpen(false);
+              }}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmDelete}
+                disabled={deleteConfirmation !== selectedBatch?.name || deleteBatchMutation.isPending}
+              >
+                {deleteBatchMutation.isPending ? "Deleting..." : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     </div>
   );
 }
