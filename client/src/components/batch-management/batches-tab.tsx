@@ -330,7 +330,7 @@ export function BatchesTab() {
                 </div>
               </TableCell>
               <TableCell className="text-center">{batch.location?.name || '-'}</TableCell>
-              <TableCell className="text-center">{batch.lineOfBusiness?.name || '-'}</TableCell>
+              <TableCell className="text-center">{batch.line_of_business?.name || '-'}</TableCell>
               <TableCell className="text-center">{batch.process?.name || '-'}</TableCell>
               <TableCell className="text-center">
                 <Badge
