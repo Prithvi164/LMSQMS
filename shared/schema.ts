@@ -102,7 +102,7 @@ export const batchTemplatesRelations = relations(batchTemplates, ({ one }) => ({
 export const organizationBatches = pgTable("organization_batches", {
   id: serial("id").primaryKey(),
   batchCode: text("batch_code").notNull().unique(),
-  name: text("name").notNull(),
+  name: text("name").notNull().unique(), // Added unique constraint
   startDate: date("start_date").notNull(),
   endDate: date("end_date").notNull(),
   status: batchStatusEnum("status").default('planned').notNull(),
