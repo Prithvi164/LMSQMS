@@ -10,7 +10,7 @@ export const batchStatusEnum = pgEnum('batch_status', [
   'completed'
 ]);
 
-// Existing enums remain unchanged...
+// Existing enums remain unchanged
 export const userCategoryTypeEnum = pgEnum('user_category_type', ['active', 'trainee']);
 export const roleEnum = pgEnum('role', [
   'owner',     
@@ -27,14 +27,16 @@ export const organizationBatches = pgTable("organization_batches", {
   id: serial("id").primaryKey(),
   batchCode: text("batch_code").notNull().unique(),
   name: text("name").notNull(),
-  inductionStartDate: date("induction_start_date").notNull(), // This is also Batch Start Date
+  batchStartDate: date("batch_start_date").notNull(),  
+  batchEndDate: date("batch_end_date"),                
+  inductionStartDate: date("induction_start_date"),   
   inductionEndDate: date("induction_end_date"),
   trainingStartDate: date("training_start_date"),
   trainingEndDate: date("training_end_date"),
   certificationStartDate: date("certification_start_date"),
   certificationEndDate: date("certification_end_date"),
   ojtStartDate: date("ojt_start_date"),
-  ojtEndDate: date("ojt_end_date"), // This is also Batch End Date
+  ojtEndDate: date("ojt_end_date"),
   ojtCertificationStartDate: date("ojt_certification_start_date"),
   ojtCertificationEndDate: date("ojt_certification_end_date"),
   handoverToOpsDate: date("handover_to_ops_date"),
@@ -95,14 +97,16 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
   .extend({
     batchCode: z.string().min(1, "Batch code is required"),
     name: z.string().min(1, "Batch name is required"),
-    inductionStartDate: z.string().min(1, "Batch Start date is required"), // Updated validation message
+    batchStartDate: z.string().min(1, "Batch Start date is required"),
+    batchEndDate: z.string().optional(),
+    inductionStartDate: z.string().optional(),
     inductionEndDate: z.string().optional(),
     trainingStartDate: z.string().optional(),
     trainingEndDate: z.string().optional(),
     certificationStartDate: z.string().optional(),
     certificationEndDate: z.string().optional(),
     ojtStartDate: z.string().optional(),
-    ojtEndDate: z.string().optional(), // This will be the Batch End Date
+    ojtEndDate: z.string().optional(),
     ojtCertificationStartDate: z.string().optional(),
     ojtCertificationEndDate: z.string().optional(),
     handoverToOpsDate: z.string().optional(),
@@ -118,7 +122,7 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
 export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
 
 
-// Rest of the enums and tables remain unchanged...
+// Rest of the enums and tables remain unchanged
 export const permissionEnum = pgEnum('permission', [
   'manage_billing',
   'manage_subscription',
@@ -257,9 +261,9 @@ export const userProcesses = pgTable("user_processes", {
     .references(() => organizations.id)
     .notNull(),
   lineOfBusinessId: integer("line_of_business_id")
-    .references(() => organizationLineOfBusinesses.id),  // Made nullable
+    .references(() => organizationLineOfBusinesses.id),  
   locationId: integer("location_id")
-    .references(() => organizationLocations.id),  // Made nullable
+    .references(() => organizationLocations.id),  
   status: text("status").default('assigned').notNull(),
   assignedAt: timestamp("assigned_at").defaultNow().notNull(),
   completedAt: timestamp("completed_at"),

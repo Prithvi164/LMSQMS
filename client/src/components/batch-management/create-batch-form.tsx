@@ -50,6 +50,8 @@ export function CreateBatchForm() {
   const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
   const [selectedLob, setSelectedLob] = useState<number | null>(null);
   const [calculatedDates, setCalculatedDates] = useState<{
+    batchStart: string;
+    batchEnd: string;
     inductionStart: string;
     inductionEnd: string;
     trainingStart: string;
@@ -62,6 +64,8 @@ export function CreateBatchForm() {
     ojtCertificationEnd: string;
     handoverToOps: string;
   }>({
+    batchStart: '',
+    batchEnd: '',
     inductionStart: '',
     inductionEnd: '',
     trainingStart: '',
@@ -80,7 +84,6 @@ export function CreateBatchForm() {
     defaultValues: {
       status: 'planned',
       organizationId: user?.organizationId || undefined,
-      inductionStartDate: '',
       capacityLimit: 1,
       batchCode: '',
       name: '',
@@ -178,7 +181,7 @@ export function CreateBatchForm() {
     try {
       if (!values.batchCode) throw new Error('Batch code is required');
       if (!values.name) throw new Error('Batch name is required');
-      if (!values.inductionStartDate) throw new Error('Batch Start date is required');
+      if (!values.batchStartDate) throw new Error('Batch Start date is required');
       if (values.locationId === undefined) throw new Error('Location is required');
       if (values.lineOfBusinessId === undefined) throw new Error('Line of Business is required');
       if (values.processId === undefined) throw new Error('Process is required');
@@ -199,11 +202,11 @@ export function CreateBatchForm() {
   // Add effect to calculate dates when process and start date change
   useEffect(() => {
     const process = processes.find(p => p.id === form.getValues('processId'));
-    const startDateStr = form.getValues('inductionStartDate');
+    const batchStartDate = form.getValues('batchStartDate');
 
-    if (process && startDateStr) {
+    if (process && batchStartDate) {
       try {
-        const startDate = new Date(startDateStr);
+        const startDate = new Date(batchStartDate);
 
         // Calculate all dates based on process days
         const inductionEnd = addWorkingDays(startDate, process.inductionDays);
@@ -217,9 +220,11 @@ export function CreateBatchForm() {
         const ojtCertificationEnd = addWorkingDays(ojtCertificationStart, process.ojtCertificationDays);
         const handoverToOps = addWorkingDays(ojtCertificationEnd, 1);
 
-        // Update form values with formatted dates
+        // Format dates
         const formatDate = (date: Date) => format(date, 'yyyy-MM-dd');
 
+        // Set form values
+        form.setValue('inductionStartDate', batchStartDate); // Set induction start same as batch start
         form.setValue('inductionEndDate', formatDate(inductionEnd));
         form.setValue('trainingStartDate', formatDate(trainingStart));
         form.setValue('trainingEndDate', formatDate(trainingEnd));
@@ -229,11 +234,13 @@ export function CreateBatchForm() {
         form.setValue('ojtEndDate', formatDate(ojtEnd));
         form.setValue('ojtCertificationStartDate', formatDate(ojtCertificationStart));
         form.setValue('ojtCertificationEndDate', formatDate(ojtCertificationEnd));
-        form.setValue('handoverToOpsDate', formatDate(handoverToOps));
+        form.setValue('handoverToOpsDate', formatDate(ojtEnd)); // Set handover date same as batch end (ojt end)
 
-        // Update displayed dates including inductionStart
+        // Update displayed dates
         setCalculatedDates({
-          inductionStart: startDateStr, // Add the start date to calculated dates
+          batchStart: batchStartDate,
+          batchEnd: formatDate(ojtEnd),
+          inductionStart: batchStartDate,
           inductionEnd: formatDate(inductionEnd),
           trainingStart: formatDate(trainingStart),
           trainingEnd: formatDate(trainingEnd),
@@ -243,13 +250,13 @@ export function CreateBatchForm() {
           ojtEnd: formatDate(ojtEnd),
           ojtCertificationStart: formatDate(ojtCertificationStart),
           ojtCertificationEnd: formatDate(ojtCertificationEnd),
-          handoverToOps: formatDate(handoverToOps)
+          handoverToOps: formatDate(ojtEnd)
         });
       } catch (error) {
         console.error('Error calculating dates:', error);
       }
     }
-  }, [form.watch('inductionStartDate'), form.watch('processId'), processes]);
+  }, [form.watch('batchStartDate'), form.watch('processId'), processes]);
 
   return (
     <Form {...form}>
@@ -285,10 +292,10 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Batch Start Date (Induction Start Date) */}
+          {/* Batch Start Date */}
           <FormField
             control={form.control}
-            name="inductionStartDate"
+            name="batchStartDate"
             render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Batch Start Date</FormLabel>
@@ -331,17 +338,17 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Batch End Date (OJT End Date) */}
+          {/* Batch End Date */}
           <FormField
             control={form.control}
-            name="ojtEndDate"
+            name="batchEndDate"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Batch End Date</FormLabel>
                 <FormControl>
                   <Input
                     type="text"
-                    value={calculatedDates.ojtEnd ? format(new Date(calculatedDates.ojtEnd), "PPP") : ''}
+                    value={calculatedDates.batchEnd ? format(new Date(calculatedDates.batchEnd), "PPP") : ''}
                     disabled
                   />
                 </FormControl>
@@ -349,141 +356,20 @@ export function CreateBatchForm() {
             )}
           />
 
-          {/* Location */}
+          {/* Induction Start Date */}
           <FormField
             control={form.control}
-            name="locationId"
+            name="inductionStartDate"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Location</FormLabel>
-                <Select
-                  onValueChange={(value) => {
-                    const locationId = parseInt(value);
-                    field.onChange(locationId);
-                    setSelectedLocation(locationId);
-                    setSelectedLob(null);
-                    form.setValue('lineOfBusinessId', undefined);
-                    form.setValue('processId', undefined);
-                    form.setValue('trainerId', undefined);
-                  }}
-                  value={field.value?.toString()}
-                  disabled={isLoadingLocations}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select location" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {locations.map((location) => (
-                      <SelectItem key={location.id} value={location.id.toString()}>
-                        {location.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Line of Business */}
-          <FormField
-            control={form.control}
-            name="lineOfBusinessId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Line of Business</FormLabel>
-                <Select
-                  onValueChange={(value) => {
-                    const lobId = parseInt(value);
-                    field.onChange(lobId);
-                    setSelectedLob(lobId);
-                    form.setValue('processId', undefined);
-                  }}
-                  value={field.value?.toString()}
-                  disabled={!selectedLocation || isLoadingLobs}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={selectedLocation ? "Select LOB" : "Select location first"} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {lobs.map((lob) => (
-                      <SelectItem key={lob.id} value={lob.id.toString()}>
-                        {lob.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Process */}
-          <FormField
-            control={form.control}
-            name="processId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Process</FormLabel>
-                <Select
-                  onValueChange={(value) => {
-                    const processId = parseInt(value);
-                    field.onChange(processId);
-                  }}
-                  value={field.value?.toString()}
-                  disabled={!selectedLob || isLoadingProcesses}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={selectedLob ? "Select process" : "Select LOB first"} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {processes.map((process) => (
-                      <SelectItem key={process.id} value={process.id.toString()}>
-                        {process.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Trainer */}
-          <FormField
-            control={form.control}
-            name="trainerId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Trainer</FormLabel>
-                <Select
-                  onValueChange={(value) => {
-                    const trainerId = parseInt(value);
-                    field.onChange(trainerId);
-                  }}
-                  value={field.value?.toString()}
-                  disabled={!selectedLocation || isLoadingTrainers}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={selectedLocation ? "Select trainer" : "Select location first"} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {trainers.map((trainer) => (
-                      <SelectItem key={trainer.id} value={trainer.id.toString()}>
-                        {trainer.fullName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
+                <FormLabel>Induction Start Date</FormLabel>
+                <FormControl>
+                  <Input
+                    type="text"
+                    value={calculatedDates.inductionStart ? format(new Date(calculatedDates.inductionStart), "PPP") : ''}
+                    disabled
+                  />
+                </FormControl>
               </FormItem>
             )}
           />
