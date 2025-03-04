@@ -64,17 +64,12 @@ export function BatchesTab() {
     enabled: !!user?.organizationId
   });
 
-  // Filter and group batches
+  // Filter batches
   const filteredBatches = batches.filter(batch =>
     batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     batch.status.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const groupedBatches = {
-    planned: filteredBatches.filter(b => b.status === 'planned'),
-    ongoing: filteredBatches.filter(b => ['induction', 'training', 'certification', 'ojt', 'ojt_certification'].includes(b.status)),
-    completed: filteredBatches.filter(b => b.status === 'completed')
-  };
 
   const deleteBatchMutation = useMutation({
     mutationFn: async (batchId: number) => {
@@ -316,20 +311,28 @@ export function BatchesTab() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead>
+            <TableHead>Date</TableHead>
+            <TableHead>Location</TableHead>
+            <TableHead>Line of Business</TableHead>
+            <TableHead>Process</TableHead>
+            <TableHead>Batch Name</TableHead>
             <TableHead>Category</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Process</TableHead>
-            <TableHead>Location</TableHead>
             <TableHead>Trainer</TableHead>
             <TableHead>Capacity</TableHead>
-            <TableHead>Timeline</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {batchList.map((batch) => (
+          {filteredBatches.map((batch) => (
             <TableRow key={batch.id}>
+              <TableCell>
+                {format(new Date(batch.startDate), 'MMM d, yyyy')} -
+                {format(new Date(batch.endDate), 'MMM d, yyyy')}
+              </TableCell>
+              <TableCell>{batch.location?.name}</TableCell>
+              <TableCell>{batch.lineOfBusiness?.name}</TableCell>
+              <TableCell>{batch.process?.name}</TableCell>
               <TableCell>{batch.name}</TableCell>
               <TableCell>
                 <Badge variant="outline">
@@ -341,14 +344,8 @@ export function BatchesTab() {
                   {batch.status.charAt(0).toUpperCase() + batch.status.slice(1)}
                 </Badge>
               </TableCell>
-              <TableCell>{batch.process?.name}</TableCell>
-              <TableCell>{batch.location?.name}</TableCell>
               <TableCell>{batch.trainer?.fullName}</TableCell>
               <TableCell>{batch.capacityLimit}</TableCell>
-              <TableCell>
-                {new Date(batch.startDate).toLocaleDateString()} -
-                {new Date(batch.endDate).toLocaleDateString()}
-              </TableCell>
               <TableCell className="text-right space-x-2">
                 <Button variant="outline" size="sm">
                   View Details
@@ -358,18 +355,18 @@ export function BatchesTab() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleDeleteClick(batch)}
-                      disabled={batch.status !== 'planned'}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
                       onClick={() => handleEditClick(batch)}
                       disabled={batch.status !== 'planned'}
                     >
                       <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteClick(batch)}
+                      disabled={batch.status !== 'planned'}
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </>
                 )}
@@ -434,14 +431,7 @@ export function BatchesTab() {
           </TabsList>
 
           <TabsContent value="table" className="space-y-6">
-            {Object.entries(groupedBatches).map(([status, batchList]) => (
-              batchList.length > 0 && (
-                <div key={status} className="space-y-4">
-                  <h3 className="text-lg font-semibold capitalize">{status} Batches</h3>
-                  {renderBatchTable(batchList)}
-                </div>
-              )
-            ))}
+            {renderBatchTable(filteredBatches)}
           </TabsContent>
 
           <TabsContent value="calendar" className="space-y-6">
