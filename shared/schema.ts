@@ -589,7 +589,6 @@ export const userBatchTraineesRelations = relations(userBatchTrainees, ({ one })
   }),
 }));
 
-
 export type {
   Organization,
   OrganizationProcess,
@@ -597,7 +596,6 @@ export type {
   OrganizationLineOfBusiness,
   User,
   UserProcess,
-  RolePermission,
   InsertUser,
   InsertOrganization,
   InsertOrganizationProcess,

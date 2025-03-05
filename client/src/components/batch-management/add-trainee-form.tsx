@@ -1,5 +1,6 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useParams } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { InsertUser, insertUserSchema } from "@shared/schema";
@@ -18,8 +19,12 @@ const addTraineeSchema = insertUserSchema.extend({
 
 type AddTraineeFormData = z.infer<typeof addTraineeSchema>;
 
-export function AddTraineeForm() {
-  const { batchId } = useParams();
+interface AddTraineeFormProps {
+  batchId: number;
+  onSuccess?: () => void;
+}
+
+export function AddTraineeForm({ batchId, onSuccess }: AddTraineeFormProps) {
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -45,6 +50,7 @@ export function AddTraineeForm() {
         description: "Trainee has been added to the batch successfully.",
       });
       form.reset();
+      onSuccess?.();
     },
     onError: (error: any) => {
       toast({

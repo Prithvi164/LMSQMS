@@ -46,6 +46,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import type { OrganizationBatch } from "@shared/schema";
+import { AddTraineeForm } from "./add-trainee-form";
 
 export function BatchesTab() {
   const { user } = useAuth();
@@ -71,6 +72,7 @@ export function BatchesTab() {
     from: undefined,
     to: undefined,
   });
+  const [isAddTraineeDialogOpen, setIsAddTraineeDialogOpen] = useState(false); // Added state
 
   // Check if user has permission to edit/delete batches
   const canManageBatches = user?.role === 'admin' || user?.role === 'owner';
@@ -521,6 +523,17 @@ export function BatchesTab() {
                       </Button>
                     </>
                   )}
+                  <Button // Add Trainee button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => {
+                      setSelectedBatch(batch);
+                      setIsAddTraineeDialogOpen(true);
+                    }}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
                 </div>
               </TableCell>
             </TableRow>
@@ -892,6 +905,19 @@ export function BatchesTab() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        <Dialog open={isAddTraineeDialogOpen} onOpenChange={setIsAddTraineeDialogOpen}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Add Trainee to Batch</DialogTitle>
+              <DialogDescription>
+                Add a new trainee to {selectedBatch?.name}. Make sure to fill in all required information.
+              </DialogDescription>
+            </DialogHeader>
+            {selectedBatch && (
+              <AddTraineeForm batchId={selectedBatch.id} onSuccess={() => setIsAddTraineeDialogOpen(false)} />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
