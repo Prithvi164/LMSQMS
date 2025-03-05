@@ -39,11 +39,15 @@ export function TrainerInsights({ trainerId }: TrainerInsightsProps) {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="flex items-center gap-2">
-          <InfoIcon className="h-4 w-4" />
-          View Trainer Schedule
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="text-xs font-normal text-muted-foreground hover:text-foreground flex items-center gap-1 h-auto py-1 px-2"
+        >
+          <InfoIcon className="h-3 w-3" />
+          View Schedule
           {sortedBatches?.length > 0 && (
-            <Badge variant="secondary" className="ml-2">
+            <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0">
               {sortedBatches.length}
             </Badge>
           )}
