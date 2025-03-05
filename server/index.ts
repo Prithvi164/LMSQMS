@@ -42,7 +42,6 @@ app.get("/health", (_req, res) => {
 
 (async () => {
   try {
-    log("Starting server initialization...");
     const server = await registerRoutes(app);
 
     // Error handling middleware
@@ -55,7 +54,6 @@ app.get("/health", (_req, res) => {
 
     // Set development mode explicitly
     app.set("env", "development");
-    log("Environment set to development mode");
 
     if (app.get("env") === "development") {
       log("Setting up Vite middleware for development");
@@ -65,23 +63,20 @@ app.get("/health", (_req, res) => {
       serveStatic(app);
     }
 
-    // Force port 5000 for Replit
-    const port = 5000;
-    log(`Attempting to start server on port ${port}...`);
-
+    const port = process.env.PORT || 5001;
     server.listen(port, "0.0.0.0", () => {
-      log(`Server successfully started and running in ${app.get("env")} mode`);
-      log(`API and client being served at http://0.0.0.0:${port}`);
+      log(`Server running in ${app.get("env")} mode`);
+      log(`API and client being served on port ${port}`);
     }).on('error', (error: any) => {
       if (error.code === 'EADDRINUSE') {
-        log(`ERROR: Port ${port} is already in use. This port is required by Replit.`);
+        log(`Port ${port} is already in use. Please try a different port.`);
       } else {
-        log(`ERROR: Failed to start server: ${error.message}`);
+        log(`Failed to start server: ${error}`);
       }
       process.exit(1);
     });
-  } catch (error: any) {
-    log(`FATAL: Failed to initialize server: ${error.message}`);
+  } catch (error) {
+    log(`Failed to start server: ${error}`);
     process.exit(1);
   }
 })();

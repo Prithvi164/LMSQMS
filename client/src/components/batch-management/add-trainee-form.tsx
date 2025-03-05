@@ -1,6 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useParams } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { InsertUser, insertUserSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/apiRequest";
@@ -18,13 +19,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 
-// Schema for trainee data validation
+// Extend the user schema to include batch-specific fields
 const addTraineeSchema = insertUserSchema.extend({
   processes: z.array(z.number()).optional(),
-  password: z.string().optional(), // Password will be auto-generated
-  username: z.string().optional(), // Username will be auto-generated
-  role: z.string().optional(), // Role will be set to 'trainee'
-  category: z.string().optional(), // Category will be set to 'trainee'
 });
 
 type AddTraineeFormData = z.infer<typeof addTraineeSchema>;
@@ -39,15 +36,14 @@ export function AddTraineeForm({ batchId, onSuccess }: AddTraineeFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  // Initialize form with validation
   const form = useForm<AddTraineeFormData>({
     resolver: zodResolver(addTraineeSchema),
     defaultValues: {
+      category: 'trainee',
       processes: [],
     }
   });
 
-  // Mutation for creating trainee
   const createTraineeMutation = useMutation({
     mutationFn: async (data: AddTraineeFormData) => {
       return apiRequest(`/api/batches/${batchId}/trainees`, {
@@ -56,7 +52,6 @@ export function AddTraineeForm({ batchId, onSuccess }: AddTraineeFormProps) {
       });
     },
     onSuccess: () => {
-      // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: [`/api/batches/${batchId}/trainees`] });
       toast({
         title: "Success",
@@ -74,7 +69,6 @@ export function AddTraineeForm({ batchId, onSuccess }: AddTraineeFormProps) {
     },
   });
 
-  // Form submission handler
   const onSubmit = async (data: AddTraineeFormData) => {
     setIsSubmitting(true);
     try {
@@ -88,7 +82,6 @@ export function AddTraineeForm({ batchId, onSuccess }: AddTraineeFormProps) {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
-          {/* Full Name Field */}
           <FormField
             control={form.control}
             name="fullName"
@@ -103,7 +96,6 @@ export function AddTraineeForm({ batchId, onSuccess }: AddTraineeFormProps) {
             )}
           />
 
-          {/* Employee ID Field */}
           <FormField
             control={form.control}
             name="employeeId"
@@ -118,7 +110,6 @@ export function AddTraineeForm({ batchId, onSuccess }: AddTraineeFormProps) {
             )}
           />
 
-          {/* Email Field */}
           <FormField
             control={form.control}
             name="email"
@@ -133,7 +124,6 @@ export function AddTraineeForm({ batchId, onSuccess }: AddTraineeFormProps) {
             )}
           />
 
-          {/* Phone Number Field */}
           <FormField
             control={form.control}
             name="phoneNumber"
@@ -148,7 +138,6 @@ export function AddTraineeForm({ batchId, onSuccess }: AddTraineeFormProps) {
             )}
           />
 
-          {/* Date of Joining Field */}
           <FormField
             control={form.control}
             name="dateOfJoining"
@@ -163,7 +152,6 @@ export function AddTraineeForm({ batchId, onSuccess }: AddTraineeFormProps) {
             )}
           />
 
-          {/* Date of Birth Field */}
           <FormField
             control={form.control}
             name="dateOfBirth"
@@ -178,7 +166,6 @@ export function AddTraineeForm({ batchId, onSuccess }: AddTraineeFormProps) {
             )}
           />
 
-          {/* Education Field */}
           <FormField
             control={form.control}
             name="education"
@@ -194,7 +181,6 @@ export function AddTraineeForm({ batchId, onSuccess }: AddTraineeFormProps) {
           />
         </div>
 
-        {/* Submit Button */}
         <div className="flex justify-end space-x-2">
           <Button
             type="submit"
