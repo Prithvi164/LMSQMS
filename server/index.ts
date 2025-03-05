@@ -35,7 +35,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Add a test route to verify server is handling requests
+// Add a health check endpoint
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", mode: app.get("env") });
 });
@@ -64,19 +64,19 @@ app.get("/health", (_req, res) => {
     }
 
     const port = process.env.PORT || 3000;
-    server.listen(port, () => {
+    server.listen(port, "0.0.0.0", () => {
       log(`Server running in ${app.get("env")} mode`);
       log(`API and client being served on port ${port}`);
     }).on('error', (error: any) => {
       if (error.code === 'EADDRINUSE') {
         log(`Port ${port} is already in use. Please try a different port.`);
       } else {
-        log(`Failed to start server: ${error}`);
+        log(`Failed to start server: ${error.message}`);
       }
       process.exit(1);
     });
-  } catch (error) {
-    log(`Failed to start server: ${error}`);
+  } catch (error: any) {
+    log(`Failed to start server: ${error.message}`);
     process.exit(1);
   }
 })();
