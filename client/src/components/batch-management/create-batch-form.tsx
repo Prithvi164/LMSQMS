@@ -20,14 +20,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { CalendarIcon, Loader2 } from "lucide-react";
-import { 
-  insertOrganizationBatchSchema, 
+import {
+  insertOrganizationBatchSchema,
   type InsertOrganizationBatch,
   type Organization,
   type OrganizationLocation,
@@ -879,7 +887,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
+                      <SelectValue placeholder="Select batch category" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -894,7 +902,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
               </FormItem>
             )}
           />
-
           <FormField
             control={form.control}
             name="name"
@@ -1134,33 +1141,24 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
           />
 
           <DateRangePreview />
-        
 
-        <div className="mt-8 flex justify-end"> {/* Adjusted to right-align the button */}
-          <Button
-            type="submit"
-            disabled={
-              createBatchMutation.isPending ||
-              updateBatchMutation.isPending ||
-              isCreating ||
-              isLoadingLocations ||
-              isLoadingLobs ||
-              isLoadingProcesses ||
-              isLoadingTrainers ||
-              isLoadingTemplates
-            }
-          >
-            {isCreating ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {editMode ? "Updating..." : "Creating..."}
-              </>
-            ) : (
-              editMode ? "Update Batch" : "Create Batch"
-            )}
-          </Button>
-        </div>
-      </form>
-    </Form>
-  );
+
+          <div className="mt-8 flex justify-end">
+            <Button
+              type="submit"
+              disabled={isCreating}
+            >
+              {isCreating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {editMode ? "Updating..." : "Creating..."}
+                </>
+              ) : (
+                editMode ? "Update Batch" : "Create Batch"
+              )}
+            </Button>
+          </div>
+        </form>
+      </Form>
+    );
 }
