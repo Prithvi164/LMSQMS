@@ -976,7 +976,8 @@ export class DatabaseStorage implements IStorage {
       console.log(`Attempting to delete batch with ID: ${id}`);
 
       const result = await db
-        .delete(organizationBatches)        .where(eq(organizationBatches.id, id))
+        .delete(organizationBatches)
+        .where(eq(organizationBatches.id, id))
         .returning();
 
       if (!result.length) {
@@ -1008,24 +1009,65 @@ export class DatabaseStorage implements IStorage {
   // Get LOBs from user_processes table based on location
   async getLineOfBusinessesByLocation(organizationId: number, locationId: number): Promise<OrganizationLineOfBusiness[]> {
     try {
-      console.log(`Fetching LOBs for organization ${organizationId} and location ${locationId}`);
+      console.log(`Starting LOB query for location ${locationId}`);
 
-      // Get all LOBs for the organization
-      const lineOfBusinesses = await db
+      // First verify if the location exists
+      const location = await this.getLocation(locationId);
+      if (!location) {
+        console.log(`Location ${locationId} not found`);
+        return [];
+      }
+
+      // Get trainers for this location
+      const trainers = await db
         .select()
-        .from(organizationLineOfBusinesses)
-        .where(eq(organizationLineOfBusinesses.organizationId, organizationId)) as OrganizationLineOfBusiness[];
+        .from(users)
+        .where(eq(users.locationId, locationId))
+        .where(eq(users.role, 'trainer'))
+        .where(eq(users.organizationId, organizationId));
 
-      console.log(`Found LOBs:`, lineOfBusinesses.map(lob => ({
-        id: lob.id,
-        name: lob.name,
-        organizationId: lob.organizationId
-      })));
+      console.log(`Found trainers for location ${locationId}:`, {
+        trainerCount: trainers.length,
+        trainerIds: trainers.map(t => t.id)
+      });
 
-      return lineOfBusinesses;
+      if (!trainers.length) {
+        console.log(`No trainers found for location ${locationId}`);
+        return [];
+      }
+
+      // Get LOBs from user_processes for these trainers
+      const lobs = await db
+        .select({
+          id: organizationLineOfBusinesses.id,
+          name: organizationLineOfBusinesses.name,
+          description: organizationLineOfBusinesses.description,
+          organizationId: organizationLineOfBusinesses.organizationId,
+          createdAt: organizationLineOfBusinesses.createdAt
+        })
+        .from(userProcesses)
+        .innerJoin(
+          organizationLineOfBusinesses,
+          eq(userProcesses.lineOfBusinessId, organizationLineOfBusinesses.id)
+        )
+        .where(eq(userProcesses.locationId, locationId))
+        .where(inArray(userProcesses.userId, trainers.map(t => t.id)))
+        .where(eq(organizationLineOfBusinesses.organizationId, organizationId))
+        .groupBy(organizationLineOfBusinesses.id)
+        .orderBy(organizationLineOfBusinesses.name) as OrganizationLineOfBusiness[];
+
+      console.log(`Found LOBs for location ${locationId}:`, {
+        count: lobs.length,
+        lobs: lobs.map(lob => ({
+          id: lob.id,
+          name: lob.name
+        }))
+      });
+
+      return lobs;
     } catch (error) {
       console.error('Error fetching LOBs by location:', error);
-      throw new Error('Failed to fetch Line of Businesses');
+      throw new Error('Failed to fetch LOBs');
     }
   }
   // Batch Template operations
