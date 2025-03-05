@@ -32,7 +32,7 @@ export const roleEnum = pgEnum('role', [
   'advisor'    
 ]);
 
-// Add batch template table
+// Update the batch templates table definition to allow null trainer
 export const batchTemplates = pgTable("batch_templates", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -50,8 +50,7 @@ export const batchTemplates = pgTable("batch_templates", {
     .references(() => organizationLineOfBusinesses.id)
     .notNull(),
   trainerId: integer("trainer_id")
-    .references(() => users.id)
-    .notNull(),
+    .references(() => users.id, { onDelete: 'set null' }),  // Changed to nullable and added onDelete
   batchCategory: batchCategoryEnum("batch_category").notNull(),
   capacityLimit: integer("capacity_limit").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -122,8 +121,7 @@ export const organizationBatches = pgTable("organization_batches", {
     .references(() => organizationLocations.id)
     .notNull(),
   trainerId: integer("trainer_id")
-    .references(() => users.id)
-    .notNull(),
+    .references(() => users.id, { onDelete: 'set null' }),  // Changed to nullable and added onDelete
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
