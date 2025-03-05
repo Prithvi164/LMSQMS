@@ -523,16 +523,17 @@ export function BatchesTab() {
                       </Button>
                     </>
                   )}
-                  <Button // Add Trainee button
-                    variant="ghost"
+                  <Button
+                    variant="outline"
                     size="sm"
-                    className="h-8 w-8 p-0"
+                    className="flex items-center gap-2 px-3"
                     onClick={() => {
                       setSelectedBatch(batch);
                       setIsAddTraineeDialogOpen(true);
                     }}
                   >
                     <Plus className="h-4 w-4" />
+                    Add Trainee
                   </Button>
                 </div>
               </TableCell>
