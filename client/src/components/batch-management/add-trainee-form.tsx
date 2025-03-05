@@ -1,7 +1,6 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useParams } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { InsertUser, insertUserSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/apiRequest";
@@ -124,48 +123,6 @@ export function AddTraineeForm({ batchId, onSuccess }: AddTraineeFormProps) {
                 <Form.Label>Phone Number</Form.Label>
                 <Form.Control>
                   <Input {...field} placeholder="Enter phone number" />
-                </Form.Control>
-                <Form.Message />
-              </Form.Item>
-            )}
-          />
-
-          <Form.Field
-            control={form.control}
-            name="dateOfJoining"
-            render={({ field }) => (
-              <Form.Item>
-                <Form.Label>Date of Joining</Form.Label>
-                <Form.Control>
-                  <Input {...field} type="date" />
-                </Form.Control>
-                <Form.Message />
-              </Form.Item>
-            )}
-          />
-
-          <Form.Field
-            control={form.control}
-            name="dateOfBirth"
-            render={({ field }) => (
-              <Form.Item>
-                <Form.Label>Date of Birth</Form.Label>
-                <Form.Control>
-                  <Input {...field} type="date" />
-                </Form.Control>
-                <Form.Message />
-              </Form.Item>
-            )}
-          />
-
-          <Form.Field
-            control={form.control}
-            name="education"
-            render={({ field }) => (
-              <Form.Item>
-                <Form.Label>Education</Form.Label>
-                <Form.Control>
-                  <Input {...field} placeholder="Enter education" />
                 </Form.Control>
                 <Form.Message />
               </Form.Item>
