@@ -834,7 +834,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedLob);
     } catch (error: any) {
       console.error("LOB update error:", error);
-      res.status(400).json({ message: error.message || "Failed to update Line of Business" });
+      res.status(40).json({ message: error.message || "Failed to update Line of Business" });
     }
   });
 
@@ -1198,95 +1198,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error fetching trainer batches:", error);
       res.status(500).json({ message: "Failed to fetch trainer batches" });
-    }
-  });
-
-  // Add batch trainee management routes
-  app.post("/api/batches/:batchId/trainees", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const batchId = parseInt(req.params.batchId);
-      const { processes, ...userData } = req.body;
-
-      // Validate batch exists and belongs to user's organization
-      const batch = await storage.getBatch(batchId);
-      if (!batch || batch.organizationId !== req.user.organizationId) {
-        return res.status(404).json({ message: "Batch not found" });
-      }
-
-      // Check batch capacity
-      const currentTrainees = await storage.getBatchTraineesCount(batchId);
-      if (currentTrainees >= batch.capacityLimit) {
-        return res.status(400).json({ message: "Batch capacity limit reached" });
-      }
-
-      // Create user with trainee role
-      const userToCreate = {
-        ...userData,
-        role: 'trainee',
-        organizationId: req.user.organizationId,
-      };
-
-      // Create user and assign to batch
-      const result = await storage.createUserWithBatch(
-        userToCreate,
-        batchId,
-        processes || []
-      );
-
-      res.status(201).json(result);
-    } catch (error: any) {
-      console.error("Error adding trainee to batch:", error);
-      res.status(400).json({ message: error.message });
-    }
-  });
-
-  // Get trainees for a batch
-  app.get("/api/batches/:batchId/trainees", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const batchId = parseInt(req.params.batchId);
-
-      // Validate batch exists and belongs to user's organization
-      const batch = await storage.getBatch(batchId);
-      if (!batch || batch.organizationId !== req.user.organizationId) {
-        return res.status(404).json({ message: "Batch not found" });
-      }
-
-      const trainees = await storage.getBatchTrainees(batchId);
-      res.json(trainees);
-    } catch (error: any) {
-      console.error("Error fetching batch trainees:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Update trainee status and scores
-  app.patch("/api/batches/:batchId/trainees/:traineeId", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const batchId = parseInt(req.params.batchId);
-      const traineeId = parseInt(req.params.traineeId);
-
-      // Validate batch exists and belongs to user's organization
-      const batch = await storage.getBatch(batchId);
-      if (!batch || batch.organizationId !== req.user.organizationId) {
-        return res.status(404).json({ message: "Batch not found" });
-      }
-
-      const updatedTrainee = await storage.updateBatchTrainee(
-        traineeId,
-        batchId,
-        req.body
-      );
-
-      res.json(updatedTrainee);
-    } catch (error: any) {
-      console.error("Error updating batch trainee:", error);
-      res.status(400).json({ message: error.message });
     }
   });
 
