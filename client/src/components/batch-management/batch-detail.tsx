@@ -14,6 +14,7 @@ import { LocationDetail } from "./location-detail";
 import { LobDetail } from "./lob-detail";
 import { BatchesTab } from "./batches-tab";
 import { CreateBatchForm } from "./create-batch-form";
+import { TrainerAvailability } from "./trainer-availability";
 
 export function BatchDetail() {
   const [activeTab, setActiveTab] = useState("batches");
@@ -31,14 +32,18 @@ export function BatchDetail() {
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5"> {/* Increased cols to 5 */}
               <TabsTrigger value="batches">Batches</TabsTrigger>
+              <TabsTrigger value="trainer">Trainer Availability</TabsTrigger> {/* Added Trainer Availability tab */}
               <TabsTrigger value="lob">Line of Business</TabsTrigger>
               <TabsTrigger value="process">Process</TabsTrigger>
               <TabsTrigger value="location">Location</TabsTrigger>
             </TabsList>
             <TabsContent value="batches" className="mt-6">
               <BatchesTab onCreate={() => setIsCreateDialogOpen(true)}/>
+            </TabsContent>
+            <TabsContent value="trainer" className="mt-6"> {/* Added Trainer Availability content */}
+              <TrainerAvailability />
             </TabsContent>
             <TabsContent value="lob" className="mt-6">
               <LobDetail />

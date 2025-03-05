@@ -392,10 +392,35 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     }
   };
 
+  // Mock trainer availability data (replace with actual fetch)
+  const [trainerAvailability, setTrainerAvailability] = useState<any[]>([]);
+
+  const checkTrainerAvailability = (trainerId: number, startDate: Date, endDate: Date): boolean => {
+    // Replace this with your actual availability check logic
+    // This is a mock implementation,  you'll need to fetch trainer availability from your API
+    const isAvailable = !trainerAvailability.some(availability =>
+      availability.trainerId === trainerId &&
+      isWithinInterval(startDate, { start: new Date(availability.start), end: new Date(availability.end) })
+    );
+    return isAvailable;
+  };
+
   const createBatchMutation = useMutation({
     mutationFn: async (values: InsertOrganizationBatch) => {
       if (!user?.organizationId) {
         throw new Error('Organization ID is required');
+      }
+
+      // Check trainer availability before creating the batch
+      if (values.trainerId && values.startDate && values.endDate) {
+        const startDate = new Date(values.startDate);
+        const endDate = new Date(values.endDate);
+
+        const isAvailable = checkTrainerAvailability(values.trainerId, startDate, endDate);
+        if (!isAvailable) {
+          const trainer = trainers.find(t => t.id === values.trainerId);
+          throw new Error(`Trainer ${trainer?.fullName || 'selected'} is already assigned to another batch during this period.`);
+        }
       }
 
       try {
