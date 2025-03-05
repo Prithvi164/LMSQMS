@@ -8,9 +8,8 @@ import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { insertOrganizationProcessSchema } from "@shared/schema";
-import {insertBatchTemplateSchema} from "@shared/schema";
+import {insertBatchTemplateSchema} from "@shared/schema"; // Added import
 import { batchStatusEnum } from "@shared/schema";
-import { verifyDatabaseConnection } from "./db";
 
 const scryptAsync = promisify(scrypt);
 
@@ -21,35 +20,6 @@ async function hashPassword(password: string) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  const server = createServer(app);
-
-  // Add a health check route that includes database status
-  app.get("/health", async (_req, res) => {
-    try {
-      const dbStatus = await verifyDatabaseConnection();
-      console.log("Database status:", dbStatus); // Add logging
-      res.json({ 
-        status: "ok", 
-        mode: app.get("env"),
-        database: {
-          connected: dbStatus.isConnected,
-          latency: `${dbStatus.latency}ms`,
-          message: dbStatus.message
-        }
-      });
-    } catch (error) {
-      console.error("Health check error:", error); // Add logging
-      res.status(500).json({ 
-        status: "error",
-        mode: app.get("env"),
-        database: {
-          connected: false,
-          message: error instanceof Error ? error.message : 'Unknown error checking database status'
-        }
-      });
-    }
-  });
-
   // Set up authentication routes (/api/register, /api/login, /api/logout, /api/user)
   setupAuth(app);
 
@@ -1231,5 +1201,5 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  return server;
+  return createServer(app);
 }
