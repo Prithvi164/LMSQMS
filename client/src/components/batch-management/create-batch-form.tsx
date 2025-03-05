@@ -1032,7 +1032,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                   <SelectContent>
                     {trainers.map((trainer) => (
                       <SelectItem key={trainer.id} value={trainer.id.toString()}>
-                        {trainer.name}
+                        {trainer.fullName}
                       </SelectItem>
                     ))}
                   </SelectContent>
