@@ -511,7 +511,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-
   // Update location route
   app.patch("/api/organizations/:id/settings/locations/:locationId", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
@@ -520,21 +519,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const orgId = parseInt(req.params.id);
       const locationId = parseInt(req.params.locationId);
 
+      // Validate IDs
+      if (isNaN(orgId) || isNaN(locationId)) {
+        return res.status(400).json({ message: "Invalid organization ID or location ID" });
+      }
+
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
         return res.status(403).json({ message: "You can only modify locations in your own organization" });
       }
 
+      // Validate request body
+      const { name, address, city, state, country } = req.body;
+      if (!name || !address || !city || !state || !country) {
+        return res.status(400).json({
+          message: "Missing required fields. Required: name, address, city, state, country"
+        });
+      }
+
+      // Get existing location to verify it exists and belongs to organization
+      const existingLocation = await storage.getLocation(locationId);
+      if (!existingLocation) {
+        return res.status(404).json({ message: "Location not found" });
+      }
+      if (existingLocation.organizationId !== orgId) {
+        return res.status(403).json({ message: "Location does not belong to your organization" });
+      }
+
       console.log('Updating location:', locationId, 'with data:', req.body);
       const updatedLocation = await storage.updateLocation(locationId, {
-        ...req.body,
+        name,
+        address,
+        city,
+        state,
+        country,
         organizationId: orgId, // Ensure we keep the correct organization ID
       });
 
       res.json(updatedLocation);
     } catch (error: any) {
       console.error("Location update error:", error);
-      res.status(400).json({ message: error.message || "Failed to update location" });
+      // Ensure we always return JSON even for errors
+      res.status(500).json({ 
+        message: "Failed to update location",
+        error: error.message 
+      });
     }
   });
 
@@ -805,7 +834,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedLob);
     } catch (error: any) {
       console.error("LOB update error:", error);
-      res.status(400).json({ message: error.message || "Failed to update Line of Business" });
+      res.status(40).json({ message: error.message || "Failed to update Line of Business" });
     }
   });
 
