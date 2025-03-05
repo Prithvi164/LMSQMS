@@ -14,10 +14,9 @@ import { AddUser } from "@/components/settings/add-user";
 import { RolePermissions } from "@/components/settings/role-permissions";
 import { OrganizationTree } from "@/components/settings/organization-tree";
 import { RoleHierarchyEditor } from "@/components/settings/role-hierarchy-editor";
-import { AddTraineeForm } from "@/components/settings/add-trainee";
 
 type SettingsTab = "profile" | "users" | "permissions" | "organization-tree";
-type UsersSubTab = "add" | "manage" | "add-trainee"; // Added add-trainee option
+type UsersSubTab = "add" | "manage";
 
 export default function Settings(): React.JSX.Element {
   const { user } = useAuth();
@@ -49,6 +48,7 @@ export default function Settings(): React.JSX.Element {
     }
   });
 
+
   const NavTab = ({
     active,
     icon: Icon,
@@ -75,9 +75,7 @@ export default function Settings(): React.JSX.Element {
   const getPageTitle = () => {
     if (activeTab === "profile") return "Profile Settings";
     if (activeTab === "users") {
-      if (activeUserTab === "manage") return "Manage Users";
-      if (activeUserTab === "add") return "Add New User";
-      return "Add New Trainee"; // Added title for add-trainee
+      return activeUserTab === "manage" ? "Manage Users" : "Add New User";
     }
     if (activeTab === "organization-tree") return "Organization Structure";
     return "Roles & Permissions";
@@ -132,15 +130,6 @@ export default function Settings(): React.JSX.Element {
                 >
                   Add User
                 </button>
-                <button
-                  onClick={() => setActiveUserTab("add-trainee")}
-                  className={cn(
-                    "w-full text-left p-2 rounded-lg transition-colors",
-                    activeUserTab === "add-trainee" ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Add Trainee
-                </button>
               </div>
             )}
 
@@ -183,7 +172,6 @@ export default function Settings(): React.JSX.Element {
                           potentialManagers={potentialManagers}
                         />
                       )}
-                      {activeUserTab === "add-trainee" && <AddTraineeForm />}
                     </>
                   )}
                   {activeTab === "permissions" && (
