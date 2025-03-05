@@ -838,7 +838,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(updatedLob);
     } catch (error: any) {
-      console.error("LOB update error:", error);
+      consoleerror("LOB update error:", error);
       res.status(400).json({ message: error.message || "Failed to update Line of Business" });
     }
   });
@@ -1234,6 +1234,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error deleting template:", error);
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/organizations/:id/trainers/:trainerId/batches", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.id);
+      const trainerId = parseInt(req.params.trainerId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only check trainers in your own organization" });
+      }
+
+      // Check if trainer exists and belongs to organization
+      const trainer = await storage.getUser(trainerId);
+      if (!trainer || trainer.organizationId !== orgId) {
+        return res.status(404).json({ message: "Trainer not found" });
+      }
+
+      // Get trainer's current batches
+      const trainerBatches = await storage.listBatches(trainerId, {
+        excludeStatus: ['completed']
+      });
+
+      console.log('Found trainer batches:', trainerBatches);
+
+      // Return trainer's batch information
+      res.json({ 
+        trainer: {
+          id: trainer.id,
+          name: trainer.fullName,
+        },
+        currentBatches: trainerBatches.map(batch => ({
+          id: batch.id,
+          name: batch.name,
+          startDate: batch.startDate,
+          endDate: batch.endDate,
+          status: batch.status,
+          category: batch.batchCategory
+        }))
+      });
+    } catch (error: any) {
+      console.error("Error fetching trainer batches:", error);
+      res.status(400).json({ message: error.message });
     }
   });
 
