@@ -360,25 +360,36 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     }
   };
 
-  // Update the date calculation functions with new logic for 0-day phases
+  // Update the date calculation functions with new logic for phase transitions
   const addWorkingDays = (startDate: Date, days: number, isEndDate: boolean = false): Date => {
-    // For 0 days or when it's not an end date calculation, return the start date
-    if (days === 0 || !isEndDate) return startDate;
-
-    // For actual end date calculation when days > 0
-    let currentDate = startDate;
-    let daysToAdd = days - 1; // Subtract 1 for end date calculation
-    let remainingDays = daysToAdd;
-
-    while (remainingDays > 0) {
-      currentDate = addDays(currentDate, 1);
-      // Skip Sundays when counting working days
-      if (!isSunday(currentDate)) {
-        remainingDays--;
+    try {
+      // For 0 days, return the start date as is
+      if (days === 0) {
+        console.log(`Zero days calculation for ${format(startDate, 'yyyy-MM-dd')}`);
+        return startDate;
       }
-    }
 
-    return currentDate;
+      let currentDate = startDate;
+      // For end date calculation when days > 0, subtract 1 from days
+      let daysToAdd = isEndDate ? days - 1 : days;
+      let remainingDays = daysToAdd;
+
+      console.log(`Adding ${daysToAdd} working days to ${format(startDate, 'yyyy-MM-dd')}`);
+
+      while (remainingDays > 0) {
+        currentDate = addDays(currentDate, 1);
+        // Skip Sundays when counting working days
+        if (!isSunday(currentDate)) {
+          remainingDays--;
+        }
+      }
+
+      console.log(`Result date: ${format(currentDate, 'yyyy-MM-dd')}`);
+      return currentDate;
+    } catch (error) {
+      console.error('Error in addWorkingDays:', error);
+      throw error;
+    }
   };
 
   const createBatchMutation = useMutation({
@@ -522,7 +533,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     }
   }
 
-  // Update the date ranges part of useEffect to include zero-day phases
+  // Update the date ranges visualization
   const getDateRangeClassName = (date: Date): string => {
     const dateStr = format(date, 'yyyy-MM-dd');
     const ranges = dateRanges.filter(r =>
@@ -532,11 +543,13 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
 
     if (ranges.length === 0) return '';
 
-    // If multiple phases on same day, use a special combined style
+    // Multiple phases on same day - use gradient
     if (ranges.length > 1) {
       return cn(
         'bg-gradient-to-r',
         'from-blue-200 via-green-200 to-yellow-200',
+        'border-2 border-dashed border-gray-400',
+        'rounded-sm',
         'bg-opacity-50'
       );
     }
@@ -544,6 +557,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     const range = ranges[0];
     return cn(
       'bg-opacity-50',
+      'rounded-sm',
       {
         'bg-blue-200': range.status === 'induction',
         'bg-green-200': range.status === 'training',
@@ -551,9 +565,9 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
         'bg-purple-200': range.status === 'ojt',
         'bg-pink-200': range.status === 'ojt-certification',
       },
-      // Add a border for zero-day phases
+      // Special styling for zero-day phases to make them more visible
       {
-        'border-2 border-dashed': isSameDay(range.start, range.end)
+        'border-2 border-dashed border-gray-400': isSameDay(range.start, range.end)
       }
     );
   };
@@ -566,106 +580,126 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     }
   }, [editMode, batchData]);
 
-  // Update the useEffect for date calculations
+  // Update the useEffect for date calculations with proper error handling
   useEffect(() => {
     const process = processes.find(p => p.id === form.getValues('processId'));
     const startDateStr = form.getValues('startDate');
 
-    if (process && startDateStr) {
-      try {
-        const startDate = new Date(startDateStr);
+    if (!process || !startDateStr) {
+      console.log('No process or start date selected yet');
+      return;
+    }
 
-        // Set induction dates
-        form.setValue('inductionStartDate', format(startDate, 'yyyy-MM-dd'));
-        const inductionEnd = addWorkingDays(startDate, process.inductionDays, true);
-        form.setValue('inductionEndDate', format(inductionEnd, 'yyyy-MM-dd'));
+    try {
+      console.log('Starting date calculations with process:', {
+        processId: process.id,
+        startDate: startDateStr,
+        phases: {
+          induction: process.inductionDays,
+          training: process.trainingDays,
+          certification: process.certificationDays,
+          ojt: process.ojtDays,
+          ojtCertification: process.ojtCertificationDays
+        }
+      });
 
-        // Set training dates - handle 0-day scenario
-        const trainingStart = process.inductionDays > 0 ?
-          addWorkingDays(inductionEnd, 1) : inductionEnd;
-        const trainingEnd = addWorkingDays(trainingStart, process.trainingDays, true);
-        form.setValue('trainingStartDate', format(trainingStart, 'yyyy-MM-dd'));
-        form.setValue('trainingEndDate', format(trainingEnd, 'yyyy-MM-dd'));
+      const startDate = new Date(startDateStr);
 
-        // Set certification dates - handle 0-day scenario
-        const certificationStart = process.trainingDays > 0 ?
-          addWorkingDays(trainingEnd, 1) : trainingEnd;
-        const certificationEnd = addWorkingDays(certificationStart, process.certificationDays, true);
-        form.setValue('certificationStartDate', format(certificationStart, 'yyyy-MM-dd'));
-        form.setValue('certificationEndDate', format(certificationEnd, 'yyyy-MM-dd'));
+      // Induction Phase
+      form.setValue('inductionStartDate', format(startDate, 'yyyy-MM-dd'));
+      const inductionEnd = process.inductionDays === 0 ? startDate :
+        addWorkingDays(startDate, process.inductionDays, true);
+      form.setValue('inductionEndDate', format(inductionEnd, 'yyyy-MM-dd'));
 
-        // Set OJT dates - handle 0-day scenario
-        const ojtStart = process.certificationDays > 0 ?
-          addWorkingDays(certificationEnd, 1) : certificationEnd;
-        const ojtEnd = addWorkingDays(ojtStart, process.ojtDays, true);
-        form.setValue('ojtStartDate', format(ojtStart, 'yyyy-MM-dd'));
-        form.setValue('ojtEndDate', format(ojtEnd, 'yyyy-MM-dd'));
+      // Training Phase
+      const trainingStart = process.inductionDays === 0 ? inductionEnd :
+        addWorkingDays(inductionEnd, 1);
+      const trainingEnd = process.trainingDays === 0 ? trainingStart :
+        addWorkingDays(trainingStart, process.trainingDays, true);
+      form.setValue('trainingStartDate', format(trainingStart, 'yyyy-MM-dd'));
+      form.setValue('trainingEndDate', format(trainingEnd, 'yyyy-MM-dd'));
 
-        // Set OJT Certification dates - handle 0-day scenario
-        const ojtCertificationStart = process.ojtDays > 0 ?
-          addWorkingDays(ojtEnd, 1) : ojtEnd;
-        const ojtCertificationEnd = addWorkingDays(ojtCertificationStart, process.ojtCertificationDays, true);
-        form.setValue('ojtCertificationStartDate', format(ojtCertificationStart, 'yyyy-MM-dd'));
-        form.setValue('ojtCertificationEndDate', format(ojtCertificationEnd, 'yyyy-MM-dd'));
+      // Certification Phase
+      const certificationStart = process.trainingDays === 0 ? trainingEnd :
+        addWorkingDays(trainingEnd, 1);
+      const certificationEnd = process.certificationDays === 0 ? certificationStart :
+        addWorkingDays(certificationStart, process.certificationDays, true);
+      form.setValue('certificationStartDate', format(certificationStart, 'yyyy-MM-dd'));
+      form.setValue('certificationEndDate', format(certificationEnd, 'yyyy-MM-dd'));
 
-        // Set handover date and batch end date
-        const handoverToOps = process.ojtCertificationDays > 0 ?
-          addWorkingDays(ojtCertificationEnd, 1) : ojtCertificationEnd;
-        form.setValue('handoverToOpsDate', format(handoverToOps, 'yyyy-MM-dd'));
-        form.setValue('endDate', format(handoverToOps, 'yyyy-MM-dd')); // Batch end date equals handover date
+      // OJT Phase
+      const ojtStart = process.certificationDays === 0 ? certificationEnd :
+        addWorkingDays(certificationEnd, 1);
+      const ojtEnd = process.ojtDays === 0 ? ojtStart :
+        addWorkingDays(ojtStart, process.ojtDays, true);
+      form.setValue('ojtStartDate', format(ojtStart, 'yyyy-MM-dd'));
+      form.setValue('ojtEndDate', format(ojtEnd, 'yyyy-MM-dd'));
 
-        // Update visual date ranges for the calendar
-        setDateRanges([
-          {
-            start: startDate,
-            end: inductionEnd,
-            label: 'Induction',
-            status: 'induction'
-          },
-          {
-            start: trainingStart,
-            end: trainingEnd,
-            label: 'Training',
-            status: 'training'
-          },
-          {
-            start: certificationStart,
-            end: certificationEnd,
-            label: 'Certification',
-            status: 'certification'
-          },
-          {
-            start: ojtStart,
-            end: ojtEnd,
-            label: 'OJT',
-            status: 'ojt'
-          },
-          {
-            start: ojtCertificationStart,
-            end: ojtCertificationEnd,
-            label: 'OJT Certification',
-            status: 'ojt-certification'
-          }
-        ].filter(range => {
-          // Include ranges where:
-          // 1. The phase has days (start != end)
-          // 2. OR it's a zero-day phase that coincides with previous phase's end
-          const isZeroDayPhase = isSameDay(range.start, range.end);
-          if (!isZeroDayPhase) return true;
+      // OJT Certification Phase
+      const ojtCertificationStart = process.ojtDays === 0 ? ojtEnd :
+        addWorkingDays(ojtEnd, 1);
+      const ojtCertificationEnd = process.ojtCertificationDays === 0 ? ojtCertificationStart :
+        addWorkingDays(ojtCertificationStart, process.ojtCertificationDays, true);
+      form.setValue('ojtCertificationStartDate', format(ojtCertificationStart, 'yyyy-MM-dd'));
+      form.setValue('ojtCertificationEndDate', format(ojtCertificationEnd, 'yyyy-MM-dd'));
 
-          // For zero-day phases, check if it's part of a valid transition
-          const previousRange = dateRanges[dateRanges.length -1]; //using previous dateRanges here is fine, as the array is not yet updated in this useEffect
-          return previousRange && isSameDay(previousRange.end, range.start);
-        }));
+      // Handover and Batch End Date
+      const handoverToOps = process.ojtCertificationDays === 0 ? ojtCertificationEnd :
+        addWorkingDays(ojtCertificationEnd, 1);
+      form.setValue('handoverToOpsDate', format(handoverToOps, 'yyyy-MM-dd'));
+      form.setValue('endDate', format(handoverToOps, 'yyyy-MM-dd'));
 
-      } catch (error) {
-        console.error('Error calculating dates:', error);
-        toast({
-          title: "Error",
-          description: "Failed to calculate batch dates. Please try again.",
-          variant: "destructive",
-        });
-      }
+      // Log final calculated dates
+      console.log('Final calculated dates:', {
+        induction: { start: startDate, end: inductionEnd, days: process.inductionDays },
+        training: { start: trainingStart, end: trainingEnd, days: process.trainingDays },
+        certification: { start: certificationStart, end: certificationEnd, days: process.certificationDays },
+        ojt: { start: ojtStart, end: ojtEnd, days: process.ojtDays },
+        ojtCertification: { start: ojtCertificationStart, end: ojtCertificationEnd, days: process.ojtCertificationDays },
+        handover: handoverToOps
+      });
+
+      // Update date ranges for calendar visualization
+      setDateRanges([
+        {
+          start: startDate,
+          end: inductionEnd,
+          label: 'Induction',
+          status: 'induction'
+        },
+        {
+          start: trainingStart,
+          end: trainingEnd,
+          label: 'Training',
+          status: 'training'
+        },
+        {
+          start: certificationStart,
+          end: certificationEnd,
+          label: 'Certification',
+          status: 'certification'
+        },
+        {
+          start: ojtStart,
+          end: ojtEnd,
+          label: 'OJT',
+          status: 'ojt'
+        },
+        {
+          start: ojtCertificationStart,
+          end: ojtCertificationEnd,
+          label: 'OJT Certification',
+          status: 'ojt-certification'
+        }
+      ]);
+
+    } catch (error) {
+      console.error('Error calculating dates:', error);
+      toast({
+        title: "Error",
+        description: "Failed to calculate batch dates. Please try again.",
+        variant: "destructive",
+      });
     }
   }, [form.watch('startDate'), form.watch('processId'), processes]);
 
@@ -930,7 +964,8 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
             name="trainerId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Trainer</FormLabel>                <Select
+                <FormLabel>Trainer</FormLabel>
+                <Select
                   onValueChange={(value) => {
                     const trainerId = parseInt(value);
                     field.onChange(trainerId);
@@ -1026,6 +1061,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                   key={index}
                   className={cn(
                     "p-2 rounded",
+                    getDateRangeClassName(range.start), // Apply class based on date
                     {
                       'bg-blue-200': range.status === 'induction',
                       'bg-green-200': range.status === 'training',
