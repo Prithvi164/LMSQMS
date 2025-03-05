@@ -44,7 +44,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
+import { format, isWithinInterval } from "date-fns";
 import type { OrganizationBatch } from "@shared/schema";
 
 export function BatchesTab() {
@@ -219,6 +219,29 @@ export function BatchesTab() {
   };
 
 
+  const getBatchesForDate = (date: Date) => {
+    return filteredBatches.filter(batch => {
+      const startDate = new Date(batch.startDate);
+      const endDate = new Date(batch.endDate);
+      return date >= startDate && date <= endDate;
+    });
+  };
+
+  const getTrainerConflicts = (trainerId: number, startDate: Date, endDate: Date) => {
+    return batches.filter(batch => {
+      if (batch.trainerId !== trainerId) return false;
+
+      const batchStart = new Date(batch.startDate);
+      const batchEnd = new Date(batch.endDate);
+
+      return (
+        isWithinInterval(startDate, { start: batchStart, end: batchEnd }) ||
+        isWithinInterval(endDate, { start: batchStart, end: batchEnd }) ||
+        isWithinInterval(batchStart, { start: startDate, end: endDate })
+      );
+    });
+  };
+
   const renderCalendarDay = (day: Date) => {
     const dayBatches = getBatchesForDate(day);
     const maxVisibleBatches = 4;
@@ -226,101 +249,141 @@ export function BatchesTab() {
     const visibleBatches = hasMoreBatches ? dayBatches.slice(0, maxVisibleBatches) : dayBatches;
     const extraBatchesCount = dayBatches.length - maxVisibleBatches;
 
+    // Check for trainer conflicts
+    const hasTrainerConflict = dayBatches.some(batch => {
+      const conflicts = getTrainerConflicts(
+        batch.trainerId,
+        new Date(batch.startDate),
+        new Date(batch.endDate)
+      ).filter(conflict => conflict.id !== batch.id);
+      return conflicts.length > 0;
+    });
+
     return (
-      <div className="w-full h-full min-h-[100px] p-2 relative">
+      <div className={`w-full h-full min-h-[100px] p-2 relative ${
+        hasTrainerConflict ? 'bg-red-50 dark:bg-red-900/10' : ''
+      }`}>
         <div className="font-medium border-b border-gray-100 dark:border-gray-800 pb-1 mb-2">
           {format(day, 'd')}
         </div>
         {dayBatches.length > 0 && (
           <div className="absolute bottom-2 left-0 right-0 flex flex-wrap gap-1 justify-center">
-            {visibleBatches.map((batch) => (
-              <Popover key={batch.id}>
-                <PopoverTrigger asChild>
-                  <div
-                    className={`
-                      w-2 h-2 rounded-full cursor-pointer
-                      transform transition-all duration-200 ease-in-out
-                      hover:scale-150
-                      ${batch.status === 'planned'
-                        ? 'bg-blue-500 hover:bg-blue-600'
-                        : batch.status === 'completed'
-                        ? 'bg-gray-500 hover:bg-gray-600'
-                        : 'bg-green-500 hover:bg-green-600'}
-                    `}
-                  />
-                </PopoverTrigger>
-                <PopoverContent
-                  className="w-96 p-4 animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
-                  align="start"
-                >
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-start border-b pb-2">
-                      <div>
-                        <h4 className="font-semibold text-lg group-hover:text-primary transition-colors">
-                          {batch.name}
-                        </h4>
+            {visibleBatches.map((batch) => {
+              const trainerConflicts = getTrainerConflicts(
+                batch.trainerId,
+                new Date(batch.startDate),
+                new Date(batch.endDate)
+              ).filter(conflict => conflict.id !== batch.id);
+
+              const hasConflict = trainerConflicts.length > 0;
+
+              return (
+                <Popover key={batch.id}>
+                  <PopoverTrigger asChild>
+                    <div
+                      className={`
+                        w-2 h-2 rounded-full cursor-pointer
+                        transform transition-all duration-200 ease-in-out
+                        hover:scale-150
+                        ${hasConflict ? 'ring-2 ring-red-500 ring-offset-2' : ''}
+                        ${batch.status === 'planned'
+                          ? 'bg-blue-500 hover:bg-blue-600'
+                          : batch.status === 'completed'
+                          ? 'bg-gray-500 hover:bg-gray-600'
+                          : 'bg-green-500 hover:bg-green-600'}
+                      `}
+                    />
+                  </PopoverTrigger>
+                  <PopoverContent
+                    className="w-96 p-4 animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+                    align="start"
+                  >
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-start border-b pb-2">
+                        <div>
+                          <h4 className="font-semibold text-lg group-hover:text-primary transition-colors">
+                            {batch.name}
+                          </h4>
+                          <Badge
+                            variant="outline"
+                            className="mt-2 transition-colors hover:bg-secondary"
+                          >
+                            {formatBatchCategory(batch.batchCategory)}
+                          </Badge>
+                        </div>
                         <Badge
-                          variant="outline"
-                          className="mt-2 transition-colors hover:bg-secondary"
+                          variant="secondary"
+                          className={`${getStatusColor(batch.status)} transition-all hover:scale-105`}
                         >
-                          {formatBatchCategory(batch.batchCategory)}
+                          {batch.status.charAt(0).toUpperCase() + batch.status.slice(1)}
                         </Badge>
                       </div>
-                      <Badge
-                        variant="secondary"
-                        className={`${getStatusColor(batch.status)} transition-all hover:scale-105`}
-                      >
-                        {batch.status.charAt(0).toUpperCase() + batch.status.slice(1)}
-                      </Badge>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div className="col-span-2 space-y-2">
-                        {[
-                          { label: 'Process', value: batch.process?.name },
-                          { label: 'Location', value: batch.location?.name },
-                          { label: 'Trainer', value: batch.trainer?.fullName },
-                          { label: 'Capacity', value: batch.capacityLimit },
-                          {
-                            label: 'Timeline',
-                            value: `${format(new Date(batch.startDate), 'MMM d, yyyy')} - ${format(new Date(batch.endDate), 'MMM d, yyyy')}`
-                          }
-                        ].map(({ label, value }) => (
-                          <div
-                            key={label}
-                            className="flex justify-between items-center p-1 rounded hover:bg-secondary/10 transition-colors"
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div className="col-span-2 space-y-2">
+                          {[
+                            { label: 'Process', value: batch.process?.name },
+                            { label: 'Location', value: batch.location?.name },
+                            { label: 'Trainer', value: batch.trainer?.fullName },
+                            { label: 'Capacity', value: batch.capacityLimit },
+                            {
+                              label: 'Timeline',
+                              value: `${format(new Date(batch.startDate), 'MMM d, yyyy')} - ${format(new Date(batch.endDate), 'MMM d, yyyy')}`
+                            }
+                          ].map(({ label, value }) => (
+                            <div
+                              key={label}
+                              className="flex justify-between items-center p-1 rounded hover:bg-secondary/10 transition-colors"
+                            >
+                              <span className="text-muted-foreground">{label}:</span>
+                              <span className="font-medium">{value}</span>
+                            </div>
+                          ))}
+
+                          {hasConflict && (
+                            <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-md border border-red-200 dark:border-red-800">
+                              <h5 className="text-red-700 dark:text-red-300 font-medium mb-2">
+                                Trainer Schedule Conflicts
+                              </h5>
+                              <div className="space-y-2">
+                                {trainerConflicts.map(conflict => (
+                                  <div key={conflict.id} className="text-sm text-red-600 dark:text-red-400">
+                                    Conflict with batch "{conflict.name}"
+                                    <br />
+                                    {format(new Date(conflict.startDate), 'MMM d, yyyy')} - {format(new Date(conflict.endDate), 'MMM d, yyyy')}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {canManageBatches && batch.status === 'planned' && (
+                        <div className="flex justify-end gap-2 pt-2 border-t">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditClick(batch)}
+                            className="transition-all hover:scale-105 hover:bg-secondary/20"
                           >
-                            <span className="text-muted-foreground">{label}:</span>
-                            <span className="font-medium">{value}</span>
-                          </div>
-                        ))}
-                      </div>
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteClick(batch)}
+                            className="transition-all hover:scale-105 hover:bg-destructive/20"
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Delete
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                    {canManageBatches && batch.status === 'planned' && (
-                      <div className="flex justify-end gap-2 pt-2 border-t">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEditClick(batch)}
-                          className="transition-all hover:scale-105 hover:bg-secondary/20"
-                        >
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDeleteClick(batch)}
-                          className="transition-all hover:scale-105 hover:bg-destructive/20"
-                        >
-                          <Trash2 className="h-4 w-4 mr-1" />
-                          Delete
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            ))}
+                  </PopoverContent>
+                </Popover>
+              );
+            })}
             {hasMoreBatches && (
               <Popover>
                 <PopoverTrigger asChild>
