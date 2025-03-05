@@ -855,7 +855,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                   disabled={saveTemplateMutation.isPending}
                 >
                   {saveTemplateMutation.isPending ? "Saving..." : "Save Template"}
-                                </Button>
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -1010,11 +1010,16 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
             name="trainerId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Trainer</FormLabel>
+                <div className="flex justify-between items-center">
+                  <FormLabel>Trainer</FormLabel>
+                  {field.value && <TrainerInsights trainerId={field.value} />}
+                </div>
                 <Select
-                  onValueChange={(value) => {
-                    const trainerId = parseInt(value);
-                    field.onChange(trainerId);
+                  onValueChange={(trainerId) => {
+                    const id = parseInt(trainerId);
+                    if (!isNaN(id)) {
+                      field.onChange(id);
+                    }
                   }}
                   value={field.value?.toString()}
                   disabled={isLoadingTrainers}
@@ -1027,7 +1032,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                   <SelectContent>
                     {trainers.map((trainer) => (
                       <SelectItem key={trainer.id} value={trainer.id.toString()}>
-                        {trainer.fullName}
+                        {trainer.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1037,13 +1042,29 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
             )}
           />
 
-        {/* Add TrainerInsights component here */}
-        {form.watch('trainerId') && (
-          <TrainerInsights trainerId={form.watch('trainerId')} />
-        )}
-
-
           <FormField
+            control={form.control}
+            name="capacityLimit"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Capacity</FormLabel>
+                <Input
+                  type="number"
+                  min={1}
+                  {...field}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value);
+                    field.onChange(isNaN(value) ? 1 : Math.max(1, value));
+                  }}
+                />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+        </div>
+
+        <FormField
             control={form.control}
             name="startDate"
             render={({ field }) => (
@@ -1106,30 +1127,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
           />
 
           <DateRangePreview />
-
-          <FormField
-            control={form.control}
-            name="capacityLimit"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Capacity Limit</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    min={1}
-                    placeholder="Enter capacity"
-                    value={field.value || ''}
-                    onChange={(e) => {
-                      const value = e.target.value ? parseInt(e.target.value) : undefined;
-                      field.onChange(value);
-                    }}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+        
 
         <div className="mt-8 flex justify-end"> {/* Adjusted to right-align the button */}
           <Button

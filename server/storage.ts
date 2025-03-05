@@ -1,5 +1,6 @@
 import { eq, inArray, sql, desc } from "drizzle-orm";
 import { db } from "./db";
+import { batchStatusEnum } from "@shared/schema";
 import {
   users,
   organizations,
@@ -111,7 +112,7 @@ export interface IStorage {
   getBatchesByTrainer(
     trainerId: number,
     organizationId: number,
-    statuses: string[]
+    statuses: typeof batchStatusEnum.enumValues[number][]
   ): Promise<OrganizationBatch[]>;
 }
 
@@ -1144,7 +1145,7 @@ export class DatabaseStorage implements IStorage {
   async getBatchesByTrainer(
     trainerId: number,
     organizationId: number,
-    statuses: string[]
+    statuses: typeof batchStatusEnum.enumValues[number][]
   ): Promise<OrganizationBatch[]> {
     try {
       console.log(`Fetching batches for trainer ${trainerId} with statuses:`, statuses);
@@ -1154,7 +1155,7 @@ export class DatabaseStorage implements IStorage {
         .from(organizationBatches)
         .where(eq(organizationBatches.trainerId, trainerId))
         .where(eq(organizationBatches.organizationId, organizationId))
-        .where(inArray(organizationBatches.status, statuses))
+        .where(sql`${organizationBatches.status}::text = ANY(${sql`ARRAY[${statuses.join(',')}]`}::text[])`)
         .orderBy(desc(organizationBatches.startDate)) as OrganizationBatch[];
 
       console.log(`Found ${batches.length} batches for trainer ${trainerId}`);

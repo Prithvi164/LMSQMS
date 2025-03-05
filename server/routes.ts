@@ -9,6 +9,7 @@ import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { insertOrganizationProcessSchema } from "@shared/schema";
 import {insertBatchTemplateSchema} from "@shared/schema"; // Added import
+import { batchStatusEnum } from "@shared/schema";
 
 const scryptAsync = promisify(scrypt);
 
@@ -831,7 +832,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add new route for getting LOBs by location
+  // Add new endpoint to get LOBs by location
   app.get("/api/organizations/:id/locations/:locationId/line-of-businesses", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -1154,19 +1155,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const trainerId = parseInt(req.params.id);
+      console.log(`Fetching batches for trainer ${trainerId}`);
 
-      // Get all batches for the trainer excluding completed ones
+      // Get all non-completed batches using the enum values directly
       const activeBatches = await storage.getBatchesByTrainer(
         trainerId,
         req.user.organizationId,
-        ['planned', 'induction', 'training', 'certification', 'ojt', 'ojt_certification']
+        batchStatusEnum.enumValues.filter(status => status !== 'completed')
       );
 
       console.log(`Found ${activeBatches.length} active batches for trainer ${trainerId}`);
       res.json(activeBatches);
     } catch (error: any) {
       console.error("Error fetching trainer batches:", error);
-      res.status(500).json({ message: error.message });
+      res.status(500).json({ message: "Failed to fetch trainer batches" });
     }
   });
 
