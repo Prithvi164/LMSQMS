@@ -10,6 +10,7 @@ import { promisify } from "util";
 import { insertOrganizationProcessSchema } from "@shared/schema";
 import {insertBatchTemplateSchema} from "@shared/schema"; // Added import
 import { batchStatusEnum } from "@shared/schema";
+import { verifyDatabaseConnection } from "./db";
 
 const scryptAsync = promisify(scrypt);
 
@@ -20,6 +21,31 @@ async function hashPassword(password: string) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Add a health check route that includes database status
+  app.get("/health", async (_req, res) => {
+    try {
+      const dbStatus = await verifyDatabaseConnection();
+      res.json({ 
+        status: "ok", 
+        mode: app.get("env"),
+        database: {
+          connected: dbStatus.isConnected,
+          latency: `${dbStatus.latency}ms`,
+          message: dbStatus.message
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        status: "error",
+        mode: app.get("env"),
+        database: {
+          connected: false,
+          message: error instanceof Error ? error.message : 'Unknown error checking database status'
+        }
+      });
+    }
+  });
+
   // Set up authentication routes (/api/register, /api/login, /api/logout, /api/user)
   setupAuth(app);
 
