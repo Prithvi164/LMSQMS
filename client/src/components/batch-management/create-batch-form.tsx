@@ -204,10 +204,19 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
 
   const {
     data: lobs = [],
-    isLoading: isLoadingLobs
+    isLoading: isLoadingLobs,
+    error: lobsError
   } = useQuery<OrganizationLineOfBusiness[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/locations/${selectedLocation}/line-of-businesses`],
-    enabled: !!selectedLocation && !!user?.organizationId
+    enabled: !!selectedLocation && !!user?.organizationId,
+    onError: (error) => {
+      console.error('Error loading LOBs:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load line of businesses. Please try again.",
+        variant: "destructive",
+      });
+    }
   });
 
   const {
@@ -860,8 +869,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                       value={templateDescription}
                       onChange={(e) => setTemplateDescription(e.target.value)}
                     />
-                  </FormControl>
-                </FormItem>
+                  </FormControl</FormItem>
               </div>
               <DialogFooter>
                 <Button
@@ -962,24 +970,42 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                 <Select
                   onValueChange={(value) => {
                     const lobId = parseInt(value);
-                    field.onChange(lobId);
                     setSelectedLob(lobId);
+                    field.onChange(lobId);
+                    // Reset process when LOB changes
                     form.setValue('processId', undefined);
                   }}
                   value={field.value?.toString()}
-                  disabled={!selectedLocation || isLoadingLobs}
+                  disabled={isLoadingLobs || !selectedLocation}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder={selectedLocation ? "Select LOB" : "Select location first"} />
+                      <SelectValue placeholder={
+                        isLoadingLobs
+                          ? "Loading..."
+                          : !selectedLocation
+                            ? "Select location first"
+                            : "Select line of business"
+                      } />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {lobs.map((lob) => (
-                      <SelectItem key={lob.id} value={lob.id.toString()}>
-                        {lob.name}
-                      </SelectItem>
-                    ))}
+                    {isLoadingLobs ? (
+                      <div className="flex items-center justify-center p-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="ml-2">Loading...</span>
+                      </div>
+                    ) : lobsError ? (
+                      <div className="p-2 text-red-500">Failed to load. Please try again.</div>
+                    ) : lobs.length === 0 ? (
+                      <div className="p-2">No line of business available</div>
+                    ) : (
+                      lobs.map((lob) => (
+                        <SelectItem key={lob.id} value={lob.id.toString()}>
+                          {lob.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
                 <FormMessage />
