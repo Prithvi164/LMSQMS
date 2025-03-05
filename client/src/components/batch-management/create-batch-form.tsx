@@ -25,7 +25,7 @@ import { Loader2, CalendarIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { TrainerInsights } from "./trainer-insights";
-import { format, addDays, isSunday } from "date-fns"; // Updated import
+import { format, addDays, isSunday } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -87,7 +87,7 @@ const TrainerField = ({ form, trainers = [], isLoadingTrainers = false }) => (
 export function CreateBatchForm({ editMode = false, batchData, onSuccess }: CreateBatchFormProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [dateRanges, setDateRanges] = useState([]); // Re-added dateRanges state
+  const [dateRanges, setDateRanges] = useState([]);
   const [templateName, setTemplateName] = useState('');
   const [templateDescription, setTemplateDescription] = useState('');
   const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
@@ -113,13 +113,13 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     },
   });
 
-  const { data: lobs = [], isLoading: isLoadingLobs } = useQuery({ // Added default value
+  const { data: lobs = [], isLoading: isLoadingLobs } = useQuery({
     queryKey: ['lobs', selectedLocation],
     queryFn: () => selectedLocation ? getLobs(selectedLocation) : [],
     enabled: !!selectedLocation,
   });
 
-  const { data: processes = [], isLoading: isLoadingProcesses } = useQuery({ // Added default value
+  const { data: processes = [], isLoading: isLoadingProcesses } = useQuery({
     queryKey: ['processes', selectedLob],
     queryFn: () => selectedLob ? getProcesses(selectedLob) : [],
     enabled: !!selectedLob,
@@ -134,7 +134,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     },
   });
 
-  const { data: templates = [], isLoading: isLoadingTemplates } = useQuery({ // Added default value
+  const { data: templates = [], isLoading: isLoadingTemplates } = useQuery({
     queryKey: ['templates'],
     queryFn: () => getTemplates(),
   });
@@ -209,42 +209,41 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       const process = processes.find(p => p.id === data.processId);
 
       const inductionEnd = process?.inductionDays === 0 ? startDate :
-        addDays(startDate, process.inductionDays); //Updated date calculation
+        addDays(startDate, process.inductionDays);
       setValue('inductionEndDate', format(inductionEnd, 'yyyy-MM-dd'));
 
       const trainingStart = process?.inductionDays === 0 ? inductionEnd :
-        addDays(inductionEnd, 1); //Updated date calculation
+        addDays(inductionEnd, 1);
       const trainingEnd = process?.trainingDays === 0 ? trainingStart :
-        addDays(trainingStart, process.trainingDays); //Updated date calculation
+        addDays(trainingStart, process.trainingDays);
       setValue('trainingStartDate', format(trainingStart, 'yyyy-MM-dd'));
       setValue('trainingEndDate', format(trainingEnd, 'yyyy-MM-dd'));
 
       const certificationStart = process?.trainingDays === 0 ? trainingEnd :
-        addDays(trainingEnd, 1); //Updated date calculation
+        addDays(trainingEnd, 1);
       const certificationEnd = process?.certificationDays === 0 ? certificationStart :
-        addDays(certificationStart, process.certificationDays); //Updated date calculation
+        addDays(certificationStart, process.certificationDays);
       setValue('certificationStartDate', format(certificationStart, 'yyyy-MM-dd'));
       setValue('certificationEndDate', format(certificationEnd, 'yyyy-MM-dd'));
 
       const ojtStart = process?.certificationDays === 0 ? certificationEnd :
-        addDays(certificationEnd, 1); //Updated date calculation
+        addDays(certificationEnd, 1);
       const ojtEnd = process?.ojtDays === 0 ? ojtStart :
-        addDays(ojtStart, process.ojtDays); //Updated date calculation
+        addDays(ojtStart, process.ojtDays);
       setValue('ojtStartDate', format(ojtStart, 'yyyy-MM-dd'));
       setValue('ojtEndDate', format(ojtEnd, 'yyyy-MM-dd'));
 
       const ojtCertificationStart = process?.ojtDays === 0 ? ojtEnd :
-        addDays(ojtEnd, 1); //Updated date calculation
+        addDays(ojtEnd, 1);
       const ojtCertificationEnd = process?.ojtCertificationDays === 0 ? ojtCertificationStart :
-        addDays(ojtCertificationStart, process.ojtCertificationDays); //Updated date calculation
+        addDays(ojtCertificationStart, process.ojtCertificationDays);
       setValue('ojtCertificationStartDate', format(ojtCertificationStart, 'yyyy-MM-dd'));
       setValue('ojtCertificationEndDate', format(ojtCertificationEnd, 'yyyy-MM-dd'));
 
       const handoverToOps = process?.ojtCertificationDays === 0 ? ojtCertificationEnd :
-        addDays(ojtCertificationEnd, 1); //Updated date calculation
+        addDays(ojtCertificationEnd, 1);
       setValue('handoverToOpsDate', format(handoverToOps, 'yyyy-MM-dd'));
       setValue('endDate', format(handoverToOps, 'yyyy-MM-dd'));
-
 
       setDateRanges([
         { start: startDate, end: inductionEnd, label: 'Induction', status: 'induction' },
@@ -274,7 +273,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
   const handleTemplateSelect = (id: string) => {
     const selectedTemplate = templates.find(template => template.id === parseInt(id));
     if(selectedTemplate){
-        //Populate form with values from template
         form.reset(selectedTemplate);
         setSelectedLocation(parseInt(selectedTemplate.locationId))
         setSelectedLob(parseInt(selectedTemplate.lineOfBusinessId))
