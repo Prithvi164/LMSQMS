@@ -144,11 +144,15 @@ export default function Performance() {
                 dataKey="completedModules" 
                 fill="hsl(var(--primary))"
                 name="Completed Modules"
+                radius={[4, 4, 0, 0]}
+                barSize={30}
               />
               <Bar 
                 dataKey="totalModules" 
                 fill="hsl(var(--muted))"
                 name="Total Modules"
+                radius={[4, 4, 0, 0]}
+                barSize={30}
               />
             </BarChart>
           </ResponsiveContainer>
