@@ -721,25 +721,34 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     }
   }, [isCreating]);
 
-  // Date range preview section JSX
+  // Update the date range preview section with correct formatting
   const DateRangePreview = () => (
     <div className="mt-4">
       <h3 className="text-lg font-semibold mb-2">Date Range Preview</h3>
       <div className="space-y-2">
         {dateRanges.map((range, index) => {
-          const isZeroDay = isSameDay(range.start, range.end);
+          const process = processes.find(p => p.id === form.getValues('processId'));
+          const isZeroDayPhase = process && (
+            (range.status === 'induction' && process.inductionDays === 0) ||
+            (range.status === 'training' && process.trainingDays === 0) ||
+            (range.status === 'certification' && process.certificationDays === 0) ||
+            (range.status === 'ojt' && process.ojtDays === 0) ||
+            (range.status === 'ojt-certification' && process.ojtCertificationDays === 0)
+          );
+
           return (
             <div
               key={index}
               className={cn(
                 "p-3 rounded-lg",
+                "border-2 border-dashed border-gray-400",
                 getDateRangeClassName(range.start),
                 "flex items-center justify-between"
               )}
             >
-              <div>
+              <div className="flex items-center">
                 <span className="font-medium">{range.label}</span>
-                {isZeroDay && (
+                {isZeroDayPhase && (
                   <span className="ml-2 text-sm text-gray-500 italic">
                     (Zero-day phase)
                   </span>
@@ -747,7 +756,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
               </div>
               <div className="text-sm">
                 {format(range.start, 'MMM d, yyyy')}
-                {!isZeroDay && ` - ${format(range.end, 'MMM d, yyyy')}`}
               </div>
             </div>
           );
@@ -755,7 +763,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       </div>
     </div>
   );
-
 
   return (
     <Form {...form}>
