@@ -192,7 +192,16 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     isLoading: isLoadingLobs
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations/${selectedLocation}/line-of-businesses`],
-    enabled: !!selectedLocation && !!user?.organizationId
+    enabled: !!selectedLocation && !!user?.organizationId,
+    staleTime: 30000,
+    onError: (error) => {
+      console.error('Error loading LOBs:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load Line of Businesses. Please try again.",
+        variant: "destructive",
+      });
+    }
   });
 
   const {
@@ -947,21 +956,20 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                 <FormLabel>Line of Business</FormLabel>
                 <Select
                   onValueChange={(value) => {
-                    const lobId = parseInt(value);
-                    field.onChange(lobId);
+                    const lobId = parseInt(value, 10);
                     setSelectedLob(lobId);
-                    form.setValue('processId', undefined);
+                    field.onChange(lobId);
                   }}
                   value={field.value?.toString()}
                   disabled={!selectedLocation || isLoadingLobs}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder={selectedLocation ? "Select LOB" : "Select location first"} />
+                      <SelectValue placeholder={isLoadingLobs ? "Loading..." : "Select Line of Business"} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {lobs.map((lob) => (
+                    {lobs.map((lob: any) => (
                       <SelectItem key={lob.id} value={lob.id.toString()}>
                         {lob.name}
                       </SelectItem>
