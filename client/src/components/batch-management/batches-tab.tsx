@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, Loader2, Plus, Trash2, Edit, Eye, Calendar as CalendarIcon, List, ArrowUpDown, Filter } from "lucide-react";
+import { Search, Loader2, Plus, Trash2, Edit, Eye, UserPlus, Calendar as CalendarIcon, List, ArrowUpDown, Filter } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -41,13 +41,44 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { CreateBatchForm } from "./create-batch-form";
 import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
-import type { OrganizationBatch } from "@shared/schema";
 
-export function BatchesTab() {
+// Define OrganizationBatch type if not imported from schema
+interface OrganizationBatch {
+  id: number;
+  name: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+  batchCategory: string;
+  capacityLimit: number;
+  trainer: {
+    id: number;
+    fullName: string;
+  };
+  location: {
+    id: number;
+    name: string;
+  };
+  process: {
+    id: number;
+    name: string;
+  };
+  line_of_business: {
+    id: number;
+    name: string;
+  };
+}
+
+type BatchesTabProps = {
+  onCreate: () => void;
+  onAddTrainee: (batch: OrganizationBatch) => void;
+};
+
+export function BatchesTab({ onCreate, onAddTrainee }: BatchesTabProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -506,6 +537,15 @@ export function BatchesTab() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        onClick={() => onAddTrainee(batch)}
+                        className="h-8 w-8 p-0 hover:text-primary"
+                        title="Add Trainee"
+                      >
+                        <UserPlus className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleEditClick(batch)}
                         className="h-8 w-8 p-0 hover:text-primary"
                       >
@@ -806,7 +846,7 @@ export function BatchesTab() {
                     <span className="font-medium">Ongoing</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-gray-500" />
+                    <div className="w-3 h-3 rounded-full bggray-500" />
                     <span className="font-medium">Completed</span>
                   </div>
                 </div>
@@ -814,84 +854,16 @@ export function BatchesTab() {
             </TabsContent>
           </Tabs>
         ) : (
-          <div className="flex min-h-[400px] flex-col items-center justify-center rounded-md border border-dashed p-8 text-center animate-in fade-in-50">
-            <div className="mx-auto flex max-w-[420px] flex-col items-center justify-center text-center">
-              <h3 className="mt-4 text-lg font-semibold">No batches found</h3>
-              <p className="mb-4 mt-2 text-sm text-muted-foreground">
-                You haven't created any batches yet. Start by creating a new batch.
-              </p>
-              {canManageBatches && (
-                <Button
-                  size="sm"
-                  className="relative"
-                  onClick={() => setIsCreateDialogOpen(true)}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Batch
-                </Button>
-              )}
-            </div>
+          <div className="flex flex-col items-center justify-center min-h-[200px] text-muted-foreground">
+            <p>No batches found.</p>
+            {canManageBatches && (
+              <Button variant="outline" onClick={onCreate} className="mt-4">
+                <Plus className="h-4 w-4 mr-2" />
+                Create your first batch
+              </Button>
+            )}
           </div>
         )}
-
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogContent className="max-w-3xl">
-            <DialogHeader>
-              <DialogTitle>Create New Batch</DialogTitle>
-            </DialogHeader>
-            <CreateBatchForm />
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-3xl">
-            <DialogHeader>
-              <DialogTitle>Edit Batch</DialogTitle>
-              <DialogDescription>
-                Make changes to the batch details.
-              </DialogDescription>
-            </DialogHeader>
-            {selectedBatch && (
-              <CreateBatchForm
-                editMode={true}
-                batchData={selectedBatch}
-                onSuccess={() => setIsEditDialogOpen(false)}
-              />
-            )}
-          </DialogContent>
-        </Dialog>
-
-        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This action cannot be undone. Please type "{selectedBatch?.name}" to confirm deletion.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <div className="py-4">
-              <Input
-                placeholder="Type batch name to confirm"
-                value={deleteConfirmation}
-                onChange={(e) => setDeleteConfirmation(e.target.value)}
-              />
-            </div>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => {
-                setDeleteConfirmation('');
-                setDeleteDialogOpen(false);
-              }}>
-                Cancel
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleConfirmDelete}
-                disabled={deleteConfirmation !== selectedBatch?.name || deleteBatchMutation.isPending}
-              >
-                {deleteBatchMutation.isPending ? "Deleting..." : "Delete"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </div>
     </div>
   );

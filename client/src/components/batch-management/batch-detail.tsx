@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, UserPlus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -14,10 +14,18 @@ import { LocationDetail } from "./location-detail";
 import { LobDetail } from "./lob-detail";
 import { BatchesTab } from "./batches-tab";
 import { CreateBatchForm } from "./create-batch-form";
+import { AddTraineeForm } from "./add-trainee-form";
 
 export function BatchDetail() {
   const [activeTab, setActiveTab] = useState("batches");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isAddTraineeDialogOpen, setIsAddTraineeDialogOpen] = useState(false);
+  const [selectedBatch, setSelectedBatch] = useState<any>(null);
+
+  const handleAddTrainee = (batch: any) => {
+    setSelectedBatch(batch);
+    setIsAddTraineeDialogOpen(true);
+  };
 
   return (
     <div className="space-y-6">
@@ -38,7 +46,10 @@ export function BatchDetail() {
               <TabsTrigger value="location">Location</TabsTrigger>
             </TabsList>
             <TabsContent value="batches" className="mt-6">
-              <BatchesTab onCreate={() => setIsCreateDialogOpen(true)}/>
+              <BatchesTab 
+                onCreate={() => setIsCreateDialogOpen(true)}
+                onAddTrainee={handleAddTrainee}
+              />
             </TabsContent>
             <TabsContent value="lob" className="mt-6">
               <LobDetail />
@@ -53,6 +64,7 @@ export function BatchDetail() {
         </CardContent>
       </Card>
 
+      {/* Create Batch Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
@@ -61,6 +73,31 @@ export function BatchDetail() {
           <CreateBatchForm />
         </DialogContent>
       </Dialog>
+
+      {/* Add Trainee Dialog */}
+      {selectedBatch && (
+        <Dialog 
+          open={isAddTraineeDialogOpen} 
+          onOpenChange={(open) => {
+            setIsAddTraineeDialogOpen(open);
+            if (!open) setSelectedBatch(null);
+          }}
+        >
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Add Trainee to Batch</DialogTitle>
+            </DialogHeader>
+            <AddTraineeForm 
+              isOpen={isAddTraineeDialogOpen}
+              onClose={() => {
+                setIsAddTraineeDialogOpen(false);
+                setSelectedBatch(null);
+              }}
+              batchData={selectedBatch}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
