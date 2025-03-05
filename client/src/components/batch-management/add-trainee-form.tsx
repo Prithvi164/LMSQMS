@@ -5,17 +5,10 @@ import { useParams } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { InsertUser, insertUserSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/apiRequest";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Form } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -34,7 +27,6 @@ interface AddTraineeFormProps {
 export function AddTraineeForm({ batchId, onSuccess }: AddTraineeFormProps) {
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { toast } = useToast();
 
   const form = useForm<AddTraineeFormData>({
     resolver: zodResolver(addTraineeSchema),
@@ -82,101 +74,101 @@ export function AddTraineeForm({ batchId, onSuccess }: AddTraineeFormProps) {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
-          <FormField
+          <Form.Field
             control={form.control}
             name="fullName"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Full Name</FormLabel>
-                <FormControl>
+              <Form.Item>
+                <Form.Label>Full Name</Form.Label>
+                <Form.Control>
                   <Input {...field} placeholder="Enter full name" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
+                </Form.Control>
+                <Form.Message />
+              </Form.Item>
             )}
           />
 
-          <FormField
+          <Form.Field
             control={form.control}
             name="employeeId"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Employee ID</FormLabel>
-                <FormControl>
+              <Form.Item>
+                <Form.Label>Employee ID</Form.Label>
+                <Form.Control>
                   <Input {...field} placeholder="Enter employee ID" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
+                </Form.Control>
+                <Form.Message />
+              </Form.Item>
             )}
           />
 
-          <FormField
+          <Form.Field
             control={form.control}
             name="email"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
+              <Form.Item>
+                <Form.Label>Email</Form.Label>
+                <Form.Control>
                   <Input {...field} type="email" placeholder="Enter email" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
+                </Form.Control>
+                <Form.Message />
+              </Form.Item>
             )}
           />
 
-          <FormField
+          <Form.Field
             control={form.control}
             name="phoneNumber"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Phone Number</FormLabel>
-                <FormControl>
+              <Form.Item>
+                <Form.Label>Phone Number</Form.Label>
+                <Form.Control>
                   <Input {...field} placeholder="Enter phone number" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
+                </Form.Control>
+                <Form.Message />
+              </Form.Item>
             )}
           />
 
-          <FormField
+          <Form.Field
             control={form.control}
             name="dateOfJoining"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Date of Joining</FormLabel>
-                <FormControl>
+              <Form.Item>
+                <Form.Label>Date of Joining</Form.Label>
+                <Form.Control>
                   <Input {...field} type="date" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
+                </Form.Control>
+                <Form.Message />
+              </Form.Item>
             )}
           />
 
-          <FormField
+          <Form.Field
             control={form.control}
             name="dateOfBirth"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Date of Birth</FormLabel>
-                <FormControl>
+              <Form.Item>
+                <Form.Label>Date of Birth</Form.Label>
+                <Form.Control>
                   <Input {...field} type="date" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
+                </Form.Control>
+                <Form.Message />
+              </Form.Item>
             )}
           />
 
-          <FormField
+          <Form.Field
             control={form.control}
             name="education"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Education</FormLabel>
-                <FormControl>
+              <Form.Item>
+                <Form.Label>Education</Form.Label>
+                <Form.Control>
                   <Input {...field} placeholder="Enter education" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
+                </Form.Control>
+                <Form.Message />
+              </Form.Item>
             )}
           />
         </div>
