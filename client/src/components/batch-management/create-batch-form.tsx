@@ -721,6 +721,42 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     }
   }, [isCreating]);
 
+  // Date range preview section JSX
+  const DateRangePreview = () => (
+    <div className="mt-4">
+      <h3 className="text-lg font-semibold mb-2">Date Range Preview</h3>
+      <div className="space-y-2">
+        {dateRanges.map((range, index) => {
+          const isZeroDay = isSameDay(range.start, range.end);
+          return (
+            <div
+              key={index}
+              className={cn(
+                "p-3 rounded-lg",
+                getDateRangeClassName(range.start),
+                "flex items-center justify-between"
+              )}
+            >
+              <div>
+                <span className="font-medium">{range.label}</span>
+                {isZeroDay && (
+                  <span className="ml-2 text-sm text-gray-500 italic">
+                    (Zero-day phase)
+                  </span>
+                )}
+              </div>
+              <div className="text-sm">
+                {format(range.start, 'MMM d, yyyy')}
+                {!isZeroDay && ` - ${format(range.end, 'MMM d, yyyy')}`}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-h-[calc(100vh-100px)] overflow-y-auto pr-4">
@@ -1053,32 +1089,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
             )}
           />
 
-          <div className="col-span-2 space-y-2 p-4 border rounded-lg">
-            <h3 className="font-semibold">Date Range Preview</h3>
-            <div className="grid grid-cols-2 gap-2">
-              {dateRanges.map((range, index) => (
-                <div
-                  key={index}
-                  className={cn(
-                    "p-2 rounded",
-                    getDateRangeClassName(range.start), // Apply class based on date
-                    {
-                      'bg-blue-200': range.status === 'induction',
-                      'bg-green-200': range.status === 'training',
-                      'bg-yellow-200': range.status === 'certification',
-                      'bg-purple-200': range.status === 'ojt',
-                      'bg-pink-200': range.status === 'ojt-certification',
-                    }
-                  )}
-                >
-                  <div className="font-medium">{range.label}</div>
-                  <div className="text-sm">
-                    {format(range.start, "MMM d, yyyy")} - {format(range.end, "MMM d, yyyy")}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <DateRangePreview />
 
           <FormField
             control={form.control}
