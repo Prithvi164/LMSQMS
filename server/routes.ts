@@ -9,6 +9,7 @@ import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { insertOrganizationProcessSchema } from "@shared/schema";
 import {insertBatchTemplateSchema} from "@shared/schema"; // Added import
+import { trainerAvailabilityCheckSchema } from "@shared/schema";
 
 const scryptAsync = promisify(scrypt);
 
@@ -16,6 +17,22 @@ async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
   const buf = (await scryptAsync(password, salt, 64)) as Buffer;
   return `${buf.toString("hex")}.${salt}`;
+}
+
+async function checkTrainerAvailability(trainerId: number, startDate: string, endDate: string, excludeBatchId?: number) {
+  const overlappingBatches = await storage.getBatchesByTrainer(trainerId);
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  return overlappingBatches
+    .filter(batch => batch.id !== excludeBatchId) // Exclude current batch if updating
+    .every(batch => {
+      const batchStart = new Date(batch.startDate);
+      const batchEnd = new Date(batch.endDate);
+
+      // Check if dates don't overlap
+      return end < batchStart || start > batchEnd;
+    });
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -912,6 +929,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/organizations/:id/check-trainer-availability", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.id);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only check trainers in your own organization" });
+      }
+
+      const validatedData = trainerAvailabilityCheckSchema.parse(req.body);
+
+      // Check if trainer exists and belongs to organization
+      const trainer = await storage.getUser(validatedData.trainerId);
+      if (!trainer || trainer.organizationId !== orgId) {
+        return res.status(404).json({ message: "Trainer not found" });
+      }
+
+      // Check trainer role
+      if (trainer.role !== 'trainer') {
+        return res.status(400).json({ message: "Selected user is not a trainer" });
+      }
+
+      const isAvailable = await checkTrainerAvailability(
+        validatedData.trainerId,
+        validatedData.startDate,
+        validatedData.endDate,
+        validatedData.excludeBatchId
+      );
+
+      res.json({ available: isAvailable });
+    } catch (error: any) {
+      console.error("Trainer availability check error:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
   app.post("/api/organizations/:id/batches", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -923,14 +978,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only create batches in your own organization" });
       }
 
-      const batchData = {
+      // Check trainer availability before creating batch
+      const isAvailable = await checkTrainerAvailability(
+        req.body.trainerId,
+        req.body.startDate,
+        req.body.endDate
+      );
+
+      if (!isAvailable) {
+        return res.status(400).json({ 
+          message: "Trainer is not available for the selected dates due to other batch commitments" 
+        });
+      }
+
+      const batch = await storage.createBatch({
         ...req.body,
         organizationId: orgId,
-      };
+      });
 
-      console.log('Creating batch with data:', batchData);
-
-      const batch = await storage.createBatch(batchData);
       res.status(201).json(batch);
     } catch (error: any) {
       console.error("Batch creation error:", error);
