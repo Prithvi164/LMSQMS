@@ -1043,55 +1043,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add route to get trainer availability and assigned batches
-  app.get("/api/organizations/:id/users/:userId/availability", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const orgId = parseInt(req.params.id);
-      const userId = parseInt(req.params.userId);
-
-      // Check if user belongs to the organization
-      if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "You can only view data in your own organization" });
-      }
-
-      // Get the user to check if they are a trainer
-      const trainer = await storage.getUser(userId);
-      if (!trainer) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      if (trainer.role !== 'trainer') {
-        return res.status(400).json({ message: "User is not a trainer" });
-      }
-
-      // Get batches assigned to this trainer
-      const batches = await storage.listBatches(orgId);
-      const trainerBatches = batches.filter(batch => batch.trainerId === userId);
-
-      // Format the data for the client
-      const availability = {
-        trainerId: userId,
-        trainerName: trainer.fullName,
-        locationId: trainer.locationId,
-        batchAssignments: trainerBatches.map(batch => ({
-          batchId: batch.id,
-          batchName: batch.name,
-          processId: batch.processId,
-          startDate: batch.startDate,
-          endDate: batch.endDate,
-          status: batch.status
-        }))
-      };
-
-      res.json(availability);
-    } catch (error: any) {
-      console.error("Error fetching trainer availability:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
   // Add these batch template routes after existing routes
   // Get batch templates
   app.get("/api/organizations/:id/batch-templates", async (req, res) => {
