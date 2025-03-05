@@ -8,7 +8,7 @@ import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { insertOrganizationProcessSchema } from "@shared/schema";
-import {insertBatchTemplateSchema} from "@shared/schema"; // Added import
+import {insertBatchTemplateSchema} from "@shared/schema";
 import { trainerAvailabilityCheckSchema } from "@shared/schema";
 
 const scryptAsync = promisify(scrypt);
@@ -17,6 +17,22 @@ async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
   const buf = (await scryptAsync(password, salt, 64)) as Buffer;
   return `${buf.toString("hex")}.${salt}`;
+}
+
+async function getTrainerBatches(trainerId: number, excludeBatchId?: number) {
+  try {
+    // Get all batches for trainer except completed ones
+    const batches = await storage.listBatches(undefined, {
+      trainerId,
+      excludeStatus: ['completed']
+    });
+
+    // Filter out the batch being updated if excludeBatchId is provided
+    return batches.filter(batch => batch.id !== excludeBatchId);
+  } catch (error) {
+    console.error("Error fetching trainer batches:", error);
+    return [];
+  }
 }
 
 async function checkTrainerAvailability(trainerId: number, startDate: string, endDate: string, excludeBatchId?: number) {
@@ -829,7 +845,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/organizations/:id/line-of-businesses/:lobId", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
-    try {
+    try{
       const orgId = parseInt(req.params.id);
       const lobId = parseInt(req.params.lobId);
 
@@ -953,14 +969,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Selected user is not a trainer" });
       }
 
-      const isAvailable = await checkTrainerAvailability(
+      // Get trainer's current batches
+      const trainerBatches = await getTrainerBatches(
         validatedData.trainerId,
-        validatedData.startDate,
-        validatedData.endDate,
         validatedData.excludeBatchId
       );
 
-      res.json({ available: isAvailable });
+      // Return trainer's batch information
+      res.json({ 
+        trainer: {
+          id: trainer.id,
+          name: trainer.fullName,
+        },
+        currentBatches: trainerBatches.map(batch => ({
+          id: batch.id,
+          name: batch.name,
+          startDate: batch.startDate,
+          endDate: batch.endDate,
+          status: batch.status
+        }))
+      });
     } catch (error: any) {
       console.error("Trainer availability check error:", error);
       res.status(400).json({ message: error.message });
@@ -978,25 +1006,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only create batches in your own organization" });
       }
 
-      // Check trainer availability before creating batch
-      const isAvailable = await checkTrainerAvailability(
-        req.body.trainerId,
-        req.body.startDate,
-        req.body.endDate
-      );
-
-      if (!isAvailable) {
-        return res.status(400).json({ 
-          message: "Trainer is not available for the selected dates due to other batch commitments" 
-        });
-      }
-
+      // Create batch without blocking validation
       const batch = await storage.createBatch({
         ...req.body,
         organizationId: orgId,
       });
 
-      res.status(201).json(batch);
+      res.json(batch);
     } catch (error: any) {
       console.error("Batch creation error:", error);
       res.status(400).json({ message: error.message });
