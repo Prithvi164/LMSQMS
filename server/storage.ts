@@ -1205,14 +1205,14 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching users for organization ${organizationId} and location ${locationId}`);
 
-      const users = await db
+      const usersList = await db
         .select()
         .from(users)
         .where(eq(users.organizationId, organizationId))
-        .where(eq(users.locationId, locationId)) as User[];
+        .where(eq(users.locationId, locationId));
 
-      console.log(`Found ${users.length} users in location ${locationId}`);
-      return users;
+      console.log(`Found ${usersList.length} users in location ${locationId}`);
+      return usersList as User[];
     } catch (error) {
       console.error('Error fetching users by location:', error);
       throw new Error('Failed to fetch users by location');
