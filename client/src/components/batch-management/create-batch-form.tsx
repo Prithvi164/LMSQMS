@@ -37,6 +37,7 @@ import { CalendarIcon, Loader2 } from "lucide-react";
 import { insertOrganizationBatchSchema, type InsertOrganizationBatch, insertBatchTemplateSchema, type InsertBatchTemplate, type BatchTemplate } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { TrainerInsights } from "./trainer-insights";
 
 
 // Interface for date range
@@ -854,7 +855,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                   disabled={saveTemplateMutation.isPending}
                 >
                   {saveTemplateMutation.isPending ? "Saving..." : "Save Template"}
-                </Button>
+                                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -1016,11 +1017,11 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                     field.onChange(trainerId);
                   }}
                   value={field.value?.toString()}
-                  disabled={!selectedLocation || isLoadingTrainers}
+                  disabled={isLoadingTrainers}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder={selectedLocation ? "Select trainer" : "Select location first"} />
+                      <SelectValue placeholder="Select trainer" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -1035,6 +1036,12 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
               </FormItem>
             )}
           />
+
+        {/* Add TrainerInsights component here */}
+        {form.watch('trainerId') && (
+          <TrainerInsights trainerId={form.watch('trainerId')} />
+        )}
+
 
           <FormField
             control={form.control}

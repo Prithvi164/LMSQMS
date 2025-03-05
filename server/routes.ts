@@ -1148,5 +1148,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add new endpoint to get trainer's active batches
+  app.get("/api/trainers/:id/active-batches", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const trainerId = parseInt(req.params.id);
+
+      // Get all batches for the trainer excluding completed ones
+      const activeBatches = await storage.getBatchesByTrainer(
+        trainerId,
+        req.user.organizationId,
+        ['planned', 'induction', 'training', 'certification', 'ojt', 'ojt_certification']
+      );
+
+      console.log(`Found ${activeBatches.length} active batches for trainer ${trainerId}`);
+      res.json(activeBatches);
+    } catch (error: any) {
+      console.error("Error fetching trainer batches:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   return createServer(app);
 }
