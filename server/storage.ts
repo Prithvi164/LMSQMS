@@ -951,9 +951,16 @@ export class DatabaseStorage implements IStorage {
 
       const [updatedBatch] = await db
         .update(organizationBatches)
-        .set(batch)
+        .set({
+          ...batch,
+          updatedAt: new Date()
+        })
         .where(eq(organizationBatches.id, id))
         .returning() as OrganizationBatch[];
+
+      if (!updatedBatch) {
+        throw new Error('Batch not found');
+      }
 
       console.log('Successfully updated batch:', updatedBatch);
       return updatedBatch;
@@ -965,7 +972,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteBatch(id: number): Promise<void> {
     try {
-      console.log(`Attemptingto delete batch with ID: ${id}`);
+      console.log(`Attempting to delete batch with ID: ${id}`);
 
       const result = await db
         .delete(organizationBatches)
@@ -1142,25 +1149,12 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching batches for trainer ${trainerId} with statuses:`, statuses);
 
-      // Map the frontend status values to actual database enum values
-      const dbStatuses = statuses.map(status => {
-        switch (status.toLowerCase()) {
-          case 'induction': return 'INDUCTION';
-          case 'training': return 'TRAINING';
-          case 'certification': return 'CERTIFICATION';
-          case 'ojt': return 'OJT';
-          case 'ojt_certification': return 'OJT_CERTIFICATION';
-          case 'planned': return 'PLANNED';
-          default: return status.toUpperCase();
-        }
-      });
-
       const batches = await db
         .select()
         .from(organizationBatches)
         .where(eq(organizationBatches.trainerId, trainerId))
         .where(eq(organizationBatches.organizationId, organizationId))
-        .where(sql`${organizationBatches.status}::text = ANY(${dbStatuses})`)
+        .where(inArray(organizationBatches.status, statuses))
         .orderBy(desc(organizationBatches.startDate)) as OrganizationBatch[];
 
       console.log(`Found ${batches.length} batches for trainer ${trainerId}`);
