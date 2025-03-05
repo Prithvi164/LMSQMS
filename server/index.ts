@@ -35,10 +35,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Add a test route to verify server is handling requests
-app.get("/health", (_req, res) => {
-  res.json({ status: "ok", mode: app.get("env") });
-});
 
 (async () => {
   try {
