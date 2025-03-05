@@ -146,7 +146,7 @@ export const organizationBatches = pgTable("organization_batches", {
 export type OrganizationBatch = InferSelectModel<typeof organizationBatches>;
 
 // Add relations for batches
-export const organizationBatchesRelations = relations(organizationBatches, ({ one }) => ({
+export const organizationBatchesRelations = relations(organizationBatches, ({ one, many }) => ({
   organization: one(organizations, {
     fields: [organizationBatches.organizationId],
     references: [organizations.id],
@@ -167,6 +167,7 @@ export const organizationBatchesRelations = relations(organizationBatches, ({ on
     fields: [organizationBatches.trainerId],
     references: [users.id],
   }),
+  trainees: many(userBatchTrainees) // Add this line
 }));
 
 // Update validation schema to properly handle the enum
@@ -406,7 +407,8 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     references: [organizationLocations.id],
   }),
   managedProcesses: many(userProcesses),
-  batches: many(organizationBatches)
+  batches: many(organizationBatches),
+  batchTrainee: many(userBatchTrainees) // Add this line
 }));
 
 export const userProcessesRelations = relations(userProcesses, ({ one }) => ({
@@ -520,6 +522,74 @@ export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
 export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
 export type InsertBatchTemplate = z.infer<typeof insertBatchTemplateSchema>;
 
+// Add trainee status enum
+export const traineeStatusEnum = pgEnum('trainee_status', [
+  'active',
+  'completed',
+  'dropped',
+  'on_hold'
+]);
+
+// Add user batch trainee junction table
+export const userBatchTrainees = pgTable("user_batch_trainees", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .references(() => users.id)
+    .notNull(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id)
+    .notNull(),
+  joinDate: date("join_date").notNull(),
+  status: traineeStatusEnum("status").default('active').notNull(),
+  inductionScore: integer("induction_score"),
+  trainingScore: integer("training_score"),
+  certificationScore: integer("certification_score"),
+  ojtScore: integer("ojt_score"),
+  ojtCertificationScore: integer("ojt_certification_score"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    unq: unique().on(table.userId, table.batchId),
+  };
+});
+
+export type UserBatchTrainee = InferSelectModel<typeof userBatchTrainees>;
+
+// Add validation schema
+export const insertUserBatchTraineeSchema = createInsertSchema(userBatchTrainees)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    userId: z.number().int().positive("User ID is required"),
+    batchId: z.number().int().positive("Batch ID is required"),
+    joinDate: z.string().min(1, "Join date is required"),
+    status: z.enum(['active', 'completed', 'dropped', 'on_hold']).default('active'),
+    inductionScore: z.number().int().min(0).max(100).optional(),
+    trainingScore: z.number().int().min(0).max(100).optional(),
+    certificationScore: z.number().int().min(0).max(100).optional(),
+    ojtScore: z.number().int().min(0).max(100).optional(),
+    ojtCertificationScore: z.number().int().min(0).max(100).optional(),
+  });
+
+export type InsertUserBatchTrainee = z.infer<typeof insertUserBatchTraineeSchema>;
+
+// Add relations
+export const userBatchTraineesRelations = relations(userBatchTrainees, ({ one }) => ({
+  user: one(users, {
+    fields: [userBatchTrainees.userId],
+    references: [users.id],
+  }),
+  batch: one(organizationBatches, {
+    fields: [userBatchTrainees.batchId],
+    references: [organizationBatches.id],
+  }),
+}));
+
+
 export type {
   Organization,
   OrganizationProcess,
@@ -535,5 +605,7 @@ export type {
   OrganizationBatch,
   InsertOrganizationBatch,
   BatchTemplate,
-  InsertBatchTemplate
+  InsertBatchTemplate,
+  UserBatchTrainee,
+  InsertUserBatchTrainee
 };
