@@ -146,7 +146,7 @@ export const organizationBatches = pgTable("organization_batches", {
 export type OrganizationBatch = InferSelectModel<typeof organizationBatches>;
 
 // Add relations for batches
-export const organizationBatchesRelations = relations(organizationBatches, ({ one }) => ({
+export const organizationBatchesRelations = relations(organizationBatches, ({ one, many }) => ({
   organization: one(organizations, {
     fields: [organizationBatches.organizationId],
     references: [organizations.id],
@@ -167,6 +167,7 @@ export const organizationBatchesRelations = relations(organizationBatches, ({ on
     fields: [organizationBatches.trainerId],
     references: [users.id],
   }),
+  trainees: many(batchTrainees)
 }));
 
 // Update validation schema to properly handle the enum
@@ -520,6 +521,59 @@ export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
 export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
 export type InsertBatchTemplate = z.infer<typeof insertBatchTemplateSchema>;
 
+
+// Add the batch trainee association table after the existing tables
+export const batchTrainees = pgTable("batch_trainees", {
+  id: serial("id").primaryKey(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id)
+    .notNull(),
+  traineeId: integer("trainee_id")
+    .references(() => users.id)
+    .notNull(),
+  status: text("status").default('active').notNull(),
+  joinedAt: timestamp("joined_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    unq: unique().on(table.batchId, table.traineeId),
+  };
+});
+
+export type BatchTrainee = InferSelectModel<typeof batchTrainees>;
+
+// Add the insert schema for batch trainees
+export const insertBatchTraineeSchema = createInsertSchema(batchTrainees)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+    joinedAt: true,
+    completedAt: true,
+  })
+  .extend({
+    batchId: z.number().int().positive("Batch ID is required"),
+    traineeId: z.number().int().positive("Trainee ID is required"),
+    status: z.string().default('active'),
+  });
+
+export type InsertBatchTrainee = z.infer<typeof insertBatchTraineeSchema>;
+
+// Add relations for batch trainees
+export const batchTraineesRelations = relations(batchTrainees, ({ one }) => ({
+  batch: one(organizationBatches, {
+    fields: [batchTrainees.batchId],
+    references: [organizationBatches.id],
+  }),
+  trainee: one(users, {
+    fields: [batchTrainees.traineeId],
+    references: [users.id],
+  }),
+}));
+
+
 export type {
   Organization,
   OrganizationProcess,
@@ -535,5 +589,7 @@ export type {
   OrganizationBatch,
   InsertOrganizationBatch,
   BatchTemplate,
-  InsertBatchTemplate
+  InsertBatchTemplate,
+  BatchTrainee,
+  InsertBatchTrainee
 };
