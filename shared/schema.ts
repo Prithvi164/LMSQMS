@@ -522,16 +522,6 @@ export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
 export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
 export type InsertBatchTemplate = z.infer<typeof insertBatchTemplateSchema>;
 
-// Add after the existing schemas
-export const trainerAvailabilityCheckSchema = z.object({
-  trainerId: z.number().int().positive("Trainer ID is required"),
-  startDate: z.string().min(1, "Start date is required"),
-  endDate: z.string().min(1, "End date is required"),
-  excludeBatchId: z.number().int().optional(), // For updates - exclude current batch
-});
-
-export type TrainerAvailabilityCheck = z.infer<typeof trainerAvailabilityCheckSchema>;
-
 export type {
   Organization,
   OrganizationProcess,
@@ -547,6 +537,5 @@ export type {
   OrganizationBatch,
   InsertOrganizationBatch,
   BatchTemplate,
-  InsertBatchTemplate,
-  TrainerAvailabilityCheck,
+  InsertBatchTemplate
 };
