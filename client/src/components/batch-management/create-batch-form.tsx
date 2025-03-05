@@ -756,6 +756,8 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
               </div>
               <div className="text-sm">
                 {format(range.start, 'MMM d, yyyy')}
+                {' - '}
+                {format(range.end, 'MMM d, yyyy')}
               </div>
             </div>
           );
