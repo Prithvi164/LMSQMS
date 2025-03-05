@@ -35,7 +35,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Add a health check endpoint
+// Add a test route to verify server is handling requests
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", mode: app.get("env") });
 });
@@ -63,7 +63,7 @@ app.get("/health", (_req, res) => {
       serveStatic(app);
     }
 
-    const port = process.env.PORT || 3000;
+    const port = process.env.PORT || 5001;
     server.listen(port, "0.0.0.0", () => {
       log(`Server running in ${app.get("env")} mode`);
       log(`API and client being served on port ${port}`);
@@ -71,12 +71,12 @@ app.get("/health", (_req, res) => {
       if (error.code === 'EADDRINUSE') {
         log(`Port ${port} is already in use. Please try a different port.`);
       } else {
-        log(`Failed to start server: ${error.message}`);
+        log(`Failed to start server: ${error}`);
       }
       process.exit(1);
     });
-  } catch (error: any) {
-    log(`Failed to start server: ${error.message}`);
+  } catch (error) {
+    log(`Failed to start server: ${error}`);
     process.exit(1);
   }
 })();
