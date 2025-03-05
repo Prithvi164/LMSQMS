@@ -27,28 +27,18 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { CalendarIcon, Loader2 } from "lucide-react";
-import {
-  insertOrganizationBatchSchema,
-  type InsertOrganizationBatch,
-  type Organization,
-  type OrganizationLocation,
-  type OrganizationLineOfBusiness,
-  type OrganizationProcess,
-  type User,
-  type BatchTemplate,
-  type InsertBatchTemplate,
-  batchStatusEnum
-} from "@shared/schema";
+import { insertOrganizationBatchSchema, type InsertOrganizationBatch, insertBatchTemplateSchema, type InsertBatchTemplate, type BatchTemplate } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { TrainerInsights } from "./trainer-insights";
+
 
 // Interface for date range
 interface DateRange {
@@ -56,12 +46,6 @@ interface DateRange {
   end: Date;
   label: string;
   status: 'induction' | 'training' | 'certification' | 'ojt' | 'ojt-certification';
-}
-
-interface OrganizationBatch extends InsertOrganizationBatch {
-  id: number;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 // Update CreateBatchFormProps interface
@@ -72,7 +56,7 @@ interface CreateBatchFormProps {
 }
 
 // Function to determine batch status based on current date and phase dates
-const determineBatchStatus = (batch: InsertOrganizationBatch): typeof batchStatusEnum.$inferSelect => {
+const determineBatchStatus = (batch: InsertOrganizationBatch): string => {
   const today = new Date();
 
   // Convert string dates to Date objects
@@ -90,6 +74,7 @@ const determineBatchStatus = (batch: InsertOrganizationBatch): typeof batchStatu
     handoverToOps: batch.handoverToOpsDate ? new Date(batch.handoverToOpsDate) : null
   };
 
+  // Check which phase we're in based on current date
   if (today < dates.inductionStart) {
     return 'planned';
   } else if (dates.inductionEnd && isWithinInterval(today, { start: dates.inductionStart, end: dates.inductionEnd })) {
@@ -106,7 +91,7 @@ const determineBatchStatus = (batch: InsertOrganizationBatch): typeof batchStatu
     return 'completed';
   }
 
-  return 'planned';
+  return 'planned'; // Default status
 };
 
 // Add this near the top where other fields are defined
@@ -197,32 +182,23 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
   const {
     data: locations = [],
     isLoading: isLoadingLocations
-  } = useQuery<OrganizationLocation[]>({
+  } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations`],
     enabled: !!user?.organizationId
   });
 
   const {
     data: lobs = [],
-    isLoading: isLoadingLobs,
-    error: lobsError
-  } = useQuery<OrganizationLineOfBusiness[]>({
+    isLoading: isLoadingLobs
+  } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/locations/${selectedLocation}/line-of-businesses`],
-    enabled: !!selectedLocation && !!user?.organizationId,
-    onError: (error) => {
-      console.error('Error loading LOBs:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load line of businesses. Please try again.",
-        variant: "destructive",
-      });
-    }
+    enabled: !!selectedLocation && !!user?.organizationId
   });
 
   const {
     data: processes = [],
     isLoading: isLoadingProcesses
-  } = useQuery<OrganizationProcess[]>({
+  } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${selectedLob}/processes`],
     enabled: !!selectedLob && !!user?.organizationId
   });
@@ -230,7 +206,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
   const {
     data: trainers = [],
     isLoading: isLoadingTrainers
-  } = useQuery<User[]>({
+  } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/users`],
     select: (users) => users?.filter((user) =>
       user.role === 'trainer' &&
@@ -869,7 +845,8 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                       value={templateDescription}
                       onChange={(e) => setTemplateDescription(e.target.value)}
                     />
-                  </FormControl</FormItem>
+                  </FormControl>
+                </FormItem>
               </div>
               <DialogFooter>
                 <Button
@@ -895,7 +872,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select batch category" />
+                      <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -910,6 +887,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
               </FormItem>
             )}
           />
+
           <FormField
             control={form.control}
             name="name"
@@ -970,42 +948,24 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                 <Select
                   onValueChange={(value) => {
                     const lobId = parseInt(value);
-                    setSelectedLob(lobId);
                     field.onChange(lobId);
-                    // Reset process when LOB changes
+                    setSelectedLob(lobId);
                     form.setValue('processId', undefined);
                   }}
                   value={field.value?.toString()}
-                  disabled={isLoadingLobs || !selectedLocation}
+                  disabled={!selectedLocation || isLoadingLobs}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder={
-                        isLoadingLobs
-                          ? "Loading..."
-                          : !selectedLocation
-                            ? "Select location first"
-                            : "Select line of business"
-                      } />
+                      <SelectValue placeholder={selectedLocation ? "Select LOB" : "Select location first"} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {isLoadingLobs ? (
-                      <div className="flex items-center justify-center p-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span className="ml-2">Loading...</span>
-                      </div>
-                    ) : lobsError ? (
-                      <div className="p-2 text-red-500">Failed to load. Please try again.</div>
-                    ) : lobs.length === 0 ? (
-                      <div className="p-2">No line of business available</div>
-                    ) : (
-                      lobs.map((lob) => (
-                        <SelectItem key={lob.id} value={lob.id.toString()}>
-                          {lob.name}
-                        </SelectItem>
-                      ))
-                    )}
+                    {lobs.map((lob) => (
+                      <SelectItem key={lob.id} value={lob.id.toString()}>
+                        {lob.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -1167,24 +1127,33 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
           />
 
           <DateRangePreview />
+        
 
-
-          <div className="mt-8 flex justify-end">
-            <Button
-              type="submit"
-              disabled={isCreating}
-            >
-              {isCreating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {editMode ? "Updating..." : "Creating..."}
-                </>
-              ) : (
-                editMode ? "Update Batch" : "Create Batch"
-              )}
-            </Button>
-          </div>
-        </form>
-      </Form>
-    );
+        <div className="mt-8 flex justify-end"> {/* Adjusted to right-align the button */}
+          <Button
+            type="submit"
+            disabled={
+              createBatchMutation.isPending ||
+              updateBatchMutation.isPending ||
+              isCreating ||
+              isLoadingLocations ||
+              isLoadingLobs ||
+              isLoadingProcesses ||
+              isLoadingTrainers ||
+              isLoadingTemplates
+            }
+          >
+            {isCreating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {editMode ? "Updating..." : "Creating..."}
+              </>
+            ) : (
+              editMode ? "Update Batch" : "Create Batch"
+            )}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
 }
