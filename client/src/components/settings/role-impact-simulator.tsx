@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +6,7 @@ import { Plus, Minus, AlertTriangle, Users } from "lucide-react";
 import { defaultPermissions } from "@shared/permissions";
 import type { User, RolePermission } from "@shared/schema";
 import { cn } from "@/lib/utils";
+import { permissionEnum } from "@shared/schema";
 
 interface RoleImpactSimulatorProps {
   selectedRole: string | null;
@@ -16,34 +17,59 @@ export const RoleImpactSimulator = ({
   selectedRole, 
   proposedPermissions 
 }: RoleImpactSimulatorProps) => {
-  const [addedPermissions, setAddedPermissions] = useState<string[]>([]);
-  const [removedPermissions, setRemovedPermissions] = useState<string[]>([]);
+  const [addedPermissions, setAddedPermissions] = useState<typeof permissionEnum.enumValues[number][]>([]);
+  const [removedPermissions, setRemovedPermissions] = useState<typeof permissionEnum.enumValues[number][]>([]);
+
+  // Memoize the query key to prevent unnecessary refetches
+  const usersQueryKey = useMemo(() => 
+    selectedRole ? ["/api/users", { role: selectedRole }] : null,
+    [selectedRole]
+  );
 
   // Fetch users with the selected role
   const { data: affectedUsers = [] } = useQuery<User[]>({
-    queryKey: ["/api/users", { role: selectedRole }],
-    enabled: !!selectedRole,
+    queryKey: usersQueryKey,
+    enabled: !!usersQueryKey,
+    staleTime: 30000, // Consider data fresh for 30 seconds
   });
+
+  // Memoize permissions query key
+  const permissionsQueryKey = useMemo(() => 
+    selectedRole ? ["/api/permissions", selectedRole] : null,
+    [selectedRole]
+  );
 
   // Fetch current role permissions
   const { data: currentPermissions } = useQuery<RolePermission[]>({
-    queryKey: ["/api/permissions"],
-    enabled: !!selectedRole,
+    queryKey: permissionsQueryKey,
+    enabled: !!permissionsQueryKey,
+    staleTime: 30000, // Consider data fresh for 30 seconds
   });
 
-  useEffect(() => {
-    if (!selectedRole || !proposedPermissions || !currentPermissions) return;
+  // Memoize the current role's default permissions
+  const currentRolePermissions = useMemo(() => 
+    selectedRole 
+      ? defaultPermissions[selectedRole as keyof typeof defaultPermissions] || []
+      : [],
+    [selectedRole]
+  );
 
-    const currentRolePermissions = defaultPermissions[selectedRole as keyof typeof defaultPermissions] || [];
-    
+  useEffect(() => {
+    if (!selectedRole || !proposedPermissions) return;
+
     // Calculate added permissions
-    const added = proposedPermissions.filter(p => !currentRolePermissions.includes(p));
+    const added = proposedPermissions.filter(p => 
+      permissionEnum.enumValues.includes(p as any) && 
+      !currentRolePermissions.includes(p as any)
+    ) as typeof permissionEnum.enumValues[number][];
     setAddedPermissions(added);
 
     // Calculate removed permissions
-    const removed = currentRolePermissions.filter(p => !proposedPermissions.includes(p));
+    const removed = currentRolePermissions.filter(p => 
+      !proposedPermissions.includes(p)
+    ) as typeof permissionEnum.enumValues[number][];
     setRemovedPermissions(removed);
-  }, [selectedRole, proposedPermissions, currentPermissions]);
+  }, [selectedRole, proposedPermissions, currentRolePermissions]);
 
   if (!selectedRole) return null;
 

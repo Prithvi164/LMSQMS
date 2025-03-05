@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion, Reorder } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { roleEnum } from "@shared/schema";
+import { roleEnum, permissionEnum } from "@shared/schema";
 import { defaultPermissions } from "@shared/permissions";
 import { RoleImpactSimulator } from "./role-impact-simulator";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Check, X } from "lucide-react";
 
 interface RoleCardProps {
-  role: string;
+  role: typeof roleEnum.enumValues[number];
   isSelected: boolean;
   onClick: () => void;
 }
@@ -37,25 +37,25 @@ const RoleCard = ({ role, isSelected, onClick }: RoleCardProps) => (
 );
 
 export const RoleHierarchyEditor = () => {
-  const initialRoles = roleEnum.enumValues;
-  const [roles, setRoles] = useState(initialRoles);
-  const [selectedRole, setSelectedRole] = useState<string | null>(null);
-  const [editedPermissions, setEditedPermissions] = useState<string[]>([]);
+  const [roles, setRoles] = useState<typeof roleEnum.enumValues>(roleEnum.enumValues);
+  const [selectedRole, setSelectedRole] = useState<typeof roleEnum.enumValues[number] | null>(null);
+  const [editedPermissions, setEditedPermissions] = useState<typeof permissionEnum.enumValues>([]);
   const [isEditing, setIsEditing] = useState(false);
 
-  const handleRoleSelect = (role: string) => {
+  const handleRoleSelect = (role: typeof roleEnum.enumValues[number]) => {
     if (role === selectedRole) {
       setSelectedRole(null);
       setEditedPermissions([]);
       setIsEditing(false);
     } else {
       setSelectedRole(role);
-      setEditedPermissions(defaultPermissions[role as keyof typeof defaultPermissions] || []);
+      const rolePerms = defaultPermissions[role] || [];
+      setEditedPermissions([...rolePerms] as typeof permissionEnum.enumValues);
       setIsEditing(false);
     }
   };
 
-  const handlePermissionToggle = (permission: string) => {
+  const handlePermissionToggle = (permission: typeof permissionEnum.enumValues[number]) => {
     if (!isEditing) return;
 
     setEditedPermissions(current => {
@@ -106,7 +106,7 @@ export const RoleHierarchyEditor = () => {
                   )}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {defaultPermissions[selectedRole as keyof typeof defaultPermissions]?.map((permission) => (
+                  {defaultPermissions[selectedRole]?.map((permission) => (
                     <Badge
                       key={permission}
                       variant={isEditing ? "outline" : "secondary"}

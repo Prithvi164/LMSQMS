@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
@@ -14,9 +14,10 @@ export function RolePermissions() {
   const { toast } = useToast();
   const [selectedRole, setSelectedRole] = useState<string>(roleEnum.enumValues[1]); // Start with 'admin'
 
-  const { data: rolePermissions } = useQuery<RolePermission[]>({
+  const { data: rolePermissions, isLoading } = useQuery<RolePermission[]>({
     queryKey: ["/api/permissions"],
     enabled: !!user,
+    staleTime: 30000, // Consider data fresh for 30 seconds
   });
 
   // Filter out owner from role selection if user is not an owner
@@ -56,23 +57,25 @@ export function RolePermissions() {
     },
   });
 
-  const getPermissionsForRole = (role: string) => {
-    return (
-      rolePermissions?.find((rp) => rp.role === role)?.permissions || []
-    );
-  };
+  const getPermissionsForRole = useCallback((role: string) => {
+    return rolePermissions?.find((rp) => rp.role === role)?.permissions || [];
+  }, [rolePermissions]);
 
-  const handlePermissionToggle = (permission: string) => {
+  const handlePermissionToggle = useCallback((permission: string) => {
     const currentPermissions = getPermissionsForRole(selectedRole);
     const newPermissions = currentPermissions.includes(permission)
-      ? currentPermissions.filter((p) => p !== permission)
+      ? currentPermissions.filter((p: string) => p !== permission)
       : [...currentPermissions, permission];
 
     updatePermissionMutation.mutate({
       role: selectedRole,
       permissions: newPermissions,
     });
-  };
+  }, [selectedRole, getPermissionsForRole, updatePermissionMutation]);
+
+  if (isLoading) {
+    return <div>Loading permissions...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -116,7 +119,10 @@ export function RolePermissions() {
                             permission
                           )}
                           onCheckedChange={() => handlePermissionToggle(permission)}
-                          disabled={selectedRole === 'owner' && user?.role !== 'owner'} // Only owner can modify owner permissions
+                          disabled={
+                            selectedRole === 'owner' && user?.role !== 'owner' ||
+                            updatePermissionMutation.isPending
+                          }
                         />
                       </div>
                     ))}

@@ -1,10 +1,23 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import rateLimit from 'express-rate-limit';
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Configure rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: { message: "Too many requests, please try again later." },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+
+// Apply rate limiting to API routes
+app.use('/api', limiter);
 
 // Enhanced request logging middleware
 app.use((req, res, next) => {
@@ -42,6 +55,7 @@ app.get("/health", (_req, res) => {
 
 (async () => {
   try {
+    // Create HTTP server explicitly
     const server = await registerRoutes(app);
 
     // Error handling middleware

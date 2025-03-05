@@ -10,6 +10,8 @@ import { promisify } from "util";
 import { insertOrganizationProcessSchema } from "@shared/schema";
 import {insertBatchTemplateSchema} from "@shared/schema"; // Added import
 import { batchStatusEnum } from "@shared/schema";
+import { permissionEnum } from '@shared/schema'; // Added import for permissionEnum
+
 
 const scryptAsync = promisify(scrypt);
 
@@ -243,12 +245,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Hash the password before creating the user
       const hashedPassword = await hashPassword(userData.password);
 
-      // Prepare user data
+      // Prepare user data with explicit type casting for organizationId
       const userToCreate = {
         ...userData,
         password: hashedPassword,
         role: userData.role.toLowerCase(),
-        organizationId: req.user.organizationId,
+        organizationId: req.user.organizationId as number,
       };
 
       console.log('Creating user with data:', {
@@ -257,12 +259,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lineOfBusinessId
       });
 
-      // Create user with optional processes
+      // Create user with optional processes, ensuring lineOfBusinessId is a number
       const result = await storage.createUserWithProcesses(
         userToCreate,
-        processes || [], // Allow empty process array
+        processes || [],
         req.user.organizationId,
-        lineOfBusinessId // Pass the lineOfBusinessId to storage method
+        lineOfBusinessId ? Number(lineOfBusinessId) : undefined
       );
 
       res.status(201).json(result.user);
@@ -487,15 +489,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Fixing TypeScript errors in the permissions endpoint
   app.patch("/api/permissions/:role", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
     if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
-    if (req.user.role !== "admin") return res.status(403).json({ message: "Only admins can modify permissions" });
+    if (req.user.role !== "owner" && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Only owners and admins can modify permissions" });
+    }
 
     try {
       const { permissions } = req.body;
       if (!Array.isArray(permissions)) {
         return res.status(400).json({ message: "Permissions must be an array" });
+      }
+
+      // Validate that all permissions are valid enum values
+      const invalidPermissions = permissions.filter(p => !permissionEnum.enumValues.includes(p));
+      if (invalidPermissions.length > 0) {
+        return res.status(400).json({ 
+          message: "Invalid permissions provided",
+          invalidPermissions 
+        });
       }
 
       const rolePermission = await storage.updateRolePermissions(
