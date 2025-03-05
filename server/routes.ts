@@ -215,7 +215,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       console.log(`Fetching users for organization ${req.user.organizationId}`);
-      const users = await storage.listUsers(req.user.organizationId);
+
+      // Get users based on location access
+      let users;
+      if (req.user.role === 'owner' || req.user.role === 'admin') {
+        // Owners and admins can see all users
+        users = await storage.listUsers(req.user.organizationId);
+      } else {
+        // Other users can only see users in their location
+        if (!req.user.locationId) {
+          return res.status(400).json({ message: "No location assigned to current user" });
+        }
+        users = await storage.listUsersByLocation(req.user.organizationId, req.user.locationId);
+      }
+
       console.log(`Found ${users.length} users`);
       res.json(users);
     } catch (error: any) {
@@ -231,7 +244,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      const { processes, lineOfBusinessId, ...userData } = req.body;
+      const { processes, lineOfBusinessId, locationId, ...userData } = req.body;
+
+      // Location-based access control
+      if (req.user.role !== 'owner' && req.user.role !== 'admin') {
+        // Non-admin users can only create users in their location
+        if (!req.user.locationId) {
+          return res.status(400).json({ message: "No location assigned to current user" });
+        }
+
+        // Force the locationId to be the same as the creator's location
+        if (locationId && locationId !== req.user.locationId) {
+          return res.status(403).json({ 
+            message: "You can only create users in your assigned location" 
+          });
+        }
+      }
 
       // Validate that lineOfBusinessId is provided when processes are specified
       if (processes?.length > 0 && !lineOfBusinessId) {
@@ -249,6 +277,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         password: hashedPassword,
         role: userData.role.toLowerCase(),
         organizationId: req.user.organizationId,
+        // For non-admin users, force their location
+        locationId: (req.user.role !== 'owner' && req.user.role !== 'admin') 
+          ? req.user.locationId 
+          : locationId,
       };
 
       console.log('Creating user with data:', {
@@ -262,7 +294,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userToCreate,
         processes || [], // Allow empty process array
         req.user.organizationId,
-        lineOfBusinessId // Pass the lineOfBusinessId to storage method
+        lineOfBusinessId
       );
 
       res.status(201).json(result.user);
