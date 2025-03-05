@@ -8,7 +8,7 @@ import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { insertOrganizationProcessSchema } from "@shared/schema";
-import {insertBatchTemplateSchema} from "@shared/schema"; // Added import
+import {insertBatchTemplateSchema} from "@shared/schema";
 import { batchStatusEnum } from "@shared/schema";
 import { verifyDatabaseConnection } from "./db";
 
@@ -21,10 +21,13 @@ async function hashPassword(password: string) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  const server = createServer(app);
+
   // Add a health check route that includes database status
   app.get("/health", async (_req, res) => {
     try {
       const dbStatus = await verifyDatabaseConnection();
+      console.log("Database status:", dbStatus); // Add logging
       res.json({ 
         status: "ok", 
         mode: app.get("env"),
@@ -35,6 +38,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
     } catch (error) {
+      console.error("Health check error:", error); // Add logging
       res.status(500).json({ 
         status: "error",
         mode: app.get("env"),
@@ -1227,5 +1231,5 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  return createServer(app);
+  return server;
 }
