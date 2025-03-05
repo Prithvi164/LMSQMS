@@ -63,14 +63,17 @@ app.get("/health", (_req, res) => {
       serveStatic(app);
     }
 
-    const port = process.env.PORT || 5001; // Changed from 5000 to 5001
-    server.listen({
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    }, () => {
+    const port = process.env.PORT || 5001;
+    server.listen(port, "0.0.0.0", () => {
       log(`Server running in ${app.get("env")} mode`);
       log(`API and client being served on port ${port}`);
+    }).on('error', (error: any) => {
+      if (error.code === 'EADDRINUSE') {
+        log(`Port ${port} is already in use. Please try a different port.`);
+      } else {
+        log(`Failed to start server: ${error}`);
+      }
+      process.exit(1);
     });
   } catch (error) {
     log(`Failed to start server: ${error}`);
