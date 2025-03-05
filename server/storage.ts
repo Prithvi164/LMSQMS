@@ -31,6 +31,13 @@ import {
   type BatchTemplate,
   type InsertBatchTemplate,
 } from "@shared/schema";
+import {
+  users as userTable,
+  userBatchTrainees,
+  type UserBatchTrainee,
+  type InsertUserBatchTrainee,
+} from "@shared/schema";
+
 
 export interface IStorage {
   // User operations
@@ -114,6 +121,20 @@ export interface IStorage {
     organizationId: number,
     statuses: typeof batchStatusEnum.enumValues[number][]
   ): Promise<OrganizationBatch[]>;
+
+  // Add new methods for trainee management
+  getBatchTraineesCount(batchId: number): Promise<number>;
+  createUserWithBatch(
+    user: InsertUser,
+    batchId: number,
+    processIds: number[]
+  ): Promise<{ user: User; trainee: UserBatchTrainee; processes: UserProcess[] }>;
+  getBatchTrainees(batchId: number): Promise<(UserBatchTrainee & { user: User })[]>;
+  updateBatchTrainee(
+    traineeId: number,
+    batchId: number,
+    updates: Partial<InsertUserBatchTrainee>
+  ): Promise<UserBatchTrainee>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -999,7 +1020,8 @@ export class DatabaseStorage implements IStorage {
         .from(organizationLocations)
         .where(eq(organizationLocations.id, id)) as OrganizationLocation[];
 
-      console.log('Location found:', location);      return location;
+      console.log('Location found:', location);
+      return location;
     } catch (error) {
       console.error('Error fetching location:', error);
       throw error;
@@ -1163,6 +1185,127 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error fetching trainer batches:', error);
       throw new Error('Failed to fetch trainer batches');
+    }
+  }
+  // Implement new trainee management methods
+  async getBatchTraineesCount(batchId: number): Promise<number> {
+    try {
+      const result = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(userBatchTrainees)
+        .where(eq(userBatchTrainees.batchId, batchId));
+
+      return Number(result[0].count);
+    } catch (error) {
+      console.error('Error counting batch trainees:', error);
+      throw new Error('Failed to count batch trainees');
+    }
+  }
+
+  async createUserWithBatch(
+    user: InsertUser,
+    batchId: number,
+    processIds: number[]
+  ): Promise<{ user: User; trainee: UserBatchTrainee; processes: UserProcess[] }> {
+    try {
+      return await db.transaction(async (tx) => {
+        // Create the user first
+        const [newUser] = await tx
+          .insert(users)
+          .values({
+            ...user,
+            role: 'trainee', // Ensure role is trainee
+            category: 'trainee', // Set category
+          })
+          .returning() as User[];
+
+        // Create process assignments if any
+        let processes: UserProcess[] = [];
+        if (processIds.length > 0) {
+          const processAssignments = processIds.map(processId => ({
+            userId: newUser.id,
+            processId,
+            organizationId: user.organizationId!,
+            status: 'assigned',
+            assignedAt: new Date(),
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }));
+
+          processes = await tx
+            .insert(userProcesses)
+            .values(processAssignments)
+            .returning() as UserProcess[];
+        }
+
+        // Create batch trainee entry
+        const [trainee] = await tx
+          .insert(userBatchTrainees)
+          .values({
+            userId: newUser.id,
+            batchId,
+            joinDate: new Date().toISOString().split('T')[0],
+            status: 'active',
+          })
+          .returning() as UserBatchTrainee[];
+
+        return {
+          user: newUser,
+          trainee,
+          processes
+        };
+      });
+    } catch (error: any) {
+      console.error('Error in createUserWithBatch:', error);
+      throw error;
+    }
+  }
+
+  async getBatchTrainees(batchId: number): Promise<(UserBatchTrainee & { user: User })[]> {
+    try {
+      const trainees = await db
+        .select({
+          trainee: userBatchTrainees,
+          user: users
+        })
+        .from(userBatchTrainees)
+        .leftJoin(users, eq(userBatchTrainees.userId, users.id))
+        .where(eq(userBatchTrainees.batchId, batchId));
+
+      return trainees.map(({ trainee, user }) => ({
+        ...trainee,
+        user
+      }));
+    } catch (error) {
+      console.error('Error fetching batch trainees:', error);
+      throw new Error('Failed to fetch batch trainees');
+    }
+  }
+
+  async updateBatchTrainee(
+    traineeId: number,
+    batchId: number,
+    updates: Partial<InsertUserBatchTrainee>
+  ): Promise<UserBatchTrainee> {
+    try {
+      const [updatedTrainee] = await db
+        .update(userBatchTrainees)
+        .set({
+          ...updates,
+          updatedAt: new Date()
+        })
+        .where(eq(userBatchTrainees.userId, traineeId))
+        .where(eq(userBatchTrainees.batchId, batchId))
+        .returning() as UserBatchTrainee[];
+
+      if (!updatedTrainee) {
+        throw new Error('Trainee not found in batch');
+      }
+
+      return updatedTrainee;
+    } catch (error: any) {
+      console.error('Error updating batch trainee:', error);
+      throw error;
     }
   }
 }
