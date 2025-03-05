@@ -20,25 +20,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { CalendarIcon, Loader2 } from "lucide-react";
-import { insertOrganizationBatchSchema, type InsertOrganizationBatch, insertBatchTemplateSchema, type InsertBatchTemplate, type BatchTemplate } from "@shared/schema";
+import { 
+  insertOrganizationBatchSchema, 
+  type InsertOrganizationBatch,
+  type Organization,
+  type OrganizationLocation,
+  type OrganizationLineOfBusiness,
+  type OrganizationProcess,
+  type User,
+  type BatchTemplate,
+  type InsertBatchTemplate,
+  batchStatusEnum
+} from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { TrainerInsights } from "./trainer-insights";
-
 
 // Interface for date range
 interface DateRange {
@@ -46,6 +48,12 @@ interface DateRange {
   end: Date;
   label: string;
   status: 'induction' | 'training' | 'certification' | 'ojt' | 'ojt-certification';
+}
+
+interface OrganizationBatch extends InsertOrganizationBatch {
+  id: number;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 // Update CreateBatchFormProps interface
@@ -56,7 +64,7 @@ interface CreateBatchFormProps {
 }
 
 // Function to determine batch status based on current date and phase dates
-const determineBatchStatus = (batch: InsertOrganizationBatch): string => {
+const determineBatchStatus = (batch: InsertOrganizationBatch): typeof batchStatusEnum.$inferSelect => {
   const today = new Date();
 
   // Convert string dates to Date objects
@@ -74,7 +82,6 @@ const determineBatchStatus = (batch: InsertOrganizationBatch): string => {
     handoverToOps: batch.handoverToOpsDate ? new Date(batch.handoverToOpsDate) : null
   };
 
-  // Check which phase we're in based on current date
   if (today < dates.inductionStart) {
     return 'planned';
   } else if (dates.inductionEnd && isWithinInterval(today, { start: dates.inductionStart, end: dates.inductionEnd })) {
@@ -91,7 +98,7 @@ const determineBatchStatus = (batch: InsertOrganizationBatch): string => {
     return 'completed';
   }
 
-  return 'planned'; // Default status
+  return 'planned';
 };
 
 // Add this near the top where other fields are defined
@@ -182,7 +189,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
   const {
     data: locations = [],
     isLoading: isLoadingLocations
-  } = useQuery({
+  } = useQuery<OrganizationLocation[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/locations`],
     enabled: !!user?.organizationId
   });
@@ -190,7 +197,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
   const {
     data: lobs = [],
     isLoading: isLoadingLobs
-  } = useQuery({
+  } = useQuery<OrganizationLineOfBusiness[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/locations/${selectedLocation}/line-of-businesses`],
     enabled: !!selectedLocation && !!user?.organizationId
   });
@@ -198,7 +205,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
   const {
     data: processes = [],
     isLoading: isLoadingProcesses
-  } = useQuery({
+  } = useQuery<OrganizationProcess[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${selectedLob}/processes`],
     enabled: !!selectedLob && !!user?.organizationId
   });
@@ -206,7 +213,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
   const {
     data: trainers = [],
     isLoading: isLoadingTrainers
-  } = useQuery({
+  } = useQuery<User[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/users`],
     select: (users) => users?.filter((user) =>
       user.role === 'trainer' &&
