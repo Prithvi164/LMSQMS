@@ -106,6 +106,13 @@ export interface IStorage {
   listBatchTemplates(organizationId: number): Promise<BatchTemplate[]>;
   getBatchTemplate(id: number): Promise<BatchTemplate | undefined>;
   deleteBatchTemplate(id: number): Promise<void>;
+
+  // Add new method for getting trainer's batches
+  getBatchesByTrainer(
+    trainerId: number,
+    organizationId: number,
+    statuses: string[]
+  ): Promise<OrganizationBatch[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1132,6 +1139,29 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error deleting batch template:', error);
       throw error;
+    }
+  }
+  async getBatchesByTrainer(
+    trainerId: number,
+    organizationId: number,
+    statuses: string[]
+  ): Promise<OrganizationBatch[]> {
+    try {
+      console.log(`Fetching batches for trainer ${trainerId} with statuses:`, statuses);
+
+      const batches = await db
+        .select()
+        .from(organizationBatches)
+        .where(eq(organizationBatches.trainerId, trainerId))
+        .where(eq(organizationBatches.organizationId, organizationId))
+        .where(inArray(organizationBatches.status, statuses))
+        .orderBy(desc(organizationBatches.startDate)) as OrganizationBatch[];
+
+      console.log(`Found ${batches.length} batches for trainer ${trainerId}`);
+      return batches;
+    } catch (error) {
+      console.error('Error fetching trainer batches:', error);
+      throw new Error('Failed to fetch trainer batches');
     }
   }
 }
