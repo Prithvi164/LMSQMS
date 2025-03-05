@@ -22,13 +22,15 @@ async function hashPassword(password: string) {
 async function getTrainerBatches(trainerId: number, excludeBatchId?: number) {
   try {
     // Get all batches for trainer except completed ones
-    const batches = await storage.listBatches(undefined, {
-      trainerId,
+    const batches = await storage.listBatches(trainerId, {
       excludeStatus: ['completed']
     });
 
     // Filter out the batch being updated if excludeBatchId is provided
-    return batches.filter(batch => batch.id !== excludeBatchId);
+    const filteredBatches = batches.filter(batch => batch.id !== excludeBatchId);
+
+    console.log('Trainer batches found:', filteredBatches);
+    return filteredBatches;
   } catch (error) {
     console.error("Error fetching trainer batches:", error);
     return [];
@@ -970,10 +972,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get trainer's current batches
-      const trainerBatches = await getTrainerBatches(
-        validatedData.trainerId,
-        validatedData.excludeBatchId
-      );
+      const trainerBatches = await getTrainerBatches(validatedData.trainerId, validatedData.excludeBatchId);
+
+      console.log('Sending trainer batches response:', {
+        trainer: {
+          id: trainer.id,
+          name: trainer.fullName
+        },
+        currentBatches: trainerBatches
+      });
 
       // Return trainer's batch information
       res.json({ 
@@ -986,7 +993,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           name: batch.name,
           startDate: batch.startDate,
           endDate: batch.endDate,
-          status: batch.status
+          status: batch.status,
+          category: batch.batchCategory
         }))
       });
     } catch (error: any) {
