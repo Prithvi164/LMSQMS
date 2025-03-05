@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format, addDays, isSunday, isWithinInterval, isSameDay } from "date-fns";
+import { format, addDays, isSunday, isWithinInterval, isSameDay, eachDayOfInterval } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -34,10 +34,9 @@ import { Calendar } from "@/components/ui/calendar";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { CalendarIcon, Loader2 } from "lucide-react";
-import { insertOrganizationBatchSchema, type InsertOrganizationBatch, insertBatchTemplateSchema, type InsertBatchTemplate, type BatchTemplate } from "@shared/schema";
+import { insertOrganizationBatchSchema, type InsertOrganizationBatch, insertBatchTemplateSchema, type InsertBatchTemplate, type BatchTemplate, type OrganizationBatch, type User } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-
 
 // Interface for date range
 interface DateRange {
@@ -54,8 +53,21 @@ interface CreateBatchFormProps {
   onSuccess?: () => void;
 }
 
+// Add this type definition near other interfaces
+interface TrainerConflict {
+  batchName: string;
+  startDate: Date;
+  endDate: Date;
+}
+
+// Add this near the top where other fields are defined
+const batchCategories = [
+  { value: 'new_training', label: 'New Training' },
+  { value: 'upskill', label: 'Upskill' }
+] as const;
+
 // Function to determine batch status based on current date and phase dates
-const determineBatchStatus = (batch: InsertOrganizationBatch): string => {
+const determineBatchStatus = (batch: InsertOrganizationBatch): "planned" | "induction" | "training" | "certification" | "ojt" | "ojt_certification" | "completed" => {
   const today = new Date();
 
   // Convert string dates to Date objects
@@ -78,13 +90,13 @@ const determineBatchStatus = (batch: InsertOrganizationBatch): string => {
     return 'planned';
   } else if (dates.inductionEnd && isWithinInterval(today, { start: dates.inductionStart, end: dates.inductionEnd })) {
     return 'induction';
-  } else if (dates.trainingEnd && isWithinInterval(today, { start: dates.trainingStart!, end: dates.trainingEnd })) {
+  } else if (dates.trainingEnd && dates.trainingStart && isWithinInterval(today, { start: dates.trainingStart, end: dates.trainingEnd })) {
     return 'training';
-  } else if (dates.certificationEnd && isWithinInterval(today, { start: dates.certificationStart!, end: dates.certificationEnd })) {
+  } else if (dates.certificationEnd && dates.certificationStart && isWithinInterval(today, { start: dates.certificationStart, end: dates.certificationEnd })) {
     return 'certification';
-  } else if (dates.ojtEnd && isWithinInterval(today, { start: dates.ojtStart!, end: dates.ojtEnd })) {
+  } else if (dates.ojtEnd && dates.ojtStart && isWithinInterval(today, { start: dates.ojtStart, end: dates.ojtEnd })) {
     return 'ojt';
-  } else if (dates.ojtCertificationEnd && isWithinInterval(today, { start: dates.ojtCertificationStart!, end: dates.ojtCertificationEnd })) {
+  } else if (dates.ojtCertificationEnd && dates.ojtCertificationStart && isWithinInterval(today, { start: dates.ojtCertificationStart, end: dates.ojtCertificationEnd })) {
     return 'ojt_certification';
   } else if (dates.handoverToOps && today >= dates.handoverToOps) {
     return 'completed';
@@ -93,11 +105,120 @@ const determineBatchStatus = (batch: InsertOrganizationBatch): string => {
   return 'planned'; // Default status
 };
 
-// Add this near the top where other fields are defined
-const batchCategories = [
-  { value: 'new_training', label: 'New Training' },
-  { value: 'upskill', label: 'Upskill' }
-] as const;
+// Add this function before the CreateBatchForm component
+const checkTrainerAvailability = (
+  trainerId: number,
+  startDate: string,
+  endDate: string,
+  existingBatches: OrganizationBatch[]
+): TrainerConflict[] => {
+  if (!trainerId || !startDate || !endDate) return [];
+
+  const requestedInterval = {
+    start: new Date(startDate),
+    end: new Date(endDate)
+  };
+
+  return existingBatches
+    .filter(batch =>
+      batch.trainerId === trainerId &&
+      batch.startDate &&
+      batch.endDate
+    )
+    .map(batch => ({
+      batchName: batch.name,
+      startDate: new Date(batch.startDate),
+      endDate: new Date(batch.endDate)
+    }))
+    .filter(batch => {
+      const batchDays = eachDayOfInterval({
+        start: batch.startDate,
+        end: batch.endDate
+      });
+
+      const requestedDays = eachDayOfInterval(requestedInterval);
+
+      return batchDays.some(day =>
+        requestedDays.some(reqDay =>
+          isSameDay(day, reqDay)
+        )
+      );
+    });
+};
+
+// Date Range Preview Component
+const DateRangePreview: React.FC<{ dateRanges: DateRange[], trainerConflicts: TrainerConflict[] }> = ({ dateRanges, trainerConflicts }) => (
+  <div className="mt-4">
+    <h3 className="text-lg font-semibold mb-2">Date Range Preview</h3>
+    <div className="space-y-2">
+      {dateRanges.map((range, index) => (
+        <div
+          key={index}
+          className={cn(
+            "p-3 rounded-lg",
+            "border-2 border-dashed border-gray-400",
+            {
+              'bg-blue-200': range.status === 'induction',
+              'bg-green-200': range.status === 'training',
+              'bg-yellow-200': range.status === 'certification',
+              'bg-purple-200': range.status === 'ojt',
+              'bg-pink-200': range.status === 'ojt-certification',
+            }
+          )}
+        >
+          <div className="flex items-center justify-between">
+            <span className="font-medium">{range.label}</span>
+            <div className="text-sm">
+              {format(range.start, 'MMM d, yyyy')}
+              {' - '}
+              {format(range.end, 'MMM d, yyyy')}
+            </div>
+          </div>
+          {trainerConflicts.length > 0 && (
+            trainerConflicts.map((conflict) => {
+              const hasConflict = isWithinInterval(range.start, { start: conflict.startDate, end: conflict.endDate }) ||
+                isWithinInterval(range.end, { start: conflict.startDate, end: conflict.endDate });
+
+              if (hasConflict) {
+                return (
+                  <div
+                    key={`${range.label}-conflict`}
+                    className="border-2 border-red-500 p-2 mt-2 rounded text-sm text-red-600"
+                  >
+                    Warning: Trainer has conflicting assignments during {range.label} phase
+                  </div>
+                );
+              }
+              return null;
+            })
+          )}
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+// Trainer Conflicts Preview Component
+const TrainerConflictsPreview: React.FC<{ trainerConflicts: TrainerConflict[] }> = ({ trainerConflicts }) => {
+  if (!trainerConflicts.length) return null;
+
+  return (
+    <div className="mt-4 p-4 border-2 border-red-200 rounded-lg bg-red-50">
+      <h3 className="text-lg font-semibold text-red-700 mb-2">
+        ⚠️ Trainer Schedule Conflicts
+      </h3>
+      <div className="space-y-2">
+        {trainerConflicts.map((conflict, index) => (
+          <div key={index} className="text-sm text-red-600">
+            Conflict with batch "{conflict.batchName}":
+            <br />
+            {format(conflict.startDate, 'MMM d, yyyy')} - {format(conflict.endDate, 'MMM d, yyyy')}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 export function CreateBatchForm({ editMode = false, batchData, onSuccess }: CreateBatchFormProps) {
   const { toast } = useToast();
@@ -111,6 +232,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [templateDescription, setTemplateDescription] = useState('');
+  const [trainerConflicts, setTrainerConflicts] = useState<TrainerConflict[]>([]);
 
   const form = useForm<InsertOrganizationBatch>({
     resolver: zodResolver(insertOrganizationBatchSchema),
@@ -145,37 +267,16 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       inductionStartDate: '',
       capacityLimit: 1,
       name: '',
-      inductionEndDate: '',
-      trainingStartDate: '',
-      trainingEndDate: '',
-      certificationStartDate: '',
-      certificationEndDate: '',
-      ojtStartDate: '',
-      ojtEndDate: '',
-      ojtCertificationStartDate: '',
-      ojtCertificationEndDate: '',
-      handoverToOpsDate: '',
       batchCategory: 'new_training'
     },
   });
 
   const {
     data: templates = [],
-    isLoading: isLoadingTemplates,
-    error: templatesError
+    isLoading: isLoadingTemplates
   } = useQuery<BatchTemplate[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batch-templates`],
-    enabled: !!user?.organizationId,
-    staleTime: 30000,
-    retry: 1,
-    onError: (error) => {
-      console.error('Error loading templates:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load templates. Please try again.",
-        variant: "destructive",
-      });
-    }
+    enabled: !!user?.organizationId
   });
 
   const {
@@ -205,12 +306,16 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
   const {
     data: trainers = [],
     isLoading: isLoadingTrainers
-  } = useQuery({
+  } = useQuery<User[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/users`],
-    select: (users) => users?.filter((user) =>
-      user.role === 'trainer' &&
-      (!selectedLocation || user.locationId === selectedLocation)
-    ) || [],
+    enabled: !!user?.organizationId,
+    select: (users: User[]) => users.filter(user => 
+      user.role === 'trainer' && (!selectedLocation || user.locationId === selectedLocation)
+    )
+  });
+
+  const { data: existingBatches = [] } = useQuery<OrganizationBatch[]>({
+    queryKey: [`/api/organizations/${user?.organizationId}/batches`],
     enabled: !!user?.organizationId
   });
 
@@ -360,17 +465,14 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     }
   };
 
-  // Update the date calculation functions with new logic for phase transitions
   const addWorkingDays = (startDate: Date, days: number, isEndDate: boolean = false): Date => {
     try {
-      // For 0 days, return the start date as is
       if (days === 0) {
         console.log(`Zero days calculation for ${format(startDate, 'yyyy-MM-dd')}`);
         return startDate;
       }
 
       let currentDate = startDate;
-      // For end date calculation when days > 0, subtract 1 from days
       let daysToAdd = isEndDate ? days - 1 : days;
       let remainingDays = daysToAdd;
 
@@ -378,7 +480,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
 
       while (remainingDays > 0) {
         currentDate = addDays(currentDate, 1);
-        // Skip Sundays when counting working days
         if (!isSunday(currentDate)) {
           remainingDays--;
         }
@@ -499,6 +600,22 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     }
   });
 
+  useEffect(() => {
+    const trainerId = form.getValues('trainerId');
+    const startDate = form.getValues('startDate');
+    const endDate = form.getValues('endDate');
+
+    if (trainerId && startDate && endDate) {
+      const conflicts = checkTrainerAvailability(
+        trainerId,
+        startDate,
+        endDate,
+        existingBatches
+      );
+      setTrainerConflicts(conflicts);
+    }
+  }, [form.watch('trainerId'), form.watch('startDate'), form.watch('endDate'), existingBatches]);
+
 
   async function onSubmit(values: InsertOrganizationBatch) {
     try {
@@ -511,6 +628,10 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       if (values.capacityLimit === undefined) throw new Error('Capacity limit is required');
       if (values.batchCategory === undefined) throw new Error('Batch Category is required');
 
+
+      if (trainerConflicts.length > 0) {
+        throw new Error('Cannot create batch: Trainer has scheduling conflicts');
+      }
 
       const currentStatus = determineBatchStatus(values);
       const formattedValues = {
@@ -533,7 +654,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     }
   }
 
-  // Update the date ranges visualization
   const getDateRangeClassName = (date: Date): string => {
     const dateStr = format(date, 'yyyy-MM-dd');
     const ranges = dateRanges.filter(r =>
@@ -543,7 +663,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
 
     if (ranges.length === 0) return '';
 
-    // Multiple phases on same day - use gradient
     if (ranges.length > 1) {
       return cn(
         'bg-gradient-to-r',
@@ -565,14 +684,12 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
         'bg-purple-200': range.status === 'ojt',
         'bg-pink-200': range.status === 'ojt-certification',
       },
-      // Special styling for zero-day phases to make them more visible
       {
         'border-2 border-dashed border-gray-400': isSameDay(range.start, range.end)
       }
     );
   };
 
-  // Initialize state based on batchData if in edit mode
   useEffect(() => {
     if (editMode && batchData) {
       setSelectedLocation(batchData.locationId);
@@ -580,7 +697,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     }
   }, [editMode, batchData]);
 
-  // Update the useEffect for date calculations with proper error handling
   useEffect(() => {
     const process = processes.find(p => p.id === form.getValues('processId'));
     const startDateStr = form.getValues('startDate');
@@ -605,13 +721,11 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
 
       const startDate = new Date(startDateStr);
 
-      // Induction Phase
       form.setValue('inductionStartDate', format(startDate, 'yyyy-MM-dd'));
       const inductionEnd = process.inductionDays === 0 ? startDate :
         addWorkingDays(startDate, process.inductionDays, true);
       form.setValue('inductionEndDate', format(inductionEnd, 'yyyy-MM-dd'));
 
-      // Training Phase
       const trainingStart = process.inductionDays === 0 ? inductionEnd :
         addWorkingDays(inductionEnd, 1);
       const trainingEnd = process.trainingDays === 0 ? trainingStart :
@@ -619,7 +733,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       form.setValue('trainingStartDate', format(trainingStart, 'yyyy-MM-dd'));
       form.setValue('trainingEndDate', format(trainingEnd, 'yyyy-MM-dd'));
 
-      // Certification Phase
       const certificationStart = process.trainingDays === 0 ? trainingEnd :
         addWorkingDays(trainingEnd, 1);
       const certificationEnd = process.certificationDays === 0 ? certificationStart :
@@ -627,7 +740,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       form.setValue('certificationStartDate', format(certificationStart, 'yyyy-MM-dd'));
       form.setValue('certificationEndDate', format(certificationEnd, 'yyyy-MM-dd'));
 
-      // OJT Phase
       const ojtStart = process.certificationDays === 0 ? certificationEnd :
         addWorkingDays(certificationEnd, 1);
       const ojtEnd = process.ojtDays === 0 ? ojtStart :
@@ -635,7 +747,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       form.setValue('ojtStartDate', format(ojtStart, 'yyyy-MM-dd'));
       form.setValue('ojtEndDate', format(ojtEnd, 'yyyy-MM-dd'));
 
-      // OJT Certification Phase
       const ojtCertificationStart = process.ojtDays === 0 ? ojtEnd :
         addWorkingDays(ojtEnd, 1);
       const ojtCertificationEnd = process.ojtCertificationDays === 0 ? ojtCertificationStart :
@@ -643,13 +754,11 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       form.setValue('ojtCertificationStartDate', format(ojtCertificationStart, 'yyyy-MM-dd'));
       form.setValue('ojtCertificationEndDate', format(ojtCertificationEnd, 'yyyy-MM-dd'));
 
-      // Handover and Batch End Date
       const handoverToOps = process.ojtCertificationDays === 0 ? ojtCertificationEnd :
         addWorkingDays(ojtCertificationEnd, 1);
       form.setValue('handoverToOpsDate', format(handoverToOps, 'yyyy-MM-dd'));
       form.setValue('endDate', format(handoverToOps, 'yyyy-MM-dd'));
 
-      // Log final calculated dates
       console.log('Final calculated dates:', {
         induction: { start: startDate, end: inductionEnd, days: process.inductionDays },
         training: { start: trainingStart, end: trainingEnd, days: process.trainingDays },
@@ -659,7 +768,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
         handover: handoverToOps
       });
 
-      // Update date ranges for calendar visualization
       setDateRanges([
         {
           start: startDate,
@@ -721,144 +829,47 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     }
   }, [isCreating]);
 
-  // Update the date range preview section with correct formatting
-  const DateRangePreview = () => (
-    <div className="mt-4">
-      <h3 className="text-lg font-semibold mb-2">Date Range Preview</h3>
-      <div className="space-y-2">
-        {dateRanges.map((range, index) => {
-          const process = processes.find(p => p.id === form.getValues('processId'));
-          const isZeroDayPhase = process && (
-            (range.status === 'induction' && process.inductionDays === 0) ||
-            (range.status === 'training' && process.trainingDays === 0) ||
-            (range.status === 'certification' && process.certificationDays === 0) ||
-            (range.status === 'ojt' && process.ojtDays === 0) ||
-            (range.status === 'ojt-certification' && process.ojtCertificationDays === 0)
-          );
-
-          return (
-            <div
-              key={index}
-              className={cn(
-                "p-3 rounded-lg",
-                "border-2 border-dashed border-gray-400",
-                getDateRangeClassName(range.start),
-                "flex items-center justify-between"
-              )}
-            >
-              <div className="flex items-center">
-                <span className="font-medium">{range.label}</span>
-                {isZeroDayPhase && (
-                  <span className="ml-2 text-sm text-gray-500 italic">
-                    (Zero-day phase)
-                  </span>
-                )}
-              </div>
-              <div className="text-sm">
-                {format(range.start, 'MMM d, yyyy')}
-                {' - '}
-                {format(range.end, 'MMM d, yyyy')}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-h-[calc(100vh-100px)] overflow-y-auto pr-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         {isCreating && (
           <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm font-medium">
-              <span>Creating batch...</span>
-              <span>{progress}%</span>
-            </div>
-            <Progress value={progress} className="w-full" />
+            <Progress value={progress} />
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-6">
+        {!editMode && templates && templates.length > 0 && (
+          <div className="mb-6">
+            <Select<replit_final_file>
+ onValueChange={handleTemplateSelect}>
+              <SelectTrigger>
+                <SelectValue placeholder="Load from template" />
+              </SelectTrigger>
+              <SelectContent>
+                {templates.map((template) => (
+                  <SelectItem key={template.id} value={template.id.toString()}>
+                    {template.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
-            name="template"
+            name="name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Load from Template</FormLabel>
-                <Select
-                  onValueChange={handleTemplateSelect}
-                  disabled={isLoadingTemplates}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a template" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {templates.map((template) => (
-                      <SelectItem key={template.id} value={template.id.toString()}>
-                        {template.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormLabel>Batch Name</FormLabel>
+                <FormControl>
+                  <Input placeholder="Enter batch name" {...field} />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={!form.getValues('locationId') || !form.getValues('processId')}
-              >
-                Save as Template
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Save as Template</DialogTitle>
-                <DialogDescription>
-                  Save the current batch configuration as a template for future use.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <FormItem>
-                  <FormLabel>Template Name</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Enter template name"
-                      value={templateName}
-                      onChange={(e) => setTemplateName(e.target.value)}
-                    />
-                  </FormControl>
-                </FormItem>
-                <FormItem>
-                  <FormLabel>Description (Optional)</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Enter template description"
-                      value={templateDescription}
-                      onChange={(e) => setTemplateDescription(e.target.value)}
-                    />
-                  </FormControl>
-                </FormItem>
-              </div>
-              <DialogFooter>
-                <Button
-                  type="button"
-                  onClick={handleSaveTemplate}
-                  disabled={saveTemplateMutation.isPending}
-                >
-                  {saveTemplateMutation.isPending ? "Saving..." : "Save Template"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
           <FormField
             control={form.control}
             name="batchCategory"
@@ -867,11 +878,11 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                 <FormLabel>Batch Category</FormLabel>
                 <Select
                   onValueChange={field.onChange}
-                  value={field.value}
+                  defaultValue={field.value}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
+                      <SelectValue placeholder="Select batch category" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -886,21 +897,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
               </FormItem>
             )}
           />
-
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Batch Name</FormLabel>
-                <FormControl>
-                  <Input placeholder="Enter batch name" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
           <FormField
             control={form.control}
             name="locationId"
@@ -909,16 +905,12 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                 <FormLabel>Location</FormLabel>
                 <Select
                   onValueChange={(value) => {
-                    const locationId = parseInt(value);
-                    field.onChange(locationId);
-                    setSelectedLocation(locationId);
-                    setSelectedLob(null);
+                    setSelectedLocation(parseInt(value));
+                    field.onChange(parseInt(value));
                     form.setValue('lineOfBusinessId', undefined);
                     form.setValue('processId', undefined);
-                    form.setValue('trainerId', undefined);
                   }}
-                  value={field.value?.toString()}
-                  disabled={isLoadingLocations}
+                  defaultValue={field.value?.toString()}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -927,7 +919,10 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                   </FormControl>
                   <SelectContent>
                     {locations.map((location) => (
-                      <SelectItem key={location.id} value={location.id.toString()}>
+                      <SelectItem
+                        key={location.id}
+                        value={location.id.toString()}
+                      >
                         {location.name}
                       </SelectItem>
                     ))}
@@ -937,7 +932,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
               </FormItem>
             )}
           />
-
           <FormField
             control={form.control}
             name="lineOfBusinessId"
@@ -946,17 +940,16 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                 <FormLabel>Line of Business</FormLabel>
                 <Select
                   onValueChange={(value) => {
-                    const lobId = parseInt(value);
-                    field.onChange(lobId);
-                    setSelectedLob(lobId);
+                    setSelectedLob(parseInt(value));
+                    field.onChange(parseInt(value));
                     form.setValue('processId', undefined);
                   }}
-                  value={field.value?.toString()}
-                  disabled={!selectedLocation || isLoadingLobs}
+                  defaultValue={field.value?.toString()}
+                  disabled={!selectedLocation}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder={selectedLocation ? "Select LOB" : "Select location first"} />
+                      <SelectValue placeholder="Select line of business" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -971,7 +964,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
               </FormItem>
             )}
           />
-
           <FormField
             control={form.control}
             name="processId"
@@ -979,21 +971,21 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
               <FormItem>
                 <FormLabel>Process</FormLabel>
                 <Select
-                  onValueChange={(value) => {
-                    const processId = parseInt(value);
-                    field.onChange(processId);
-                  }}
-                  value={field.value?.toString()}
-                  disabled={!selectedLob || isLoadingProcesses}
+                  onValueChange={(value) => field.onChange(parseInt(value))}
+                  defaultValue={field.value?.toString()}
+                  disabled={!selectedLob}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder={selectedLob ? "Select process" : "Select LOB first"} />
+                      <SelectValue placeholder="Select process" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
                     {processes.map((process) => (
-                      <SelectItem key={process.id} value={process.id.toString()}>
+                      <SelectItem
+                        key={process.id}
+                        value={process.id.toString()}
+                      >
                         {process.name}
                       </SelectItem>
                     ))}
@@ -1003,7 +995,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
               </FormItem>
             )}
           />
-
           <FormField
             control={form.control}
             name="trainerId"
@@ -1011,21 +1002,20 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
               <FormItem>
                 <FormLabel>Trainer</FormLabel>
                 <Select
-                  onValueChange={(value) => {
-                    const trainerId = parseInt(value);
-                    field.onChange(trainerId);
-                  }}
-                  value={field.value?.toString()}
-                  disabled={!selectedLocation || isLoadingTrainers}
+                  onValueChange={(value) => field.onChange(parseInt(value))}
+                  defaultValue={field.value?.toString()}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder={selectedLocation ? "Select trainer" : "Select location first"} />
+                      <SelectValue placeholder="Select trainer" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
                     {trainers.map((trainer) => (
-                      <SelectItem key={trainer.id} value={trainer.id.toString()}>
+                      <SelectItem
+                        key={trainer.id}
+                        value={trainer.id.toString()}
+                      >
                         {trainer.fullName}
                       </SelectItem>
                     ))}
@@ -1035,7 +1025,27 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
               </FormItem>
             )}
           />
-
+          <FormField
+            control={form.control}
+            name="capacityLimit"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Capacity Limit</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    min={1}
+                    placeholder="Enter capacity limit"
+                    {...field}
+                    onChange={(e) =>
+                      field.onChange(parseInt(e.target.value))
+                    }
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
           <FormField
             control={form.control}
             name="startDate"
@@ -1048,7 +1058,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                       <Button
                         variant={"outline"}
                         className={cn(
-                          "w-full pl-3 text-left font-normal",
+                          "w-[240px] pl-3 text-left font-normal",
                           !field.value && "text-muted-foreground"
                         )}
                       >
@@ -1057,7 +1067,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                         ) : (
                           <span>Pick a date</span>
                         )}
-                        <CalendarIcon className="ml-auto h-4 w4 opacity-50" />
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
@@ -1065,13 +1075,32 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                     <Calendar
                       mode="single"
                       selected={field.value ? new Date(field.value) : undefined}
-                      onSelect={(date) => {
-                        field.onChange(date ? format(date, 'yyyy-MM-dd') : '');
-                      }}
+                      onSelect={(date) =>
+                        field.onChange(
+                          date ? format(date, "yyyy-MM-dd") : undefined
+                        )
+                      }
                       disabled={(date) =>
                         date < new Date() || isSunday(date)
                       }
-                      initialFocus
+                      modifiers={{
+                        conflict: (date) => {
+                          if (!trainerConflicts.length) return false;
+                          return trainerConflicts.some(conflict =>
+                            isWithinInterval(date, {
+                              start: conflict.startDate,
+                              end: conflict.endDate
+                            })
+                          );
+                        }
+                      }}
+                      modifiersStyles={{
+                        conflict: {
+                          backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                          color: 'rgb(239, 68, 68)',
+                          fontWeight: '500'
+                        }
+                      }}
                     />
                   </PopoverContent>
                 </Popover>
@@ -1079,73 +1108,91 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
               </FormItem>
             )}
           />
-
-          <FormField
-            control={form.control}
-            name="endDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Batch End Date</FormLabel>
-                <FormControl>
-                  <Input
-                    type="text"
-                    value={field.value ? format(new Date(field.value), "PPP") : ''}
-                    disabled
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <DateRangePreview />
-
-          <FormField
-            control={form.control}
-            name="capacityLimit"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Capacity Limit</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    min={1}
-                    placeholder="Enter capacity"
-                    value={field.value || ''}
-                    onChange={(e) => {
-                      const value = e.target.value ? parseInt(e.target.value) : undefined;
-                      field.onChange(value);
-                    }}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
         </div>
 
-        <div className="mt-8 flex justify-end"> {/* Adjusted to right-align the button */}
+        <DateRangePreview dateRanges={dateRanges} trainerConflicts={trainerConflicts} />
+        <TrainerConflictsPreview trainerConflicts={trainerConflicts} />
+
+        {!editMode && (
+          <Dialog open={isSavingTemplate} onOpenChange={setIsSavingTemplate}>
+            <DialogTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full"
+                type="button"
+                disabled={!form.getValues('locationId') ||
+                  !form.getValues('lineOfBusinessId') ||
+                  !form.getValues('processId') ||
+                  !form.getValues('trainerId')}
+              >
+                Save as Template
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Save as Template</DialogTitle>
+                <DialogDescription>
+                  Create a reusable template from the current batch settings
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <label
+                    htmlFor="templateName"
+                    className="text-sm font-medium"
+                  >
+                    Template Name
+                  </label>
+                  <Input
+                    id="templateName"
+                    value={templateName}
+                    onChange={(e) => setTemplateName(e.target.value)}
+                    placeholder="Enter template name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label
+                    htmlFor="templateDescription"
+                    className="text-sm font-medium"
+                  >
+                    Description
+                  </label>
+                  <Input
+                    id="templateDescription"
+                    value={templateDescription}
+                    onChange={(e) =>
+                      setTemplateDescription(e.target.value)
+                    }
+                    placeholder="Enter template description"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsSavingTemplate(false)}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handleSaveTemplate}>Save Template</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        <div className="flex justify-end space-x-2 pt-4">
           <Button
-            type="submit"
-            disabled={
-              createBatchMutation.isPending ||
-              updateBatchMutation.isPending ||
-              isCreating ||
-              isLoadingLocations ||
-              isLoadingLobs ||
-              isLoadingProcesses ||
-              isLoadingTrainers ||
-              isLoadingTemplates
-            }
+            variant="outline"
+            onClick={() => {
+              form.reset();
+              if (onSuccess) onSuccess();
+            }}
           >
-            {isCreating ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {editMode ? "Updating..." : "Creating..."}
-              </>
-            ) : (
-              editMode ? "Update Batch" : "Create Batch"
-            )}
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isCreating}>
+            {isCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            {editMode ? "Update" : "Create"} Batch
           </Button>
         </div>
       </form>
