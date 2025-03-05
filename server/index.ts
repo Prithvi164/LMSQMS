@@ -63,7 +63,7 @@ app.get("/health", (_req, res) => {
       serveStatic(app);
     }
 
-    const port = process.env.PORT || 5000;
+    const port = process.env.PORT || 5001; // Changed from 5000 to 5001
     server.listen({
       port,
       host: "0.0.0.0",
