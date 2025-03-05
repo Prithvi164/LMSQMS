@@ -351,6 +351,73 @@ export const userProcesses = pgTable("user_processes", {
 
 export type UserProcess = typeof userProcesses.$inferSelect;
 
+// Add after userProcesses table definition
+export const userBatchProcesses = pgTable("user_batch_processes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .references(() => users.id)
+    .notNull(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id)
+    .notNull(),
+  processId: integer("process_id")
+    .references(() => organizationProcesses.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  status: text("status").default('active').notNull(),
+  assignedAt: timestamp("assigned_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    unq: unique().on(table.userId, table.batchId),
+  };
+});
+
+export type UserBatchProcess = typeof userBatchProcesses.$inferSelect;
+
+// Add relations for user batch processes
+export const userBatchProcessesRelations = relations(userBatchProcesses, ({ one }) => ({
+  user: one(users, {
+    fields: [userBatchProcesses.userId],
+    references: [users.id],
+  }),
+  batch: one(organizationBatches, {
+    fields: [userBatchProcesses.batchId],
+    references: [organizationBatches.id],
+  }),
+  process: one(organizationProcesses, {
+    fields: [userBatchProcesses.processId],
+    references: [organizationProcesses.id],
+  }),
+  organization: one(organizations, {
+    fields: [userBatchProcesses.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
+// Add validation schema
+export const insertUserBatchProcessSchema = createInsertSchema(userBatchProcesses)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    userId: z.number().int().positive("User is required"),
+    batchId: z.number().int().positive("Batch is required"),
+    processId: z.number().int().positive("Process is required"),
+    organizationId: z.number().int().positive("Organization is required"),
+    status: z.string().default('active'),
+    assignedAt: z.string().optional(),
+    completedAt: z.string().optional(),
+  });
+
+export type InsertUserBatchProcess = z.infer<typeof insertUserBatchProcessSchema>;
+
 export const rolePermissions = pgTable("role_permissions", {
   id: serial("id").primaryKey(),
   role: roleEnum("role").notNull(),
@@ -519,6 +586,7 @@ export type InsertOrganizationProcess = z.infer<typeof insertOrganizationProcess
 export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
 export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
 export type InsertBatchTemplate = z.infer<typeof insertBatchTemplateSchema>;
+export type InsertUserBatchProcess = z.infer<typeof insertUserBatchProcessSchema>;
 
 export type {
   Organization,
@@ -535,5 +603,7 @@ export type {
   OrganizationBatch,
   InsertOrganizationBatch,
   BatchTemplate,
-  InsertBatchTemplate
+  InsertBatchTemplate,
+  UserBatchProcess,
+  InsertUserBatchProcess
 };
