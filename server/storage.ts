@@ -114,8 +114,6 @@ export interface IStorage {
     organizationId: number,
     statuses: typeof batchStatusEnum.enumValues[number][]
   ): Promise<OrganizationBatch[]>;
-  // Add new method for listing users by location
-  listUsersByLocation(organizationId: number, locationId: number): Promise<User[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -136,47 +134,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(user: InsertUser): Promise<User> {
-    try {
-      // If locationId is provided, verify it exists and belongs to the organization
-      if (user.locationId) {
-        const location = await this.getLocation(user.locationId);
-        if (!location) {
-          throw new Error('Location not found');
-        }
-        if (location.organizationId !== user.organizationId) {
-          throw new Error('Location does not belong to the specified organization');
-        }
-      }
-
-      const [newUser] = await db.insert(users).values(user).returning() as User[];
-      return newUser;
-    } catch (error: any) {
-      console.error('Error creating user:', error);
-      throw error;
-    }
+    const [newUser] = await db.insert(users).values(user).returning() as User[];
+    return newUser;
   }
 
   async updateUser(id: number, user: Partial<InsertUser>): Promise<User> {
     try {
       console.log(`Attempting to update user with ID: ${id}`, user);
-
-      // If locationId is being updated, verify it exists and belongs to the organization
-      if (user.locationId) {
-        const location = await this.getLocation(user.locationId);
-        if (!location) {
-          throw new Error('Location not found');
-        }
-
-        // Get the current user to check organization
-        const currentUser = await this.getUser(id);
-        if (!currentUser) {
-          throw new Error('User not found');
-        }
-
-        if (location.organizationId !== currentUser.organizationId) {
-          throw new Error('Location does not belong to the user\'s organization');
-        }
-      }
 
       // Check if username is being updated and if it would conflict
       if (user.username) {
@@ -1139,7 +1103,7 @@ export class DatabaseStorage implements IStorage {
       return templates;
     } catch (error) {
       console.error('Error fetching batch templates:', error);
-      throw new Error('Failed to fetch batch templates');
+      throw error;
     }
   }
 
@@ -1199,23 +1163,6 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error fetching trainer batches:', error);
       throw new Error('Failed to fetch trainer batches');
-    }
-  }
-  async listUsersByLocation(organizationId: number, locationId: number): Promise<User[]> {
-    try {
-      console.log(`Fetching users for organization ${organizationId} and location ${locationId}`);
-
-      const usersList = await db
-        .select()
-        .from(users)
-        .where(eq(users.organizationId, organizationId))
-        .where(eq(users.locationId, locationId));
-
-      console.log(`Found ${usersList.length} users in location ${locationId}`);
-      return usersList as User[];
-    } catch (error) {
-      console.error('Error fetching users by location:', error);
-      throw new Error('Failed to fetch users by location');
     }
   }
 }
