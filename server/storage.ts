@@ -129,6 +129,9 @@ export interface IStorage {
     batchId: number,
     status: string
   ): Promise<UserBatchProcess>;
+
+  // Add new method for creating user process
+  createUserProcess(process: InsertUserProcess): Promise<UserProcess>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1251,6 +1254,27 @@ export class DatabaseStorage implements IStorage {
       return updated;
     } catch (error) {
       console.error('Error updating user batch status:', error);
+      throw error;
+    }
+  }
+  async createUserProcess(process: InsertUserProcess): Promise<UserProcess> {
+    try {
+      console.log('Creating user process with data:', process);
+
+      // Insert the user process record
+      const [newUserProcess] = await db
+        .insert(userProcesses)
+        .values({
+          ...process,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning() as UserProcess[];
+
+      console.log('Successfully created user process:', newUserProcess);
+      return newUserProcess;
+    } catch (error: any) {
+      console.error('Error creating user process:', error);
       throw error;
     }
   }

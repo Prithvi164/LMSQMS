@@ -1273,12 +1273,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'active',
         joinedAt: new Date(),
       });
-
       console.log('Created batch assignment:', batchAssignment);
+
+      // Create user process record
+      const userProcess = await storage.createUserProcess({
+        userId: user.id,
+        processId,
+        organizationId,
+        lineOfBusinessId,
+        locationId,
+        status: 'active',
+        assignedAt: new Date(),
+      });
+      console.log('Created user process assignment:', userProcess);
 
       res.status(201).json({
         user,
-        batchAssignment
+        batchAssignment,
+        userProcess
       });
     } catch (error: any) {
       console.error("Error creating trainee:", error);
