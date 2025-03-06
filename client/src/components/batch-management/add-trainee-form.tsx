@@ -65,9 +65,11 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
     try {
       setIsSubmitting(true);
 
-      // Combine form values with batch data
+      // Combine form values with batch data and convert dates to ISO strings
       const traineeData = {
         ...values,
+        dateOfJoining: values.dateOfJoining.toISOString().split('T')[0], // Format as YYYY-MM-DD
+        dateOfBirth: values.dateOfBirth.toISOString().split('T')[0], // Format as YYYY-MM-DD
         role: "trainee",
         category: "trainee",
         batchId: batch.id,
