@@ -834,13 +834,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only delete processes in your own organization" });
       }
 
-      console.log('Deleting process:', processId);await storage.deleteProcess(processId);
+      console.log('Deleting process:', processId);
+      await storage.deleteProcess(processId);
 
       console.log('Process deleted successfully');
       res.status(200).json({ message: "Process deleted successfully" });
     } catch (error: any) {
-      console.errorerror("Process deletion error:", error);
-      res.status(400).json({ message: error.message || "Failed to delete process" });
+      console.error("Process deletion error:", error);
+      res.status(40).json({ message: error.message || "Failed to delete process" });
     }
   });
 
@@ -1086,6 +1087,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete batch route
   app.delete("/api/organizations/:id/batches/:batchId", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -1107,7 +1109,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if batch is in planned status
       if (batch.status !== 'planned') {
         return res.status(400).json({ 
-          message: "Only batches in 'planned' status can be deleted"
+          message: "Only batches in 'planned' status can be deleted",
+          code: "INVALID_BATCH_STATUS"
         });
       }
 
@@ -1115,8 +1118,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const trainees = await storage.getBatchTrainees(batchId);
       if (trainees.length > 0) {
         return res.status(400).json({ 
+          success: false,
           message: "Cannot delete batch with existing trainees. Please transfer or remove all trainees first.",
-          traineesCount: trainees.length
+          traineesCount: trainees.length,
+          code: "TRAINEES_EXIST"
         });
       }
 
@@ -1124,10 +1129,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteBatch(batchId);
 
       console.log('Batch deleted successfully');
-      res.json({ message: "Batch deleted successfully" });
+      return res.json({ 
+        success: true,
+        message: "Batch deleted successfully",
+        code: "SUCCESS"
+      });
     } catch (error: any) {
       console.error("Batch deletion error:", error);
-      res.status(500).json({ message: error.message || "Failed to delete batch" });
+      return res.status(500).json({ 
+        success: false,
+        message: error.message || "Failed to delete batch",
+        code: "INTERNAL_ERROR"
+      });
     }
   });
 

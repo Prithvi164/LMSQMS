@@ -146,17 +146,21 @@ export function BatchesTab() {
         const data = await response.json();
 
         if (!response.ok) {
-          return Promise.reject({
-            message: data.message || 'Failed to delete batch',
-            traineesCount: data.traineesCount
-          });
+          if (data.traineesCount) {
+            throw {
+              ...data,
+              type: 'TRAINEES_EXIST'
+            };
+          }
+          throw new Error(data.message || 'Failed to delete batch');
         }
 
         return data;
-      } catch (error) {
-        return Promise.reject({
-          message: 'Failed to process delete request'
-        });
+      } catch (error: any) {
+        if (error.type === 'TRAINEES_EXIST') {
+          throw error;
+        }
+        throw new Error('Failed to process delete request');
       }
     },
     onSuccess: () => {
@@ -171,13 +175,10 @@ export function BatchesTab() {
     onError: (error: any) => {
       console.log('Delete batch error:', error);
 
-      // Check if error is about existing trainees
-      if (error.message?.includes('trainees')) {
+      if (error.type === 'TRAINEES_EXIST') {
         // Close delete dialog and open trainee management
         setDeleteDialogOpen(false);
         setDeleteConfirmation('');
-
-        // Open trainee management dialog
         setSelectedBatchForDetails(selectedBatch);
         setIsTraineeDialogOpen(true);
 
@@ -237,7 +238,12 @@ export function BatchesTab() {
       return;
     }
 
-    await deleteBatchMutation.mutateAsync(selectedBatchId);
+    try {
+      await deleteBatchMutation.mutateAsync(selectedBatchId);
+    } catch (error) {
+      // Error will be handled by onError callback
+      console.error('Delete batch error:', error);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -845,7 +851,7 @@ export function BatchesTab() {
                   className="w-full"
                   classNames={{
                     cell: "h-24 w-24 p-0 border-2 border-gray-100 dark:border-gray-800",
-                    head_cell: "text-muted-foreground font-normal border-b-2 border-gray-100 dark:border-gray-800 p-2",
+                    head_cell: "text-muted-foreground font-normal border-b-2 border-gray100 dark:border-gray-800 p-2",
                     table: "border-collapse border-spacing-0 border-2 border-gray-100 dark:border-gray-800",
                     day: "h-full rounded-none hover:bg-gray-50 dark:hover:bg-gray-800 focus-visible:bg-gray-50 dark:focus-visible:bg-gray800",
                     nav_button: "h-12 w-12 bg-primary/10 hover:bg-primary/20 p-0 opacity-90 hover:opacity-100 absolute top-[50%] -translate-y-1/2 flex items-center justify-center rounded-full transition-all shadow-sm hover:shadowmd border border-primary/20",                    nav_button_previous:"left-4",
