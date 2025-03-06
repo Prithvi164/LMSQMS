@@ -114,6 +114,44 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
     },
   });
 
+  // Transfer trainee mutation
+  const transferTraineeMutation = useMutation({
+    mutationFn: async ({ traineeId, newBatchId }: { traineeId: number; newBatchId: number }) => {
+      const response = await fetch(
+        `/api/organizations/${organizationId}/batches/${batchId}/trainees/${traineeId}/transfer`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ newBatchId }),
+        }
+      );
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to transfer trainee");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [
+          `/api/organizations/${organizationId}/batches/${batchId}/trainees`,
+          `/api/organizations/${organizationId}/batches`
+        ]
+      });
+      toast({
+        title: "Success",
+        description: "Trainee transferred successfully",
+      });
+      setIsTransferDialogOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
