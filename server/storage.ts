@@ -955,7 +955,7 @@ export class DatabaseStorage implements IStorage {
         .orderBy(desc(organizationBatches.createdAt));
 
       // Debug log to verify the data      console.log('Raw batch data:', batches.map(b => ({
-      //   id: b.id,
+      //      //   id: b.id,
       //   name: b.name,
       //   category: b.batchCategory,
       //   rawCategory: JSON.stringify(b.batchCategory)
@@ -1331,17 +1331,44 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Attempting to remove trainee batch process ${userBatchProcessId}`);
 
-      // Delete from user_batch_processes table using only the ID
-      const result = await db
-        .delete(userBatchProcesses)
-        .where(eq(userBatchProcesses.id, userBatchProcessId))
-        .returning();
+      // First get the user_batch_process record to get userId
+      const [record] = await db
+        .select()
+        .from(userBatchProcesses)
+        .where(eq(userBatchProcesses.id, userBatchProcessId));
 
-      if (!result.length) {
+      if (!record) {
         throw new Error('Trainee not found in batch');
       }
 
-      console.log(`Successfully removed trainee batch process ${userBatchProcessId}`);
+      const userId = record.userId;
+      console.log(`Found user ID ${userId} for batch process ${userBatchProcessId}`);
+
+      // Use a transaction to ensure all deletions succeed or none do
+      await db.transaction(async (tx) => {
+        // 1. Delete from user_batch_processes
+        await tx
+          .delete(userBatchProcesses)
+          .where(eq(userBatchProcesses.id, userBatchProcessId))
+          .execute();
+        console.log(`Deleted user_batch_process record ${userBatchProcessId}`);
+
+        // 2. Delete from user_processes for this user
+        await tx
+          .delete(userProcesses)
+          .where(eq(userProcesses.userId, userId))
+          .execute();
+        console.log(`Deleted user_processes records for user ${userId}`);
+
+        // 3. Delete the user
+        await tx
+          .delete(users)
+          .where(eq(users.id, userId))
+          .execute();
+        console.log(`Deleted user record ${userId}`);
+      });
+
+      console.log(`Successfully removed trainee and related records`);
     } catch (error) {
       console.error('Error removing trainee from batch:', error);
       throw error;
