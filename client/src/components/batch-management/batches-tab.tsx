@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, Loader2, Plus, Trash2, Edit, Eye, Calendar as CalendarIcon, List, ArrowUpDown, Filter } from "lucide-react";
+import { Search, Loader2, Plus, Trash2, Edit, Eye, Calendar as CalendarIcon, List, ArrowUpDown, Filter, UserPlus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -46,6 +46,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import type { OrganizationBatch } from "@shared/schema";
+import { AddTraineeForm } from "./add-trainee-form";
 
 export function BatchesTab() {
   const { user } = useAuth();
@@ -71,11 +72,11 @@ export function BatchesTab() {
     from: undefined,
     to: undefined,
   });
+  const [isAddTraineeDialogOpen, setIsAddTraineeDialogOpen] = useState(false);
+  const [selectedBatchForTrainee, setSelectedBatchForTrainee] = useState<OrganizationBatch | null>(null);
 
-  // Check if user has permission to edit/delete batches
   const canManageBatches = user?.role === 'admin' || user?.role === 'owner';
 
-  // Add logging to see the full API response
   const {
     data: batches = [],
     isLoading,
@@ -84,7 +85,6 @@ export function BatchesTab() {
     queryKey: [`/api/organizations/${user?.organizationId}/batches`],
     enabled: !!user?.organizationId,
     onSuccess: (data) => {
-      // Log the raw API response
       console.log('Batches API Response:', data.map(batch => ({
         id: batch.id,
         name: batch.name,
@@ -94,15 +94,12 @@ export function BatchesTab() {
     }
   });
 
-  // Get unique values for filters
   const locations = [...new Set(batches.map(batch => batch.location?.name).filter(Boolean))];
   const lineOfBusinesses = [...new Set(batches.map(batch => batch.line_of_business?.name).filter(Boolean))];
   const processes = [...new Set(batches.map(batch => batch.process?.name).filter(Boolean))];
   const statuses = [...new Set(batches.map(batch => batch.status))];
 
-  // Filter batches with all conditions
   const filteredBatches = batches.filter(batch => {
-    // Log each batch for upskill category debugging
     if (selectedCategory === 'upskill') {
       console.log('Filtering upskill batch:', {
         name: batch.name,
@@ -126,9 +123,8 @@ export function BatchesTab() {
     );
   });
 
-  // Format function for batch category display
   const formatBatchCategory = (category: string | undefined | null) => {
-    if (!category) return 'N/A';  // Changed from 'Uncategorized' to 'N/A' for clearer indication
+    if (!category) return 'N/A';
     return category
       .split('_')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -217,7 +213,6 @@ export function BatchesTab() {
         return 'bg-gray-100 text-gray-800';
     }
   };
-
 
   const renderCalendarDay = (day: Date) => {
     const dayBatches = getBatchesForDate(day);
@@ -359,7 +354,6 @@ export function BatchesTab() {
       let aValue: any;
       let bValue: any;
 
-      // Handle nested properties and special cases
       switch(key) {
         case 'location':
           aValue = a.location?.name ?? '';
@@ -404,12 +398,10 @@ export function BatchesTab() {
     setSortConfig({ key, direction });
   };
 
-  // Sort the filtered batches
   const sortedBatches = sortConfig
     ? sortData(filteredBatches, sortConfig.key, sortConfig.direction)
     : filteredBatches;
 
-  // Table rendering function
   const renderBatchTable = (batchList: OrganizationBatch[]) => (
     <div className="rounded-md border">
       <Table>
@@ -497,9 +489,11 @@ export function BatchesTab() {
                   <Button
                     variant="ghost"
                     size="sm"
+                    onClick={() => handleAddTraineeClick(batch)}
                     className="h-8 w-8 p-0"
                   >
-                    <Eye className="h-4 w-4" />
+                    <UserPlus className="h-4 w-4" />
+                    <span className="sr-only">Add Trainee</span>
                   </Button>
                   {canManageBatches && batch.status === 'planned' && (
                     <>
@@ -548,10 +542,8 @@ export function BatchesTab() {
     setSelectedCategory(null);
   };
 
-  // Get unique batch categories
   const batchCategories = ['new_training', 'upskill'] as const;
 
-  // Category selection handling
   const handleCategoryChange = (value: string) => {
     console.log('Debug - Category Changed:', {
       newValue: value,
@@ -560,7 +552,11 @@ export function BatchesTab() {
     setSelectedCategory(value === 'all' ? null : value);
   };
 
-  // Add debug logging for the API response
+  const handleAddTraineeClick = (batch: OrganizationBatch) => {
+    setSelectedBatchForTrainee(batch);
+    setIsAddTraineeDialogOpen(true);
+  };
+
   useEffect(() => {
     console.log('Debug - API Response:', {
       batches: batches.map(b => ({
@@ -582,7 +578,6 @@ export function BatchesTab() {
       }))
     });
   }, [selectedCategory, batches]);
-
 
   useEffect(() => {
     console.log('Debug - Batch Data:', {
@@ -892,6 +887,30 @@ export function BatchesTab() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        <Dialog 
+          open={isAddTraineeDialogOpen} 
+          onOpenChange={setIsAddTraineeDialogOpen}
+        >
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Add Trainee to Batch</DialogTitle>
+              <DialogDescription>
+                Add a new trainee to batch: {selectedBatchForTrainee?.name}
+              </DialogDescription>
+            </DialogHeader>
+            {selectedBatchForTrainee && (
+              <AddTraineeForm 
+                batch={selectedBatchForTrainee}
+                onSuccess={() => {
+                  setIsAddTraineeDialogOpen(false);
+                  queryClient.invalidateQueries({ 
+                    queryKey: [`/api/organizations/${user?.organizationId}/batches`] 
+                  });
+                }}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
