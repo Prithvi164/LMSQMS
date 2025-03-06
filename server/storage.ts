@@ -136,7 +136,7 @@ export interface IStorage {
   // Add new methods for trainee management
   updateUserBatchProcess(userId: number, oldBatchId: number, newBatchId: number): Promise<void>;
   removeUserFromBatch(userId: number, batchId: number): Promise<void>;
-  removeTraineeFromBatch(userId: number, batchId: number): Promise<void>;
+  removeTraineeFromBatch(userBatchProcessId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -954,13 +954,12 @@ export class DatabaseStorage implements IStorage {
         .where(eq(organizationBatches.organizationId, organizationId))
         .orderBy(desc(organizationBatches.createdAt));
 
-      // Debug log to verify the data
-      console.log('Raw batch data:', batches.map(b => ({
-        id: b.id,
-        name: b.name,
-        category: b.batchCategory,
-        rawCategory: JSON.stringify(b.batchCategory)
-      })));
+      // Debug log to verify the data      console.log('Raw batch data:', batches.map(b => ({
+      //   id: b.id,
+      //   name: b.name,
+      //   category: b.batchCategory,
+      //   rawCategory: JSON.stringify(b.batchCategory)
+      // })));
 
       return batches as OrganizationBatch[];
     } catch (error) {
@@ -1328,24 +1327,21 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  async removeTraineeFromBatch(userId: number, batchId: number): Promise<void> {
+  async removeTraineeFromBatch(userBatchProcessId: number): Promise<void> {
     try {
-      console.log(`Attempting to remove trainee ${userId} from batch ${batchId}`);
+      console.log(`Attempting to remove trainee batch process ${userBatchProcessId}`);
 
-      // Delete from user_batch_processes table
+      // Delete from user_batch_processes table using only the ID
       const result = await db
         .delete(userBatchProcesses)
-        .where(and(
-          eq(userBatchProcesses.userId, userId),
-          eq(userBatchProcesses.batchId, batchId)
-        ))
+        .where(eq(userBatchProcesses.id, userBatchProcessId))
         .returning();
 
       if (!result.length) {
         throw new Error('Trainee not found in batch');
       }
 
-      console.log(`Successfully removed trainee ${userId} from batch ${batchId}`);
+      console.log(`Successfully removed trainee batch process ${userBatchProcessId}`);
     } catch (error) {
       console.error('Error removing trainee from batch:', error);
       throw error;

@@ -31,7 +31,7 @@ import { format, isValid, parseISO } from "date-fns";
 
 // Updated type to match API response
 type Trainee = {
-  id: number;
+  id: number;  // This is the user_batch_process.id
   userId: number;
   user: {
     id: number;
@@ -83,12 +83,12 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
     traineeCount: trainees.length 
   });
 
-  // Delete trainee mutation
+  // Delete trainee mutation - using user_batch_process.id
   const deleteTraineeMutation = useMutation({
-    mutationFn: async (traineeId: number) => {
-      console.log('Deleting trainee:', traineeId);
+    mutationFn: async (userBatchProcessId: number) => {
+      console.log('Deleting trainee batch process:', userBatchProcessId);
       const response = await fetch(
-        `/api/organizations/${organizationId}/batches/${batchId}/trainees/${traineeId}`,
+        `/api/organizations/${organizationId}/batches/${batchId}/trainees/${userBatchProcessId}`,
         { method: "DELETE" }
       );
       if (!response.ok) {
@@ -117,59 +117,6 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
     },
     onError: (error: Error) => {
       console.error('Delete error:', error);
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Transfer trainee mutation
-  const transferTraineeMutation = useMutation({
-    mutationFn: async ({ traineeId, newBatchId }: { traineeId: number; newBatchId: number }) => {
-      console.log('Starting transfer:', { traineeId, newBatchId, currentBatchId: batchId });
-
-      const response = await fetch(
-        `/api/organizations/${organizationId}/batches/${batchId}/trainees/${traineeId}/transfer`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ newBatchId }),
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to transfer trainee");
-      }
-
-      const result = await response.json();
-      console.log('Transfer response:', result);
-      return result;
-    },
-    onSuccess: () => {
-      // Invalidate queries for both the source and destination batch
-      queryClient.invalidateQueries({
-        queryKey: [`/api/organizations/${organizationId}/batches`]
-      });
-
-      // Invalidate the current batch's trainee list
-      queryClient.invalidateQueries({
-        queryKey: [`/api/organizations/${organizationId}/batches/${batchId}/trainees`]
-      });
-
-      // Close dialogs and reset state
-      setIsTransferDialogOpen(false);
-      setSelectedTrainee(null);
-
-      toast({
-        title: "Success",
-        description: "Trainee transferred successfully",
-      });
-    },
-    onError: (error: Error) => {
-      console.error('Transfer error:', error);
       toast({
         title: "Error",
         description: error.message,
@@ -284,6 +231,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
             <AlertDialogAction
               onClick={() => {
                 if (selectedTrainee) {
+                  // Pass the user_batch_process.id directly
                   deleteTraineeMutation.mutate(selectedTrainee.id);
                 }
               }}
@@ -314,6 +262,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                     className="w-full justify-start"
                     onClick={() => {
                       if (selectedTrainee) {
+                        // Pass the correct IDs for transfer
                         transferTraineeMutation.mutate({
                           traineeId: selectedTrainee.id,
                           newBatchId: batch.id,
