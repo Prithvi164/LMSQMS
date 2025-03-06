@@ -835,7 +835,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user belongs to the organization
       if (req.user.organizationId !==orgId) {
-        return res.status(403).json({ message:"You can only modify LOBs in your own organization" });
+                return res.status(403).json({ message:"You can only modify LOBs in your own organization" });
       }
 
       console.log('Updating LOB:', lobId, 'with data:', req.body);
@@ -1350,6 +1350,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(traineeDetails);
     } catch (error: any) {
       console.error("Error fetching batch trainees:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Add the trainee transfer endpoint
+  app.post("/api/organizations/:orgId/batches/:batchId/trainees/:traineeId/transfer", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const batchId = parseInt(req.params.batchId);
+      const traineeId = parseInt(req.params.traineeId);
+      const { newBatchId } = req.body;
+
+      // Validate the new batch exists and belongs to the organization
+      const newBatch = await storage.getBatch(newBatchId);
+      if (!newBatch || newBatch.organizationId !== orgId) {
+        return res.status(404).json({ message: "Target batch not found" });
+      }
+
+      // Check capacity in the new batch
+      const currentTrainees = await storage.getBatchTrainees(newBatchId);
+      if (currentTrainees.length >= newBatch.capacityLimit) {
+        return res.status(400).json({ 
+          message: `Cannot transfer trainee. Target batch has reached its capacity limit of ${newBatch.capacityLimit}`
+        });
+      }
+
+      // Update the trainee's batch assignment
+      await storage.updateUserBatchProcess(traineeId, batchId, newBatchId);
+
+      res.json({ message: "Trainee transferred successfully" });
+    } catch (error: any) {
+      console.error("Error transferring trainee:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Add trainee delete endpoint
+  app.delete("/api/organizations/:orgId/batches/:batchId/trainees/:traineeId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const batchId = parseInt(req.params.batchId);
+      const traineeId = parseInt(req.params.traineeId);
+
+      // Remove trainee from batch
+      await storage.removeUserFromBatch(traineeId, batchId);
+
+      // Deactivate the trainee's user account
+      await storage.updateUser(traineeId, { active: false });
+
+      res.json({ message: "Trainee removed successfully" });
+    } catch (error: any) {
+      console.error("Error removing trainee:", error);
       res.status(500).json({ message: error.message });
     }
   });

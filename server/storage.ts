@@ -1,4 +1,4 @@
-import { eq, inArray, sql, desc } from "drizzle-orm";
+import { eq, inArray, sql, desc, and } from "drizzle-orm";
 import { db } from "./db";
 import { batchStatusEnum } from "@shared/schema";
 import {
@@ -132,6 +132,10 @@ export interface IStorage {
 
   // Add new method for creating user process
   createUserProcess(process: InsertUserProcess): Promise<UserProcess>;
+
+  // Add new methods for trainee management
+  updateUserBatchProcess(userId: number, oldBatchId: number, newBatchId: number): Promise<void>;
+  removeUserFromBatch(userId: number, batchId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1275,6 +1279,51 @@ export class DatabaseStorage implements IStorage {
       return newUserProcess;
     } catch (error: any) {
       console.error('Error creating user process:', error);
+      throw error;
+    }
+  }
+  async updateUserBatchProcess(userId: number, oldBatchId: number, newBatchId: number): Promise<void> {
+    try {
+      console.log(`Transferring user ${userId} from batch ${oldBatchId} to batch ${newBatchId}`);
+
+      // Update the user's batch process record
+      await db
+        .update(userBatchProcesses)
+        .set({
+          batchId: newBatchId,
+          updatedAt: new Date()
+        })
+        .where(
+          and(
+            eq(userBatchProcesses.userId, userId),
+            eq(userBatchProcesses.batchId, oldBatchId)
+          )
+        );
+
+      console.log('Successfully transferred user to new batch');
+    } catch (error: any) {
+      console.error('Error updating user batch process:', error);
+      throw error;
+    }
+  }
+
+  async removeUserFromBatch(userId: number, batchId: number): Promise<void> {
+    try {
+      console.log(`Removing user ${userId} from batch ${batchId}`);
+
+      // Remove the user's batch process record
+      await db
+        .delete(userBatchProcesses)
+        .where(
+          and(
+            eq(userBatchProcesses.userId, userId),
+            eq(userBatchProcesses.batchId, batchId)
+          )
+        );
+
+      console.log('Successfully removed user from batch');
+    } catch (error: any) {
+      console.error('Error removing user from batch:', error);
       throw error;
     }
   }
