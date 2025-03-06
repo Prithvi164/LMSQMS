@@ -835,7 +835,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "You canonly modify LOBs in your own organization"});
+        return res.status(403).json({ message: ""You canonly modify LOBs in your own organization"});
       }
 
       console.log('Updating LOB:', lobId, 'with data:', req.body);
@@ -930,25 +930,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only view batches in your own organization" });
       }
 
+      console.log(`Fetching batches for organization ${orgId}`);
       const batches = await storage.listBatches(orgId);
+      console.log(`Raw batch data:`, batches);
 
-      // Fetch related data for each batch
-      const batchesWithDetails = await Promise.all(batches.map(async (batch) => {
-        const [process, location, trainer] = await Promise.all([
-          storage.getProcess(batch.processId),
-          storage.getLocation(batch.locationId),
-          storage.getUser(batch.trainerId)
-        ]);
+      // For each batch, get trainee count
+      const batchesWithTraineeCount = await Promise.all(
+        batches.map(async (batch) => {
+          const trainees = await storage.getBatchTrainees(batch.id);
+          const traineeCount = trainees.length;
 
-        return {
-          ...batch,
-          process,
-          location,
-          trainer
-        };
-      }));
+          // Get location name
+          console.log(`Fetching location with ID: ${batch.locationId}`);
+          const location = await storage.getLocation(batch.locationId);
+          console.log('Location found:', location);
 
-      res.json(batchesWithDetails);
+          return {
+            ...batch,
+            traineeCount,
+            locationName: location?.name
+          };
+        })
+      );
+
+      return res.json(batchesWithTraineeCount);
     } catch (error: any) {
       console.error("Error fetching batches:", error);
       res.status(500).json({ message: error.message });
