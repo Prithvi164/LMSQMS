@@ -143,7 +143,7 @@ export function BatchesTab() {
       });
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || 'Failed to delete batch');
+        throw new Error(error.message);
       }
     },
     onSuccess: () => {
@@ -156,11 +156,25 @@ export function BatchesTab() {
       setDeleteConfirmation('');
     },
     onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete batch",
-        variant: "destructive",
-      });
+      // Check if error is about existing trainees
+      if (error.message.includes('trainees')) {
+        toast({
+          title: "Cannot Delete Batch",
+          description: "This batch has trainees assigned to it. Please transfer or remove all trainees before deleting the batch.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to delete batch",
+          variant: "destructive",
+        });
+      }
+      // Don't close the dialog if it's a trainee-related error
+      if (!error.message.includes('trainees')) {
+        setDeleteDialogOpen(false);
+      }
+      setDeleteConfirmation('');
     }
   });
 
@@ -815,7 +829,7 @@ export function BatchesTab() {
                     table: "border-collapse border-spacing-0 border-2 border-gray-100 dark:border-gray-800",
                     day: "h-full rounded-none hover:bg-gray-50 dark:hover:bg-gray-800 focus-visible:bg-gray-50 dark:focus-visible:bg-gray-800",
                     nav_button: "h-12 w-12 bg-primary/10 hover:bg-primary/20 p-0 opacity-90 hover:opacity-100 absolute top-[50%] -translate-y-1/2 flex items-center justify-center rounded-full transition-all shadow-sm hover:shadow-md border border-primary/20",
-                    nav_button_previous: "left-4",
+                    nav_button_previous:"left-4",
                     nav_button_next: "right-4",
                     nav: "relative flex items-center justify-between pt-4 pb-10 px-2 border-b-2 border-gray-100 dark:border-gray-800 mb-4",
                     caption: "text-2xl font-semibold text-center flex-1px-10",
