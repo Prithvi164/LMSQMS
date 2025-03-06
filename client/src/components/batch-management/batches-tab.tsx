@@ -50,6 +50,7 @@ import { AddTraineeForm } from "./add-trainee-form";
 import { Progress } from "@/components/ui/progress"; // Import Progress component
 import { useLocation } from "wouter";
 import { TraineeManagement } from "./trainee-management";
+import { BatchProgressHeatmap } from "./batch-progress-heatmap";
 
 export function BatchesTab() {
   const { user } = useAuth();
@@ -941,19 +942,20 @@ export function BatchesTab() {
             )}
           </DialogContent>
         </Dialog>
-        {/* Trainee Management Dialog */}
         <Dialog open={isTraineeDialogOpen} onOpenChange={setIsTraineeDialogOpen}>
-          <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl">
             <DialogHeader>
-              <DialogTitle>
-                Manage Trainees - {selectedBatchForDetails?.name}
-              </DialogTitle>
+              <DialogTitle>Batch Details: {selectedBatchForDetails?.name}</DialogTitle>
             </DialogHeader>
+
             {selectedBatchForDetails && (
-              <TraineeManagement
-                batchId={selectedBatchForDetails.id}
-                organizationId={user?.organizationId || 0}
-              />
+              <div className="space-y-6">
+                <BatchProgressHeatmap batch={selectedBatchForDetails} />
+                <TraineeManagement 
+                  batchId={selectedBatchForDetails.id} 
+                  organizationId={selectedBatchForDetails.organizationId} 
+                />
+              </div>
             )}
           </DialogContent>
         </Dialog>
