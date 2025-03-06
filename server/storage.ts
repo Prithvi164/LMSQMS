@@ -31,6 +31,11 @@ import {
   type BatchTemplate,
   type InsertBatchTemplate,
 } from "@shared/schema";
+import {
+  userBatchProcesses,
+  type UserBatchProcess,
+  type InsertUserBatchProcess,
+} from "@shared/schema";
 
 export interface IStorage {
   // User operations
@@ -114,6 +119,16 @@ export interface IStorage {
     organizationId: number,
     statuses: typeof batchStatusEnum.enumValues[number][]
   ): Promise<OrganizationBatch[]>;
+
+  // User Batch Process operations
+  assignUserToBatch(userBatchProcess: InsertUserBatchProcess): Promise<UserBatchProcess>;
+  getUserBatchProcesses(userId: number): Promise<UserBatchProcess[]>;
+  getBatchTrainees(batchId: number): Promise<UserBatchProcess[]>;
+  updateUserBatchStatus(
+    userId: number,
+    batchId: number,
+    status: string
+  ): Promise<UserBatchProcess>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -999,7 +1014,8 @@ export class DatabaseStorage implements IStorage {
         .from(organizationLocations)
         .where(eq(organizationLocations.id, id)) as OrganizationLocation[];
 
-      console.log('Location found:', location);      return location;
+      console.log('Location found:', location);
+      return location;
     } catch (error) {
       console.error('Error fetching location:', error);
       throw error;
@@ -1163,6 +1179,79 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error fetching trainer batches:', error);
       throw new Error('Failed to fetch trainer batches');
+    }
+  }
+  // User Batch Process operations
+  async assignUserToBatch(userBatchProcess: InsertUserBatchProcess): Promise<UserBatchProcess> {
+    try {
+      console.log('Assigning user to batch:', userBatchProcess);
+
+      const [assigned] = await db
+        .insert(userBatchProcesses)
+        .values(userBatchProcess)
+        .returning() as UserBatchProcess[];
+
+      console.log('Successfully assigned user to batch:', assigned);
+      return assigned;
+    } catch (error: any) {
+      console.error('Error assigning user to batch:', error);
+      throw error;
+    }
+  }
+
+  async getUserBatchProcesses(userId: number): Promise<UserBatchProcess[]> {
+    try {
+      const processes = await db
+        .select()
+        .from(userBatchProcesses)
+        .where(eq(userBatchProcesses.userId, userId)) as UserBatchProcess[];
+
+      return processes;
+    } catch (error) {
+      console.error('Error fetching user batch processes:', error);
+      throw error;
+    }
+  }
+
+  async getBatchTrainees(batchId: number): Promise<UserBatchProcess[]> {
+    try {
+      const trainees = await db
+        .select()
+        .from(userBatchProcesses)
+        .where(eq(userBatchProcesses.batchId, batchId)) as UserBatchProcess[];
+
+      return trainees;
+    } catch (error) {
+      console.error('Error fetching batch trainees:', error);
+      throw error;
+    }
+  }
+
+  async updateUserBatchStatus(
+    userId: number,
+    batchId: number,
+    status: string
+  ): Promise<UserBatchProcess> {
+    try {
+      const [updated] = await db
+        .update(userBatchProcesses)
+        .set({ 
+          status,
+          completedAt: status === 'completed' ? new Date() : null,
+          updatedAt: new Date()
+        })
+        .where(eq(userBatchProcesses.userId, userId))
+        .where(eq(userBatchProcesses.batchId, batchId))
+        .returning() as UserBatchProcess[];
+
+      if (!updated) {
+        throw new Error('User batch process not found');
+      }
+
+      return updated;
+    } catch (error) {
+      console.error('Error updating user batch status:', error);
+      throw error;
     }
   }
 }

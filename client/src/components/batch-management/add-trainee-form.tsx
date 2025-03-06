@@ -18,6 +18,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
 import type { OrganizationBatch } from "@shared/schema";
 
 // Form schema with validation
@@ -50,6 +51,12 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Fetch batch details including related entities
+  const { data: batchDetails } = useQuery({
+    queryKey: [`/api/organizations/${batch.organizationId}/batches/${batch.id}`],
+    enabled: !!batch.id,
+  });
+
   const form = useForm<z.infer<typeof addTraineeSchema>>({
     resolver: zodResolver(addTraineeSchema),
   });
@@ -57,7 +64,7 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
   async function onSubmit(values: z.infer<typeof addTraineeSchema>) {
     try {
       setIsSubmitting(true);
-      
+
       // Combine form values with batch data
       const traineeData = {
         ...values,
@@ -68,6 +75,7 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
         locationId: batch.locationId,
         lineOfBusinessId: batch.lineOfBusinessId,
         processId: batch.processId,
+        organizationId: batch.organizationId,
       };
 
       const response = await fetch("/api/users/trainee", {
@@ -143,23 +151,27 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
           )}
         />
 
-        {/* Read-only Batch Info */}
-        <div className="grid grid-cols-2 gap-4">
+        {/* Batch Info Section */}
+        <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
           <div>
-            <FormLabel>Trainer</FormLabel>
-            <Input value={batch.trainer?.fullName || ''} disabled />
+            <FormLabel className="text-muted-foreground">Batch</FormLabel>
+            <Input value={batch.name} disabled />
           </div>
           <div>
-            <FormLabel>Location</FormLabel>
-            <Input value={batch.location?.name || ''} disabled />
+            <FormLabel className="text-muted-foreground">Trainer</FormLabel>
+            <Input value={batchDetails?.trainer?.fullName || 'Loading...'} disabled />
           </div>
           <div>
-            <FormLabel>Line of Business</FormLabel>
-            <Input value={batch.line_of_business?.name || ''} disabled />
+            <FormLabel className="text-muted-foreground">Location</FormLabel>
+            <Input value={batchDetails?.location?.name || 'Loading...'} disabled />
           </div>
           <div>
-            <FormLabel>Process</FormLabel>
-            <Input value={batch.process?.name || ''} disabled />
+            <FormLabel className="text-muted-foreground">Line of Business</FormLabel>
+            <Input value={batchDetails?.lineOfBusiness?.name || 'Loading...'} disabled />
+          </div>
+          <div>
+            <FormLabel className="text-muted-foreground">Process</FormLabel>
+            <Input value={batchDetails?.process?.name || 'Loading...'} disabled />
           </div>
         </div>
 

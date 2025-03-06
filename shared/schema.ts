@@ -392,6 +392,76 @@ export const organizationLocationsRelations = relations(organizationLocations, (
   batches: many(organizationBatches)
 }));
 
+// Add user batch process status enum
+export const userBatchStatusEnum = pgEnum('user_batch_status', [
+  'active',
+  'completed',
+  'dropped',
+  'on_hold'
+]);
+
+// Add user batch process table
+export const userBatchProcesses = pgTable("user_batch_processes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .references(() => users.id)
+    .notNull(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id)
+    .notNull(),
+  processId: integer("process_id")
+    .references(() => organizationProcesses.id)
+    .notNull(),
+  status: userBatchStatusEnum("status").default('active').notNull(),
+  joinedAt: timestamp("joined_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    // Ensure a user can only be assigned to a batch-process combination once
+    unq: unique().on(table.userId, table.batchId, table.processId),
+  };
+});
+
+// Add type for user batch process
+export type UserBatchProcess = InferSelectModel<typeof userBatchProcesses>;
+
+// Add insert schema for user batch process
+export const insertUserBatchProcessSchema = createInsertSchema(userBatchProcesses)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    userId: z.number().int().positive("User ID is required"),
+    batchId: z.number().int().positive("Batch ID is required"),
+    processId: z.number().int().positive("Process ID is required"),
+    status: z.enum(['active', 'completed', 'dropped', 'on_hold']).default('active'),
+    joinedAt: z.string().min(1, "Joined date is required"),
+    completedAt: z.string().optional(),
+  });
+
+export type InsertUserBatchProcess = z.infer<typeof insertUserBatchProcessSchema>;
+
+// Add relations for user batch processes
+export const userBatchProcessesRelations = relations(userBatchProcesses, ({ one }) => ({
+  user: one(users, {
+    fields: [userBatchProcesses.userId],
+    references: [users.id],
+  }),
+  batch: one(organizationBatches, {
+    fields: [userBatchProcesses.batchId],
+    references: [organizationBatches.id],
+  }),
+  process: one(organizationProcesses, {
+    fields: [userBatchProcesses.processId],
+    references: [organizationProcesses.id],
+  }),
+}));
+
+// Update user relations to include batch processes
 export const usersRelations = relations(users, ({ one, many }) => ({
   organization: one(organizations, {
     fields: [users.organizationId],
@@ -406,7 +476,8 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     references: [organizationLocations.id],
   }),
   managedProcesses: many(userProcesses),
-  batches: many(organizationBatches)
+  batches: many(organizationBatches),
+  batchProcesses: many(userBatchProcesses)
 }));
 
 export const userProcessesRelations = relations(userProcesses, ({ one }) => ({
@@ -535,5 +606,7 @@ export type {
   OrganizationBatch,
   InsertOrganizationBatch,
   BatchTemplate,
-  InsertBatchTemplate
+  InsertBatchTemplate,
+  UserBatchProcess,
+  InsertUserBatchProcess
 };
