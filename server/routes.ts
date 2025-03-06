@@ -3,19 +3,20 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { Router } from "express";
-import { insertUserSchema } from "@shared/schema";
+import { insertUserSchema, users, userBatchProcesses } from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { insertOrganizationProcessSchema } from "@shared/schema";
-import {insertBatchTemplateSchema} from "@shared/schema";
+import { insertBatchTemplateSchema } from "@shared/schema";
 import { batchStatusEnum } from "@shared/schema";
 import { permissionEnum } from '@shared/schema';
 import multer from 'multer';
 import * as XLSX from 'xlsx';
-import {db} from './db';
+import { db } from './db';
 import { join } from 'path';
 import express from 'express';
+import { eq } from "drizzle-orm";
 
 const scryptAsync = promisify(scrypt);
 
@@ -524,9 +525,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate that all permissions are valid enum values
       const invalidPermissions = permissions.filter(p => !permissionEnum.enumValues.includes(p));
       if (invalidPermissions.length > 0) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: "Invalid permissions provided",
-          invalidPermissions 
+          invalidPermissions
         });
       }
 
@@ -592,9 +593,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Location update error:", error);
       // Ensure we always return JSON even for errors
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Failed to update location",
-        error: error.message 
+        error: error.message
       });
     }
   });
@@ -839,7 +840,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Process deleted successfully');
       res.status(200).json({ message: "Process deleted successfully" });
     } catch (error: any) {
-      console.error("Process deletion error:", error);      res.status(400).json({ message: error.message });
+      console.error("Process deletion error:", error);
+      res.status(400).json({ message: error.message || "Failed to delete process" });
     }
   });
 
@@ -852,8 +854,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const lobId = parseInt(req.params.lobId);
 
       // Check if user belongs to the organization
-      if(req.user.organizationId !==orgId) {
-                return res.status(403).json({ message:"You can only modify LOBs in your own organization" });
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only modify LOBs in your own organization" });
       }
 
       console.log('Updating LOB:', lobId, 'with data:', req.body);
@@ -1391,7 +1393,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check capacity in the new batch
       const currentTrainees = await storage.getBatchTrainees(newBatchId);
       if (currentTrainees.length >= newBatch.capacityLimit) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: `Cannot transfer trainee. Target batch has reached its capacity limit of ${newBatch.capacityLimit}`
         });
       }
@@ -1465,9 +1467,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(worksheet);
 
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return res.status(400).json({ message: "No valid data found in uploaded file" });
+      }
+
       if (rows.length > remainingCapacity) {
-        return res.status(400).json({ 
-          message: `Batch can only accommodate ${remainingCapacity} more trainees. Uploaded file contains ${rows.length} trainees.` 
+        return res.status(400).json({
+          message: `Batch can only accommodate ${remainingCapacity} more trainees. Uploaded file contains ${rows.length} trainees.`
         });
       }
 
@@ -1475,36 +1481,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let failureCount = 0;
       const errors = [];
 
-      // Process each row in a transaction
+      // Process each row
       for (const row of rows) {
         try {
+          // Validate row data exists
+          if (!row || typeof row !== 'object') {
+            throw new Error('Invalid row data');
+          }
+
+          // Create trainee data with type assertions
           const traineeData = {
-            username: row.username,
-            fullName: row.fullName,
-            email: row.email,
-            employeeId: row.employeeId,
-            phoneNumber: row.phoneNumber,
-            dateOfJoining: row.dateOfJoining,
-            dateOfBirth: row.dateOfBirth,
-            education: row.education,
-            password: await hashPassword(row.password),
+            username: String(row.username || ''),
+            fullName: String(row.fullName || ''),
+            email: String(row.email || ''),
+            employeeId: String(row.employeeId || ''),
+            phoneNumber: String(row.phoneNumber || ''),
+            dateOfJoining: String(row.dateOfJoining || ''),
+            dateOfBirth: String(row.dateOfBirth || ''),
+            education: String(row.education || ''),
+            password: await hashPassword(String(row.password || '')),
             role: "trainee",
             category: "trainee",
             organizationId: orgId,
             locationId: batch.locationId,
-            batchId: batchId,
             processId: batch.processId,
             lineOfBusinessId: batch.lineOfBusinessId,
             trainerId: batch.trainerId
           };
 
-          // Validate data using our schema
-          await insertUserSchema.parseAsync(traineeData);
+          // Validate data
+          const validatedData = await insertUserSchema.parseAsync(traineeData);
 
           // Create trainee in a transaction
           await db.transaction(async (tx) => {
-            const user = await storage.createUser(traineeData);
-            await storage.assignUserToBatch(user.id, batchId);
+            // Create user first
+            const [user] = await tx
+              .insert(users)
+              .values(validatedData)
+              .returning();
+
+            if (!user || !user.id) {
+              throw new Error('Failed to create user');
+            }
+
+            // Then assign to batch
+            await tx
+              .insert(userBatchProcesses)
+              .values({
+                userId: user.id,
+                batchId: batchId,
+                processId: batch.processId,
+                organizationId: orgId,
+                lineOfBusinessId: batch.lineOfBusinessId
+              });
           });
 
           successCount++;
@@ -1512,7 +1541,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           failureCount++;
           errors.push({
             row: successCount + failureCount,
-            error: error.message
+            error: error instanceof Error ? error.message : 'Unknown error'
           });
         }
       }
@@ -1526,9 +1555,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error: any) {
       console.error("Bulk upload error:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Failed to process bulk upload",
-        error: error.message 
+        error: error.message
       });
     }
   });
