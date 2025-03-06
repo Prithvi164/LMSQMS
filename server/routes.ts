@@ -40,9 +40,6 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Set up static file serving from public directory
-  app.use(express.static('public'));
-
   // Set up authentication routes (/api/register, /api/login, /api/logout, /api/user)
   setupAuth(app);
 
@@ -840,7 +837,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteProcess(processId);
 
       console.log('Process deleted successfully');
-      res.status(200).json({ message:"Process deleted successfully" });
+      res.status(200).json({ message: "Process deleted successfully" });
+    } catch (error: any) {
+      console.error("Process deletion error:", error);      res.status(400).json({ message: error.message });
     }
   });
 
@@ -1534,16 +1533,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add a route to serve the template file
-  app.get("/templates/trainee-upload-template.xlsx", (req, res) => {
-    const templatePath = join(process.cwd(), 'public', 'templates', 'trainee-upload-template.xlsx');
-    console.log('Serving template from:', templatePath);
-    res.download(templatePath, 'trainee-upload-template.xlsx', (err) => {
-      if (err) {
-        console.error('Error serving template:', err);
-        res.status(500).send('Error downloading template');
-      }
-    });
+  // Add template download endpoint
+  app.get("/api/templates/trainee-upload", (req, res) => {
+    try {
+      // Create workbook
+      const wb = XLSX.utils.book_new();
+
+      // Define headers
+      const headers = [
+        'username',
+        'fullName',
+        'email',
+        'employeeId',
+        'phoneNumber',
+        'dateOfJoining',
+        'dateOfBirth',
+        'education',
+        'password'
+      ];
+
+      // Create example data row
+      const exampleData = [
+        'john.doe',
+        'John Doe',
+        'john.doe@example.com',
+        'EMP123',
+        '+1234567890',
+        '2025-03-06', // Format: YYYY-MM-DD
+        '1990-01-01', // Format: YYYY-MM-DD
+        'Bachelor\'s Degree',
+        'Password123!' // Will be hashed on upload
+      ];
+
+      // Create worksheet
+      const ws = XLSX.utils.aoa_to_sheet([headers, exampleData]);
+
+      // Add column widths for better readability
+      const colWidths = headers.map(() => ({ wch: 15 }));
+      ws['!cols'] = colWidths;
+
+      // Add the worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, 'Trainees');
+
+      // Generate buffer
+      const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+      // Set headers for file download
+      res.setHeader('Content-Disposition', 'attachment; filename=trainee-upload-template.xlsx');
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+      // Send buffer
+      res.send(buf);
+    } catch (error) {
+      console.error('Error generating template:', error);
+      res.status(500).json({ message: 'Failed to generate template' });
+    }
   });
 
   return createServer(app);

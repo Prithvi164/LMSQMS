@@ -421,7 +421,7 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
             </p>
             <div className="flex flex-col gap-4">
               <Button variant="outline" asChild>
-                <a href="/templates/trainee-upload-template.xlsx" download>
+                <a href="/api/templates/trainee-upload" download="trainee-upload-template.xlsx">
                   Download Template
                 </a>
               </Button>
