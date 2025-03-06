@@ -17,32 +17,32 @@ export const RoleImpactSimulator = ({
   selectedRole, 
   proposedPermissions 
 }: RoleImpactSimulatorProps) => {
-  const [addedPermissions, setAddedPermissions] = useState<typeof permissionEnum.enumValues[number][]>([]);
-  const [removedPermissions, setRemovedPermissions] = useState<typeof permissionEnum.enumValues[number][]>([]);
+  const [addedPermissions, setAddedPermissions] = useState<string[]>([]);
+  const [removedPermissions, setRemovedPermissions] = useState<string[]>([]);
 
   // Memoize the query key to prevent unnecessary refetches
   const usersQueryKey = useMemo(() => 
-    selectedRole ? ["/api/users", { role: selectedRole }] : null,
+    selectedRole ? [`/api/users`, { role: selectedRole }] : null,
     [selectedRole]
   );
 
   // Fetch users with the selected role
   const { data: affectedUsers = [] } = useQuery<User[]>({
-    queryKey: usersQueryKey,
-    enabled: !!usersQueryKey,
+    queryKey: usersQueryKey || [],
+    enabled: !!selectedRole,
     staleTime: 30000, // Consider data fresh for 30 seconds
   });
 
   // Memoize permissions query key
   const permissionsQueryKey = useMemo(() => 
-    selectedRole ? ["/api/permissions", selectedRole] : null,
+    selectedRole ? [`/api/permissions`, selectedRole] : null,
     [selectedRole]
   );
 
   // Fetch current role permissions
-  const { data: currentPermissions } = useQuery<RolePermission[]>({
-    queryKey: permissionsQueryKey,
-    enabled: !!permissionsQueryKey,
+  const { data: currentPermissions = [] } = useQuery<RolePermission[]>({
+    queryKey: permissionsQueryKey || [],
+    enabled: !!selectedRole,
     staleTime: 30000, // Consider data fresh for 30 seconds
   });
 
@@ -55,19 +55,18 @@ export const RoleImpactSimulator = ({
   );
 
   useEffect(() => {
-    if (!selectedRole || !proposedPermissions) return;
+    if (!selectedRole || !proposedPermissions || !currentRolePermissions) return;
 
     // Calculate added permissions
     const added = proposedPermissions.filter(p => 
-      permissionEnum.enumValues.includes(p as any) && 
-      !currentRolePermissions.includes(p as any)
-    ) as typeof permissionEnum.enumValues[number][];
+      !currentRolePermissions.includes(p)
+    );
     setAddedPermissions(added);
 
     // Calculate removed permissions
     const removed = currentRolePermissions.filter(p => 
       !proposedPermissions.includes(p)
-    ) as typeof permissionEnum.enumValues[number][];
+    );
     setRemovedPermissions(removed);
   }, [selectedRole, proposedPermissions, currentRolePermissions]);
 

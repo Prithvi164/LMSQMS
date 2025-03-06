@@ -594,6 +594,18 @@ export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
 export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
 export type InsertBatchTemplate = z.infer<typeof insertBatchTemplateSchema>;
 
+
+// Define RolePermission type that was missing
+export interface RolePermission {
+  id: number;
+  role: string;
+  permissions: string[];
+  organizationId: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Remove duplicate exports and consolidate type definitions
 export type {
   Organization,
   OrganizationProcess,
@@ -601,15 +613,17 @@ export type {
   OrganizationLineOfBusiness,
   User,
   UserProcess,
-  RolePermission,
+  BatchTemplate,
+  UserBatchProcess,
+};
+
+// Export insertion types
+export type {
   InsertUser,
   InsertOrganization,
   InsertOrganizationProcess,
   InsertRolePermission,
-  OrganizationBatch,
   InsertOrganizationBatch,
-  BatchTemplate,
   InsertBatchTemplate,
-  UserBatchProcess,
-  InsertUserBatchProcess
+  InsertUserBatchProcess,
 };
