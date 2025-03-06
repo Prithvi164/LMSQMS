@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Bell, Users, CalendarDays, CheckCircle2, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { format, addHours, addMinutes } from "date-fns";
+import { format, addHours, addMinutes, addDays, isBefore, isAfter } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
 // Type for batch data
@@ -87,11 +87,26 @@ export default function TraineeManagement() {
     return format(dateIST, "PPP");
   };
 
-  // Filter batches that need to be started today
-  const pendingStartBatches = activeBatches.filter(batch => {
+  // Filter and group batches by start date (within next 3 days)
+  const getUpcomingBatches = () => {
     const today = new Date();
-    return batch.status === 'planned' && isSameDay(batch.startDate, today);
-  });
+    const threeDaysFromNow = addDays(today, 3);
+
+    return activeBatches
+      .filter(batch => {
+        const batchDate = new Date(batch.startDate);
+        const batchDateIST = addMinutes(addHours(batchDate, 5), 30);
+        return (
+          batch.status === 'planned' && 
+          !isBefore(batchDateIST, today) && 
+          !isAfter(batchDateIST, threeDaysFromNow)
+        );
+      })
+      .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+  };
+
+  const upcomingBatches = getUpcomingBatches();
+  const todayBatches = upcomingBatches.filter(batch => isSameDay(batch.startDate, new Date()));
 
   if (batchesLoading) {
     return (
@@ -113,9 +128,9 @@ export default function TraineeManagement() {
           <TabsTrigger value="active-batches" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Active Batches
-            {pendingStartBatches.length > 0 && (
+            {todayBatches.length > 0 && (
               <Badge variant="destructive" className="ml-2">
-                {pendingStartBatches.length}
+                {todayBatches.length}
               </Badge>
             )}
           </TabsTrigger>
@@ -130,20 +145,21 @@ export default function TraineeManagement() {
         </TabsList>
 
         <TabsContent value="active-batches">
-          {pendingStartBatches.length > 0 ? (
+          {upcomingBatches.length > 0 ? (
             <div className="space-y-6">
               <Alert className="bg-yellow-50 border-yellow-200">
                 <AlertTitle className="text-yellow-800 flex items-center gap-2">
                   <Bell className="h-4 w-4" />
-                  Batches Requiring Attention
+                  Upcoming Batches
                 </AlertTitle>
                 <AlertDescription className="text-yellow-700">
-                  The following batches are scheduled to start today and need to be initiated.
+                  You have {upcomingBatches.length} batches starting in the next 3 days. 
+                  {todayBatches.length > 0 && ` ${todayBatches.length} batch(es) need to be started today.`}
                 </AlertDescription>
               </Alert>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {pendingStartBatches.map((batch) => (
+                {upcomingBatches.map((batch) => (
                   <Card key={batch.id}>
                     <CardContent className="p-6 space-y-4">
                       <div className="flex justify-between items-start">
@@ -153,8 +169,11 @@ export default function TraineeManagement() {
                             {batch.location.name} • {batch.process.name}
                           </p>
                         </div>
-                        <Badge variant="outline" className="capitalize">
-                          {batch.status}
+                        <Badge 
+                          variant={isSameDay(batch.startDate, new Date()) ? "destructive" : "outline"} 
+                          className="capitalize"
+                        >
+                          {isSameDay(batch.startDate, new Date()) ? "Start Today" : batch.status}
                         </Badge>
                       </div>
 
@@ -172,10 +191,15 @@ export default function TraineeManagement() {
                       <Button 
                         className="w-full"
                         onClick={() => startBatchMutation.mutate(batch.id)}
-                        disabled={startBatchMutation.isPending}
+                        disabled={startBatchMutation.isPending || !isSameDay(batch.startDate, new Date())}
                       >
                         <CheckCircle2 className="h-4 w-4 mr-2" />
-                        {startBatchMutation.isPending ? "Starting..." : "Start Batch"}
+                        {startBatchMutation.isPending 
+                          ? "Starting..." 
+                          : isSameDay(batch.startDate, new Date())
+                            ? "Start Batch"
+                            : "Starts " + formatToIST(batch.startDate)
+                        }
                       </Button>
                     </CardContent>
                   </Card>
