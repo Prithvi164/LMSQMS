@@ -834,13 +834,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only delete processes in your own organization" });
       }
 
-      console.log('Deleting process:', processId);
-      await storage.deleteProcess(processId);
+      console.log('Deleting process:', processId);await storage.deleteProcess(processId);
 
       console.log('Process deleted successfully');
       res.status(200).json({ message: "Process deleted successfully" });
     } catch (error: any) {
-      console.error("Process deletion error:", error);
+      console.errorerror("Process deletion error:", error);
       res.status(400).json({ message: error.message || "Failed to delete process" });
     }
   });
@@ -1099,23 +1098,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only delete batches in your own organization" });
       }
 
+      // Get batch details
       const batch = await storage.getBatch(batchId);
       if (!batch) {
         return res.status(404).json({ message: "Batch not found" });
       }
 
-      // Check if batch belongs to the organization
-      if (batch.organizationId !== orgId) {
-        return res.status(403).json({ message: "Batch not found in your organization" });
+      // Check if batch is in planned status
+      if (batch.status !== 'planned') {
+        return res.status(400).json({ 
+          message: "Only batches in 'planned' status can be deleted"
+        });
+      }
+
+      // Check for existing trainees
+      const trainees = await storage.getBatchTrainees(batchId);
+      if (trainees.length > 0) {
+        return res.status(400).json({ 
+          message: "Cannot delete batch with existing trainees. Please transfer or remove all trainees first.",
+          traineesCount: trainees.length
+        });
       }
 
       console.log('Deleting batch:', batchId);
       await storage.deleteBatch(batchId);
 
+      console.log('Batch deleted successfully');
       res.json({ message: "Batch deleted successfully" });
     } catch (error: any) {
       console.error("Batch deletion error:", error);
-      res.status(400).json({ message: error.message });
+      res.status(500).json({ message: error.message || "Failed to delete batch" });
     }
   });
 
