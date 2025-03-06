@@ -12,7 +12,6 @@ import {insertBatchTemplateSchema} from "@shared/schema"; // Added import
 import { batchStatusEnum } from "@shared/schema";
 import { permissionEnum } from '@shared/schema'; // Added import for permissionEnum
 
-
 const scryptAsync = promisify(scrypt);
 
 async function hashPassword(password: string) {
@@ -836,7 +835,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "You canonly modify LOBs in your own organization" });
+        return res.status(403).json({ message: "You canonly modify LOBs in your own organization"});
       }
 
       console.log('Updating LOB:', lobId, 'with data:', req.body);
@@ -1266,8 +1265,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.createUser(userToCreate);
       console.log('Created user:', { id: user.id, username: user.username });
 
-      // Create batch process assignment
-      // Use new Date() for timestamps instead of string
+      // Create batch process assignment with proper date handling
       const batchAssignment = await storage.assignUserToBatch({
         userId: user.id,
         batchId,
@@ -1275,30 +1273,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'active',
         joinedAt: new Date(),
       });
-      console.log('Assigning user to batch:', {
-        userId: user.id,
-        batchId,
-        processId,
-        status: 'active',
-        joinedAt: new Date()
-      });
 
-      // Create process assignment
-      const processAssignment = await storage.createUserProcess({
-        userId: user.id,
-        processId,
-        organizationId,
-        lineOfBusinessId,
-        locationId,
-        status: 'active',
-        assignedAt: new Date()
-      });
-      console.log('Created process assignment:', processAssignment);
+      console.log('Created batch assignment:', batchAssignment);
 
       res.status(201).json({
         user,
-        batchAssignment,
-        processAssignment
+        batchAssignment
       });
     } catch (error: any) {
       console.error("Error creating trainee:", error);
