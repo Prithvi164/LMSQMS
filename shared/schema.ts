@@ -572,6 +572,7 @@ export const insertUserSchema = createInsertSchema(users)
     certified: z.boolean().default(false),
     active: z.boolean().default(true),
     category: z.enum(['active', 'trainee']).default('trainee'),
+    role: z.enum(['owner', 'admin', 'manager', 'team_lead', 'qualityassurance', 'trainer', 'advisor', 'trainee']).default('trainee'),
   });
 
 export const insertRolePermissionSchema = createInsertSchema(rolePermissions).omit({
