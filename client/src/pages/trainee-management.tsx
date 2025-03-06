@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Bell, Users, CalendarDays, CheckCircle2, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { format, addHours, addMinutes, addDays, isBefore, isAfter } from "date-fns";
+import { format, addHours, addMinutes } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
 // Type for batch data
@@ -32,7 +32,7 @@ export default function TraineeManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch active batches that require attention (planned status and start date is today)
+  // Fetch active batches that require attention (planned status)
   const { data: activeBatches = [], isLoading: batchesLoading } = useQuery<Batch[]>({
     queryKey: ["/api/batches/active"],
   });
@@ -87,35 +87,13 @@ export default function TraineeManagement() {
     return format(dateIST, "PPP");
   };
 
-  // Filter and group batches by start date (within next 3 days)
-  const getUpcomingBatches = () => {
-    const today = new Date();
-    const threeDaysFromNow = addDays(today, 3);
+  // Get all planned batches, sorted by start date
+  const plannedBatches = activeBatches
+    .filter(batch => batch.status === 'planned')
+    .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
-    return activeBatches
-      .filter(batch => {
-        const batchDate = new Date(batch.startDate);
-        // Convert batch date to IST
-        const batchDateIST = addMinutes(addHours(batchDate, 5), 30);
-        // Convert comparison dates to IST
-        const todayIST = addMinutes(addHours(today, 5), 30);
-        const threeDaysFromNowIST = addMinutes(addHours(threeDaysFromNow, 5), 30);
-
-        console.log('Batch Date (IST):', format(batchDateIST, "PPP"));
-        console.log('Today (IST):', format(todayIST, "PPP"));
-        console.log('Three Days (IST):', format(threeDaysFromNowIST, "PPP"));
-
-        return (
-          batch.status === 'planned' && 
-          !isBefore(batchDateIST, todayIST) && 
-          !isAfter(batchDateIST, threeDaysFromNowIST)
-        );
-      })
-      .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
-  };
-
-  const upcomingBatches = getUpcomingBatches();
-  const todayBatches = upcomingBatches.filter(batch => isSameDay(batch.startDate, new Date()));
+  // Filter batches starting today
+  const todayBatches = plannedBatches.filter(batch => isSameDay(batch.startDate, new Date()));
 
   if (batchesLoading) {
     return (
@@ -154,21 +132,22 @@ export default function TraineeManagement() {
         </TabsList>
 
         <TabsContent value="active-batches">
-          {upcomingBatches.length > 0 ? (
+          {plannedBatches.length > 0 ? (
             <div className="space-y-6">
               <Alert className="bg-yellow-50 border-yellow-200">
                 <AlertTitle className="text-yellow-800 flex items-center gap-2">
                   <Bell className="h-4 w-4" />
-                  Upcoming Batches
+                  Planned Batches
                 </AlertTitle>
                 <AlertDescription className="text-yellow-700">
-                  You have {upcomingBatches.length} batches starting in the next 3 days. 
-                  {todayBatches.length > 0 && ` ${todayBatches.length} batch(es) need to be started today.`}
+                  {todayBatches.length > 0 
+                    ? `You have ${todayBatches.length} batch(es) that need to be started today.`
+                    : 'All scheduled batches are progressing as planned.'}
                 </AlertDescription>
               </Alert>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {upcomingBatches.map((batch) => (
+                {plannedBatches.map((batch) => (
                   <Card key={batch.id}>
                     <CardContent className="p-6 space-y-4">
                       <div className="flex justify-between items-start">
