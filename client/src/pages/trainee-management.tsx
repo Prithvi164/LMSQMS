@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Bell, Users, CalendarDays, CheckCircle2, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { format, isValid, parseISO } from "date-fns";
+import { format, addHours, addMinutes } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
 // Type for batch data
@@ -66,14 +66,25 @@ export default function TraineeManagement() {
     },
   });
 
-  // Helper function to compare dates accounting for UTC
+  // Helper function to convert UTC to IST and compare dates
   const isSameDay = (date1: string, date2: Date) => {
     const d1 = new Date(date1);
+    // Convert to IST by adding 5 hours and 30 minutes
+    const d1IST = addMinutes(addHours(d1, 5), 30);
+    const d2IST = addMinutes(addHours(date2, 5), 30);
+
     return (
-      d1.getUTCDate() === date2.getUTCDate() &&
-      d1.getUTCMonth() === date2.getUTCMonth() &&
-      d1.getUTCFullYear() === date2.getUTCFullYear()
+      d1IST.getDate() === d2IST.getDate() &&
+      d1IST.getMonth() === d2IST.getMonth() &&
+      d1IST.getFullYear() === d2IST.getFullYear()
     );
+  };
+
+  // Helper function to format date in IST
+  const formatToIST = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const dateIST = addMinutes(addHours(date, 5), 30);
+    return format(dateIST, "PPP");
   };
 
   // Filter batches that need to be started today
@@ -150,7 +161,7 @@ export default function TraineeManagement() {
                       <div className="space-y-2">
                         <p className="text-sm">
                           <span className="font-medium">Start Date:</span>{" "}
-                          {format(new Date(batch.startDate), "PPP")}
+                          {formatToIST(batch.startDate)}
                         </p>
                         <p className="text-sm">
                           <span className="font-medium">LOB:</span>{" "}
