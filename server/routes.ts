@@ -14,7 +14,8 @@ import { permissionEnum } from '@shared/schema';
 import multer from 'multer';
 import * as XLSX from 'xlsx';
 import {db} from './db';
-
+import { join } from 'path';
+import express from 'express';
 
 const scryptAsync = promisify(scrypt);
 
@@ -39,6 +40,9 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Set up static file serving from public directory
+  app.use(express.static('public'));
+
   // Set up authentication routes (/api/register, /api/login, /api/logout, /api/user)
   setupAuth(app);
 
@@ -836,14 +840,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteProcess(processId);
 
       console.log('Process deleted successfully');
-      res.status(200).json({ message: "Process deleted successfully" });
-    } catch (error: any) {
-      console.error("Process deletion error:", error);
-      res.status(400).json({ message: error.message });
+      res.status(200).json({ message:"Process deleted successfully" });
     }
   });
 
-  // Add LOB update and delete routes
+  // Add LOB updateand delete routes
   app.patch("/api/organizations/:id/line-of-businesses/:lobId", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -1531,6 +1532,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: error.message 
       });
     }
+  });
+
+  // Add a route to serve the template file
+  app.get("/templates/trainee-upload-template.xlsx", (req, res) => {
+    const templatePath = join(process.cwd(), 'public', 'templates', 'trainee-upload-template.xlsx');
+    console.log('Serving template from:', templatePath);
+    res.download(templatePath, 'trainee-upload-template.xlsx', (err) => {
+      if (err) {
+        console.error('Error serving template:', err);
+        res.status(500).send('Error downloading template');
+      }
+    });
   });
 
   return createServer(app);
