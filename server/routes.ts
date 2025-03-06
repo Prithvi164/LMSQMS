@@ -834,7 +834,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const lobId = parseInt(req.params.lobId);
 
       // Check if user belongs to the organization
-      if (req.user.organizationId !==orgId) {
+      if(req.user.organizationId !==orgId) {
                 return res.status(403).json({ message:"You can only modify LOBs in your own organization" });
       }
 
@@ -1397,16 +1397,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const batchId = parseInt(req.params.batchId);
       const traineeId = parseInt(req.params.traineeId);
 
-      // Remove trainee from batch
-      await storage.removeUserFromBatch(traineeId, batchId);
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only manage trainees in your own organization" });
+      }
 
-      // Deactivate the trainee's user account
-      await storage.updateUser(traineeId, { active: false });
+      console.log('Removing trainee:', traineeId, 'from batch:', batchId);
 
-      res.json({ message: "Trainee removed successfully" });
+      // Simply remove trainee from batch without modifying user status
+      await storage.removeTraineeFromBatch(traineeId, batchId);
+
+      console.log('Successfully removed trainee from batch');
+      res.json({ message: "Trainee removed from batch successfully" });
     } catch (error: any) {
       console.error("Error removing trainee:", error);
-      res.status(500).json({ message: error.message });
+      res.status(400).json({ message: error.message || "Failed to remove trainee" });
     }
   });
 
