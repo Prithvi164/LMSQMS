@@ -129,19 +129,23 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
         const error = await response.json();
         throw new Error(error.message || "Failed to transfer trainee");
       }
+      return response.json();
     },
     onSuccess: () => {
+      // Invalidate queries for both the source and destination batch
       queryClient.invalidateQueries({
-        queryKey: [
-          `/api/organizations/${organizationId}/batches/${batchId}/trainees`,
-          `/api/organizations/${organizationId}/batches`
-        ]
+        queryKey: [`/api/organizations/${organizationId}/batches`]
+      });
+      // This will force a refresh of all batch trainee lists
+      queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0].toString().includes('/trainees')
       });
       toast({
         title: "Success",
         description: "Trainee transferred successfully",
       });
       setIsTransferDialogOpen(false);
+      setSelectedTrainee(null);
     },
     onError: (error: Error) => {
       toast({
@@ -280,7 +284,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
             </p>
             <div className="space-y-2">
               {allBatches
-                .filter((batch: any) => batch.id !== batchId)
+                .filter((batch: any) => batch.id !== batchId && batch.status === 'planned')
                 .map((batch: any) => (
                   <Button
                     key={batch.id}
@@ -294,6 +298,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                         });
                       }
                     }}
+                    disabled={transferTraineeMutation.isPending}
                   >
                     <div className="flex flex-col items-start">
                       <span className="font-medium">{batch.name}</span>
