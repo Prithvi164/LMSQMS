@@ -38,6 +38,7 @@ function Router() {
           <ProtectedRoute path="/performance" component={Performance} />
           <ProtectedRoute path="/settings" component={Settings} />
           <ProtectedRoute path="/batch-management" component={BatchDetail} />
+          <ProtectedRoute path="/batch-management/:batchId" component={BatchDetail} />
           <Route component={NotFound} />
         </Switch>
       </main>

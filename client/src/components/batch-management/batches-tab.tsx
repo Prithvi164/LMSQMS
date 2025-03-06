@@ -574,7 +574,7 @@ export function BatchesTab() {
   };
 
   const handleBatchClick = (batch: OrganizationBatch) => {
-    setLocation(`/batches/${batch.id}`);
+    setLocation(`/batch-management/${batch.id}`);
   };
 
 
@@ -819,8 +819,7 @@ export function BatchesTab() {
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-3 h3 h-3 rounded-full bg-green-500" />
-                    <span className="font-medium">Ongoing</span>
-                  </div>
+                    <span className="font-medium">Ongoing</span></div>
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-gray-500" />
                     <span className="font-medium">Completed</span>
