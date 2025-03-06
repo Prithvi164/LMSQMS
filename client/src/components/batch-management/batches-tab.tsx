@@ -141,10 +141,15 @@ export function BatchesTab() {
       const response = await fetch(`/api/organizations/${user?.organizationId}/batches/${batchId}`, {
         method: 'DELETE',
       });
+
+      const data = await response.json();
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message);
+        // Return the error instead of throwing it
+        return Promise.reject(data);
       }
+
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/batches`] });
@@ -155,16 +160,18 @@ export function BatchesTab() {
       setDeleteDialogOpen(false);
       setDeleteConfirmation('');
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
       // Check if error is about existing trainees
-      if (error.message.includes('trainees')) {
-        // Keep the delete dialog open and show the trainee management dialog
-        setIsTraineeDialogOpen(true);
+      if (error.message?.includes('trainees')) {
+        // Close delete dialog and open trainee management
+        setDeleteDialogOpen(false);
+        setDeleteConfirmation('');
         setSelectedBatchForDetails(selectedBatch);
+        setIsTraineeDialogOpen(true);
 
         toast({
-          title: "Action Required",
-          description: "Before deleting this batch, you must first manage its trainees. You can either transfer them to another batch or remove them. The trainee management window has been opened for you.",
+          title: "Trainees Found",
+          description: "This batch has trainees assigned. The trainee management window has been opened - please transfer or remove all trainees before deleting the batch.",
           variant: "destructive",
         });
       } else {
@@ -174,8 +181,8 @@ export function BatchesTab() {
           variant: "destructive",
         });
         setDeleteDialogOpen(false);
+        setDeleteConfirmation('');
       }
-      setDeleteConfirmation('');
     }
   });
 
@@ -829,8 +836,7 @@ export function BatchesTab() {
                     head_cell: "text-muted-foreground font-normal border-b-2 border-gray-100 dark:border-gray-800 p-2",
                     table: "border-collapse border-spacing-0 border-2 border-gray-100 dark:border-gray-800",
                     day: "h-full rounded-none hover:bg-gray-50 dark:hover:bg-gray-800 focus-visible:bg-gray-50 dark:focus-visible:bg-gray-800",
-                    nav_button: "h-12 w-12 bg-primary/10 hover:bg-primary/20 p-0 opacity-90 hover:opacity-100 absolute top-[50%] -translate-y-1/2 flex items-center justify-center rounded-full transition-all shadow-sm hover:shadow-md border border-primary/20",
-                    nav_button_previous:"left-4",
+                    nav_button: "h-12 w-12 bg-primary/10 hover:bg-primary/20 p-0 opacity-90 hover:opacity-100 absolute top-[50%] -translate-y-1/2 flex items-center justify-center rounded-full transition-all shadow-sm hover:shadowmd border border-primary/20",                    nav_button_previous:"left-4",
                     nav_button_next: "right-4",
                     nav: "relative flex items-center justify-between pt-4 pb-10 px-2 border-b-2 border-gray-100 dark:border-gray-800 mb-4",
                     caption: "text-2xl font-semibold text-center flex-1px-10",
