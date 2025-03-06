@@ -29,7 +29,8 @@ export const roleEnum = pgEnum('role', [
   'team_lead', 
   'qualityassurance',
   'trainer',   
-  'advisor'    
+  'advisor',
+  'trainee'    // Added trainee role
 ]);
 
 // Update the batch templates table definition to allow null trainer

@@ -107,140 +107,18 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
   }
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <FormField
-          control={form.control}
-          name="username"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Username</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="fullName"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Full Name</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input type="email" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* Batch Info Section */}
-        <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
-          <div>
-            <FormLabel className="text-muted-foreground">Batch</FormLabel>
-            <Input value={batch.name} disabled />
-          </div>
-          <div>
-            <FormLabel className="text-muted-foreground">Trainer</FormLabel>
-            <Input value={batchDetails?.trainer?.fullName || 'Loading...'} disabled />
-          </div>
-          <div>
-            <FormLabel className="text-muted-foreground">Location</FormLabel>
-            <Input value={batchDetails?.location?.name || 'Loading...'} disabled />
-          </div>
-          <div>
-            <FormLabel className="text-muted-foreground">Line of Business</FormLabel>
-            <Input value={batchDetails?.lineOfBusiness?.name || 'Loading...'} disabled />
-          </div>
-          <div>
-            <FormLabel className="text-muted-foreground">Process</FormLabel>
-            <Input value={batchDetails?.process?.name || 'Loading...'} disabled />
-          </div>
-        </div>
-
-        <FormField
-          control={form.control}
-          name="employeeId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Employee ID</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="phoneNumber"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Phone Number</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="grid grid-cols-2 gap-4">
+    <div className="max-h-[70vh] overflow-y-auto px-4">
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <FormField
             control={form.control}
-            name="dateOfJoining"
+            name="username"
             render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Date of Joining</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full pl-3 text-left font-normal",
-                          !field.value && "text-muted-foreground"
-                        )}
-                      >
-                        {field.value ? (
-                          format(field.value, "PPP")
-                        ) : (
-                          <span>Pick a date</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value}
-                      onSelect={field.onChange}
-                      disabled={(date) =>
-                        date > new Date() || date < new Date("1900-01-01")
-                      }
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+              <FormItem>
+                <FormLabel>Username</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -248,79 +126,205 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
 
           <FormField
             control={form.control}
-            name="dateOfBirth"
+            name="fullName"
             render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Date of Birth</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full pl-3 text-left font-normal",
-                          !field.value && "text-muted-foreground"
-                        )}
-                      >
-                        {field.value ? (
-                          format(field.value, "PPP")
-                        ) : (
-                          <span>Pick a date</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value}
-                      onSelect={field.onChange}
-                      disabled={(date) =>
-                        date > new Date() || date < new Date("1900-01-01")
-                      }
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+              <FormItem>
+                <FormLabel>Full Name</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-        </div>
 
-        <FormField
-          control={form.control}
-          name="education"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Education</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input type="email" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Password</FormLabel>
-              <FormControl>
-                <Input type="password" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+          {/* Batch Info Section */}
+          <div className="rounded-lg bg-muted/50 p-4 space-y-4">
+            <div>
+              <FormLabel className="text-muted-foreground">Batch</FormLabel>
+              <Input value={batch.name} disabled />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <FormLabel className="text-muted-foreground">Trainer</FormLabel>
+                <Input value={batchDetails?.trainer?.fullName || 'Loading...'} disabled />
+              </div>
+              <div>
+                <FormLabel className="text-muted-foreground">Location</FormLabel>
+                <Input value={batchDetails?.location?.name || 'Loading...'} disabled />
+              </div>
+              <div>
+                <FormLabel className="text-muted-foreground">Line of Business</FormLabel>
+                <Input value={batchDetails?.lineOfBusiness?.name || 'Loading...'} disabled />
+              </div>
+              <div>
+                <FormLabel className="text-muted-foreground">Process</FormLabel>
+                <Input value={batchDetails?.process?.name || 'Loading...'} disabled />
+              </div>
+            </div>
+          </div>
 
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Adding Trainee..." : "Add Trainee"}
-        </Button>
-      </form>
-    </Form>
+          <FormField
+            control={form.control}
+            name="employeeId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Employee ID</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="phoneNumber"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Phone Number</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="dateOfJoining"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Date of Joining</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value ? (
+                            format(field.value, "PPP")
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        disabled={(date) =>
+                          date > new Date() || date < new Date("1900-01-01")
+                        }
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="dateOfBirth"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Date of Birth</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value ? (
+                            format(field.value, "PPP")
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        disabled={(date) =>
+                          date > new Date() || date < new Date("1900-01-01")
+                        }
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <FormField
+            control={form.control}
+            name="education"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Education</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Password</FormLabel>
+                <FormControl>
+                  <Input type="password" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <Button type="submit" disabled={isSubmitting} className="w-full">
+            {isSubmitting ? "Adding Trainee..." : "Add Trainee"}
+          </Button>
+        </form>
+      </Form>
+    </div>
   );
 }
