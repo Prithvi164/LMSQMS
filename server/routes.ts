@@ -894,6 +894,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add batch listing endpoint for trainee management
+  app.get("/api/batches/active", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+  
+    try {
+      const orgId = req.user.organizationId;
+  
+      // Get batches with all related data in a single query
+      const batches = await storage.listBatchesWithDetails(orgId, ['planned']);
+
+      // Format batches for frontend
+      const activeBatches = batches.map(batch => ({
+        id: batch.id,
+        name: batch.name,
+        start_date: batch.startDate, // Map startDate to start_date for frontend
+        status: batch.status,
+        location: {
+          name: batch.location?.name || 'Unknown Location'
+        },
+        process: {
+          name: batch.process?.name || 'Unknown Process'
+        },
+        line_of_business: {
+          name: batch.lineOfBusiness?.name || 'Unknown LOB'
+        }
+      }));
+  
+      console.log('Fetching active batches:', {
+        count: activeBatches.length,
+        batches: activeBatches.map(b => ({
+          id: b.id,
+          name: b.name,
+          start_date: b.start_date,
+          status: b.status
+        }))
+      });
+  
+      res.json(activeBatches);
+    } catch (error: any) {
+      console.error("Error fetching active batches:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Add new endpoint to get LOBs by location
   app.get("/api/organizations/:id/locations/:locationId/line-of-businesses", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
@@ -1536,181 +1580,767 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Create user first
             const [user] = await tx
               .insert(users)
-              .values(traineeData)
-              .returning();
-
-            if (!user || !user.id) {
-              throw new Error('Failed to create user');
-            }
-
-            console.log('Created user:', user.id);
-
-            // Then create batch process assignment
-            await tx
-              .insert(userBatchProcesses)
-              .values({
-                userId: user.id,
-                batchId: batchId,
-                processId: batch.processId,
-                status: 'active',
-                joinedAt: new Date()
-              });
-
-            console.log('Successfully created trainee and batch process:', user.id);
+              }
           });
 
-          successCount++;
-        } catch (error) {
-          console.error('Error processing trainee:', error);
-          failureCount++;
-          errors.push({
-            row: successCount + failureCount,
-            error: error instanceof Error ? error.message : 'Unknown error'
+          // Combine all data
+          const batchDetails = {
+            ...batch,
+            traineeCount,
+            process,
+            location,
+            lineOfBusiness,
+            trainer
+          };
+
+          console.log('Sending batch details:', batchDetails);
+          res.json(batchDetails);
+        } catch (error: any) {
+          console.error("Error fetching batch details:", error);
+          res.status(500).json({ message: error.message });
+        }
+      });
+
+      app.patch("/api/organizations/:id/batches/:batchId", async (req, res) => {
+        if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+        try {
+          const orgId = parseInt(req.params.id);
+          const batchId = parseInt(req.params.batchId);
+
+          // Check if user belongs to the organization
+          if (req.user.organizationId !== orgId) {
+            return res.status(403).json({ message: "You can only update batches in your own organization" });
+          }
+
+          const batch = await storage.getBatch(batchId);
+          if (!batch) {
+            return res.status(404).json({ message: "Batch not found" });
+          }
+
+          // Check if batch belongs to the organization
+          if (batch.organizationId !== orgId) {
+            return res.status(403).json({ message: "Batch not found in your organization" });
+          }
+
+          console.log('Updating batch:', batchId, 'with data:', req.body);
+          const updatedBatch = await storage.updateBatch(batchId, req.body);
+
+          res.json(updatedBatch);
+        } catch (error: any) {
+          console.error("Batch update error:", error);
+          res.status(400).json({ message: error.message });
+        }
+      });
+
+      // Delete batch route
+      app.delete("/api/organizations/:id/batches/:batchId", async (req, res) => {
+        if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+        try {
+          const orgId = parseInt(req.params.id);
+          const batchId = parseInt(req.params.batchId);
+
+          // Check if user belongs to the organization
+          if (req.user.organizationId !== orgId) {
+            return res.status(403).json({ message: "You can only delete batches in your own organization" });
+          }
+
+          // Get batch details
+          const batch = await storage.getBatch(batchId);
+          if (!batch) {
+            return res.status(404).json({ message: "Batch not found" });
+          }
+
+          // Check if batch is in planned status
+          if (batch.status !== 'planned') {
+            return res.status(400).json({ 
+              message: "Only batches in 'planned' status can be deleted",
+              code: "INVALID_BATCH_STATUS"
+            });
+          }
+
+          // Check for existing trainees
+          const trainees = await storage.getBatchTrainees(batchId);
+          if (trainees.length > 0) {
+            return res.status(400).json({ 
+              success: false,
+              message: "Cannot delete batch with existing trainees. Please transfer or remove all trainees first.",
+              traineesCount: trainees.length,
+              code: "TRAINEES_EXIST"
+            });
+          }
+
+          console.log('Deleting batch:', batchId);
+          await storage.deleteBatch(batchId);
+
+          console.log('Batch deleted successfully');
+          return res.json({ 
+            success: true,
+            message: "Batch deleted successfully",
+            code: "SUCCESS"
+          });
+        } catch (error: any) {
+          console.error("Batch deletion error:", error);
+          return res.status(500).json({ 
+            success: false,
+            message: error.message || "Failed to delete batch",
+            code: "INTERNAL_ERROR"
           });
         }
-      }
-
-      res.json({
-        message: `Successfully uploaded ${successCount} trainees. Failed: ${failureCount}`,
-        successCount,
-        failureCount,
-        errors: errors.length > 0 ? errors : undefined
       });
 
-    } catch (error: any) {
-      console.error("Bulk upload error:", error);
-      res.status(500).json({ 
-        message: "Failed to process bulk upload",
-        error: error.message 
+      // Add these batch template routes after existing routes
+      // Get batch templates
+      app.get("/api/organizations/:id/batch-templates", async (req, res) => {
+        if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+        try {
+          const orgId = parseInt(req.params.id);
+
+          // Check if user belongs to the organization
+          if (req.user.organizationId !== orgId) {
+            return res.status(403).json({ message: "You can only view templates in your own organization" });
+          }
+
+          console.log(`Fetching batch templates for organization ${orgId}`);
+          const templates = await storage.listBatchTemplates(orgId);
+          console.log(`Found ${templates.length} templates`);
+          res.json(templates);
+        } catch (error: any) {
+          console.error("Error fetching templates:", error);
+          res.status(500).json({ message: error.message });
+        }
       });
+
+      // Create batch template
+      app.post("/api/organizations/:id/batch-templates", async (req, res) => {
+        if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+        try {
+          const orgId = parseInt(req.params.id);
+
+          // Check if user belongs to the organization
+          if (req.user.organizationId !== orgId) {
+            return res.status(403).json({ message: "You can only create templates in your own organization" });
+          }
+
+          const templateData = {
+            ...req.body,
+            organizationId: orgId,
+          };
+
+          console.log('Creating template with data:', templateData);
+
+          const validatedData = insertBatchTemplateSchema.parse(templateData);
+          const template = await storage.createBatchTemplate(validatedData);
+
+          console.log('Template created successfully:', template);
+          res.status(201).json(template);
+        } catch (error: any) {
+          console.error("Template creation error:", error);
+          res.status400).json({ message: error.message });
+        }
+      });
+
+      // Get single template
+      app.get("/api/organizations/:id/batch-templates/:templateId", async (req, res) => {
+        if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+        try {
+          const orgId = parseInt(req.params.id);
+          const templateId = parseInt(req.params.templateId);
+
+          // Check if user belongs to the organization
+          if (req.user.organizationId !== orgId) {
+            return res.status(403).json({ message: "You can only view templates in your own organization" });
+          }
+
+          const template = await storage.getBatchTemplate(templateId);
+          if (!template || template.organizationId !== orgId) {
+            return res.status(404).json({ message: "Template not found" });
+          }
+
+          res.json(template);
+        } catch (error: any) {
+          console.error("Error fetching template:", error);
+          res.status(500).json({ message: error.message });
+        }
+      });
+
+      // Delete template
+      app.delete("/api/organizations/:id/batch-templates/:templateId", async (req, res) => {
+        if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+        try {
+          const orgId = parseInt(req.params.id);
+          const templateId = parseInt(req.params.templateId);
+
+          // Check if user belongs to the organization
+          if (req.user.organizationId !== orgId) {
+            return res.status(403).json({ message: "You can only delete templates in your own organization" });
+          }
+
+          // Check if template exists and belongs to organization
+          const template = await storage.getBatchTemplate(templateId);
+          if (!template || template.organizationId !== orgId) {
+            return res.status(404).json({ message: "Template not found" });
+          }
+
+          await storage.deleteBatchTemplate(templateId);
+          res.json({ message: "Template deleted successfully" });
+        } catch (error: any) {
+          console.error("Error deleting template:", error);
+          res.status(500).json({ message: error.message });
+        }
+      });
+
+      // Add new endpoint to get trainer's active batches
+      app.get("/api/trainers/:id/active-batches", async (req, res) => {
+        if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+        try {
+          const trainerId = parseInt(req.params.id);
+          console.log(`Fetching batches for trainer ${trainerId}`);
+
+          // Get all non-completed batches using the enum values directly
+          const activeBatches = await storage.getBatchesByTrainer(
+            trainerId,
+            req.user.organizationId,
+            batchStatusEnum.enumValues.filter(status => status !== 'completed')
+          );
+
+          console.log(`Found ${activeBatches.length} active batches for trainer ${trainerId}`);
+          res.json(activeBatches);
+        } catch (error: any) {
+          console.error("Error fetching trainer batches:", error);
+          res.status(500).json({ message: "Failed to fetch trainer batches" });
+        }
+      });
+
+      // Update the trainee creation endpoint with capacity check
+      app.post("/api/organizations/:orgId/batches/:batchId/trainees", async (req, res) => {
+        if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+        try {
+          const organizationId = parseInt(req.params.orgId);
+          const batchId = parseInt(req.params.batchId);
+
+          // Get the batch details including capacity
+          const batch = await storage.getBatch(batchId);
+          if (!batch) {
+            return res.status(404).json({ message: "Batch not found" });
+          }
+
+          // Get current trainee count
+          const trainees = await storage.getBatchTrainees(batchId);
+          if (trainees.length >= batch.capacityLimit) {
+            return res.status(400).json({
+              message: `Cannot add trainee. Batch capacity limit (${batch.capacityLimit}) has been reached.`
+            });
+          }
+
+          // Rest of the existing code remains the same
+          const { processId, lineOfBusinessId, locationId, ...userData } = req.body;
+
+          // Create password hash
+          const hashedPassword = await hashPassword(userData.password);
+
+          // Create user with trainee role
+          const userToCreate = {
+            ...userData,
+            password: hashedPassword,
+            role: "trainee",
+            category: "trainee",
+            organizationId,
+            locationId,
+            active: true
+          };
+
+          console.log('Creating trainee with data:', {
+            ...userToCreate,
+            password: '[REDACTED]'
+          });
+
+          const user = await storage.createUser(userToCreate);
+          console.log('Created user:', { id: user.id, username: user.username });
+
+          // Create batch process assignment
+          const batchAssignment = await storage.assignUserToBatch({
+            userId: user.id,
+            batchId,
+            processId,
+            status: 'active',
+            joinedAt: new Date(),
+          });
+          console.log('Created batch assignment:', batchAssignment);
+
+          // Create user process record
+          const userProcess = await storage.createUserProcess({
+            userId: user.id,
+            processId,
+            organizationId,
+            lineOfBusinessId,
+            locationId,
+            status: 'active',
+            assignedAt: new Date(),
+          });
+          console.log('Created user process assignment:', userProcess);
+
+          res.status(201).json({
+            user,
+            batchAssignment,
+            userProcess
+          });
+        } catch (error: any) {
+          console.error("Error creating trainee:", error);
+          res.status(400).json({ message: error.message });
+        }
+      });
+
+      // Add after other user routes
+      app.get("/api/organizations/:orgId/batches/:batchId/trainees", async (req, res) => {
+        if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+        try {
+          const batchId = parseInt(req.params.batchId);
+          const orgId = parseInt(req.params.orgId);
+
+          // Check if user belongs to the organization
+          if (req.user.organizationId !== orgId) {
+            return res.status(403).json({ message: "You can only view trainees in your own organization" });
+          }
+
+          // Get batch details to verify it exists and belongs to the organization
+          const batch = await storage.getBatch(batchId);
+          if (!batch || batch.organizationId !== orgId) {
+            return res.status(404).json({ message: "Batch not found" });
+          }
+
+          // Get all trainees for this batch
+          const trainees = await storage.getBatchTrainees(batchId);
+          console.log(`Found ${trainees.length} trainees for batch ${batchId}`);
+
+          // Get detailed user information for each trainee
+          const traineeDetails = await Promise.all(
+            trainees.map(async (trainee) => {
+              const user = await storage.getUser(trainee.userId);
+              return {
+                ...trainee,
+                user: user ? {
+                  username: user.username,
+                  fullName: user.fullName,
+                  email: user.email,
+                  employeeId: user.employeeId,
+                  phoneNumber: user.phoneNumber,
+                } : null
+              };
+            })
+          );
+
+          res.json(traineeDetails);
+        } catch (error: any) {
+          console.error("Error fetching batch trainees:", error);
+          res.status(500).json({ message: error.message });
+        }
+      });
+
+      // Add the trainee transfer endpoint
+      app.post("/api/organizations/:orgId/batches/:batchId/trainees/:traineeId/transfer", async (req, res) => {
+        if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+        try {
+          const orgId = parseInt(req.params.orgId);
+          const batchId = parseInt(req.params.batchId);
+          const traineeId = parseInt(req.params.traineeId);
+          const { newBatchId } = req.body;
+
+          // Validate the new batch exists and belongs to the organization
+          const newBatch = await storage.getBatch(newBatchId);
+          if (!newBatch || newBatch.organizationId !== orgId) {
+            return res.status(404).json({ message: "Target batch not found" });
+          }
+
+          // Check capacity in the new batch
+          const currentTrainees = await storage.getBatchTrainees(newBatchId);
+          if (currentTrainees.length >= newBatch.capacityLimit) {
+            return res.status(400).json({
+              message: `Cannot transfer trainee. Target batch has reached its capacity limit of ${newBatch.capacityLimit}`
+            });
+          }
+
+          // Update the trainee's batch assignment
+          await storage.updateUserBatchProcess(traineeId, batchId, newBatchId);
+
+          res.json({ message: "Trainee transferred successfully" });
+        } catch (error: any) {
+          console.error("Error transferring trainee:", error);
+          res.status(500).json({ message: error.message });
+        }
+      });
+
+      // Add trainee delete endpoint
+      app.delete("/api/organizations/:orgId/batches/:batchId/trainees/:traineeId", async (req, res) => {
+        if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+        try {
+          const orgId = parseInt(req.params.orgId);
+          const batchId = parseInt(req.params.batchId);
+          const traineeId = parseInt(req.params.traineeId);
+
+          // Check if user belongs to the organization
+          if (req.user.organizationId !== orgId) {
+            return res.status(403).json({ message: "You can only manage trainees in your own organization" });
+          }
+
+          console.log('Removing trainee:', traineeId, 'from batch:', batchId);
+
+          // Simply remove trainee from batch without modifying user status
+          await storage.removeTraineeFromBatch(traineeId, batchId);
+
+          console.log('Successfully removed trainee from batch');
+          res.json({ message: "Trainee removed from batch successfully" });
+        } catch (error: any) {
+          console.error("Error removing trainee:", error);
+          res.status(400).json({ message: error.message || "Failed to remove trainee" });
+        }
+      });
+
+      // Add the bulk upload route (place this with other trainee-related routes)
+      app.post("/api/organizations/:orgId/batches/:batchId/trainees/bulk", upload.single('file'), async (req, res) => {
+        if (!req.user) return res.status(401).json({ message: "No file uploaded" });
+        if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+        try {
+          const orgId = parseInt(req.params.orgId);
+          const batchId = parseInt(req.params.batchId);
+
+          // Get batch details
+          const batch = await storage.getBatch(batchId);
+          if (!batch) {
+            return res.status(404).json({ message: "Batch not found" });
+          }
+
+          // Check remaining capacity
+          const currentTrainees = await storage.getBatchTrainees(batchId);
+          const remainingCapacity = batch.capacityLimit - currentTrainees.length;
+
+          // Read Excel file
+          const workbook = XLSX.read(req.file.buffer);
+          const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(worksheet);
+
+          console.log('Processing rows:', rows);
+
+          if (!Array.isArray(rows) || rows.length === 0) {
+            return res.status(400).json({ message: "No valid data found in uploaded file" });
+          }
+
+          if (rows.length > remainingCapacity) {
+            return res.status(400).json({ 
+              message: `Batch can only accommodate ${remainingCapacity} more trainees. Uploaded file contains ${rows.length} trainees.` 
+            });
+          }
+
+          let successCount = 0;
+          let failureCount = 0;
+          const errors = [];
+
+          // Process each row
+          for (const row of rows) {
+            try {
+              console.log('Processing row:', row);
+
+              // Basic data validation
+              if (!row.username || !row.fullName || !row.email || !row.employeeId || !row.password) {
+                throw new Error('Missing required fields');
+              }
+
+              // Create trainee data
+              const traineeData = {
+                username: String(row.username).trim(),
+                fullName: String(row.fullName).trim(),
+                email: String(row.email).trim(),
+                employeeId: String(row.employeeId).trim(),
+                phoneNumber: row.phoneNumber ? String(row.phoneNumber).trim() : null,
+                dateOfJoining: row.dateOfJoining ? new Date(row.dateOfJoining).toISOString() : null,
+                dateOfBirth: row.dateOfBirth ? new Date(row.dateOfBirth).toISOString() : null,
+                education: row.education ? String(row.education).trim() : null,
+                password: await hashPassword(String(row.password)),
+                role: "trainee" as const,
+                category: "trainee" as const,
+                organizationId: orgId,
+                locationId: batch.locationId,
+                active: true,
+                certified: false
+              };
+
+              console.log('Prepared trainee data:', { ...traineeData, password: '[REDACTED]' });
+
+              // Create trainee in a transaction
+              await db.transaction(async (tx) => {
+                // Create user first
+                const [user] = await tx
+                  .insert(users)
+                  .values(traineeData)
+                  .returning();
+
+                if (!user || !user.id) {
+                  throw new Error('Failed to create user');
+                }
+
+                console.log('Created user:', user.id);
+
+                // Then create batch process assignment
+                await tx
+                  .insert(userBatchProcesses)
+                  .values({
+                    userId: user.id,
+                    batchId: batchId,
+                    processId: batch.processId,
+                    status: 'active',
+                    joinedAt: new Date()
+                  });
+
+                console.log('Successfully created trainee and batch process:', user.id);
+              });
+
+              successCount++;
+            } catch (error) {
+              console.error('Error processing trainee:', error);
+              failureCount++;
+              errors.push({
+                row: successCount + failureCount,
+                error: error instanceof Error ? error.message : 'Unknown error'
+              });
+            }
+          }
+
+          res.json({
+            message: `Successfully uploaded ${successCount} trainees. Failed: ${failureCount}`,
+            successCount,
+            failureCount,
+            errors: errors.length > 0 ? errors : undefined
+          });
+
+        } catch (error: any) {
+          console.error("Bulk upload error:", error);
+          res.status(500).json({ 
+            message: "Failed to process bulk upload",
+            error: error.message 
+          });
+        }
+      });
+
+      // Add template download endpoint
+      app.get("/api/templates/trainee-upload", (req, res) => {
+        try {
+          // Create workbook
+          const wb = XLSX.utils.book_new();
+
+          // Define headers
+          const headers = [
+            'username',
+            'fullName',
+            'email',
+            'employeeId',
+            'phoneNumber',
+            'dateOfJoining',
+            'dateOfBirth',
+            'education',
+            'password'
+          ];
+
+          // Create example data row
+          const exampleData = [
+            'john.doe',
+            'John Doe',
+            'john.doe@example.com',
+            'EMP123',
+            '+1234567890',
+            '2025-03-06', // Format: YYYY-MM-DD
+            '1990-01-01', // Format: YYYY-MM-DD
+            'Bachelor\'s Degree',
+            'Password123!' // Will be hashed on upload
+          ];
+
+          // Create worksheet
+          const ws = XLSX.utils.aoa_to_sheet([headers, exampleData]);
+
+          // Add column widths for better readability
+          const colWidths = headers.map(() => ({ wch: 15 }));
+          ws['!cols'] = colWidths;
+
+          // Add the worksheet to workbook
+          XLSX.utils.book_append_sheet(wb, ws, 'Trainees');
+
+          // Generate buffer
+          const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+          // Set headers for file download
+          res.setHeader('Content-Disposition', 'attachment; filename=trainee-upload-template.xlsx');
+          res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+          // Send buffer
+          res.send(buf);
+        } catch (error) {
+          console.error('Error generating template:', error);
+          res.status(500).json({ message: 'Failed to generate template' });
+        }
+      });
+
+      // Add the onboarding completion endpoint
+      app.post("/api/users/:id/complete-onboarding", async (req, res) => {
+        if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+        try {
+          const userId = parseInt(req.params.id);
+
+          // Users can only complete their own onboarding
+          if (req.user.id !== userId) {
+            return res.status(403).json({ message: "You can only complete your own onboarding" });
+          }
+
+          console.log(`Completing onboarding for user ${userId}`);
+          const updatedUser = await storage.updateUser(userId, {
+            onboardingCompleted: true
+          });
+
+          console.log('Onboarding completed successfully');
+          res.json(updatedUser);
+        } catch (error: any) {
+          console.error("Error completing onboarding:", error);
+          res.status(500).json({ message: error.message || "Failed to complete onboarding" });
+        }
+      });
+
+      // Add new route for starting a batch after existing batch routes
+      app.post("/api/batches/:batchId/start", async (req, res) => {
+        if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+        try {
+          const batchId = parseInt(req.params.batchId);
+          const orgId = req.user.organizationId;
+
+          // Get the batch to validate ownership and current status
+          const batch = await storage.getBatch(batchId);
+          if (!batch) {
+            return res.status(404).json({ message: "Batch not found" });
+          }
+
+          // Validate organization ownership
+          if (batch.organizationId !== orgId) {
+            return res.status(403).json({ message: "You can only start batches in your own organization" });
+          }
+
+          // Validate current status is 'planned'
+          if (batch.status !== 'planned') {
+            return res.status(400).json({ message: "Only planned batches can be started" });
+          }
+
+          // Update batch status to 'induction'
+          const updatedBatch = await storage.updateBatch(batchId, {
+            status: 'induction',
+            startedAt: new Date().toISOString(),
+            startedBy: req.user.id
+          });
+
+          console.log('Batch started successfully:', {
+            batchId,
+            newStatus: 'induction',
+            startedBy: req.user.id
+          });
+
+          res.json(updatedBatch);
+        } catch (error: any) {
+          console.error("Error starting batch:", error);
+          res.status(500).json({ message: error.message || "Failed to start batch" });
+        }
+      });
+
+      // Add batch listing endpoint for trainee management
+      app.get("/api/batches/active", async (req, res) => {
+        if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+        try {
+          const orgId = req.user.organizationId;
+
+          // Fetch all planned batches
+          const batches = await storage.listBatches(orgId, ['planned']);
+
+          console.log('Fetching active batches:', {
+            count: batches.length,
+            batches: batches.map(b => ({
+              id: b.id,
+              name: b.name,
+              startDate: b.start_date,
+              status: b.status
+            }))
+          });
+
+          res.json(batches);
+        } catch (error: any) {
+          console.error("Error fetching active batches:", error);
+          res.status(500).json({ message: error.message });
+        }
+      });
+
+      // Add batch listing endpoint for trainee management
+      app.get("/api/batches/active", async (req, res) => {
+        if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+      
+        try {
+          const orgId = req.user.organizationId;
+      
+          // Get references to related tables
+          const locations = await storage.listLocations(orgId);
+          const processes = await storage.listProcesses(orgId);
+          const businesses = await storage.listLineOfBusinesses(orgId);
+
+          // Get batches
+          const batches = await storage.listBatches(orgId);
+
+          // Filter and format batches
+          const activeBatches = batches
+            .filter(batch => batch.status === 'planned')
+            .map(batch => {
+              const location = locations.find(l => l.id === batch.locationId);
+              const process = processes.find(p => p.id === batch.processId);
+              const business = businesses.find(b => b.id === batch.lineOfBusinessId);
+
+              return {
+                id: batch.id,
+                name: batch.name,
+                startDate: batch.startDate,
+                status: batch.status,
+                location: {
+                  name: location?.name || 'Unknown Location'
+                },
+                process: {
+                  name: process?.name || 'Unknown Process'
+                },
+                line_of_business: {
+                  name: business?.name || 'Unknown LOB'
+                }
+              };
+            });
+      
+          console.log('Fetching active batches:', {
+            count: activeBatches.length,
+            batches: activeBatches.map(b => ({
+              id: b.id,
+              name: b.name,
+              startDate: b.startDate,
+              status: b.status
+            }))
+          });
+      
+          res.json(activeBatches);
+        } catch (error: any) {
+          console.error("Error fetching active batches:", error);
+          res.status(500).json({ message: error.message });
+        }
+      });
+
+      return createServer(app);
     }
-  });
-
-  // Add template download endpoint
-  app.get("/api/templates/trainee-upload", (req, res) => {
-    try {
-      // Create workbook
-      const wb = XLSX.utils.book_new();
-
-      // Define headers
-      const headers = [
-        'username',
-        'fullName',
-        'email',
-        'employeeId',
-        'phoneNumber',
-        'dateOfJoining',
-        'dateOfBirth',
-        'education',
-        'password'
-      ];
-
-      // Create example data row
-      const exampleData = [
-        'john.doe',
-        'John Doe',
-        'john.doe@example.com',
-        'EMP123',
-        '+1234567890',
-        '2025-03-06', // Format: YYYY-MM-DD
-        '1990-01-01', // Format: YYYY-MM-DD
-        'Bachelor\'s Degree',
-        'Password123!' // Will be hashed on upload
-      ];
-
-      // Create worksheet
-      const ws = XLSX.utils.aoa_to_sheet([headers, exampleData]);
-
-      // Add column widths for better readability
-      const colWidths = headers.map(() => ({ wch: 15 }));
-      ws['!cols'] = colWidths;
-
-      // Add the worksheet to workbook
-      XLSX.utils.book_append_sheet(wb, ws, 'Trainees');
-
-      // Generate buffer
-      const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-
-      // Set headers for file download
-      res.setHeader('Content-Disposition', 'attachment; filename=trainee-upload-template.xlsx');
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-
-      // Send buffer
-      res.send(buf);
-    } catch (error) {
-      console.error('Error generating template:', error);
-      res.status(500).json({ message: 'Failed to generate template' });
-    }
-  });
-
-  // Add the onboarding completion endpoint
-  app.post("/api/users/:id/complete-onboarding", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const userId = parseInt(req.params.id);
-
-      // Users can only complete their own onboarding
-      if (req.user.id !== userId) {
-        return res.status(403).json({ message: "You can only complete your own onboarding" });
-      }
-
-      console.log(`Completing onboarding for user ${userId}`);
-      const updatedUser = await storage.updateUser(userId, {
-        onboardingCompleted: true
-      });
-
-      console.log('Onboarding completed successfully');
-      res.json(updatedUser);
-    } catch (error: any) {
-      console.error("Error completing onboarding:", error);
-      res.status(500).json({ message: error.message || "Failed to complete onboarding" });
-    }
-  });
-
-  // Add new route for starting a batch after existing batch routes
-  app.post("/api/batches/:batchId/start", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const batchId = parseInt(req.params.batchId);
-      const orgId = req.user.organizationId;
-
-      // Get the batch to validate ownership and current status
-      const batch = await storage.getBatch(batchId);
-      if (!batch) {
-        return res.status(404).json({ message: "Batch not found" });
-      }
-
-      // Validate organization ownership
-      if (batch.organizationId !== orgId) {
-        return res.status(403).json({ message: "You can only start batches in your own organization" });
-      }
-
-      // Validate current status is 'planned'
-      if (batch.status !== 'planned') {
-        return res.status(400).json({ message: "Only planned batches can be started" });
-      }
-
-      // Update batch status to 'induction'
-      const updatedBatch = await storage.updateBatch(batchId, {
-        status: 'induction',
-        startedAt: new Date().toISOString(),
-        startedBy: req.user.id
-      });
-
-      console.log('Batch started successfully:', {
-        batchId,
-        newStatus: 'induction',
-        startedBy: req.user.id
-      });
-
-      res.json(updatedBatch);
-    } catch (error: any) {
-      console.error("Error starting batch:", error);
-      res.status(500).json({ message: error.message || "Failed to start batch" });
-    }
-  });
-
-  return createServer(app);
-}

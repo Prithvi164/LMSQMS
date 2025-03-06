@@ -7,14 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Bell, Users, CalendarDays, CheckCircle2, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { format, addHours, addMinutes, addDays, isBefore, isAfter } from "date-fns";
+import { format, addHours, addMinutes } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
 // Type for batch data
 type Batch = {
   id: number;
   name: string;
-  startDate: string;
+  start_date: string;
   status: string;
   location: {
     name: string;
@@ -32,7 +32,7 @@ export default function TraineeManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch active batches that require attention (planned status and start date is today)
+  // Fetch active batches that require attention (planned status)
   const { data: activeBatches = [], isLoading: batchesLoading } = useQuery<Batch[]>({
     queryKey: ["/api/batches/active"],
   });
@@ -66,56 +66,12 @@ export default function TraineeManagement() {
     },
   });
 
-  // Helper function to convert UTC to IST and compare dates
-  const isSameDay = (date1: string, date2: Date) => {
-    const d1 = new Date(date1);
-    // Convert to IST by adding 5 hours and 30 minutes
-    const d1IST = addMinutes(addHours(d1, 5), 30);
-    const d2IST = addMinutes(addHours(date2, 5), 30);
-
-    return (
-      d1IST.getDate() === d2IST.getDate() &&
-      d1IST.getMonth() === d2IST.getMonth() &&
-      d1IST.getFullYear() === d2IST.getFullYear()
-    );
-  };
-
   // Helper function to format date in IST
   const formatToIST = (dateStr: string) => {
     const date = new Date(dateStr);
     const dateIST = addMinutes(addHours(date, 5), 30);
-    return format(dateIST, "PPP");
+    return format(dateIST, "MMM d, yyyy");
   };
-
-  // Filter and group batches by start date (within next 3 days)
-  const getUpcomingBatches = () => {
-    const today = new Date();
-    const threeDaysFromNow = addDays(today, 3);
-
-    return activeBatches
-      .filter(batch => {
-        const batchDate = new Date(batch.startDate);
-        // Convert batch date to IST
-        const batchDateIST = addMinutes(addHours(batchDate, 5), 30);
-        // Convert comparison dates to IST
-        const todayIST = addMinutes(addHours(today, 5), 30);
-        const threeDaysFromNowIST = addMinutes(addHours(threeDaysFromNow, 5), 30);
-
-        console.log('Batch Date (IST):', format(batchDateIST, "PPP"));
-        console.log('Today (IST):', format(todayIST, "PPP"));
-        console.log('Three Days (IST):', format(threeDaysFromNowIST, "PPP"));
-
-        return (
-          batch.status === 'planned' && 
-          !isBefore(batchDateIST, todayIST) && 
-          !isAfter(batchDateIST, threeDaysFromNowIST)
-        );
-      })
-      .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
-  };
-
-  const upcomingBatches = getUpcomingBatches();
-  const todayBatches = upcomingBatches.filter(batch => isSameDay(batch.startDate, new Date()));
 
   if (batchesLoading) {
     return (
@@ -125,6 +81,11 @@ export default function TraineeManagement() {
       </div>
     );
   }
+
+  // Sort batches by start date
+  const sortedBatches = [...activeBatches].sort(
+    (a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
+  );
 
   return (
     <div className="p-8 space-y-6">
@@ -137,9 +98,9 @@ export default function TraineeManagement() {
           <TabsTrigger value="active-batches" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Active Batches
-            {todayBatches.length > 0 && (
+            {sortedBatches.length > 0 && (
               <Badge variant="destructive" className="ml-2">
-                {todayBatches.length}
+                {sortedBatches.length}
               </Badge>
             )}
           </TabsTrigger>
@@ -154,7 +115,7 @@ export default function TraineeManagement() {
         </TabsList>
 
         <TabsContent value="active-batches">
-          {upcomingBatches.length > 0 ? (
+          {sortedBatches.length > 0 ? (
             <div className="space-y-6">
               <Alert className="bg-yellow-50 border-yellow-200">
                 <AlertTitle className="text-yellow-800 flex items-center gap-2">
@@ -162,13 +123,12 @@ export default function TraineeManagement() {
                   Upcoming Batches
                 </AlertTitle>
                 <AlertDescription className="text-yellow-700">
-                  You have {upcomingBatches.length} batches starting in the next 3 days. 
-                  {todayBatches.length > 0 && ` ${todayBatches.length} batch(es) need to be started today.`}
+                  You have {sortedBatches.length} upcoming batches to manage.
                 </AlertDescription>
               </Alert>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {upcomingBatches.map((batch) => (
+                {sortedBatches.map((batch) => (
                   <Card key={batch.id}>
                     <CardContent className="p-6 space-y-4">
                       <div className="flex justify-between items-start">
@@ -178,18 +138,15 @@ export default function TraineeManagement() {
                             {batch.location.name} • {batch.process.name}
                           </p>
                         </div>
-                        <Badge 
-                          variant={isSameDay(batch.startDate, new Date()) ? "destructive" : "outline"} 
-                          className="capitalize"
-                        >
-                          {isSameDay(batch.startDate, new Date()) ? "Start Today" : batch.status}
+                        <Badge variant="outline" className="capitalize">
+                          {batch.status}
                         </Badge>
                       </div>
 
                       <div className="space-y-2">
                         <p className="text-sm">
                           <span className="font-medium">Start Date:</span>{" "}
-                          {formatToIST(batch.startDate)}
+                          {formatToIST(batch.start_date)}
                         </p>
                         <p className="text-sm">
                           <span className="font-medium">LOB:</span>{" "}
@@ -200,15 +157,10 @@ export default function TraineeManagement() {
                       <Button 
                         className="w-full"
                         onClick={() => startBatchMutation.mutate(batch.id)}
-                        disabled={startBatchMutation.isPending || !isSameDay(batch.startDate, new Date())}
+                        disabled={startBatchMutation.isPending}
                       >
                         <CheckCircle2 className="h-4 w-4 mr-2" />
-                        {startBatchMutation.isPending 
-                          ? "Starting..." 
-                          : isSameDay(batch.startDate, new Date())
-                            ? "Start Batch"
-                            : "Starts " + formatToIST(batch.startDate)
-                        }
+                        {startBatchMutation.isPending ? "Starting..." : "Start Batch"}
                       </Button>
                     </CardContent>
                   </Card>
