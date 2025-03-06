@@ -1438,34 +1438,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Add the bulk upload route (place this with other trainee-related routes)
   app.post("/api/organizations/:orgId/batches/:batchId/trainees/bulk", upload.single('file'), async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
     try {
       const orgId = parseInt(req.params.orgId);
       const batchId = parseInt(req.params.batchId);
-      const file = req.file;
 
-      if (!file) {
-        return res.status(400).json({ message: "No file uploaded" });
-      }
-
-      // Get batch details to check capacity
+      // Get batch details
       const batch = await storage.getBatch(batchId);
       if (!batch) {
         return res.status(404).json({ message: "Batch not found" });
       }
 
-      // Get current trainee count
+      // Check remaining capacity
       const currentTrainees = await storage.getBatchTrainees(batchId);
       const remainingCapacity = batch.capacityLimit - currentTrainees.length;
 
-      if (remainingCapacity <= 0) {
-        return res.status(400).json({ message: "Batch is already at full capacity" });
-      }
-
       // Read Excel file
-      const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+      const workbook = XLSX.read(req.file.buffer);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(worksheet);
+
+      console.log('Processing rows:', rows);
 
       if (!Array.isArray(rows) || rows.length === 0) {
         return res.status(400).json({ message: "No valid data found in uploaded file" });
@@ -1491,22 +1485,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             throw new Error('Missing required fields');
           }
 
-          // Format dates properly
-          const formatDate = (dateStr: string) => {
-            if (!dateStr) return null;
-            const date = new Date(dateStr);
-            return date.toISOString().split('T')[0];
-          };
-
-          // Create trainee data with proper type handling
+          // Create trainee data
           const traineeData = {
             username: String(row.username).trim(),
             fullName: String(row.fullName).trim(),
             email: String(row.email).trim(),
             employeeId: String(row.employeeId).trim(),
             phoneNumber: row.phoneNumber ? String(row.phoneNumber).trim() : null,
-            dateOfJoining: formatDate(row.dateOfJoining) || null,
-            dateOfBirth: formatDate(row.dateOfBirth) || null,
+            dateOfJoining: row.dateOfJoining ? new Date(row.dateOfJoining).toISOString() : null,
+            dateOfBirth: row.dateOfBirth ? new Date(row.dateOfBirth).toISOString() : null,
             education: row.education ? String(row.education).trim() : null,
             password: await hashPassword(String(row.password)),
             role: "trainee" as const,
@@ -1517,7 +1504,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             certified: false
           };
 
-          console.log('Validated trainee data:', { ...traineeData, password: '[REDACTED]' });
+          console.log('Prepared trainee data:', { ...traineeData, password: '[REDACTED]' });
 
           // Create trainee in a transaction
           await db.transaction(async (tx) => {
@@ -1531,7 +1518,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               throw new Error('Failed to create user');
             }
 
-            // Then assign to batch
+            console.log('Created user:', user.id);
+
+            // Then create batch process assignment
             await tx
               .insert(userBatchProcesses)
               .values({
@@ -1539,10 +1528,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 batchId: batchId,
                 processId: batch.processId,
                 status: 'active',
-                joinedAt: new Date().toISOString()
+                joinedAt: new Date()
               });
 
-            console.log('Successfully created trainee:', user.id);
+            console.log('Successfully created trainee and batch process:', user.id);
           });
 
           successCount++;
