@@ -51,148 +51,6 @@ import { Progress } from "@/components/ui/progress"; // Import Progress componen
 import { useLocation } from "wouter";
 import { TraineeManagement } from "./trainee-management";
 
-const renderBatchTable = (batchList: OrganizationBatch[]) => (
-  <div className="rounded-md border">
-    <Table>
-      <TableHeader>
-        <TableRow className="bg-muted/50">
-          <TableHead
-            className="w-[150px] text-center cursor-pointer hover:bg-muted/70 transition-colors"
-            onClick={() => handleSort('startDate')}
-          >
-            <div className="flex items-center justify-center gap-1">
-              Start Date
-              {sortConfig?.key === 'startDate' && (
-                <ArrowUpDown className={`h-4 w-4 ${sortConfig.direction === 'asc' ? 'rotate-0' : 'rotate-180'}`} />
-              )}
-            </div>
-          </TableHead>
-          <TableHead
-            className="text-center cursor-pointer hover:bg-muted/70 transition-colors"
-            onClick={() => handleSort('name')}
-          >
-            <div className="flex items-center justify-center gap-1">
-              Batch Name
-              {sortConfig?.key === 'name' && (
-                <ArrowUpDown className={`h-4 w-4 ${sortConfig.direction === 'asc' ? 'rotate-0' : 'rotate-180'}`} />
-              )}
-            </div>
-          </TableHead>
-          <TableHead
-            className="text-center cursor-pointer hover:bg-muted/70 transition-colors"
-            onClick={() => handleSort('batchCategory')}
-          >
-            <div className="flex items-center justify-center gap-1">
-              Category
-              {sortConfig?.key === 'batchCategory' && (
-                <ArrowUpDown className={`h-4 w-4 ${sortConfig.direction === 'asc' ? 'rotate-0' : 'rotate-180'}`} />
-              )}
-            </div>
-          </TableHead>
-          <TableHead className="text-center">Location</TableHead>
-          <TableHead className="text-center">Line of Business</TableHead>
-          <TableHead className="text-center">Process</TableHead>
-          <TableHead className="text-center">Capacity/Enrolled</TableHead>
-          <TableHead className="text-center">Status</TableHead>
-          <TableHead className="text-right">Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {batchList.map((batch) => (
-          <TableRow
-            key={batch.id}
-            className="hover:bg-muted/50 transition-colors group cursor-pointer"
-            onClick={(e) => {
-              // Prevent click if clicking on action buttons
-              if ((e.target as HTMLElement).closest('.action-buttons')) {
-                e.stopPropagation();
-                return;
-              }
-              handleBatchClick(batch);
-            }}
-          >
-            <TableCell className="font-medium text-center whitespace-nowrap">
-              {format(new Date(batch.startDate), 'MMM d, yyyy')}
-            </TableCell>
-            <TableCell className="text-center">
-              <div className="font-semibold group-hover:text-primary transition-colors">
-                {batch.name}
-              </div>
-            </TableCell>
-            <TableCell className="text-center">
-              <Badge
-                variant="outline"
-                className={`
-                  ${batch.batchCategory === 'new_training' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' : ''}
-                  ${batch.batchCategory === 'upskill' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' : ''}
-                  px-2 py-1 inline-flex justify-center
-                `}
-              >
-                {formatBatchCategory(batch.batchCategory)}
-              </Badge>
-            </TableCell>
-            <TableCell className="text-center">{batch.location?.name || '-'}</TableCell>
-            <TableCell className="text-center">{batch.line_of_business?.name || '-'}</TableCell>
-            <TableCell className="text-center">{batch.process?.name || '-'}</TableCell>
-            <TableCell className="text-center">
-              <div className="font-medium">
-                {batch.traineeCount || 0} / {batch.capacityLimit || '-'}
-              </div>
-              {batch.capacityLimit && (
-                <Progress
-                  value={(batch.traineeCount / batch.capacityLimit) * 100}
-                  className="h-2 w-20 mx-auto"
-                />
-              )}
-            </TableCell>
-            <TableCell className="text-center">
-              <Badge
-                variant="secondary"
-                className={`${getStatusColor(batch.status)} px-2 py-1 inline-flex justify-center`}
-              >
-                {batch.status.charAt(0).toUpperCase() + batch.status.slice(1)}
-              </Badge>
-            </TableCell>
-            <TableCell className="text-right">
-              <div className="flex items-center justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity action-buttons">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleAddTraineeClick(batch)}
-                  className="h-8 w-8 p-0"
-                >
-                  <UserPlus className="h-4 w-4" />
-                  <span className="sr-only">Add Trainee</span>
-                </Button>
-                {canManageBatches && batch.status === 'planned' && (
-                  <>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEditClick(batch)}
-                      className="h-8 w-8 p-0 hover:text-primary"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteClick(batch)}
-                      className="h-8 w-8 p-0 hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </>
-                )}
-              </div>
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  </div>
-);
-
 export function BatchesTab() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -219,7 +77,6 @@ export function BatchesTab() {
   });
   const [isAddTraineeDialogOpen, setIsAddTraineeDialogOpen] = useState(false);
   const [selectedBatchForTrainee, setSelectedBatchForTrainee] = useState<OrganizationBatch | null>(null);
-  const [, setLocation] = useLocation();
   const [selectedBatchForDetails, setSelectedBatchForDetails] = useState<OrganizationBatch | null>(null);
   const [isTraineeDialogOpen, setIsTraineeDialogOpen] = useState(false);
 
@@ -588,6 +445,148 @@ export function BatchesTab() {
     setSelectedBatchForDetails(batch);
     setIsTraineeDialogOpen(true);
   };
+
+  const renderBatchTable = (batchList: OrganizationBatch[]) => (
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/50">
+            <TableHead
+              className="w-[150px] text-center cursor-pointer hover:bg-muted/70 transition-colors"
+              onClick={() => handleSort('startDate')}
+            >
+              <div className="flex items-center justify-center gap-1">
+                Start Date
+                {sortConfig?.key === 'startDate' && (
+                  <ArrowUpDown className={`h-4 w-4 ${sortConfig.direction === 'asc' ? 'rotate-0' : 'rotate-180'}`} />
+                )}
+              </div>
+            </TableHead>
+            <TableHead
+              className="text-center cursor-pointer hover:bg-muted/70 transition-colors"
+              onClick={() => handleSort('name')}
+            >
+              <div className="flex items-center justify-center gap-1">
+                Batch Name
+                {sortConfig?.key === 'name' && (
+                  <ArrowUpDown className={`h-4 w-4 ${sortConfig.direction === 'asc' ? 'rotate-0' : 'rotate-180'}`} />
+                )}
+              </div>
+            </TableHead>
+            <TableHead
+              className="text-center cursor-pointer hover:bg-muted/70 transition-colors"
+              onClick={() => handleSort('batchCategory')}
+            >
+              <div className="flex items-center justify-center gap-1">
+                Category
+                {sortConfig?.key === 'batchCategory' && (
+                  <ArrowUpDown className={`h-4 w-4 ${sortConfig.direction === 'asc' ? 'rotate-0' : 'rotate-180'}`} />
+                )}
+              </div>
+            </TableHead>
+            <TableHead className="text-center">Location</TableHead>
+            <TableHead className="text-center">Line of Business</TableHead>
+            <TableHead className="text-center">Process</TableHead>
+            <TableHead className="text-center">Capacity/Enrolled</TableHead>
+            <TableHead className="text-center">Status</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {batchList.map((batch) => (
+            <TableRow
+              key={batch.id}
+              className="hover:bg-muted/50 transition-colors group cursor-pointer"
+              onClick={(e) => {
+                // Prevent click if clicking on action buttons
+                if ((e.target as HTMLElement).closest('.action-buttons')) {
+                  e.stopPropagation();
+                  return;
+                }
+                handleBatchClick(batch);
+              }}
+            >
+              <TableCell className="font-medium text-center whitespace-nowrap">
+                {format(new Date(batch.startDate), 'MMM d, yyyy')}
+              </TableCell>
+              <TableCell className="text-center">
+                <div className="font-semibold group-hover:text-primary transition-colors">
+                  {batch.name}
+                </div>
+              </TableCell>
+              <TableCell className="text-center">
+                <Badge
+                  variant="outline"
+                  className={`
+                    ${batch.batchCategory === 'new_training' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' : ''}
+                    ${batch.batchCategory === 'upskill' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' : ''}
+                    px-2 py-1 inline-flex justify-center
+                  `}
+                >
+                  {formatBatchCategory(batch.batchCategory)}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-center">{batch.location?.name || '-'}</TableCell>
+              <TableCell className="text-center">{batch.line_of_business?.name || '-'}</TableCell>
+              <TableCell className="text-center">{batch.process?.name || '-'}</TableCell>
+              <TableCell className="text-center">
+                <div className="font-medium">
+                  {batch.traineeCount || 0} / {batch.capacityLimit || '-'}
+                </div>
+                {batch.capacityLimit && (
+                  <Progress
+                    value={(batch.traineeCount / batch.capacityLimit) * 100}
+                    className="h-2 w-20 mx-auto"
+                  />
+                )}
+              </TableCell>
+              <TableCell className="text-center">
+                <Badge
+                  variant="secondary"
+                  className={`${getStatusColor(batch.status)} px-2 py-1 inline-flex justify-center`}
+                >
+                  {batch.status.charAt(0).toUpperCase() + batch.status.slice(1)}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-right">
+                <div className="flex items-center justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity action-buttons">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleAddTraineeClick(batch)}
+                    className="h-8 w-8 p-0"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    <span className="sr-only">Add Trainee</span>
+                  </Button>
+                  {canManageBatches && batch.status === 'planned' && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditClick(batch)}
+                        className="h-8 w-8 p-0 hover:text-primary"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteClick(batch)}
+                        className="h-8 w-8 p-0 hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
 
   useEffect(() => {
     console.log('Debug - API Response:', {
