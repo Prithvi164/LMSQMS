@@ -835,7 +835,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: ""You canonly modify LOBs in your own organization"});
+        return res.status(403).json({ message:"You can only modify LOBs in your own organization" });
       }
 
       console.log('Updating LOB:', lobId, 'with data:', req.body);
@@ -847,7 +847,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedLob);
     } catch (error: any) {
       console.error("LOB update error:", error);
-      res.status(40).json({ message: error.message || "Failed to update Line of Business" });
+      res.status(400).json({ message: error.message || "Failed to update Line of Business" });
     }
   });
 
