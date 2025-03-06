@@ -902,35 +902,41 @@ export function BatchesTab() {
         </Dialog>
 
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Only batches with no trainees and 'Planned' status can be deleted.  To proceed, please type the batch name below to confirm.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <div className="py-4">
-              <Input
-                placeholder="Type batch name to confirm"
-                value={deleteConfirmation}
-                onChange={(e) => setDeleteConfirmation(e.target.value)}
-              />
-            </div>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => {
-                setDeleteConfirmation('');
-                setDeleteDialogOpen(false);
-              }}>
-                Cancel
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleConfirmDelete}
-                disabled={deleteConfirmation !== selectedBatch?.name || deleteBatchMutation.isPending}
-              >
-                {deleteBatchMutation.isPending ? "Deleting..." : "Delete"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription className="space-y-2">
+                  <p>Only batches with no trainees and 'Planned' status can be deleted.</p>
+                  <p className="font-medium">To confirm deletion, type the batch name:</p>
+                  <p className="text-primary font-mono">{selectedBatch?.name}</p>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <div className="py-4">
+                <Input
+                  type="text"
+                  placeholder="Type batch name to confirm"
+                  value={deleteConfirmation}
+                  onChange={(e) => setDeleteConfirmation(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => {
+                  setDeleteDialogOpen(false);
+                  setDeleteConfirmation('');
+                }}>
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleConfirmDelete}
+                  disabled={!selectedBatch || deleteConfirmation !== selectedBatch.name}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Delete Batch
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+
         </AlertDialog>
         <Dialog 
           open={isAddTraineeDialogOpen} 
