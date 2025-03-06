@@ -1,28 +1,21 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { ProcessDetail } from "./process-detail";
+import { LocationDetail } from "./location-detail";
+import { LobDetail } from "./lob-detail";
+import { BatchesTab } from "./batches-tab";
+import { CreateBatchForm } from "./create-batch-form";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ProcessDetail } from "./process-detail";
-import { LocationDetail } from "./location-detail";
-import { LobDetail } from "./lob-detail";
-import { BatchesTab } from "./batches-tab";
-import { CreateBatchForm } from "./create-batch-form";
-import { TraineeManagement } from "./trainee-management";
-import { useAuth } from "@/hooks/use-auth";
-import { useParams } from "wouter";
 
 export function BatchDetail() {
-  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("batches");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const params = useParams();
 
   return (
     <div className="space-y-6">
@@ -57,18 +50,6 @@ export function BatchDetail() {
           </Tabs>
         </CardContent>
       </Card>
-
-      {/* Add TraineeManagement when batch ID is available */}
-      {params.batchId && (
-        <Card>
-          <CardContent className="pt-6">
-            <TraineeManagement
-              batchId={parseInt(params.batchId)}
-              organizationId={user?.organizationId || 0}
-            />
-          </CardContent>
-        </Card>
-      )}
 
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="max-w-3xl">
