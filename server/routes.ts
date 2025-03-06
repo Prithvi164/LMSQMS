@@ -839,7 +839,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('Process deleted successfully');
       res.status(200).json({ message: "Process deleted successfully" });
-    } catch (error: any) {
+    } catch (error:any) {
       console.error("Process deletion error:", error);
       res.status(40).json({ message: error.message || "Failed to delete process" });
     }
@@ -1462,7 +1462,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Add the bulk upload route (place this with other trainee-related routes)
   app.post("/api/organizations/:orgId/batches/:batchId/trainees/bulk", upload.single('file'), async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user) return res.status(401).json({ message: "No file uploaded" });
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
     try {
@@ -1640,6 +1640,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error generating template:', error);
       res.status(500).json({ message: 'Failed to generate template' });
+    }
+  });
+
+  // Add the onboarding completion endpoint
+  app.post("/api/users/:id/complete-onboarding", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const userId = parseInt(req.params.id);
+
+      // Users can only complete their own onboarding
+      if (req.user.id !== userId) {
+        return res.status(403).json({ message: "You can only complete your own onboarding" });
+      }
+
+      console.log(`Completing onboarding for user ${userId}`);
+      const updatedUser = await storage.updateUser(userId, {
+        onboardingCompleted: true
+      });
+
+      console.log('Onboarding completed successfully');
+      res.json(updatedUser);
+    } catch (error: any) {
+      console.error("Error completing onboarding:", error);
+      res.status(500).json({ message: error.message || "Failed to complete onboarding" });
     }
   });
 

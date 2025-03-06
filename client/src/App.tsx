@@ -14,6 +14,7 @@ import { BatchDetail } from "@/components/batch-management/batch-detail";
 import { ProtectedRoute } from "./lib/protected-route";
 import { SidebarNav } from "./components/sidebar-nav";
 import { UserProfile } from "./components/user-profile";
+import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
 
 function Router() {
   const { user } = useAuth();
@@ -21,6 +22,11 @@ function Router() {
 
   const isSettingsPage = location === "/settings";
   const isAuthPage = location.startsWith("/auth");
+
+  // Show onboarding flow for authenticated users who haven't completed onboarding
+  if (user && !user.onboardingCompleted && !isAuthPage) {
+    return <OnboardingFlow />;
+  }
 
   return (
     <div className="flex">

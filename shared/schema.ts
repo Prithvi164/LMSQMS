@@ -320,6 +320,7 @@ export const users = pgTable("users", {
   active: boolean("active").notNull().default(true),
   certified: boolean("certified").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
 });
 
 export type User = InferSelectModel<typeof users>;
