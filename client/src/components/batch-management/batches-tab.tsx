@@ -48,7 +48,7 @@ import { format } from "date-fns";
 import type { OrganizationBatch } from "@shared/schema";
 import { AddTraineeForm } from "./add-trainee-form";
 import { Progress } from "@/components/ui/progress"; // Import Progress component
-
+import { useLocation } from "wouter";
 
 export function BatchesTab() {
   const { user } = useAuth();
@@ -76,6 +76,7 @@ export function BatchesTab() {
   });
   const [isAddTraineeDialogOpen, setIsAddTraineeDialogOpen] = useState(false);
   const [selectedBatchForTrainee, setSelectedBatchForTrainee] = useState<OrganizationBatch | null>(null);
+  const [, setLocation] = useLocation();
 
   const canManageBatches = user?.role === 'admin' || user?.role === 'owner';
 
@@ -454,7 +455,8 @@ export function BatchesTab() {
           {batchList.map((batch) => (
             <TableRow
               key={batch.id}
-              className="hover:bg-muted/50 transition-colors group"
+              className="hover:bg-muted/50 transition-colors group cursor-pointer"
+              onClick={() => handleBatchClick(batch)}
             >
               <TableCell className="font-medium text-center whitespace-nowrap">
                 {format(new Date(batch.startDate), 'MMM d, yyyy')}
@@ -570,6 +572,11 @@ export function BatchesTab() {
     setSelectedBatchForTrainee(batch);
     setIsAddTraineeDialogOpen(true);
   };
+
+  const handleBatchClick = (batch: OrganizationBatch) => {
+    setLocation(`/batches/${batch.id}`);
+  };
+
 
   useEffect(() => {
     console.log('Debug - API Response:', {
@@ -811,7 +818,7 @@ export function BatchesTab() {
                     <span className="font-medium">Planned</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-green-500" />
+                    <div className="w-3 h3 h-3 rounded-full bg-green-500" />
                     <span className="font-medium">Ongoing</span>
                   </div>
                   <div className="flex items-center gap-2">
