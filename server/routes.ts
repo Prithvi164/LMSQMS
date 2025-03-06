@@ -836,7 +836,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "You can only modify LOBs in your own organization" });
+        return res.status(403).json({ message: "You canonly modify LOBs in your own organization" });
       }
 
       console.log('Updating LOB:', lobId, 'with data:', req.body);
@@ -1267,14 +1267,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Created user:', { id: user.id, username: user.username });
 
       // Create batch process assignment
+      // Use new Date() for timestamps instead of string
       const batchAssignment = await storage.assignUserToBatch({
         userId: user.id,
         batchId,
         processId,
         status: 'active',
-        joinedAt: new Date().toISOString(),
+        joinedAt: new Date(),
       });
-      console.log('Created batch assignment:', batchAssignment);
+      console.log('Assigning user to batch:', {
+        userId: user.id,
+        batchId,
+        processId,
+        status: 'active',
+        joinedAt: new Date()
+      });
 
       // Create process assignment
       const processAssignment = await storage.createUserProcess({
@@ -1284,7 +1291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lineOfBusinessId,
         locationId,
         status: 'active',
-        assignedAt: new Date().toISOString(),
+        assignedAt: new Date()
       });
       console.log('Created process assignment:', processAssignment);
 
