@@ -27,7 +27,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Edit, Trash2, ArrowRightLeft } from "lucide-react";
-import { format } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
 
 type Trainee = {
   id: number;
@@ -64,6 +64,13 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
     queryKey: [`/api/organizations/${organizationId}/batches`],
     enabled: !!organizationId,
   });
+
+  // Helper function to safely format dates
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return 'N/A';
+    const date = parseISO(dateString);
+    return isValid(date) ? format(date, 'PP') : 'N/A';
+  };
 
   // Delete trainee mutation
   const deleteTraineeMutation = useMutation({
@@ -138,7 +145,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">Batch Trainees</h2>
-      
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -158,7 +165,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                 <TableCell>{trainee.employeeId}</TableCell>
                 <TableCell>{trainee.email}</TableCell>
                 <TableCell>{trainee.phoneNumber}</TableCell>
-                <TableCell>{format(new Date(trainee.dateOfJoining), "PP")}</TableCell>
+                <TableCell>{formatDate(trainee.dateOfJoining)}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Button
@@ -257,8 +264,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                     <div className="flex flex-col items-start">
                       <span className="font-medium">{batch.name}</span>
                       <span className="text-xs text-muted-foreground">
-                        {format(new Date(batch.startDate), "PP")} -{" "}
-                        {format(new Date(batch.endDate), "PP")}
+                        {formatDate(batch.startDate)} - {formatDate(batch.endDate)}
                       </span>
                     </div>
                   </Button>
