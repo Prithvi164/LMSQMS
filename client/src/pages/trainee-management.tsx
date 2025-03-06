@@ -95,11 +95,16 @@ export default function TraineeManagement() {
     return activeBatches
       .filter(batch => {
         const batchDate = new Date(batch.startDate);
+        // Convert batch date to IST
         const batchDateIST = addMinutes(addHours(batchDate, 5), 30);
+        // Convert comparison dates to IST
+        const todayIST = addMinutes(addHours(today, 5), 30);
+        const threeDaysFromNowIST = addMinutes(addHours(threeDaysFromNow, 5), 30);
+
         return (
           batch.status === 'planned' && 
-          !isBefore(batchDateIST, today) && 
-          !isAfter(batchDateIST, threeDaysFromNow)
+          !isBefore(batchDateIST, todayIST) && 
+          !isAfter(batchDateIST, threeDaysFromNowIST)
         );
       })
       .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
