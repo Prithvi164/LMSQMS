@@ -16,10 +16,16 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import type { OrganizationBatch } from "@shared/schema";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // Form schema with validation
 const addTraineeSchema = z.object({
@@ -50,6 +56,7 @@ type AddTraineeFormProps = {
 export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
 
   // Get current batch details including trainee count
   const { data: batchDetails } = useQuery({
@@ -110,6 +117,46 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
     }
   }
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('batchId', batch.id.toString());
+    formData.append('organizationId', batch.organizationId.toString());
+
+    try {
+      setIsSubmitting(true);
+      const response = await fetch(`/api/organizations/${batch.organizationId}/batches/${batch.id}/trainees/bulk`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to upload trainees');
+      }
+
+      toast({
+        title: 'Success',
+        description: `Successfully uploaded ${data.successCount} trainees. ${data.failureCount ? `Failed: ${data.failureCount}` : ''}`,
+      });
+
+      onSuccess();
+      setShowBulkUpload(false);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to upload trainees',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Calculate trainee count and remaining capacity
   const traineeCount = batchDetails?.traineeCount || 0;
   const remainingCapacity = (batch.capacityLimit || 0) - traineeCount;
@@ -126,9 +173,20 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
         </div>
       </div>
 
+      <div className="flex justify-end mb-4">
+        <Button
+          variant="outline"
+          onClick={() => setShowBulkUpload(true)}
+          disabled={remainingCapacity <= 0}
+        >
+          <Upload className="h-4 w-4 mr-2" />
+          Bulk Upload
+        </Button>
+      </div>
+
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          {/* Rest of the form fields remain unchanged */}
+          {/* Rest of the form fields */}
           <FormField
             control={form.control}
             name="username"
@@ -339,16 +397,49 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
             )}
           />
 
-          <Button 
-            type="submit" 
-            disabled={isSubmitting || remainingCapacity <= 0} 
+          <Button
+            type="submit"
+            disabled={isSubmitting || remainingCapacity <= 0}
             className="w-full"
           >
-            {isSubmitting ? "Adding Trainee..." : 
-             remainingCapacity <= 0 ? "Batch Full" : "Add Trainee"}
+            {isSubmitting ? "Adding Trainee..." :
+              remainingCapacity <= 0 ? "Batch Full" : "Add Trainee"}
           </Button>
         </form>
       </Form>
+
+      {/* Bulk Upload Dialog */}
+      <Dialog open={showBulkUpload} onOpenChange={setShowBulkUpload}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Bulk Upload Trainees</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Upload an Excel file (.xlsx) containing trainee information.
+              Download the template below to ensure correct format.
+            </p>
+            <div className="flex flex-col gap-4">
+              <Button variant="outline" asChild>
+                <a href="/templates/trainee-upload-template.xlsx" download>
+                  Download Template
+                </a>
+              </Button>
+              <Input
+                type="file"
+                accept=".xlsx"
+                onChange={handleFileUpload}
+                disabled={isSubmitting}
+              />
+              {isSubmitting && (
+                <p className="text-sm text-muted-foreground">
+                  Uploading trainees...
+                </p>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

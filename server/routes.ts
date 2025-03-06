@@ -8,9 +8,13 @@ import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { insertOrganizationProcessSchema } from "@shared/schema";
-import {insertBatchTemplateSchema} from "@shared/schema"; // Added import
+import {insertBatchTemplateSchema} from "@shared/schema";
 import { batchStatusEnum } from "@shared/schema";
-import { permissionEnum } from '@shared/schema'; // Added import for permissionEnum
+import { permissionEnum } from '@shared/schema';
+import multer from 'multer';
+import * as XLSX from 'xlsx';
+import {db} from './db';
+
 
 const scryptAsync = promisify(scrypt);
 
@@ -19,6 +23,20 @@ async function hashPassword(password: string) {
   const buf = (await scryptAsync(password, salt, 64)) as Buffer;
   return `${buf.toString("hex")}.${salt}`;
 }
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only .xlsx files are allowed'), false);
+    }
+  },
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes (/api/register, /api/login, /api/logout, /api/user)
@@ -1412,6 +1430,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error removing trainee:", error);
       res.status(400).json({ message: error.message || "Failed to remove trainee" });
+    }
+  });
+
+  // Add the bulk upload route (place this with other trainee-related routes)
+  app.post("/api/organizations/:orgId/batches/:batchId/trainees/bulk", upload.single('file'), async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const batchId = parseInt(req.params.batchId);
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      // Get batch details to check capacity
+      const batch = await storage.getBatch(batchId);
+      if (!batch) {
+        return res.status(404).json({ message: "Batch not found" });
+      }
+
+      // Get current trainee count
+      const currentTrainees = await storage.getBatchTrainees(batchId);
+      const remainingCapacity = batch.capacityLimit - currentTrainees.length;
+
+      if (remainingCapacity <= 0) {
+        return res.status(400).json({ message: "Batch is already at full capacity" });
+      }
+
+      // Read Excel file
+      const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(worksheet);
+
+      if (rows.length > remainingCapacity) {
+        return res.status(400).json({ 
+          message: `Batch can only accommodate ${remainingCapacity} more trainees. Uploaded file contains ${rows.length} trainees.` 
+        });
+      }
+
+      let successCount = 0;
+      let failureCount = 0;
+      const errors = [];
+
+      // Process each row in a transaction
+      for (const row of rows) {
+        try {
+          const traineeData = {
+            username: row.username,
+            fullName: row.fullName,
+            email: row.email,
+            employeeId: row.employeeId,
+            phoneNumber: row.phoneNumber,
+            dateOfJoining: row.dateOfJoining,
+            dateOfBirth: row.dateOfBirth,
+            education: row.education,
+            password: await hashPassword(row.password),
+            role: "trainee",
+            category: "trainee",
+            organizationId: orgId,
+            locationId: batch.locationId,
+            batchId: batchId,
+            processId: batch.processId,
+            lineOfBusinessId: batch.lineOfBusinessId,
+            trainerId: batch.trainerId
+          };
+
+          // Validate data using our schema
+          await insertUserSchema.parseAsync(traineeData);
+
+          // Create trainee in a transaction
+          await db.transaction(async (tx) => {
+            const user = await storage.createUser(traineeData);
+            await storage.assignUserToBatch(user.id, batchId);
+          });
+
+          successCount++;
+        } catch (error) {
+          failureCount++;
+          errors.push({
+            row: successCount + failureCount,
+            error: error.message
+          });
+        }
+      }
+
+      res.json({
+        message: "Bulk upload completed",
+        successCount,
+        failureCount,
+        errors: errors.length > 0 ? errors : undefined
+      });
+
+    } catch (error: any) {
+      console.error("Bulk upload error:", error);
+      res.status(500).json({ 
+        message: "Failed to process bulk upload",
+        error: error.message 
+      });
     }
   });
 
