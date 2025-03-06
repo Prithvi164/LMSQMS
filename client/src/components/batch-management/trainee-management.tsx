@@ -117,6 +117,8 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
   // Transfer trainee mutation
   const transferTraineeMutation = useMutation({
     mutationFn: async ({ traineeId, newBatchId }: { traineeId: number; newBatchId: number }) => {
+      console.log('Starting transfer:', { traineeId, newBatchId, currentBatchId: batchId });
+
       const response = await fetch(
         `/api/organizations/${organizationId}/batches/${batchId}/trainees/${traineeId}/transfer`,
         {
@@ -125,29 +127,38 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
           body: JSON.stringify({ newBatchId }),
         }
       );
+
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || "Failed to transfer trainee");
       }
-      return response.json();
+
+      const result = await response.json();
+      console.log('Transfer response:', result);
+      return result;
     },
     onSuccess: () => {
       // Invalidate queries for both the source and destination batch
       queryClient.invalidateQueries({
         queryKey: [`/api/organizations/${organizationId}/batches`]
       });
-      // This will force a refresh of all batch trainee lists
+
+      // Invalidate the current batch's trainee list
       queryClient.invalidateQueries({
-        predicate: (query) => query.queryKey[0].toString().includes('/trainees')
+        queryKey: [`/api/organizations/${organizationId}/batches/${batchId}/trainees`]
       });
+
+      // Close dialogs and reset state
+      setIsTransferDialogOpen(false);
+      setSelectedTrainee(null);
+
       toast({
         title: "Success",
         description: "Trainee transferred successfully",
       });
-      setIsTransferDialogOpen(false);
-      setSelectedTrainee(null);
     },
     onError: (error: Error) => {
+      console.error('Transfer error:', error);
       toast({
         title: "Error",
         description: error.message,
