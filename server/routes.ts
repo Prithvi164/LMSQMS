@@ -834,7 +834,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const lobId = parseInt(req.params.lobId);
 
       // Check if user belongs to the organization
-      if (req.user.organizationId !== orgId) {
+      if (req.user.organizationId !==orgId) {
         return res.status(403).json({ message:"You can only modify LOBs in your own organization" });
       }
 
@@ -986,11 +986,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/organizations/:id/batches/:batchId", async (req, res) => {
+  // Get batch detail route
+  app.get("/api/organizations/:orgId/batches/:batchId", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     try {
-      const orgId = parseInt(req.params.id);
+      const orgId = parseInt(req.params.orgId);
       const batchId = parseInt(req.params.batchId);
 
       // Check if user belongs to the organization
@@ -998,31 +999,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only view batches in your own organization" });
       }
 
+      // Get batch details
       const batch = await storage.getBatch(batchId);
       if (!batch) {
         return res.status(404).json({ message: "Batch not found" });
       }
 
-      // Check if batch belongs to the organization
-      if (batch.organizationId !== orgId) {
-        return res.status(403).json({ message: "Batch not found in your organization" });
-      }
+      // Get trainee count
+      const trainees = await storage.getBatchTrainees(batchId);
+      const traineeCount = trainees.length;
 
-      // Fetch related data
-      const [process, location, trainer] = await Promise.all([
+      // Get related data
+      const [process, location, lineOfBusiness, trainer] = await Promise.all([
         storage.getProcess(batch.processId),
         storage.getLocation(batch.locationId),
+        storage.getLineOfBusiness(batch.lineOfBusinessId),
         storage.getUser(batch.trainerId)
       ]);
 
-      res.json({
+      // Combine all data
+      const batchDetails = {
         ...batch,
+        traineeCount,
         process,
         location,
+        lineOfBusiness,
         trainer
-      });
+      };
+
+      console.log('Sending batch details:', batchDetails);
+      res.json(batchDetails);
     } catch (error: any) {
-      console.error("Error fetching batch:", error);
+      console.error("Error fetching batch details:", error);
       res.status(500).json({ message: error.message });
     }
   });
