@@ -136,6 +136,7 @@ export interface IStorage {
   // Add new methods for trainee management
   updateUserBatchProcess(userId: number, oldBatchId: number, newBatchId: number): Promise<void>;
   removeUserFromBatch(userId: number, batchId: number): Promise<void>;
+  removeTraineeFromBatch(userId: number, batchId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1126,7 +1127,7 @@ export class DatabaseStorage implements IStorage {
       return templates;
     } catch (error) {
       console.error('Error fetching batch templates:', error);
-      throw error;
+      throw new Error('Failed to fetch batch templates');
     }
   }
 
@@ -1324,6 +1325,29 @@ export class DatabaseStorage implements IStorage {
       console.log('Successfully removed user from batch');
     } catch (error: any) {
       console.error('Error removing user from batch:', error);
+      throw error;
+    }
+  }
+  async removeTraineeFromBatch(userId: number, batchId: number): Promise<void> {
+    try {
+      console.log(`Attempting to remove trainee ${userId} from batch ${batchId}`);
+
+      // Delete from user_batch_processes table
+      const result = await db
+        .delete(userBatchProcesses)
+        .where(and(
+          eq(userBatchProcesses.userId, userId),
+          eq(userBatchProcesses.batchId, batchId)
+        ))
+        .returning();
+
+      if (!result.length) {
+        throw new Error('Trainee not found in batch');
+      }
+
+      console.log(`Successfully removed trainee ${userId} from batch ${batchId}`);
+    } catch (error) {
+      console.error('Error removing trainee from batch:', error);
       throw error;
     }
   }
