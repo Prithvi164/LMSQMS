@@ -51,7 +51,7 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch batch details including related entities
+  // Get current batch details including trainee count
   const { data: batchDetails } = useQuery({
     queryKey: [`/api/organizations/${batch.organizationId}/batches/${batch.id}`],
     enabled: !!batch.id,
@@ -70,25 +70,27 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
         ...values,
         dateOfJoining: values.dateOfJoining.toISOString().split('T')[0], // Format as YYYY-MM-DD
         dateOfBirth: values.dateOfBirth.toISOString().split('T')[0], // Format as YYYY-MM-DD
-        role: "trainee",
-        category: "trainee",
-        batchId: batch.id,
-        trainerId: batch.trainerId,
-        locationId: batch.locationId,
-        lineOfBusinessId: batch.lineOfBusinessId,
         processId: batch.processId,
+        lineOfBusinessId: batch.lineOfBusinessId,
+        locationId: batch.locationId,
+        trainerId: batch.trainerId,
         organizationId: batch.organizationId,
+        batchId: batch.id,
+        role: "trainee",
+        category: "trainee"
       };
 
-      const response = await fetch("/api/users/trainee", {
+      // Updated API endpoint
+      const response = await fetch(`/api/organizations/${batch.organizationId}/batches/${batch.id}/trainees`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(traineeData),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to add trainee");
+        throw new Error(data.message || "Failed to add trainee");
       }
 
       toast({
@@ -108,10 +110,25 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
     }
   }
 
+  // Calculate trainee count and remaining capacity
+  const traineeCount = batchDetails?.traineeCount || 0;
+  const remainingCapacity = (batch.capacityLimit || 0) - traineeCount;
+
   return (
     <div className="max-h-[70vh] overflow-y-auto px-4">
+      {/* Capacity Information */}
+      <div className="mb-6 p-4 rounded-lg bg-muted">
+        <h3 className="font-medium mb-2">Batch Capacity</h3>
+        <div className="text-sm space-y-1">
+          <p>Total Capacity: {batch.capacityLimit}</p>
+          <p>Current Trainees: {traineeCount}</p>
+          <p className="font-medium">Remaining Slots: {remainingCapacity}</p>
+        </div>
+      </div>
+
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          {/* Rest of the form fields remain unchanged */}
           <FormField
             control={form.control}
             name="username"
@@ -322,8 +339,13 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
             )}
           />
 
-          <Button type="submit" disabled={isSubmitting} className="w-full">
-            {isSubmitting ? "Adding Trainee..." : "Add Trainee"}
+          <Button 
+            type="submit" 
+            disabled={isSubmitting || remainingCapacity <= 0} 
+            className="w-full"
+          >
+            {isSubmitting ? "Adding Trainee..." : 
+             remainingCapacity <= 0 ? "Batch Full" : "Add Trainee"}
           </Button>
         </form>
       </Form>

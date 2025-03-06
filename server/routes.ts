@@ -1219,58 +1219,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add after other user routes
-  app.post("/api/users/trainee", async (req, res) => {
+  // Update the trainee creation endpoint with capacity check
+  app.post("/api/organizations/:orgId/batches/:batchId/trainees", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     try {
-      // Extract trainee data from request
-      const {
-        username,
-        fullName,
-        email,
-        employeeId,
-        phoneNumber,
-        dateOfJoining,
-        dateOfBirth,
-        education,
-        password,
-        batchId,
-        trainerId,
-        locationId,
-        lineOfBusinessId,
-        processId,
-        organizationId
-      } = req.body;
+      const organizationId = parseInt(req.params.orgId);
+      const batchId = parseInt(req.params.batchId);
 
-      console.log('Creating trainee with data:', {
-        ...req.body,
-        password: '[REDACTED]'
-      });
+      // Get the batch details including capacity
+      const batch = await storage.getBatch(batchId);
+      if (!batch) {
+        return res.status(404).json({ message: "Batch not found" });
+      }
+
+      // Get current trainee count
+      const trainees = await storage.getBatchTrainees(batchId);
+      if (trainees.length >= batch.capacityLimit) {
+        return res.status(400).json({
+          message: `Cannot add trainee. Batch capacity limit (${batch.capacityLimit}) has been reached.`
+        });
+      }
+
+      // Rest of the existing code remains the same
+      const { processId, lineOfBusinessId, locationId, ...userData } = req.body;
+
+      // Create password hash
+      const hashedPassword = await hashPassword(userData.password);
 
       // Create user with trainee role
       const userToCreate = {
-        username,
-        fullName,
-        email,
-        employeeId,
-        phoneNumber,
-        dateOfJoining,
-        dateOfBirth,
-        education,
-        password: await hashPassword(password),
-        role: 'trainee',
-        category: 'trainee',
+        ...userData,
+        password: hashedPassword,
+        role: "trainee",
+        category: "trainee",
         organizationId,
         locationId,
-        active: true,
+        active: true
       };
 
-      // Create the user
+      console.log('Creating trainee with data:', {
+        ...userToCreate,
+        password: '[REDACTED]'
+      });
+
       const user = await storage.createUser(userToCreate);
       console.log('Created user:', { id: user.id, username: user.username });
 
-      // Create batch process assignment with proper date handling
+      // Create batch process assignment
       const batchAssignment = await storage.assignUserToBatch({
         userId: user.id,
         batchId,
@@ -1299,13 +1295,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       console.error("Error creating trainee:", error);
-      res.status(400).json({
-        message: error.message || "Failed to create trainee"
-      });
+      res.status(400).json({ message: error.message });
     }
   });
 
-  // Add after the trainee creation endpoint
+  // Add after other user routes
   app.get("/api/organizations/:orgId/batches/:batchId/trainees", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
