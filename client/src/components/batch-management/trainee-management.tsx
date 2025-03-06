@@ -86,6 +86,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
   // Delete trainee mutation
   const deleteTraineeMutation = useMutation({
     mutationFn: async (traineeId: number) => {
+      console.log('Deleting trainee:', traineeId);
       const response = await fetch(
         `/api/organizations/${organizationId}/batches/${batchId}/trainees/${traineeId}`,
         { method: "DELETE" }
@@ -94,18 +95,28 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
         const error = await response.json();
         throw new Error(error.message || "Failed to delete trainee");
       }
+      return response.json();
     },
     onSuccess: () => {
+      // Invalidate the current batch's trainee list
       queryClient.invalidateQueries({
         queryKey: [`/api/organizations/${organizationId}/batches/${batchId}/trainees`]
       });
+
+      // Invalidate batches to update counts
+      queryClient.invalidateQueries({
+        queryKey: [`/api/organizations/${organizationId}/batches`]
+      });
+
       toast({
         title: "Success",
-        description: "Trainee deleted successfully",
+        description: "Trainee removed from batch successfully",
       });
       setIsDeleteDialogOpen(false);
+      setSelectedTrainee(null);
     },
     onError: (error: Error) => {
+      console.error('Delete error:', error);
       toast({
         title: "Error",
         description: error.message,
@@ -264,8 +275,8 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the trainee
-              from the batch.
+              This action cannot be undone. This will remove the trainee
+              from this batch.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -277,7 +288,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                 }
               }}
             >
-              Delete
+              Remove
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
