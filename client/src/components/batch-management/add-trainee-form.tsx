@@ -16,48 +16,30 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Upload } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import type { OrganizationBatch } from "@shared/schema";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-// Enhanced form schema with validation
+// Form schema with validation
 const addTraineeSchema = z.object({
   username: z.string()
     .min(3, "Username must be at least 3 characters")
     .regex(/^[a-zA-Z0-9_]+$/, "Only letters, numbers, and underscores allowed"),
   fullName: z.string().min(2, "Full name is required"),
   email: z.string().email("Invalid email address"),
-  employeeId: z.string()
-    .regex(/^[A-Z]{2}\d{6}$/, "Employee ID must be in format: XX123456"),
+  employeeId: z.string().min(1, "Employee ID is required"),
   phoneNumber: z.string().regex(/^\+?[1-9]\d{1,14}$/, "Invalid phone number"),
   dateOfJoining: z.date({
     required_error: "Date of joining is required",
   }),
   dateOfBirth: z.date({
     required_error: "Date of birth is required",
-  }).refine(date => {
-    const age = new Date().getFullYear() - date.getFullYear();
-    return age >= 18 && age <= 65;
-  }, "Age must be between 18 and 65"),
+  }),
   education: z.string().min(1, "Education details are required"),
   password: z.string()
     .min(8, "Password must be at least 8 characters")
-    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, 
-      "Password must contain uppercase, lowercase, number and special character"),
-  // New fields
-  emergencyContact: z.object({
-    name: z.string().min(2, "Emergency contact name is required"),
-    relationship: z.string().min(2, "Relationship is required"),
-    phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, "Invalid phone number"),
-  }),
-  previousExperience: z.string(),
-  skills: z.array(z.string()).optional(),
-  preferredLanguage: z.string(),
-  photo: z.any().optional(), // File upload will be handled separately
-  documents: z.array(z.any()).optional(), // Document uploads
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Password must contain uppercase, lowercase, and numbers"),
 });
 
 type AddTraineeFormProps = {
@@ -68,8 +50,6 @@ type AddTraineeFormProps = {
 export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [documents, setDocuments] = useState<File[]>([]);
 
   // Get current batch details including trainee count
   const { data: batchDetails } = useQuery({
@@ -79,82 +59,38 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
 
   const form = useForm<z.infer<typeof addTraineeSchema>>({
     resolver: zodResolver(addTraineeSchema),
-    defaultValues: {
-      preferredLanguage: 'english',
-      skills: [],
-    }
   });
-
-  // Handle photo upload
-  const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  // Handle document upload
-  const handleDocumentUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (files) {
-      setDocuments(Array.from(files));
-    }
-  };
 
   async function onSubmit(values: z.infer<typeof addTraineeSchema>) {
     try {
       setIsSubmitting(true);
 
-      // Create FormData for file uploads
-      const formData = new FormData();
+      // Combine form values with batch data and convert dates to ISO strings
+      const traineeData = {
+        ...values,
+        dateOfJoining: values.dateOfJoining.toISOString().split('T')[0], // Format as YYYY-MM-DD
+        dateOfBirth: values.dateOfBirth.toISOString().split('T')[0], // Format as YYYY-MM-DD
+        processId: batch.processId,
+        lineOfBusinessId: batch.lineOfBusinessId,
+        locationId: batch.locationId,
+        trainerId: batch.trainerId,
+        organizationId: batch.organizationId,
+        batchId: batch.id,
+        role: "trainee",
+        category: "trainee"
+      };
 
-      // Add all form values
-      Object.entries(values).forEach(([key, value]) => {
-        if (key !== 'photo' && key !== 'documents') {
-          if (value instanceof Date) {
-            formData.append(key, value.toISOString().split('T')[0]);
-          } else if (typeof value === 'object') {
-            formData.append(key, JSON.stringify(value));
-          } else {
-            formData.append(key, String(value));
-          }
-        }
+      // Updated API endpoint
+      const response = await fetch(`/api/organizations/${batch.organizationId}/batches/${batch.id}/trainees`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(traineeData),
       });
 
-      // Add photo if exists
-      if (values.photo) {
-        formData.append('photo', values.photo);
-      }
-
-      // Add documents
-      documents.forEach((doc) => {
-        formData.append('documents', doc);
-      });
-
-      // Add batch related data
-      formData.append('processId', batch.processId.toString());
-      formData.append('lineOfBusinessId', batch.lineOfBusinessId.toString());
-      formData.append('locationId', batch.locationId.toString());
-      formData.append('trainerId', batch.trainerId.toString());
-      formData.append('organizationId', batch.organizationId.toString());
-      formData.append('batchId', batch.id.toString());
-      formData.append('role', "trainee");
-      formData.append('category', "trainee");
-
-      const response = await fetch(
-        `/api/organizations/${batch.organizationId}/batches/${batch.id}/trainees`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(await response.text());
+        throw new Error(data.message || "Failed to add trainee");
       }
 
       toast({
@@ -179,7 +115,7 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
   const remainingCapacity = (batch.capacityLimit || 0) - traineeCount;
 
   return (
-    <div className="max-h-[80vh] overflow-y-auto px-4">
+    <div className="max-h-[70vh] overflow-y-auto px-4">
       {/* Capacity Information */}
       <div className="mb-6 p-4 rounded-lg bg-muted">
         <h3 className="font-medium mb-2">Batch Capacity</h3>
@@ -192,86 +128,48 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          {/* Photo Upload Section */}
-          <div className="mb-6">
-            <FormLabel>Profile Photo</FormLabel>
-            <div className="mt-2 flex items-center gap-4">
-              {photoPreview ? (
-                <img src={photoPreview} alt="Preview" className="w-20 h-20 rounded-full object-cover" />
-              ) : (
-                <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
-                  <Upload className="w-8 h-8 text-muted-foreground" />
-                </div>
-              )}
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={handlePhotoUpload}
-                className="max-w-[250px]"
-              />
-            </div>
-          </div>
+          {/* Rest of the form fields remain unchanged */}
+          <FormField
+            control={form.control}
+            name="username"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Username</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-          {/* Basic Information */}
-          <div className="space-y-4">
-            <FormField
-              control={form.control}
-              name="username"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Username</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <FormField
+            control={form.control}
+            name="fullName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Full Name</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-            <FormField
-              control={form.control}
-              name="fullName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Full Name</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="employeeId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Employee ID</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="XX123456" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input type="email" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
           {/* Batch Info Section */}
           <div className="rounded-lg bg-muted/50 p-4 space-y-4">
@@ -299,68 +197,34 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
             </div>
           </div>
 
-          {/* Contact Information */}
-          <div className="space-y-4">
-            <FormField
-              control={form.control}
-              name="phoneNumber"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Phone Number</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <FormField
+            control={form.control}
+            name="employeeId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Employee ID</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-            {/* Emergency Contact */}
-            <div className="space-y-4 rounded-lg border p-4">
-              <h3 className="font-medium">Emergency Contact</h3>
-              <FormField
-                control={form.control}
-                name="emergencyContact.name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Contact Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="emergencyContact.relationship"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Relationship</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="emergencyContact.phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Contact Number</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
+          <FormField
+            control={form.control}
+            name="phoneNumber"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Phone Number</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-          {/* Dates */}
           <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
@@ -447,75 +311,19 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
             />
           </div>
 
-          {/* Additional Information */}
-          <div className="space-y-4">
-            <FormField
-              control={form.control}
-              name="education"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Education</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="previousExperience"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Previous Work Experience</FormLabel>
-                  <FormControl>
-                    <Textarea {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="preferredLanguage"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Preferred Language</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select language" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="english">English</SelectItem>
-                      <SelectItem value="hindi">Hindi</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          {/* Document Upload Section */}
-          <div className="space-y-4">
-            <FormLabel>Supporting Documents</FormLabel>
-            <Input
-              type="file"
-              multiple
-              accept=".pdf,.doc,.docx"
-              onChange={handleDocumentUpload}
-            />
-            {documents.length > 0 && (
-              <div className="text-sm text-muted-foreground">
-                {documents.length} file(s) selected
-              </div>
+          <FormField
+            control={form.control}
+            name="education"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Education</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
             )}
-          </div>
+          />
 
           <FormField
             control={form.control}
