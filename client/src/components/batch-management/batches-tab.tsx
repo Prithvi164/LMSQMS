@@ -138,18 +138,26 @@ export function BatchesTab() {
 
   const deleteBatchMutation = useMutation({
     mutationFn: async (batchId: number) => {
-      const response = await fetch(`/api/organizations/${user?.organizationId}/batches/${batchId}`, {
-        method: 'DELETE',
-      });
+      try {
+        const response = await fetch(`/api/organizations/${user?.organizationId}/batches/${batchId}`, {
+          method: 'DELETE',
+        });
 
-      const data = await response.json();
+        const data = await response.json();
 
-      if (!response.ok) {
-        // Return the error instead of throwing it
-        return Promise.reject(data);
+        if (!response.ok) {
+          return Promise.reject({
+            message: data.message || 'Failed to delete batch',
+            traineesCount: data.traineesCount
+          });
+        }
+
+        return data;
+      } catch (error) {
+        return Promise.reject({
+          message: 'Failed to process delete request'
+        });
       }
-
-      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/batches`] });
@@ -161,17 +169,21 @@ export function BatchesTab() {
       setDeleteConfirmation('');
     },
     onError: (error: any) => {
+      console.log('Delete batch error:', error);
+
       // Check if error is about existing trainees
       if (error.message?.includes('trainees')) {
         // Close delete dialog and open trainee management
         setDeleteDialogOpen(false);
         setDeleteConfirmation('');
+
+        // Open trainee management dialog
         setSelectedBatchForDetails(selectedBatch);
         setIsTraineeDialogOpen(true);
 
         toast({
-          title: "Trainees Found",
-          description: "This batch has trainees assigned. The trainee management window has been opened - please transfer or remove all trainees before deleting the batch.",
+          title: "Cannot Delete Batch",
+          description: `This batch has ${error.traineesCount || 'active'} trainees assigned. Please use the trainee management window to transfer or remove all trainees before deleting the batch.`,
           variant: "destructive",
         });
       } else {
@@ -835,7 +847,7 @@ export function BatchesTab() {
                     cell: "h-24 w-24 p-0 border-2 border-gray-100 dark:border-gray-800",
                     head_cell: "text-muted-foreground font-normal border-b-2 border-gray-100 dark:border-gray-800 p-2",
                     table: "border-collapse border-spacing-0 border-2 border-gray-100 dark:border-gray-800",
-                    day: "h-full rounded-none hover:bg-gray-50 dark:hover:bg-gray-800 focus-visible:bg-gray-50 dark:focus-visible:bg-gray-800",
+                    day: "h-full rounded-none hover:bg-gray-50 dark:hover:bg-gray-800 focus-visible:bg-gray-50 dark:focus-visible:bg-gray800",
                     nav_button: "h-12 w-12 bg-primary/10 hover:bg-primary/20 p-0 opacity-90 hover:opacity-100 absolute top-[50%] -translate-y-1/2 flex items-center justify-center rounded-full transition-all shadow-sm hover:shadowmd border border-primary/20",                    nav_button_previous:"left-4",
                     nav_button_next: "right-4",
                     nav: "relative flex items-center justify-between pt-4 pb-10 px-2 border-b-2 border-gray-100 dark:border-gray-800 mb-4",
