@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Edit, Trash2, ArrowRightLeft } from "lucide-react";
+import { Edit, Trash2, ArrowRightLeft, Loader2 } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 
 type Trainee = {
@@ -54,7 +54,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
 
   // Fetch trainees for the current batch
-  const { data: trainees = [], isLoading } = useQuery({
+  const { data: trainees = [], isLoading, error } = useQuery({
     queryKey: [`/api/organizations/${organizationId}/batches/${batchId}/trainees`],
     enabled: !!batchId && !!organizationId,
   });
@@ -71,6 +71,8 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
     const date = parseISO(dateString);
     return isValid(date) ? format(date, 'PP') : 'N/A';
   };
+
+  console.log('Debug - Trainees:', { trainees, isLoading, error });
 
   // Delete trainee mutation
   const deleteTraineeMutation = useMutation({
@@ -139,7 +141,28 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
   });
 
   if (isLoading) {
-    return <div>Loading trainees...</div>;
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading trainees...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-8 text-destructive">
+        Error loading trainees. Please try again.
+      </div>
+    );
+  }
+
+  if (!trainees || trainees.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        No trainees found in this batch.
+      </div>
+    );
   }
 
   return (
@@ -159,7 +182,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
             </TableRow>
           </TableHeader>
           <TableBody>
-            {trainees.map((trainee: Trainee) => (
+            {Array.isArray(trainees) && trainees.map((trainee: Trainee) => (
               <TableRow key={trainee.id}>
                 <TableCell>{trainee.fullName}</TableCell>
                 <TableCell>{trainee.employeeId}</TableCell>
