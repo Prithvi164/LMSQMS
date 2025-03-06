@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Bell, Users, CalendarDays, CheckCircle2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 // Type for batch data
 type Batch = {
@@ -28,10 +29,41 @@ type Batch = {
 
 export default function TraineeManagement() {
   const [selectedTab, setSelectedTab] = useState("active-batches");
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Fetch active batches that require attention (planned status and start date is today)
   const { data: activeBatches = [], isLoading: batchesLoading } = useQuery<Batch[]>({
     queryKey: ["/api/batches/active"],
+  });
+
+  // Mutation for starting a batch
+  const startBatchMutation = useMutation({
+    mutationFn: async (batchId: number) => {
+      const response = await fetch(`/api/batches/${batchId}/start`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to start batch');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/batches/active"] });
+      toast({
+        title: "Batch Started",
+        description: "The batch has been successfully started and moved to induction phase.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error Starting Batch",
+        description: error.message,
+      });
+    },
   });
 
   // Filter batches that need to be started today
@@ -127,13 +159,11 @@ export default function TraineeManagement() {
 
                       <Button 
                         className="w-full"
-                        onClick={() => {
-                          // Start batch functionality will be implemented here
-                          console.log("Starting batch:", batch.id);
-                        }}
+                        onClick={() => startBatchMutation.mutate(batch.id)}
+                        disabled={startBatchMutation.isPending}
                       >
                         <CheckCircle2 className="h-4 w-4 mr-2" />
-                        Start Batch
+                        {startBatchMutation.isPending ? "Starting..." : "Start Batch"}
                       </Button>
                     </CardContent>
                   </Card>

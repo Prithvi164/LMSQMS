@@ -1668,5 +1668,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add new route for starting a batch after existing batch routes
+  app.post("/api/batches/:batchId/start", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const batchId = parseInt(req.params.batchId);
+      const orgId = req.user.organizationId;
+
+      // Get the batch to validate ownership and current status
+      const batch = await storage.getBatch(batchId);
+      if (!batch) {
+        return res.status(404).json({ message: "Batch not found" });
+      }
+
+      // Validate organization ownership
+      if (batch.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only start batches in your own organization" });
+      }
+
+      // Validate current status is 'planned'
+      if (batch.status !== 'planned') {
+        return res.status(400).json({ message: "Only planned batches can be started" });
+      }
+
+      // Update batch status to 'induction'
+      const updatedBatch = await storage.updateBatch(batchId, {
+        status: 'induction',
+        startedAt: new Date().toISOString(),
+        startedBy: req.user.id
+      });
+
+      console.log('Batch started successfully:', {
+        batchId,
+        newStatus: 'induction',
+        startedBy: req.user.id
+      });
+
+      res.json(updatedBatch);
+    } catch (error: any) {
+      console.error("Error starting batch:", error);
+      res.status(500).json({ message: error.message || "Failed to start batch" });
+    }
+  });
+
   return createServer(app);
 }
