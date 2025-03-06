@@ -1472,8 +1472,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (rows.length > remainingCapacity) {
-        return res.status(400).json({
-          message: `Batch can only accommodate ${remainingCapacity} more trainees. Uploaded file contains ${rows.length} trainees.`
+        return res.status(400).json({ 
+          message: `Batch can only accommodate ${remainingCapacity} more trainees. Uploaded file contains ${rows.length} trainees.` 
         });
       }
 
@@ -1484,40 +1484,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Process each row
       for (const row of rows) {
         try {
-          // Validate row data exists
-          if (!row || typeof row !== 'object') {
-            throw new Error('Invalid row data');
+          console.log('Processing row:', row);
+
+          // Basic data validation
+          if (!row.username || !row.fullName || !row.email || !row.employeeId || !row.password) {
+            throw new Error('Missing required fields');
           }
 
-          // Create trainee data with type assertions
-          const traineeData = {
-            username: String(row.username || ''),
-            fullName: String(row.fullName || ''),
-            email: String(row.email || ''),
-            employeeId: String(row.employeeId || ''),
-            phoneNumber: String(row.phoneNumber || ''),
-            dateOfJoining: String(row.dateOfJoining || ''),
-            dateOfBirth: String(row.dateOfBirth || ''),
-            education: String(row.education || ''),
-            password: await hashPassword(String(row.password || '')),
-            role: "trainee",
-            category: "trainee",
-            organizationId: orgId,
-            locationId: batch.locationId,
-            processId: batch.processId,
-            lineOfBusinessId: batch.lineOfBusinessId,
-            trainerId: batch.trainerId
+          // Format dates properly
+          const formatDate = (dateStr: string) => {
+            if (!dateStr) return null;
+            const date = new Date(dateStr);
+            return date.toISOString().split('T')[0];
           };
 
-          // Validate data
-          const validatedData = await insertUserSchema.parseAsync(traineeData);
+          // Create trainee data with proper type handling
+          const traineeData = {
+            username: String(row.username).trim(),
+            fullName: String(row.fullName).trim(),
+            email: String(row.email).trim(),
+            employeeId: String(row.employeeId).trim(),
+            phoneNumber: row.phoneNumber ? String(row.phoneNumber).trim() : null,
+            dateOfJoining: formatDate(row.dateOfJoining) || null,
+            dateOfBirth: formatDate(row.dateOfBirth) || null,
+            education: row.education ? String(row.education).trim() : null,
+            password: await hashPassword(String(row.password)),
+            role: "trainee" as const,
+            category: "trainee" as const,
+            organizationId: orgId,
+            locationId: batch.locationId,
+            active: true,
+            certified: false
+          };
+
+          console.log('Validated trainee data:', { ...traineeData, password: '[REDACTED]' });
 
           // Create trainee in a transaction
           await db.transaction(async (tx) => {
             // Create user first
             const [user] = await tx
               .insert(users)
-              .values(validatedData)
+              .values(traineeData)
               .returning();
 
             if (!user || !user.id) {
@@ -1531,13 +1538,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 userId: user.id,
                 batchId: batchId,
                 processId: batch.processId,
-                organizationId: orgId,
-                lineOfBusinessId: batch.lineOfBusinessId
+                status: 'active',
+                joinedAt: new Date().toISOString()
               });
+
+            console.log('Successfully created trainee:', user.id);
           });
 
           successCount++;
         } catch (error) {
+          console.error('Error processing trainee:', error);
           failureCount++;
           errors.push({
             row: successCount + failureCount,
@@ -1547,7 +1557,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json({
-        message: "Bulk upload completed",
+        message: `Successfully uploaded ${successCount} trainees. Failed: ${failureCount}`,
         successCount,
         failureCount,
         errors: errors.length > 0 ? errors : undefined
@@ -1555,9 +1565,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error: any) {
       console.error("Bulk upload error:", error);
-      res.status(500).json({
+      res.status(500).json({ 
         message: "Failed to process bulk upload",
-        error: error.message
+        error: error.message 
       });
     }
   });
