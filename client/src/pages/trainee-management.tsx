@@ -5,10 +5,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Bell, Users, CalendarDays, CheckCircle2, Loader2 } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { format, addHours, addMinutes } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 
 // Type for batch data
 type Batch = {
@@ -31,10 +31,16 @@ export default function TraineeManagement() {
   const [selectedTab, setSelectedTab] = useState("active-batches");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
-  // Fetch active batches that require attention (planned status)
-  const { data: activeBatches = [], isLoading: batchesLoading } = useQuery<Batch[]>({
-    queryKey: ["/api/batches/active"],
+  // Fetch batches using the organization-specific endpoint
+  const {
+    data: batches = [],
+    isLoading,
+    error
+  } = useQuery<Batch[]>({
+    queryKey: [`/api/organizations/${user?.organizationId}/batches`],
+    enabled: !!user?.organizationId,
   });
 
   // Mutation for starting a batch
@@ -51,7 +57,7 @@ export default function TraineeManagement() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/batches/active"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/batches`] });
       toast({
         title: "Batch Started",
         description: "The batch has been successfully started and moved to induction phase.",
@@ -88,19 +94,29 @@ export default function TraineeManagement() {
   };
 
   // Get all planned batches, sorted by start date
-  const plannedBatches = activeBatches
+  const plannedBatches = batches
     .filter(batch => batch.status === 'planned')
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
   // Filter batches starting today
   const todayBatches = plannedBatches.filter(batch => isSameDay(batch.startDate, new Date()));
 
-  if (batchesLoading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <span className="ml-2">Loading batches...</span>
       </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>
+          Error loading batches. Please refresh the page to try again.
+        </AlertDescription>
+      </Alert>
     );
   }
 
