@@ -158,9 +158,13 @@ export function BatchesTab() {
     onError: (error: Error) => {
       // Check if error is about existing trainees
       if (error.message.includes('trainees')) {
+        // Keep the delete dialog open and show the trainee management dialog
+        setIsTraineeDialogOpen(true);
+        setSelectedBatchForDetails(selectedBatch);
+
         toast({
-          title: "Cannot Delete Batch",
-          description: "This batch has trainees assigned to it. Please transfer or remove all trainees before deleting the batch.",
+          title: "Action Required",
+          description: "Before deleting this batch, you must first manage its trainees. You can either transfer them to another batch or remove them. The trainee management window has been opened for you.",
           variant: "destructive",
         });
       } else {
@@ -169,9 +173,6 @@ export function BatchesTab() {
           description: error.message || "Failed to delete batch",
           variant: "destructive",
         });
-      }
-      // Don't close the dialog if it's a trainee-related error
-      if (!error.message.includes('trainees')) {
         setDeleteDialogOpen(false);
       }
       setDeleteConfirmation('');
@@ -905,7 +906,7 @@ export function BatchesTab() {
             <AlertDialogHeader>
               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This action cannot be undone. Please type "{selectedBatch?.name}" to confirm deletion.
+                Only batches with no trainees and 'Planned' status can be deleted.  To proceed, please type the batch name below to confirm.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="py-4">
