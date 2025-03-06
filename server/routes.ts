@@ -1215,5 +1215,138 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add after other user routes
+  app.post("/api/users/trainee", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      // Extract trainee data from request
+      const {
+        username,
+        fullName,
+        email,
+        employeeId,
+        phoneNumber,
+        dateOfJoining,
+        dateOfBirth,
+        education,
+        password,
+        batchId,
+        trainerId,
+        locationId,
+        lineOfBusinessId,
+        processId,
+        organizationId
+      } = req.body;
+
+      console.log('Creating trainee with data:', {
+        ...req.body,
+        password: '[REDACTED]'
+      });
+
+      // Create user with trainee role
+      const userToCreate = {
+        username,
+        fullName,
+        email,
+        employeeId,
+        phoneNumber,
+        dateOfJoining,
+        dateOfBirth,
+        education,
+        password: await hashPassword(password),
+        role: 'trainee',
+        category: 'trainee',
+        organizationId,
+        locationId,
+        active: true,
+      };
+
+      // Create the user
+      const user = await storage.createUser(userToCreate);
+      console.log('Created user:', { id: user.id, username: user.username });
+
+      // Create batch process assignment
+      const batchAssignment = await storage.assignUserToBatch({
+        userId: user.id,
+        batchId,
+        processId,
+        status: 'active',
+        joinedAt: new Date().toISOString(),
+      });
+      console.log('Created batch assignment:', batchAssignment);
+
+      // Create process assignment
+      const processAssignment = await storage.createUserProcess({
+        userId: user.id,
+        processId,
+        organizationId,
+        lineOfBusinessId,
+        locationId,
+        status: 'active',
+        assignedAt: new Date().toISOString(),
+      });
+      console.log('Created process assignment:', processAssignment);
+
+      res.status(201).json({
+        user,
+        batchAssignment,
+        processAssignment
+      });
+    } catch (error: any) {
+      console.error("Error creating trainee:", error);
+      res.status(400).json({
+        message: error.message || "Failed to create trainee"
+      });
+    }
+  });
+
+  // Add after the trainee creation endpoint
+  app.get("/api/organizations/:orgId/batches/:batchId/trainees", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const batchId = parseInt(req.params.batchId);
+      const orgId = parseInt(req.params.orgId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only view trainees in your own organization" });
+      }
+
+      // Get batch details to verify it exists and belongs to the organization
+      const batch = await storage.getBatch(batchId);
+      if (!batch || batch.organizationId !== orgId) {
+        return res.status(404).json({ message: "Batch not found" });
+      }
+
+      // Get all trainees for this batch
+      const trainees = await storage.getBatchTrainees(batchId);
+      console.log(`Found ${trainees.length} trainees for batch ${batchId}`);
+
+      // Get detailed user information for each trainee
+      const traineeDetails = await Promise.all(
+        trainees.map(async (trainee) => {
+          const user = await storage.getUser(trainee.userId);
+          return {
+            ...trainee,
+            user: user ? {
+              username: user.username,
+              fullName: user.fullName,
+              email: user.email,
+              employeeId: user.employeeId,
+              phoneNumber: user.phoneNumber,
+            } : null
+          };
+        })
+      );
+
+      res.json(traineeDetails);
+    } catch (error: any) {
+      console.error("Error fetching batch trainees:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   return createServer(app);
 }
