@@ -16,6 +16,7 @@ type AuthContextType = {
   login: (data: LoginData) => Promise<void>;
   register: (data: InsertUser) => Promise<void>;
   logout: () => Promise<void>;
+  updateUser: (user: User) => void;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -104,6 +105,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
         logout: async () => {
           await logoutMutation.mutateAsync();
+        },
+        updateUser: (updatedUser: User) => {
+          queryClient.setQueryData(["/api/user"], updatedUser);
         },
       }}
     >

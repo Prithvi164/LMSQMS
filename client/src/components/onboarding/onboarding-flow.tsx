@@ -30,7 +30,7 @@ const slides = [
 
 export function OnboardingFlow() {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
 
   const completeMutation = useMutation({
     mutationFn: async () => {
@@ -39,6 +39,12 @@ export function OnboardingFlow() {
         `/api/users/${user?.id}/complete-onboarding`
       );
       return response.json();
+    },
+    onSuccess: (updatedUser) => {
+      // Update the user data in auth context to reflect completed onboarding
+      if (updateUser) {
+        updateUser(updatedUser);
+      }
     }
   });
 
