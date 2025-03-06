@@ -101,6 +101,10 @@ export default function TraineeManagement() {
         const todayIST = addMinutes(addHours(today, 5), 30);
         const threeDaysFromNowIST = addMinutes(addHours(threeDaysFromNow, 5), 30);
 
+        console.log('Batch Date (IST):', format(batchDateIST, "PPP"));
+        console.log('Today (IST):', format(todayIST, "PPP"));
+        console.log('Three Days (IST):', format(threeDaysFromNowIST, "PPP"));
+
         return (
           batch.status === 'planned' && 
           !isBefore(batchDateIST, todayIST) && 
