@@ -4,10 +4,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Users, CalendarDays, CheckCircle2 } from "lucide-react";
+import { Bell, Users, CalendarDays, CheckCircle2, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
 // Type for batch data
@@ -66,17 +66,30 @@ export default function TraineeManagement() {
     },
   });
 
+  // Helper function to compare dates accounting for UTC
+  const isSameDay = (date1: string, date2: Date) => {
+    const d1 = new Date(date1);
+    return (
+      d1.getUTCDate() === date2.getUTCDate() &&
+      d1.getUTCMonth() === date2.getUTCMonth() &&
+      d1.getUTCFullYear() === date2.getUTCFullYear()
+    );
+  };
+
   // Filter batches that need to be started today
   const pendingStartBatches = activeBatches.filter(batch => {
-    const batchStartDate = new Date(batch.startDate);
     const today = new Date();
-    return (
-      batch.status === 'planned' &&
-      batchStartDate.getDate() === today.getDate() &&
-      batchStartDate.getMonth() === today.getMonth() &&
-      batchStartDate.getFullYear() === today.getFullYear()
-    );
+    return batch.status === 'planned' && isSameDay(batch.startDate, today);
   });
+
+  if (batchesLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading batches...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 space-y-6">
@@ -106,19 +119,7 @@ export default function TraineeManagement() {
         </TabsList>
 
         <TabsContent value="active-batches">
-          {batchesLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[1, 2, 3].map((i) => (
-                <Card key={i}>
-                  <CardContent className="p-6">
-                    <Skeleton className="h-6 w-3/4 mb-4" />
-                    <Skeleton className="h-4 w-1/2 mb-2" />
-                    <Skeleton className="h-4 w-2/3" />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : pendingStartBatches.length > 0 ? (
+          {pendingStartBatches.length > 0 ? (
             <div className="space-y-6">
               <Alert className="bg-yellow-50 border-yellow-200">
                 <AlertTitle className="text-yellow-800 flex items-center gap-2">
@@ -149,7 +150,7 @@ export default function TraineeManagement() {
                       <div className="space-y-2">
                         <p className="text-sm">
                           <span className="font-medium">Start Date:</span>{" "}
-                          {format(new Date(batch.startDate), "PP")}
+                          {format(new Date(batch.startDate), "PPP")}
                         </p>
                         <p className="text-sm">
                           <span className="font-medium">LOB:</span>{" "}
