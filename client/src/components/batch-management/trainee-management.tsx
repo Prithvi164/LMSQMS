@@ -29,16 +29,19 @@ import { useToast } from "@/hooks/use-toast";
 import { Edit, Trash2, ArrowRightLeft, Loader2 } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 
+// Updated type to match API response
 type Trainee = {
   id: number;
-  username: string;
-  fullName: string;
-  email: string;
-  employeeId: string;
-  phoneNumber: string;
-  dateOfJoining: string;
-  dateOfBirth: string;
-  education: string;
+  userId: number;
+  user: {
+    id: number;
+    username: string;
+    fullName: string;
+    email: string;
+    employeeId: string;
+    phoneNumber: string;
+    dateOfJoining: string;
+  };
 };
 
 interface TraineeManagementProps {
@@ -72,7 +75,13 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
     return isValid(date) ? format(date, 'PP') : 'N/A';
   };
 
-  console.log('Debug - Trainees:', { trainees, isLoading, error });
+  console.log('Debug - Trainees:', { 
+    trainees, 
+    isLoading, 
+    error,
+    sampleTrainee: trainees[0],
+    traineeCount: trainees.length 
+  });
 
   // Delete trainee mutation
   const deleteTraineeMutation = useMutation({
@@ -95,41 +104,6 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
         description: "Trainee deleted successfully",
       });
       setIsDeleteDialogOpen(false);
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Transfer trainee mutation
-  const transferTraineeMutation = useMutation({
-    mutationFn: async ({ traineeId, newBatchId }: { traineeId: number; newBatchId: number }) => {
-      const response = await fetch(
-        `/api/organizations/${organizationId}/batches/${batchId}/trainees/${traineeId}/transfer`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ newBatchId }),
-        }
-      );
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to transfer trainee");
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: [`/api/organizations/${organizationId}/batches/${batchId}/trainees`]
-      });
-      toast({
-        title: "Success",
-        description: "Trainee transferred successfully",
-      });
-      setIsTransferDialogOpen(false);
     },
     onError: (error: Error) => {
       toast({
@@ -184,11 +158,11 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
           <TableBody>
             {Array.isArray(trainees) && trainees.map((trainee: Trainee) => (
               <TableRow key={trainee.id}>
-                <TableCell>{trainee.fullName}</TableCell>
-                <TableCell>{trainee.employeeId}</TableCell>
-                <TableCell>{trainee.email}</TableCell>
-                <TableCell>{trainee.phoneNumber}</TableCell>
-                <TableCell>{formatDate(trainee.dateOfJoining)}</TableCell>
+                <TableCell>{trainee.user.fullName}</TableCell>
+                <TableCell>{trainee.user.employeeId}</TableCell>
+                <TableCell>{trainee.user.email}</TableCell>
+                <TableCell>{trainee.user.phoneNumber}</TableCell>
+                <TableCell>{formatDate(trainee.user.dateOfJoining)}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Button
@@ -205,7 +179,6 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        // TODO: Implement edit functionality
                         toast({
                           title: "Coming Soon",
                           description: "Edit functionality will be available soon",
@@ -265,7 +238,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Select a batch to transfer {selectedTrainee?.fullName} to:
+              Select a batch to transfer {selectedTrainee?.user.fullName} to:
             </p>
             <div className="space-y-2">
               {allBatches
