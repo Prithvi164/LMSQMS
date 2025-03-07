@@ -9,27 +9,8 @@ import { Button } from "@/components/ui/button";
 import { format, addHours, addMinutes } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import {
-  BarChart as RechartsBarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  AreaChart,
-  Area
-} from 'recharts';
-import { Progress } from "@/components/ui/progress";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+// ... (keep other imports)
 
-// Type for batch data
 type Batch = {
   id: number;
   name: string;
@@ -48,16 +29,15 @@ type Batch = {
   enrolledCount: number;
 };
 
-// Colors for charts
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
-// Performance metrics types
 type MetricType = 'daily' | 'weekly' | 'monthly';
 type DrilldownLevel = 'overview' | 'phase' | 'trainee';
 
 export default function TraineeManagement() {
   const [selectedTab, setSelectedTab] = useState("all-batches");
   const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
+  const [clickedBatchId, setClickedBatchId] = useState<number | null>(null);
   const [metricType, setMetricType] = useState<MetricType>('weekly');
   const [drilldownLevel, setDrilldownLevel] = useState<DrilldownLevel>('overview');
   const [selectedPhase, setSelectedPhase] = useState<string | null>(null);
@@ -65,7 +45,6 @@ export default function TraineeManagement() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  // Fetch all batches
   const {
     data: batches = [],
     isLoading,
@@ -75,20 +54,17 @@ export default function TraineeManagement() {
     enabled: !!user?.organizationId,
   });
 
-  // Set the first batch as selected by default when data is available
   useEffect(() => {
     if (batches && batches.length > 0 && !selectedBatch) {
       setSelectedBatch(batches[0].id);
     }
   }, [batches, selectedBatch]);
 
-  // Fetch batch performance data when a batch is selected
   const { data: batchPerformance } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${selectedBatch}/performance`],
     enabled: !!selectedBatch,
   });
 
-  // Mutation for starting a batch
   const startBatchMutation = useMutation({
     mutationFn: async (batchId: number) => {
       const response = await fetch(`/api/batches/${batchId}/start`, {
@@ -117,14 +93,12 @@ export default function TraineeManagement() {
     },
   });
 
-  // Helper function to format date in IST
   const formatToIST = (dateStr: string) => {
     const date = new Date(dateStr);
     const dateIST = addMinutes(addHours(date, 5), 30);
     return format(dateIST, "PPP");
   };
 
-  // Group batches by status
   const batchesByStatus = batches.reduce((acc, batch) => {
     if (!acc[batch.status]) {
       acc[batch.status] = [];
@@ -182,15 +156,18 @@ export default function TraineeManagement() {
 
         {batch.status === 'planned' && (
           <Button
-            className="w-full relative group"
+            className={`w-full relative ${clickedBatchId === batch.id ? 'active-button' : ''}`}
             onClick={(e) => {
               e.stopPropagation();
+              setClickedBatchId(batch.id);
               startBatchMutation.mutate(batch.id);
+              setTimeout(() => setClickedBatchId(null), 200);
             }}
             disabled={startBatchMutation.isPending}
           >
-            <div className="absolute inset-0 rounded bg-primary opacity-0 group-active:opacity-10 transition-opacity duration-200"></div>
-            <CheckCircle2 className="h-4 w-4 mr-2 group-active:scale-95 transition-transform duration-200" />
+            <CheckCircle2 className={`h-4 w-4 mr-2 transition-transform duration-200 ${
+              clickedBatchId === batch.id ? 'scale-95' : ''
+            }`} />
             {startBatchMutation.isPending ? "Starting..." : "Start Batch"}
           </Button>
         )}
@@ -372,7 +349,6 @@ export default function TraineeManagement() {
     }
   };
 
-  // Sample trainee-specific data
   const traineePerformanceData = [
     { name: 'John Doe', score: 92, progress: 85, attendance: 95 },
     { name: 'Jane Smith', score: 88, progress: 90, attendance: 92 },
@@ -380,7 +356,6 @@ export default function TraineeManagement() {
     { name: 'Sarah Wilson', score: 90, progress: 92, attendance: 88 }
   ];
 
-  // Sample phase-specific data
   const phasePerformanceData = {
     induction: [
       { name: 'Day 1', completion: 100, performance: 85 },
@@ -454,7 +429,6 @@ export default function TraineeManagement() {
                 </div>
               </div>
             )}
-
             {inductionBatches.length > 0 && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">Induction Phase</h2>
@@ -463,7 +437,6 @@ export default function TraineeManagement() {
                 </div>
               </div>
             )}
-
             {trainingBatches.length > 0 && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">Training Phase</h2>
@@ -472,7 +445,6 @@ export default function TraineeManagement() {
                 </div>
               </div>
             )}
-
             {certificationBatches.length > 0 && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">Certification Phase</h2>
@@ -481,7 +453,6 @@ export default function TraineeManagement() {
                 </div>
               </div>
             )}
-
             {ojtBatches.length > 0 && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">OJT Phase</h2>
@@ -490,7 +461,6 @@ export default function TraineeManagement() {
                 </div>
               </div>
             )}
-
             {completedBatches.length > 0 && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">Completed Batches</h2>
@@ -499,7 +469,6 @@ export default function TraineeManagement() {
                 </div>
               </div>
             )}
-
             {batches.length === 0 && (
               <Alert>
                 <AlertDescription>
