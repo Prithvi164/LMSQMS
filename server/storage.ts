@@ -906,12 +906,11 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching batches for organization ${organizationId}`);
 
-      // Explicitly select and cast the batch_category field
       const batches = await db
         .select({
           id: organizationBatches.id,
           name: organizationBatches.name,
-          batchCategory: sql<string>`${organizationBatches.batchCategory}::text`,
+          batchCategory: organizationBatches.batchCategory,
           startDate: organizationBatches.startDate,
           endDate: organizationBatches.endDate,
           status: organizationBatches.status,
@@ -921,19 +920,36 @@ export class DatabaseStorage implements IStorage {
           lineOfBusinessId: organizationBatches.lineOfBusinessId,
           trainerId: organizationBatches.trainerId,
           organizationId: organizationBatches.organizationId,
-          inductionStartDate: organizationBatches.inductionStartDate,
-          inductionEndDate: organizationBatches.inductionEndDate,
-          trainingStartDate: organizationBatches.trainingStartDate,
-          trainingEndDate: organizationBatches.trainingEndDate,
-          certificationStartDate: organizationBatches.certificationStartDate,
-          certificationEndDate: organizationBatches.certificationEndDate,
-          ojtStartDate: organizationBatches.ojtStartDate,
-          ojtEndDate: organizationBatches.ojtEndDate,
-          ojtCertificationStartDate: organizationBatches.ojtCertificationStartDate,
-          ojtCertificationEndDate: organizationBatches.ojtCertificationEndDate,
-          handoverToOpsDate: organizationBatches.handoverToOpsDate,
           createdAt: organizationBatches.createdAt,
           updatedAt: organizationBatches.updatedAt,
+          // Add planned dates
+          planned_induction_start: organizationBatches.planned_induction_start,
+          planned_induction_end: organizationBatches.planned_induction_end,
+          planned_training_start: organizationBatches.planned_training_start,
+          planned_training_end: organizationBatches.planned_training_end,
+          planned_certification_start: organizationBatches.planned_certification_start,
+          planned_certification_end: organizationBatches.planned_certification_end,
+          planned_ojt_start: organizationBatches.planned_ojt_start,
+          planned_ojt_end: organizationBatches.planned_ojt_end,
+          planned_ojt_certification_start: organizationBatches.planned_ojt_certification_start,
+          planned_ojt_certification_end: organizationBatches.planned_ojt_certification_end,
+          planned_handover_date: organizationBatches.planned_handover_date,
+          // Add actual dates
+          actual_induction_start: organizationBatches.actual_induction_start,
+          actual_induction_end: organizationBatches.actual_induction_end,
+          actual_training_start: organizationBatches.actual_training_start,
+          actual_training_end: organizationBatches.actual_training_end,
+          actual_certification_start: organizationBatches.actual_certification_start,
+          actual_certification_end: organizationBatches.actual_certification_end,
+          actual_ojt_start: organizationBatches.actual_ojt_end,
+          actual_ojt_certification_start: organizationBatches.actual_ojt_certification_start,
+          actual_ojt_certification_end: organizationBatches.actual_ojt_certification_end,
+          actual_handover_date: organizationBatches.actual_handover_date,
+          // Add tracking metrics
+          completion_percentage: organizationBatches.completion_percentage,
+          phase_adherence_score: organizationBatches.phase_adherence_score,
+          delay_days: organizationBatches.delay_days,
+          // Include related data
           location: organizationLocations,
           process: organizationProcesses,
           line_of_business: organizationLineOfBusinesses,
@@ -951,20 +967,13 @@ export class DatabaseStorage implements IStorage {
           organizationLineOfBusinesses,
           eq(organizationBatches.lineOfBusinessId, organizationLineOfBusinesses.id)
         )
-        .where(eq(organizationBatches.organizationId, organizationId))
-        .orderBy(desc(organizationBatches.createdAt));
+        .where(eq(organizationBatches.organizationId, organizationId)) as OrganizationBatch[];
 
-      // Debug log to verify the data      console.log('Raw batch data:', batches.map(b => ({
-      //      //   id: b.id,
-      //   name: b.name,
-      //   category: b.batchCategory,
-      //   rawCategory: JSON.stringify(b.batchCategory)
-      // })));
-
-      return batches as OrganizationBatch[];
+      console.log(`Found ${batches.length} batches`);
+      return batches;
     } catch (error) {
       console.error('Error fetching batches:', error);
-      throw error;
+      throw new Error('Failed to fetch batches');
     }
   }
 
