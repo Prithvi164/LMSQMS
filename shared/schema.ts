@@ -106,7 +106,7 @@ export const batchTemplatesRelations = relations(batchTemplates, ({ one }) => ({
 }));
 
 
-// Update the batch table definition to ensure proper enum handling
+// Update the batch table definition to track planned vs actual dates
 export const organizationBatches = pgTable("organization_batches", {
   id: serial("id").primaryKey(),
   batchCategory: batchCategoryEnum("batch_category").notNull(),
@@ -122,24 +122,45 @@ export const organizationBatches = pgTable("organization_batches", {
     .references(() => organizationLocations.id)
     .notNull(),
   trainerId: integer("trainer_id")
-    .references(() => users.id, { onDelete: 'set null' }),  // Changed to nullable and added onDelete
+    .references(() => users.id, { onDelete: 'set null' }),
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
   lineOfBusinessId: integer("line_of_business_id")
     .references(() => organizationLineOfBusinesses.id)
     .notNull(),
-  inductionStartDate: date("induction_start_date").notNull(),
-  inductionEndDate: date("induction_end_date"),
-  trainingStartDate: date("training_start_date"),
-  trainingEndDate: date("training_end_date"),
-  certificationStartDate: date("certification_start_date"),
-  certificationEndDate: date("certification_end_date"),
-  ojtStartDate: date("ojt_start_date"),
-  ojtEndDate: date("ojt_end_date"),
-  ojtCertificationStartDate: date("ojt_certification_start_date"),
-  ojtCertificationEndDate: date("ojt_certification_end_date"),
-  handoverToOpsDate: date("handover_to_ops_date"),
+
+  // Planned dates
+  planned_induction_start: date("planned_induction_start").notNull(),
+  planned_induction_end: date("planned_induction_end"),
+  planned_training_start: date("planned_training_start"),
+  planned_training_end: date("planned_training_end"),
+  planned_certification_start: date("planned_certification_start"),
+  planned_certification_end: date("planned_certification_end"),
+  planned_ojt_start: date("planned_ojt_start"),
+  planned_ojt_end: date("planned_ojt_end"),
+  planned_ojt_certification_start: date("planned_ojt_certification_start"),
+  planned_ojt_certification_end: date("planned_ojt_certification_end"),
+  planned_handover_date: date("planned_handover_date"),
+
+  // Actual dates
+  actual_induction_start: date("actual_induction_start"),
+  actual_induction_end: date("actual_induction_end"),
+  actual_training_start: date("actual_training_start"),
+  actual_training_end: date("actual_training_end"),
+  actual_certification_start: date("actual_certification_start"),
+  actual_certification_end: date("actual_certification_end"),
+  actual_ojt_start: date("actual_ojt_start"),
+  actual_ojt_end: date("actual_ojt_end"),
+  actual_ojt_certification_start: date("actual_ojt_certification_start"),
+  actual_ojt_certification_end: date("actual_ojt_certification_end"),
+  actual_handover_date: date("actual_handover_date"),
+
+  // Progress tracking
+  completion_percentage: integer("completion_percentage").default(0),
+  phase_adherence_score: integer("phase_adherence_score").default(100), // Score out of 100
+  delay_days: integer("delay_days").default(0),
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -176,23 +197,37 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
     id: true,
     createdAt: true,
     updatedAt: true,
+    completion_percentage: true,
+    phase_adherence_score: true,
+    delay_days: true,
+    actual_induction_start: true,
+    actual_induction_end: true,
+    actual_training_start: true,
+    actual_training_end: true,
+    actual_certification_start: true,
+    actual_certification_end: true,
+    actual_ojt_start: true,
+    actual_ojt_end: true,
+    actual_ojt_certification_start: true,
+    actual_ojt_certification_end: true,
+    actual_handover_date: true,
   })
   .extend({
     batchCategory: z.enum(['new_training', 'upskill']),
     name: z.string().min(1, "Batch name is required"),
     startDate: z.string().min(1, "Start date is required"),
     endDate: z.string().min(1, "End date is required"),
-    inductionStartDate: z.string().min(1, "Induction Start date is required"),
-    inductionEndDate: z.string().optional(),
-    trainingStartDate: z.string().optional(),
-    trainingEndDate: z.string().optional(),
-    certificationStartDate: z.string().optional(),
-    certificationEndDate: z.string().optional(),
-    ojtStartDate: z.string().optional(),
-    ojtEndDate: z.string().optional(),
-    ojtCertificationStartDate: z.string().optional(),
-    ojtCertificationEndDate: z.string().optional(),
-    handoverToOpsDate: z.string().optional(),
+    planned_induction_start: z.string().min(1, "Induction Start date is required"),
+    planned_induction_end: z.string().optional(),
+    planned_training_start: z.string().optional(),
+    planned_training_end: z.string().optional(),
+    planned_certification_start: z.string().optional(),
+    planned_certification_end: z.string().optional(),
+    planned_ojt_start: z.string().optional(),
+    planned_ojt_end: z.string().optional(),
+    planned_ojt_certification_start: z.string().optional(),
+    planned_ojt_certification_end: z.string().optional(),
+    planned_handover_date: z.string().optional(),
     capacityLimit: z.number().int().min(1, "Capacity must be at least 1"),
     status: z.enum(['planned', 'induction', 'training', 'certification', 'ojt', 'ojt_certification', 'completed']).default('planned'),
     processId: z.number().int().positive("Process is required"),

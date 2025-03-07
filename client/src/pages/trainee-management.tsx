@@ -29,6 +29,7 @@ type Batch = {
 
 export default function TraineeManagement() {
   const [selectedTab, setSelectedTab] = useState("active-batches");
+  const [startingBatchId, setStartingBatchId] = useState<number | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -46,15 +47,20 @@ export default function TraineeManagement() {
   // Mutation for starting a batch
   const startBatchMutation = useMutation({
     mutationFn: async (batchId: number) => {
-      const response = await fetch(`/api/batches/${batchId}/start`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to start batch');
+      setStartingBatchId(batchId); // Set the batch being started
+      try {
+        const response = await fetch(`/api/batches/${batchId}/start`, {
+          method: 'POST',
+          credentials: 'include',
+        });
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Failed to start batch');
+        }
+        return response.json();
+      } finally {
+        setStartingBatchId(null); // Clear the starting batch ID regardless of outcome
       }
-      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/batches`] });
@@ -75,7 +81,6 @@ export default function TraineeManagement() {
   // Helper function to convert UTC to IST and compare dates
   const isSameDay = (date1: string, date2: Date) => {
     const d1 = new Date(date1);
-    // Convert to IST by adding 5 hours and 30 minutes
     const d1IST = addMinutes(addHours(d1, 5), 30);
     const d2IST = addMinutes(addHours(date2, 5), 30);
 
@@ -195,10 +200,10 @@ export default function TraineeManagement() {
                       <Button
                         className="w-full"
                         onClick={() => startBatchMutation.mutate(batch.id)}
-                        disabled={startBatchMutation.isPending || !isSameDay(batch.startDate, new Date())}
+                        disabled={startingBatchId === batch.id || !isSameDay(batch.startDate, new Date())}
                       >
                         <CheckCircle2 className="h-4 w-4 mr-2" />
-                        {startBatchMutation.isPending
+                        {startingBatchId === batch.id
                           ? "Starting..."
                           : isSameDay(batch.startDate, new Date())
                             ? "Start Batch"
