@@ -122,13 +122,14 @@ export const organizationBatches = pgTable("organization_batches", {
     .references(() => organizationLocations.id)
     .notNull(),
   trainerId: integer("trainer_id")
-    .references(() => users.id, { onDelete: 'set null' }),  // Changed to nullable and added onDelete
+    .references(() => users.id, { onDelete: 'set null' }),
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
   lineOfBusinessId: integer("line_of_business_id")
     .references(() => organizationLineOfBusinesses.id)
     .notNull(),
+  // Planned phase dates (existing)
   inductionStartDate: date("induction_start_date").notNull(),
   inductionEndDate: date("induction_end_date"),
   trainingStartDate: date("training_start_date"),
@@ -140,6 +141,20 @@ export const organizationBatches = pgTable("organization_batches", {
   ojtCertificationStartDate: date("ojt_certification_start_date"),
   ojtCertificationEndDate: date("ojt_certification_end_date"),
   handoverToOpsDate: date("handover_to_ops_date"),
+
+  // Actual phase dates (new)
+  actualInductionStartDate: date("actual_induction_start_date"),
+  actualInductionEndDate: date("actual_induction_end_date"),
+  actualTrainingStartDate: date("actual_training_start_date"),
+  actualTrainingEndDate: date("actual_training_end_date"),
+  actualCertificationStartDate: date("actual_certification_start_date"),
+  actualCertificationEndDate: date("actual_certification_end_date"),
+  actualOjtStartDate: date("actual_ojt_start_date"),
+  actualOjtEndDate: date("actual_ojt_end_date"),
+  actualOjtCertificationStartDate: date("actual_ojt_certification_start_date"),
+  actualOjtCertificationEndDate: date("actual_ojt_certification_end_date"),
+  actualHandoverToOpsDate: date("actual_handover_to_ops_date"),
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -200,6 +215,17 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
     lineOfBusinessId: z.number().int().positive("Line of Business is required"),
     trainerId: z.number().int().positive("Trainer is required"),
     organizationId: z.number().int().positive("Organization is required"),
+    actualInductionStartDate: z.string().optional(),
+    actualInductionEndDate: z.string().optional(),
+    actualTrainingStartDate: z.string().optional(),
+    actualTrainingEndDate: z.string().optional(),
+    actualCertificationStartDate: z.string().optional(),
+    actualCertificationEndDate: z.string().optional(),
+    actualOjtStartDate: z.string().optional(),
+    actualOjtEndDate: z.string().optional(),
+    actualOjtCertificationStartDate: z.string().optional(),
+    actualOjtCertificationEndDate: z.string().optional(),
+    actualHandoverToOpsDate: z.string().optional(),
   });
 
 export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
