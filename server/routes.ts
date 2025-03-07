@@ -880,35 +880,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           )
         );
 
-      // For each trainee, get their attendance status for today
-      const traineesWithAttendance = await Promise.all(
-        batchTrainees.map(async (trainee) => {
-          // Get today's attendance record
-          const [attendanceRecord] = await db
-            .select()
-            .from(attendance)
-            .where(
-              and(
-                eq(attendance.traineeId, trainee.userId),
-                eq(attendance.date, currentDate)
-              )
-            );
-
-          return {
-            id: trainee.userId,
-            fullName: trainee.fullName,
-            employeeId: trainee.employeeId,
-            status: attendanceRecord?.status || null,
-            lastUpdated: attendanceRecord?.updatedAt || null
-          };
-        })
-      );
+      // For each trainee, get their attendance status for today if exists
+      const traineesWithAttendance = batchTrainees.map((trainee) => {
+        return {
+          id: trainee.userId,
+          fullName: trainee.fullName,
+          employeeId: trainee.employeeId,
+          status: null, // Default to null if no attendance record exists
+          lastUpdated: null
+        };
+      });
 
       console.log('Trainees with attendance:', traineesWithAttendance);
       res.json(traineesWithAttendance);
     } catch (error: any) {
       console.error("Error fetching trainees with attendance:", error);
-      res.status(500).json({ message: error.message });
+      res.status(500).json({ message: "Error loading trainees. Please try again." });
     }
   });
 
