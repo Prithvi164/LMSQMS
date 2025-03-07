@@ -26,6 +26,14 @@ import {
 } from 'recharts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+// Add styles for button animation
+const buttonAnimationStyles = {
+  active: {
+    transform: 'scale(0.95)',
+    transition: 'transform 200ms ease'
+  }
+};
+
 type Batch = {
   id: number;
   name: string;
@@ -171,7 +179,7 @@ export default function TraineeManagement() {
 
         {batch.status === 'planned' && (
           <Button
-            className={`w-full relative ${clickedBatchId === batch.id ? 'active-button' : ''}`}
+            className="w-full"
             onClick={(e) => {
               e.stopPropagation();
               setClickedBatchId(batch.id);
@@ -179,10 +187,9 @@ export default function TraineeManagement() {
               setTimeout(() => setClickedBatchId(null), 200);
             }}
             disabled={startBatchMutation.isPending}
+            style={clickedBatchId === batch.id ? buttonAnimationStyles.active : undefined}
           >
-            <CheckCircle2 className={`h-4 w-4 mr-2 transition-transform duration-200 ${
-              clickedBatchId === batch.id ? 'scale-95' : ''
-            }`} />
+            <CheckCircle2 className="h-4 w-4 mr-2" />
             {startBatchMutation.isPending ? "Starting..." : "Start Batch"}
           </Button>
         )}
