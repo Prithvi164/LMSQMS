@@ -2,13 +2,29 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Bell, Users, CalendarDays, CheckCircle2, Loader2, BarChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, addHours, addMinutes } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import {
+  BarChart as RechartsBarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer
+} from 'recharts';
+import { Progress } from "@/components/ui/progress";
 
 // Type for batch data
 type Batch = {
@@ -27,8 +43,12 @@ type Batch = {
   };
 };
 
+// Colors for charts
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+
 export default function TraineeManagement() {
   const [selectedTab, setSelectedTab] = useState("all-batches");
+  const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -41,6 +61,12 @@ export default function TraineeManagement() {
   } = useQuery<Batch[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches`],
     enabled: !!user?.organizationId,
+  });
+
+  // Fetch batch performance data when a batch is selected
+  const { data: batchPerformance } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/batches/${selectedBatch}/performance`],
+    enabled: !!selectedBatch,
   });
 
   // Mutation for starting a batch
@@ -95,6 +121,28 @@ export default function TraineeManagement() {
   const ojtBatches = batchesByStatus['ojt'] || [];
   const completedBatches = batchesByStatus['completed'] || [];
 
+  // Sample performance data (replace with actual data from API)
+  const performanceData = [
+    { name: 'Week 1', score: 85 },
+    { name: 'Week 2', score: 88 },
+    { name: 'Week 3', score: 92 },
+    { name: 'Week 4', score: 90 }
+  ];
+
+  const attendanceData = [
+    { name: 'Present', value: 85 },
+    { name: 'Absent', value: 10 },
+    { name: 'Leave', value: 5 }
+  ];
+
+  const phaseProgress = [
+    { name: 'Induction', completed: 100 },
+    { name: 'Training', completed: 75 },
+    { name: 'Certification', completed: 30 },
+    { name: 'OJT', completed: 0 },
+    { name: 'OJT Certification', completed: 0 }
+  ];
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -115,7 +163,11 @@ export default function TraineeManagement() {
   }
 
   const renderBatchCard = (batch: Batch) => (
-    <Card key={batch.id}>
+    <Card 
+      key={batch.id} 
+      className={`cursor-pointer ${selectedBatch === batch.id ? 'ring-2 ring-primary' : ''}`}
+      onClick={() => setSelectedBatch(batch.id)}
+    >
       <CardContent className="p-6 space-y-4">
         <div className="flex justify-between items-start">
           <div>
@@ -146,7 +198,10 @@ export default function TraineeManagement() {
         {batch.status === 'planned' && (
           <Button
             className="w-full"
-            onClick={() => startBatchMutation.mutate(batch.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              startBatchMutation.mutate(batch.id);
+            }}
             disabled={startBatchMutation.isPending}
           >
             <CheckCircle2 className="h-4 w-4 mr-2" />
@@ -155,6 +210,77 @@ export default function TraineeManagement() {
         )}
       </CardContent>
     </Card>
+  );
+
+  const renderPerformanceCharts = () => (
+    <div className="space-y-8">
+      {/* Weekly Performance Chart */}
+      <Card>
+        <CardContent className="p-6">
+          <h3 className="text-lg font-semibold mb-4">Weekly Performance Trend</h3>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={performanceData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="score" stroke="#8884d8" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Attendance Chart */}
+      <Card>
+        <CardContent className="p-6">
+          <h3 className="text-lg font-semibold mb-4">Attendance Distribution</h3>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={attendanceData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                  label
+                >
+                  {attendanceData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Phase Progress Chart */}
+      <Card>
+        <CardContent className="p-6">
+          <h3 className="text-lg font-semibold mb-4">Phase Progress</h3>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <RechartsBarChart data={phaseProgress}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="completed" fill="#8884d8" />
+              </RechartsBarChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 
   return (
@@ -250,11 +376,15 @@ export default function TraineeManagement() {
         </TabsContent>
 
         <TabsContent value="progress">
-          <Alert>
-            <AlertDescription>
-              Progress tracking feature coming soon. You'll be able to monitor trainee progress across all phases here.
-            </AlertDescription>
-          </Alert>
+          {selectedBatch ? (
+            renderPerformanceCharts()
+          ) : (
+            <Alert>
+              <AlertDescription>
+                Select a batch to view detailed performance metrics.
+              </AlertDescription>
+            </Alert>
+          )}
         </TabsContent>
 
         <TabsContent value="attendance">
