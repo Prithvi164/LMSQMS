@@ -65,13 +65,6 @@ export default function TraineeManagement() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  // Set the first batch as selected by default
-  useEffect(() => {
-    if (batches.length > 0 && !selectedBatch) {
-      setSelectedBatch(batches[0].id);
-    }
-  }, [batches]);
-
   // Fetch all batches
   const {
     data: batches = [],
@@ -81,6 +74,13 @@ export default function TraineeManagement() {
     queryKey: [`/api/organizations/${user?.organizationId}/batches`],
     enabled: !!user?.organizationId,
   });
+
+  // Set the first batch as selected by default when batches are loaded
+  useEffect(() => {
+    if (batches && batches.length > 0 && !selectedBatch) {
+      setSelectedBatch(batches[0].id);
+    }
+  }, [batches, selectedBatch]);
 
   // Fetch batch performance data when a batch is selected
   const { data: batchPerformance } = useQuery({
