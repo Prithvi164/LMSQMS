@@ -31,10 +31,14 @@ type AttendanceStatus = 'present' | 'absent' | 'late' | 'leave';
 
 type Trainee = {
   id: number;
-  fullName: string;
-  employeeId: string;
-  status: AttendanceStatus | null;
-  lastUpdated?: string;
+  status: string;
+  user: {
+    id: number;
+    fullName: string;
+    employeeId: string;
+    email: string;
+    role: string;
+  };
 };
 
 export function BatchDetailsPage() {
@@ -47,13 +51,13 @@ export function BatchDetailsPage() {
   const currentDate = format(new Date(), "PPP");
 
   // Fetch batch details
-  const { data: batch, isLoading, error } = useQuery({
+  const { data: batch, isLoading: batchLoading, error: batchError } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}`],
     enabled: !!user?.organizationId && !!batchId,
   });
 
   // Fetch trainees for the batch
-  const { data: trainees } = useQuery({
+  const { data: trainees, isLoading: traineesLoading } = useQuery<Trainee[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`],
     enabled: !!user?.organizationId && !!batchId,
   });
@@ -64,10 +68,10 @@ export function BatchDetailsPage() {
       const response = await fetch(`/api/attendance/${traineeId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          status, 
+        body: JSON.stringify({
+          status,
           date: new Date().toISOString().split('T')[0],
-          organizationId: user?.organizationId 
+          organizationId: user?.organizationId
         }),
       });
       if (!response.ok) throw new Error('Failed to update attendance');
@@ -89,7 +93,7 @@ export function BatchDetailsPage() {
     },
   });
 
-  if (isLoading) {
+  if (batchLoading || traineesLoading) {
     return (
       <div className="flex items-center justify-center p-8">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -98,7 +102,7 @@ export function BatchDetailsPage() {
     );
   }
 
-  if (error) {
+  if (batchError) {
     return (
       <Alert variant="destructive">
         <AlertDescription>
@@ -112,16 +116,6 @@ export function BatchDetailsPage() {
     return (
       <Alert>
         <AlertDescription>Batch not found.</AlertDescription>
-      </Alert>
-    );
-  }
-
-  if (batch.status === 'planned') {
-    return (
-      <Alert>
-        <AlertDescription>
-          Detailed tracking is only available after the batch has started.
-        </AlertDescription>
       </Alert>
     );
   }
@@ -148,7 +142,7 @@ export function BatchDetailsPage() {
         <div>
           <h1 className="text-3xl font-bold">{batch.name}</h1>
           <p className="text-muted-foreground">
-            {batch.location.name} • {batch.process.name}
+            {batch.location?.name} • {batch.process?.name}
           </p>
         </div>
         <Badge variant="secondary" className="capitalize">
@@ -184,52 +178,60 @@ export function BatchDetailsPage() {
                 <p className="text-muted-foreground">{currentDate}</p>
               </div>
 
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Trainee Name</TableHead>
-                    <TableHead>Employee ID</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Last Updated</TableHead>
-                    <TableHead>Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {trainees?.map((trainee: Trainee) => (
-                    <TableRow key={trainee.id}>
-                      <TableCell>{trainee.fullName}</TableCell>
-                      <TableCell>{trainee.employeeId}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getStatusIcon(trainee.status)}
-                          <span className="capitalize">{trainee.status || 'Not marked'}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {trainee.lastUpdated ? format(new Date(trainee.lastUpdated), "hh:mm a") : '-'}
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={trainee.status || ''}
-                          onValueChange={(value: AttendanceStatus) => 
-                            updateAttendanceMutation.mutate({ traineeId: trainee.id, status: value })
-                          }
-                        >
-                          <SelectTrigger className="w-[130px]">
-                            <SelectValue placeholder="Mark attendance" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="present">Present</SelectItem>
-                            <SelectItem value="absent">Absent</SelectItem>
-                            <SelectItem value="late">Late</SelectItem>
-                            <SelectItem value="leave">Leave</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
+              {trainees && trainees.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Trainee Name</TableHead>
+                      <TableHead>Employee ID</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Last Updated</TableHead>
+                      <TableHead>Action</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {trainees.map((trainee) => (
+                      <TableRow key={trainee.id}>
+                        <TableCell>{trainee.user.fullName}</TableCell>
+                        <TableCell>{trainee.user.employeeId}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {getStatusIcon(trainee.status as AttendanceStatus)}
+                            <span className="capitalize">{trainee.status || 'Not marked'}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {trainee.lastUpdated ? format(new Date(trainee.lastUpdated), "hh:mm a") : '-'}
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={trainee.status || ''}
+                            onValueChange={(value: AttendanceStatus) =>
+                              updateAttendanceMutation.mutate({ traineeId: trainee.id, status: value })
+                            }
+                          >
+                            <SelectTrigger className="w-[130px]">
+                              <SelectValue placeholder="Mark attendance" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="present">Present</SelectItem>
+                              <SelectItem value="absent">Absent</SelectItem>
+                              <SelectItem value="late">Late</SelectItem>
+                              <SelectItem value="leave">Leave</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <Alert>
+                  <AlertDescription>
+                    No trainees found in this batch.
+                  </AlertDescription>
+                </Alert>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
