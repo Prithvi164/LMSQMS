@@ -812,7 +812,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       .where(
         and(
           eq(userBatchProcesses.batchId, batchId),
-          eq(users.role, 'trainee')
+          eq(users.role, 'trainee'),
+          eq(userBatchProcesses.status, 'active')  // Only count active trainees
         )
       );
 
