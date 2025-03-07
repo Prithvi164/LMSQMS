@@ -17,7 +17,7 @@ import { db } from './db';
 import { join } from 'path';
 import express from 'express';
 import { eq } from "drizzle-orm";
-import { toIST, fromIST, formatIST } from './utils/timezone';
+import { toIST, fromIST, formatIST, toUTCStorage, formatISTDateOnly } from './utils/timezone';
 
 const scryptAsync = promisify(scrypt);
 
@@ -832,7 +832,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "You can only delete processes in your own organization" });
+        return res.status(403).json({ message: "Youcan only delete processes in your own organization" });
       }
 
       console.log('Deleting process:', processId);
@@ -1627,7 +1627,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add new route for starting a batch after existing batch routes
-  app.post("/api/batches/:batchId/start", async (req, res) => {
+  app.post("/api/organizations/:orgId/batches/:batchId/start", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     try {
@@ -1649,14 +1649,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Update batch status to induction with proper timezone handling
+      // Store dates in UTC format while preserving IST midnight
+      const currentDate = new Date();
       const updatedBatch = await storage.updateBatch(batchId, {
         status: 'induction',
-        startDate: formatIST(new Date()),
-        updatedAt: formatIST(new Date())
+        startDate: toUTCStorage(currentDate.toISOString()),
+        updatedAt: toUTCStorage(currentDate.toISOString())
       });
 
-      console.log('Successfully started batch:', updatedBatch);
+      console.log('Successfully started batch:', {
+        ...updatedBatch,
+        startDate: formatISTDateOnly(updatedBatch.startDate),
+        updatedAt: formatIST(updatedBatch.updatedAt)
+      });
+
       res.json(updatedBatch);
 
     } catch (error: any) {
