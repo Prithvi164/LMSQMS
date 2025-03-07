@@ -49,7 +49,13 @@ ws['J1'] = {
 XLSX.utils.book_append_sheet(wb, ws, 'Trainees');
 
 // Write to file
-const templatePath = join(process.cwd(), 'public', 'templates', 'trainee-upload-template.xlsx');
-XLSX.writeFile(wb, templatePath);
+const templatePath = join(process.cwd(), 'public', 'templates');
+// Create templates directory if it doesn't exist
+const fs = require('fs');
+if (!fs.existsSync(templatePath)) {
+  fs.mkdirSync(templatePath, { recursive: true });
+}
 
-console.log('Template created successfully at:', templatePath);
+XLSX.writeFile(wb, join(templatePath, 'trainee-upload-template.xlsx'));
+
+console.log('Template created successfully at:', join(templatePath, 'trainee-upload-template.xlsx'));
