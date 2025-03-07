@@ -66,18 +66,24 @@ export function BatchDetailsPage() {
   // Mutation for updating attendance
   const updateAttendanceMutation = useMutation({
     mutationFn: async ({ traineeId, status }: { traineeId: number; status: AttendanceStatus }) => {
-      const response = await fetch(`/api/attendance/${traineeId}`, {
+      const response = await fetch(`/api/attendance`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          traineeId,
           status,
           date: new Date().toISOString().split('T')[0],
           organizationId: user?.organizationId,
           batchId: parseInt(batchId!),
-          phase: batch?.status
+          phase: batch?.status,
+          markedById: user?.id // Add the ID of the user marking attendance
         }),
       });
-      if (!response.ok) throw new Error('Failed to update attendance');
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update attendance');
+      }
       return response.json();
     },
     onSuccess: (data) => {
