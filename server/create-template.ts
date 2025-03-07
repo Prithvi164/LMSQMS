@@ -32,18 +32,41 @@ const exampleData = [
   'advisor' // Example role (can be: manager, team_lead, quality_analyst, trainer, advisor)
 ];
 
-// Create worksheet
+// Create worksheet with headers and example data
 const ws = XLSX.utils.aoa_to_sheet([headers, exampleData]);
 
 // Add column widths for better readability
-const colWidths = headers.map(() => ({ wch: 15 }));
-ws['!cols'] = colWidths;
+ws['!cols'] = [
+  { wch: 15 }, // username
+  { wch: 20 }, // fullName
+  { wch: 25 }, // email
+  { wch: 12 }, // employeeId
+  { wch: 15 }, // phoneNumber
+  { wch: 15 }, // dateOfJoining
+  { wch: 15 }, // dateOfBirth
+  { wch: 20 }, // education
+  { wch: 15 }, // password
+  { wch: 15 }  // role
+];
 
-// Add comments/notes for the role column
-ws['J1'] = { 
+// Add validation and notes for role column
+const roleNote = {
+  t: 's',
   v: 'role',
-  c: [{ a: 'System', t: 'Valid roles: manager, team_lead, quality_analyst, trainer, advisor' }]
+  c: [{
+    a: 'System',
+    t: 'Valid roles: manager, team_lead, quality_analyst, trainer, advisor'
+  }]
 };
+
+ws['J1'] = roleNote;
+
+// Add styling to headers
+for (let i = 0; i < headers.length; i++) {
+  const cellRef = XLSX.utils.encode_cell({ r: 0, c: i });
+  if (!ws[cellRef]) ws[cellRef] = { t: 's', v: headers[i] };
+  ws[cellRef].s = { font: { bold: true } };
+}
 
 // Add the worksheet to workbook
 XLSX.utils.book_append_sheet(wb, ws, 'Trainees');
