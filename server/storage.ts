@@ -906,11 +906,12 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching batches for organization ${organizationId}`);
 
+      // Explicitly select and cast the batch_category field
       const batches = await db
         .select({
           id: organizationBatches.id,
           name: organizationBatches.name,
-          batchCategory: organizationBatches.batchCategory,
+          batchCategory: sql<string>`${organizationBatches.batchCategory}::text`,
           startDate: organizationBatches.startDate,
           endDate: organizationBatches.endDate,
           status: organizationBatches.status,
@@ -920,36 +921,19 @@ export class DatabaseStorage implements IStorage {
           lineOfBusinessId: organizationBatches.lineOfBusinessId,
           trainerId: organizationBatches.trainerId,
           organizationId: organizationBatches.organizationId,
+          inductionStartDate: organizationBatches.inductionStartDate,
+          inductionEndDate: organizationBatches.inductionEndDate,
+          trainingStartDate: organizationBatches.trainingStartDate,
+          trainingEndDate: organizationBatches.trainingEndDate,
+          certificationStartDate: organizationBatches.certificationStartDate,
+          certificationEndDate: organizationBatches.certificationEndDate,
+          ojtStartDate: organizationBatches.ojtStartDate,
+          ojtEndDate: organizationBatches.ojtEndDate,
+          ojtCertificationStartDate: organizationBatches.ojtCertificationStartDate,
+          ojtCertificationEndDate: organizationBatches.ojtCertificationEndDate,
+          handoverToOpsDate: organizationBatches.handoverToOpsDate,
           createdAt: organizationBatches.createdAt,
           updatedAt: organizationBatches.updatedAt,
-          // Add planned dates
-          planned_induction_start: organizationBatches.planned_induction_start,
-          planned_induction_end: organizationBatches.planned_induction_end,
-          planned_training_start: organizationBatches.planned_training_start,
-          planned_training_end: organizationBatches.planned_training_end,
-          planned_certification_start: organizationBatches.planned_certification_start,
-          planned_certification_end: organizationBatches.planned_certification_end,
-          planned_ojt_start: organizationBatches.planned_ojt_start,
-          planned_ojt_end: organizationBatches.planned_ojt_end,
-          planned_ojt_certification_start: organizationBatches.planned_ojt_certification_start,
-          planned_ojt_certification_end: organizationBatches.planned_ojt_certification_end,
-          planned_handover_date: organizationBatches.planned_handover_date,
-          // Add actual dates
-          actual_induction_start: organizationBatches.actual_induction_start,
-          actual_induction_end: organizationBatches.actual_induction_end,
-          actual_training_start: organizationBatches.actual_training_start,
-          actual_training_end: organizationBatches.actual_training_end,
-          actual_certification_start: organizationBatches.actual_certification_start,
-          actual_certification_end: organizationBatches.actual_certification_end,
-          actual_ojt_start: organizationBatches.actual_ojt_end,
-          actual_ojt_certification_start: organizationBatches.actual_ojt_certification_start,
-          actual_ojt_certification_end: organizationBatches.actual_ojt_certification_end,
-          actual_handover_date: organizationBatches.actual_handover_date,
-          // Add tracking metrics
-          completion_percentage: organizationBatches.completion_percentage,
-          phase_adherence_score: organizationBatches.phase_adherence_score,
-          delay_days: organizationBatches.delay_days,
-          // Include related data
           location: organizationLocations,
           process: organizationProcesses,
           line_of_business: organizationLineOfBusinesses,
@@ -967,72 +951,31 @@ export class DatabaseStorage implements IStorage {
           organizationLineOfBusinesses,
           eq(organizationBatches.lineOfBusinessId, organizationLineOfBusinesses.id)
         )
-        .where(eq(organizationBatches.organizationId, organizationId)) as OrganizationBatch[];
+        .where(eq(organizationBatches.organizationId, organizationId))
+        .orderBy(desc(organizationBatches.createdAt));
 
-      console.log(`Found ${batches.length} batches`);
-      return batches;
+      // Debug log to verify the data      console.log('Raw batch data:', batches.map(b => ({
+      //      //   id: b.id,
+      //   name: b.name,
+      //   category: b.batchCategory,
+      //   rawCategory: JSON.stringify(b.batchCategory)
+      // })));
+
+      return batches as OrganizationBatch[];
     } catch (error) {
       console.error('Error fetching batches:', error);
-      throw new Error('Failed to fetch batches');
+      throw error;
     }
-  }
-
-  private calculateBatchMetrics(batch: OrganizationBatch, currentDate: Date = new Date()) {
-    // Calculate completion percentage based on phases
-    const phases = ['induction', 'training', 'certification', 'ojt', 'ojt_certification'];
-    const currentPhaseIndex = phases.indexOf(batch.status);
-    const completionPercentage = currentPhaseIndex === -1 ? 0 : Math.round((currentPhaseIndex / phases.length) * 100);
-
-    // Calculate delay days
-    let delayDays = 0;
-    const plannedStart = new Date(batch.planned_induction_start);
-    const actualStart = batch.actual_induction_start ? new Date(batch.actual_induction_start) : currentDate;
-
-    if (actualStart > plannedStart) {
-      delayDays = Math.floor((actualStart.getTime() - plannedStart.getTime()) / (1000 * 60 * 60 * 24));
-    }
-
-    // Calculate phase adherence score
-    let phaseAdherenceScore = 100;
-    if (delayDays > 0) {
-      // Deduct 10 points per day of delay, minimum 0
-      phaseAdherenceScore = Math.max(0, 100 - (delayDays * 10));
-    }
-
-    return {
-      completion_percentage: completionPercentage,
-      phase_adherence_score: phaseAdherenceScore,
-      delay_days: delayDays
-    };
   }
 
   async updateBatch(id: number, batch: Partial<InsertOrganizationBatch>): Promise<OrganizationBatch> {
     try {
       console.log(`Updating batch with ID: ${id}`, batch);
 
-      // Get current batch data to calculate metrics
-      const currentBatch = await this.getBatch(id);
-      if (!currentBatch) {
-        throw new Error('Batch not found');
-      }
-
-      // Calculate metrics if status is changing
-      let metricsUpdate = {};
-      if (batch.status && batch.status !== currentBatch.status) {
-        const metrics = this.calculateBatchMetrics({
-          ...currentBatch,
-          ...batch,
-        });
-        metricsUpdate = metrics;
-      }
-
       const [updatedBatch] = await db
         .update(organizationBatches)
         .set({
           ...batch,
-          ...metricsUpdate,
-          id: undefined,
-          createdAt: undefined,
           updatedAt: new Date()
         })
         .where(eq(organizationBatches.id, id))
@@ -1042,16 +985,7 @@ export class DatabaseStorage implements IStorage {
         throw new Error('Batch not found');
       }
 
-      console.log('Successfully updated batch:', {
-        id: updatedBatch.id,
-        status: updatedBatch.status,
-        metrics: {
-          completion_percentage: updatedBatch.completion_percentage,
-          phase_adherence_score: updatedBatch.phase_adherence_score,
-          delay_days: updatedBatch.delay_days
-        }
-      });
-
+      console.log('Successfully updated batch:', updatedBatch);
       return updatedBatch;
     } catch (error) {
       console.error('Error updating batch:', error);

@@ -830,14 +830,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const processId = parseInt(req.params.processId);
 
       // Check if user belongs to the organization
-      if (req.user.organizationId !== orgId) {        return res.status(403).json({ message: "You can only delete processes in your own organization" });
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only delete processes in your own organization" });
       }
 
       console.log('Deleting process:', processId);
       await storage.deleteProcess(processId);
 
       console.log('Process deleted successfully');
-      res.status(200).json({ message: "Processdeleted successfully"});
+      res.status(200).json({ message: "Process deleted successfully"});
     } catch (error:any) {
       console.error("Process deletion error:", error);
       res.status(400).json({ message: error.message || "Failed to delete process" });
@@ -990,104 +991,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only create batches in your own organization" });
       }
 
-      // Get the process to calculate phase dates
-      const process = await storage.getProcess(req.body.processId);
-      if (!process) {
-        return res.status(404).json({ message: "Process not found" });
-      }
-
-      // Calculate all planned dates based on process duration
-      const startDate = new Date(req.body.startDate);
-      let currentDate = startDate;
-
-      const plannedDates = {
-        planned_induction_start: startDate.toISOString().split('T')[0],
-        planned_induction_end: null,
-        planned_training_start: null,
-        planned_training_end: null,
-        planned_certification_start: null,
-        planned_certification_end: null,
-        planned_ojt_start: null,
-        planned_ojt_end: null,
-        planned_ojt_certification_start: null,
-        planned_ojt_certification_end: null,
-        planned_handover_date: null
-      };
-
-      // Calculate induction end date
-      if (process.inductionDays > 0) {
-        currentDate = new Date(currentDate);
-        currentDate.setDate(currentDate.getDate() + process.inductionDays);
-        plannedDates.planned_induction_end = currentDate.toISOString().split('T')[0];
-
-        // Set training start to next day
-        currentDate = new Date(currentDate);
-        currentDate.setDate(currentDate.getDate() + 1);
-        plannedDates.planned_training_start = currentDate.toISOString().split('T')[0];
-      }
-
-      // Calculate training end date
-      if (process.trainingDays > 0) {
-        currentDate = new Date(currentDate);
-        currentDate.setDate(currentDate.getDate() + process.trainingDays - 1);
-        plannedDates.planned_training_end = currentDate.toISOString().split('T')[0];
-
-        // Set certification start to next day
-        currentDate = new Date(currentDate);
-        currentDate.setDate(currentDate.getDate() + 1);
-        plannedDates.planned_certification_start = currentDate.toISOString().split('T')[0];
-      }
-
-      // Calculate certification end date
-      if (process.certificationDays > 0) {
-        currentDate = new Date(currentDate);
-        currentDate.setDate(currentDate.getDate() + process.certificationDays - 1);
-        plannedDates.planned_certification_end = currentDate.toISOString().split('T')[0];
-
-        // Set OJT start to next day
-        currentDate = new Date(currentDate);
-        currentDate.setDate(currentDate.getDate() + 1);
-        plannedDates.planned_ojt_start = currentDate.toISOString().split('T')[0];
-      }
-
-      // Calculate OJT end date
-      if (process.ojtDays > 0) {
-        currentDate = new Date(currentDate);
-        currentDate.setDate(currentDate.getDate() + process.ojtDays - 1);
-        plannedDates.planned_ojt_end = currentDate.toISOString().split('T')[0];
-
-        // Set OJT certification start to next day
-        currentDate = new Date(currentDate);
-        currentDate.setDate(currentDate.getDate() + 1);
-        plannedDates.planned_ojt_certification_start = currentDate.toISOString().split('T')[0];
-      }
-
-      // Calculate OJT certification end date
-      if (process.ojtCertificationDays > 0) {
-        currentDate = new Date(currentDate);
-        currentDate.setDate(currentDate.getDate() + process.ojtCertificationDays - 1);
-        plannedDates.planned_ojt_certification_end = currentDate.toISOString().split('T')[0];
-
-        // Set handover date to next day
-        currentDate = new Date(currentDate);
-        currentDate.setDate(currentDate.getDate() + 1);
-        plannedDates.planned_handover_date = currentDate.toISOString().split('T')[0];
-      }
-
-      // Create batch with calculated dates
       const batchData = {
         ...req.body,
         organizationId: orgId,
-        status: 'planned',
-        ...plannedDates,
-        completion_percentage: 0,
-        phase_adherence_score: 100,
-        delay_days: 0
       };
 
       console.log('Creating batch with data:', batchData);
-      const batch = await storage.createBatch(batchData);
 
+      const batch = await storage.createBatch(batchData);
       res.status(201).json(batch);
     } catch (error: any) {
       console.error("Batch creation error:", error);
@@ -1737,38 +1648,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Calculate metrics
-      const today = new Date();
-      const plannedStart = new Date(batch.planned_induction_start);
-
-      // Calculate delay days
-      const delayDays = Math.max(0, Math.floor((today.getTime() - plannedStart.getTime()) / (1000 * 60 * 60 * 24)));
-
-      // Calculate phase adherence score (100 if starting on time, -10 points per day of delay, minimum 0)
-      const phaseAdherenceScore = Math.max(0, 100 - (delayDays * 10));
-
-      // Initial completion percentage (based on total phases: induction, training, certification, ojt, ojt_certification)
-      const completionPercentage = 0; // Starting phase
-
-      // Update batch with new status and metrics
+      // Update batch status to induction
       const updatedBatch = await storage.updateBatch(batchId, {
         status: 'induction',
-        actual_induction_start: today.toISOString().split('T')[0],
-        delay_days: delayDays,
-        phase_adherence_score: phaseAdherenceScore,
-        completion_percentage: completionPercentage,
-        updatedAt: today.toISOString()
+        startDate: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       });
 
-      console.log('Successfully started batch:', {
-        id: batchId,
-        metrics: {
-          delayDays,
-          phaseAdherenceScore,
-          completionPercentage
-        }
-      });
-
+      console.log('Successfully started batch:', updatedBatch);
       res.json(updatedBatch);
 
     } catch (error: any) {
