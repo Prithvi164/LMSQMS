@@ -636,12 +636,16 @@ export const attendanceStatusEnum = pgEnum('attendance_status', [
   'leave'
 ]);
 
-// Add attendance table
+// Update the attendance table definition with batch and phase tracking
 export const attendance = pgTable("attendance", {
   id: serial("id").primaryKey(),
   traineeId: integer("trainee_id")
     .references(() => users.id)
     .notNull(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id)
+    .notNull(),
+  phase: batchStatusEnum("phase").notNull(),
   status: attendanceStatusEnum("status").notNull(),
   date: date("date").notNull(),
   markedById: integer("marked_by_id")
@@ -654,12 +658,12 @@ export const attendance = pgTable("attendance", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => {
   return {
-    // Ensure only one attendance record per trainee per day
-    unq: unique().on(table.traineeId, table.date),
+    // Ensure only one attendance record per trainee per day per batch
+    unq: unique().on(table.traineeId, table.date, table.batchId),
   };
 });
 
-// Add attendance relations
+// Update attendance relations to include batch
 export const attendanceRelations = relations(attendance, ({ one }) => ({
   trainee: one(users, {
     fields: [attendance.traineeId],
@@ -673,9 +677,13 @@ export const attendanceRelations = relations(attendance, ({ one }) => ({
     fields: [attendance.organizationId],
     references: [organizations.id],
   }),
+  batch: one(organizationBatches, {
+    fields: [attendance.batchId],
+    references: [organizationBatches.id],
+  }),
 }));
 
-// Add insert schema for attendance
+// Update insert schema for attendance
 export const insertAttendanceSchema = createInsertSchema(attendance)
   .omit({
     id: true,
@@ -684,6 +692,8 @@ export const insertAttendanceSchema = createInsertSchema(attendance)
   })
   .extend({
     traineeId: z.number().int().positive("Trainee ID is required"),
+    batchId: z.number().int().positive("Batch ID is required"),
+    phase: z.enum(['induction', 'training', 'certification', 'ojt', 'ojt_certification']),
     status: z.enum(['present', 'absent', 'late', 'leave']),
     date: z.string().min(1, "Date is required"),
     markedById: z.number().int().positive("Marker ID is required"),

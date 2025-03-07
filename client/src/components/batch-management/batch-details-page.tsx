@@ -39,6 +39,7 @@ type Trainee = {
     email: string;
     role: string;
   };
+  lastUpdated?: string;
 };
 
 export function BatchDetailsPage() {
@@ -71,7 +72,9 @@ export function BatchDetailsPage() {
         body: JSON.stringify({
           status,
           date: new Date().toISOString().split('T')[0],
-          organizationId: user?.organizationId
+          organizationId: user?.organizationId,
+          batchId: parseInt(batchId!), // Add batch ID
+          phase: batch?.status as string // Add current batch phase
         }),
       });
       if (!response.ok) throw new Error('Failed to update attendance');
