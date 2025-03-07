@@ -875,27 +875,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const batchId = parseInt(req.params.batchId);
       const orgId = parseInt(req.params.orgId);
 
-      // First get all trainees assigned to this batch
+      // Get all trainees assigned to this batch
       const batchTrainees = await db
         .select({
           userId: userBatchProcesses.userId,
           status: userBatchProcesses.status,
-          user: users
+          user: {
+            id: users.id,
+            fullName: users.fullName,
+            employeeId: users.employeeId,
+            email: users.email,
+            role: users.role
+          }
         })
         .from(userBatchProcesses)
         .innerJoin(users, eq(users.id, userBatchProcesses.userId))
-        .where(eq(userBatchProcesses.batchId, batchId));
+        .where(and(
+          eq(userBatchProcesses.batchId, batchId),
+          eq(users.role, 'trainee') // Only get trainees
+        ));
 
       // Map to expected format
       const traineesWithDetails = batchTrainees.map((trainee) => ({
         id: trainee.userId,
         status: trainee.status,
-        user: {
-          id: trainee.user.id,
-          fullName: trainee.user.fullName,
-          employeeId: trainee.user.employeeId,
-          email: trainee.user.email
-        }
+        user: trainee.user
       }));
 
       console.log('Trainees with details:', traineesWithDetails);
