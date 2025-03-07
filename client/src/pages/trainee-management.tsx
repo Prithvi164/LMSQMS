@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -72,6 +72,13 @@ export default function TraineeManagement() {
     queryKey: [`/api/organizations/${user?.organizationId}/batches`],
     enabled: !!user?.organizationId,
   });
+
+  // Set the first batch as selected by default
+  useEffect(() => {
+    if (batches.length > 0 && !selectedBatch) {
+      setSelectedBatch(batches[0].id);
+    }
+  }, [batches]);
 
   // Fetch batch performance data when a batch is selected
   const { data: batchPerformance } = useQuery({
@@ -188,8 +195,8 @@ export default function TraineeManagement() {
   };
 
   const renderBatchCard = (batch: Batch) => (
-    <Card 
-      key={batch.id} 
+    <Card
+      key={batch.id}
       className={`cursor-pointer ${selectedBatch === batch.id ? 'ring-2 ring-primary' : ''}`}
       onClick={() => setSelectedBatch(batch.id)}
     >
@@ -416,7 +423,7 @@ export default function TraineeManagement() {
           </TabsTrigger>
           <TabsTrigger value="progress" className="flex items-center gap-2">
             <BarChart className="h-4 w-4" />
-            Progress
+            Progress {selectedBatch && <Badge variant="outline" className="ml-2">Batch Selected</Badge>}
           </TabsTrigger>
           <TabsTrigger value="attendance" className="flex items-center gap-2">
             <CalendarDays className="h-4 w-4" />
