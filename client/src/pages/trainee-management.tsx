@@ -1,35 +1,29 @@
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Users, CalendarDays, CheckCircle2, Loader2, BarChart } from "lucide-react";
+import { Bell, Users, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, addHours, addMinutes } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import {
-  BarChart as RechartsBarChart,
+  BarChart,
   Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
   ResponsiveContainer
 } from 'recharts';
-import { Progress } from "@/components/ui/progress";
 
 // Colors for charts
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+const COLORS = ['#82ca9d', '#ff8042', '#8884d8'];
 
-// Type for batch data
+// Type definitions
 type Batch = {
   id: number;
   name: string;
@@ -53,7 +47,6 @@ export default function TraineeManagement() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  // Fetch all batches
   const {
     data: batches = [],
     isLoading,
@@ -63,14 +56,19 @@ export default function TraineeManagement() {
     enabled: !!user?.organizationId,
   });
 
+  // Helper function to check if batch is in active phase
+  const isActivePhase = (status: string) => {
+    return ['induction', 'training', 'certification', 'ojt'].includes(status);
+  };
+
   // Group batches by status
-  const batchesByStatus = batches.reduce((acc, batch) => {
+  const batchesByStatus = batches.reduce((acc: Record<string, Batch[]>, batch: Batch) => {
     if (!acc[batch.status]) {
       acc[batch.status] = [];
     }
     acc[batch.status].push(batch);
     return acc;
-  }, {} as Record<string, Batch[]>);
+  }, {});
 
   const plannedBatches = batchesByStatus['planned'] || [];
   const inductionBatches = batchesByStatus['induction'] || [];
@@ -78,11 +76,6 @@ export default function TraineeManagement() {
   const certificationBatches = batchesByStatus['certification'] || [];
   const ojtBatches = batchesByStatus['ojt'] || [];
   const completedBatches = batchesByStatus['completed'] || [];
-
-  // Helper function to check if batch is in active phase
-  const isActivePhase = (status: string) => {
-    return ['induction', 'training', 'certification', 'ojt'].includes(status);
-  };
 
   // Sample attendance data (replace with actual API data)
   const attendanceData = [
@@ -99,17 +92,17 @@ export default function TraineeManagement() {
     return (
       <div className="mt-4 pt-4 border-t">
         <h4 className="font-medium mb-4">Attendance Overview</h4>
-        <div className="h-[200px]">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="h-[200px] w-full">
+          <ResponsiveContainer>
             <BarChart data={attendanceData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
               <YAxis />
               <Tooltip />
               <Legend />
-              <Bar dataKey="present" fill="#82ca9d" name="Present" />
-              <Bar dataKey="absent" fill="#ff8042" name="Absent" />
-              <Bar dataKey="leave" fill="#8884d8" name="On Leave" />
+              <Bar dataKey="present" fill={COLORS[0]} name="Present" />
+              <Bar dataKey="absent" fill={COLORS[1]} name="Absent" />
+              <Bar dataKey="leave" fill={COLORS[2]} name="On Leave" />
             </BarChart>
           </ResponsiveContainer>
         </div>
