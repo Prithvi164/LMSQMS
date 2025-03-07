@@ -73,15 +73,21 @@ export function BatchDetailsPage() {
           status,
           date: new Date().toISOString().split('T')[0],
           organizationId: user?.organizationId,
-          batchId: parseInt(batchId!), // Add batch ID
-          phase: batch?.status as string // Add current batch phase
+          batchId: parseInt(batchId!),
+          phase: batch?.status
         }),
       });
       if (!response.ok) throw new Error('Failed to update attendance');
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`] });
+    onSuccess: (data) => {
+      // Invalidate both queries to refresh the data
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`] 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}`] 
+      });
       toast({
         title: "Attendance Updated",
         description: "The attendance status has been updated successfully.",
