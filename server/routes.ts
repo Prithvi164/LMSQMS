@@ -16,8 +16,9 @@ import * as XLSX from 'xlsx';
 import { db } from './db';
 import { join } from 'path';
 import express from 'express';
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { toIST, fromIST, formatIST, toUTCStorage, formatISTDateOnly } from './utils/timezone';
+import { attendance } from "@shared/schema";
 
 const scryptAsync = promisify(scrypt);
 
@@ -849,6 +850,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(enrichedBatches);
     } catch (error: any) {
       console.error("Error fetching batches:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get batch trainees with attendance
+  app.get("/api/organizations/:orgId/batches/:batchId/trainees", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const batchId = parseInt(req.params.batchId);
+      const orgId = parseInt(req.params.orgId);
+      const currentDate = new Date().toISOString().split('T')[0]; // Get current date
+
+      // First get all trainees assigned to this batch
+      const batchTrainees = await db
+        .select({
+          userId: userBatchProcesses.userId,
+          status: userBatchProcesses.status,
+          fullName: users.fullName,
+          employeeId: users.employeeId
+        })
+        .from(userBatchProcesses)
+        .innerJoin(users, eq(users.id, userBatchProcesses.userId))
+        .where(
+          and(
+            eq(userBatchProcesses.batchId, batchId),
+            eq(users.organizationId, orgId)
+          )
+        );
+
+      // For each trainee, get their attendance status for today
+      const traineesWithAttendance = await Promise.all(
+        batchTrainees.map(async (trainee) => {
+          // Get today's attendance record
+          const [attendanceRecord] = await db
+            .select()
+            .from(attendance)
+            .where(
+              and(
+                eq(attendance.traineeId, trainee.userId),
+                eq(attendance.date, currentDate)
+              )
+            );
+
+          return {
+            id: trainee.userId,
+            fullName: trainee.fullName,
+            employeeId: trainee.employeeId,
+            status: attendanceRecord?.status || null,
+            lastUpdated: attendanceRecord?.updatedAt || null
+          };
+        })
+      );
+
+      console.log('Trainees with attendance:', traineesWithAttendance);
+      res.json(traineesWithAttendance);
+    } catch (error: any) {
+      console.error("Error fetching trainees with attendance:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Update attendance endpoint 
+  app.post("/api/attendance/:traineeId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const traineeId = parseInt(req.params.traineeId);
+      const { status, date, organizationId } = req.body;
+
+      // Validate the status
+      const validStatuses = ['present', 'absent', 'late', 'leave'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: "Invalid attendance status" });
+      }
+
+      // Check if attendance record already exists for this date
+      const [existingRecord] = await db
+        .select()
+        .from(attendance)
+        .where(
+          and(
+            eq(attendance.traineeId, traineeId),
+            eq(attendance.date, date)
+          )
+        );
+
+      let result;
+      if (existingRecord) {
+        // Update existing record
+        [result] = await db
+          .update(attendance)
+          .set({
+            status,
+            updatedAt: new Date()
+          })
+          .where(eq(attendance.id, existingRecord.id))
+          .returning();
+      } else {
+        // Create new record
+        [result] = await db
+          .insert(attendance)
+          .values({
+            traineeId,
+            status,
+            date,
+            markedById: req.user.id,
+            organizationId,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          })
+          .returning();
+      }
+
+      console.log('Attendance record updated:', result);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error updating attendance:", error);
       res.status(500).json({ message: error.message });
     }
   });
