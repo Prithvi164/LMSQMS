@@ -26,8 +26,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@radix-ui/react-select'
 
-// Form schema with validation
+
+// Updated trainee data submission type
 const addTraineeSchema = z.object({
   username: z.string()
     .min(3, "Username must be at least 3 characters")
@@ -46,6 +48,7 @@ const addTraineeSchema = z.object({
   password: z.string()
     .min(8, "Password must be at least 8 characters")
     .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Password must contain uppercase, lowercase, and numbers"),
+  role: z.enum(['trainee', 'quality_analyst', 'trainer', 'advisor']).default('trainee'),
 });
 
 type AddTraineeFormProps = {
@@ -58,7 +61,6 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
 
-  // Get current batch details including trainee count
   const { data: batchDetails } = useQuery({
     queryKey: [`/api/organizations/${batch.organizationId}/batches/${batch.id}`],
     enabled: !!batch.id,
@@ -72,22 +74,20 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
     try {
       setIsSubmitting(true);
 
-      // Combine form values with batch data and convert dates to ISO strings
       const traineeData = {
         ...values,
-        dateOfJoining: values.dateOfJoining.toISOString().split('T')[0], // Format as YYYY-MM-DD
-        dateOfBirth: values.dateOfBirth.toISOString().split('T')[0], // Format as YYYY-MM-DD
+        dateOfJoining: values.dateOfJoining.toISOString().split('T')[0],
+        dateOfBirth: values.dateOfBirth.toISOString().split('T')[0],
         processId: batch.processId,
         lineOfBusinessId: batch.lineOfBusinessId,
         locationId: batch.locationId,
         trainerId: batch.trainerId,
         organizationId: batch.organizationId,
         batchId: batch.id,
-        role: "trainee",
-        category: "trainee"
+        category: "trainee", 
+        role: values.role, 
       };
 
-      // Updated API endpoint
       const response = await fetch(`/api/organizations/${batch.organizationId}/batches/${batch.id}/trainees`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -102,7 +102,7 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
 
       toast({
         title: "Success",
-        description: "Trainee added successfully",
+        description: `Trainee ${values.fullName} has been successfully added to batch ${batch.name} with role ${values.role}`,
       });
 
       onSuccess();
@@ -157,13 +157,11 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
     }
   };
 
-  // Calculate trainee count and remaining capacity
   const traineeCount = batchDetails?.traineeCount || 0;
   const remainingCapacity = (batch.capacityLimit || 0) - traineeCount;
 
   return (
     <div className="max-h-[70vh] overflow-y-auto px-4">
-      {/* Capacity Information */}
       <div className="mb-6 p-4 rounded-lg bg-muted">
         <h3 className="font-medium mb-2">Batch Capacity</h3>
         <div className="text-sm space-y-1">
@@ -186,7 +184,6 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          {/* Rest of the form fields */}
           <FormField
             control={form.control}
             name="username"
@@ -229,7 +226,6 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
             )}
           />
 
-          {/* Batch Info Section */}
           <div className="rounded-lg bg-muted/50 p-4 space-y-4">
             <div>
               <FormLabel className="text-muted-foreground">Batch</FormLabel>
@@ -383,6 +379,32 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
             )}
           />
 
+          {/* Add role selection after education field */}
+          <FormField
+            control={form.control}
+            name="role"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Role</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="trainee">Trainee</SelectItem>
+                    <SelectItem value="quality_analyst">Quality Analyst</SelectItem>
+                    <SelectItem value="trainer">Trainer</SelectItem>
+                    <SelectItem value="advisor">Advisor</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
           <FormField
             control={form.control}
             name="password"
@@ -408,7 +430,6 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
         </form>
       </Form>
 
-      {/* Bulk Upload Dialog */}
       <Dialog open={showBulkUpload} onOpenChange={setShowBulkUpload}>
         <DialogContent>
           <DialogHeader>
