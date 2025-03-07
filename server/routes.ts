@@ -1462,7 +1462,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Add the bulk upload route (place this with other trainee-related routes)
   app.post("/api/organizations/:orgId/batches/:batchId/trainees/bulk", upload.single('file'), async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "No file uploaded" });
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
     try {

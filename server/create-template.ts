@@ -4,7 +4,7 @@ import { join } from 'path';
 // Create workbook
 const wb = XLSX.utils.book_new();
 
-// Define headers
+// Define headers with role added
 const headers = [
   'username',
   'fullName',
@@ -14,10 +14,11 @@ const headers = [
   'dateOfJoining',
   'dateOfBirth',
   'education',
-  'password'
+  'password',
+  'role' // Added role column
 ];
 
-// Create example data row
+// Create example data row with role
 const exampleData = [
   'john.doe',
   'John Doe',
@@ -27,7 +28,8 @@ const exampleData = [
   '2025-03-06', // Format: YYYY-MM-DD
   '1990-01-01', // Format: YYYY-MM-DD
   'Bachelor\'s Degree',
-  'Password123!' // Will be hashed on upload
+  'Password123!', // Will be hashed on upload
+  'advisor' // Default role
 ];
 
 // Create worksheet
