@@ -830,8 +830,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const processId = parseInt(req.params.processId);
 
       // Check if user belongs to the organization
-      if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "You can only delete processes in your own organization" });
+      if (req.user.organizationId !== orgId) {        return res.status(403).json({ message: "You can only delete processes in your own organization" });
       }
 
       console.log('Deleting process:', processId);
@@ -1648,14 +1647,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Update batch status to induction
+      // Calculate metrics
+      const today = new Date();
+      const plannedStart = new Date(batch.planned_induction_start);
+
+      // Calculate delay days
+      const delayDays = Math.max(0, Math.floor((today.getTime() - plannedStart.getTime()) / (1000 * 60 * 60 * 24)));
+
+      // Calculate phase adherence score (100 if starting on time, -10 points per day of delay, minimum 0)
+      const phaseAdherenceScore = Math.max(0, 100 - (delayDays * 10));
+
+      // Initial completion percentage (based on total phases: induction, training, certification, ojt, ojt_certification)
+      const completionPercentage = 0; // Starting phase
+
+      // Update batch with new status and metrics
       const updatedBatch = await storage.updateBatch(batchId, {
         status: 'induction',
-        startDate: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        actual_induction_start: today.toISOString().split('T')[0],
+        delay_days: delayDays,
+        phase_adherence_score: phaseAdherenceScore,
+        completion_percentage: completionPercentage,
+        updatedAt: today.toISOString()
       });
 
-      console.log('Successfully started batch:', updatedBatch);
+      console.log('Successfully started batch:', {
+        id: batchId,
+        metrics: {
+          delayDays,
+          phaseAdherenceScore,
+          completionPercentage
+        }
+      });
+
       res.json(updatedBatch);
 
     } catch (error: any) {

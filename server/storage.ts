@@ -977,14 +977,62 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  private calculateBatchMetrics(batch: OrganizationBatch, currentDate: Date = new Date()) {
+    // Calculate completion percentage based on phases
+    const phases = ['induction', 'training', 'certification', 'ojt', 'ojt_certification'];
+    const currentPhaseIndex = phases.indexOf(batch.status);
+    const completionPercentage = currentPhaseIndex === -1 ? 0 : Math.round((currentPhaseIndex / phases.length) * 100);
+
+    // Calculate delay days
+    let delayDays = 0;
+    const plannedStart = new Date(batch.planned_induction_start);
+    const actualStart = batch.actual_induction_start ? new Date(batch.actual_induction_start) : currentDate;
+
+    if (actualStart > plannedStart) {
+      delayDays = Math.floor((actualStart.getTime() - plannedStart.getTime()) / (1000 * 60 * 60 * 24));
+    }
+
+    // Calculate phase adherence score
+    let phaseAdherenceScore = 100;
+    if (delayDays > 0) {
+      // Deduct 10 points per day of delay, minimum 0
+      phaseAdherenceScore = Math.max(0, 100 - (delayDays * 10));
+    }
+
+    return {
+      completion_percentage: completionPercentage,
+      phase_adherence_score: phaseAdherenceScore,
+      delay_days: delayDays
+    };
+  }
+
   async updateBatch(id: number, batch: Partial<InsertOrganizationBatch>): Promise<OrganizationBatch> {
     try {
       console.log(`Updating batch with ID: ${id}`, batch);
+
+      // Get current batch data to calculate metrics
+      const currentBatch = await this.getBatch(id);
+      if (!currentBatch) {
+        throw new Error('Batch not found');
+      }
+
+      // Calculate metrics if status is changing
+      let metricsUpdate = {};
+      if (batch.status && batch.status !== currentBatch.status) {
+        const metrics = this.calculateBatchMetrics({
+          ...currentBatch,
+          ...batch,
+        });
+        metricsUpdate = metrics;
+      }
 
       const [updatedBatch] = await db
         .update(organizationBatches)
         .set({
           ...batch,
+          ...metricsUpdate,
+          id: undefined,
+          createdAt: undefined,
           updatedAt: new Date()
         })
         .where(eq(organizationBatches.id, id))
@@ -994,7 +1042,16 @@ export class DatabaseStorage implements IStorage {
         throw new Error('Batch not found');
       }
 
-      console.log('Successfully updated batch:', updatedBatch);
+      console.log('Successfully updated batch:', {
+        id: updatedBatch.id,
+        status: updatedBatch.status,
+        metrics: {
+          completion_percentage: updatedBatch.completion_percentage,
+          phase_adherence_score: updatedBatch.phase_adherence_score,
+          delay_days: updatedBatch.delay_days
+        }
+      });
+
       return updatedBatch;
     } catch (error) {
       console.error('Error updating batch:', error);
