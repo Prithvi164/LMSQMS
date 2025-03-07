@@ -138,7 +138,7 @@ export default function TraineeManagement() {
   const completedBatches = batchesByStatus['completed'] || [];
 
   const renderBatchCard = (batch: Batch) => (
-    <Card
+    <Card 
       key={batch.id}
       className={`${selectedBatch === batch.id ? 'border-primary' : ''}`}
       onClick={() => setSelectedBatch(batch.id)}
@@ -184,7 +184,12 @@ export default function TraineeManagement() {
               e.stopPropagation();
               setClickedBatchId(batch.id);
               startBatchMutation.mutate(batch.id);
-              setTimeout(() => setClickedBatchId(null), 200);
+              // Reset the clicked state after animation
+              setTimeout(() => {
+                if (clickedBatchId === batch.id) {
+                  setClickedBatchId(null);
+                }
+              }, 200);
             }}
             disabled={startBatchMutation.isPending}
             style={clickedBatchId === batch.id ? buttonAnimationStyles.active : undefined}
