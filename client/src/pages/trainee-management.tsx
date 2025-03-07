@@ -4,12 +4,27 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Users, CalendarDays, CheckCircle2, Loader2, BarChart, ChevronDown, ChevronRight } from "lucide-react";
+import { Bell, Users, CalendarDays, CheckCircle2, Loader2, BarChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, addHours, addMinutes } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-// ... (keep other imports)
+import { Progress } from "@/components/ui/progress";
+import {
+  BarChart as RechartsBarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  LineChart,
+  Line,
+  ResponsiveContainer,
+  AreaChart,
+  Area
+} from 'recharts';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type Batch = {
   id: number;
