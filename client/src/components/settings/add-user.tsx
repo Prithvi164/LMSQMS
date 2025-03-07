@@ -251,7 +251,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                     <option value="admin">Admin</option>
                     <option value="manager">Manager</option>
                     <option value="team_lead">Team Lead</option>
-                    <option value="qualityassurance">Quality Assurance</option>
+                    <option value="quality_analyst">Quality Analyst</option>
                     <option value="trainer">Trainer</option>
                     <option value="advisor">Advisor</option>
                   </>
@@ -259,14 +259,14 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                   <>
                     <option value="manager">Manager</option>
                     <option value="team_lead">Team Lead</option>
-                    <option value="qualityassurance">Quality Assurance</option>
+                    <option value="quality_analyst">Quality Analyst</option>
                     <option value="trainer">Trainer</option>
                     <option value="advisor">Advisor</option>
                   </>
                 ) : (
                   <>
                     <option value="team_lead">Team Lead</option>
-                    <option value="qualityassurance">Quality Assurance</option>
+                    <option value="quality_analyst">Quality Analyst</option>
                     <option value="trainer">Trainer</option>
                     <option value="advisor">Advisor</option>
                   </>
