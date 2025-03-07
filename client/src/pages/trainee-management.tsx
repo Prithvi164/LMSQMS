@@ -44,6 +44,8 @@ type Batch = {
   line_of_business: {
     name: string;
   };
+  capacityLimit: number; // Added capacityLimit
+  enrolledCount: number; // Added enrolledCount
 };
 
 // Colors for charts
@@ -225,6 +227,13 @@ export default function TraineeManagement() {
             <span className="font-medium">LOB:</span>{" "}
             {batch.line_of_business.name}
           </p>
+          <div className="mt-2">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-sm font-medium">Capacity</span>
+              <span className="text-sm">{batch.enrolledCount || 0} / {batch.capacityLimit}</span>
+            </div>
+            <Progress value={(batch.enrolledCount || 0) / batch.capacityLimit * 100} />
+          </div>
         </div>
 
         {batch.status === 'planned' && (
