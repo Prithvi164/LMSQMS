@@ -12,6 +12,13 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -26,8 +33,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@radix-ui/react-select'
-
 
 // Updated trainee data submission type
 const addTraineeSchema = z.object({
@@ -68,6 +73,9 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
 
   const form = useForm<z.infer<typeof addTraineeSchema>>({
     resolver: zodResolver(addTraineeSchema),
+    defaultValues: {
+      role: 'trainee'
+    }
   });
 
   async function onSubmit(values: z.infer<typeof addTraineeSchema>) {
@@ -84,8 +92,8 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
         trainerId: batch.trainerId,
         organizationId: batch.organizationId,
         batchId: batch.id,
-        category: "trainee", 
-        role: values.role, 
+        category: "trainee", // Always set category as trainee
+        role: values.role, // Use selected role
       };
 
       const response = await fetch(`/api/organizations/${batch.organizationId}/batches/${batch.id}/trainees`, {
@@ -184,6 +192,7 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          {/* Basic Information */}
           <FormField
             control={form.control}
             name="username"
@@ -226,6 +235,7 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
             )}
           />
 
+          {/* Batch Info Section */}
           <div className="rounded-lg bg-muted/50 p-4 space-y-4">
             <div>
               <FormLabel className="text-muted-foreground">Batch</FormLabel>
@@ -379,20 +389,19 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
             )}
           />
 
-          {/* Add role selection after education field */}
+          {/* Role Selection */}
           <FormField
             control={form.control}
             name="role"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Role</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a role" />
-                  </SelectTrigger>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a role" />
+                    </SelectTrigger>
+                  </FormControl>
                   <SelectContent>
                     <SelectItem value="trainee">Trainee</SelectItem>
                     <SelectItem value="quality_analyst">Quality Analyst</SelectItem>
