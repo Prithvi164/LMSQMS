@@ -797,8 +797,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Helper function to get enrolled count for a batch
+  const getEnrolledCount = async (batchId: number) => {
+    const trainees = await storage.getBatchTrainees(batchId);
+    // Get user details for each trainee to check their category
+    const traineeDetails = await Promise.all(
+      trainees.map(trainee => storage.getUser(trainee.userId))
+    );
+    return traineeDetails.filter(user => user && user.category === 'trainee').length;
+  };
+
+  // Batch listing route with enrolled count
+  app.get("/api/organizations/:orgId/batches", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const status = req.query.status as string;
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only view batches in your own organization" });
+      }
+
+      let batches = await storage.listBatches(orgId);
+
+      // Filter by status if specified
+      if (status) {
+        batches = batches.filter(batch => batch.status === status);
+      }
+
+      // For each batch, enrich with location, process, line of business details, and enrolled count
+      const enrichedBatches = await Promise.all(batches.map(async (batch) => {
+        const [location, process, line_of_business, enrolledCount] = await Promise.all([
+          storage.getLocation(batch.locationId), 
+          storage.getProcess(batch.processId),
+          storage.getLineOfBusiness(batch.lineOfBusinessId),
+          getEnrolledCount(batch.id)
+        ]);
+
+        return {
+          ...batch,
+          location,
+          process, 
+          line_of_business,
+          enrolledCount
+        };
+      }));
+
+      console.log(`Found ${enrichedBatches.length} batches for organization ${orgId}`);
+      res.json(enrichedBatches);
+    } catch (error: any) {
+      console.error("Error fetching batches:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Add Organization Process Routes
-  // Get organization processes
+  // Get organization processes 
   app.get("/api/organizations/:id/processes", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -992,42 +1048,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add batch management routes
-  app.get("/api/organizations/:id/batches", async (req, res) => {
+  // Batch listing route with enrolled count and additional details
+  app.get("/api/organizations/:orgId/batches", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     try {
-      const orgId = parseInt(req.params.id);
+      const orgId = parseInt(req.params.orgId);
+      const status = req.query.status as string;
 
-      // Check if user belongs to the organization
+      // Check if user belongs to the organization  
       if (req.user.organizationId !== orgId) {
         return res.status(403).json({ message: "You can only view batches in your own organization" });
       }
 
-      console.log(`Fetching batches for organization ${orgId}`);
-      const batches = await storage.listBatches(orgId);
-      console.log(`Raw batch data:`, batches);
+      let batches = await storage.listBatches(orgId);
 
-      // For each batch, get trainee count
-      const batchesWithTraineeCount = await Promise.all(
-        batches.map(async (batch) => {
-          const trainees = await storage.getBatchTrainees(batch.id);
-          const traineeCount = trainees.length;
+      // Filter by status if specified
+      if (status) {
+        batches = batches.filter(batch => batch.status === status);
+      }
 
-          // Get location name
-          console.log(`Fetching location with ID: ${batch.locationId}`);
-          const location = await storage.getLocation(batch.locationId);
-          console.log('Location found:', location);
+      // For each batch, enrich with location, process, line of business details, and enrolled count
+      const enrichedBatches = await Promise.all(batches.map(async (batch) => {
+        const [location, process, line_of_business, enrolledCount] = await Promise.all([
+          storage.getLocation(batch.locationId),
+          storage.getProcess(batch.processId),
+          storage.getLineOfBusiness(batch.lineOfBusinessId),
+          getEnrolledCount(batch.id)
+        ]);
 
-          return {
-            ...batch,
-            traineeCount,
-            locationName: location?.name
-          };
-        })
-      );
+        return {
+          ...batch,
+          location,
+          process,
+          line_of_business,
+          enrolledCount
+        };
+      }));
 
-      return res.json(batchesWithTraineeCount);
+      console.log(`Found ${enrichedBatches.length} batches for organization ${orgId}`);
+      res.json(enrichedBatches);
     } catch (error: any) {
       console.error("Error fetching batches:", error);
       res.status(500).json({ message: error.message });
