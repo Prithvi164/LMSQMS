@@ -862,12 +862,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const batchId = parseInt(req.params.batchId);
       const orgId = parseInt(req.params.orgId);
 
-      // First get all trainees assigned to this batch
+      if (isNaN(batchId) || isNaN(orgId)) {
+        return res.status(400).json({ message: "Invalid batch ID or organization ID" });
+      }
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only view trainees in your own organization" });
+      }
+
+      // First get all trainees assigned to this batch with their user details
       const batchTrainees = await db
         .select({
+          id: userBatchProcesses.id,
           userId: userBatchProcesses.userId,
           status: userBatchProcesses.status,
-          user: users
+          user: {
+            id: users.id,
+            username: users.username,
+            fullName: users.fullName,
+            email: users.email,
+            employeeId: users.employeeId,
+            phoneNumber: users.phoneNumber,
+            dateOfJoining: users.dateOfJoining
+          }
         })
         .from(userBatchProcesses)
         .innerJoin(users, eq(users.id, userBatchProcesses.userId))
@@ -878,20 +896,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           )
         );
 
-      // Map to expected format
-      const traineesWithDetails = batchTrainees.map((trainee) => ({
-        id: trainee.userId,
+      // Map the results to ensure proper nesting of user data
+      const formattedTrainees = batchTrainees.map(trainee => ({
+        id: trainee.id,
+        userId: trainee.userId,
         status: trainee.status,
-        user: {
-          id: trainee.user.id,
-          fullName: trainee.user.fullName,
-          employeeId: trainee.user.employeeId,
-          email: trainee.user.email
-        }
+        user: trainee.user
       }));
 
-      console.log('Trainees with details:', traineesWithDetails);
-      res.json(traineesWithDetails);
+      console.log('Trainees with details:', formattedTrainees);
+      res.json(formattedTrainees);
     } catch (error: any) {
       console.error("Error fetching trainees:", error);
       res.status(500).json({ message: "Error loading trainees. Please try again." });
@@ -904,7 +918,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const traineeId = parseInt(req.params.traineeId);
-      const { status, date, organizationId } = req.body;
+      const { status, date } = req.body;
+
+      if (isNaN(traineeId)) {
+        return res.status(400).json({ message: "Invalid trainee ID" });
+      }
+
+      if (!date) {
+        return res.status(400).json({ message: "Date is required" });
+      }
 
       // Validate the status
       const validStatuses = ['present', 'absent', 'late', 'leave'];
@@ -912,12 +934,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid attendance status" });
       }
 
-      // Check if attendance record already exists for this date
-      const [existingRecord] = await db
+      // Check if the trainee exists and belongs to user's organization
+      const trainee = await db
         .select()
-        .from(attendance)
+        .from(users)
         .where(
           and(
+            eq(users.id, traineeId),
+            eq(users.organizationId, req.user.organizationId)
+          )
+        )
+        .limit(1);
+
+      if (!trainee.length) {
+        return res.status(404).json({ message: "Trainee not found or not in your organization" });
+      }
+
+      // Save attendance record
+      const result = await db
+        .insert(attendance)
+        .values({
+          traineeId,
+          status,
+          date,
+          markedById: req.user.id,
+          organizationId: req.user.organizationId,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .onConflictDoUpdate({
+          target: [attendance.traineeId, attendance.date],
+          set: {
+            status,
+            markedById: req.user.id,
+            updatedAt: new Date()
+          }
+        })
+        .returning();
+
+      if (!result.length) {
+        throw new Error("Failed to update attendance record");
+      }
+
+      console.log('Attendance record updated:', result[0]);
+      res.json(result[0]);
+    } catch (error: any) {
+      console.error("Error updating attendance:", error);
+      res.status(500).json({ 
+        message: "Failed to update attendance record",
+        details: error.message
+      });
+    }
+  });
             eq(attendance.traineeId, traineeId),
             eq(attendance.date, date)
           )
