@@ -816,7 +816,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         )
       );
 
-    // Use the same filtering logic as the trainees endpoint
+    // Log the enrollment details for debugging
+    console.log(`Batch ${batchId} enrollment details:`, {
+      totalTrainees: batchTrainees.length,
+      traineesDetails: batchTrainees.map(t => ({
+        userId: t.userId,
+        status: t.status,
+        role: t.user.role
+      }))
+    });
+
     return batchTrainees.length;
   };
 
