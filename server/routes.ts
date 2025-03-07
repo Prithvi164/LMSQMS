@@ -799,32 +799,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Helper function to get enrolled count for a batch
-  const getEnrolledCount = async (batchId: number, orgId: number) => {
-    // Get all trainees assigned to this batch
-    const batchTrainees = await db
-      .select({
-        userId: userBatchProcesses.userId,
-        status: userBatchProcesses.status,
-        user: users
-      })
-      .from(userBatchProcesses)
-      .innerJoin(users, eq(users.id, userBatchProcesses.userId))
-      .where(
-        and(
-          eq(userBatchProcesses.batchId, batchId),
-          eq(users.organizationId, orgId)
-        )
-      );
-
-    // Count only active trainee users
-    const activeTrainees = batchTrainees.filter(trainee => 
-      trainee.user.role === 'trainee' && trainee.status === 'active'
+  const getEnrolledCount = async (batchId: number) => {
+    const trainees = await storage.getBatchTrainees(batchId);
+    // Get user details for each trainee to check their role
+    const traineeDetails = await Promise.all(
+      trainees.map(trainee => storage.getUser(trainee.userId))
     );
-
-    return activeTrainees.length;
+    return traineeDetails.filter(user => user && user.role === 'trainee').length;
   };
 
-  // Update the batch listing route to include capacity
+  // Batch listing route with enrolled count
   app.get("/api/organizations/:orgId/batches", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -839,7 +823,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let batches = await storage.listBatches(orgId);
 
-      // Filter by status if specified
+      // Filter by status if specified  
       if (status) {
         batches = batches.filter(batch => batch.status === status);
       }
@@ -847,27 +831,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // For each batch, enrich with location, process, line of business details, and enrolled count
       const enrichedBatches = await Promise.all(batches.map(async (batch) => {
         const [location, process, line_of_business, enrolledCount] = await Promise.all([
-          storage.getLocation(batch.locationId),
+          storage.getLocation(batch.locationId), 
           storage.getProcess(batch.processId),
           storage.getLineOfBusiness(batch.lineOfBusinessId),
-          getEnrolledCount(batch.id, orgId)
+          getEnrolledCount(batch.id)
         ]);
-
-        // Log batch details for debugging 
-        console.log('Batch details:', {
-          id: batch.id,
-          name: batch.name,
-          capacityLimit: batch.capacityLimit || 0,
-          enrolledCount
-        });
 
         return {
           ...batch,
           location,
-          process,
+          process, 
           line_of_business,
-          enrolledCount,
-          capacity: batch.capacityLimit // Use capacityLimit directly from the batch
+          enrolledCount
         };
       }));
 
