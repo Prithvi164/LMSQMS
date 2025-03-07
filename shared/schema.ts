@@ -191,7 +191,7 @@ export const organizationBatchesRelations = relations(organizationBatches, ({ on
   }),
 }));
 
-// Update validation schema to properly handle the enum
+// Update validation schema to properly handle the planned dates
 export const insertOrganizationBatchSchema = createInsertSchema(organizationBatches)
   .omit({
     id: true,
