@@ -4,12 +4,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Users, CalendarDays, CheckCircle2, Loader2, BarChart } from "lucide-react";
+import { Bell, Users, CalendarDays, CheckCircle2, Loader2, BarChart, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, addHours, addMinutes } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { Progress } from "@/components/ui/progress";
 import {
   BarChart as RechartsBarChart,
   Bar,
@@ -20,12 +19,17 @@ import {
   Legend,
   LineChart,
   Line,
+  PieChart,
+  Pie,
+  Cell,
   ResponsiveContainer,
   AreaChart,
   Area
 } from 'recharts';
+import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+// Type for batch data
 type Batch = {
   id: number;
   name: string;
@@ -44,8 +48,10 @@ type Batch = {
   enrolledCount: number;
 };
 
+// Colors for charts
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
+// Performance metrics types
 type MetricType = 'daily' | 'weekly' | 'monthly';
 type DrilldownLevel = 'overview' | 'phase' | 'trainee';
 
@@ -59,6 +65,14 @@ export default function TraineeManagement() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
+  // Set the first batch as selected by default
+  useEffect(() => {
+    if (batches.length > 0 && !selectedBatch) {
+      setSelectedBatch(batches[0].id);
+    }
+  }, [batches]);
+
+  // Fetch all batches
   const {
     data: batches = [],
     isLoading,
@@ -68,17 +82,13 @@ export default function TraineeManagement() {
     enabled: !!user?.organizationId,
   });
 
-  useEffect(() => {
-    if (batches && batches.length > 0 && !selectedBatch) {
-      setSelectedBatch(batches[0].id);
-    }
-  }, [batches, selectedBatch]);
-
+  // Fetch batch performance data when a batch is selected
   const { data: batchPerformance } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${selectedBatch}/performance`],
     enabled: !!selectedBatch,
   });
 
+  // Mutation for starting a batch
   const startBatchMutation = useMutation({
     mutationFn: async (batchId: number) => {
       const response = await fetch(`/api/batches/${batchId}/start`, {
@@ -107,12 +117,14 @@ export default function TraineeManagement() {
     },
   });
 
+  // Helper function to format date in IST
   const formatToIST = (dateStr: string) => {
     const date = new Date(dateStr);
     const dateIST = addMinutes(addHours(date, 5), 30);
     return format(dateIST, "PPP");
   };
 
+  // Group batches by status
   const batchesByStatus = batches.reduce((acc, batch) => {
     if (!acc[batch.status]) {
       acc[batch.status] = [];
@@ -129,7 +141,7 @@ export default function TraineeManagement() {
   const completedBatches = batchesByStatus['completed'] || [];
 
   const renderBatchCard = (batch: Batch) => (
-    <Card 
+    <Card
       key={batch.id}
       className={`${selectedBatch === batch.id ? 'border-primary' : ''}`}
       onClick={() => setSelectedBatch(batch.id)}
@@ -170,7 +182,7 @@ export default function TraineeManagement() {
 
         {batch.status === 'planned' && (
           <Button
-            className="w-full active:scale-95 transition-transform duration-200"
+            className="w-full transition-transform active:scale-95 hover:scale-100"
             onClick={(e) => {
               e.stopPropagation();
               startBatchMutation.mutate(batch.id);
@@ -359,6 +371,7 @@ export default function TraineeManagement() {
     }
   };
 
+  // Sample trainee-specific data
   const traineePerformanceData = [
     { name: 'John Doe', score: 92, progress: 85, attendance: 95 },
     { name: 'Jane Smith', score: 88, progress: 90, attendance: 92 },
@@ -366,6 +379,7 @@ export default function TraineeManagement() {
     { name: 'Sarah Wilson', score: 90, progress: 92, attendance: 88 }
   ];
 
+  // Sample phase-specific data
   const phasePerformanceData = {
     induction: [
       { name: 'Day 1', completion: 100, performance: 85 },
@@ -439,6 +453,7 @@ export default function TraineeManagement() {
                 </div>
               </div>
             )}
+
             {inductionBatches.length > 0 && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">Induction Phase</h2>
@@ -447,6 +462,7 @@ export default function TraineeManagement() {
                 </div>
               </div>
             )}
+
             {trainingBatches.length > 0 && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">Training Phase</h2>
@@ -455,6 +471,7 @@ export default function TraineeManagement() {
                 </div>
               </div>
             )}
+
             {certificationBatches.length > 0 && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">Certification Phase</h2>
@@ -463,6 +480,7 @@ export default function TraineeManagement() {
                 </div>
               </div>
             )}
+
             {ojtBatches.length > 0 && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">OJT Phase</h2>
@@ -471,6 +489,7 @@ export default function TraineeManagement() {
                 </div>
               </div>
             )}
+
             {completedBatches.length > 0 && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">Completed Batches</h2>
@@ -479,6 +498,7 @@ export default function TraineeManagement() {
                 </div>
               </div>
             )}
+
             {batches.length === 0 && (
               <Alert>
                 <AlertDescription>
