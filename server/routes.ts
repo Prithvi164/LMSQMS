@@ -884,12 +884,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .from(userBatchProcesses)
         .innerJoin(users, eq(users.id, userBatchProcesses.userId))
-        .where(
-          and(
-            eq(userBatchProcesses.batchId, batchId),
-            eq(users.organizationId, orgId)
-          )
-        );
+        .where(eq(userBatchProcesses.batchId, batchId));
 
       // Map to expected format
       const traineesWithDetails = batchTrainees.map((trainee) => ({
