@@ -4,26 +4,32 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Users, CheckCircle2, Loader2 } from "lucide-react";
+import { Bell, Users, CalendarDays, CheckCircle2, Loader2, BarChart, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, addHours, addMinutes } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import {
-  BarChart,
+  BarChart as RechartsBarChart,
   Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
-  ResponsiveContainer
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  AreaChart,
+  Area
 } from 'recharts';
+import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-// Colors for charts
-const COLORS = ['#82ca9d', '#ff8042', '#8884d8'];
-
-// Type definitions
+// Type for batch data
 type Batch = {
   id: number;
   name: string;
@@ -40,35 +46,90 @@ type Batch = {
   };
 };
 
+// Colors for charts
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+
+// Performance metrics types
+type MetricType = 'daily' | 'weekly' | 'monthly';
+type DrilldownLevel = 'overview' | 'phase' | 'trainee';
+
 export default function TraineeManagement() {
   const [selectedTab, setSelectedTab] = useState("all-batches");
   const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
+  const [metricType, setMetricType] = useState<MetricType>('weekly');
+  const [drilldownLevel, setDrilldownLevel] = useState<DrilldownLevel>('overview');
+  const [selectedPhase, setSelectedPhase] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
+  // Fetch all batches
   const {
     data: batches = [],
     isLoading,
     error
-  } = useQuery({
+  } = useQuery<Batch[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches`],
     enabled: !!user?.organizationId,
   });
 
-  // Helper function to check if batch is in active phase
-  const isActivePhase = (status: string) => {
-    return ['induction', 'training', 'certification', 'ojt'].includes(status);
+  // Set the first batch as selected by default
+  useEffect(() => {
+    if (batches.length > 0 && !selectedBatch) {
+      setSelectedBatch(batches[0].id);
+    }
+  }, [batches]);
+
+  // Fetch batch performance data when a batch is selected
+  const { data: batchPerformance } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/batches/${selectedBatch}/performance`],
+    enabled: !!selectedBatch,
+  });
+
+  // Mutation for starting a batch
+  const startBatchMutation = useMutation({
+    mutationFn: async (batchId: number) => {
+      const response = await fetch(`/api/batches/${batchId}/start`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to start batch');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/batches`] });
+      toast({
+        title: "Batch Started",
+        description: "The batch has been successfully started and moved to induction phase.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error Starting Batch",
+        description: error.message,
+      });
+    },
+  });
+
+  // Helper function to format date in IST
+  const formatToIST = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const dateIST = addMinutes(addHours(date, 5), 30);
+    return format(dateIST, "PPP");
   };
 
   // Group batches by status
-  const batchesByStatus = batches.reduce((acc: Record<string, Batch[]>, batch: Batch) => {
+  const batchesByStatus = batches.reduce((acc, batch) => {
     if (!acc[batch.status]) {
       acc[batch.status] = [];
     }
     acc[batch.status].push(batch);
     return acc;
-  }, {});
+  }, {} as Record<string, Batch[]>);
 
   const plannedBatches = batchesByStatus['planned'] || [];
   const inductionBatches = batchesByStatus['induction'] || [];
@@ -77,57 +138,60 @@ export default function TraineeManagement() {
   const ojtBatches = batchesByStatus['ojt'] || [];
   const completedBatches = batchesByStatus['completed'] || [];
 
-  // Sample attendance data (replace with actual API data)
-  const attendanceData = [
-    { date: '2025-03-07', present: 15, absent: 2, leave: 1 },
-    { date: '2025-03-06', present: 16, absent: 1, leave: 1 },
-    { date: '2025-03-05', present: 14, absent: 3, leave: 1 },
-    { date: '2025-03-04', present: 16, absent: 2, leave: 0 },
-    { date: '2025-03-03', present: 15, absent: 2, leave: 1 }
+  // Sample performance data based on metric type
+  const getPerformanceData = () => {
+    switch (metricType) {
+      case 'daily':
+        return [
+          { name: 'Mon', score: 85, attendance: 90, assessment: 82 },
+          { name: 'Tue', score: 88, attendance: 95, assessment: 85 },
+          { name: 'Wed', score: 92, attendance: 88, assessment: 90 },
+          { name: 'Thu', score: 90, attendance: 92, assessment: 88 },
+          { name: 'Fri', score: 87, attendance: 85, assessment: 89 }
+        ];
+      case 'weekly':
+        return [
+          { name: 'Week 1', score: 85, attendance: 90, assessment: 82 },
+          { name: 'Week 2', score: 88, attendance: 95, assessment: 85 },
+          { name: 'Week 3', score: 92, attendance: 88, assessment: 90 },
+          { name: 'Week 4', score: 90, attendance: 92, assessment: 88 }
+        ];
+      case 'monthly':
+        return [
+          { name: 'Jan', score: 85, attendance: 90, assessment: 82 },
+          { name: 'Feb', score: 88, attendance: 95, assessment: 85 },
+          { name: 'Mar', score: 92, attendance: 88, assessment: 90 }
+        ];
+      default:
+        return [];
+    }
+  };
+
+  // Sample trainee-specific data
+  const traineePerformanceData = [
+    { name: 'John Doe', score: 92, progress: 85, attendance: 95 },
+    { name: 'Jane Smith', score: 88, progress: 90, attendance: 92 },
+    { name: 'Mike Johnson', score: 85, progress: 88, attendance: 90 },
+    { name: 'Sarah Wilson', score: 90, progress: 92, attendance: 88 }
   ];
 
-  const renderAttendanceSection = (batch: Batch) => {
-    if (!isActivePhase(batch.status)) return null;
-
-    return (
-      <div className="mt-4 pt-4 border-t">
-        <h4 className="font-medium mb-4">Attendance Overview</h4>
-        <div className="h-[200px] w-full">
-          <ResponsiveContainer>
-            <BarChart data={attendanceData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="present" fill={COLORS[0]} name="Present" />
-              <Bar dataKey="absent" fill={COLORS[1]} name="Absent" />
-              <Bar dataKey="leave" fill={COLORS[2]} name="On Leave" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="mt-4 grid grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-green-600">15</div>
-              <div className="text-sm text-muted-foreground">Present Today</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-red-600">2</div>
-              <div className="text-sm text-muted-foreground">Absent Today</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-purple-600">1</div>
-              <div className="text-sm text-muted-foreground">On Leave Today</div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
+  // Sample phase-specific data
+  const phasePerformanceData = {
+    induction: [
+      { name: 'Day 1', completion: 100, performance: 85 },
+      { name: 'Day 2', completion: 90, performance: 88 },
+      { name: 'Day 3', completion: 95, performance: 92 }
+    ],
+    training: [
+      { name: 'Week 1', completion: 85, performance: 80 },
+      { name: 'Week 2', completion: 75, performance: 85 },
+      { name: 'Week 3', completion: 60, performance: 88 }
+    ],
+    certification: [
+      { name: 'Module 1', completion: 90, performance: 85 },
+      { name: 'Module 2', completion: 85, performance: 82 },
+      { name: 'Module 3', completion: 70, performance: 78 }
+    ]
   };
 
   const renderBatchCard = (batch: Batch) => (
@@ -136,7 +200,7 @@ export default function TraineeManagement() {
       className={`cursor-pointer ${selectedBatch === batch.id ? 'ring-2 ring-primary' : ''}`}
       onClick={() => setSelectedBatch(batch.id)}
     >
-      <CardContent className="p-6">
+      <CardContent className="p-6 space-y-4">
         <div className="flex justify-between items-start">
           <div>
             <h3 className="font-semibold text-lg">{batch.name}</h3>
@@ -152,7 +216,7 @@ export default function TraineeManagement() {
           </Badge>
         </div>
 
-        <div className="space-y-2 mt-4">
+        <div className="space-y-2">
           <p className="text-sm">
             <span className="font-medium">Start Date:</span>{" "}
             {formatToIST(batch.startDate)}
@@ -165,7 +229,7 @@ export default function TraineeManagement() {
 
         {batch.status === 'planned' && (
           <Button
-            className="w-full mt-4"
+            className="w-full"
             onClick={(e) => {
               e.stopPropagation();
               startBatchMutation.mutate(batch.id);
@@ -176,46 +240,155 @@ export default function TraineeManagement() {
             {startBatchMutation.isPending ? "Starting..." : "Start Batch"}
           </Button>
         )}
-
-        {renderAttendanceSection(batch)}
       </CardContent>
     </Card>
   );
 
-  // Helper function to format date in IST
-  const formatToIST = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const dateIST = addMinutes(addHours(date, 5), 30);
-    return format(dateIST, "PPP");
-  };
+  const renderDrilldownControls = () => (
+    <div className="flex gap-4 mb-6">
+      <Select value={metricType} onValueChange={(value: MetricType) => setMetricType(value)}>
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Select metric type" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="daily">Daily Metrics</SelectItem>
+          <SelectItem value="weekly">Weekly Metrics</SelectItem>
+          <SelectItem value="monthly">Monthly Metrics</SelectItem>
+        </SelectContent>
+      </Select>
 
-  // Mutation for starting a batch
-  const startBatchMutation = useMutation({
-    mutationFn: async (batchId: number) => {
-      const response = await fetch(`/api/batches/${batchId}/start`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        throw new Error('Failed to start batch');
-      }
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/batches`] });
-      toast({
-        title: "Success",
-        description: "Batch has been started successfully.",
-      });
-    },
-    onError: () => {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to start the batch. Please try again.",
-      });
-    },
-  });
+      <Select value={drilldownLevel} onValueChange={(value: DrilldownLevel) => setDrilldownLevel(value)}>
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Select view level" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="overview">Batch Overview</SelectItem>
+          <SelectItem value="phase">Phase Details</SelectItem>
+          <SelectItem value="trainee">Trainee Details</SelectItem>
+        </SelectContent>
+      </Select>
+
+      {drilldownLevel === 'phase' && (
+        <Select value={selectedPhase || ''} onValueChange={setSelectedPhase}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Select phase" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="induction">Induction</SelectItem>
+            <SelectItem value="training">Training</SelectItem>
+            <SelectItem value="certification">Certification</SelectItem>
+          </SelectContent>
+        </Select>
+      )}
+    </div>
+  );
+
+  const renderPerformanceCharts = () => {
+    // Overview Level Charts
+    if (drilldownLevel === 'overview') {
+      return (
+        <div className="space-y-8">
+          {/* Overall Performance Trend */}
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Overall Performance Trend</h3>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={getPerformanceData()}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="score" stroke="#8884d8" name="Overall Score" />
+                    <Line type="monotone" dataKey="attendance" stroke="#82ca9d" name="Attendance" />
+                    <Line type="monotone" dataKey="assessment" stroke="#ffc658" name="Assessment" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Progress Distribution */}
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Progress Distribution</h3>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={getPerformanceData()}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Area type="monotone" dataKey="score" stackId="1" stroke="#8884d8" fill="#8884d8" />
+                    <Area type="monotone" dataKey="attendance" stackId="1" stroke="#82ca9d" fill="#82ca9d" />
+                    <Area type="monotone" dataKey="assessment" stackId="1" stroke="#ffc658" fill="#ffc658" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    // Phase Level Charts
+    if (drilldownLevel === 'phase' && selectedPhase) {
+      const phaseData = phasePerformanceData[selectedPhase as keyof typeof phasePerformanceData];
+      return (
+        <div className="space-y-8">
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold mb-4">{selectedPhase.charAt(0).toUpperCase() + selectedPhase.slice(1)} Phase Performance</h3>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={phaseData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="completion" fill="#8884d8" name="Completion %" />
+                    <Bar dataKey="performance" fill="#82ca9d" name="Performance Score" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    // Trainee Level Charts
+    if (drilldownLevel === 'trainee') {
+      return (
+        <div className="space-y-8">
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Individual Trainee Performance</h3>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={traineePerformanceData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="score" fill="#8884d8" name="Overall Score" />
+                    <Bar dataKey="progress" fill="#82ca9d" name="Progress" />
+                    <Bar dataKey="attendance" fill="#ffc658" name="Attendance" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    return null;
+  };
 
   if (isLoading) {
     return (
@@ -248,6 +421,14 @@ export default function TraineeManagement() {
             <Users className="h-4 w-4" />
             All Batches
           </TabsTrigger>
+          <TabsTrigger value="progress" className="flex items-center gap-2">
+            <BarChart className="h-4 w-4" />
+            Progress {selectedBatch && <Badge variant="outline" className="ml-2">Batch Selected</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="attendance" className="flex items-center gap-2">
+            <CalendarDays className="h-4 w-4" />
+            Attendance
+          </TabsTrigger>
           <TabsTrigger value="notifications" className="flex items-center gap-2">
             <Bell className="h-4 w-4" />
             Notifications
@@ -259,7 +440,7 @@ export default function TraineeManagement() {
             {plannedBatches.length > 0 && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">Planned Batches</h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {plannedBatches.map(renderBatchCard)}
                 </div>
               </div>
@@ -268,7 +449,7 @@ export default function TraineeManagement() {
             {inductionBatches.length > 0 && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">Induction Phase</h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {inductionBatches.map(renderBatchCard)}
                 </div>
               </div>
@@ -277,7 +458,7 @@ export default function TraineeManagement() {
             {trainingBatches.length > 0 && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">Training Phase</h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {trainingBatches.map(renderBatchCard)}
                 </div>
               </div>
@@ -286,7 +467,7 @@ export default function TraineeManagement() {
             {certificationBatches.length > 0 && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">Certification Phase</h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {certificationBatches.map(renderBatchCard)}
                 </div>
               </div>
@@ -295,7 +476,7 @@ export default function TraineeManagement() {
             {ojtBatches.length > 0 && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">OJT Phase</h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {ojtBatches.map(renderBatchCard)}
                 </div>
               </div>
@@ -304,7 +485,7 @@ export default function TraineeManagement() {
             {completedBatches.length > 0 && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">Completed Batches</h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {completedBatches.map(renderBatchCard)}
                 </div>
               </div>
@@ -318,6 +499,29 @@ export default function TraineeManagement() {
               </Alert>
             )}
           </div>
+        </TabsContent>
+
+        <TabsContent value="progress">
+          {selectedBatch ? (
+            <div className="space-y-6">
+              {renderDrilldownControls()}
+              {renderPerformanceCharts()}
+            </div>
+          ) : (
+            <Alert>
+              <AlertDescription>
+                Select a batch to view detailed performance metrics.
+              </AlertDescription>
+            </Alert>
+          )}
+        </TabsContent>
+
+        <TabsContent value="attendance">
+          <Alert>
+            <AlertDescription>
+              Attendance tracking functionality will be implemented here.
+            </AlertDescription>
+          </Alert>
         </TabsContent>
 
         <TabsContent value="notifications">
