@@ -53,7 +53,7 @@ const addTraineeSchema = z.object({
   password: z.string()
     .min(8, "Password must be at least 8 characters")
     .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Password must contain uppercase, lowercase, and numbers"),
-  role: z.enum(['trainee', 'quality_analyst', 'trainer', 'advisor']).default('trainee'),
+  role: z.enum(['manager', 'team_lead', 'quality_analyst', 'trainer', 'advisor']).default('trainer'),
 });
 
 type AddTraineeFormProps = {
@@ -74,7 +74,7 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
   const form = useForm<z.infer<typeof addTraineeSchema>>({
     resolver: zodResolver(addTraineeSchema),
     defaultValues: {
-      role: 'trainee'
+      role: 'trainer'
     }
   });
 
@@ -403,7 +403,8 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="trainee">Trainee</SelectItem>
+                    <SelectItem value="manager">Manager</SelectItem>
+                    <SelectItem value="team_lead">Team Lead</SelectItem>
                     <SelectItem value="quality_analyst">Quality Analyst</SelectItem>
                     <SelectItem value="trainer">Trainer</SelectItem>
                     <SelectItem value="advisor">Advisor</SelectItem>
