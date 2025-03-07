@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Users, CalendarDays, CheckCircle2, Loader2 } from "lucide-react";
+import { Bell, Users, CalendarDays, CheckCircle2, Loader2, BarChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, addHours, addMinutes } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -28,12 +28,12 @@ type Batch = {
 };
 
 export default function TraineeManagement() {
-  const [selectedTab, setSelectedTab] = useState("active-batches");
+  const [selectedTab, setSelectedTab] = useState("all-batches");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  // Fetch batches using the organization-specific endpoint
+  // Fetch all batches
   const {
     data: batches = [],
     isLoading,
@@ -72,20 +72,6 @@ export default function TraineeManagement() {
     },
   });
 
-  // Helper function to convert UTC to IST and compare dates
-  const isSameDay = (date1: string, date2: Date) => {
-    const d1 = new Date(date1);
-    // Convert to IST by adding 5 hours and 30 minutes
-    const d1IST = addMinutes(addHours(d1, 5), 30);
-    const d2IST = addMinutes(addHours(date2, 5), 30);
-
-    return (
-      d1IST.getDate() === d2IST.getDate() &&
-      d1IST.getMonth() === d2IST.getMonth() &&
-      d1IST.getFullYear() === d2IST.getFullYear()
-    );
-  };
-
   // Helper function to format date in IST
   const formatToIST = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -93,13 +79,21 @@ export default function TraineeManagement() {
     return format(dateIST, "PPP");
   };
 
-  // Get all planned batches, sorted by start date
-  const plannedBatches = batches
-    .filter(batch => batch.status === 'planned')
-    .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+  // Group batches by status
+  const batchesByStatus = batches.reduce((acc, batch) => {
+    if (!acc[batch.status]) {
+      acc[batch.status] = [];
+    }
+    acc[batch.status].push(batch);
+    return acc;
+  }, {} as Record<string, Batch[]>);
 
-  // Filter batches starting today
-  const todayBatches = plannedBatches.filter(batch => isSameDay(batch.startDate, new Date()));
+  const plannedBatches = batchesByStatus['planned'] || [];
+  const inductionBatches = batchesByStatus['induction'] || [];
+  const trainingBatches = batchesByStatus['training'] || [];
+  const certificationBatches = batchesByStatus['certification'] || [];
+  const ojtBatches = batchesByStatus['ojt'] || [];
+  const completedBatches = batchesByStatus['completed'] || [];
 
   if (isLoading) {
     return (
@@ -120,6 +114,49 @@ export default function TraineeManagement() {
     );
   }
 
+  const renderBatchCard = (batch: Batch) => (
+    <Card key={batch.id}>
+      <CardContent className="p-6 space-y-4">
+        <div className="flex justify-between items-start">
+          <div>
+            <h3 className="font-semibold text-lg">{batch.name}</h3>
+            <p className="text-sm text-muted-foreground">
+              {batch.location.name} • {batch.process.name}
+            </p>
+          </div>
+          <Badge
+            variant={batch.status === 'planned' ? "outline" : "secondary"}
+            className="capitalize"
+          >
+            {batch.status}
+          </Badge>
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-sm">
+            <span className="font-medium">Start Date:</span>{" "}
+            {formatToIST(batch.startDate)}
+          </p>
+          <p className="text-sm">
+            <span className="font-medium">LOB:</span>{" "}
+            {batch.line_of_business.name}
+          </p>
+        </div>
+
+        {batch.status === 'planned' && (
+          <Button
+            className="w-full"
+            onClick={() => startBatchMutation.mutate(batch.id)}
+            disabled={startBatchMutation.isPending}
+          >
+            <CheckCircle2 className="h-4 w-4 mr-2" />
+            {startBatchMutation.isPending ? "Starting..." : "Start Batch"}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="p-8 space-y-6">
       <div className="flex justify-between items-center">
@@ -128,14 +165,13 @@ export default function TraineeManagement() {
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
         <TabsList>
-          <TabsTrigger value="active-batches" className="flex items-center gap-2">
+          <TabsTrigger value="all-batches" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
-            Active Batches
-            {todayBatches.length > 0 && (
-              <Badge variant="destructive" className="ml-2">
-                {todayBatches.length}
-              </Badge>
-            )}
+            All Batches
+          </TabsTrigger>
+          <TabsTrigger value="progress" className="flex items-center gap-2">
+            <BarChart className="h-4 w-4" />
+            Progress
           </TabsTrigger>
           <TabsTrigger value="attendance" className="flex items-center gap-2">
             <CalendarDays className="h-4 w-4" />
@@ -147,76 +183,78 @@ export default function TraineeManagement() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="active-batches">
-          {plannedBatches.length > 0 ? (
-            <div className="space-y-6">
-              <Alert className="bg-yellow-50 border-yellow-200">
-                <AlertTitle className="text-yellow-800 flex items-center gap-2">
-                  <Bell className="h-4 w-4" />
-                  Planned Batches
-                </AlertTitle>
-                <AlertDescription className="text-yellow-700">
-                  {todayBatches.length > 0
-                    ? `You have ${todayBatches.length} batch(es) that need to be started today.`
-                    : 'All scheduled batches are progressing as planned.'}
+        <TabsContent value="all-batches">
+          <div className="space-y-6">
+            {plannedBatches.length > 0 && (
+              <div>
+                <h2 className="text-lg font-semibold mb-4">Planned Batches</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {plannedBatches.map(renderBatchCard)}
+                </div>
+              </div>
+            )}
+
+            {inductionBatches.length > 0 && (
+              <div>
+                <h2 className="text-lg font-semibold mb-4">Induction Phase</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {inductionBatches.map(renderBatchCard)}
+                </div>
+              </div>
+            )}
+
+            {trainingBatches.length > 0 && (
+              <div>
+                <h2 className="text-lg font-semibold mb-4">Training Phase</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {trainingBatches.map(renderBatchCard)}
+                </div>
+              </div>
+            )}
+
+            {certificationBatches.length > 0 && (
+              <div>
+                <h2 className="text-lg font-semibold mb-4">Certification Phase</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {certificationBatches.map(renderBatchCard)}
+                </div>
+              </div>
+            )}
+
+            {ojtBatches.length > 0 && (
+              <div>
+                <h2 className="text-lg font-semibold mb-4">OJT Phase</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {ojtBatches.map(renderBatchCard)}
+                </div>
+              </div>
+            )}
+
+            {completedBatches.length > 0 && (
+              <div>
+                <h2 className="text-lg font-semibold mb-4">Completed Batches</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {completedBatches.map(renderBatchCard)}
+                </div>
+              </div>
+            )}
+
+            {batches.length === 0 && (
+              <Alert>
+                <AlertDescription>
+                  No batches found. Create a new batch to get started.
                 </AlertDescription>
               </Alert>
+            )}
+          </div>
+        </TabsContent>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {plannedBatches.map((batch) => (
-                  <Card key={batch.id}>
-                    <CardContent className="p-6 space-y-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-semibold text-lg">{batch.name}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {batch.location.name} • {batch.process.name}
-                          </p>
-                        </div>
-                        <Badge
-                          variant={isSameDay(batch.startDate, new Date()) ? "destructive" : "outline"}
-                          className="capitalize"
-                        >
-                          {isSameDay(batch.startDate, new Date()) ? "Start Today" : batch.status}
-                        </Badge>
-                      </div>
-
-                      <div className="space-y-2">
-                        <p className="text-sm">
-                          <span className="font-medium">Start Date:</span>{" "}
-                          {formatToIST(batch.startDate)}
-                        </p>
-                        <p className="text-sm">
-                          <span className="font-medium">LOB:</span>{" "}
-                          {batch.line_of_business.name}
-                        </p>
-                      </div>
-
-                      <Button
-                        className="w-full"
-                        onClick={() => startBatchMutation.mutate(batch.id)}
-                        disabled={startBatchMutation.isPending || !isSameDay(batch.startDate, new Date())}
-                      >
-                        <CheckCircle2 className="h-4 w-4 mr-2" />
-                        {startBatchMutation.isPending
-                          ? "Starting..."
-                          : isSameDay(batch.startDate, new Date())
-                            ? "Start Batch"
-                            : "Starts " + formatToIST(batch.startDate)
-                        }
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <Alert>
-              <AlertDescription>
-                No batches require immediate attention. All scheduled batches are progressing as planned.
-              </AlertDescription>
-            </Alert>
-          )}
+        <TabsContent value="progress">
+          <Alert>
+            <AlertDescription>
+              Progress tracking feature coming soon. You'll be able to monitor trainee progress across all phases here.
+            </AlertDescription>
+          </Alert>
         </TabsContent>
 
         <TabsContent value="attendance">
@@ -230,7 +268,7 @@ export default function TraineeManagement() {
         <TabsContent value="notifications">
           <Alert>
             <AlertDescription>
-              Notifications about batch starts and attendance will appear here.
+              Notifications about batch progress and important updates will appear here.
             </AlertDescription>
           </Alert>
         </TabsContent>
