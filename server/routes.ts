@@ -1462,7 +1462,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Update the bulk upload route to handle role field
   app.post("/api/organizations/:orgId/batches/:batchId/trainees/bulk", upload.single('file'), async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user) return res.status(401).json({ message: "No file uploaded" });
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
     try {
@@ -1567,31 +1567,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         '1990-01-01', // Format: YYYY-MM-DD
         'Bachelor\'s Degree',
         'Password123!', // Will be hashed on upload
-        'trainee' // Example role
+        'advisor' // Example role showing advisor instead of trainee
       ];
 
       // Create worksheet
       const ws = XLSX.utils.aoa_to_sheet([headers, exampleData]);
 
-      // Add column widths for better readability
-      const colWidths = headers.map(() => ({ wch: 15 }));
-      ws['!cols'] = colWidths;
+      // Add column widths
+      ws['!cols'] = headers.map(() => ({ wch: 15 }));
+
+      // Add styling to headers
+      for (let i = 0; i < headers.length; i++) {
+        const cellRef = XLSX.utils.encode_cell({ r: 0, c: i });
+        if (!ws[cellRef]) ws[cellRef] = { t: 's', v: headers[i] };
+        ws[cellRef].s = { font: { bold: true } };
+      }
 
       // Add the worksheet to workbook
       XLSX.utils.book_append_sheet(wb, ws, 'Trainees');
 
-      // Generate buffer
-      const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-
-      // Set headers for file download
-      res.setHeader('Content-Disposition', 'attachment; filename=trainee-upload-template.xlsx');
+      // Set response headers
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename=trainee-upload-template.xlsx');
 
-      // Send buffer
-      res.send(buf);
-    } catch (error) {
-      console.error('Error generating template:', error);
-      res.status(500).json({ message: 'Failed to generate template' });
+      // Write to response
+      const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+      res.send(buffer);
+
+    } catch (error: any) {
+      console.error("Error generating template:", error);
+      res.status(500).json({ message: "Failed to generate template" });
     }
   });
 
