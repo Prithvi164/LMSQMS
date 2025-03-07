@@ -875,8 +875,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const batchId = parseInt(req.params.batchId);
       const orgId = parseInt(req.params.orgId);
+      const today = new Date().toISOString().split('T')[0];
 
-      // Get all trainees assigned to this batch
+      // Get all trainees assigned to this batch and their attendance for today
       const batchTrainees = await db
         .select({
           userId: userBatchProcesses.userId,
@@ -887,23 +888,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
             employeeId: users.employeeId,
             email: users.email,
             role: users.role
+          },
+          attendance: {
+            status: attendance.status,
+            lastUpdated: attendance.updatedAt
           }
         })
         .from(userBatchProcesses)
         .innerJoin(users, eq(users.id, userBatchProcesses.userId))
-        .where(and(
-          eq(userBatchProcesses.batchId, batchId),
-          eq(users.role, 'trainee') // Only get trainees
-        ));
+        .leftJoin(
+          attendance,
+          and(
+            eq(attendance.traineeId, userBatchProcesses.userId),
+            eq(attendance.batchId, userBatchProcesses.batchId),
+            eq(attendance.date, today)
+          )
+        )
+        .where(
+          and(
+            eq(userBatchProcesses.batchId, batchId),
+            eq(users.role, 'trainee')
+          )
+        );
 
       // Map to expected format
       const traineesWithDetails = batchTrainees.map((trainee) => ({
         id: trainee.userId,
-        status: trainee.status,
+        status: trainee.attendance?.status || null,
+        lastUpdated: trainee.attendance?.lastUpdated?.toISOString(),
         user: trainee.user
       }));
 
-      console.log('Trainees with details:', traineesWithDetails);
+      console.log('Trainees with attendance details:', traineesWithDetails);
       res.json(traineesWithDetails);
     } catch (error: any) {
       console.error("Error fetching trainees:", error);
