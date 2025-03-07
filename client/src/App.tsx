@@ -12,7 +12,7 @@ import Performance from "@/pages/performance";
 import Settings from "@/pages/settings";
 import TraineeManagement from "@/pages/trainee-management";
 import { BatchDetail } from "@/components/batch-management/batch-detail";
-import { BatchMonitoringDetail } from "@/pages/batch-monitoring-detail";
+import { BatchMonitoringPage } from "@/pages/batch-monitoring";
 import { ProtectedRoute } from "./lib/protected-route";
 import { SidebarNav } from "./components/sidebar-nav";
 import { UserProfile } from "./components/user-profile";
@@ -48,7 +48,7 @@ function Router() {
           <ProtectedRoute path="/settings" component={Settings} />
           <ProtectedRoute path="/batch-management" component={BatchDetail} />
           <ProtectedRoute path="/batch-management/:batchId" component={BatchDetail} />
-          <ProtectedRoute path="/batch-monitoring/:batchId" component={BatchMonitoringDetail} />
+          <ProtectedRoute path="/batch-monitoring" component={BatchMonitoringPage} />
           <Route component={NotFound} />
         </Switch>
       </main>
