@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, Loader2, Plus, Trash2, Edit, Eye, Calendar as CalendarIcon, List, ArrowUpDown, Filter, UserPlus, CalendarDays, Users } from "lucide-react";
+import { Search, Loader2, Plus, Trash2, Edit, Eye, Calendar as CalendarIcon, List, ArrowUpDown, Filter, UserPlus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -79,7 +79,6 @@ export function BatchesTab() {
   const [selectedBatchForTrainee, setSelectedBatchForTrainee] = useState<OrganizationBatch | null>(null);
   const [selectedBatchForDetails, setSelectedBatchForDetails] = useState<OrganizationBatch | null>(null);
   const [isTraineeDialogOpen, setIsTraineeDialogOpen] = useState(false);
-  const [selectedBatchStatus, setSelectedBatchStatus] = useState<'planned' | 'active'>('planned');
 
   const canManageBatches = user?.role === 'admin' || user?.role === 'owner';
 
@@ -350,7 +349,7 @@ export function BatchesTab() {
                         ))}
                       </div>
                     </div>
-                    {canManageBatches && (
+                    {canManageBatches && ( //Removed condition for planned status
                       <div className="flex justify-end gap-2 pt-2 border-t">
                         <Button
                           variant="outline"
@@ -506,11 +505,6 @@ export function BatchesTab() {
     setIsAddTraineeDialogOpen(true);
   };
 
-  const handleBatchClick = (batch: OrganizationBatch) => {
-    setSelectedBatchForDetails(batch);
-    setIsTraineeDialogOpen(true);
-  };
-
   const renderBatchTable = (batchList: OrganizationBatch[]) => (
     <div className="rounded-md border">
       <Table>
@@ -568,7 +562,8 @@ export function BatchesTab() {
                   e.stopPropagation();
                   return;
                 }
-                handleBatchClick(batch);
+                setSelectedBatchForDetails(batch);
+                setIsTraineeDialogOpen(true);
               }}
             >
               <TableCell className="font-medium text-center whitespace-nowrap">
@@ -624,7 +619,7 @@ export function BatchesTab() {
                     <UserPlus className="h-4 w-4" />
                     <span className="sr-only">Add Trainee</span>
                   </Button>
-                  {canManageBatches && (
+                  {canManageBatches && ( //Removed condition for planned status
                     <>
                       <Button
                         variant="ghost"
@@ -701,9 +696,6 @@ export function BatchesTab() {
     });
   }, [selectedCategory]);
 
-  const plannedBatches = batches.filter(batch => batch.status === 'planned');
-  const activeBatches = batches.filter(batch => batch.status !== 'planned');
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -720,58 +712,28 @@ export function BatchesTab() {
     );
   }
 
-  const handleConfirmDelete = () => {
-    if (selectedBatchId) {
-      deleteBatchMutation.mutate(selectedBatchId);
-    }
-  };
-
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Tabs
-          value={selectedBatchStatus}
-          onValueChange={(value: 'planned' | 'active') => setSelectedBatchStatus(value)}
-          className="w-[400px]"
-        >
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="planned" className="flex items-center gap-2">
-              <CalendarDays className="h-4 w-4" />
-              Planned Batches
-              {plannedBatches.length > 0 && (
-                <Badge variant="secondary">{plannedBatches.length}</Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="active" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Active Batches
-              {activeBatches.length > 0 && (
-                <Badge variant="secondary">{activeBatches.length}</Badge>
-              )}
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        {canManageBatches && (
-          <Button
-            onClick={() => setIsCreateDialogOpen(true)}
-            className="gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Create Batch
-          </Button>
-        )}
-      </div>
-
       <div className="space-y-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search batches..."
-            className="pl-8"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+        <div className="flex items-center justify-between">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search batches..."
+              className="pl-8"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          {canManageBatches && (
+            <Button
+              onClick={() => setIsCreateDialogOpen(true)}
+              className="gap-2 ml-4"
+            >
+              <Plus className="h-4 w-4" />
+              Create Batch
+            </Button>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
@@ -846,9 +808,10 @@ export function BatchesTab() {
           </Select>
 
           <Button
-                        variant="outline"
+            variant="outline"
             onClick={resetFilters}
-            className="flex items-center gap-2">
+            className="flex items-center gap-2"
+          >
             <Filter className="h-4 w-4" />
             Reset Filters
           </Button>
@@ -888,137 +851,77 @@ export function BatchesTab() {
             />
           </PopoverContent>
         </Popover>
-        {selectedBatchStatus === 'planned' ? (
-          <div>
-            {plannedBatches.length > 0 ? (
-              <Tabs defaultValue="table" className="w-full">
-                <TabsList>
-                  <TabsTrigger value="table" className="flex items-center gap-2"><List className="h-4 w-4" />
-                    Table View
-                  </TabsTrigger>
-                  <TabsTrigger value="calendar" className="flex items-center gap-2">
-                    <CalendarIcon className="h-4 w-4" />
-                    Calendar View
-                  </TabsTrigger>
-                </TabsList>
+        {batches.length > 0 ? (
+          <Tabs defaultValue="table" className="w-full">
+            <TabsList>
+              <TabsTrigger value="table" className="flex items-center gap-2"><List className="h-4 w-4" />
+                Table View
+              </TabsTrigger>
+              <TabsTrigger value="calendar" className="flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4" />
+                Calendar View
+              </TabsTrigger>
+            </TabsList>
 
-                <TabsContent value="table" className="space-y-6">
-                  {renderBatchTable(plannedBatches)}
-                </TabsContent>
+            <TabsContent value="table" className="space-y-6">
+              {renderBatchTable(sortedBatches)}
+            </TabsContent>
 
-                <TabsContent value="calendar" className="space-y-6">
-                  <div className="rounded-md border p-6">
-                    <Calendar
-                      mode="single"
-                      disabled={false}
-                      components={{
-                        Day: ({ date }) => renderCalendarDay(date)
-                      }}
-                      className="w-full"
-                      classNames={{
-                        cell: "h-24 w-24 p-0 border-2 border-gray-100 dark:border-gray-800",
-                        head_cell: "text-muted-foreground font-normal border-b-2 border-gray100 dark:border-gray-800 p-2",
-                        table: "border-collapse border-spacing-0 border-2 border-gray-100 dark:border-gray-800",
-                        day: "h-full rounded-none hover:bg-gray-50 dark:hover:bg-gray-800 focus-visible:bg-gray-50 dark:focus-visible:bg-gray800",
-                        nav_button: "h-12 w-12 bg-primary/10 hover:bg-primary/20 p-0 opacity-90 hover:opacity-100 absolute top-[50%] -translate-y-1/2 flex items-center justify-center rounded-full transition-all shadow-sm hover:shadowmd border border-primary/20",
-                        nav_button_previous: "left-4",
-                        nav_button_next: "right-4",
-                        nav: "relative flex items-center justify-between pt-4 pb-10 px-2 border-b-2 border-gray-100 dark:border-gray-800 mb-4",
-                        caption: "text-2xl font-semibold text-center flex-1px-10",
-                        caption_label: "text-lg font-medium"
-                      }}
-                    />
-                    <div className="mt-6 flex items-center gap-6 text-sm border-t pt-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-blue-500" />
-                        <span className="font-medium">Planned</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h3 h-3 rounded-full bg-green-500" />
-                        <span className="font-medium">Ongoing</span></div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-gray-500" />
-                        <span className="font-medium">Completed</span>
-                      </div>
-                    </div>
+            <TabsContent value="calendar" className="space-y-6">
+              <div className="rounded-md border p-6">
+                <Calendar
+                  mode="single"
+                  disabled={false}
+                  components={{
+                    Day: ({ date }) => renderCalendarDay(date)
+                  }}
+                  className="w-full"
+                  classNames={{
+                    cell: "h-24 w-24 p-0 border-2 border-gray-100 dark:border-gray-800",
+                    head_cell: "text-muted-foreground font-normal border-b-2 border-gray100 dark:border-gray-800 p-2",
+                    table: "border-collapse border-spacing-0 border-2 border-gray-100 dark:border-gray-800",
+                    day: "h-full rounded-none hover:bg-gray-50 dark:hover:bg-gray-800 focus-visible:bg-gray-50 dark:focus-visible:bg-gray800",
+                    nav_button: "h-12 w-12 bg-primary/10 hover:bg-primary/20 p-0 opacity-90 hover:opacity-100 absolute top-[50%] -translate-y-1/2 flex items-center justify-center rounded-full transition-all shadow-sm hover:shadowmd border border-primary/20",                    nav_button_previous:"left-4",
+                    nav_button_next: "right-4",
+                    nav: "relative flex items-center justify-between pt-4 pb-10 px-2 border-b-2 border-gray-100 dark:border-gray-800 mb-4",
+                    caption: "text-2xl font-semibold text-center flex-1px-10",
+                    caption_label: "text-lg font-medium"
+                  }}
+                />
+                <div className="mt-6 flex items-center gap-6 text-sm border-t pt-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-blue-500" />
+                    <span className="font-medium">Planned</span>
                   </div>
-                </TabsContent>
-              </Tabs>
-            ) : (
-              <div className="flex min-h-[400px] flex-col items-center justify-center rounded-md border border-dashed p-8 text-center animate-in fade-in-50">
-                <div className="mx-auto flex max-w-[420px] flex-col items-center justify-center text-center">
-                  <h3 className="mt-4 text-lg font-semibold">No planned batches found</h3>
-                  <p className="mb-4 mt-2 text-sm text-muted-foreground">
-                    You haven't created any planned batches yet. Start by creating a new batch.
-                  </p>
-                  {canManageBatches && (
-                    <Button
-                      size="sm"
-                      className="relative"
-                      onClick={() => setIsCreateDialogOpen(true)}
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Create Batch
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h3 h-3 rounded-full bg-green-500" />
+                    <span className="font-medium">Ongoing</span></div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-gray-500" />
+                    <span className="font-medium">Completed</span>
+                  </div>
                 </div>
               </div>
-            )}
-          </div>
+            </TabsContent>
+          </Tabs>
         ) : (
-          <div>
-            {activeBatches.length > 0 ? (
-              <div>
-                {activeBatches.map((batch) => (
-                  <Card key={batch.id} className="hover:shadow-lg transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <h3 className="font-semibold text-lg">{batch.name}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {batch.location?.name} • {batch.process?.name}
-                          </p>
-                        </div>
-                        <Badge className="capitalize">
-                          {batch.status}
-                        </Badge>
-                      </div>
-
-                      <Button
-                        className="w-full"
-                        variant="outline"
-                        onClick={() => {
-                          // Open trainee management dialog instead of redirecting
-                          setSelectedBatchForDetails(batch);
-                          setIsTraineeDialogOpen(true);
-                        }}
-                      >
-                        View Details
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="flex min-h-[400px] flex-col items-center justify-center rounded-md border border-dashed p-8 text-center animate-in fade-in-50">
-                <div className="mx-auto flex max-w-[420px] flex-col items-center justify-center text-center">
-                  <h3 className="mt-4 text-lg font-semibold">No active batches found</h3>
-                  <p className="mb-4 mt-2 text-sm text-muted-foreground">
-                    You haven't created any active batches yet. Start by creating a new batch.
-                  </p>
-                  {canManageBatches && (
-                    <Button
-                      size="sm"
-                      className="relative"
-                      onClick={() => setIsCreateDialogOpen(true)}
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Create Batch
-                    </Button>
-                  )}
-                </div>
-              </div>
-            )}
+          <div className="flex min-h-[400px] flex-col items-center justify-center rounded-md border border-dashed p-8 text-center animate-in fade-in-50">
+            <div className="mx-auto flex max-w-[420px] flex-col items-center justify-center text-center">
+              <h3 className="mt-4 text-lg font-semibold">No batches found</h3>
+              <p className="mb-4 mt-2 text-sm text-muted-foreground">
+                You haven't created any batches yet. Start by creating a new batch.
+              </p>
+              {canManageBatches && (
+                <Button
+                  size="sm"
+                  className="relative"
+                  onClick={() => setIsCreateDialogOpen(true)}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Batch
+                </Button>
+              )}
+            </div>
           </div>
         )}
 
@@ -1112,14 +1015,11 @@ export function BatchesTab() {
         </Dialog>
         {isTraineeDialogOpen && selectedBatchForDetails && (
           <Dialog open={isTraineeDialogOpen} onOpenChange={setIsTraineeDialogOpen}>
-            <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-4xl">
               <DialogHeader>
                 <DialogTitle className="text-xl font-semibold">
-                  {selectedBatchForDetails.name}
+                  {selectedBatchForDetails.name} - Trainee Management
                 </DialogTitle>
-                <DialogDescription>
-                  Current Phase: {selectedBatchForDetails.status.charAt(0).toUpperCase() + selectedBatchForDetails.status.slice(1)}
-                </DialogDescription>
               </DialogHeader>
               <TraineeManagement
                 batchId={selectedBatchForDetails.id}
