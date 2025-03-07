@@ -15,6 +15,7 @@ import { format, isValid, parseISO } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 
 const PHASES = [
@@ -28,30 +29,21 @@ const PHASES = [
 
 type Phase = typeof PHASES[number]['id'];
 
-type Trainee = {
-  id: number;
-  userId: number;
-  user: {
-    id: number;
-    username: string;
-    fullName: string;
-    email: string;
-    employeeId: string;
-    phoneNumber: string;
-    dateOfJoining: string;
-  };
-};
-
 export function TraineeManagement({ organizationId }: { organizationId: number }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedTrainees, setSelectedTrainees] = useState<Set<number>>(new Set());
+  const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
+  const [selectedBatch, setSelectedBatch] = useState<any>(null);
 
-  // Fetch all batches
+  // Fetch all batches - modified to include non-planned batches
   const { data: batches = [], isLoading: isLoadingBatches } = useQuery({
     queryKey: [`/api/organizations/${organizationId}/batches`],
     enabled: !!organizationId,
   });
+
+  // Filter active batches (planned, induction, training, etc.) - exclude completed
+  const activeBatches = batches.filter((batch: any) => batch.status !== 'completed');
 
   // End phase mutation
   const endPhaseMutation = useMutation({
@@ -113,7 +105,7 @@ export function TraineeManagement({ organizationId }: { organizationId: number }
 
   return (
     <div className="space-y-8">
-      {batches.map((batch: any) => (
+      {activeBatches.map((batch: any) => (
         <Card key={batch.id} className="mb-8">
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -465,8 +457,7 @@ function TraineesTable({
             </p>
             <div className="space-y-2">
               {batches
-                .filter((batch: any) => batch.id !== batchId && batch.status === 'planned')
-                .map((batch: any) => (
+                .map((batch: any) => ( // Removed the filter condition here
                   <Button
                     key={batch.id}
                     variant="outline"
