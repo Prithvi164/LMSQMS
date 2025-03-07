@@ -826,7 +826,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }))
     });
 
-    return batchTrainees.length;
+    // Count only active trainees
+    return batchTrainees.filter(t => t.status === 'active').length;
   };
 
   // Update the batch listing route to include capacity
