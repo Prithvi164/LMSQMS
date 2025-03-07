@@ -14,24 +14,26 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Edit, Trash2, ArrowRightLeft, Loader2 } from "lucide-react";
+import { Edit, Trash2, ArrowRightLeft, Loader2, CheckCircle2 } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 
-// Updated type to match API response
+const PHASES = [
+  { id: 'induction', name: 'Induction', color: 'bg-blue-500' },
+  { id: 'training', name: 'Training', color: 'bg-purple-500' },
+  { id: 'certification', name: 'Certification', color: 'bg-orange-500' },
+  { id: 'ojt', name: 'OJT', color: 'bg-green-500' },
+  { id: 'ojt_certification', name: 'OJT Certification', color: 'bg-yellow-500' },
+  { id: 'completed', name: 'Completed', color: 'bg-gray-500' }
+] as const;
+
+type Phase = typeof PHASES[number]['id'];
+
 type Trainee = {
-  id: number;  // This is the user_batch_process.id
+  id: number;
   userId: number;
   user: {
     id: number;
@@ -47,17 +49,27 @@ type Trainee = {
 interface TraineeManagementProps {
   batchId: number;
   organizationId: number;
+  batchStatus?: string;
+  actualStartDate?: string;
+  actualEndDate?: string;
 }
 
-export function TraineeManagement({ batchId, organizationId }: TraineeManagementProps) {
+export function TraineeManagement({ 
+  batchId, 
+  organizationId, 
+  batchStatus = 'planned',
+  actualStartDate,
+  actualEndDate 
+}: TraineeManagementProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [selectedTrainees, setSelectedTrainees] = useState<Set<number>>(new Set());
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedTrainee, setSelectedTrainee] = useState<Trainee | null>(null);
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
 
   // Fetch trainees for the current batch
-  const { data: trainees = [], isLoading, error } = useQuery({
+  const { data: trainees = [], isLoading: isLoadingTrainees, error } = useQuery({
     queryKey: [`/api/organizations/${organizationId}/batches/${batchId}/trainees`],
     enabled: !!batchId && !!organizationId,
   });
@@ -68,19 +80,36 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
     enabled: !!organizationId,
   });
 
-  // Helper function to safely format dates
-  const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString) return 'N/A';
-    const date = parseISO(dateString);
-    return isValid(date) ? format(date, 'PP') : 'N/A';
-  };
 
-  console.log('Debug - Trainees:', { 
-    trainees, 
-    isLoading, 
-    error,
-    sampleTrainee: trainees[0],
-    traineeCount: trainees.length 
+  // End phase mutation
+  const endPhaseMutation = useMutation({
+    mutationFn: async (phase: Phase) => {
+      const response = await fetch(
+        `/api/batches/${batchId}/phase/${phase}/end`,
+        { method: "POST" }
+      );
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to end phase");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/organizations/${organizationId}/batches`]
+      });
+      toast({
+        title: "Success",
+        description: "Phase completed successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   // Delete trainee mutation - using user_batch_process.id
@@ -178,7 +207,34 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
     },
   });
 
-  if (isLoading) {
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return 'Not Started';
+    const date = parseISO(dateString);
+    return isValid(date) ? format(date, 'PP') : 'Invalid Date';
+  };
+
+  // Helper to determine if a phase is active
+  const isPhaseActive = (phaseId: Phase): boolean => {
+    return batchStatus === phaseId;
+  };
+
+  // Helper to determine if a phase is completed
+  const isPhaseCompleted = (phaseId: Phase): boolean => {
+    const phaseIndex = PHASES.findIndex(p => p.id === phaseId);
+    const currentPhaseIndex = PHASES.findIndex(p => p.id === batchStatus);
+    return phaseIndex < currentPhaseIndex;
+  };
+
+  // Helper to get the phase dates
+  const getPhaseDates = (phaseId: Phase) => {
+    // This would need to be updated based on your actual data structure
+    return {
+      startDate: actualStartDate,
+      endDate: actualEndDate
+    };
+  };
+
+  if (isLoadingTrainees) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -204,70 +260,173 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
   }
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Batch Trainees</h2>
+    <div className="space-y-8">
+      {/* Phase Progress Tracker */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Phase Progress</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4">
+            {PHASES.map((phase) => {
+              const isActive = isPhaseActive(phase.id);
+              const isComplete = isPhaseCompleted(phase.id);
+              const dates = getPhaseDates(phase.id);
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Employee ID</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Phone</TableHead>
-              <TableHead>Date of Joining</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {Array.isArray(trainees) && trainees.map((trainee: Trainee) => (
-              <TableRow key={trainee.id}>
-                <TableCell>{trainee.user.fullName}</TableCell>
-                <TableCell>{trainee.user.employeeId}</TableCell>
-                <TableCell>{trainee.user.email}</TableCell>
-                <TableCell>{trainee.user.phoneNumber}</TableCell>
-                <TableCell>{formatDate(trainee.user.dateOfJoining)}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedTrainee(trainee);
-                        setIsTransferDialogOpen(true);
-                      }}
-                    >
-                      <ArrowRightLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        toast({
-                          title: "Coming Soon",
-                          description: "Edit functionality will be available soon",
-                        });
-                      }}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedTrainee(trainee);
-                        setIsDeleteDialogOpen(true);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+              return (
+                <div 
+                  key={phase.id}
+                  className={`
+                    p-4 rounded-lg border
+                    ${isActive ? 'border-primary bg-primary/5' : 'border-muted'}
+                    ${isComplete ? 'bg-muted/20' : ''}
+                  `}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <h3 className="font-medium">{phase.name}</h3>
+                      <div className="text-sm text-muted-foreground">
+                        {isComplete && (
+                          <span className="flex items-center text-green-600">
+                            <CheckCircle2 className="h-4 w-4 mr-1" />
+                            Completed
+                          </span>
+                        )}
+                        {isActive && (
+                          <span className="text-primary">In Progress</span>
+                        )}
+                        {!isActive && !isComplete && (
+                          <span>Not Started</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {isActive && (
+                      <Button
+                        onClick={() => endPhaseMutation.mutate(phase.id)}
+                        disabled={endPhaseMutation.isPending}
+                      >
+                        {endPhaseMutation.isPending ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Ending...
+                          </>
+                        ) : (
+                          'End Phase'
+                        )}
+                      </Button>
+                    )}
                   </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+
+                  <div className="mt-2 text-sm">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-muted-foreground">Start:</span>{' '}
+                        {formatDate(dates.startDate)}
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">End:</span>{' '}
+                        {formatDate(dates.endDate)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Trainees Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Batch Trainees</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {batchStatus === 'induction' && (
+                    <TableHead className="w-[50px] text-center">Select</TableHead>
+                  )}
+                  <TableHead>Name</TableHead>
+                  <TableHead>Employee ID</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Date of Joining</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Array.isArray(trainees) && trainees.map((trainee: Trainee) => (
+                  <TableRow key={trainee.id}>
+                    {batchStatus === 'induction' && (
+                      <TableCell className="text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedTrainees.has(trainee.id)}
+                          onChange={(e) => {
+                            const newSelected = new Set(selectedTrainees);
+                            if (e.target.checked) {
+                              newSelected.add(trainee.id);
+                            } else {
+                              newSelected.delete(trainee.id);
+                            }
+                            setSelectedTrainees(newSelected);
+                          }}
+                          className="h-4 w-4"
+                        />
+                      </TableCell>
+                    )}
+                    <TableCell>{trainee.user.fullName}</TableCell>
+                    <TableCell>{trainee.user.employeeId}</TableCell>
+                    <TableCell>{trainee.user.email}</TableCell>
+                    <TableCell>{trainee.user.phoneNumber}</TableCell>
+                    <TableCell>{formatDate(trainee.user.dateOfJoining)}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            toast({
+                              title: "Coming Soon",
+                              description: "Edit functionality will be available soon",
+                            });
+                          }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedTrainee(trainee);
+                            setIsTransferDialogOpen(true);
+                          }}
+                        >
+                          <ArrowRightLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedTrainee(trainee);
+                            setIsDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

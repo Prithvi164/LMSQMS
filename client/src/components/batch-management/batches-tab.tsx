@@ -481,11 +481,6 @@ export function BatchesTab() {
     setIsAddTraineeDialogOpen(true);
   };
 
-  const handleBatchClick = (batch: OrganizationBatch) => {
-    setSelectedBatchForDetails(batch);
-    setIsTraineeDialogOpen(true);
-  };
-
   const renderBatchTable = (batchList: OrganizationBatch[]) => (
     <div className="rounded-md border">
       <Table>
@@ -543,7 +538,8 @@ export function BatchesTab() {
                   e.stopPropagation();
                   return;
                 }
-                handleBatchClick(batch);
+                setSelectedBatchForDetails(batch);
+                setIsTraineeDialogOpen(true);
               }}
             >
               <TableCell className="font-medium text-center whitespace-nowrap">
@@ -986,22 +982,24 @@ export function BatchesTab() {
             )}
           </DialogContent>
         </Dialog>
-        {/* Trainee Management Dialog */}
-        <Dialog open={isTraineeDialogOpen} onOpenChange={setIsTraineeDialogOpen}>
-          <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                Manage Trainees - {selectedBatchForDetails?.name}
-              </DialogTitle>
-            </DialogHeader>
-            {selectedBatchForDetails && (
+        {isTraineeDialogOpen && selectedBatchForDetails && (
+          <Dialog open={isTraineeDialogOpen} onOpenChange={setIsTraineeDialogOpen}>
+            <DialogContent className="max-w-4xl">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-semibold">
+                  {selectedBatchForDetails.name} - Trainee Management
+                </DialogTitle>
+              </DialogHeader>
               <TraineeManagement
                 batchId={selectedBatchForDetails.id}
                 organizationId={user?.organizationId || 0}
+                batchStatus={selectedBatchForDetails.status}
+                actualStartDate={selectedBatchForDetails.actualInductionStartDate}
+                actualEndDate={selectedBatchForDetails.actualInductionEndDate}
               />
-            )}
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     </div>
   );
