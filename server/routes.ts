@@ -868,8 +868,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select({
           userId: userBatchProcesses.userId,
           status: userBatchProcesses.status,
-          fullName: users.fullName,
-          employeeId: users.employeeId
+          user: {
+            id: users.id,
+            fullName: users.fullName,
+            employeeId: users.employeeId,
+            email: users.email
+          }
         })
         .from(userBatchProcesses)
         .innerJoin(users, eq(users.id, userBatchProcesses.userId))
@@ -880,19 +884,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           )
         );
 
-      // For each trainee, get their attendance status for today if exists
-      const traineesWithAttendance = batchTrainees.map((trainee) => {
-        return {
-          id: trainee.userId,
-          fullName: trainee.fullName,
-          employeeId: trainee.employeeId,
-          status: null, // Default to null if no attendance record exists
-          lastUpdated: null
-        };
-      });
+      // Map to expected format with attendance status
+      const traineesWithDetails = batchTrainees.map((trainee) => ({
+        id: trainee.userId,
+        status: trainee.status,
+        user: trainee.user,
+        lastUpdated: null
+      }));
 
-      console.log('Trainees with attendance:', traineesWithAttendance);
-      res.json(traineesWithAttendance);
+      console.log('Trainees with details:', traineesWithDetails);
+      res.json(traineesWithDetails);
     } catch (error: any) {
       console.error("Error fetching trainees with attendance:", error);
       res.status(500).json({ message: "Error loading trainees. Please try again." });
