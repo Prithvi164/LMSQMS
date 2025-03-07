@@ -505,8 +505,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
   });
 
 
-  // Update the date handling section to convert to IST before saving
-  const onSubmit = async (values: InsertOrganizationBatch) => {
+  async function onSubmit(values: InsertOrganizationBatch) {
     try {
       if (!values.name) throw new Error('Batch name is required');
       if (!values.startDate) throw new Error('Batch start date is required');
@@ -517,30 +516,11 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       if (values.capacityLimit === undefined) throw new Error('Capacity limit is required');
       if (values.batchCategory === undefined) throw new Error('Batch Category is required');
 
-      // Convert dates to IST (UTC+5:30)
-      const convertToIST = (dateStr: string) => {
-        if (!dateStr) return undefined; // Handle undefined date strings
-        const date = new Date(dateStr);
-        date.setHours(date.getHours() + 5, date.getMinutes() + 30); // Adjust for IST
-        return format(date, 'yyyy-MM-dd');
-      };
 
+      const currentStatus = determineBatchStatus(values);
       const formattedValues = {
         ...values,
-        startDate: convertToIST(values.startDate),
-        endDate: convertToIST(values.endDate),
-        inductionStartDate: convertToIST(values.inductionStartDate),
-        inductionEndDate: convertToIST(values.inductionEndDate),
-        trainingStartDate: convertToIST(values.trainingStartDate),
-        trainingEndDate: convertToIST(values.trainingEndDate),
-        certificationStartDate: convertToIST(values.certificationStartDate),
-        certificationEndDate: convertToIST(values.certificationEndDate),
-        ojtStartDate: convertToIST(values.ojtStartDate),
-        ojtEndDate: convertToIST(values.ojtEndDate),
-        ojtCertificationStartDate: convertToIST(values.ojtCertificationStartDate),
-        ojtCertificationEndDate: convertToIST(values.ojtCertificationEndDate),
-        handoverToOpsDate: convertToIST(values.handoverToOpsDate),
-        status: determineBatchStatus(values)
+        status: currentStatus
       };
 
       if (editMode) {
@@ -556,7 +536,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
         variant: "destructive",
       });
     }
-  };
+  }
 
   // Update the date ranges visualization
   const getDateRangeClassName = (date: Date): string => {
