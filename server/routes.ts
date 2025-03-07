@@ -816,22 +816,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         )
       );
 
-    // Log the enrollment details for debugging
-    console.log(`Batch ${batchId} enrollment details:`, {
-      totalTrainees: batchTrainees.length,
-      batchId,
-      traineesDetails: batchTrainees.map(t => ({
-        userId: t.userId,
-        status: t.status,
-        role: t.user.role
-      }))
-    });
+    // Count only active trainee users
+    const activeTrainees = batchTrainees.filter(trainee => 
+      trainee.user.role === 'trainee' && trainee.status === 'active'
+    );
 
-    // Return the total number of trainees, regardless of status
-    return batchTrainees.length;
+    return activeTrainees.length;
   };
 
-  // Update the batch listing route to include capacity and enrolled count
+  // Update the batch listing route to include capacity
   app.get("/api/organizations/:orgId/batches", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -860,11 +853,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           getEnrolledCount(batch.id, orgId)
         ]);
 
-        // Log batch details for debugging
+        // Log batch details for debugging 
         console.log('Batch details:', {
           id: batch.id,
           name: batch.name,
-          capacity: batch.capacity,
+          capacityLimit: batch.capacityLimit || 0,
           enrolledCount
         });
 
@@ -874,7 +867,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           process,
           line_of_business,
           enrolledCount,
-          capacity: batch.capacity || 0 // Ensure we always return a capacity value
+          capacity: batch.capacityLimit // Use capacityLimit directly from the batch
         };
       }));
 
