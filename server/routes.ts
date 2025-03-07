@@ -801,11 +801,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Helper function to get enrolled count for a batch
   const getEnrolledCount = async (batchId: number) => {
     const trainees = await storage.getBatchTrainees(batchId);
-    // Get user details for each trainee to check their category
+    // Get user details for each trainee to check their role
     const traineeDetails = await Promise.all(
       trainees.map(trainee => storage.getUser(trainee.userId))
     );
-    return traineeDetails.filter(user => user && user.category === 'trainee').length;
+    return traineeDetails.filter(user => user && user.role === 'trainee').length;
   };
 
   // Batch listing route with enrolled count
@@ -823,7 +823,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let batches = await storage.listBatches(orgId);
 
-      // Filter by status if specified
+      // Filter by status if specified  
       if (status) {
         batches = batches.filter(batch => batch.status === status);
       }
@@ -854,26 +854,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get batch trainees with attendance
+  // Get batch trainees with details
   app.get("/api/organizations/:orgId/batches/:batchId/trainees", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     try {
       const batchId = parseInt(req.params.batchId);
       const orgId = parseInt(req.params.orgId);
-      const currentDate = new Date().toISOString().split('T')[0]; // Get current date
 
       // First get all trainees assigned to this batch
       const batchTrainees = await db
         .select({
           userId: userBatchProcesses.userId,
           status: userBatchProcesses.status,
-          user: {
-            id: users.id,
-            fullName: users.fullName,
-            employeeId: users.employeeId,
-            email: users.email
-          }
+          user: users
         })
         .from(userBatchProcesses)
         .innerJoin(users, eq(users.id, userBatchProcesses.userId))
@@ -884,18 +878,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           )
         );
 
-      // Map to expected format with attendance status
+      // Map to expected format
       const traineesWithDetails = batchTrainees.map((trainee) => ({
         id: trainee.userId,
         status: trainee.status,
-        user: trainee.user,
-        lastUpdated: null
+        user: {
+          id: trainee.user.id,
+          fullName: trainee.user.fullName,
+          employeeId: trainee.user.employeeId,
+          email: trainee.user.email
+        }
       }));
 
       console.log('Trainees with details:', traineesWithDetails);
       res.json(traineesWithDetails);
     } catch (error: any) {
-      console.error("Error fetching trainees with attendance:", error);
+      console.error("Error fetching trainees:", error);
       res.status(500).json({ message: "Error loading trainees. Please try again." });
     }
   });
@@ -1155,51 +1153,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Batch listing route with enrolled count and additional details
-  app.get("/api/organizations/:orgId/batches", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
-    try {
-      const orgId = parseInt(req.params.orgId);
-      const status = req.query.status as string;
-
-      // Check if user belongs to the organization  
-      if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "You can only view batches in your own organization" });
-      }
-
-      let batches = await storage.listBatches(orgId);
-
-      // Filter by status if specified
-      if (status) {
-        batches = batches.filter(batch => batch.status === status);
-      }
-
-      // For each batch, enrich with location, process, line of business details, and enrolled count
-      const enrichedBatches = await Promise.all(batches.map(async (batch) => {
-        const [location, process, line_of_business, enrolledCount] = await Promise.all([
-          storage.getLocation(batch.locationId),
-          storage.getProcess(batch.processId),
-          storage.getLineOfBusiness(batch.lineOfBusinessId),
-          getEnrolledCount(batch.id)
-        ]);
-
-        return {
-          ...batch,
-          location,
-          process,
-          line_of_business,
-          enrolledCount
-        };
-      }));
-
-      console.log(`Found ${enrichedBatches.length} batches for organization ${orgId}`);
-      res.json(enrichedBatches);
-    } catch (error: any) {
-      console.error("Error fetching batches:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
 
   app.post("/api/organizations/:id/batches", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
