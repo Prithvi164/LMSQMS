@@ -26,14 +26,6 @@ import {
 } from 'recharts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-// Add styles for button animation
-const buttonAnimationStyles = {
-  active: {
-    transform: 'scale(0.95)',
-    transition: 'transform 200ms ease'
-  }
-};
-
 type Batch = {
   id: number;
   name: string;
@@ -60,7 +52,6 @@ type DrilldownLevel = 'overview' | 'phase' | 'trainee';
 export default function TraineeManagement() {
   const [selectedTab, setSelectedTab] = useState("all-batches");
   const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
-  const [clickedBatchId, setClickedBatchId] = useState<number | null>(null);
   const [metricType, setMetricType] = useState<MetricType>('weekly');
   const [drilldownLevel, setDrilldownLevel] = useState<DrilldownLevel>('overview');
   const [selectedPhase, setSelectedPhase] = useState<string | null>(null);
@@ -179,20 +170,12 @@ export default function TraineeManagement() {
 
         {batch.status === 'planned' && (
           <Button
-            className="w-full"
+            className="w-full active:scale-95 transition-transform duration-200"
             onClick={(e) => {
               e.stopPropagation();
-              setClickedBatchId(batch.id);
               startBatchMutation.mutate(batch.id);
-              // Reset the clicked state after animation
-              setTimeout(() => {
-                if (clickedBatchId === batch.id) {
-                  setClickedBatchId(null);
-                }
-              }, 200);
             }}
             disabled={startBatchMutation.isPending}
-            style={clickedBatchId === batch.id ? buttonAnimationStyles.active : undefined}
           >
             <CheckCircle2 className="h-4 w-4 mr-2" />
             {startBatchMutation.isPending ? "Starting..." : "Start Batch"}
