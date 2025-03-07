@@ -627,3 +627,68 @@ export type {
   InsertBatchTemplate,
   InsertUserBatchProcess,
 };
+
+// Add attendance status enum
+export const attendanceStatusEnum = pgEnum('attendance_status', [
+  'present',
+  'absent',
+  'late',
+  'leave'
+]);
+
+// Add attendance table
+export const attendance = pgTable("attendance", {
+  id: serial("id").primaryKey(),
+  traineeId: integer("trainee_id")
+    .references(() => users.id)
+    .notNull(),
+  status: attendanceStatusEnum("status").notNull(),
+  date: date("date").notNull(),
+  markedById: integer("marked_by_id")
+    .references(() => users.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    // Ensure only one attendance record per trainee per day
+    unq: unique().on(table.traineeId, table.date),
+  };
+});
+
+// Add attendance relations
+export const attendanceRelations = relations(attendance, ({ one }) => ({
+  trainee: one(users, {
+    fields: [attendance.traineeId],
+    references: [users.id],
+  }),
+  markedBy: one(users, {
+    fields: [attendance.markedById],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [attendance.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
+// Add insert schema for attendance
+export const insertAttendanceSchema = createInsertSchema(attendance)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    traineeId: z.number().int().positive("Trainee ID is required"),
+    status: z.enum(['present', 'absent', 'late', 'leave']),
+    date: z.string().min(1, "Date is required"),
+    markedById: z.number().int().positive("Marker ID is required"),
+    organizationId: z.number().int().positive("Organization ID is required"),
+  });
+
+export type InsertAttendance = z.infer<typeof insertAttendanceSchema>;
+export type Attendance = InferSelectModel<typeof attendance>;

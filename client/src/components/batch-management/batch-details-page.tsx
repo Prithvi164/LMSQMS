@@ -27,12 +27,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type AttendanceStatus = 'present' | 'absent' | 'late';
+type AttendanceStatus = 'present' | 'absent' | 'late' | 'leave';
 
 type Trainee = {
   id: number;
-  name: string;
-  status: AttendanceStatus;
+  fullName: string;
+  employeeId: string;
+  status: AttendanceStatus | null;
   lastUpdated?: string;
 };
 
@@ -63,7 +64,11 @@ export function BatchDetailsPage() {
       const response = await fetch(`/api/attendance/${traineeId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, date: new Date().toISOString() }),
+        body: JSON.stringify({ 
+          status, 
+          date: new Date().toISOString().split('T')[0],
+          organizationId: user?.organizationId 
+        }),
       });
       if (!response.ok) throw new Error('Failed to update attendance');
       return response.json();
@@ -121,7 +126,7 @@ export function BatchDetailsPage() {
     );
   }
 
-  const getStatusIcon = (status: AttendanceStatus) => {
+  const getStatusIcon = (status: AttendanceStatus | null) => {
     switch (status) {
       case 'present':
         return <CheckCircle className="h-4 w-4 text-green-500" />;
@@ -129,6 +134,8 @@ export function BatchDetailsPage() {
         return <AlertCircle className="h-4 w-4 text-red-500" />;
       case 'late':
         return <Clock className="h-4 w-4 text-yellow-500" />;
+      case 'leave':
+        return <Clock className="h-4 w-4 text-blue-500" />;
       default:
         return null;
     }
@@ -181,6 +188,7 @@ export function BatchDetailsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Trainee Name</TableHead>
+                    <TableHead>Employee ID</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Last Updated</TableHead>
                     <TableHead>Action</TableHead>
@@ -189,7 +197,8 @@ export function BatchDetailsPage() {
                 <TableBody>
                   {trainees?.map((trainee: Trainee) => (
                     <TableRow key={trainee.id}>
-                      <TableCell>{trainee.name}</TableCell>
+                      <TableCell>{trainee.fullName}</TableCell>
+                      <TableCell>{trainee.employeeId}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           {getStatusIcon(trainee.status)}
@@ -201,7 +210,7 @@ export function BatchDetailsPage() {
                       </TableCell>
                       <TableCell>
                         <Select
-                          value={trainee.status}
+                          value={trainee.status || ''}
                           onValueChange={(value: AttendanceStatus) => 
                             updateAttendanceMutation.mutate({ traineeId: trainee.id, status: value })
                           }
@@ -213,6 +222,7 @@ export function BatchDetailsPage() {
                             <SelectItem value="present">Present</SelectItem>
                             <SelectItem value="absent">Absent</SelectItem>
                             <SelectItem value="late">Late</SelectItem>
+                            <SelectItem value="leave">Leave</SelectItem>
                           </SelectContent>
                         </Select>
                       </TableCell>
