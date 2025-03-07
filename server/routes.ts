@@ -840,7 +840,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('Process deleted successfully');
       res.status(200).json({ message: "Process deleted successfully"});
-    } catch (error:any) {
+    }catch (error:any) {
       console.error("Process deletion error:", error);
       res.status(400).json({ message: error.message || "Failed to delete process" });
     }
@@ -1627,7 +1627,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add new route for starting a batch after existing batch routes
-  app.post("/api/organizations/:orgId/batches/:batchId/start", async (req, res) => {
+  app.post("/api/batches/:batchId/start", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     try {
@@ -1653,14 +1653,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const currentDate = new Date();
       const updatedBatch = await storage.updateBatch(batchId, {
         status: 'induction',
-        startDate: toUTCStorage(currentDate.toISOString()),
-        updatedAt: toUTCStorage(currentDate.toISOString())
+        startDate: toUTCStorage(currentDate.toISOString())
       });
 
       console.log('Successfully started batch:', {
         ...updatedBatch,
-        startDate: formatISTDateOnly(updatedBatch.startDate),
-        updatedAt: formatIST(updatedBatch.updatedAt)
+        startDate: formatISTDateOnly(updatedBatch.startDate)
       });
 
       res.json(updatedBatch);
