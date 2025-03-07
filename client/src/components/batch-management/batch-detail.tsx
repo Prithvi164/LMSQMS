@@ -56,7 +56,7 @@ export function BatchDetail() {
           <DialogHeader>
             <DialogTitle>Create New Batch</DialogTitle>
           </DialogHeader>
-          <CreateBatchForm />
+          <CreateBatchForm onSuccess={() => setIsCreateDialogOpen(false)} />
         </DialogContent>
       </Dialog>
     </div>

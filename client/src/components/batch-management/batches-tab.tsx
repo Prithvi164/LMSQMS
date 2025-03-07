@@ -571,11 +571,11 @@ export function BatchesTab() {
               <TableCell className="text-center">{batch.process?.name || '-'}</TableCell>
               <TableCell className="text-center">
                 <div className="font-medium">
-                  {batch.traineeCount || 0} / {batch.capacityLimit || '-'}
+                  {batch.enrolledCount || 0} / {batch.capacityLimit || '-'}
                 </div>
                 {batch.capacityLimit && (
                   <Progress
-                    value={(batch.traineeCount / batch.capacityLimit) * 100}
+                    value={(batch.enrolledCount / batch.capacityLimit) * 100}
                     className="h-2 w-20 mx-auto"
                   />
                 )}
