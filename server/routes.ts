@@ -17,6 +17,7 @@ import { db } from './db';
 import { join } from 'path';
 import express from 'express';
 import { eq } from "drizzle-orm";
+import { toIST, fromIST, formatIST } from './utils/timezone';
 
 const scryptAsync = promisify(scrypt);
 
@@ -1648,11 +1649,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Update batch status to induction
+      // Update batch status to induction with proper timezone handling
       const updatedBatch = await storage.updateBatch(batchId, {
         status: 'induction',
-        startDate: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        startDate: formatIST(new Date()),
+        updatedAt: formatIST(new Date())
       });
 
       console.log('Successfully started batch:', updatedBatch);
