@@ -7,6 +7,9 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Set 'trust proxy' setting to true for proper rate limiting behind proxies
+app.set('trust proxy', true);
+
 // Configure rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -77,7 +80,8 @@ app.get("/health", (_req, res) => {
       serveStatic(app);
     }
 
-    const port = process.env.PORT || 5001;
+    const port = 5000; // Changed from process.env.PORT || 5001
+    log(`Starting server on port ${port} (process.env.PORT = ${process.env.PORT})`);
     server.listen(port, "0.0.0.0", () => {
       log(`Server running in ${app.get("env")} mode`);
       log(`API and client being served on port ${port}`);
