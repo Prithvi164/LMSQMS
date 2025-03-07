@@ -800,18 +800,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Helper function to get enrolled count for a batch
   const getEnrolledCount = async (batchId: number) => {
-    // Get all users assigned to this batch
+    // Get all users assigned to this batch with role 'trainee'
     const batchTrainees = await db
       .select({
         userId: userBatchProcesses.userId,
-        role: users.role
+        role: users.role,
+        status: userBatchProcesses.status
       })
       .from(userBatchProcesses)
       .innerJoin(users, eq(users.id, userBatchProcesses.userId))
-      .where(eq(userBatchProcesses.batchId, batchId));
+      .where(
+        and(
+          eq(userBatchProcesses.batchId, batchId),
+          eq(users.role, 'trainee')
+        )
+      );
 
-    // Only count users with 'trainee' role
-    return batchTrainees.filter(user => user.role === 'trainee').length;
+    // Return the count of enrolled trainees
+    return batchTrainees.length;
   };
 
   // Batch listing route with enrolled count
@@ -837,7 +843,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // For each batch, enrich with location, process, line of business details, and enrolled count
       const enrichedBatches = await Promise.all(batches.map(async (batch) => {
         const [location, process, line_of_business, enrolledCount] = await Promise.all([
-          storage.getLocation(batch.locationId), 
+          storage.getLocation(batch.locationId),
           storage.getProcess(batch.processId),
           storage.getLineOfBusiness(batch.lineOfBusinessId),
           getEnrolledCount(batch.id)
@@ -846,7 +852,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return {
           ...batch,
           location,
-          process, 
+          process,
           line_of_business,
           enrolledCount,
           capacityRemaining: batch.capacityLimit - enrolledCount
