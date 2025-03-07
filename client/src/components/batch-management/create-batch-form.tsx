@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format, addDays, isSunday, isWithinInterval, isSameDay } from "date-fns";
+import { format, addDays, isSunday, isWithinInterval, isSameDay, parseISO } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
+import { enUS } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -505,6 +507,17 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
   });
 
 
+  // Add a utility function to format dates in IST
+  const formatToIST = (date: string | Date) => {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    return formatInTimeZone(d, 'Asia/Kolkata', 'dd MMM yyyy');
+  };
+
+  // Convert date to UTC for storage
+  const toUTC = (dateStr: string) => {
+    return formatInTimeZone(new Date(dateStr), 'UTC', "yyyy-MM-dd'T'HH:mm:ssX");
+  };
+
   async function onSubmit(values: InsertOrganizationBatch) {
     try {
       if (!values.name) throw new Error('Batch name is required');
@@ -516,11 +529,23 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       if (values.capacityLimit === undefined) throw new Error('Capacity limit is required');
       if (values.batchCategory === undefined) throw new Error('Batch Category is required');
 
-
-      const currentStatus = determineBatchStatus(values);
+      // Convert all dates to UTC before sending to server
       const formattedValues = {
         ...values,
-        status: currentStatus
+        startDate: toUTC(values.startDate),
+        endDate: values.endDate ? toUTC(values.endDate) : undefined,
+        inductionStartDate: toUTC(values.inductionStartDate),
+        inductionEndDate: values.inductionEndDate ? toUTC(values.inductionEndDate) : undefined,
+        trainingStartDate: values.trainingStartDate ? toUTC(values.trainingStartDate) : undefined,
+        trainingEndDate: values.trainingEndDate ? toUTC(values.trainingEndDate) : undefined,
+        certificationStartDate: values.certificationStartDate ? toUTC(values.certificationStartDate) : undefined,
+        certificationEndDate: values.certificationEndDate ? toUTC(values.certificationEndDate) : undefined,
+        ojtStartDate: values.ojtStartDate ? toUTC(values.ojtStartDate) : undefined,
+        ojtEndDate: values.ojtEndDate ? toUTC(values.ojtEndDate) : undefined,
+        ojtCertificationStartDate: values.ojtCertificationStartDate ? toUTC(values.ojtCertificationStartDate) : undefined,
+        ojtCertificationEndDate: values.ojtCertificationEndDate ? toUTC(values.ojtCertificationEndDate) : undefined,
+        handoverToOpsDate: values.handoverToOpsDate ? toUTC(values.handoverToOpsDate) : undefined,
+        status: determineBatchStatus(values)
       };
 
       if (editMode) {
@@ -538,7 +563,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     }
   }
 
-  // Update the date ranges visualization
   const getDateRangeClassName = (date: Date): string => {
     const dateStr = format(date, 'yyyy-MM-dd');
     const ranges = dateRanges.filter(r =>
@@ -760,9 +784,9 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                 )}
               </div>
               <div className="text-sm">
-                {format(range.start, 'MMM d, yyyy')}
+                {formatToIST(range.start)}
                 {' - '}
-                {format(range.end, 'MMM d, yyyy')}
+                {formatToIST(range.end)}
               </div>
             </div>
           );
@@ -784,7 +808,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
           </div>
         )}
 
-        {editMode && (
+        {{editMode && (
           <div className="flex items-center space-x-2 p-4 bg-muted rounded-lg">
             <Switch
               id="test-mode"
