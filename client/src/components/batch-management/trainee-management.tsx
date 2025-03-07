@@ -50,16 +50,38 @@ interface TraineeManagementProps {
   batchId: number;
   organizationId: number;
   batchStatus?: string;
-  actualStartDate?: string;
-  actualEndDate?: string;
+  actualInductionStartDate?: string;
+  actualInductionEndDate?: string;
+  actualTrainingStartDate?: string;
+  actualTrainingEndDate?: string;
+  actualCertificationStartDate?: string;
+  actualCertificationEndDate?: string;
+  actualOjtStartDate?: string;
+  actualOjtEndDate?: string;
+  actualOjtCertificationStartDate?: string;
+  actualOjtCertificationEndDate?: string;
+  actualHandoverToOpsDate?: string;
+  startDate: string;
+  endDate: string;
 }
 
-export function TraineeManagement({ 
-  batchId, 
-  organizationId, 
+export function TraineeManagement({
+  batchId,
+  organizationId,
   batchStatus = 'planned',
-  actualStartDate,
-  actualEndDate 
+  actualInductionStartDate,
+  actualInductionEndDate,
+  actualTrainingStartDate,
+  actualTrainingEndDate,
+  actualCertificationStartDate,
+  actualCertificationEndDate,
+  actualOjtStartDate,
+  actualOjtEndDate,
+  actualOjtCertificationStartDate,
+  actualOjtCertificationEndDate,
+  actualHandoverToOpsDate,
+  startDate,
+  endDate
 }: TraineeManagementProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -227,11 +249,43 @@ export function TraineeManagement({
 
   // Helper to get the phase dates
   const getPhaseDates = (phaseId: Phase) => {
-    // This would need to be updated based on your actual data structure
-    return {
-      startDate: actualStartDate,
-      endDate: actualEndDate
-    };
+    switch (phaseId) {
+      case 'induction':
+        return {
+          startDate: actualInductionStartDate,
+          endDate: actualInductionEndDate
+        };
+      case 'training':
+        return {
+          startDate: actualTrainingStartDate,
+          endDate: actualTrainingEndDate
+        };
+      case 'certification':
+        return {
+          startDate: actualCertificationStartDate,
+          endDate: actualCertificationEndDate
+        };
+      case 'ojt':
+        return {
+          startDate: actualOjtStartDate,
+          endDate: actualOjtEndDate
+        };
+      case 'ojt_certification':
+        return {
+          startDate: actualOjtCertificationStartDate,
+          endDate: actualOjtCertificationEndDate
+        };
+      case 'completed':
+        return {
+          startDate: actualHandoverToOpsDate,
+          endDate: actualHandoverToOpsDate
+        };
+      default:
+        return {
+          startDate: undefined,
+          endDate: undefined
+        };
+    }
   };
 
   if (isLoadingTrainees) {
@@ -274,7 +328,7 @@ export function TraineeManagement({
               const dates = getPhaseDates(phase.id);
 
               return (
-                <div 
+                <div
                   key={phase.id}
                   className={`
                     p-4 rounded-lg border
