@@ -800,7 +800,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Helper function to get enrolled count for a batch
   const getEnrolledCount = async (batchId: number, orgId: number) => {
-    // Use the same query as the trainees endpoint
+    // Get all trainees assigned to this batch
     const batchTrainees = await db
       .select({
         userId: userBatchProcesses.userId,
@@ -819,6 +819,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Log the enrollment details for debugging
     console.log(`Batch ${batchId} enrollment details:`, {
       totalTrainees: batchTrainees.length,
+      batchId,
       traineesDetails: batchTrainees.map(t => ({
         userId: t.userId,
         status: t.status,
@@ -826,11 +827,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }))
     });
 
-    // Count only active trainees
-    return batchTrainees.filter(t => t.status === 'active').length;
+    // Return the total number of trainees, regardless of status
+    return batchTrainees.length;
   };
 
-  // Update the batch listing route to include capacity
+  // Update the batch listing route to include capacity and enrolled count
   app.get("/api/organizations/:orgId/batches", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -858,6 +859,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           storage.getLineOfBusiness(batch.lineOfBusinessId),
           getEnrolledCount(batch.id, orgId)
         ]);
+
+        // Log batch details for debugging
+        console.log('Batch details:', {
+          id: batch.id,
+          name: batch.name,
+          capacity: batch.capacity,
+          enrolledCount
+        });
 
         return {
           ...batch,
