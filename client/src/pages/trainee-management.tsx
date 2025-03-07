@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -52,6 +52,8 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 // Performance metrics types
 type MetricType = 'daily' | 'weekly' | 'monthly';
 type DrilldownLevel = 'overview' | 'phase' | 'trainee';
+
+const phases = ['planned', 'induction', 'training', 'certification', 'ojt', 'completed'];
 
 export default function TraineeManagement() {
   const [selectedTab, setSelectedTab] = useState("all-batches");
@@ -143,64 +145,40 @@ export default function TraineeManagement() {
     switch (metricType) {
       case 'daily':
         return [
-          { name: 'Mon', score: 85, attendance: 90, assessment: 82 },
-          { name: 'Tue', score: 88, attendance: 95, assessment: 85 },
-          { name: 'Wed', score: 92, attendance: 88, assessment: 90 },
-          { name: 'Thu', score: 90, attendance: 92, assessment: 88 },
-          { name: 'Fri', score: 87, attendance: 85, assessment: 89 }
+          { name: 'Mon', score: 85, attendance: 90 },
+          { name: 'Tue', score: 88, attendance: 95 },
+          { name: 'Wed', score: 92, attendance: 88 },
+          { name: 'Thu', score: 90, attendance: 92 },
+          { name: 'Fri', score: 87, attendance: 85 }
         ];
       case 'weekly':
         return [
-          { name: 'Week 1', score: 85, attendance: 90, assessment: 82 },
-          { name: 'Week 2', score: 88, attendance: 95, assessment: 85 },
-          { name: 'Week 3', score: 92, attendance: 88, assessment: 90 },
-          { name: 'Week 4', score: 90, attendance: 92, assessment: 88 }
+          { name: 'Week 1', score: 85, attendance: 90 },
+          { name: 'Week 2', score: 88, attendance: 95 },
+          { name: 'Week 3', score: 92, attendance: 88 },
+          { name: 'Week 4', score: 90, attendance: 92 }
         ];
       case 'monthly':
         return [
-          { name: 'Jan', score: 85, attendance: 90, assessment: 82 },
-          { name: 'Feb', score: 88, attendance: 95, assessment: 85 },
-          { name: 'Mar', score: 92, attendance: 88, assessment: 90 }
+          { name: 'Jan', score: 85, attendance: 90 },
+          { name: 'Feb', score: 88, attendance: 95 },
+          { name: 'Mar', score: 92, attendance: 88 }
         ];
       default:
         return [];
     }
   };
 
-  // Sample trainee-specific data
-  const traineePerformanceData = [
-    { name: 'John Doe', score: 92, progress: 85, attendance: 95 },
-    { name: 'Jane Smith', score: 88, progress: 90, attendance: 92 },
-    { name: 'Mike Johnson', score: 85, progress: 88, attendance: 90 },
-    { name: 'Sarah Wilson', score: 90, progress: 92, attendance: 88 }
+  const attendanceData = [
+    { name: 'Present', value: 85 },
+    { name: 'Absent', value: 10 },
+    { name: 'Leave', value: 5 }
   ];
 
-  // Sample phase-specific data
-  const phasePerformanceData = {
-    induction: [
-      { name: 'Day 1', completion: 100, performance: 85 },
-      { name: 'Day 2', completion: 90, performance: 88 },
-      { name: 'Day 3', completion: 95, performance: 92 }
-    ],
-    training: [
-      { name: 'Week 1', completion: 85, performance: 80 },
-      { name: 'Week 2', completion: 75, performance: 85 },
-      { name: 'Week 3', completion: 60, performance: 88 }
-    ],
-    certification: [
-      { name: 'Module 1', completion: 90, performance: 85 },
-      { name: 'Module 2', completion: 85, performance: 82 },
-      { name: 'Module 3', completion: 70, performance: 78 }
-    ]
-  };
 
   const renderBatchCard = (batch: Batch) => (
-    <Card
-      key={batch.id}
-      className={`cursor-pointer ${selectedBatch === batch.id ? 'ring-2 ring-primary' : ''}`}
-      onClick={() => setSelectedBatch(batch.id)}
-    >
-      <CardContent className="p-6 space-y-4">
+    <Card key={batch.id}>
+      <CardContent className="p-6">
         <div className="flex justify-between items-start">
           <div>
             <h3 className="font-semibold text-lg">{batch.name}</h3>
@@ -216,7 +194,7 @@ export default function TraineeManagement() {
           </Badge>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-2 mt-4">
           <p className="text-sm">
             <span className="font-medium">Start Date:</span>{" "}
             {formatToIST(batch.startDate)}
@@ -227,168 +205,105 @@ export default function TraineeManagement() {
           </p>
         </div>
 
-        {batch.status === 'planned' && (
+        {batch.status === 'planned' ? (
           <Button
-            className="w-full"
-            onClick={(e) => {
-              e.stopPropagation();
-              startBatchMutation.mutate(batch.id);
-            }}
+            className="w-full mt-4"
+            onClick={() => startBatchMutation.mutate(batch.id)}
             disabled={startBatchMutation.isPending}
           >
             <CheckCircle2 className="h-4 w-4 mr-2" />
             {startBatchMutation.isPending ? "Starting..." : "Start Batch"}
           </Button>
+        ) : (
+          <Tabs defaultValue="details" className="mt-4">
+            <TabsList className="w-full">
+              <TabsTrigger value="details">Details</TabsTrigger>
+              <TabsTrigger value="progress">Progress</TabsTrigger>
+              <TabsTrigger value="attendance">Attendance</TabsTrigger>
+            </TabsList>
+            <TabsContent value="details">
+              <div className="space-y-2 mt-4">
+                <p className="text-sm">Current Phase: {batch.status}</p>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm font-medium">Phase Progress</span>
+                    <span className="text-sm text-muted-foreground">{Math.round(((phases.indexOf(batch.status) + 1) / phases.length) * 100)}%</span>
+                  </div>
+                  <Progress value={((phases.indexOf(batch.status) + 1) / phases.length) * 100} />
+                </div>
+              </div>
+            </TabsContent>
+            <TabsContent value="progress">
+              <div className="mt-4">
+                <div className="mb-4">
+                  <Select defaultValue="weekly" onValueChange={(value) => setMetricType(value as MetricType)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select time period" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="daily">Daily View</SelectItem>
+                      <SelectItem value="weekly">Weekly View</SelectItem>
+                      <SelectItem value="monthly">Monthly View</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="h-[200px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={getPerformanceData()}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Line type="monotone" dataKey="score" stroke="#8884d8" name="Overall Score" />
+                      <Line type="monotone" dataKey="attendance" stroke="#82ca9d" name="Attendance" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </TabsContent>
+            <TabsContent value="attendance">
+              <div className="mt-4">
+                <div className="h-[200px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={attendanceData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={40}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                        label
+                      >
+                        {attendanceData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
         )}
       </CardContent>
     </Card>
   );
 
-  const renderDrilldownControls = () => (
+  const renderDrilldownControls = () => ( //This function is not used anymore.
     <div className="flex gap-4 mb-6">
-      <Select value={metricType} onValueChange={(value: MetricType) => setMetricType(value)}>
-        <SelectTrigger className="w-[180px]">
-          <SelectValue placeholder="Select metric type" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="daily">Daily Metrics</SelectItem>
-          <SelectItem value="weekly">Weekly Metrics</SelectItem>
-          <SelectItem value="monthly">Monthly Metrics</SelectItem>
-        </SelectContent>
-      </Select>
-
-      <Select value={drilldownLevel} onValueChange={(value: DrilldownLevel) => setDrilldownLevel(value)}>
-        <SelectTrigger className="w-[180px]">
-          <SelectValue placeholder="Select view level" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="overview">Batch Overview</SelectItem>
-          <SelectItem value="phase">Phase Details</SelectItem>
-          <SelectItem value="trainee">Trainee Details</SelectItem>
-        </SelectContent>
-      </Select>
-
-      {drilldownLevel === 'phase' && (
-        <Select value={selectedPhase || ''} onValueChange={setSelectedPhase}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Select phase" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="induction">Induction</SelectItem>
-            <SelectItem value="training">Training</SelectItem>
-            <SelectItem value="certification">Certification</SelectItem>
-          </SelectContent>
-        </Select>
-      )}
+      {/*Removed this section as it is replaced in the updated renderBatchCard*/}
     </div>
   );
 
-  const renderPerformanceCharts = () => {
-    // Overview Level Charts
-    if (drilldownLevel === 'overview') {
-      return (
-        <div className="space-y-8">
-          {/* Overall Performance Trend */}
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Overall Performance Trend</h3>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={getPerformanceData()}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="score" stroke="#8884d8" name="Overall Score" />
-                    <Line type="monotone" dataKey="attendance" stroke="#82ca9d" name="Attendance" />
-                    <Line type="monotone" dataKey="assessment" stroke="#ffc658" name="Assessment" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Progress Distribution */}
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Progress Distribution</h3>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={getPerformanceData()}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Area type="monotone" dataKey="score" stackId="1" stroke="#8884d8" fill="#8884d8" />
-                    <Area type="monotone" dataKey="attendance" stackId="1" stroke="#82ca9d" fill="#82ca9d" />
-                    <Area type="monotone" dataKey="assessment" stackId="1" stroke="#ffc658" fill="#ffc658" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      );
-    }
-
-    // Phase Level Charts
-    if (drilldownLevel === 'phase' && selectedPhase) {
-      const phaseData = phasePerformanceData[selectedPhase as keyof typeof phasePerformanceData];
-      return (
-        <div className="space-y-8">
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">{selectedPhase.charAt(0).toUpperCase() + selectedPhase.slice(1)} Phase Performance</h3>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={phaseData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="completion" fill="#8884d8" name="Completion %" />
-                    <Bar dataKey="performance" fill="#82ca9d" name="Performance Score" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      );
-    }
-
-    // Trainee Level Charts
-    if (drilldownLevel === 'trainee') {
-      return (
-        <div className="space-y-8">
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Individual Trainee Performance</h3>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={traineePerformanceData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="score" fill="#8884d8" name="Overall Score" />
-                    <Bar dataKey="progress" fill="#82ca9d" name="Progress" />
-                    <Bar dataKey="attendance" fill="#ffc658" name="Attendance" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      );
-    }
-
+  const renderPerformanceCharts = () => { //This function is not used anymore.
     return null;
   };
+
 
   if (isLoading) {
     return (
@@ -420,14 +335,6 @@ export default function TraineeManagement() {
           <TabsTrigger value="all-batches" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             All Batches
-          </TabsTrigger>
-          <TabsTrigger value="progress" className="flex items-center gap-2">
-            <BarChart className="h-4 w-4" />
-            Progress {selectedBatch && <Badge variant="outline" className="ml-2">Batch Selected</Badge>}
-          </TabsTrigger>
-          <TabsTrigger value="attendance" className="flex items-center gap-2">
-            <CalendarDays className="h-4 w-4" />
-            Attendance
           </TabsTrigger>
           <TabsTrigger value="notifications" className="flex items-center gap-2">
             <Bell className="h-4 w-4" />
@@ -499,29 +406,6 @@ export default function TraineeManagement() {
               </Alert>
             )}
           </div>
-        </TabsContent>
-
-        <TabsContent value="progress">
-          {selectedBatch ? (
-            <div className="space-y-6">
-              {renderDrilldownControls()}
-              {renderPerformanceCharts()}
-            </div>
-          ) : (
-            <Alert>
-              <AlertDescription>
-                Select a batch to view detailed performance metrics.
-              </AlertDescription>
-            </Alert>
-          )}
-        </TabsContent>
-
-        <TabsContent value="attendance">
-          <Alert>
-            <AlertDescription>
-              Attendance tracking functionality will be implemented here.
-            </AlertDescription>
-          </Alert>
         </TabsContent>
 
         <TabsContent value="notifications">
