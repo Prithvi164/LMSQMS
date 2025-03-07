@@ -8,18 +8,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Edit, Trash2, ArrowRightLeft, Loader2, CheckCircle2 } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 
 const PHASES = [
   { id: 'induction', name: 'Induction', color: 'bg-blue-500' },
@@ -46,66 +42,20 @@ type Trainee = {
   };
 };
 
-interface TraineeManagementProps {
-  batchId: number;
-  organizationId: number;
-  batchStatus?: string;
-  actualInductionStartDate?: string;
-  actualInductionEndDate?: string;
-  actualTrainingStartDate?: string;
-  actualTrainingEndDate?: string;
-  actualCertificationStartDate?: string;
-  actualCertificationEndDate?: string;
-  actualOjtStartDate?: string;
-  actualOjtEndDate?: string;
-  actualOjtCertificationStartDate?: string;
-  actualOjtCertificationEndDate?: string;
-  actualHandoverToOpsDate?: string;
-  startDate: string;
-  endDate: string;
-}
-
-export function TraineeManagement({
-  batchId,
-  organizationId,
-  batchStatus = 'planned',
-  actualInductionStartDate,
-  actualInductionEndDate,
-  actualTrainingStartDate,
-  actualTrainingEndDate,
-  actualCertificationStartDate,
-  actualCertificationEndDate,
-  actualOjtStartDate,
-  actualOjtEndDate,
-  actualOjtCertificationStartDate,
-  actualOjtCertificationEndDate,
-  actualHandoverToOpsDate,
-  startDate,
-  endDate
-}: TraineeManagementProps) {
+export function TraineeManagement({ organizationId }: { organizationId: number }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedTrainees, setSelectedTrainees] = useState<Set<number>>(new Set());
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedTrainee, setSelectedTrainee] = useState<Trainee | null>(null);
-  const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
 
-  // Fetch trainees for the current batch
-  const { data: trainees = [], isLoading: isLoadingTrainees, error } = useQuery({
-    queryKey: [`/api/organizations/${organizationId}/batches/${batchId}/trainees`],
-    enabled: !!batchId && !!organizationId,
-  });
-
-  // Fetch all other batches for transfer
-  const { data: allBatches = [] } = useQuery({
+  // Fetch all batches
+  const { data: batches = [], isLoading: isLoadingBatches } = useQuery({
     queryKey: [`/api/organizations/${organizationId}/batches`],
     enabled: !!organizationId,
   });
 
-
   // End phase mutation
   const endPhaseMutation = useMutation({
-    mutationFn: async (phase: Phase) => {
+    mutationFn: async ({ batchId, phase }: { batchId: number; phase: Phase }) => {
       const response = await fetch(
         `/api/batches/${batchId}/phase/${phase}/end`,
         { method: "POST" }
@@ -132,6 +82,163 @@ export function TraineeManagement({
         variant: "destructive",
       });
     },
+  });
+
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return 'Not Started';
+    const date = parseISO(dateString);
+    return isValid(date) ? format(date, 'PP') : 'Invalid Date';
+  };
+
+  // Helper to determine if a phase is active
+  const isPhaseActive = (phaseId: Phase, batchStatus: string): boolean => {
+    return batchStatus === phaseId;
+  };
+
+  // Helper to determine if a phase is completed
+  const isPhaseCompleted = (phaseId: Phase, batchStatus: string): boolean => {
+    const phaseIndex = PHASES.findIndex(p => p.id === phaseId);
+    const currentPhaseIndex = PHASES.findIndex(p => p.id === batchStatus);
+    return phaseIndex < currentPhaseIndex;
+  };
+
+  if (isLoadingBatches) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading batches...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      {batches.map((batch: any) => (
+        <Card key={batch.id} className="mb-8">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl">
+                {batch.name}
+                <Badge className="ml-2" variant="outline">
+                  {batch.status}
+                </Badge>
+              </CardTitle>
+              <div className="text-sm text-muted-foreground">
+                {formatDate(batch.startDate)} - {formatDate(batch.endDate)}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {/* Phase Progress */}
+            <div className="grid gap-4 mb-6">
+              {PHASES.map((phase) => {
+                const isActive = isPhaseActive(phase.id, batch.status);
+                const isComplete = isPhaseCompleted(phase.id, batch.status);
+                const dates = {
+                  startDate: batch[`actual${phase.name.replace(' ', '')}StartDate`],
+                  endDate: batch[`actual${phase.name.replace(' ', '')}EndDate`]
+                };
+
+                return (
+                  <div
+                    key={phase.id}
+                    className={`
+                      p-4 rounded-lg border
+                      ${isActive ? 'border-primary bg-primary/5' : 'border-muted'}
+                      ${isComplete ? 'bg-muted/20' : ''}
+                    `}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <h3 className="font-medium">{phase.name}</h3>
+                        <div className="text-sm text-muted-foreground">
+                          {isComplete && (
+                            <span className="flex items-center text-green-600">
+                              <CheckCircle2 className="h-4 w-4 mr-1" />
+                              Completed
+                            </span>
+                          )}
+                          {isActive && (
+                            <span className="text-primary">In Progress</span>
+                          )}
+                          {!isActive && !isComplete && (
+                            <span>Not Started</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {isActive && (
+                        <Button
+                          onClick={() => endPhaseMutation.mutate({ batchId: batch.id, phase: phase.id })}
+                          disabled={endPhaseMutation.isPending}
+                        >
+                          {endPhaseMutation.isPending ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Ending...
+                            </>
+                          ) : (
+                            'End Phase'
+                          )}
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="mt-2 text-sm">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <span className="text-muted-foreground">Start:</span>{' '}
+                          {formatDate(dates.startDate)}
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">End:</span>{' '}
+                          {formatDate(dates.endDate)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Trainees Table */}
+            <TraineesTable
+              batchId={batch.id}
+              organizationId={organizationId}
+              batchStatus={batch.status}
+              selectedTrainees={selectedTrainees}
+              setSelectedTrainees={setSelectedTrainees}
+            />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function TraineesTable({
+  batchId,
+  organizationId,
+  batchStatus,
+  selectedTrainees,
+  setSelectedTrainees
+}: {
+  batchId: number;
+  organizationId: number;
+  batchStatus: string;
+  selectedTrainees: Set<number>;
+  setSelectedTrainees: (trainees: Set<number>) => void;
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedTrainee, setSelectedTrainee] = useState<any>(null);
+  const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
+
+  // Fetch trainees for the batch
+  const { data: trainees = [], isLoading: isLoadingTrainees, error } = useQuery({
+    queryKey: [`/api/organizations/${organizationId}/batches/${batchId}/trainees`],
+    enabled: !!batchId && !!organizationId,
   });
 
   // Delete trainee mutation - using user_batch_process.id
@@ -229,258 +336,96 @@ export function TraineeManagement({
     },
   });
 
-  const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString) return 'Not Started';
-    const date = parseISO(dateString);
-    return isValid(date) ? format(date, 'PP') : 'Invalid Date';
-  };
-
-  // Helper to determine if a phase is active
-  const isPhaseActive = (phaseId: Phase): boolean => {
-    return batchStatus === phaseId;
-  };
-
-  // Helper to determine if a phase is completed
-  const isPhaseCompleted = (phaseId: Phase): boolean => {
-    const phaseIndex = PHASES.findIndex(p => p.id === phaseId);
-    const currentPhaseIndex = PHASES.findIndex(p => p.id === batchStatus);
-    return phaseIndex < currentPhaseIndex;
-  };
-
-  // Helper to get the phase dates
-  const getPhaseDates = (phaseId: Phase) => {
-    switch (phaseId) {
-      case 'induction':
-        return {
-          startDate: actualInductionStartDate,
-          endDate: actualInductionEndDate
-        };
-      case 'training':
-        return {
-          startDate: actualTrainingStartDate,
-          endDate: actualTrainingEndDate
-        };
-      case 'certification':
-        return {
-          startDate: actualCertificationStartDate,
-          endDate: actualCertificationEndDate
-        };
-      case 'ojt':
-        return {
-          startDate: actualOjtStartDate,
-          endDate: actualOjtEndDate
-        };
-      case 'ojt_certification':
-        return {
-          startDate: actualOjtCertificationStartDate,
-          endDate: actualOjtCertificationEndDate
-        };
-      case 'completed':
-        return {
-          startDate: actualHandoverToOpsDate,
-          endDate: actualHandoverToOpsDate
-        };
-      default:
-        return {
-          startDate: undefined,
-          endDate: undefined
-        };
-    }
-  };
 
   if (isLoadingTrainees) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2">Loading trainees...</span>
-      </div>
-    );
+    return <div className="text-center py-4">Loading trainees...</div>;
   }
-
   if (error) {
-    return (
-      <div className="text-center py-8 text-destructive">
-        Error loading trainees. Please try again.
-      </div>
-    );
-  }
-
-  if (!trainees || trainees.length === 0) {
-    return (
-      <div className="text-center py-8 text-muted-foreground">
-        No trainees found in this batch.
-      </div>
-    );
+    return <div className="text-center py-4 text-red-500">Error loading trainees.</div>;
   }
 
   return (
-    <div className="space-y-8">
-      {/* Phase Progress Tracker */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Phase Progress</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4">
-            {PHASES.map((phase) => {
-              const isActive = isPhaseActive(phase.id);
-              const isComplete = isPhaseCompleted(phase.id);
-              const dates = getPhaseDates(phase.id);
-
-              return (
-                <div
-                  key={phase.id}
-                  className={`
-                    p-4 rounded-lg border
-                    ${isActive ? 'border-primary bg-primary/5' : 'border-muted'}
-                    ${isComplete ? 'bg-muted/20' : ''}
-                  `}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <h3 className="font-medium">{phase.name}</h3>
-                      <div className="text-sm text-muted-foreground">
-                        {isComplete && (
-                          <span className="flex items-center text-green-600">
-                            <CheckCircle2 className="h-4 w-4 mr-1" />
-                            Completed
-                          </span>
-                        )}
-                        {isActive && (
-                          <span className="text-primary">In Progress</span>
-                        )}
-                        {!isActive && !isComplete && (
-                          <span>Not Started</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {isActive && (
-                      <Button
-                        onClick={() => endPhaseMutation.mutate(phase.id)}
-                        disabled={endPhaseMutation.isPending}
-                      >
-                        {endPhaseMutation.isPending ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Ending...
-                          </>
-                        ) : (
-                          'End Phase'
-                        )}
-                      </Button>
-                    )}
-                  </div>
-
-                  <div className="mt-2 text-sm">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <span className="text-muted-foreground">Start:</span>{' '}
-                        {formatDate(dates.startDate)}
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">End:</span>{' '}
-                        {formatDate(dates.endDate)}
-                      </div>
-                    </div>
-                  </div>
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {batchStatus === 'induction' && (
+              <TableHead className="w-[50px] text-center">Select</TableHead>
+            )}
+            <TableHead>Name</TableHead>
+            <TableHead>Employee ID</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Phone</TableHead>
+            <TableHead>Date of Joining</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {trainees.map((trainee: any) => (
+            <TableRow key={trainee.id}>
+              {batchStatus === 'induction' && (
+                <TableCell className="text-center">
+                  <input
+                    type="checkbox"
+                    checked={selectedTrainees.has(trainee.id)}
+                    onChange={(e) => {
+                      const newSelected = new Set(selectedTrainees);
+                      if (e.target.checked) {
+                        newSelected.add(trainee.id);
+                      } else {
+                        newSelected.delete(trainee.id);
+                      }
+                      setSelectedTrainees(newSelected);
+                    }}
+                    className="h-4 w-4"
+                  />
+                </TableCell>
+              )}
+              <TableCell>{trainee.user.fullName}</TableCell>
+              <TableCell>{trainee.user.employeeId}</TableCell>
+              <TableCell>{trainee.user.email}</TableCell>
+              <TableCell>{trainee.user.phoneNumber}</TableCell>
+              <TableCell>{formatDate(trainee.user.dateOfJoining)}</TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      toast({
+                        title: "Coming Soon",
+                        description: "Edit functionality will be available soon",
+                      });
+                    }}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedTrainee(trainee);
+                      setIsTransferDialogOpen(true);
+                    }}
+                  >
+                    <ArrowRightLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedTrainee(trainee);
+                      setIsDeleteDialogOpen(true);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Trainees Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Batch Trainees</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  {batchStatus === 'induction' && (
-                    <TableHead className="w-[50px] text-center">Select</TableHead>
-                  )}
-                  <TableHead>Name</TableHead>
-                  <TableHead>Employee ID</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Date of Joining</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {Array.isArray(trainees) && trainees.map((trainee: Trainee) => (
-                  <TableRow key={trainee.id}>
-                    {batchStatus === 'induction' && (
-                      <TableCell className="text-center">
-                        <input
-                          type="checkbox"
-                          checked={selectedTrainees.has(trainee.id)}
-                          onChange={(e) => {
-                            const newSelected = new Set(selectedTrainees);
-                            if (e.target.checked) {
-                              newSelected.add(trainee.id);
-                            } else {
-                              newSelected.delete(trainee.id);
-                            }
-                            setSelectedTrainees(newSelected);
-                          }}
-                          className="h-4 w-4"
-                        />
-                      </TableCell>
-                    )}
-                    <TableCell>{trainee.user.fullName}</TableCell>
-                    <TableCell>{trainee.user.employeeId}</TableCell>
-                    <TableCell>{trainee.user.email}</TableCell>
-                    <TableCell>{trainee.user.phoneNumber}</TableCell>
-                    <TableCell>{formatDate(trainee.user.dateOfJoining)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            toast({
-                              title: "Coming Soon",
-                              description: "Edit functionality will be available soon",
-                            });
-                          }}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedTrainee(trainee);
-                            setIsTransferDialogOpen(true);
-                          }}
-                        >
-                          <ArrowRightLeft className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedTrainee(trainee);
-                            setIsDeleteDialogOpen(true);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
@@ -519,7 +464,7 @@ export function TraineeManagement({
               Select a batch to transfer {selectedTrainee?.user.fullName} to:
             </p>
             <div className="space-y-2">
-              {allBatches
+              {batches
                 .filter((batch: any) => batch.id !== batchId && batch.status === 'planned')
                 .map((batch: any) => (
                   <Button

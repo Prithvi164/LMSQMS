@@ -982,35 +982,16 @@ export function BatchesTab() {
             )}
           </DialogContent>
         </Dialog>
-        {isTraineeDialogOpen && selectedBatchForDetails && (
-          <Dialog open={isTraineeDialogOpen} onOpenChange={setIsTraineeDialogOpen}>
-            <DialogContent className="max-w-4xl">
-              <DialogHeader>
-                <DialogTitle className="text-xl font-semibold">
-                  {selectedBatchForDetails.name} - Trainee Management
-                </DialogTitle>
-              </DialogHeader>
-              <TraineeManagement
-                batchId={selectedBatchForDetails.id}
-                organizationId={user?.organizationId || 0}
-                batchStatus={selectedBatchForDetails.status}
-                actualInductionStartDate={selectedBatchForDetails.actualInductionStartDate}
-                actualInductionEndDate={selectedBatchForDetails.actualInductionEndDate}
-                actualTrainingStartDate={selectedBatchForDetails.actualTrainingStartDate}
-                actualTrainingEndDate={selectedBatchForDetails.actualTrainingEndDate}
-                actualCertificationStartDate={selectedBatchForDetails.actualCertificationStartDate}
-                actualCertificationEndDate={selectedBatchForDetails.actualCertificationEndDate}
-                actualOjtStartDate={selectedBatchForDetails.actualOjtStartDate}
-                actualOjtEndDate={selectedBatchForDetails.actualOjtEndDate}
-                actualOjtCertificationStartDate={selectedBatchForDetails.actualOjtCertificationStartDate}
-                actualOjtCertificationEndDate={selectedBatchForDetails.actualOjtCertificationEndDate}
-                actualHandoverToOpsDate={selectedBatchForDetails.actualHandoverToOpsDate}
-                startDate={selectedBatchForDetails.startDate}
-                endDate={selectedBatchForDetails.endDate}
-              />
-            </DialogContent>
-          </Dialog>
-        )}
+        <Dialog open={isTraineeDialogOpen} onOpenChange={setIsTraineeDialogOpen}>
+          <DialogContent className="max-w-6xl">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-semibold">
+                Batch Management
+              </DialogTitle>
+            </DialogHeader>
+            <TraineeManagement organizationId={user?.organizationId || 0} />
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
