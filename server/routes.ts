@@ -838,7 +838,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteProcess(processId);
 
       console.log('Process deleted successfully');
-      res.status(200).json({ message: "Process deleted successfully" });
+      res.status(200).json({ message: "Process deleted successfully"});
     } catch (error:any) {
       console.error("Process deletion error:", error);
       res.status(400).json({ message: error.message || "Failed to delete process" });

@@ -156,7 +156,7 @@ export default function TraineeManagement() {
                   Planned Batches
                 </AlertTitle>
                 <AlertDescription className="text-yellow-700">
-                  {todayBatches.length > 0 
+                  {todayBatches.length > 0
                     ? `You have ${todayBatches.length} batch(es) that need to be started today.`
                     : 'All scheduled batches are progressing as planned.'}
                 </AlertDescription>
@@ -173,8 +173,8 @@ export default function TraineeManagement() {
                             {batch.location.name} • {batch.process.name}
                           </p>
                         </div>
-                        <Badge 
-                          variant={isSameDay(batch.startDate, new Date()) ? "destructive" : "outline"} 
+                        <Badge
+                          variant={isSameDay(batch.startDate, new Date()) ? "destructive" : "outline"}
                           className="capitalize"
                         >
                           {isSameDay(batch.startDate, new Date()) ? "Start Today" : batch.status}
@@ -192,14 +192,14 @@ export default function TraineeManagement() {
                         </p>
                       </div>
 
-                      <Button 
+                      <Button
                         className="w-full"
                         onClick={() => startBatchMutation.mutate(batch.id)}
                         disabled={startBatchMutation.isPending || !isSameDay(batch.startDate, new Date())}
                       >
                         <CheckCircle2 className="h-4 w-4 mr-2" />
-                        {startBatchMutation.isPending 
-                          ? "Starting..." 
+                        {startBatchMutation.isPending
+                          ? "Starting..."
                           : isSameDay(batch.startDate, new Date())
                             ? "Start Batch"
                             : "Starts " + formatToIST(batch.startDate)
