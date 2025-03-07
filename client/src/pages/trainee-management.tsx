@@ -143,8 +143,14 @@ export default function TraineeManagement() {
   const renderBatchCard = (batch: Batch) => (
     <Card
       key={batch.id}
-      className={`${selectedBatch === batch.id ? 'border-primary' : ''}`}
-      onClick={() => setSelectedBatch(batch.id)}
+      className={`${selectedBatch === batch.id ? 'border-primary' : ''} cursor-pointer`}
+      onClick={() => {
+        if (batch.status !== 'planned') {
+          window.location.href = `/batch-details/${batch.id}`;
+        } else {
+          setSelectedBatch(batch.id);
+        }
+      }}
     >
       <CardContent className="p-6 space-y-4">
         <div className="flex justify-between items-start">

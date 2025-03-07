@@ -17,6 +17,7 @@ import { ProtectedRoute } from "./lib/protected-route";
 import { SidebarNav } from "./components/sidebar-nav";
 import { UserProfile } from "./components/user-profile";
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
+import { BatchDetailsPage } from "@/components/batch-management/batch-details-page";
 
 function Router() {
   const { user } = useAuth();
@@ -49,6 +50,7 @@ function Router() {
           <ProtectedRoute path="/batch-management" component={BatchDetail} />
           <ProtectedRoute path="/batch-management/:batchId" component={BatchDetail} />
           <ProtectedRoute path="/batch-monitoring" component={BatchMonitoringPage} />
+          <ProtectedRoute path="/batch-details/:batchId" component={BatchDetailsPage} />
           <Route component={NotFound} />
         </Switch>
       </main>
