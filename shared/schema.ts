@@ -27,10 +27,10 @@ export const roleEnum = pgEnum('role', [
   'admin',     
   'manager',   
   'team_lead', 
-  'qualityassurance',
+  'quality_analyst', // Changed from qualityassurance
   'trainer',   
   'advisor',
-  'trainee'    // Added trainee role
+  'trainee'    
 ]);
 
 // Update the batch templates table definition to allow null trainer
@@ -573,7 +573,7 @@ export const insertUserSchema = createInsertSchema(users)
     certified: z.boolean().default(false),
     active: z.boolean().default(true),
     category: z.enum(['active', 'trainee']).default('trainee'),
-    role: z.enum(['owner', 'admin', 'manager', 'team_lead', 'qualityassurance', 'trainer', 'advisor', 'trainee']).default('trainee'),
+    role: z.enum(['owner', 'admin', 'manager', 'team_lead', 'quality_analyst', 'trainer', 'advisor', 'trainee']).default('trainee'),
   });
 
 export const insertRolePermissionSchema = createInsertSchema(rolePermissions).omit({
