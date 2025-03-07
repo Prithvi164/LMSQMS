@@ -800,7 +800,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Helper function to get enrolled count for a batch
   const getEnrolledCount = async (batchId: number) => {
-    // Get all trainees assigned to this batch
+    // Get all trainees assigned to this batch with active status
     const batchTrainees = await db
       .select({
         userId: userBatchProcesses.userId,
@@ -809,15 +809,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       })
       .from(userBatchProcesses)
       .innerJoin(users, eq(users.id, userBatchProcesses.userId))
-      .where(eq(userBatchProcesses.batchId, batchId));
+      .where(
+        and(
+          eq(userBatchProcesses.batchId, batchId),
+          eq(userBatchProcesses.status, 'active')
+        )
+      );
 
-    // Count only active trainees with role 'trainee'
-    return batchTrainees.filter(trainee => 
-      trainee.user.role === 'trainee' && trainee.status === 'active'
-    ).length;
+    // Count only trainees (users with role 'trainee')
+    return batchTrainees.filter(trainee => trainee.user.role === 'trainee').length;
   };
 
-  // Batch listing route with enrolled count
+  // Update the batch listing route to include capacity
   app.get("/api/organizations/:orgId/batches", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -832,7 +835,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let batches = await storage.listBatches(orgId);
 
-      // Filter by status if specified  
+      // Filter by status if specified
       if (status) {
         batches = batches.filter(batch => batch.status === status);
       }
@@ -851,7 +854,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           location,
           process,
           line_of_business,
-          enrolledCount
+          enrolledCount,
+          capacity: batch.capacity || 0 // Ensure we always return a capacity value
         };
       }));
 
