@@ -1631,38 +1631,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const batchId = parseInt(req.params.batchId);
-      const orgId = req.user.organizationId;
+      if (!batchId) {
+        return res.status(400).json({ message: "Invalid batch ID" });
+      }
 
-      // Get the batch to validate ownership and current status
+      // Get the batch
       const batch = await storage.getBatch(batchId);
       if (!batch) {
         return res.status(404).json({ message: "Batch not found" });
       }
 
-      // Validate organization ownership
-      if (batch.organizationId !== orgId) {
-        return res.status(403).json({ message: "You can only start batches in your own organization" });
-      }
-
-      // Validate current status is 'planned'
+      // Check if batch can be started
       if (batch.status !== 'planned') {
-        return res.status(400).json({ message: "Only planned batches can be started" });
+        return res.status(400).json({ 
+          message: "Only planned batches can be started" 
+        });
       }
 
-      // Update batch status to 'induction'
+      // Update batch status to induction
       const updatedBatch = await storage.updateBatch(batchId, {
         status: 'induction',
-        startedAt: new Date().toISOString(),
-        startedBy: req.user.id
+        startDate: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       });
 
-      console.log('Batch started successfully:', {
-        batchId,
-        newStatus: 'induction',
-        startedBy: req.user.id
-      });
-
+      console.log('Successfully started batch:', updatedBatch);
       res.json(updatedBatch);
+
     } catch (error: any) {
       console.error("Error starting batch:", error);
       res.status(500).json({ message: error.message || "Failed to start batch" });
