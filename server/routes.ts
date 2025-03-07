@@ -2542,5 +2542,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add attendance routes
+  app.post("/api/attendance/:traineeId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const traineeId = parseInt(req.params.traineeId);
+      const { status, date } = req.body;
+
+      // Validate the status
+      const validStatuses = ['present', 'absent', 'late'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: "Invalid attendance status" });
+      }
+
+      // Save attendance record
+      const attendance = await storage.createAttendanceRecord({
+        traineeId,
+        status,
+        date,
+        markedById: req.user.id,
+        organizationId: req.user.organizationId
+      });
+
+      // Return the updated attendance record
+      res.json(attendance);
+    } catch (error: any) {
+      console.error("Error updating attendance:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get attendance for a trainee
+  app.get("/api/attendance/:traineeId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const traineeId = parseInt(req.params.traineeId);
+      const date = req.query.date as string;
+
+      const attendance = await storage.getAttendanceRecord(traineeId, date);
+      res.json(attendance);
+    } catch (error: any) {
+      console.error("Error fetching attendance:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get batch trainees with attendance
+  app.get("/api/organizations/:orgId/batches/:batchId/trainees", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const batchId = parseInt(req.params.batchId);
+      const date = new Date().toISOString().split('T')[0]; // Get current date
+
+      const trainees = await storage.getBatchTrainees(batchId);
+      
+      // Get attendance status for each trainee
+      const traineesWithAttendance = await Promise.all(
+        trainees.map(async (trainee) => {
+          const attendance = await storage.getAttendanceRecord(trainee.userId, date);
+          const user = await storage.getUser(trainee.userId);
+          
+          return {
+            id: trainee.userId,
+            name: user?.fullName || 'Unknown',
+            status: attendance?.status || null,
+            lastUpdated: attendance?.updatedAt || null
+          };
+        })
+      );
+
+      res.json(traineesWithAttendance);
+    } catch (error: any) {
+      console.error("Error fetching trainees with attendance:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   return createServer(app);
 }
