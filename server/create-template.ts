@@ -49,18 +49,6 @@ ws['!cols'] = [
   { wch: 15 }  // role
 ];
 
-// Add validation and notes for role column
-const roleNote = {
-  t: 's',
-  v: 'role',
-  c: [{
-    a: 'System',
-    t: 'Valid roles: manager, team_lead, quality_analyst, trainer, advisor'
-  }]
-};
-
-ws['J1'] = roleNote;
-
 // Add styling to headers
 for (let i = 0; i < headers.length; i++) {
   const cellRef = XLSX.utils.encode_cell({ r: 0, c: i });
