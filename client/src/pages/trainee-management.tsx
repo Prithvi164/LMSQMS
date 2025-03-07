@@ -44,8 +44,8 @@ type Batch = {
   line_of_business: {
     name: string;
   };
-  capacityLimit: number; // Added capacityLimit
-  enrolledCount: number; // Added enrolledCount
+  capacityLimit: number;
+  enrolledCount: number;
 };
 
 // Colors for charts
@@ -65,6 +65,13 @@ export default function TraineeManagement() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
+  // Set the first batch as selected by default
+  useEffect(() => {
+    if (batches.length > 0 && !selectedBatch) {
+      setSelectedBatch(batches[0].id);
+    }
+  }, [batches]);
+
   // Fetch all batches
   const {
     data: batches = [],
@@ -74,13 +81,6 @@ export default function TraineeManagement() {
     queryKey: [`/api/organizations/${user?.organizationId}/batches`],
     enabled: !!user?.organizationId,
   });
-
-  // Set the first batch as selected by default
-  useEffect(() => {
-    if (batches.length > 0 && !selectedBatch) {
-      setSelectedBatch(batches[0].id);
-    }
-  }, [batches]);
 
   // Fetch batch performance data when a batch is selected
   const { data: batchPerformance } = useQuery({
@@ -140,66 +140,10 @@ export default function TraineeManagement() {
   const ojtBatches = batchesByStatus['ojt'] || [];
   const completedBatches = batchesByStatus['completed'] || [];
 
-  // Sample performance data based on metric type
-  const getPerformanceData = () => {
-    switch (metricType) {
-      case 'daily':
-        return [
-          { name: 'Mon', score: 85, attendance: 90, assessment: 82 },
-          { name: 'Tue', score: 88, attendance: 95, assessment: 85 },
-          { name: 'Wed', score: 92, attendance: 88, assessment: 90 },
-          { name: 'Thu', score: 90, attendance: 92, assessment: 88 },
-          { name: 'Fri', score: 87, attendance: 85, assessment: 89 }
-        ];
-      case 'weekly':
-        return [
-          { name: 'Week 1', score: 85, attendance: 90, assessment: 82 },
-          { name: 'Week 2', score: 88, attendance: 95, assessment: 85 },
-          { name: 'Week 3', score: 92, attendance: 88, assessment: 90 },
-          { name: 'Week 4', score: 90, attendance: 92, assessment: 88 }
-        ];
-      case 'monthly':
-        return [
-          { name: 'Jan', score: 85, attendance: 90, assessment: 82 },
-          { name: 'Feb', score: 88, attendance: 95, assessment: 85 },
-          { name: 'Mar', score: 92, attendance: 88, assessment: 90 }
-        ];
-      default:
-        return [];
-    }
-  };
-
-  // Sample trainee-specific data
-  const traineePerformanceData = [
-    { name: 'John Doe', score: 92, progress: 85, attendance: 95 },
-    { name: 'Jane Smith', score: 88, progress: 90, attendance: 92 },
-    { name: 'Mike Johnson', score: 85, progress: 88, attendance: 90 },
-    { name: 'Sarah Wilson', score: 90, progress: 92, attendance: 88 }
-  ];
-
-  // Sample phase-specific data
-  const phasePerformanceData = {
-    induction: [
-      { name: 'Day 1', completion: 100, performance: 85 },
-      { name: 'Day 2', completion: 90, performance: 88 },
-      { name: 'Day 3', completion: 95, performance: 92 }
-    ],
-    training: [
-      { name: 'Week 1', completion: 85, performance: 80 },
-      { name: 'Week 2', completion: 75, performance: 85 },
-      { name: 'Week 3', completion: 60, performance: 88 }
-    ],
-    certification: [
-      { name: 'Module 1', completion: 90, performance: 85 },
-      { name: 'Module 2', completion: 85, performance: 82 },
-      { name: 'Module 3', completion: 70, performance: 78 }
-    ]
-  };
-
   const renderBatchCard = (batch: Batch) => (
     <Card
       key={batch.id}
-      className={`cursor-pointer ${selectedBatch === batch.id ? 'ring-2 ring-primary' : ''}`}
+      className={`${selectedBatch === batch.id ? 'border-primary' : ''}`}
       onClick={() => setSelectedBatch(batch.id)}
     >
       <CardContent className="p-6 space-y-4">
@@ -238,7 +182,7 @@ export default function TraineeManagement() {
 
         {batch.status === 'planned' && (
           <Button
-            className="w-full"
+            className="w-full transition-transform active:scale-95 hover:scale-100"
             onClick={(e) => {
               e.stopPropagation();
               startBatchMutation.mutate(batch.id);
@@ -397,6 +341,61 @@ export default function TraineeManagement() {
     }
 
     return null;
+  };
+
+  const getPerformanceData = () => {
+    switch (metricType) {
+      case 'daily':
+        return [
+          { name: 'Mon', score: 85, attendance: 90, assessment: 82 },
+          { name: 'Tue', score: 88, attendance: 95, assessment: 85 },
+          { name: 'Wed', score: 92, attendance: 88, assessment: 90 },
+          { name: 'Thu', score: 90, attendance: 92, assessment: 88 },
+          { name: 'Fri', score: 87, attendance: 85, assessment: 89 }
+        ];
+      case 'weekly':
+        return [
+          { name: 'Week 1', score: 85, attendance: 90, assessment: 82 },
+          { name: 'Week 2', score: 88, attendance: 95, assessment: 85 },
+          { name: 'Week 3', score: 92, attendance: 88, assessment: 90 },
+          { name: 'Week 4', score: 90, attendance: 92, assessment: 88 }
+        ];
+      case 'monthly':
+        return [
+          { name: 'Jan', score: 85, attendance: 90, assessment: 82 },
+          { name: 'Feb', score: 88, attendance: 95, assessment: 85 },
+          { name: 'Mar', score: 92, attendance: 88, assessment: 90 }
+        ];
+      default:
+        return [];
+    }
+  };
+
+  // Sample trainee-specific data
+  const traineePerformanceData = [
+    { name: 'John Doe', score: 92, progress: 85, attendance: 95 },
+    { name: 'Jane Smith', score: 88, progress: 90, attendance: 92 },
+    { name: 'Mike Johnson', score: 85, progress: 88, attendance: 90 },
+    { name: 'Sarah Wilson', score: 90, progress: 92, attendance: 88 }
+  ];
+
+  // Sample phase-specific data
+  const phasePerformanceData = {
+    induction: [
+      { name: 'Day 1', completion: 100, performance: 85 },
+      { name: 'Day 2', completion: 90, performance: 88 },
+      { name: 'Day 3', completion: 95, performance: 92 }
+    ],
+    training: [
+      { name: 'Week 1', completion: 85, performance: 80 },
+      { name: 'Week 2', completion: 75, performance: 85 },
+      { name: 'Week 3', completion: 60, performance: 88 }
+    ],
+    certification: [
+      { name: 'Module 1', completion: 90, performance: 85 },
+      { name: 'Module 2', completion: 85, performance: 82 },
+      { name: 'Module 3', completion: 70, performance: 78 }
+    ]
   };
 
   if (isLoading) {
