@@ -226,35 +226,23 @@ export function BatchesTab() {
     setIsEditDialogOpen(true);
   };
 
-  const handleStartBatch = async (batch: OrganizationBatch) => {
-    try {
-      const response = await fetch(`/api/batches/${batch.id}/start`, {
-        method: 'POST',
-        credentials: 'include',
-      });
+  const handleConfirmDelete = async () => {
+    if (!selectedBatch || !selectedBatchId) return;
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to start batch');
-      }
-
-      // After successfully starting the batch, open trainee management
-      const updatedBatch = await response.json();
-      setSelectedBatchForDetails(updatedBatch);
-      setIsTraineeDialogOpen(true);
-
-      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/batches`] });
-
+    if (deleteConfirmation !== selectedBatch.name) {
       toast({
-        title: "Batch Started",
-        description: "The batch has been started. Please manage trainees for the induction phase.",
-      });
-    } catch (error: any) {
-      toast({
+        title: "Error",
+        description: "Batch name confirmation does not match",
         variant: "destructive",
-        title: "Error Starting Batch",
-        description: error.message,
       });
+      return;
+    }
+
+    try {
+      await deleteBatchMutation.mutateAsync(selectedBatchId);
+    } catch (error) {
+      // Error will be handled by onError callback
+      console.error('Delete batch error:', error);
     }
   };
 
@@ -266,8 +254,6 @@ export function BatchesTab() {
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
       case 'completed':
         return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
-      case 'induction': //Added case for induction status
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'; // Added color for induction status
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -349,7 +335,7 @@ export function BatchesTab() {
                         ))}
                       </div>
                     </div>
-                    {canManageBatches && ( //Removed condition for planned status
+                    {canManageBatches && batch.status === 'planned' && (
                       <div className="flex justify-end gap-2 pt-2 border-t">
                         <Button
                           variant="outline"
@@ -369,16 +355,6 @@ export function BatchesTab() {
                           <Trash2 className="h-4 w-4 mr-1" />
                           Delete
                         </Button>
-                        {batch.status === 'planned' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleStartBatch(batch)}
-                            className="transition-all hover:scale-105 hover:bg-green-600/20"
-                          >
-                            Start Batch
-                          </Button>
-                        )}
                       </div>
                     )}
                   </div>
@@ -619,7 +595,7 @@ export function BatchesTab() {
                     <UserPlus className="h-4 w-4" />
                     <span className="sr-only">Add Trainee</span>
                   </Button>
-                  {canManageBatches && ( //Removed condition for planned status
+                  {canManageBatches && batch.status === 'planned' && (
                     <>
                       <Button
                         variant="ghost"
@@ -636,14 +612,6 @@ export function BatchesTab() {
                         className="h-8 w-8 p-0 hover:text-destructive"
                       >
                         <Trash2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleStartBatch(batch)}
-                        className="h-8 w-8 p-0 hover:text-green-600"
-                      >
-                        <Eye className="h-4 w-4" /> {/* Added icon */}
                       </Button>
                     </>
                   )}
@@ -854,7 +822,8 @@ export function BatchesTab() {
         {batches.length > 0 ? (
           <Tabs defaultValue="table" className="w-full">
             <TabsList>
-              <TabsTrigger value="table" className="flex items-center gap-2"><List className="h-4 w-4" />
+              <TabsTrigger value="table" className="flex items-center gap-2">
+                <List className="h-4 w-4" />
                 Table View
               </TabsTrigger>
               <TabsTrigger value="calendar" className="flex items-center gap-2">
