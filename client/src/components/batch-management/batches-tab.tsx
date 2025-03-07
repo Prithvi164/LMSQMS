@@ -105,6 +105,15 @@ export function BatchesTab() {
   const statuses = [...new Set(batches.map(batch => batch.status))];
 
   const filteredBatches = batches.filter(batch => {
+    if (selectedCategory === 'upskill') {
+      console.log('Filtering upskill batch:', {
+        name: batch.name,
+        batchCategory: batch.batchCategory,
+        selectedCategory: selectedCategory,
+        match: selectedCategory === null || batch.batchCategory === selectedCategory
+      });
+    }
+
     return (
       (searchQuery === '' ||
         batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -191,12 +200,28 @@ export function BatchesTab() {
   });
 
   const handleDeleteClick = (batch: OrganizationBatch) => {
+    if (batch.status !== 'planned') {
+      toast({
+        title: "Cannot Delete",
+        description: "Only batches with 'Planned' status can be deleted",
+        variant: "destructive",
+      });
+      return;
+    }
     setSelectedBatch(batch);
     setSelectedBatchId(batch.id);
     setDeleteDialogOpen(true);
   };
 
   const handleEditClick = (batch: OrganizationBatch) => {
+    if (batch.status !== 'planned') {
+      toast({
+        title: "Cannot Edit",
+        description: "Only batches with 'Planned' status can be edited",
+        variant: "destructive",
+      });
+      return;
+    }
     setSelectedBatch(batch);
     setIsEditDialogOpen(true);
   };
@@ -241,16 +266,8 @@ export function BatchesTab() {
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
       case 'completed':
         return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
-      case 'induction':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
-      case 'training':
-        return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300';
-      case 'certification':
-        return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300';
-      case 'ojt':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
-      case 'ojt_certification':
-        return 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-300';
+      case 'induction': //Added case for induction status
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'; // Added color for induction status
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -332,7 +349,7 @@ export function BatchesTab() {
                         ))}
                       </div>
                     </div>
-                    {canManageBatches && (
+                    {canManageBatches && ( //Removed condition for planned status
                       <div className="flex justify-end gap-2 pt-2 border-t">
                         <Button
                           variant="outline"
@@ -602,7 +619,7 @@ export function BatchesTab() {
                     <UserPlus className="h-4 w-4" />
                     <span className="sr-only">Add Trainee</span>
                   </Button>
-                  {canManageBatches && (
+                  {canManageBatches && ( //Removed condition for planned status
                     <>
                       <Button
                         variant="ghost"
@@ -694,10 +711,6 @@ export function BatchesTab() {
       </div>
     );
   }
-
-  const handleConfirmDelete = () => {
-    deleteBatchMutation.mutate(selectedBatchId);
-  };
 
   return (
     <div className="space-y-4">
