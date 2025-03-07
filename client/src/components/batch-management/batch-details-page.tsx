@@ -66,25 +66,42 @@ export function BatchDetailsPage() {
   // Mutation for updating attendance
   const updateAttendanceMutation = useMutation({
     mutationFn: async ({ traineeId, status }: { traineeId: number; status: AttendanceStatus }) => {
-      const response = await fetch(`/api/attendance`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          traineeId,
-          status,
-          date: new Date().toISOString().split('T')[0],
-          organizationId: user?.organizationId,
-          batchId: parseInt(batchId!),
-          phase: batch?.status,
-          markedById: user?.id // Add the ID of the user marking attendance
-        }),
-      });
+      try {
+        const response = await fetch(`/api/attendance`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            traineeId,
+            status,
+            date: new Date().toISOString().split('T')[0],
+            organizationId: user?.organizationId,
+            batchId: parseInt(batchId!),
+            phase: batch?.status,
+            markedById: user?.id
+          }),
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update attendance');
+        // First check if response is JSON
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error("Server returned non-JSON response");
+        }
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || 'Failed to update attendance');
+        }
+
+        return data;
+      } catch (error) {
+        if (error instanceof Error) {
+          throw new Error(`Attendance update failed: ${error.message}`);
+        }
+        throw new Error('Failed to update attendance');
       }
-      return response.json();
     },
     onSuccess: (data) => {
       // Invalidate both queries to refresh the data
