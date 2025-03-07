@@ -506,6 +506,11 @@ export function BatchesTab() {
     setIsAddTraineeDialogOpen(true);
   };
 
+  const handleBatchClick = (batch: OrganizationBatch) => {
+    setSelectedBatchForDetails(batch);
+    setIsTraineeDialogOpen(true);
+  };
+
   const renderBatchTable = (batchList: OrganizationBatch[]) => (
     <div className="rounded-md border">
       <Table>
@@ -563,8 +568,7 @@ export function BatchesTab() {
                   e.stopPropagation();
                   return;
                 }
-                setSelectedBatchForDetails(batch);
-                setIsTraineeDialogOpen(true);
+                handleBatchClick(batch);
               }}
             >
               <TableCell className="font-medium text-center whitespace-nowrap">
@@ -716,6 +720,12 @@ export function BatchesTab() {
     );
   }
 
+  const handleConfirmDelete = () => {
+    if (selectedBatchId) {
+      deleteBatchMutation.mutate(selectedBatchId);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -838,8 +848,7 @@ export function BatchesTab() {
           <Button
             variant="outline"
             onClick={resetFilters}
-            className="flex items-center gap-2"
-          >
+            className="flex items-center gap-2">
             <Filter className="h-4 w-4" />
             Reset Filters
           </Button>
@@ -1125,11 +1134,14 @@ export function BatchesTab() {
         </Dialog>
         {isTraineeDialogOpen && selectedBatchForDetails && (
           <Dialog open={isTraineeDialogOpen} onOpenChange={setIsTraineeDialogOpen}>
-            <DialogContent className="max-w-4xl">
+            <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-xl font-semibold">
                   {selectedBatchForDetails.name} - Trainee Management
                 </DialogTitle>
+                <DialogDescription>
+                  Manage trainees and track phase progress
+                </DialogDescription>
               </DialogHeader>
               <TraineeManagement
                 batchId={selectedBatchForDetails.id}
