@@ -15,7 +15,7 @@ const headers = [
   'dateOfBirth',
   'education',
   'password',
-  'role' // Added role column
+  'role' // Valid roles: manager, team_lead, quality_analyst, trainer, advisor
 ];
 
 // Create example data row with role
@@ -29,7 +29,7 @@ const exampleData = [
   '1990-01-01', // Format: YYYY-MM-DD
   'Bachelor\'s Degree',
   'Password123!', // Will be hashed on upload
-  'advisor' // Default role
+  'advisor' // Example role (can be: manager, team_lead, quality_analyst, trainer, advisor)
 ];
 
 // Create worksheet
@@ -38,6 +38,12 @@ const ws = XLSX.utils.aoa_to_sheet([headers, exampleData]);
 // Add column widths for better readability
 const colWidths = headers.map(() => ({ wch: 15 }));
 ws['!cols'] = colWidths;
+
+// Add comments/notes for the role column
+ws['J1'] = { 
+  v: 'role',
+  c: [{ a: 'System', t: 'Valid roles: manager, team_lead, quality_analyst, trainer, advisor' }]
+};
 
 // Add the worksheet to workbook
 XLSX.utils.book_append_sheet(wb, ws, 'Trainees');
