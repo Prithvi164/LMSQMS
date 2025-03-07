@@ -8,229 +8,79 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Edit, Trash2, ArrowRightLeft, Loader2, CheckCircle2 } from "lucide-react";
+import { Edit, Trash2, ArrowRightLeft, Loader2 } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 
-const PHASES = [
-  { id: 'induction', name: 'Induction', color: 'bg-blue-500' },
-  { id: 'training', name: 'Training', color: 'bg-purple-500' },
-  { id: 'certification', name: 'Certification', color: 'bg-orange-500' },
-  { id: 'ojt', name: 'OJT', color: 'bg-green-500' },
-  { id: 'ojt_certification', name: 'OJT Certification', color: 'bg-yellow-500' },
-  { id: 'completed', name: 'Completed', color: 'bg-gray-500' }
-] as const;
+// Updated type to match API response
+type Trainee = {
+  id: number;  // This is the user_batch_process.id
+  userId: number;
+  user: {
+    id: number;
+    username: string;
+    fullName: string;
+    email: string;
+    employeeId: string;
+    phoneNumber: string;
+    dateOfJoining: string;
+  };
+};
 
-type Phase = typeof PHASES[number]['id'];
+interface TraineeManagementProps {
+  batchId: number;
+  organizationId: number;
+}
 
-export function TraineeManagement({ organizationId }: { organizationId: number }) {
+export function TraineeManagement({ batchId, organizationId }: TraineeManagementProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [selectedTrainees, setSelectedTrainees] = useState<Set<number>>(new Set());
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedTrainee, setSelectedTrainee] = useState<Trainee | null>(null);
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
-  const [selectedBatch, setSelectedBatch] = useState<any>(null);
 
-  // Fetch all batches - modified to include non-planned batches
-  const { data: batches = [], isLoading: isLoadingBatches } = useQuery({
+  // Fetch trainees for the current batch
+  const { data: trainees = [], isLoading, error } = useQuery({
+    queryKey: [`/api/organizations/${organizationId}/batches/${batchId}/trainees`],
+    enabled: !!batchId && !!organizationId,
+  });
+
+  // Fetch all other batches for transfer
+  const { data: allBatches = [] } = useQuery({
     queryKey: [`/api/organizations/${organizationId}/batches`],
     enabled: !!organizationId,
   });
 
-  // Filter active batches (planned, induction, training, etc.) - exclude completed
-  const activeBatches = batches.filter((batch: any) => batch.status !== 'completed');
-
-  // End phase mutation
-  const endPhaseMutation = useMutation({
-    mutationFn: async ({ batchId, phase }: { batchId: number; phase: Phase }) => {
-      const response = await fetch(
-        `/api/batches/${batchId}/phase/${phase}/end`,
-        { method: "POST" }
-      );
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to end phase");
-      }
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: [`/api/organizations/${organizationId}/batches`]
-      });
-      toast({
-        title: "Success",
-        description: "Phase completed successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
+  // Helper function to safely format dates
   const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString) return 'Not Started';
+    if (!dateString) return 'N/A';
     const date = parseISO(dateString);
-    return isValid(date) ? format(date, 'PP') : 'Invalid Date';
+    return isValid(date) ? format(date, 'PP') : 'N/A';
   };
 
-  // Helper to determine if a phase is active
-  const isPhaseActive = (phaseId: Phase, batchStatus: string): boolean => {
-    return batchStatus === phaseId;
-  };
-
-  // Helper to determine if a phase is completed
-  const isPhaseCompleted = (phaseId: Phase, batchStatus: string): boolean => {
-    const phaseIndex = PHASES.findIndex(p => p.id === phaseId);
-    const currentPhaseIndex = PHASES.findIndex(p => p.id === batchStatus);
-    return phaseIndex < currentPhaseIndex;
-  };
-
-  if (isLoadingBatches) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2">Loading batches...</span>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      {activeBatches.map((batch: any) => (
-        <Card key={batch.id} className="mb-8">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl">
-                {batch.name}
-                <Badge className="ml-2" variant="outline">
-                  {batch.status}
-                </Badge>
-              </CardTitle>
-              <div className="text-sm text-muted-foreground">
-                {formatDate(batch.startDate)} - {formatDate(batch.endDate)}
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {/* Phase Progress */}
-            <div className="grid gap-4 mb-6">
-              {PHASES.map((phase) => {
-                const isActive = isPhaseActive(phase.id, batch.status);
-                const isComplete = isPhaseCompleted(phase.id, batch.status);
-                const dates = {
-                  startDate: batch[`actual${phase.name.replace(' ', '')}StartDate`],
-                  endDate: batch[`actual${phase.name.replace(' ', '')}EndDate`]
-                };
-
-                return (
-                  <div
-                    key={phase.id}
-                    className={`
-                      p-4 rounded-lg border
-                      ${isActive ? 'border-primary bg-primary/5' : 'border-muted'}
-                      ${isComplete ? 'bg-muted/20' : ''}
-                    `}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <h3 className="font-medium">{phase.name}</h3>
-                        <div className="text-sm text-muted-foreground">
-                          {isComplete && (
-                            <span className="flex items-center text-green-600">
-                              <CheckCircle2 className="h-4 w-4 mr-1" />
-                              Completed
-                            </span>
-                          )}
-                          {isActive && (
-                            <span className="text-primary">In Progress</span>
-                          )}
-                          {!isActive && !isComplete && (
-                            <span>Not Started</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {isActive && (
-                        <Button
-                          onClick={() => endPhaseMutation.mutate({ batchId: batch.id, phase: phase.id })}
-                          disabled={endPhaseMutation.isPending}
-                        >
-                          {endPhaseMutation.isPending ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Ending...
-                            </>
-                          ) : (
-                            'End Phase'
-                          )}
-                        </Button>
-                      )}
-                    </div>
-
-                    <div className="mt-2 text-sm">
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <span className="text-muted-foreground">Start:</span>{' '}
-                          {formatDate(dates.startDate)}
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">End:</span>{' '}
-                          {formatDate(dates.endDate)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Trainees Table */}
-            <TraineesTable
-              batchId={batch.id}
-              organizationId={organizationId}
-              batchStatus={batch.status}
-              selectedTrainees={selectedTrainees}
-              setSelectedTrainees={setSelectedTrainees}
-            />
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
-}
-
-function TraineesTable({
-  batchId,
-  organizationId,
-  batchStatus,
-  selectedTrainees,
-  setSelectedTrainees
-}: {
-  batchId: number;
-  organizationId: number;
-  batchStatus: string;
-  selectedTrainees: Set<number>;
-  setSelectedTrainees: (trainees: Set<number>) => void;
-}) {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedTrainee, setSelectedTrainee] = useState<any>(null);
-  const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
-
-  // Fetch trainees for the batch
-  const { data: trainees = [], isLoading: isLoadingTrainees, error } = useQuery({
-    queryKey: [`/api/organizations/${organizationId}/batches/${batchId}/trainees`],
-    enabled: !!batchId && !!organizationId,
+  console.log('Debug - Trainees:', { 
+    trainees, 
+    isLoading, 
+    error,
+    sampleTrainee: trainees[0],
+    traineeCount: trainees.length 
   });
 
   // Delete trainee mutation - using user_batch_process.id
@@ -328,96 +178,96 @@ function TraineesTable({
     },
   });
 
-
-  if (isLoadingTrainees) {
-    return <div className="text-center py-4">Loading trainees...</div>;
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading trainees...</span>
+      </div>
+    );
   }
+
   if (error) {
-    return <div className="text-center py-4 text-red-500">Error loading trainees.</div>;
+    return (
+      <div className="text-center py-8 text-destructive">
+        Error loading trainees. Please try again.
+      </div>
+    );
+  }
+
+  if (!trainees || trainees.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        No trainees found in this batch.
+      </div>
+    );
   }
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {batchStatus === 'induction' && (
-              <TableHead className="w-[50px] text-center">Select</TableHead>
-            )}
-            <TableHead>Name</TableHead>
-            <TableHead>Employee ID</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Phone</TableHead>
-            <TableHead>Date of Joining</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {trainees.map((trainee: any) => (
-            <TableRow key={trainee.id}>
-              {batchStatus === 'induction' && (
-                <TableCell className="text-center">
-                  <input
-                    type="checkbox"
-                    checked={selectedTrainees.has(trainee.id)}
-                    onChange={(e) => {
-                      const newSelected = new Set(selectedTrainees);
-                      if (e.target.checked) {
-                        newSelected.add(trainee.id);
-                      } else {
-                        newSelected.delete(trainee.id);
-                      }
-                      setSelectedTrainees(newSelected);
-                    }}
-                    className="h-4 w-4"
-                  />
-                </TableCell>
-              )}
-              <TableCell>{trainee.user.fullName}</TableCell>
-              <TableCell>{trainee.user.employeeId}</TableCell>
-              <TableCell>{trainee.user.email}</TableCell>
-              <TableCell>{trainee.user.phoneNumber}</TableCell>
-              <TableCell>{formatDate(trainee.user.dateOfJoining)}</TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      toast({
-                        title: "Coming Soon",
-                        description: "Edit functionality will be available soon",
-                      });
-                    }}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedTrainee(trainee);
-                      setIsTransferDialogOpen(true);
-                    }}
-                  >
-                    <ArrowRightLeft className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedTrainee(trainee);
-                      setIsDeleteDialogOpen(true);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </TableCell>
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold">Batch Trainees</h2>
+
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Employee ID</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Phone</TableHead>
+              <TableHead>Date of Joining</TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {Array.isArray(trainees) && trainees.map((trainee: Trainee) => (
+              <TableRow key={trainee.id}>
+                <TableCell>{trainee.user.fullName}</TableCell>
+                <TableCell>{trainee.user.employeeId}</TableCell>
+                <TableCell>{trainee.user.email}</TableCell>
+                <TableCell>{trainee.user.phoneNumber}</TableCell>
+                <TableCell>{formatDate(trainee.user.dateOfJoining)}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedTrainee(trainee);
+                        setIsTransferDialogOpen(true);
+                      }}
+                    >
+                      <ArrowRightLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        toast({
+                          title: "Coming Soon",
+                          description: "Edit functionality will be available soon",
+                        });
+                      }}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedTrainee(trainee);
+                        setIsDeleteDialogOpen(true);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
@@ -456,8 +306,9 @@ function TraineesTable({
               Select a batch to transfer {selectedTrainee?.user.fullName} to:
             </p>
             <div className="space-y-2">
-              {batches
-                .map((batch: any) => ( // Removed the filter condition here
+              {allBatches
+                .filter((batch: any) => batch.id !== batchId && batch.status === 'planned')
+                .map((batch: any) => (
                   <Button
                     key={batch.id}
                     variant="outline"

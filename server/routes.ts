@@ -832,7 +832,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
-        return res.status(403).json({ message: "You can only delete processes in your own organization" });
+        return res.status(403).json({ message: "Youcan only delete processes in your own organization" });
       }
 
       console.log('Deleting process:', processId);
@@ -1626,104 +1626,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update batch start endpoint
+  // Add new route for starting a batch after existing batch routes
   app.post("/api/batches/:batchId/start", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     try {
       const batchId = parseInt(req.params.batchId);
-      const batch = await storage.getBatch(batchId);
+      if (!batchId) {
+        return res.status(400).json({ message: "Invalid batch ID" });
+      }
 
+      // Get the batch
+      const batch = await storage.getBatch(batchId);
       if (!batch) {
         return res.status(404).json({ message: "Batch not found" });
       }
 
-      // Check if user belongs to the organization
-      if (req.user.organizationId !== batch.organizationId) {
-        return res.status(403).json({
-          message: "You can only manage batches in your own organization"
+      // Check if batch can be started
+      if (batch.status !== 'planned') {
+        return res.status(400).json({ 
+          message: "Only planned batches can be started" 
         });
       }
 
-      // Update batch status to induction and set actual start date
+      // Store dates in UTC format while preserving IST midnight
       const currentDate = new Date();
       const updatedBatch = await storage.updateBatch(batchId, {
         status: 'induction',
-        actualInductionStartDate: toUTCStorage(currentDate.toISOString())
+        startDate: toUTCStorage(currentDate.toISOString())
       });
 
       console.log('Successfully started batch:', {
         ...updatedBatch,
-        actualInductionStartDate: formatISTDateOnly(updatedBatch.actualInductionStartDate)
+        startDate: formatISTDateOnly(updatedBatch.startDate)
       });
 
       res.json(updatedBatch);
 
     } catch (error: any) {
       console.error("Error starting batch:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Add new endpoint for ending a phase
-  app.post("/api/batches/:batchId/phase/:phase/end", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const batchId = parseInt(req.params.batchId);
-      const phase = req.params.phase;
-      const batch = await storage.getBatch(batchId);
-
-      if (!batch) {
-        return res.status(404).json({ message: "Batch not found" });
-      }
-
-      // Check if user belongs to the organization
-      if (req.user.organizationId !== batch.organizationId) {
-        return res.status(403).json({
-          message: "You can only manage batches in your own organization"
-        });
-      }
-
-      const currentDate = new Date();
-      const updateData: any = {};
-
-      // Set the end date for current phase and start date for next phase
-      switch (phase) {
-        case 'induction':
-          updateData.actualInductionEndDate = toUTCStorage(currentDate.toISOString());
-          updateData.actualTrainingStartDate = toUTCStorage(currentDate.toISOString());
-          updateData.status = 'training';
-          break;
-        case 'training':
-          updateData.actualTrainingEndDate= toUTCStorage(currentDate.toISOString());
-          updateData.actualCertificationStartDate = toUTCStorage(currentDate.toISOString());
-          updateData.status = 'certification';
-          break;        case 'certification':
-          updateData.actualCertificationEndDate = toUTCStorage(currentDate.toISOString());
-          updateData.actualOjtStartDate = toUTCStorage(currentDate.toISOString());
-          updateData.status = 'ojt';
-          break;
-        case 'ojt':
-          updateData.actualOjtEndDate = toUTCStorage(currentDate.toISOString());
-          updateData.actualOjtCertificationStartDate = toUTCStorage(currentDate.toISOString());
-          updateData.status = 'ojt_certification';
-          break;
-        case 'ojt_certification':
-          updateData.actualOjtCertificationEndDate = toUTCStorage(currentDate.toISOString());
-          updateData.actualHandoverToOpsDate = toUTCStorage(currentDate.toISOString());
-          updateData.status = 'completed';
-          break;
-        default:
-          return res.status(400).json({ message: "Invalid phase" });
-      }
-
-      const updatedBatch = await storage.updateBatch(batchId, updateData);
-      res.json(updatedBatch);
-
-    } catch (error: any) {
-      console.error("Error ending phase:", error);
-      res.status(500).json({ message: error.message });
+      res.status(500).json({ message: error.message || "Failed to start batch" });
     }
   });
 
