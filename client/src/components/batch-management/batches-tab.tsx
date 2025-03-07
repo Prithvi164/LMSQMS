@@ -846,7 +846,7 @@ export function BatchesTab() {
           </Select>
 
           <Button
-            variant="outline"
+                        variant="outline"
             onClick={resetFilters}
             className="flex items-center gap-2">
             <Filter className="h-4 w-4" />
@@ -968,59 +968,37 @@ export function BatchesTab() {
         ) : (
           <div>
             {activeBatches.length > 0 ? (
-              <Tabs defaultValue="table" className="w-full">
-                <TabsList>
-                  <TabsTrigger value="table" className="flex items-center gap-2"><List className="h-4 w-4" />
-                    Table View
-                  </TabsTrigger>
-                  <TabsTrigger value="calendar" className="flex items-center gap-2">
-                    <CalendarIcon className="h-4 w-4" />
-                    Calendar View
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="table" className="space-y-6">
-                  {renderBatchTable(activeBatches)}
-                </TabsContent>
-
-                <TabsContent value="calendar" className="space-y-6">
-                  <div className="rounded-md border p-6">
-                    <Calendar
-                      mode="single"
-                      disabled={false}
-                      components={{
-                        Day: ({ date }) => renderCalendarDay(date)
-                      }}
-                      className="w-full"
-                      classNames={{
-                        cell: "h-24 w-24 p-0 border-2 border-gray-100 dark:border-gray-800",
-                        head_cell: "text-muted-foreground font-normal border-b-2 border-gray100 dark:border-gray-800 p-2",
-                        table: "border-collapse border-spacing-0 border-2 border-gray-100 dark:border-gray-800",
-                        day: "h-full rounded-none hover:bg-gray-50 dark:hover:bg-gray-800 focus-visible:bg-gray-50 dark:focus-visible:bg-gray800",
-                        nav_button: "h-12 w-12 bg-primary/10 hover:bg-primary/20 p-0 opacity-90 hover:opacity-100 absolute top-[50%] -translate-y-1/2 flex items-center justify-center rounded-full transition-all shadow-sm hover:shadowmd border border-primary/20",
-                        nav_button_previous: "left-4",
-                        nav_button_next: "right-4",
-                        nav: "relative flex items-center justify-between pt-4 pb-10 px-2 border-b-2 border-gray-100 dark:border-gray-800 mb-4",
-                        caption: "text-2xl font-semibold text-center flex-1px-10",
-                        caption_label: "text-lg font-medium"
-                      }}
-                    />
-                    <div className="mt-6 flex items-center gap-6 text-sm border-t pt-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-blue-500" />
-                        <span className="font-medium">Planned</span>
+              <div>
+                {activeBatches.map((batch) => (
+                  <Card key={batch.id} className="hover:shadow-lg transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="font-semibold text-lg">{batch.name}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {batch.location?.name} • {batch.process?.name}
+                          </p>
+                        </div>
+                        <Badge className="capitalize">
+                          {batch.status}
+                        </Badge>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h3 h-3 rounded-full bg-green-500" />
-                        <span className="font-medium">Ongoing</span></div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-gray-500" />
-                        <span className="font-medium">Completed</span>
-                      </div>
-                    </div>
-                  </div>
-                </TabsContent>
-              </Tabs>
+
+                      <Button
+                        className="w-full"
+                        variant="outline"
+                        onClick={() => {
+                          // Open trainee management dialog instead of redirecting
+                          setSelectedBatchForDetails(batch);
+                          setIsTraineeDialogOpen(true);
+                        }}
+                      >
+                        View Details
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             ) : (
               <div className="flex min-h-[400px] flex-col items-center justify-center rounded-md border border-dashed p-8 text-center animate-in fade-in-50">
                 <div className="mx-auto flex max-w-[420px] flex-col items-center justify-center text-center">
@@ -1137,10 +1115,10 @@ export function BatchesTab() {
             <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-xl font-semibold">
-                  {selectedBatchForDetails.name} - Trainee Management
+                  {selectedBatchForDetails.name}
                 </DialogTitle>
                 <DialogDescription>
-                  Manage trainees and track phase progress
+                  Current Phase: {selectedBatchForDetails.status.charAt(0).toUpperCase() + selectedBatchForDetails.status.slice(1)}
                 </DialogDescription>
               </DialogHeader>
               <TraineeManagement
