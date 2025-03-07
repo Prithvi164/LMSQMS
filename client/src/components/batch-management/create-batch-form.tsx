@@ -2,9 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format, addDays, isSunday, isWithinInterval, isSameDay, parseISO } from "date-fns";
-import { formatInTimeZone } from "date-fns-tz";
-import { enUS } from "date-fns/locale";
+import { format, addDays, isSunday, isWithinInterval, isSameDay } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -40,9 +38,6 @@ import { insertOrganizationBatchSchema, type InsertOrganizationBatch, insertBatc
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { TrainerInsights } from "./trainer-insights";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
 
 // Interface for date range
@@ -117,7 +112,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [templateDescription, setTemplateDescription] = useState('');
-  const [testMode, setTestMode] = useState(false); // New state for test mode
 
   const form = useForm<InsertOrganizationBatch>({
     resolver: zodResolver(insertOrganizationBatchSchema),
@@ -507,17 +501,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
   });
 
 
-  // Add a utility function to format dates in IST
-  const formatToIST = (date: string | Date) => {
-    const d = typeof date === 'string' ? new Date(date) : date;
-    return formatInTimeZone(d, 'Asia/Kolkata', 'dd MMM yyyy');
-  };
-
-  // Convert date to UTC for storage
-  const toUTC = (dateStr: string) => {
-    return formatInTimeZone(new Date(dateStr), 'UTC', "yyyy-MM-dd'T'HH:mm:ssX");
-  };
-
   async function onSubmit(values: InsertOrganizationBatch) {
     try {
       if (!values.name) throw new Error('Batch name is required');
@@ -529,23 +512,11 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       if (values.capacityLimit === undefined) throw new Error('Capacity limit is required');
       if (values.batchCategory === undefined) throw new Error('Batch Category is required');
 
-      // Convert all dates to UTC before sending to server
+
+      const currentStatus = determineBatchStatus(values);
       const formattedValues = {
         ...values,
-        startDate: toUTC(values.startDate),
-        endDate: values.endDate ? toUTC(values.endDate) : undefined,
-        inductionStartDate: toUTC(values.inductionStartDate),
-        inductionEndDate: values.inductionEndDate ? toUTC(values.inductionEndDate) : undefined,
-        trainingStartDate: values.trainingStartDate ? toUTC(values.trainingStartDate) : undefined,
-        trainingEndDate: values.trainingEndDate ? toUTC(values.trainingEndDate) : undefined,
-        certificationStartDate: values.certificationStartDate ? toUTC(values.certificationStartDate) : undefined,
-        certificationEndDate: values.certificationEndDate ? toUTC(values.certificationEndDate) : undefined,
-        ojtStartDate: values.ojtStartDate ? toUTC(values.ojtStartDate) : undefined,
-        ojtEndDate: values.ojtEndDate ? toUTC(values.ojtEndDate) : undefined,
-        ojtCertificationStartDate: values.ojtCertificationStartDate ? toUTC(values.ojtCertificationStartDate) : undefined,
-        ojtCertificationEndDate: values.ojtCertificationEndDate ? toUTC(values.ojtCertificationEndDate) : undefined,
-        handoverToOpsDate: values.handoverToOpsDate ? toUTC(values.handoverToOpsDate) : undefined,
-        status: determineBatchStatus(values)
+        status: currentStatus
       };
 
       if (editMode) {
@@ -563,6 +534,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     }
   }
 
+  // Update the date ranges visualization
   const getDateRangeClassName = (date: Date): string => {
     const dateStr = format(date, 'yyyy-MM-dd');
     const ranges = dateRanges.filter(r =>
@@ -784,9 +756,9 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                 )}
               </div>
               <div className="text-sm">
-                {formatToIST(range.start)}
+                {format(range.start, 'MMM d, yyyy')}
                 {' - '}
-                {formatToIST(range.end)}
+                {format(range.end, 'MMM d, yyyy')}
               </div>
             </div>
           );
@@ -805,24 +777,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
               <span>{progress}%</span>
             </div>
             <Progress value={progress} className="w-full" />
-          </div>
-        )}
-
-        {{editMode && (
-          <div className="flex items-center space-x-2 p-4 bg-muted rounded-lg">
-            <Switch
-              id="test-mode"
-              checked={testMode}
-              onCheckedChange={setTestMode}
-            />
-            <Label htmlFor="test-mode">Test Mode</Label>
-            {testMode && (
-              <Alert variant="warning" className="mt-2">
-                <AlertDescription>
-                  Test mode enabled. You can select past dates for testing purposes.
-                </AlertDescription>
-              </Alert>
-            )}
           </div>
         )}
 
@@ -872,7 +826,8 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                   Save the current batch configuration as a template for future use.
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4 py-4">            <FormItem>
+              <div className="space-y-4 py-4">
+                <FormItem>
                   <FormLabel>Template Name</FormLabel>
                   <FormControl>
                     <Input
@@ -1121,7 +1076,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                       <Button
                         variant={"outline"}
                         className={cn(
-                          "w-[240px] pl-3 text-left font-normal",
+                          "w-full pl-3 text-left font-normal",
                           !field.value && "text-muted-foreground"
                         )}
                       >
@@ -1130,7 +1085,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                         ) : (
                           <span>Pick a date</span>
                         )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        <CalendarIcon className="ml-auto h-4 w4 opacity-50" />
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
@@ -1139,24 +1094,11 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                       mode="single"
                       selected={field.value ? new Date(field.value) : undefined}
                       onSelect={(date) => {
-                        if (date) {
-                          // Allow past dates only in test mode
-                          const today = new Date();
-                          today.setHours(0, 0, 0, 0);
-
-                          if (!testMode && date < today) {
-                            toast({
-                              title: "Invalid Date",
-                              description: "Cannot select past dates in production mode",
-                              variant: "destructive",
-                            });
-                            return;
-                          }
-
-                          field.onChange(format(date, 'yyyy-MM-dd'));
-                        }
+                        field.onChange(date ? format(date, 'yyyy-MM-dd') : '');
                       }}
-                      disabled={!testMode ? { before: new Date() } : undefined}
+                      disabled={(date) =>
+                        date < new Date() || isSunday(date)
+                      }
                       initialFocus
                     />
                   </PopoverContent>
@@ -1185,7 +1127,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
           />
 
           <DateRangePreview />
-
+        
 
         <div className="mt-8 flex justify-end"> {/* Adjusted to right-align the button */}
           <Button
