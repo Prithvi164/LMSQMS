@@ -56,6 +56,13 @@ for (let i = 0; i < headers.length; i++) {
   ws[cellRef].s = { font: { bold: true } };
 }
 
+// Add note for role column
+const roleCell = XLSX.utils.encode_cell({ r: 1, c: 9 }); // Column J, Row 2 (example data)
+ws[roleCell].c = [{
+  a: "Author",
+  t: "Valid roles: manager, team_lead, quality_analyst, trainer, advisor"
+}];
+
 // Add the worksheet to workbook
 XLSX.utils.book_append_sheet(wb, ws, 'Trainees');
 

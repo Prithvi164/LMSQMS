@@ -841,7 +841,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(200).json({ message: "Process deleted successfully" });
     } catch (error:any) {
       console.error("Process deletion error:", error);
-      res.status(40).json({ message: error.message || "Failed to delete process" });
+      res.status(400).json({ message: error.message || "Failed to delete process" });
     }
   });
 
@@ -1460,7 +1460,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add the bulk upload route (place this with other trainee-related routes)
+  // Update the bulk upload route to handle role field
   app.post("/api/organizations/:orgId/batches/:batchId/trainees/bulk", upload.single('file'), async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
@@ -1469,119 +1469,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const orgId = parseInt(req.params.orgId);
       const batchId = parseInt(req.params.batchId);
 
-      // Get batch details
-      const batch = await storage.getBatch(batchId);
-      if (!batch) {
-        return res.status(404).json({ message: "Batch not found" });
-      }
-
-      // Check remaining capacity
-      const currentTrainees = await storage.getBatchTrainees(batchId);
-      const remainingCapacity = batch.capacityLimit - currentTrainees.length;
-
-      // Read Excel file
+      // Read the uploaded file
       const workbook = XLSX.read(req.file.buffer);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(worksheet);
-
-      console.log('Processing rows:', rows);
-
-      if (!Array.isArray(rows) || rows.length === 0) {
-        return res.status(400).json({ message: "No valid data found in uploaded file" });
-      }
-
-      if (rows.length > remainingCapacity) {
-        return res.status(400).json({ 
-          message: `Batch can only accommodate ${remainingCapacity} more trainees. Uploaded file contains ${rows.length} trainees.` 
-        });
-      }
 
       let successCount = 0;
       let failureCount = 0;
       const errors = [];
 
+      const batch = await storage.getBatch(batchId);
+      if (!batch) {
+        return res.status(404).json({ message: "Batch not found" });
+      }
+
       // Process each row
       for (const row of rows) {
         try {
-          console.log('Processing row:', row);
-
-          // Basic data validation
-          if (!row.username || !row.fullName || !row.email || !row.employeeId || !row.password) {
-            throw new Error('Missing required fields');
+          // Validate the role
+          const role = row.role?.toLowerCase();
+          const validRoles = ['manager', 'team_lead', 'quality_analyst', 'trainer', 'advisor'];
+          if (!validRoles.includes(role)) {
+            throw new Error(`Invalid role: ${role}. Must be one of: ${validRoles.join(', ')}`);
           }
 
-          // Create trainee data
           const traineeData = {
-            username: String(row.username).trim(),
-            fullName: String(row.fullName).trim(),
-            email: String(row.email).trim(),
-            employeeId: String(row.employeeId).trim(),
-            phoneNumber: row.phoneNumber ? String(row.phoneNumber).trim() : null,
-            dateOfJoining: row.dateOfJoining ? new Date(row.dateOfJoining).toISOString() : null,
-            dateOfBirth: row.dateOfBirth ? new Date(row.dateOfBirth).toISOString() : null,
-            education: row.education ? String(row.education).trim() : null,
-            password: await hashPassword(String(row.password)),
-            role: "trainee" as const,
-            category: "trainee" as const,
-            organizationId: orgId,
+            username: row.username,
+            fullName: row.fullName,
+            email: row.email,
+            employeeId: row.employeeId,
+            phoneNumber: row.phoneNumber,
+            dateOfJoining: row.dateOfJoining,
+            dateOfBirth: row.dateOfBirth,
+            education: row.education,
+            password: await hashPassword(row.password),
+            role: role,
+            category: "trainee", // Always set category as trainee
+            processId: batch.processId,
+            lineOfBusinessId: batch.lineOfBusinessId,
             locationId: batch.locationId,
-            active: true,
-            certified: false
+            trainerId: batch.trainerId,
+            organizationId: orgId,
+            batchId: batchId
           };
 
-          console.log('Prepared trainee data:', { ...traineeData, password: '[REDACTED]' });
-
-          // Create trainee in a transaction
-          await db.transaction(async (tx) => {
-            // Create user first
-            const [user] = await tx
-              .insert(users)
-              .values(traineeData)
-              .returning();
-
-            if (!user || !user.id) {
-              throw new Error('Failed to create user');
-            }
-
-            console.log('Created user:', user.id);
-
-            // Then create batch process assignment
-            await tx
-              .insert(userBatchProcesses)
-              .values({
-                userId: user.id,
-                batchId: batchId,
-                processId: batch.processId,
-                status: 'active',
-                joinedAt: new Date()
-              });
-
-            console.log('Successfully created trainee and batch process:', user.id);
-          });
-
+          await storage.createUser(traineeData);
           successCount++;
         } catch (error) {
-          console.error('Error processing trainee:', error);
           failureCount++;
-          errors.push({
-            row: successCount + failureCount,
-            error: error instanceof Error ? error.message : 'Unknown error'
-          });
+          errors.push(`Row ${rows.indexOf(row) + 2}: ${error.message}`);
         }
       }
 
       res.json({
-        message: `Successfully uploaded ${successCount} trainees. Failed: ${failureCount}`,
+        message: "Bulk upload completed",
         successCount,
         failureCount,
         errors: errors.length > 0 ? errors : undefined
       });
-
-    } catch (error: any) {
+    } catch (error) {
       console.error("Bulk upload error:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Failed to process bulk upload",
-        error: error.message 
+        error: error.message
       });
     }
   });
@@ -1602,7 +1552,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'dateOfJoining',
         'dateOfBirth',
         'education',
-        'password'
+        'password',
+        'role' // Added 'role' column to the template
       ];
 
       // Create example data row
@@ -1615,7 +1566,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         '2025-03-06', // Format: YYYY-MM-DD
         '1990-01-01', // Format: YYYY-MM-DD
         'Bachelor\'s Degree',
-        'Password123!' // Will be hashed on upload
+        'Password123!', // Will be hashed on upload
+        'trainee' // Example role
       ];
 
       // Create worksheet
