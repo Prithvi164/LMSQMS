@@ -42,6 +42,13 @@ type Trainee = {
   lastUpdated?: string;
 };
 
+const statusColors = {
+  present: 'text-green-500',
+  absent: 'text-red-500',
+  late: 'text-yellow-500',
+  leave: 'text-blue-500'
+} as const;
+
 export function BatchDetailsPage() {
   const [selectedTab, setSelectedTab] = useState("attendance");
   const { batchId } = useParams();
@@ -155,13 +162,13 @@ export function BatchDetailsPage() {
   const getStatusIcon = (status: AttendanceStatus | null) => {
     switch (status) {
       case 'present':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
+        return <CheckCircle className={`h-4 w-4 ${statusColors.present}`} />;
       case 'absent':
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
+        return <AlertCircle className={`h-4 w-4 ${statusColors.absent}`} />;
       case 'late':
-        return <Clock className="h-4 w-4 text-yellow-500" />;
+        return <Clock className={`h-4 w-4 ${statusColors.late}`} />;
       case 'leave':
-        return <Clock className="h-4 w-4 text-blue-500" />;
+        return <Clock className={`h-4 w-4 ${statusColors.leave}`} />;
       default:
         return null;
     }
@@ -229,7 +236,9 @@ export function BatchDetailsPage() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             {getStatusIcon(trainee.status as AttendanceStatus)}
-                            <span className="capitalize">{trainee.status || 'Not marked'}</span>
+                            <span className={`capitalize ${statusColors[trainee.status as AttendanceStatus] || ''}`}>
+                              {trainee.status || 'Not marked'}
+                            </span>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -246,10 +255,10 @@ export function BatchDetailsPage() {
                               <SelectValue placeholder="Mark attendance" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="present">Present</SelectItem>
-                              <SelectItem value="absent">Absent</SelectItem>
-                              <SelectItem value="late">Late</SelectItem>
-                              <SelectItem value="leave">Leave</SelectItem>
+                              <SelectItem value="present" className={statusColors.present}>Present</SelectItem>
+                              <SelectItem value="absent" className={statusColors.absent}>Absent</SelectItem>
+                              <SelectItem value="late" className={statusColors.late}>Late</SelectItem>
+                              <SelectItem value="leave" className={statusColors.leave}>Leave</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>

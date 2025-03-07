@@ -912,62 +912,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update attendance endpoint 
-  app.post("/api/attendance/:traineeId", async (req, res) => {
+  app.post("/api/attendance", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     try {
-      const traineeId = parseInt(req.params.traineeId);
-      const { status, date, organizationId } = req.body;
+      const { traineeId, status, date, batchId, phase } = req.body;
+
+      // Validate required fields
+      if (!traineeId || !status || !date || !batchId || !phase) {
+        return res.status(400).json({ 
+          message: "Missing required fields",
+          required: ["traineeId", "status", "date", "batchId", "phase"]
+        });
+      }
 
       // Validate the status
       const validStatuses = ['present', 'absent', 'late', 'leave'];
       if (!validStatuses.includes(status)) {
-        return res.status(400).json({ message: "Invalid attendance status" });
+        return res.status(400).json({ 
+          message: "Invalid attendance status",
+          validStatuses
+        });
       }
 
-      // Check if attendance record already exists for this date
-      const [existingRecord] = await db
+      // Check if trainee belongs to the batch
+      const [batchTrainee] = await db
         .select()
-        .from(attendance)
+        .from(userBatchProcesses)
         .where(
           and(
-            eq(attendance.traineeId, traineeId),
-            eq(attendance.date, date)
+            eq(userBatchProcesses.userId, traineeId),
+            eq(userBatchProcesses.batchId, batchId),
+            eq(userBatchProcesses.status, 'active')
           )
         );
 
-      let result;
-      if (existingRecord) {
-        // Update existing record
-        [result] = await db
-          .update(attendance)
-          .set({
-            status,
-            updatedAt: new Date()
-          })
-          .where(eq(attendance.id, existingRecord.id))
-          .returning();
-      } else {
-        // Create new record
-        [result] = await db
-          .insert(attendance)
-          .values({
-            traineeId,
-            status,
-            date,
-            markedById: req.user.id,
-            organizationId,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          })
-          .returning();
+      if (!batchTrainee) {
+        return res.status(400).json({
+          message: "Trainee is not enrolled in this batch or is not active"
+        });
       }
 
-      console.log('Attendance record updated:', result);
-      res.json(result);
+      // Create or update attendance record
+      const [result] = await db
+        .insert(attendance)
+        .values({
+          traineeId,
+          status,
+          date,
+          batchId,
+          phase,
+          markedById: req.user.id,
+          organizationId: req.user.organizationId,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .onConflictDoUpdate({
+          target: [attendance.traineeId, attendance.date, attendance.batchId],
+          set: {
+            status,
+            phase,
+            updatedAt: new Date()
+          }
+        })
+        .returning();
+
+      console.log('Attendance record saved:', result);
+      return res.json(result);
     } catch (error: any) {
-      console.error("Error updating attendance:", error);
-      res.status(500).json({ message: error.message });
+      console.error("Error saving attendance record:", error);
+      return res.status(500).json({ 
+        message: "Failed to save attendance record",
+        error: error.message 
+      });
     }
   });
 
