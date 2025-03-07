@@ -182,14 +182,15 @@ export default function TraineeManagement() {
 
         {batch.status === 'planned' && (
           <Button
-            className="w-full transition-transform active:scale-95 hover:scale-100"
+            className="w-full relative group"
             onClick={(e) => {
               e.stopPropagation();
               startBatchMutation.mutate(batch.id);
             }}
             disabled={startBatchMutation.isPending}
           >
-            <CheckCircle2 className="h-4 w-4 mr-2" />
+            <div className="absolute inset-0 rounded bg-primary opacity-0 group-active:opacity-10 transition-opacity duration-200"></div>
+            <CheckCircle2 className="h-4 w-4 mr-2 group-active:scale-95 transition-transform duration-200" />
             {startBatchMutation.isPending ? "Starting..." : "Start Batch"}
           </Button>
         )}
