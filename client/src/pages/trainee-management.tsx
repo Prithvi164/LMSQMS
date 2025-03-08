@@ -46,15 +46,6 @@ type Batch = {
   };
   capacityLimit: number;
   enrolledCount: number;
-  inductionEndDate: string;
-  trainingStartDate: string;
-  trainingEndDate: string;
-  certificationStartDate: string;
-  certificationEndDate: string;
-  ojtStartDate: string;
-  ojtEndDate: string;
-  ojtCertificationStartDate: string;
-  ojtCertificationEndDate: string;
 };
 
 // Colors for charts
@@ -174,177 +165,72 @@ export default function TraineeManagement() {
   const completedBatches = batchesByStatus['completed'] || [];
 
   // Update the renderBatchCard function
-  const BatchProgressInsights = ({ batch }: { batch: Batch }) => {
-    const capacityData = {
-      totalCapacity: batch.capacityLimit,
-      enrolledTrainees: batch.enrolledCount || 0,
-      remainingSlots: batch.capacityLimit - (batch.enrolledCount || 0)
-    };
+  const renderBatchCard = (batch: Batch) => (
+    <Card
+      key={batch.id}
+      className={`${selectedBatch === batch.id ? 'border-primary' : ''} cursor-pointer transition-all duration-200 ${PHASE_COLORS[batch.status as keyof typeof PHASE_COLORS]}`}
+      onClick={() => {
+        if (batch.status !== 'planned') {
+          window.location.href = `/batch-details/${batch.id}`;
+        } else {
+          setSelectedBatch(batch.id);
+        }
+      }}
+    >
+      <CardContent className="p-6 space-y-4">
+        <div className="flex justify-between items-start">
+          <div>
+            <h3 className="font-semibold text-lg">{batch.name}</h3>
+            <p className="text-sm text-muted-foreground">
+              {batch.location.name} • {batch.process.name}
+            </p>
+          </div>
+          <Badge
+            variant={batch.status === 'planned' ? "outline" : "secondary"}
+            className={`capitalize transition-all hover:scale-105 ${
+              batch.status === 'planned' ? '' : getStatusColor(batch.status)
+            }`}
+          >
+            {batch.status}
+          </Badge>
+        </div>
 
-    return (
-      <Card className="mt-4">
-        <CardContent className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Batch Capacity</h3>
-          <div className="space-y-4">
-            <div className="grid gap-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Total Capacity</span>
-                <span className="font-medium">{capacityData.totalCapacity}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Enrolled Trainees</span>
-                <span className="font-medium">{capacityData.enrolledTrainees}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Remaining Slots</span>
-                <span className="font-medium">{capacityData.remainingSlots}</span>
-              </div>
+        <div className="space-y-2">
+          <p className="text-sm">
+            <span className="font-medium">Start Date:</span>{" "}
+            {formatToIST(batch.startDate)}
+          </p>
+          <p className="text-sm">
+            <span className="font-medium">LOB:</span>{" "}
+            {batch.line_of_business.name}
+          </p>
+          <div className="mt-2">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-sm font-medium">Capacity</span>
+              <span className="text-sm">{batch.enrolledCount || 0} / {batch.capacityLimit}</span>
             </div>
             <Progress 
-              value={(capacityData.enrolledTrainees / capacityData.totalCapacity) * 100}
-              className="h-2"
+              value={(batch.enrolledCount || 0) / batch.capacityLimit * 100} 
+              className="h-2 bg-muted/30"
             />
           </div>
+        </div>
 
-          <div className="mt-8">
-            <h3 className="text-lg font-semibold mb-4">Phase Progress</h3>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={[
-                    { name: 'Induction', progress: calculatePhaseProgress(batch, 'induction') },
-                    { name: 'Training', progress: calculatePhaseProgress(batch, 'training') },
-                    { name: 'Certification', progress: calculatePhaseProgress(batch, 'certification') },
-                    { name: 'OJT', progress: calculatePhaseProgress(batch, 'ojt') },
-                    { name: 'OJT Cert', progress: calculatePhaseProgress(batch, 'ojt_certification') }
-                  ]}
-                  margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Area
-                    type="monotone"
-                    dataKey="progress"
-                    stroke="#8884d8"
-                    fill="#8884d8"
-                    name="Progress %"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
-
-  // Add helper function to calculate phase progress
-  const calculatePhaseProgress = (batch: Batch, phase: string) => {
-    const today = new Date();
-    const phases = {
-      induction: {
-        start: new Date(batch.startDate),
-        end: new Date(batch.inductionEndDate)
-      },
-      training: {
-        start: new Date(batch.trainingStartDate),
-        end: new Date(batch.trainingEndDate)
-      },
-      certification: {
-        start: new Date(batch.certificationStartDate),
-        end: new Date(batch.certificationEndDate)
-      },
-      ojt: {
-        start: new Date(batch.ojtStartDate),
-        end: new Date(batch.ojtEndDate)
-      },
-      ojt_certification: {
-        start: new Date(batch.ojtCertificationStartDate),
-        end: new Date(batch.ojtCertificationEndDate)
-      }
-    };
-
-    const currentPhase = phases[phase as keyof typeof phases];
-
-    if (today < currentPhase.start) return 0;
-    if (today > currentPhase.end) return 100;
-
-    const totalDays = (currentPhase.end.getTime() - currentPhase.start.getTime()) / (1000 * 60 * 60 * 24);
-    const daysElapsed = (today.getTime() - currentPhase.start.getTime()) / (1000 * 60 * 60 * 24);
-
-    return Math.round((daysElapsed / totalDays) * 100);
-  };
-
-  const renderBatchCard = (batch: Batch) => (
-    <div key={batch.id} className="space-y-4">
-      <Card
-        className={`${selectedBatch === batch.id ? 'border-primary' : ''} cursor-pointer transition-all duration-200 ${PHASE_COLORS[batch.status as keyof typeof PHASE_COLORS]}`}
-        onClick={() => {
-          if (batch.status !== 'planned') {
-            window.location.href = `/batch-details/${batch.id}`;
-          } else {
-            setSelectedBatch(batch.id);
-          }
-        }}
-      >
-        <CardContent className="p-6 space-y-4">
-          <div className="flex justify-between items-start">
-            <div>
-              <h3 className="font-semibold text-lg">{batch.name}</h3>
-              <p className="text-sm text-muted-foreground">
-                {batch.location.name} • {batch.process.name}
-              </p>
-            </div>
-            <Badge
-              variant={batch.status === 'planned' ? "outline" : "secondary"}
-              className={`capitalize transition-all hover:scale-105 ${
-                batch.status === 'planned' ? '' : getStatusColor(batch.status)
-              }`}
-            >
-              {batch.status}
-            </Badge>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-sm">
-              <span className="font-medium">Start Date:</span>{" "}
-              {formatToIST(batch.startDate)}
-            </p>
-            <p className="text-sm">
-              <span className="font-medium">LOB:</span>{" "}
-              {batch.line_of_business.name}
-            </p>
-            <div className="mt-2">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-sm font-medium">Capacity</span>
-                <span className="text-sm">{batch.enrolledCount || 0} / {batch.capacityLimit}</span>
-              </div>
-              <Progress 
-                value={(batch.enrolledCount || 0) / batch.capacityLimit * 100} 
-                className="h-2 bg-muted/30"
-              />
-            </div>
-          </div>
-
-          {batch.status === 'planned' && (
-            <Button
-              className="w-full transition-transform active:scale-95 hover:scale-100"
-              onClick={(e) => {
-                e.stopPropagation();
-                startBatchMutation.mutate(batch.id);
-              }}
-              disabled={startBatchMutation.isPending}
-            >
-              <CheckCircle2 className="h-4 w-4 mr-2" />
-              {startBatchMutation.isPending ? "Starting..." : "Start Batch"}
-            </Button>
-          )}
-        </CardContent>
-      </Card>
-      <BatchProgressInsights batch={batch} />
-    </div>
+        {batch.status === 'planned' && (
+          <Button
+            className="w-full transition-transform active:scale-95 hover:scale-100"
+            onClick={(e) => {
+              e.stopPropagation();
+              startBatchMutation.mutate(batch.id);
+            }}
+            disabled={startBatchMutation.isPending}
+          >
+            <CheckCircle2 className="h-4 w-4 mr-2" />
+            {startBatchMutation.isPending ? "Starting..." : "Start Batch"}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
   );
 
   const renderDrilldownControls = () => (
@@ -615,9 +501,7 @@ export default function TraineeManagement() {
       { name: 'Module 1', completion: 90, performance: 85 },
       { name: 'Module 2', completion: 85, performance: 82 },
       { name: 'Module 3', completion: 70, performance: 78 }
-    ],
-    ojt: [],
-    ojt_certification: []
+    ]
   };
 
   if (isLoading) {
