@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import rateLimit from 'express-rate-limit';
+import { startBatchStatusCron } from './cron/batch-status-cron';
 
 const app = express();
 app.use(express.json());
@@ -57,6 +58,10 @@ app.get("/health", (_req, res) => {
   try {
     // Create HTTP server explicitly
     const server = await registerRoutes(app);
+
+    // Start the batch status update cron job
+    startBatchStatusCron();
+    log("Started batch status update cron job");
 
     // Error handling middleware
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
