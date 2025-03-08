@@ -317,7 +317,7 @@ export function BatchDetailsPage() {
   const remainingCapacity = batch.capacityLimit - enrolledCount;
 
   // Only show phase requests tab for trainers and managers
-  const showPhaseRequestsTab = user?.role === 'trainer' || user?.role === 'manager';
+  const canAccessPhaseRequests = user?.role === 'trainer' || user?.role === 'manager';
 
   return (
     <div className="p-8 space-y-6">
@@ -360,7 +360,7 @@ export function BatchDetailsPage() {
         <TabsList>
           <TabsTrigger value="attendance">Attendance</TabsTrigger>
           <TabsTrigger value="training-plan">Training Planner</TabsTrigger>
-          {showPhaseRequestsTab && (
+          {canAccessPhaseRequests && (
             <TabsTrigger value="phase-requests">Phase Requests</TabsTrigger>
           )}
         </TabsList>
@@ -446,7 +446,7 @@ export function BatchDetailsPage() {
           </Card>
         </TabsContent>
 
-        {showPhaseRequestsTab && (
+        {canAccessPhaseRequests && (
           <TabsContent value="phase-requests" className="space-y-4">
             <Card>
               <CardContent className="p-6">
