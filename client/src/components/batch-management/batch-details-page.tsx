@@ -111,13 +111,25 @@ export function BatchDetailsPage() {
       }
     },
     onSuccess: (data) => {
-      // Invalidate both queries to refresh the data
+      // Optimistically update the trainee in the current data
+      queryClient.setQueryData(
+        [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`],
+        (oldData: any) => {
+          if (!oldData) return oldData;
+          return oldData.map((trainee: Trainee) =>
+            trainee.id === data.id ? data : trainee
+          );
+        }
+      );
+
+      // Also invalidate the queries to ensure data consistency
       queryClient.invalidateQueries({ 
         queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`] 
       });
       queryClient.invalidateQueries({ 
         queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}`] 
       });
+
       toast({
         title: "Attendance Updated",
         description: "The attendance status has been updated successfully.",
