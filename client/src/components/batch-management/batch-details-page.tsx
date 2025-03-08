@@ -107,28 +107,54 @@ const LoadingSkeleton = () => (
   </div>
 );
 
+const phaseChangeFormSchema = z.object({
+  requestedPhase: z.enum(['induction', 'training', 'certification', 'ojt', 'ojt_certification']),
+  justification: z.string().min(1, "Justification is required"),
+  managerId: z.string().min(1, "Manager is required"),
+});
+
 export function BatchDetailsPage() {
-  const [selectedTab, setSelectedTab] = useState("attendance");
   const { batchId } = useParams();
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [selectedTab, setSelectedTab] = useState("attendance");
   const currentDate = format(new Date(), "PPP");
 
-  // Parallel data fetching with proper caching
+  // Initialize form at the top level
+  const form = useForm({
+    resolver: zodResolver(phaseChangeFormSchema),
+    defaultValues: {
+      requestedPhase: undefined,
+      justification: "",
+      managerId: "",
+    },
+  });
+
+  // Query hooks
   const { data: batch, isLoading: batchLoading } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}`],
     enabled: !!user?.organizationId && !!batchId,
-    staleTime: 30000, // Cache data for 30 seconds
   });
 
   const { data: trainees, isLoading: traineesLoading } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`],
     enabled: !!user?.organizationId && !!batchId,
-    staleTime: 30000, // Cache data for 30 seconds
   });
 
+  const { data: managers } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/users`],
+    enabled: !!user?.organizationId,
+    select: (users: any[]) => users.filter(u => u.role === 'manager'),
+  });
+
+  const { data: phaseRequests } = useQuery({
+    queryKey: [`/api/batches/${batchId}/phase-change-requests`],
+    enabled: !!batchId,
+  });
+
+  // Mutations
   const updateAttendanceMutation = useMutation({
     mutationFn: async ({ traineeId, status }: { traineeId: number; status: AttendanceStatus }) => {
       const response = await fetch(`/api/attendance`, {
@@ -156,7 +182,6 @@ export function BatchDetailsPage() {
       return response.json();
     },
     onSuccess: () => {
-      // Optimistic updates for better UX
       queryClient.invalidateQueries({
         queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`]
       });
@@ -172,41 +197,6 @@ export function BatchDetailsPage() {
         description: error.message,
       });
     },
-  });
-
-  // Show loading skeleton for better UX
-  if (batchLoading || traineesLoading) {
-    return <LoadingSkeleton />;
-  }
-
-  if (!batch) {
-    return (
-      <Alert>
-        <AlertDescription>Batch not found.</AlertDescription>
-      </Alert>
-    );
-  }
-
-  const enrolledCount = trainees?.filter((t: Trainee) => t.user.category === 'trainee').length || 0;
-  const remainingCapacity = batch.capacityLimit - enrolledCount;
-
-  const form = useForm({
-    resolver: zodResolver(z.object({
-      requestedPhase: z.enum(['induction', 'training', 'certification', 'ojt', 'ojt_certification']),
-      justification: z.string().min(1, "Justification is required"),
-      managerId: z.string().min(1, "Manager is required"),
-    })),
-  });
-
-  const { data: managers } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/users`],
-    enabled: !!user?.organizationId,
-    select: (users) => users.filter(u => u.role === 'manager'),
-  });
-
-  const { data: phaseRequests } = useQuery({
-    queryKey: [`/api/batches/${batchId}/phase-change-requests`],
-    enabled: !!batchId,
   });
 
   const createRequestMutation = useMutation({
@@ -227,9 +217,11 @@ export function BatchDetailsPage() {
         title: "Success",
         description: "Phase change request submitted successfully",
       });
+      form.reset();
     },
   });
 
+  // Event handlers
   const handleApprove = async (requestId: number) => {
     try {
       await fetch(`/api/phase-change-requests/${requestId}`, {
@@ -286,6 +278,22 @@ export function BatchDetailsPage() {
       managerId: parseInt(data.managerId),
     });
   };
+
+  // Show loading skeleton while data is being fetched
+  if (batchLoading || traineesLoading) {
+    return <LoadingSkeleton />;
+  }
+
+  if (!batch) {
+    return (
+      <Alert>
+        <AlertDescription>Batch not found.</AlertDescription>
+      </Alert>
+    );
+  }
+
+  const enrolledCount = trainees?.length || 0;
+  const remainingCapacity = batch.capacityLimit - enrolledCount;
 
   return (
     <div className="p-8 space-y-6">
@@ -411,6 +419,7 @@ export function BatchDetailsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
         <TabsContent value="phase-requests" className="space-y-4">
           <Card>
             <CardContent className="p-6">
@@ -477,7 +486,7 @@ export function BatchDetailsPage() {
                                     <SelectValue placeholder="Select manager" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    {managers?.map(manager => (
+                                    {managers?.map((manager: any) => (
                                       <SelectItem key={manager.id} value={manager.id.toString()}>
                                         {manager.fullName}
                                       </SelectItem>
@@ -498,7 +507,7 @@ export function BatchDetailsPage() {
               </div>
 
               {/* Phase change requests list */}
-              {phaseRequests?.length > 0 ? (
+              {phaseRequests && phaseRequests.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -510,13 +519,21 @@ export function BatchDetailsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {phaseRequests.map((request) => (
+                    {phaseRequests.map((request: any) => (
                       <TableRow key={request.id}>
                         <TableCell>{request.trainer?.fullName}</TableCell>
                         <TableCell>{request.currentPhase}</TableCell>
                         <TableCell>{request.requestedPhase}</TableCell>
                         <TableCell>
-                          <Badge variant={request.status === 'pending' ? 'outline' : request.status === 'approved' ? 'success' : 'destructive'}>
+                          <Badge 
+                            variant={
+                              request.status === 'pending' 
+                                ? 'outline' 
+                                : request.status === 'approved' 
+                                  ? 'default'
+                                  : 'destructive'
+                            }
+                          >
                             {request.status}
                           </Badge>
                         </TableCell>
