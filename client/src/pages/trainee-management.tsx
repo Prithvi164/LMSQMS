@@ -253,15 +253,38 @@ export default function TraineeManagement() {
               <h3 className="text-lg font-semibold mb-4">Overall Performance Trend</h3>
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={getPerformanceData()}>
+                  <LineChart
+                    data={getPerformanceData()}
+                    margin={{
+                      top: 5,
+                      right: 30,
+                      left: 20,
+                      bottom: 5,
+                    }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    <Line type="monotone" dataKey="score" stroke="#8884d8" name="Overall Score" />
-                    <Line type="monotone" dataKey="attendance" stroke="#82ca9d" name="Attendance" />
-                    <Line type="monotone" dataKey="assessment" stroke="#ffc658" name="Assessment" />
+                    <Line
+                      type="monotone"
+                      dataKey="score"
+                      stroke="#8884d8"
+                      name="Overall Score"
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="attendance"
+                      stroke="#82ca9d"
+                      name="Attendance"
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="assessment"
+                      stroke="#ffc658"
+                      name="Assessment"
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -274,15 +297,44 @@ export default function TraineeManagement() {
               <h3 className="text-lg font-semibold mb-4">Progress Distribution</h3>
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={getPerformanceData()}>
+                  <AreaChart
+                    data={getPerformanceData()}
+                    margin={{
+                      top: 5,
+                      right: 30,
+                      left: 20,
+                      bottom: 5,
+                    }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    <Area type="monotone" dataKey="score" stackId="1" stroke="#8884d8" fill="#8884d8" />
-                    <Area type="monotone" dataKey="attendance" stackId="1" stroke="#82ca9d" fill="#82ca9d" />
-                    <Area type="monotone" dataKey="assessment" stackId="1" stroke="#ffc658" fill="#ffc658" />
+                    <Area
+                      type="monotone"
+                      dataKey="score"
+                      stackId="1"
+                      stroke="#8884d8"
+                      fill="#8884d8"
+                      name="Overall Score"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="attendance"
+                      stackId="1"
+                      stroke="#82ca9d"
+                      fill="#82ca9d"
+                      name="Attendance"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="assessment"
+                      stackId="1"
+                      stroke="#ffc658"
+                      fill="#ffc658"
+                      name="Assessment"
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -299,10 +351,20 @@ export default function TraineeManagement() {
         <div className="space-y-8">
           <Card>
             <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">{selectedPhase.charAt(0).toUpperCase() + selectedPhase.slice(1)} Phase Performance</h3>
+              <h3 className="text-lg font-semibold mb-4">
+                {selectedPhase.charAt(0).toUpperCase() + selectedPhase.slice(1)} Phase Performance
+              </h3>
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={phaseData}>
+                  <RechartsBarChart
+                    data={phaseData}
+                    margin={{
+                      top: 5,
+                      right: 30,
+                      left: 20,
+                      bottom: 5,
+                    }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
                     <YAxis />
@@ -310,7 +372,7 @@ export default function TraineeManagement() {
                     <Legend />
                     <Bar dataKey="completion" fill="#8884d8" name="Completion %" />
                     <Bar dataKey="performance" fill="#82ca9d" name="Performance Score" />
-                  </BarChart>
+                  </RechartsBarChart>
                 </ResponsiveContainer>
               </div>
             </CardContent>
@@ -328,7 +390,15 @@ export default function TraineeManagement() {
               <h3 className="text-lg font-semibold mb-4">Individual Trainee Performance</h3>
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={traineePerformanceData}>
+                  <RechartsBarChart
+                    data={traineePerformanceData}
+                    margin={{
+                      top: 5,
+                      right: 30,
+                      left: 20,
+                      bottom: 5,
+                    }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
                     <YAxis />
@@ -337,7 +407,7 @@ export default function TraineeManagement() {
                     <Bar dataKey="score" fill="#8884d8" name="Overall Score" />
                     <Bar dataKey="progress" fill="#82ca9d" name="Progress" />
                     <Bar dataKey="attendance" fill="#ffc658" name="Attendance" />
-                  </BarChart>
+                  </RechartsBarChart>
                 </ResponsiveContainer>
               </div>
             </CardContent>

@@ -13,7 +13,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-export function BatchDetail() {
+interface BatchDetailProps {
+  onCreateBatch?: () => void;
+}
+
+export function BatchDetail({ onCreateBatch }: BatchDetailProps) {
   const [activeTab, setActiveTab] = useState("batches");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
@@ -36,7 +40,10 @@ export function BatchDetail() {
               <TabsTrigger value="location">Location</TabsTrigger>
             </TabsList>
             <TabsContent value="batches" className="mt-6">
-              <BatchesTab onCreate={() => setIsCreateDialogOpen(true)} />
+              <BatchesTab onCreate={() => {
+                setIsCreateDialogOpen(true);
+                onCreateBatch?.();
+              }} />
             </TabsContent>
             <TabsContent value="lob" className="mt-6">
               <LobDetail />
