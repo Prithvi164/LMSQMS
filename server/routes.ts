@@ -813,11 +813,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Helper function to get enrolled count for a batch
   const getEnrolledCount = async (batchId: number) => {
-    // Get all users assigned to this batch with role 'trainee'
+    // Get all users assigned to this batch with category 'trainee'
     const batchTrainees = await db
       .select({
         userId: userBatchProcesses.userId,
-        role: users.role,
+        category: users.category,
         status: userBatchProcesses.status
       })
       .from(userBatchProcesses)
@@ -825,7 +825,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       .where(
         and(
           eq(userBatchProcesses.batchId, batchId),
-          eq(users.role, 'trainee'),
+          eq(users.category, 'trainee'),
           eq(userBatchProcesses.status, 'active')  // Only count active trainees
         )
       );
@@ -873,7 +873,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       }));
 
-      console.log(`Found ${enrichedBatches.length} batches for organization ${orgId}`);
+      console.log(`Found ${enrichedBatches.length} batches with enrollment counts:`, 
+        enrichedBatches.map(b => ({ 
+          id: b.id, 
+          name: b.name, 
+          enrolledCount: b.enrolledCount,
+          capacityLimit: b.capacityLimit 
+        }))
+      );
+
       res.json(enrichedBatches);
     } catch (error: any) {
       console.error("Error fetching batches:", error);
