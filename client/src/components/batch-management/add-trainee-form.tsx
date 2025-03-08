@@ -129,6 +129,16 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Validate file type
+    if (!file.name.endsWith('.xlsx')) {
+      toast({
+        title: 'Error',
+        description: 'Please upload an Excel file (.xlsx)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('batchId', batch.id.toString());
@@ -136,10 +146,13 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
 
     try {
       setIsSubmitting(true);
-      const response = await fetch(`/api/organizations/${batch.organizationId}/batches/${batch.id}/trainees/bulk`, {
-        method: 'POST',
-        body: formData,
-      });
+      const response = await fetch(
+        `/api/organizations/${batch.organizationId}/batches/${batch.id}/trainees/bulk`,
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
 
       const data = await response.json();
 
@@ -147,13 +160,37 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
         throw new Error(data.message || 'Failed to upload trainees');
       }
 
+      // Show success toast with detailed information
       toast({
-        title: 'Success',
-        description: `Successfully uploaded ${data.successCount} trainees. ${data.failureCount ? `Failed: ${data.failureCount}` : ''}`,
+        title: 'Upload Complete',
+        description: (
+          <div className="space-y-2">
+            <p>Successfully uploaded {data.successCount} of {data.totalRows} trainees.</p>
+            {data.failureCount > 0 && (
+              <details className="text-sm">
+                <summary className="cursor-pointer">
+                  Failed uploads: {data.failureCount}
+                </summary>
+                <ul className="mt-2 list-disc list-inside">
+                  {data.errors?.map((error: string, index: number) => (
+                    <li key={index} className="text-xs">{error}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
+            {data.remainingCapacity !== undefined && (
+              <p className="text-sm">Remaining batch capacity: {data.remainingCapacity}</p>
+            )}
+          </div>
+        ),
+        duration: data.failureCount > 0 ? 10000 : 5000, // Show longer for errors
       });
 
-      onSuccess();
-      setShowBulkUpload(false);
+      // Only close dialog and refresh if at least one trainee was added successfully
+      if (data.successCount > 0) {
+        onSuccess();
+        setShowBulkUpload(false);
+      }
     } catch (error) {
       toast({
         title: 'Error',
@@ -162,6 +199,8 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
       });
     } finally {
       setIsSubmitting(false);
+      // Clear the file input
+      event.target.value = '';
     }
   };
 

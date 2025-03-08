@@ -923,7 +923,277 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(traineesWithDetails);
     } catch (error: any) {
       console.error("Error fetching trainees:", error);
-      res.status(500).json({ message: "Error loading trainees. Please try again." });
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Update the bulk upload route with better validation and error handling
+  app.post("/api/organizations/:orgId/batches/:batchId/trainees/bulk", upload.single('file'), async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const batchId = parseInt(req.params.batchId);
+
+      // Get batch details first
+      const batch = await storage.getBatch(batchId);
+      if (!batch) {
+        return res.status(404).json({ message: "Batch not found" });
+      }
+
+      // Check remaining capacity 
+      const currentTrainees = await storage.getBatchTrainees(batchId);
+      const remainingCapacity = batch.capacityLimit - currentTrainees.length;
+      
+      // Read the uploaded file
+      const workbook = XLSX.read(req.file.buffer);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(worksheet);
+
+      // Validate total rows against capacity
+      if (rows.length > remainingCapacity) {
+        return res.status(400).json({
+          message: `Cannot upload ${rows.length} trainees. Only ${remainingCapacity} slots remaining in batch.`
+        });
+      }
+
+      let successCount = 0;
+      let failureCount = 0;
+      const errors = [];
+      const requiredFields = ['username', 'fullName', 'email', 'employeeId', 'phoneNumber', 'dateOfJoining', 'dateOfBirth', 'education', 'password', 'role'];
+
+      // Process each row
+      for (const row of rows) {
+        try {
+          // Validate required fields
+          const missingFields = requiredFields.filter(field => !row[field]);
+          if (missingFields.length > 0) {
+            throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+          }
+
+          // Validate email format
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) {
+            throw new Error('Invalid email format');
+          }
+
+          // Validate role
+          const role = String(row.role).toLowerCase();
+          const validRoles = ['manager', 'team_lead', 'quality_analyst', 'trainer', 'advisor'];
+          if (!validRoles.includes(role)) {
+            throw new Error(`Invalid role: ${role}. Must be one of: ${validRoles.join(', ')}`);
+          }
+
+          // Validate dates
+          const dateFields = ['dateOfJoining', 'dateOfBirth'];
+          for (const field of dateFields) {
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(row[field])) {
+              throw new Error(`Invalid date format for ${field}. Use YYYY-MM-DD format`);
+            }
+          }
+
+          // Create trainee data object
+          const traineeData = {
+            username: String(row.username),
+            fullName: String(row.fullName),
+            email: String(row.email),
+            employeeId: String(row.employeeId),
+            phoneNumber: String(row.phoneNumber),
+            dateOfJoining: String(row.dateOfJoining),
+            dateOfBirth: String(row.dateOfBirth),
+            education: String(row.education),
+            password: await hashPassword(String(row.password)),
+            role: role,
+            category: "trainee",
+            processId: batch.processId,
+            lineOfBusinessId: batch.lineOfBusinessId,
+            locationId: batch.locationId,
+            trainerId: batch.trainerId,
+            organizationId: orgId,
+            active: true
+          };
+
+          // Create user
+          const user = await storage.createUser(traineeData);
+          
+          // Create batch process assignment
+          await storage.assignUserToBatch({
+            userId: user.id,
+            batchId,
+            processId: batch.processId,
+            status: 'active',
+            joinedAt: new Date().toISOString()
+          });
+
+          // Create user process record
+          await storage.createUserProcess({
+            userId: user.id,
+            processId: batch.processId,
+            organizationId: orgId,
+            lineOfBusinessId: batch.lineOfBusinessId,
+            locationId: batch.locationId,
+            status: 'active',
+            assignedAt: new Date().toISOString()
+          });
+
+          successCount++;
+        } catch (error) {
+          failureCount++;
+          const rowNum = rows.indexOf(row) + 2; // +2 for header row and 0-based index
+          errors.push(`Row ${rowNum}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          console.error(`Error processing row ${rowNum}:`, error);
+        }
+      }
+
+      // Send detailed response
+      res.json({
+        message: "Bulk upload completed",
+        totalRows: rows.length,
+        successCount,
+        failureCount,
+        errors: errors.length > 0 ? errors : undefined,
+        remainingCapacity: remainingCapacity - successCount
+      });
+    } catch (error) {
+      console.error("Bulk upload error:", error);
+      res.status(500).json({
+        message: "Failed to process bulk upload",
+        error: error instanceof Error ? error.message : "Unknown error occurred"
+      });
+    }
+  });
+  app.post("/api/organizations/:orgId/batches/:batchId/trainees/bulk", upload.single('file'), async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const batchId = parseInt(req.params.batchId);
+
+      // Get batch details first
+      const batch = await storage.getBatch(batchId);
+      if (!batch) {
+        return res.status(404).json({ message: "Batch not found" });
+      }
+
+      // Check remaining capacity 
+      const currentTrainees = await storage.getBatchTrainees(batchId);
+      const remainingCapacity = batch.capacityLimit - currentTrainees.length;
+      
+      // Read the uploaded file
+      const workbook = XLSX.read(req.file.buffer);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(worksheet);
+
+      // Validate total rows against capacity
+      if (rows.length > remainingCapacity) {
+        return res.status(400).json({
+          message: `Cannot upload ${rows.length} trainees. Only ${remainingCapacity} slots remaining in batch.`
+        });
+      }
+
+      let successCount = 0;
+      let failureCount = 0;
+      const errors = [];
+      const requiredFields = ['username', 'fullName', 'email', 'employeeId', 'phoneNumber', 'dateOfJoining', 'dateOfBirth', 'education', 'password', 'role'];
+
+      // Process each row
+      for (const row of rows) {
+        try {
+          // Validate required fields
+          const missingFields = requiredFields.filter(field => !row[field]);
+          if (missingFields.length > 0) {
+            throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+          }
+
+          // Validate email format
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) {
+            throw new Error('Invalid email format');
+          }
+
+          // Validate role
+          const role = String(row.role).toLowerCase();
+          const validRoles = ['manager', 'team_lead', 'quality_analyst', 'trainer', 'advisor'];
+          if (!validRoles.includes(role)) {
+            throw new Error(`Invalid role: ${role}. Must be one of: ${validRoles.join(', ')}`);
+          }
+
+          // Validate dates
+          const dateFields = ['dateOfJoining', 'dateOfBirth'];
+          for (const field of dateFields) {
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(row[field])) {
+              throw new Error(`Invalid date format for ${field}. Use YYYY-MM-DD format`);
+            }
+          }
+
+          // Create trainee data object
+          const traineeData = {
+            username: String(row.username),
+            fullName: String(row.fullName),
+            email: String(row.email),
+            employeeId: String(row.employeeId),
+            phoneNumber: String(row.phoneNumber),
+            dateOfJoining: String(row.dateOfJoining),
+            dateOfBirth: String(row.dateOfBirth),
+            education: String(row.education),
+            password: await hashPassword(String(row.password)),
+            role: role,
+            category: "trainee",
+            processId: batch.processId,
+            lineOfBusinessId: batch.lineOfBusinessId,
+            locationId: batch.locationId,
+            trainerId: batch.trainerId,
+            organizationId: orgId,
+            active: true
+          };
+
+          // Create user
+          const user = await storage.createUser(traineeData);
+          
+          // Create batch process assignment
+          await storage.assignUserToBatch({
+            userId: user.id,
+            batchId,
+            processId: batch.processId,
+            status: 'active',
+            joinedAt: new Date().toISOString()
+          });
+
+          // Create user process record
+          await storage.createUserProcess({
+            userId: user.id,
+            processId: batch.processId,
+            organizationId: orgId,
+            lineOfBusinessId: batch.lineOfBusinessId,
+            locationId: batch.locationId,
+            status: 'active',
+            assignedAt: new Date().toISOString()
+          });
+
+          successCount++;
+        } catch (error) {
+          failureCount++;
+          const rowNum = rows.indexOf(row) + 2; // +2 for header row and 0-based index
+          errors.push(`Row ${rowNum}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          console.error(`Error processing row ${rowNum}:`, error);
+        }
+      }
+
+      // Send detailed response
+      res.json({
+        message: "Bulk upload completed",
+        totalRows: rows.length,
+        successCount,
+        failureCount,
+        errors: errors.length > 0 ? errors : undefined,
+        remainingCapacity: remainingCapacity - successCount
+      });
+    } catch (error) {
+      console.error("Bulk upload error:", error);
+      res.status(500).json({
+        message: "Failed to process bulk upload",
+        error: error instanceof Error ? error.message : "Unknown error occurred"
+      });
     }
   });
 
