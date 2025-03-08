@@ -32,6 +32,9 @@ import {
   type InsertBatchTemplate,
   type UserBatchProcess,
   type InsertUserBatchProcess,
+  batchHistory,
+  type BatchHistory,
+  type InsertBatchHistory,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -155,6 +158,10 @@ export interface IStorage {
   // Add new methods for batch filtering
   listBatchesForTrainer(trainerId: number): Promise<OrganizationBatch[]>;
   listBatchesForTrainers(trainerIds: number[]): Promise<OrganizationBatch[]>;
+
+  // Add batch history methods
+  listBatchHistory(batchId: number): Promise<BatchHistory[]>;
+  createBatchHistoryEvent(event: InsertBatchHistory): Promise<BatchHistory>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1633,6 +1640,52 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error fetching trainer batches:', error);
       throw new Error('Failed to fetch trainer batches');
+    }
+  }
+  async listBatchHistory(batchId: number): Promise<BatchHistory[]> {
+    try {
+      console.log(`Fetching history for batch ${batchId}`);
+
+      const history = await db
+        .select({
+          id: batchHistory.id,
+          eventType: batchHistory.eventType,
+          description: batchHistory.description,
+          previousValue: batchHistory.previousValue,
+          newValue: batchHistory.newValue,
+          date: batchHistory.date,
+          user: {
+            id: users.id,
+            fullName: users.fullName,
+          },
+        })
+        .from(batchHistory)
+        .leftJoin(users, eq(batchHistory.userId, users.id))
+        .where(eq(batchHistory.batchId, batchId))
+        .orderBy(desc(batchHistory.date)) as BatchHistory[];
+
+      console.log(`Found ${history.length} history events`);
+      return history;
+    } catch (error) {
+      console.error('Error fetching batch history:', error);
+      throw new Error('Failed to fetch batch history');
+    }
+  }
+
+  async createBatchHistoryEvent(event: InsertBatchHistory): Promise<BatchHistory> {
+    try {
+      console.log('Creating batch history event:', event);
+
+      const [newEvent] = await db
+        .insert(batchHistory)
+        .values(event)
+        .returning() as BatchHistory[];
+
+      console.log('Successfully created batch history event:', newEvent);
+      return newEvent;
+    } catch (error) {
+      console.error('Error creating batch history event:', error);
+      throw error;
     }
   }
 }

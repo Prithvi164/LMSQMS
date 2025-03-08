@@ -911,6 +911,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add batch history endpoint
+  app.get("/api/organizations/:orgId/batches/:batchId/history", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const batchId = parseInt(req.params.batchId);
+
+      console.log('Fetching batch history:', {
+        orgId,
+        batchId,
+        userId: req.user.id,
+        userRole: req.user.role
+      });
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        console.log('User organization mismatch:', {
+          userOrgId: req.user.organizationId,
+          requestedOrgId: orgId
+        });
+        return res.status(403).json({ message: "You can only view batches in your own organization" });
+      }
+
+      // Get the batch to verify access
+      const batch = await storage.getBatch(batchId);
+      if (!batch) {
+        console.log('Batch not found:', { batchId });
+        return res.status(404).json({ message: "Batch not found" });
+      }
+
+      // Role-based access control
+      switch (req.user.role) {
+        case 'trainer':
+          if (batch.trainerId !== req.user.id) {
+            console.log('Trainer not assigned to batch:', {
+              trainerId: req.user.id,
+              batchTrainerId: batch.trainerId
+            });
+            return res.status(403).json({ message: "You can only view batches assigned to you" });
+          }
+          break;
+
+        case 'manager':
+          const reportingTrainers = await storage.getReportingTrainers(req.user.id);
+          const trainerIds = reportingTrainers.map(trainer => trainer.id);
+          if (!trainerIds.includes(batch.trainerId)) {
+            console.log('Manager not authorized for batch:', {
+              managerId: req.user.id,
+              batchTrainerId: batch.trainerId
+            });
+            return res.status(403).json({ message: "You can only view batches of trainers reporting to you" });
+          }
+          break;
+
+        case 'admin':
+        case 'owner':
+          // Admins and owners can see all batches in their organization
+          break;
+
+        default:
+          return res.status(403).json({ message: "Insufficient permissions to view batch details" });
+      }
+
+      // Fetch batch history
+      const history = await storage.listBatchHistory(batchId);
+      
+      console.log('Successfully fetched batch history:', { 
+        batchId,
+        eventCount: history.length
+      });
+
+      res.json(history);
+    } catch (error: any) {
+      console.error('Error fetching batch history:', error);
+      res.status(500).json({ 
+        message: "Failed to fetch batch history",
+        error: error.message 
+      });
+    }
+  });
+
 
   // Add endpoint to get processes by line of business 
   app.get("/api/organizations/:orgId/line-of-businesses/:lobId/processes", async (req, res) => {

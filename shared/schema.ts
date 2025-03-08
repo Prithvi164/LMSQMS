@@ -595,6 +595,72 @@ export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSche
 export type InsertBatchTemplate = z.infer<typeof insertBatchTemplateSchema>;
 
 
+// Add batch history event type enum after other enums
+export const batchHistoryEventTypeEnum = pgEnum('batch_history_event_type', [
+  'phase_change',
+  'status_update',
+  'milestone',
+  'note'
+]);
+
+// Add batch history table after batch tables
+export const batchHistory = pgTable("batch_history", {
+  id: serial("id").primaryKey(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id)
+    .notNull(),
+  eventType: batchHistoryEventTypeEnum("event_type").notNull(),
+  description: text("description").notNull(),
+  previousValue: text("previous_value"),
+  newValue: text("new_value"),
+  date: timestamp("date").defaultNow().notNull(),
+  userId: integer("user_id")
+    .references(() => users.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Add type exports
+export type BatchHistory = InferSelectModel<typeof batchHistory>;
+
+// Add insert schema
+export const insertBatchHistorySchema = createInsertSchema(batchHistory)
+  .omit({
+    id: true,
+    createdAt: true,
+  })
+  .extend({
+    batchId: z.number().int().positive("Batch ID is required"),
+    eventType: z.enum(['phase_change', 'status_update', 'milestone', 'note']),
+    description: z.string().min(1, "Description is required"),
+    previousValue: z.string().optional(),
+    newValue: z.string().optional(),
+    date: z.string().min(1, "Date is required"),
+    userId: z.number().int().positive("User ID is required"),
+    organizationId: z.number().int().positive("Organization ID is required"),
+  });
+
+export type InsertBatchHistory = z.infer<typeof insertBatchHistorySchema>;
+
+// Add relations
+export const batchHistoryRelations = relations(batchHistory, ({ one }) => ({
+  batch: one(organizationBatches, {
+    fields: [batchHistory.batchId],
+    references: [organizationBatches.id],
+  }),
+  user: one(users, {
+    fields: [batchHistory.userId],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [batchHistory.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
 // Define RolePermission type that was missing
 export interface RolePermission {
   id: number;
@@ -776,4 +842,6 @@ export type {
   BatchPhaseChangeRequest,
   InsertBatchPhaseChangeRequest,
   InsertAttendance,
+  BatchHistory,
+  InsertBatchHistory
 };
