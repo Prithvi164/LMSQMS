@@ -898,6 +898,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const orgId = parseInt(req.params.orgId);
       const today = new Date().toISOString().split('T')[0];
 
+      console.log('Fetching trainees for batch', batchId);
+
       // Get all trainees assigned to this batch and their attendance for today
       const batchTrainees = await db
         .select({
@@ -908,7 +910,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             fullName: users.fullName,
             employeeId: users.employeeId,
             email: users.email,
-            role: users.role
+            role: users.role,
+            category: users.category
           },
           attendance: {
             status: attendance.status,
@@ -928,9 +931,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(
           and(
             eq(userBatchProcesses.batchId, batchId),
-            eq(users.role, 'trainee')
+            eq(users.category, 'trainee'),  // Filter by category='trainee'
+            eq(userBatchProcesses.status, 'active')  // Only get active trainees
           )
         );
+
+      console.log('Found trainees:', batchTrainees);
 
       // Map to expected format
       const traineesWithDetails = batchTrainees.map((trainee) => ({
