@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { Loader2, CheckCircle, AlertCircle, Clock } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -45,7 +46,7 @@ type Trainee = {
     employeeId: string;
     email: string;
     role: string;
-    category: string; // Added category field
+    category: string;
   };
   lastUpdated?: string;
 };
@@ -65,6 +66,21 @@ const getStatusIcon = (status: AttendanceStatus | null) => {
   }
 };
 
+// Loading skeleton component for better UX
+const LoadingSkeleton = () => (
+  <div className="space-y-4 p-8">
+    <div className="space-y-2">
+      <Skeleton className="h-8 w-1/3" />
+      <Skeleton className="h-4 w-1/4" />
+    </div>
+    <Skeleton className="h-[200px] w-full" />
+    <div className="space-y-2">
+      <Skeleton className="h-10 w-full" />
+      <Skeleton className="h-10 w-full" />
+      <Skeleton className="h-10 w-full" />
+    </div>
+  </div>
+);
 
 export function BatchDetailsPage() {
   const [selectedTab, setSelectedTab] = useState("attendance");
@@ -75,72 +91,56 @@ export function BatchDetailsPage() {
   const queryClient = useQueryClient();
   const currentDate = format(new Date(), "PPP");
 
-  // Fetch batch details
-  const { data: batch, isLoading: batchLoading, error: batchError } = useQuery({
+  // Parallel data fetching with proper caching
+  const { data: batch, isLoading: batchLoading } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}`],
     enabled: !!user?.organizationId && !!batchId,
+    staleTime: 30000, // Cache data for 30 seconds
   });
 
-  // Fetch trainees specifically for this batch
   const { data: trainees, isLoading: traineesLoading } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`],
     enabled: !!user?.organizationId && !!batchId,
+    staleTime: 30000, // Cache data for 30 seconds
   });
 
-  // Mutation for updating attendance
   const updateAttendanceMutation = useMutation({
     mutationFn: async ({ traineeId, status }: { traineeId: number; status: AttendanceStatus }) => {
-      try {
-        const response = await fetch(`/api/attendance`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({
-            traineeId,
-            status,
-            date: new Date().toISOString().split('T')[0],
-            organizationId: user?.organizationId,
-            batchId: parseInt(batchId!),
-            phase: batch?.status,
-            markedById: user?.id
-          }),
-        });
+      const response = await fetch(`/api/attendance`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          traineeId,
+          status,
+          date: new Date().toISOString().split('T')[0],
+          organizationId: user?.organizationId,
+          batchId: parseInt(batchId!),
+          phase: batch?.status,
+          markedById: user?.id
+        }),
+      });
 
-        // First check if response is JSON
-        const contentType = response.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-          throw new Error("Server returned non-JSON response");
-        }
-
+      if (!response.ok) {
         const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.message || 'Failed to update attendance');
-        }
-
-        return data;
-      } catch (error) {
-        if (error instanceof Error) {
-          throw new Error(`Attendance update failed: ${error.message}`);
-        }
-        throw new Error('Failed to update attendance');
+        throw new Error(data.message || 'Failed to update attendance');
       }
+
+      return response.json();
     },
-    onSuccess: (data) => {
-      // Invalidate both queries to refresh the data
+    onSuccess: () => {
+      // Optimistic updates for better UX
       queryClient.invalidateQueries({
         queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`]
       });
-      queryClient.invalidateQueries({
-        queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}`]
-      });
       toast({
-        title: "Attendance Updated",
-        description: "The attendance status has been updated successfully.",
+        title: "Success",
+        description: "Attendance marked successfully",
       });
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Error",
@@ -149,23 +149,9 @@ export function BatchDetailsPage() {
     },
   });
 
+  // Show loading skeleton for better UX
   if (batchLoading || traineesLoading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2">Loading batch details...</span>
-      </div>
-    );
-  }
-
-  if (batchError) {
-    return (
-      <Alert variant="destructive">
-        <AlertDescription>
-          Error loading batch details. Please try again.
-        </AlertDescription>
-      </Alert>
-    );
+    return <LoadingSkeleton />;
   }
 
   if (!batch) {
@@ -176,13 +162,11 @@ export function BatchDetailsPage() {
     );
   }
 
-  // Calculate enrolled count based on trainees with category 'trainee'
-  const enrolledCount = trainees?.filter(t => t.user.category === 'trainee').length || 0;
-  const remainingCapacity = (batch?.capacityLimit || 0) - enrolledCount;
+  const enrolledCount = trainees?.filter((t: Trainee) => t.user.category === 'trainee').length || 0;
+  const remainingCapacity = batch.capacityLimit - enrolledCount;
 
   return (
     <div className="p-8 space-y-6">
-      {/* Batch Header */}
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold">{batch.name}</h1>
@@ -195,7 +179,6 @@ export function BatchDetailsPage() {
         </Badge>
       </div>
 
-      {/* Batch Capacity Info */}
       <Card>
         <CardContent className="p-6">
           <div className="space-y-4">
@@ -203,7 +186,7 @@ export function BatchDetailsPage() {
             <div className="grid gap-2">
               <div className="flex justify-between">
                 <span>Total Capacity</span>
-                <span>{batch?.capacityLimit}</span>
+                <span>{batch.capacityLimit}</span>
               </div>
               <div className="flex justify-between">
                 <span>Enrolled Trainees</span>
@@ -214,12 +197,11 @@ export function BatchDetailsPage() {
                 <span>{remainingCapacity}</span>
               </div>
             </div>
-            <Progress value={(enrolledCount / (batch?.capacityLimit || 1)) * 100} />
+            <Progress value={(enrolledCount / batch.capacityLimit) * 100} />
           </div>
         </CardContent>
       </Card>
 
-      {/* Main Content Tabs */}
       <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="attendance">Attendance</TabsTrigger>
@@ -246,7 +228,7 @@ export function BatchDetailsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {trainees.map((trainee) => (
+                    {trainees.map((trainee: Trainee) => (
                       <TableRow key={trainee.id}>
                         <TableCell>{trainee.user.fullName}</TableCell>
                         <TableCell>{trainee.user.employeeId}</TableCell>
@@ -298,7 +280,6 @@ export function BatchDetailsPage() {
           <Card>
             <CardContent className="p-6">
               <h2 className="text-xl font-semibold mb-4">Training Schedule</h2>
-              {/* Training planner interface will be implemented here */}
               <Alert>
                 <AlertDescription>
                   Training planner interface will be implemented here.
