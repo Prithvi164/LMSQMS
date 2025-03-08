@@ -490,6 +490,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create phase change request
+  app.post("/api/batches/:batchId/phase-change-requests", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const batchId = parseInt(req.params.batchId);
+      const { requestedPhase, justification, managerId } = req.body;
+
+      // Get the batch to verify current phase
+      const batch = await storage.getBatch(batchId);
+      if (!batch) {
+        return res.status(404).json({ message: "Batch not found" });
+      }
+
+      // Create the phase change request
+      const request = await storage.createPhaseChangeRequest({
+        batchId,
+        trainerId: req.user.id,
+        managerId,
+        currentPhase: batch.status,
+        requestedPhase,
+        justification,
+        organizationId: req.user.organizationId,
+      });
+
+      res.status(201).json(request);
+    } catch (error: any) {
+      console.error("Error creating phase change request:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // List phase change requests for trainer
+  app.get("/api/trainers/:trainerId/phase-change-requests", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const trainerId = parseInt(req.params.trainerId);
+      
+      // Check if the user is requesting their own requests
+      if (req.user.id !== trainerId && req.user.role !== 'owner' && req.user.role !== 'admin') {
+        return res.status(403).json({ message: "You can only view your own requests" });
+      }
+
+      const requests = await storage.listTrainerPhaseChangeRequests(trainerId);
+      res.json(requests);
+    } catch (error: any) {
+      console.error("Error listing trainer phase change requests:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // List phase change requests for manager
+  app.get("/api/managers/:managerId/phase-change-requests", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const managerId = parseInt(req.params.managerId);
+      
+      // Check if the user is requesting their own managed requests
+      if (req.user.id !== managerId && req.user.role !== 'owner' && req.user.role !== 'admin') {
+        return res.status(403).json({ message: "You can only view requests assigned to you" });
+      }
+
+      const requests = await storage.listManagerPhaseChangeRequests(managerId);
+      res.json(requests);
+    } catch (error: any) {
+      console.error("Error listing manager phase change requests:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Update phase change request status
+  app.patch("/api/phase-change-requests/:requestId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const requestId = parseInt(req.params.requestId);
+      const { status, managerComments } = req.body;
+
+      // Get the request to verify the manager
+      const request = await storage.getPhaseChangeRequest(requestId);
+      if (!request) {
+        return res.status(404).json({ message: "Request not found" });
+      }
+
+      // Check if the user is the assigned manager
+      if (request.managerId !== req.user.id && req.user.role !== 'owner' && req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Only the assigned manager can update this request" });
+      }
+
+      // Update the request
+      const updatedRequest = await storage.updatePhaseChangeRequest(requestId, {
+        status,
+        managerComments,
+      });
+
+      // If approved, update the batch phase
+      if (status === 'approved') {
+        await storage.updateBatch(request.batchId, {
+          status: request.requestedPhase,
+        });
+      }
+
+      res.json(updatedRequest);
+    } catch (error: any) {
+      console.error("Error updating phase change request:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Add this route to get all users with location information
   app.get("/api/organizations/:orgId/users", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });

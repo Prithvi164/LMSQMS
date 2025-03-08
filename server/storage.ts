@@ -26,7 +26,7 @@ import {
   type OrganizationLocation,
   type InsertOrganizationLocation,
 } from "@shared/schema";
-import { 
+import {
   batchTemplates,
   type BatchTemplate,
   type InsertBatchTemplate,
@@ -36,6 +36,8 @@ import {
   type UserBatchProcess,
   type InsertUserBatchProcess,
 } from "@shared/schema";
+import { type BatchPhaseChangeRequest, type InsertBatchPhaseChangeRequest } from "@shared/schema";
+
 
 export interface IStorage {
   // User operations
@@ -137,6 +139,20 @@ export interface IStorage {
   updateUserBatchProcess(userId: number, oldBatchId: number, newBatchId: number): Promise<void>;
   removeUserFromBatch(userId: number, batchId: number): Promise<void>;
   removeTraineeFromBatch(userBatchProcessId: number): Promise<void>;
+
+  // Phase change request operations
+  createPhaseChangeRequest(request: InsertBatchPhaseChangeRequest): Promise<BatchPhaseChangeRequest>;
+  getPhaseChangeRequest(id: number): Promise<BatchPhaseChangeRequest | undefined>;
+  listPhaseChangeRequests(organizationId: number, status?: string): Promise<BatchPhaseChangeRequest[]>;
+  updatePhaseChangeRequest(
+    id: number,
+    update: {
+      status: string;
+      managerComments?: string;
+    }
+  ): Promise<BatchPhaseChangeRequest>;
+  listTrainerPhaseChangeRequests(trainerId: number): Promise<BatchPhaseChangeRequest[]>;
+  listManagerPhaseChangeRequests(managerId: number): Promise<BatchPhaseChangeRequest[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1275,7 +1291,7 @@ export class DatabaseStorage implements IStorage {
     try {
       const [updated] = await db
         .update(userBatchProcesses)
-        .set({ 
+        .set({
           status,
           completedAt: status === 'completed' ? new Date() : null,
           updatedAt: new Date()
@@ -1408,6 +1424,109 @@ export class DatabaseStorage implements IStorage {
       console.log(`Successfully removed trainee and related records`);
     } catch (error) {
       console.error('Error removing trainee from batch:', error);
+      throw error;
+    }
+  }
+  // Phase change request implementation
+  async createPhaseChangeRequest(request: InsertBatchPhaseChangeRequest): Promise<BatchPhaseChangeRequest> {
+    try {
+      console.log('Creating phase change request:', request);
+
+      const [newRequest] = await db
+        .insert(batchPhaseChangeRequests)
+        .values(request)
+        .returning() as BatchPhaseChangeRequest[];
+
+      console.log('Successfully created phase change request:', newRequest);
+      return newRequest;
+    } catch (error) {
+      console.error('Error creating phase change request:', error);
+      throw error;
+    }
+  }
+
+  async getPhaseChangeRequest(id: number): Promise<BatchPhaseChangeRequest | undefined> {
+    try {
+      const [request] = await db
+        .select()
+        .from(batchPhaseChangeRequests)
+        .where(eq(batchPhaseChangeRequests.id, id)) as BatchPhaseChangeRequest[];
+      return request;
+    } catch (error) {
+      console.error('Error fetching phase change request:', error);
+      throw error;
+    }
+  }
+
+  async listPhaseChangeRequests(organizationId: number, status?: string): Promise<BatchPhaseChangeRequest[]> {
+    try {
+      let query = db
+        .select()
+        .from(batchPhaseChangeRequests)
+        .where(eq(batchPhaseChangeRequests.organizationId, organizationId));
+
+      if (status) {
+        query = query.where(eq(batchPhaseChangeRequests.status, status));
+      }
+
+      return await query as BatchPhaseChangeRequest[];
+    } catch (error) {
+      console.error('Error listing phase change requests:', error);
+      throw error;
+    }
+  }
+
+  async updatePhaseChangeRequest(
+    id: number,
+    update: {
+      status: string;
+      managerComments?: string;
+    }
+  ): Promise<BatchPhaseChangeRequest> {
+    try {
+      console.log(`Updating phase change request ${id}:`, update);
+
+      const [updatedRequest] = await db
+        .update(batchPhaseChangeRequests)
+        .set({
+          ...update,
+          updatedAt: new Date(),
+        })
+        .where(eq(batchPhaseChangeRequests.id, id))
+        .returning() as BatchPhaseChangeRequest[];
+
+      if (!updatedRequest) {
+        throw new Error('Phase change request not found');
+      }
+
+      console.log('Successfully updated phase change request:', updatedRequest);
+      return updatedRequest;
+    } catch (error) {
+      console.error('Error updating phase change request:', error);
+      throw error;
+    }
+  }
+
+  async listTrainerPhaseChangeRequests(trainerId: number): Promise<BatchPhaseChangeRequest[]> {
+    try {
+      return await db
+        .select()
+        .from(batchPhaseChangeRequests)
+        .where(eq(batchPhaseChangeRequests.trainerId, trainerId)) as BatchPhaseChangeRequest[];
+    } catch (error) {
+      console.error('Error listing trainer phase change requests:', error);
+      throw error;
+    }
+  }
+
+  async listManagerPhaseChangeRequests(managerId: number): Promise<BatchPhaseChangeRequest[]> {
+    try {
+      return await db
+        .select()
+        .from(batchPhaseChangeRequests)
+        .where(eq(batchPhaseChangeRequests.managerId, managerId)) as BatchPhaseChangeRequest[];
+    } catch (error) {
+      console.error('Error listing manager phase change requests:', error);
       throw error;
     }
   }

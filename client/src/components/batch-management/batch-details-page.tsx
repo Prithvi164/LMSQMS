@@ -7,11 +7,33 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, CheckCircle, AlertCircle, Clock } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import {
   Table,
   TableBody,
@@ -27,6 +49,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { 
+  Textarea
+} from "@/components/ui/textarea";
 
 const statusColors = {
   present: 'text-green-500',
@@ -165,6 +190,103 @@ export function BatchDetailsPage() {
   const enrolledCount = trainees?.filter((t: Trainee) => t.user.category === 'trainee').length || 0;
   const remainingCapacity = batch.capacityLimit - enrolledCount;
 
+  const form = useForm({
+    resolver: zodResolver(z.object({
+      requestedPhase: z.enum(['induction', 'training', 'certification', 'ojt', 'ojt_certification']),
+      justification: z.string().min(1, "Justification is required"),
+      managerId: z.string().min(1, "Manager is required"),
+    })),
+  });
+
+  const { data: managers } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/users`],
+    enabled: !!user?.organizationId,
+    select: (users) => users.filter(u => u.role === 'manager'),
+  });
+
+  const { data: phaseRequests } = useQuery({
+    queryKey: [`/api/batches/${batchId}/phase-change-requests`],
+    enabled: !!batchId,
+  });
+
+  const createRequestMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await fetch(`/api/batches/${batchId}/phase-change-requests`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error('Failed to create request');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/batches/${batchId}/phase-change-requests`] });
+      toast({
+        title: "Success",
+        description: "Phase change request submitted successfully",
+      });
+    },
+  });
+
+  const handleApprove = async (requestId: number) => {
+    try {
+      await fetch(`/api/phase-change-requests/${requestId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'approved',
+        }),
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/batches/${batchId}/phase-change-requests`] });
+      toast({
+        title: "Success",
+        description: "Request approved successfully",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to approve request",
+      });
+    }
+  };
+
+  const handleReject = async (requestId: number) => {
+    try {
+      await fetch(`/api/phase-change-requests/${requestId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'rejected',
+        }),
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/batches/${batchId}/phase-change-requests`] });
+      toast({
+        title: "Success",
+        description: "Request rejected successfully",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to reject request",
+      });
+    }
+  };
+
+  const onSubmit = (data: any) => {
+    createRequestMutation.mutate({
+      ...data,
+      managerId: parseInt(data.managerId),
+    });
+  };
+
   return (
     <div className="p-8 space-y-6">
       <div className="flex justify-between items-start">
@@ -206,6 +328,7 @@ export function BatchDetailsPage() {
         <TabsList>
           <TabsTrigger value="attendance">Attendance</TabsTrigger>
           <TabsTrigger value="training-plan">Training Planner</TabsTrigger>
+          <TabsTrigger value="phase-requests">Phase Requests</TabsTrigger>
         </TabsList>
 
         <TabsContent value="attendance" className="space-y-4">
@@ -285,6 +408,149 @@ export function BatchDetailsPage() {
                   Training planner interface will be implemented here.
                 </AlertDescription>
               </Alert>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="phase-requests" className="space-y-4">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">Phase Change Requests</h2>
+                {user?.role === 'trainer' && (
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button>Request Phase Change</Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Request Phase Change</DialogTitle>
+                        <DialogDescription>
+                          Submit a request to change the batch phase. This will need approval from your reporting manager.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                          <FormField
+                            control={form.control}
+                            name="requestedPhase"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Requested Phase</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select phase" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="induction">Induction</SelectItem>
+                                    <SelectItem value="training">Training</SelectItem>
+                                    <SelectItem value="certification">Certification</SelectItem>
+                                    <SelectItem value="ojt">OJT</SelectItem>
+                                    <SelectItem value="ojt_certification">OJT Certification</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="justification"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Justification</FormLabel>
+                                <FormControl>
+                                  <Textarea
+                                    placeholder="Explain why this phase change is needed..."
+                                    {...field}
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="managerId"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Reporting Manager</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select manager" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {managers?.map(manager => (
+                                      <SelectItem key={manager.id} value={manager.id.toString()}>
+                                        {manager.fullName}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </FormItem>
+                            )}
+                          />
+                          <DialogFooter>
+                            <Button type="submit">Submit Request</Button>
+                          </DialogFooter>
+                        </form>
+                      </Form>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </div>
+
+              {/* Phase change requests list */}
+              {phaseRequests?.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Requested By</TableHead>
+                      <TableHead>Current Phase</TableHead>
+                      <TableHead>Requested Phase</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {phaseRequests.map((request) => (
+                      <TableRow key={request.id}>
+                        <TableCell>{request.trainer?.fullName}</TableCell>
+                        <TableCell>{request.currentPhase}</TableCell>
+                        <TableCell>{request.requestedPhase}</TableCell>
+                        <TableCell>
+                          <Badge variant={request.status === 'pending' ? 'outline' : request.status === 'approved' ? 'success' : 'destructive'}>
+                            {request.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {user?.id === request.managerId && request.status === 'pending' && (
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleApprove(request.id)}
+                              >
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleReject(request.id)}
+                              >
+                                Reject
+                              </Button>
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <Alert>
+                  <AlertDescription>
+                    No phase change requests found.
+                  </AlertDescription>
+                </Alert>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

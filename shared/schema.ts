@@ -27,7 +27,7 @@ export const roleEnum = pgEnum('role', [
   'admin',     
   'manager',   
   'team_lead', 
-  'quality_analyst', // Changed from qualityassurance
+  'quality_analyst', 
   'trainer',   
   'advisor',
   'trainee'    
@@ -51,7 +51,7 @@ export const batchTemplates = pgTable("batch_templates", {
     .references(() => organizationLineOfBusinesses.id)
     .notNull(),
   trainerId: integer("trainer_id")
-    .references(() => users.id, { onDelete: 'set null' }),  // Changed to nullable and added onDelete
+    .references(() => users.id, { onDelete: 'set null' }),  
   batchCategory: batchCategoryEnum("batch_category").notNull(),
   capacityLimit: integer("capacity_limit").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -122,7 +122,7 @@ export const organizationBatches = pgTable("organization_batches", {
     .references(() => organizationLocations.id)
     .notNull(),
   trainerId: integer("trainer_id")
-    .references(() => users.id, { onDelete: 'set null' }),  // Changed to nullable and added onDelete
+    .references(() => users.id, { onDelete: 'set null' }),  
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
@@ -337,9 +337,9 @@ export const userProcesses = pgTable("user_processes", {
     .references(() => organizations.id)
     .notNull(),
   lineOfBusinessId: integer("line_of_business_id")
-    .references(() => organizationLineOfBusinesses.id),  // Made nullable
+    .references(() => organizationLineOfBusinesses.id),  
   locationId: integer("location_id")
-    .references(() => organizationLocations.id),  // Made nullable
+    .references(() => organizationLocations.id),  
   status: text("status").default('assigned').notNull(),
   assignedAt: timestamp("assigned_at").defaultNow().notNull(),
   completedAt: timestamp("completed_at"),
@@ -605,29 +605,6 @@ export interface RolePermission {
   updatedAt: Date;
 }
 
-// Remove duplicate exports and consolidate type definitions
-export type {
-  Organization,
-  OrganizationProcess,
-  OrganizationLocation,
-  OrganizationLineOfBusiness,
-  User,
-  UserProcess,
-  BatchTemplate,
-  UserBatchProcess,
-};
-
-// Export insertion types
-export type {
-  InsertUser,
-  InsertOrganization,
-  InsertOrganizationProcess,
-  InsertRolePermission,
-  InsertOrganizationBatch,
-  InsertBatchTemplate,
-  InsertUserBatchProcess,
-};
-
 // Add attendance status enum
 export const attendanceStatusEnum = pgEnum('attendance_status', [
   'present',
@@ -702,3 +679,101 @@ export const insertAttendanceSchema = createInsertSchema(attendance)
 
 export type InsertAttendance = z.infer<typeof insertAttendanceSchema>;
 export type Attendance = InferSelectModel<typeof attendance>;
+
+// Add phase change request status enum after existing enums
+export const phaseChangeRequestStatusEnum = pgEnum('phase_change_request_status', [
+  'pending',
+  'approved',
+  'rejected'
+]);
+
+// Add new table for phase change requests after attendance table
+export const batchPhaseChangeRequests = pgTable("batch_phase_change_requests", {
+  id: serial("id").primaryKey(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id)
+    .notNull(),
+  trainerId: integer("trainer_id")
+    .references(() => users.id)
+    .notNull(),
+  managerId: integer("manager_id")
+    .references(() => users.id)
+    .notNull(),
+  currentPhase: batchStatusEnum("current_phase").notNull(),
+  requestedPhase: batchStatusEnum("requested_phase").notNull(),
+  justification: text("justification").notNull(),
+  status: phaseChangeRequestStatusEnum("status").default('pending').notNull(),
+  managerComments: text("manager_comments"),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Add relations
+export const batchPhaseChangeRequestsRelations = relations(batchPhaseChangeRequests, ({ one }) => ({
+  batch: one(organizationBatches, {
+    fields: [batchPhaseChangeRequests.batchId],
+    references: [organizationBatches.id],
+  }),
+  trainer: one(users, {
+    fields: [batchPhaseChangeRequests.trainerId],
+    references: [users.id],
+  }),
+  manager: one(users, {
+    fields: [batchPhaseChangeRequests.managerId],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [batchPhaseChangeRequests.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
+// Add type and schema
+export type BatchPhaseChangeRequest = InferSelectModel<typeof batchPhaseChangeRequests>;
+
+export const insertBatchPhaseChangeRequestSchema = createInsertSchema(batchPhaseChangeRequests)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    batchId: z.number().int().positive("Batch ID is required"),
+    trainerId: z.number().int().positive("Trainer ID is required"),
+    managerId: z.number().int().positive("Manager ID is required"),
+    currentPhase: z.enum(['planned', 'induction', 'training', 'certification', 'ojt', 'ojt_certification', 'completed']),
+    requestedPhase: z.enum(['planned', 'induction', 'training', 'certification', 'ojt', 'ojt_certification', 'completed']),
+    justification: z.string().min(1, "Justification is required"),
+    status: z.enum(['pending', 'approved', 'rejected']).default('pending'),
+    managerComments: z.string().optional(),
+    organizationId: z.number().int().positive("Organization ID is required"),
+  });
+
+export type InsertBatchPhaseChangeRequest = z.infer<typeof insertBatchPhaseChangeRequestSchema>;
+
+// Remove duplicate exports from lines 590-628 and consolidate all exports here
+export type {
+  Organization,
+  OrganizationProcess,
+  OrganizationLocation,
+  OrganizationLineOfBusiness,
+  User,
+  UserProcess,
+  BatchTemplate,
+  UserBatchProcess,
+  InsertUser,
+  InsertOrganization,
+  InsertOrganizationProcess,
+  InsertRolePermission,
+  InsertOrganizationBatch,
+  InsertBatchTemplate,
+  InsertUserBatchProcess,
+  RolePermission,
+  Attendance,
+  BatchPhaseChangeRequest,
+  InsertBatchPhaseChangeRequest,
+  InsertAttendance,
+};
