@@ -1007,81 +1007,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let successCount = 0;
       let failureCount = 0;
       const errors = [];
-      const requiredFields = ['username', 'fullName', 'email', 'employeeId', 'phoneNumber', 'dateOfJoining', 'dateOfBirth', 'education', 'password', 'role'];
+      const requiredFields = ['username', 'fullName', 'email', 'employeeId', 'phoneNumber', 'dateOfJoining', 'dateOfBirth', 'education', 'password'];
 
       // Process each row
       for (const row of rows) {
         try {
-          console.log('Processing row:', row);
+          const rowData = row as Record<string, unknown>;
+          console.log('Processing row:', rowData);
 
           // Validate required fields
-          const missingFields = requiredFields.filter(field => !row[field]);
+          const missingFields = requiredFields.filter(field => !rowData[field]);
           if (missingFields.length > 0) {
             throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
           }
 
           // Validate email format
-          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) {
+          const email = String(rowData.email);
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             throw new Error('Invalid email format');
           }
 
-          // Validate role
-          const role = String(row.role).toLowerCase();
-          const validRoles = ['manager', 'team_lead', 'quality_analyst', 'trainer', 'advisor'];
-          if (!validRoles.includes(role)) {
-            throw new Error(`Invalid role: ${role}. Must be one of: ${validRoles.join(', ')}`);
+          // Convert dates - assume they are either Excel serial dates or YYYY-MM-DD strings
+          let dateOfJoining = typeof rowData.dateOfJoining === 'number' 
+            ? excelSerialDateToJSDate(rowData.dateOfJoining) 
+            : String(rowData.dateOfJoining);
+
+          let dateOfBirth = typeof rowData.dateOfBirth === 'number'
+            ? excelSerialDateToJSDate(rowData.dateOfBirth)
+            : String(rowData.dateOfBirth);
+
+          // Validate date format
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOfJoining) || !/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) {
+            throw new Error('Invalid date format. Dates must be in YYYY-MM-DD format');
           }
 
-          // Convert and validate dates
-          let dateOfJoining: string;
-          let dateOfBirth: string;
-
-          try {
-            // Check if the date is a number (Excel serial date) or string
-            if (typeof row.dateOfJoining === 'number') {
-              dateOfJoining = excelSerialDateToJSDate(row.dateOfJoining);
-            } else {
-              dateOfJoining = row.dateOfJoining;
-            }
-
-            if (typeof row.dateOfBirth === 'number') {
-              dateOfBirth = excelSerialDateToJSDate(row.dateOfBirth);
-            } else {
-              dateOfBirth = row.dateOfBirth;
-            }
-
-            // Validate date format
-            if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOfJoining) || !/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) {
-              throw new Error('Invalid date format');
-            }
-          } catch (error) {
-            throw new Error('Invalid date format. Use YYYY-MM-DD format');
-          }
-
-          // Create trainee data object
-          const traineeData = {
-            username: String(row.username),
-            fullName: String(row.fullName),
-            email: String(row.email),
-            employeeId: String(row.employeeId),
-            phoneNumber: String(row.phoneNumber),
+          // Convert user input to schema-compatible types
+          const userInput = insertUserSchema.parse({
+            username: String(rowData.username),
+            fullName: String(rowData.fullName),
+            email: String(rowData.email),
+            employeeId: String(rowData.employeeId),
+            phoneNumber: String(rowData.phoneNumber),
             dateOfJoining,
             dateOfBirth,
-            education: String(row.education),
-            password: await hashPassword(String(row.password)),
-            role: role,
-            category: "trainee",
-            processId: batch.processId,
-            lineOfBusinessId: batch.lineOfBusinessId,
+            education: String(rowData.education),
+            role: 'trainee',
+            category: 'active', // Set default category as 'active' for new trainees
             locationId: batch.locationId,
-            trainerId: batch.trainerId,
-            organizationId: orgId
-          } as const;
+            organizationId: orgId,
+            password: await hashPassword(String(rowData.password)),
+            active: true
+          });
 
-          console.log('Creating user with data:', { ...traineeData, password: '[REDACTED]' });
+          console.log('Creating user with data:', { ...userInput, password: '[REDACTED]' });
 
           // Create user
-          const user = await storage.createUser(traineeData);
+          const user = await storage.createUser(userInput);
           console.log('User created:', user.id);
           
           // Create batch process assignment
