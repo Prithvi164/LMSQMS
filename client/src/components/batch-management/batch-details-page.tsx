@@ -46,7 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
+import {
   Textarea
 } from "@/components/ui/textarea";
 
@@ -118,7 +118,6 @@ export function BatchDetailsPage() {
   const [selectedTab, setSelectedTab] = useState("attendance");
   const currentDate = format(new Date(), "PPP");
 
-  // Initialize form at the top level
   const form = useForm({
     resolver: zodResolver(phaseChangeFormSchema),
     defaultValues: {
@@ -128,7 +127,6 @@ export function BatchDetailsPage() {
     },
   });
 
-  // Query hooks
   const { data: batch, isLoading: batchLoading } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}`],
     enabled: !!user?.organizationId && !!batchId,
@@ -145,7 +143,6 @@ export function BatchDetailsPage() {
     select: (users: any[]) => users.filter(u => u.role === 'manager'),
   });
 
-  // Add separate queries for trainer and manager phase requests
   const { data: trainerRequests } = useQuery({
     queryKey: [`/api/trainers/${user?.id}/phase-change-requests`],
     enabled: !!user?.id && user?.role === 'trainer',
@@ -156,11 +153,9 @@ export function BatchDetailsPage() {
     enabled: !!user?.id && user?.role === 'manager',
   });
 
-  // Combine requests based on user role
-  const phaseRequests = user?.role === 'trainer' ? trainerRequests : 
+  const phaseRequests = user?.role === 'trainer' ? trainerRequests :
                        user?.role === 'manager' ? managerRequests : [];
 
-  // Mutations
   const updateAttendanceMutation = useMutation({
     mutationFn: async ({ traineeId, status }: { traineeId: number; status: AttendanceStatus }) => {
       const response = await fetch(`/api/attendance`, {
@@ -207,14 +202,23 @@ export function BatchDetailsPage() {
 
   const createRequestMutation = useMutation({
     mutationFn: async (data: any) => {
+      console.log('Creating phase change request:', data);
       const response = await fetch(`/api/batches/${batchId}/phase-change-requests`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          managerId: parseInt(data.managerId),
+        }),
       });
-      if (!response.ok) throw new Error('Failed to create request');
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create request');
+      }
+
       return response.json();
     },
     onSuccess: () => {
@@ -229,10 +233,25 @@ export function BatchDetailsPage() {
         description: "Phase change request submitted successfully",
       });
       form.reset();
+      const closeButton = document.querySelector('[data-dialog-close]');
+      if (closeButton instanceof HTMLElement) {
+        closeButton.click();
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to submit request",
+      });
     },
   });
 
-  // Event handlers
+  const onSubmit = (data: any) => {
+    console.log('Submitting form data:', data);
+    createRequestMutation.mutate(data);
+  };
+
   const handleApprove = async (requestId: number) => {
     try {
       await fetch(`/api/phase-change-requests/${requestId}`, {
@@ -293,14 +312,6 @@ export function BatchDetailsPage() {
     }
   };
 
-  const onSubmit = (data: any) => {
-    createRequestMutation.mutate({
-      ...data,
-      managerId: parseInt(data.managerId),
-    });
-  };
-
-  // Show loading skeleton while data is being fetched
   if (batchLoading || traineesLoading) {
     return <LoadingSkeleton />;
   }
@@ -316,7 +327,6 @@ export function BatchDetailsPage() {
   const enrolledCount = trainees?.length || 0;
   const remainingCapacity = batch.capacityLimit - enrolledCount;
 
-  // Only show phase requests tab for trainers and managers
   const canAccessPhaseRequests = user?.role === 'trainer' || user?.role === 'manager';
 
   return (
@@ -524,7 +534,19 @@ export function BatchDetailsPage() {
                               )}
                             />
                             <DialogFooter>
-                              <Button type="submit">Submit Request</Button>
+                              <Button 
+                                type="submit" 
+                                disabled={createRequestMutation.isPending}
+                              >
+                                {createRequestMutation.isPending ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Submitting...
+                                  </>
+                                ) : (
+                                  'Submit Request'
+                                )}
+                              </Button>
                             </DialogFooter>
                           </form>
                         </Form>
@@ -533,7 +555,6 @@ export function BatchDetailsPage() {
                   )}
                 </div>
 
-                {/* Phase change requests list */}
                 {phaseRequests && phaseRequests.length > 0 ? (
                   <Table>
                     <TableHeader>
