@@ -27,6 +27,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+const statusColors = {
+  present: 'text-green-500',
+  absent: 'text-red-500',
+  late: 'text-yellow-500',
+  leave: 'text-blue-500'
+} as const;
+
 type AttendanceStatus = 'present' | 'absent' | 'late' | 'leave';
 
 type Trainee = {
@@ -38,16 +45,26 @@ type Trainee = {
     employeeId: string;
     email: string;
     role: string;
+    category: string; // Added category field
   };
   lastUpdated?: string;
 };
 
-const statusColors = {
-  present: 'text-green-500',
-  absent: 'text-red-500',
-  late: 'text-yellow-500',
-  leave: 'text-blue-500'
-} as const;
+const getStatusIcon = (status: AttendanceStatus | null) => {
+  switch (status) {
+    case 'present':
+      return <CheckCircle className={`h-4 w-4 ${statusColors.present}`} />;
+    case 'absent':
+      return <AlertCircle className={`h-4 w-4 ${statusColors.absent}`} />;
+    case 'late':
+      return <Clock className={`h-4 w-4 ${statusColors.late}`} />;
+    case 'leave':
+      return <Clock className={`h-4 w-4 ${statusColors.leave}`} />;
+    default:
+      return null;
+  }
+};
+
 
 export function BatchDetailsPage() {
   const [selectedTab, setSelectedTab] = useState("attendance");
@@ -64,8 +81,8 @@ export function BatchDetailsPage() {
     enabled: !!user?.organizationId && !!batchId,
   });
 
-  // Fetch trainees for the batch
-  const { data: trainees, isLoading: traineesLoading } = useQuery<Trainee[]>({
+  // Fetch trainees specifically for this batch
+  const { data: trainees, isLoading: traineesLoading } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`],
     enabled: !!user?.organizationId && !!batchId,
   });
@@ -76,7 +93,7 @@ export function BatchDetailsPage() {
       try {
         const response = await fetch(`/api/attendance`, {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
           },
@@ -112,11 +129,11 @@ export function BatchDetailsPage() {
     },
     onSuccess: (data) => {
       // Invalidate both queries to refresh the data
-      queryClient.invalidateQueries({ 
-        queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`] 
+      queryClient.invalidateQueries({
+        queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`]
       });
-      queryClient.invalidateQueries({ 
-        queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}`] 
+      queryClient.invalidateQueries({
+        queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}`]
       });
       toast({
         title: "Attendance Updated",
@@ -159,20 +176,9 @@ export function BatchDetailsPage() {
     );
   }
 
-  const getStatusIcon = (status: AttendanceStatus | null) => {
-    switch (status) {
-      case 'present':
-        return <CheckCircle className={`h-4 w-4 ${statusColors.present}`} />;
-      case 'absent':
-        return <AlertCircle className={`h-4 w-4 ${statusColors.absent}`} />;
-      case 'late':
-        return <Clock className={`h-4 w-4 ${statusColors.late}`} />;
-      case 'leave':
-        return <Clock className={`h-4 w-4 ${statusColors.leave}`} />;
-      default:
-        return null;
-    }
-  };
+  // Calculate enrolled count based on trainees with category 'trainee'
+  const enrolledCount = trainees?.filter(t => t.user.category === 'trainee').length || 0;
+  const remainingCapacity = (batch?.capacityLimit || 0) - enrolledCount;
 
   return (
     <div className="p-8 space-y-6">
@@ -189,15 +195,26 @@ export function BatchDetailsPage() {
         </Badge>
       </div>
 
-      {/* Batch Progress */}
+      {/* Batch Capacity Info */}
       <Card>
         <CardContent className="p-6">
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="font-medium">Overall Progress</span>
-              <span>{batch.progress || 0}%</span>
+          <div className="space-y-4">
+            <h3 className="font-medium">Batch Capacity</h3>
+            <div className="grid gap-2">
+              <div className="flex justify-between">
+                <span>Total Capacity</span>
+                <span>{batch?.capacityLimit}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Enrolled Trainees</span>
+                <span>{enrolledCount}</span>
+              </div>
+              <div className="flex justify-between font-medium">
+                <span>Remaining Slots</span>
+                <span>{remainingCapacity}</span>
+              </div>
             </div>
-            <Progress value={batch.progress || 0} />
+            <Progress value={(enrolledCount / (batch?.capacityLimit || 1)) * 100} />
           </div>
         </CardContent>
       </Card>
