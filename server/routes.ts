@@ -28,6 +28,19 @@ async function hashPassword(password: string) {
   return `${buf.toString("hex")}.${salt}`;
 }
 
+function excelSerialDateToJSDate(serial: number): string {
+  // Excel's date system starts from December 30, 1899
+  const utc_days = Math.floor(serial - 25569);
+  const utc_value = utc_days * 86400;
+  const date_info = new Date(utc_value * 1000);
+  
+  const year = date_info.getFullYear();
+  const month = String(date_info.getMonth() + 1).padStart(2, '0');
+  const day = String(date_info.getDate()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}`;
+}
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
@@ -1019,12 +1032,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
             throw new Error(`Invalid role: ${role}. Must be one of: ${validRoles.join(', ')}`);
           }
 
-          // Validate dates
-          const dateFields = ['dateOfJoining', 'dateOfBirth'];
-          for (const field of dateFields) {
-            if (!/^\d{4}-\d{2}-\d{2}$/.test(row[field])) {
-              throw new Error(`Invalid date format for ${field}. Use YYYY-MM-DD format`);
+          // Convert and validate dates
+          let dateOfJoining: string;
+          let dateOfBirth: string;
+
+          try {
+            // Check if the date is a number (Excel serial date) or string
+            if (typeof row.dateOfJoining === 'number') {
+              dateOfJoining = excelSerialDateToJSDate(row.dateOfJoining);
+            } else {
+              dateOfJoining = row.dateOfJoining;
             }
+
+            if (typeof row.dateOfBirth === 'number') {
+              dateOfBirth = excelSerialDateToJSDate(row.dateOfBirth);
+            } else {
+              dateOfBirth = row.dateOfBirth;
+            }
+
+            // Validate date format
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOfJoining) || !/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) {
+              throw new Error('Invalid date format');
+            }
+          } catch (error) {
+            throw new Error('Invalid date format. Use YYYY-MM-DD format');
           }
 
           // Create trainee data object
@@ -1034,8 +1065,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             email: String(row.email),
             employeeId: String(row.employeeId),
             phoneNumber: String(row.phoneNumber),
-            dateOfJoining: String(row.dateOfJoining),
-            dateOfBirth: String(row.dateOfBirth),
+            dateOfJoining,
+            dateOfBirth,
             education: String(row.education),
             password: await hashPassword(String(row.password)),
             role: role,
