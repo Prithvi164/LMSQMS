@@ -1065,20 +1065,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
             email: String(row.email),
             employeeId: String(row.employeeId),
             phoneNumber: String(row.phoneNumber),
-            dateOfJoining,
-            dateOfBirth,
+            dateOfJoining: dateOfJoining,
+            dateOfBirth: dateOfBirth,
             education: String(row.education),
             password: await hashPassword(String(row.password)),
             role: role,
-            category: "trainee",
+            category: "trainee", // This is correct - category should be trainee
             processId: batch.processId,
             lineOfBusinessId: batch.lineOfBusinessId,
             locationId: batch.locationId,
             trainerId: batch.trainerId,
             organizationId: orgId
-          } as const;
+          };
 
-          console.log('Creating user with data:', { ...traineeData, password: '[REDACTED]' });
+          console.log('Creating user with data:', { 
+            ...traineeData, 
+            password: '[REDACTED]',
+            role,
+            category: 'trainee'
+          });
 
           // Create user
           const user = await storage.createUser(traineeData);

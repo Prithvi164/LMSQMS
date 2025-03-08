@@ -1229,11 +1229,27 @@ export class DatabaseStorage implements IStorage {
 
   async getBatchTrainees(batchId: number): Promise<UserBatchProcess[]> {
     try {
-      const trainees = await db
-        .select()
-        .from(userBatchProcesses)
-        .where(eq(userBatchProcesses.batchId, batchId)) as UserBatchProcess[];
+      console.log(`Fetching trainees for batch ${batchId}`);
 
+      const trainees = await db
+        .select({
+          id: userBatchProcesses.id,
+          userId: userBatchProcesses.userId,
+          batchId: userBatchProcesses.batchId,
+          processId: userBatchProcesses.processId,
+          status: userBatchProcesses.status,
+          joinedAt: userBatchProcesses.joinedAt,
+          completedAt: userBatchProcesses.completedAt,
+          user: users
+        })
+        .from(userBatchProcesses)
+        .leftJoin(users, eq(userBatchProcesses.userId, users.id))
+        .where(and(
+          eq(userBatchProcesses.batchId, batchId),
+          eq(users.category, 'trainee')  // Add this condition to only count trainees
+        )) as UserBatchProcess[];
+
+      console.log(`Found ${trainees.length} trainees in batch ${batchId}`);
       return trainees;
     } catch (error) {
       console.error('Error fetching batch trainees:', error);
