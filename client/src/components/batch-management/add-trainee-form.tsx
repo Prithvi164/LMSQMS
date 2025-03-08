@@ -146,6 +146,13 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
 
     try {
       setIsSubmitting(true);
+
+      console.log('Uploading file:', {
+        name: file.name,
+        size: file.size,
+        type: file.type
+      });
+
       const response = await fetch(
         `/api/organizations/${batch.organizationId}/batches/${batch.id}/trainees/bulk`,
         {
@@ -168,12 +175,12 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
             <p>Successfully uploaded {data.successCount} of {data.totalRows} trainees.</p>
             {data.failureCount > 0 && (
               <details className="text-sm">
-                <summary className="cursor-pointer">
+                <summary className="cursor-pointer font-medium text-destructive">
                   Failed uploads: {data.failureCount}
                 </summary>
                 <ul className="mt-2 list-disc list-inside">
                   {data.errors?.map((error: string, index: number) => (
-                    <li key={index} className="text-xs">{error}</li>
+                    <li key={index} className="text-xs text-destructive">{error}</li>
                   ))}
                 </ul>
               </details>
@@ -192,6 +199,7 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
         setShowBulkUpload(false);
       }
     } catch (error) {
+      console.error('Upload error:', error);
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to upload trainees',
