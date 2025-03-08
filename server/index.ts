@@ -8,9 +8,6 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Enable trust proxy to fix X-Forwarded-For header validation
-app.set('trust proxy', 1);
-
 // Configure rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -85,7 +82,7 @@ app.get("/health", (_req, res) => {
       serveStatic(app);
     }
 
-    const port = 5000; // Always use port 5000 as required
+    const port = process.env.PORT || 5001;
     server.listen(port, "0.0.0.0", () => {
       log(`Server running in ${app.get("env")} mode`);
       log(`API and client being served on port ${port}`);
