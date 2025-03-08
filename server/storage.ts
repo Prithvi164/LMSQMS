@@ -28,8 +28,11 @@ import {
   type InsertOrganizationLocation,
   type BatchPhaseChangeRequest,
   type InsertBatchPhaseChangeRequest,
+  type BatchTemplate,
+  type InsertBatchTemplate,
+  type UserBatchProcess,
+  type InsertUserBatchProcess,
 } from "@shared/schema";
-
 
 export interface IStorage {
   // User operations
@@ -148,6 +151,10 @@ export interface IStorage {
 
   // Add new method for getting reporting trainers
   getReportingTrainers(managerId: number): Promise<User[]>;
+
+  // Add new methods for batch filtering
+  listBatchesForTrainer(trainerId: number): Promise<OrganizationBatch[]>;
+  listBatchesForTrainers(trainerIds: number[]): Promise<OrganizationBatch[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -276,6 +283,59 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(users)
       .where(eq(users.organizationId, organizationId)) as User[];
+  }
+
+  // User Process operations
+  async assignProcessesToUser(processes: InsertUserProcess[]): Promise<UserProcess[]> {
+    try {
+      const assignedProcesses = await db
+        .insert(userProcesses)
+        .values(processes)
+        .returning() as UserProcess[];
+      return assignedProcesses;
+    } catch (error) {
+      console.error('Error assigning processes to user:', error);
+      throw new Error('Failed to assign processes to user');
+    }
+  }
+
+  async getUserProcesses(userId: number): Promise<UserProcess[]> {
+    try {
+      const processes = await db
+        .select({
+          id: userProcesses.id,
+          userId: userProcesses.userId,
+          processId: userProcesses.processId,
+          organizationId: userProcesses.organizationId,
+          status: userProcesses.status,
+          assignedAt: userProcesses.assignedAt,
+          completedAt: userProcesses.completedAt,
+          processName: organizationProcesses.name,
+        })
+        .from(userProcesses)
+        .leftJoin(
+          organizationProcesses,
+          eq(userProcesses.processId, organizationProcesses.id)
+        )
+        .where(eq(userProcesses.userId, userId)) as UserProcess[];
+
+      return processes;
+    } catch (error) {
+      console.error('Error fetching user processes:', error);
+      throw new Error('Failed to fetch user processes');
+    }
+  }
+
+  async removeUserProcess(userId: number, processId: number): Promise<void> {
+    try {
+      await db
+        .delete(userProcesses)
+        .where(eq(userProcesses.userId, userId))
+        .where(eq(userProcesses.processId, processId));
+    } catch (error) {
+      console.error('Error removing user process:', error);
+      throw new Error('Failed to remove user process');
+    }
   }
 
   // Organization operations
@@ -1540,6 +1600,39 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error fetching reporting trainers:', error);
       throw new Error('Failed to fetch reporting trainers');
+    }
+  }
+  async listBatchesForTrainer(trainerId: number): Promise<OrganizationBatch[]> {
+    try {
+      console.log(`Fetching batches for trainer ${trainerId}`);
+
+      const batches = await db
+        .select()
+        .from(organizationBatches)
+        .where(eq(organizationBatches.trainerId, trainerId)) as OrganizationBatch[];
+
+      console.log(`Found ${batches.length} batches for trainer ${trainerId}`);
+      return batches;
+    } catch (error) {
+      console.error('Error fetching trainer batches:', error);
+      throw new Error('Failed to fetch trainer batches');
+    }
+  }
+
+  async listBatchesForTrainers(trainerIds: number[]): Promise<OrganizationBatch[]> {
+    try {
+      console.log(`Fetching batches for trainers:`, trainerIds);
+
+      const batches = await db
+        .select()
+        .from(organizationBatches)
+        .where(inArray(organizationBatches.trainerId, trainerIds)) as OrganizationBatch[];
+
+      console.log(`Found ${batches.length} batches for trainers`);
+      return batches;
+    } catch (error) {
+      console.error('Error fetching trainer batches:', error);
+      throw new Error('Failed to fetch trainer batches');
     }
   }
 }

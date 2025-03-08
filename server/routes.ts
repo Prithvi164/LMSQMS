@@ -911,6 +911,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
   // Add endpoint to get processes by line of business 
   app.get("/api/organizations/:orgId/line-of-businesses/:lobId/processes", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
@@ -1053,7 +1054,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only view batches in your own organization" });
       }
 
-      let batches = await storage.listBatches(orgId);
+      // Role-based filtering
+      let batches;
+      switch (req.user.role) {
+        case 'trainer':
+          console.log('Fetching batches for trainer:', req.user.id);
+          // Trainers can only see batches assigned to them
+          batches = await storage.listBatchesForTrainer(req.user.id);
+          break;
+
+        case 'manager':
+          console.log('Fetching batches for manager:', req.user.id);
+          // Get all trainers reporting to this manager
+          const reportingTrainers = await storage.getReportingTrainers(req.user.id);
+          const trainerIds = reportingTrainers.map(trainer => trainer.id);
+          // Get batches for all reporting trainers
+          batches = await storage.listBatchesForTrainers(trainerIds);
+          break;
+
+        case 'admin':
+        case 'owner':
+          console.log('Fetching all batches for admin/owner');
+          // Admins and owners can see all batches
+          batches = await storage.listBatches(orgId);
+          break;
+
+        default:
+          return res.status(403).json({ message: "Insufficient permissions to view batches" });
+      }
 
       // Filter by status if specified  
       if (status) {
