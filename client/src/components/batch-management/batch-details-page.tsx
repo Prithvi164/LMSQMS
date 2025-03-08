@@ -118,6 +118,7 @@ export function BatchDetailsPage() {
   const [selectedTab, setSelectedTab] = useState("attendance");
   const currentDate = format(new Date(), "PPP");
 
+  // Initialize form at the top level
   const form = useForm({
     resolver: zodResolver(phaseChangeFormSchema),
     defaultValues: {
@@ -127,14 +128,23 @@ export function BatchDetailsPage() {
     },
   });
 
-  const { data: batch, isLoading: batchLoading } = useQuery({
+  // Query hooks with improved error handling
+  const { data: batch, isLoading: batchLoading, error: batchError } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}`],
     enabled: !!user?.organizationId && !!batchId,
+    onError: (error: any) => {
+      console.error('Error fetching batch:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load batch details. Please try again.",
+      });
+    }
   });
 
   const { data: trainees, isLoading: traineesLoading } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`],
-    enabled: !!user?.organizationId && !!batchId,
+    enabled: !!user?.organizationId && !!batchId && !!batch,
   });
 
   const { data: managers } = useQuery({
@@ -316,10 +326,31 @@ export function BatchDetailsPage() {
     return <LoadingSkeleton />;
   }
 
+  if (batchError) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>
+          Failed to load batch details. Please try again.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
   if (!batch) {
     return (
       <Alert>
-        <AlertDescription>Batch not found.</AlertDescription>
+        <AlertDescription>
+          Batch not found. Please make sure you have access to this batch.
+        </AlertDescription>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="mt-4"
+          onClick={() => setLocation('/batches')}
+        >
+          <ChevronLeft className="mr-2 h-4 w-4" />
+          Back to Batches
+        </Button>
       </Alert>
     );
   }

@@ -816,7 +816,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add endpoint to get processes by line of business
+  // Add batch details endpoint with comprehensive error handling and logging
+  app.get("/api/organizations/:orgId/batches/:batchId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const batchId = parseInt(req.params.batchId);
+
+      console.log('Fetching batch details:', {
+        orgId,
+        batchId,
+        userId: req.user.id,
+        userRole: req.user.role
+      });
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        console.log('User organization mismatch:', {
+          userOrgId: req.user.organizationId,
+          requestedOrgId: orgId
+        });
+        return res.status(403).json({ message: "You can only view batches in your own organization" });
+      }
+
+      // Get the batch with location and process details 
+      const batch = await storage.getBatch(batchId);
+      if (!batch) {
+        console.log('Batch not found:', { batchId });
+        return res.status(404).json({ message: "Batch not found" });
+      }
+
+      // For trainers, verify they are assigned to this batch
+      if (req.user.role === 'trainer') {
+        if (batch.trainerId !== req.user.id) {
+          console.log('Trainer not assigned to batch:', {
+            trainerId: req.user.id,
+            batchTrainerId: batch.trainerId
+          });
+          return res.status(403).json({ message: "You can only view batches assigned to you" });
+        }
+      }
+
+      // Get additional batch details
+      const [location, process] = await Promise.all([
+        storage.getLocation(batch.locationId),
+        storage.getProcess(batch.processId)
+      ]);
+
+      const batchWithDetails = {
+        ...batch,
+        location,
+        process
+      };
+
+      console.log('Successfully fetched batch details:', { 
+        batchId,
+        status: batch.status,
+        location: location?.name,
+        process: process?.name
+      });
+
+      res.json(batchWithDetails);
+    } catch (error: any) {
+      console.error('Error fetching batch details:', error);
+      res.status(500).json({ 
+        message: "Failed to fetch batch details",
+        error: error.message 
+      });
+    }
+  });
+
+  // Add endpoint to get processes by line of business 
   app.get("/api/organizations/:orgId/line-of-businesses/:lobId/processes", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
