@@ -1189,18 +1189,25 @@ export class DatabaseStorage implements IStorage {
     }
   }
   // User Batch Process operations
-  async assignUserToBatch(userBatchProcess: InsertUserBatchProcess): Promise<UserBatchProcess> {
+  async assignUserToBatch(userBatchProcess: {
+    userId: number;
+    batchId: number;
+    processId: number;
+    status: string;
+    joinedAt: Date;
+  }): Promise<UserBatchProcess> {
     try {
-      console.log('Assigning user to batch:', userBatchProcess);
-
-      const [assigned] = await db
+      const [result] = await db
         .insert(userBatchProcesses)
-        .values(userBatchProcess)
+        .values({
+          ...userBatchProcess,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
         .returning() as UserBatchProcess[];
 
-      console.log('Successfully assigned user to batch:', assigned);
-      return assigned;
-    } catch (error: any) {
+      return result;
+    } catch (error) {
       console.error('Error assigning user to batch:', error);
       throw error;
     }
@@ -1261,12 +1268,17 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  async createUserProcess(process: InsertUserProcess): Promise<UserProcess> {
+  async createUserProcess(process: {
+    userId: number;
+    processId: number;
+    organizationId: number;
+    lineOfBusinessId: number;
+    locationId: number;
+    status: string;
+    assignedAt: Date;
+  }): Promise<UserProcess> {
     try {
-      console.log('Creating user process with data:', process);
-
-      // Insert the user process record
-      const [newUserProcess] = await db
+      const [result] = await db
         .insert(userProcesses)
         .values({
           ...process,
@@ -1275,9 +1287,8 @@ export class DatabaseStorage implements IStorage {
         })
         .returning() as UserProcess[];
 
-      console.log('Successfully created user process:', newUserProcess);
-      return newUserProcess;
-    } catch (error: any) {
+      return result;
+    } catch (error) {
       console.error('Error creating user process:', error);
       throw error;
     }

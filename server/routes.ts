@@ -1090,7 +1090,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             batchId,
             processId: batch.processId,
             status: 'active',
-            joinedAt: new Date().toISOString()
+            joinedAt: new Date()
           });
 
           console.log('User assigned to batch');
@@ -1103,7 +1103,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             lineOfBusinessId: batch.lineOfBusinessId,
             locationId: batch.locationId,
             status: 'active',
-            assignedAt: new Date().toISOString()
+            assignedAt: new Date()
           });
 
           console.log('User process record created');
