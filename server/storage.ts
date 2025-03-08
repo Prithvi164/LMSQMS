@@ -1240,13 +1240,23 @@ export class DatabaseStorage implements IStorage {
           status: userBatchProcesses.status,
           joinedAt: userBatchProcesses.joinedAt,
           completedAt: userBatchProcesses.completedAt,
-          user: users
+          createdAt: userBatchProcesses.createdAt,
+          updatedAt: userBatchProcesses.updatedAt,
+          user: {
+            id: users.id,
+            username: users.username,
+            fullName: users.fullName,
+            email: users.email,
+            employeeId: users.employeeId,
+            category: users.category,
+            role: users.role
+          }
         })
         .from(userBatchProcesses)
         .leftJoin(users, eq(userBatchProcesses.userId, users.id))
         .where(and(
           eq(userBatchProcesses.batchId, batchId),
-          eq(users.category, 'trainee')  // Add this condition to only count trainees
+          eq(users.category, 'trainee')  // Only count users with category='trainee'
         )) as UserBatchProcess[];
 
       console.log(`Found ${trainees.length} trainees in batch ${batchId}`);
