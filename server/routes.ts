@@ -816,6 +816,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
   // Add batch details endpoint with comprehensive error handling and logging
   app.get("/api/organizations/:orgId/batches/:batchId", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
@@ -905,6 +906,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error fetching processes:", error);
       res.status(500).json({ message: error.message });    }
+  });
+
+  // Batch listing route with enrolled count and role-based access
+  app.get("/api/organizations/:orgId/batches", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const status = req.query.status as string;
+
+      console.log('Fetching batches with role-based access:', {
+        userId: req.user.id,
+        userRole: req.user.role,
+        orgId,
+        status
+      });
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only view batches in your own organization" });
+      }
+
+      let batches;
+
+      // Role-based batch filtering
+      switch (req.user.role) {
+        case 'owner':
+        case 'admin':
+          // Get all batches for the organization
+          batches = await storage.listBatches(orgId);
+          break;
+
+        case 'manager':
+          // Get all users who report to this manager
+          const subordinates = await storage.listUsers(orgId);
+          const subordinateIds = subordinates
+            .filter(user => user.managerId === req.user.id)
+            .map(user => user.id);
+
+          // Get all batches
+          const allBatches = await storage.listBatches(orgId);
+          
+          // Filter batches where trainerId is in subordinateIds
+          batches = allBatches.filter(batch => 
+            batch.trainerId === req.user.id || // Include manager's own batches
+            subordinateIds.includes(batch.trainerId) // Include subordinates' batches
+          );
+          break;
+
+        case 'trainer':
+          // Get only batches assigned to this trainer
+          batches = await storage.listBatches(orgId);
+          batches = batches.filter(b => b.trainerId === req.user.id);
+          break;
+
+        default:
+          console.log('Insufficient permissions for user:', {
+            userId: req.user.id,
+            role: req.user.role
+          });
+          return res.status(403).json({ message: "Insufficient permissions to view batches" });
+      }
+
+      // Filter by status if specified
+      if (status) {
+        console.log('Filtering batches by status:', status); 
+        batches = batches.filter((batch: {status: string}) => batch.status === status);
+      }
+
+      // Define batch type
+      interface Batch {
+        id: number;
+        locationId: number;
+        processId: number;
+        lineOfBusinessId: number;
+        capacityLimit: number;
+        trainerId: number;
+        name: string;
+      }
+
+      // For each batch, enrich with location, process, line of business details, and enrolled count
+      const enrichedBatches = await Promise.all(batches.map(async (batch: Batch) => {
+        const [location, process, line_of_business, enrolledCount, trainer] = await Promise.all([
+          storage.getLocation(batch.locationId),
+          storage.getProcess(batch.processId),
+          storage.getLineOfBusiness(batch.lineOfBusinessId),
+          getEnrolledCount(batch.id),
+          storage.getUser(batch.trainerId)
+        ]);
+
+        return {
+          ...batch,
+          location,
+          process,
+          line_of_business,
+          enrolledCount,
+          trainer: trainer ? {
+            id: trainer.id,
+            fullName: trainer.fullName,
+            email: trainer.email
+          } : null
+        };
+      }));
+
+      console.log('Successfully fetched batches:', {
+        count: enrichedBatches.length,
+        userRole: req.user?.role,
+        subordinatesCount: req.user.role === 'manager' ? 
+          batches.filter(b => b.trainerId !== req.user.id).length : 'N/A'
+      });
+
+      res.json(enrichedBatches);
+    } catch (error: any) {
+      console.error("Error fetching batches:", error);
+      res.status(500).json({ message: error.message });
+    }
   });
 
   // Add better error handling and authentication for line of business routes
@@ -1016,7 +1133,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return batchTrainees.length;
   };
 
-  // Batch listing route with enrolled count
+  // Batch listing route with enrolled count and role-based access
   app.get("/api/organizations/:orgId/batches", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
@@ -1024,25 +1141,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const orgId = parseInt(req.params.orgId);
       const status = req.query.status as string;
 
+      console.log('Fetching batches with role-based access:', {
+        userId: req.user.id,
+        userRole: req.user.role,
+        orgId,
+        status
+      });
+
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
         return res.status(403).json({ message: "You can only view batches in your own organization" });
       }
 
-      let batches = await storage.listBatches(orgId);
+      let batches;
 
-      // Filter by status if specified  
+      // Role-based batch filtering
+      switch (req.user.role) {
+        case 'owner':
+        case 'admin':
+          // Get all batches for the organization
+          batches = await storage.listBatches(orgId);
+          break;
+
+        case 'manager':
+          // Get all users who report to this manager
+          const subordinates = await storage.listUsers(orgId);
+          const subordinateIds = subordinates
+            .filter(user => user.managerId === req.user.id)
+            .map(user => user.id);
+
+          // Get all batches
+          const allBatches = await storage.listBatches(orgId);
+          
+          // Filter batches where trainerId is in subordinateIds
+          batches = allBatches.filter(batch => 
+            batch.trainerId === req.user.id || // Include manager's own batches
+            subordinateIds.includes(batch.trainerId) // Include subordinates' batches
+          );
+          break;
+
+        case 'trainer':
+          // Get only batches assigned to this trainer
+          batches = await storage.listBatches(orgId);
+          batches = batches.filter(b => b.trainerId === req.user.id);
+          break;
+
+        default:
+          console.log('Insufficient permissions for user:', {
+            userId: req.user.id,
+            role: req.user.role
+          });
+          return res.status(403).json({ message: "Insufficient permissions to view batches" });
+      }
+
+      // Filter by status if specified
       if (status) {
-        batches = batches.filter(batch => batch.status === status);
+        console.log('Filtering batches by status:', status); 
+        batches = batches.filter((batch: {status: string}) => batch.status === status);
+      }
+
+      // Define batch type
+      interface Batch {
+        id: number;
+        locationId: number;
+        processId: number;
+        lineOfBusinessId: number;
+        capacityLimit: number;
+        trainerId: number;
+        name: string;
       }
 
       // For each batch, enrich with location, process, line of business details, and enrolled count
-      const enrichedBatches = await Promise.all(batches.map(async (batch) => {
-        const [location, process, line_of_business, enrolledCount] = await Promise.all([
+      const enrichedBatches = await Promise.all(batches.map(async (batch: Batch) => {
+        const [location, process, line_of_business, enrolledCount, trainer] = await Promise.all([
           storage.getLocation(batch.locationId),
           storage.getProcess(batch.processId),
           storage.getLineOfBusiness(batch.lineOfBusinessId),
-          getEnrolledCount(batch.id)
+          getEnrolledCount(batch.id),
+          storage.getUser(batch.trainerId)
         ]);
 
         return {
@@ -1051,18 +1227,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           process,
           line_of_business,
           enrolledCount,
-          capacityRemaining: batch.capacityLimit - enrolledCount
+          trainer: trainer ? {
+            id: trainer.id,
+            fullName: trainer.fullName,
+            email: trainer.email
+          } : null
         };
       }));
 
-      console.log(`Found ${enrichedBatches.length} batches with enrollment counts:`, 
-        enrichedBatches.map(b => ({ 
-          id: b.id, 
-          name: b.name, 
-          enrolledCount: b.enrolledCount,
-          capacityLimit: b.capacityLimit 
-        }))
-      );
+      console.log('Successfully fetched batches:', {
+        count: enrichedBatches.length,
+        userRole: req.user?.role,
+        subordinatesCount: req.user.role === 'manager' ? 
+          batches.filter(b => b.trainerId !== req.user.id).length : 'N/A'
+      });
 
       res.json(enrichedBatches);
     } catch (error: any) {
