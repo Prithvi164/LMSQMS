@@ -19,7 +19,7 @@ type TimelineEvent = {
 export function BatchTimeline({ batchId }: { batchId: string }) {
   const { user } = useAuth();
 
-  const { data: events = [], isLoading } = useQuery({
+  const { data: events = [], isLoading, error } = useQuery<TimelineEvent[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/history`],
     enabled: !!user?.organizationId && !!batchId,
   });
@@ -32,10 +32,18 @@ export function BatchTimeline({ batchId }: { batchId: string }) {
     );
   }
 
+  if (error) {
+    return (
+      <div className="text-center p-8 text-destructive">
+        Error loading batch history. Please try again.
+      </div>
+    );
+  }
+
   if (!events?.length) {
     return (
       <div className="text-center p-8 text-muted-foreground">
-        No history events found for this batch.
+        No history events found for this batch. History events will appear here when changes are made to the batch.
       </div>
     );
   }
