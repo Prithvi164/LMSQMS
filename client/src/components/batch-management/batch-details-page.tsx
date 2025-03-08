@@ -404,6 +404,7 @@ export function BatchDetailsPage() {
           {canAccessPhaseRequests && (
             <TabsTrigger value="phase-requests">Phase Requests</TabsTrigger>
           )}
+          <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
 
         <TabsContent value="attendance" className="space-y-4">
@@ -651,6 +652,16 @@ export function BatchDetailsPage() {
             </Card>
           </TabsContent>
         )}
+        <TabsContent value="history" className="space-y-4">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">Batch History</h2>
+              </div>
+              <BatchTimeline batchId={batchId} />
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   );

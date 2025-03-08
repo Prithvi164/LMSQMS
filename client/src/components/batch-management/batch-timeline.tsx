@@ -19,7 +19,7 @@ type TimelineEvent = {
 export function BatchTimeline({ batchId }: { batchId: string }) {
   const { user } = useAuth();
 
-  const { data: events, isLoading } = useQuery({
+  const { data: events = [], isLoading } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/history`],
     enabled: !!user?.organizationId && !!batchId,
   });
