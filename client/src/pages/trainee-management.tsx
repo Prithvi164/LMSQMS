@@ -55,6 +55,30 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 type MetricType = 'daily' | 'weekly' | 'monthly';
 type DrilldownLevel = 'overview' | 'phase' | 'trainee';
 
+// Add color constants at the top of the file, after imports
+const PHASE_COLORS = {
+  planned: 'bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30',
+  induction: 'bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/20 dark:hover:bg-purple-900/30',
+  training: 'bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/30',
+  certification: 'bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/30',
+  ojt: 'bg-pink-50 hover:bg-pink-100 dark:bg-pink-900/20 dark:hover:bg-pink-900/30',
+  ojt_certification: 'bg-cyan-50 hover:bg-cyan-100 dark:bg-cyan-900/20 dark:hover:bg-cyan-900/30',
+  completed: 'bg-gray-50 hover:bg-gray-100 dark:bg-gray-900/20 dark:hover:bg-gray-900/30'
+};
+
+const getStatusColor = (status: string): string => {
+  switch (status) {
+    case 'planned': return 'text-blue-600';
+    case 'induction': return 'text-purple-600';
+    case 'training': return 'text-green-600';
+    case 'certification': return 'text-amber-600';
+    case 'ojt': return 'text-pink-600';
+    case 'ojt_certification': return 'text-cyan-600';
+    case 'completed': return 'text-gray-600';
+    default: return '';
+  }
+};
+
 export default function TraineeManagement() {
   const [selectedTab, setSelectedTab] = useState("all-batches");
   const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
@@ -140,10 +164,11 @@ export default function TraineeManagement() {
   const ojtBatches = batchesByStatus['ojt'] || [];
   const completedBatches = batchesByStatus['completed'] || [];
 
+  // Update the renderBatchCard function
   const renderBatchCard = (batch: Batch) => (
     <Card
       key={batch.id}
-      className={`${selectedBatch === batch.id ? 'border-primary' : ''} cursor-pointer`}
+      className={`${selectedBatch === batch.id ? 'border-primary' : ''} cursor-pointer transition-all duration-200 ${PHASE_COLORS[batch.status as keyof typeof PHASE_COLORS]}`}
       onClick={() => {
         if (batch.status !== 'planned') {
           window.location.href = `/batch-details/${batch.id}`;
@@ -162,7 +187,9 @@ export default function TraineeManagement() {
           </div>
           <Badge
             variant={batch.status === 'planned' ? "outline" : "secondary"}
-            className="capitalize"
+            className={`capitalize transition-all hover:scale-105 ${
+              batch.status === 'planned' ? '' : getStatusColor(batch.status)
+            }`}
           >
             {batch.status}
           </Badge>
@@ -182,7 +209,10 @@ export default function TraineeManagement() {
               <span className="text-sm font-medium">Capacity</span>
               <span className="text-sm">{batch.enrolledCount || 0} / {batch.capacityLimit}</span>
             </div>
-            <Progress value={(batch.enrolledCount || 0) / batch.capacityLimit * 100} />
+            <Progress 
+              value={(batch.enrolledCount || 0) / batch.capacityLimit * 100} 
+              className="h-2 bg-muted/30"
+            />
           </div>
         </div>
 
