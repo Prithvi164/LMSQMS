@@ -145,6 +145,9 @@ export interface IStorage {
   ): Promise<BatchPhaseChangeRequest>;
   listTrainerPhaseChangeRequests(trainerId: number): Promise<BatchPhaseChangeRequest[]>;
   listManagerPhaseChangeRequests(managerId: number): Promise<BatchPhaseChangeRequest[]>;
+
+  // Add new method for getting reporting trainers
+  getReportingTrainers(managerId: number): Promise<User[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1520,6 +1523,23 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error listing manager phase change requests:', error);
       throw error;
+    }
+  }
+  async getReportingTrainers(managerId: number): Promise<User[]> {
+    try {
+      console.log(`Fetching trainers reporting to manager ${managerId}`);
+
+      const trainers = await db
+        .select()
+        .from(users)
+        .where(eq(users.managerId, managerId))
+        .where(eq(users.role, 'trainer')) as User[];
+
+      console.log(`Found ${trainers.length} reporting trainers`);
+      return trainers;
+    } catch (error) {
+      console.error('Error fetching reporting trainers:', error);
+      throw new Error('Failed to fetch reporting trainers');
     }
   }
 }

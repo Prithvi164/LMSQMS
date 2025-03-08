@@ -847,15 +847,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Batch not found" });
       }
 
-      // For trainers, verify they are assigned to this batch
-      if (req.user.role === 'trainer') {
-        if (batch.trainerId !== req.user.id) {
-          console.log('Trainer not assigned to batch:', {
-            trainerId: req.user.id,
-            batchTrainerId: batch.trainerId
-          });
-          return res.status(403).json({ message: "You can only view batches assigned to you" });
-        }
+      // Role-based access control
+      switch (req.user.role) {
+        case 'trainer':
+          // Trainers can only see batches assigned to them
+          if (batch.trainerId !== req.user.id) {
+            console.log('Trainer not assigned to batch:', {
+              trainerId: req.user.id,
+              batchTrainerId: batch.trainerId
+            });
+            return res.status(403).json({ message: "You can only view batches assigned to you" });
+          }
+          break;
+
+        case 'manager':
+          // Managers can see batches of trainers reporting to them
+          const reportingTrainers = await storage.getReportingTrainers(req.user.id);
+          const trainerIds = reportingTrainers.map(trainer => trainer.id);
+          if (!trainerIds.includes(batch.trainerId)) {
+            console.log('Manager not authorized for batch:', {
+              managerId: req.user.id,
+              batchTrainerId: batch.trainerId
+            });
+            return res.status(403).json({ message: "You can only view batches of trainers reporting to you" });
+          }
+          break;
+
+        case 'admin':
+        case 'owner':
+          // Admins and owners can see all batches in their organization
+          break;
+
+        default:
+          return res.status(403).json({ message: "Insufficient permissions to view batch details" });
       }
 
       // Get additional batch details
