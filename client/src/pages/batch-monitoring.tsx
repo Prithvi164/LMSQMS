@@ -5,22 +5,40 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/hooks/use-auth';
+
+interface Batch {
+  id: number;
+  name: string;
+  status: string;
+}
+
+interface Trainee {
+  id: number;
+  status: string;
+  user?: {
+    fullName: string;
+    employeeId: string;
+  };
+}
 
 export function BatchMonitoringPage() {
+  const { user } = useAuth();
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
 
-  const { data: batches } = useQuery({
-    queryKey: ['/api/organizations', organizationId, 'batches'],
+  const { data: batches } = useQuery<Batch[]>({
+    queryKey: ['/api/organizations', user?.organizationId, 'batches'],
+    enabled: !!user?.organizationId,
     select: (data) => data || []
   });
 
-  const { data: batchTrainees } = useQuery({
-    queryKey: ['/api/organizations', organizationId, 'batches', selectedBatchId, 'trainees'],
-    enabled: !!selectedBatchId,
+  const { data: batchTrainees } = useQuery<Trainee[]>({
+    queryKey: ['/api/organizations', user?.organizationId, 'batches', selectedBatchId, 'trainees'],
+    enabled: !!user?.organizationId && !!selectedBatchId,
     select: (data) => data || []
   });
 
-  const renderPhaseProgress = (batch) => {
+  const renderPhaseProgress = (batch: Batch) => {
     const phases = ['planned', 'induction', 'training', 'certification', 'ojt', 'ojt_certification'];
     const currentPhaseIndex = phases.indexOf(batch.status);
     const progress = ((currentPhaseIndex + 1) / phases.length) * 100;
@@ -39,7 +57,7 @@ export function BatchMonitoringPage() {
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6">Batch Monitoring</h1>
-      
+
       <div className="grid md:grid-cols-2 gap-4">
         <Card>
           <CardHeader>
