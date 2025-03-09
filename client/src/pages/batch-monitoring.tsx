@@ -5,22 +5,28 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/hooks/use-auth';
 
 export function BatchMonitoringPage() {
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
+  const { user } = useAuth();
+
+  // Ensure we have an organization ID
+  const organizationId = user?.organizationId;
 
   const { data: batches } = useQuery({
     queryKey: ['/api/organizations', organizationId, 'batches'],
+    enabled: !!organizationId, // Only run query if we have an organizationId
     select: (data) => data || []
   });
 
   const { data: batchTrainees } = useQuery({
     queryKey: ['/api/organizations', organizationId, 'batches', selectedBatchId, 'trainees'],
-    enabled: !!selectedBatchId,
+    enabled: !!organizationId && !!selectedBatchId,
     select: (data) => data || []
   });
 
-  const renderPhaseProgress = (batch) => {
+  const renderPhaseProgress = (batch: any) => {
     const phases = ['planned', 'induction', 'training', 'certification', 'ojt', 'ojt_certification'];
     const currentPhaseIndex = phases.indexOf(batch.status);
     const progress = ((currentPhaseIndex + 1) / phases.length) * 100;
@@ -36,10 +42,24 @@ export function BatchMonitoringPage() {
     );
   };
 
+  if (!organizationId) {
+    return (
+      <div className="container mx-auto p-4">
+        <Card>
+          <CardContent className="py-8">
+            <p className="text-center text-muted-foreground">
+              Please ensure you are logged in with an organization account to view batch monitoring.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6">Batch Monitoring</h1>
-      
+
       <div className="grid md:grid-cols-2 gap-4">
         <Card>
           <CardHeader>
