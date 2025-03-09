@@ -38,7 +38,8 @@ import {
   questions,
   type Question,
   type InsertQuestion,
-  quizTemplates, type QuizTemplate, type InsertQuizTemplate
+  quizTemplates, type QuizTemplate, type InsertQuizTemplate,
+  quizAttempts, type QuizAttempt, type InsertQuizAttempt
 } from "@shared/schema";
 
 export interface IStorage {
@@ -170,6 +171,7 @@ export interface IStorage {
   // Question operations
   createQuestion(question: InsertQuestion): Promise<Question>;
   listQuestions(organizationId: number): Promise<Question[]>;
+  getQuestion(id: number): Promise<Question | undefined>;
   getRandomQuestions(
     organizationId: number,
     options: {
@@ -182,7 +184,14 @@ export interface IStorage {
 
   // Quiz template operations
   createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate>;
+  getQuizTemplate(id: number): Promise<QuizTemplate | undefined>;
+  updateQuizTemplate(id: number, template: Partial<QuizTemplate>): Promise<QuizTemplate>;
   listQuizTemplates(organizationId: number): Promise<QuizTemplate[]>;
+
+  // Quiz attempt operations
+  createQuizAttempt(attempt: InsertQuizAttempt): Promise<QuizAttempt>;
+  getQuizAttempt(id: number): Promise<QuizAttempt | undefined>;
+  updateQuizAttempt(id: number, attempt: Partial<QuizAttempt>): Promise<QuizAttempt>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1878,6 +1887,129 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error listing quiz templates:', error);
       throw new Error('Failed to list quiz templates');
+    }
+  }
+  async getQuizTemplate(id: number): Promise<QuizTemplate | undefined> {
+    try {
+      const [template] = await db
+        .select()
+        .from(quizTemplates)
+        .where(eq(quizTemplates.id, id)) as QuizTemplate[];
+      return template;
+    } catch (error) {
+      console.error('Error getting quiz template:', error);
+      throw new Error('Failed to get quiz template');
+    }
+  }
+
+  async updateQuizTemplate(id: number, template: Partial<QuizTemplate>): Promise<QuizTemplate> {
+    try {
+      console.log(`Updating quiz template ${id} with:`, template);
+
+      const [updatedTemplate] = await db
+        .update(quizTemplates)
+        .set({
+          ...template,
+          updatedAt: new Date()
+        })
+        .where(eq(quizTemplates.id, id))
+        .returning() as QuizTemplate[];
+
+      if (!updatedTemplate) {
+        throw new Error('Quiz template not found');
+      }
+
+      console.log('Successfully updated quiz template:', updatedTemplate);
+      return updatedTemplate;
+    } catch (error) {
+      console.error('Error updating quiz template:', error);
+      throw error instanceof Error ? error : new Error('Failed to update quiz template');
+    }
+  }
+
+  // Quiz attempt methods
+  async createQuizAttempt(attempt: InsertQuizAttempt): Promise<QuizAttempt> {
+    try {
+      console.log('Creating quiz attempt:', {
+        ...attempt,
+        questions: attempt.questions.length
+      });
+
+      const [newAttempt] = await db
+        .insert(quizAttempts)
+        .values({
+          ...attempt,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning() as QuizAttempt[];
+
+      if (!newAttempt) {
+        throw new Error('Failed to create quiz attempt');
+      }
+
+      console.log('Successfully created quiz attempt:', {
+        id: newAttempt.id,
+        userId: newAttempt.userId,
+        templateId: newAttempt.templateId
+      });
+
+      return newAttempt;
+    } catch (error) {
+      console.error('Error creating quiz attempt:', error);
+      throw error instanceof Error ? error : new Error('Failed to create quiz attempt');
+    }
+  }
+
+  async getQuizAttempt(id: number): Promise<QuizAttempt | undefined> {
+    try {
+      const [attempt] = await db
+        .select()
+        .from(quizAttempts)
+        .where(eq(quizAttempts.id, id)) as QuizAttempt[];
+      return attempt;
+    } catch (error) {
+      console.error('Error getting quiz attempt:', error);
+      throw new Error('Failed to get quiz attempt');
+    }
+  }
+
+  async updateQuizAttempt(id: number, attempt: Partial<QuizAttempt>): Promise<QuizAttempt> {
+    try {
+      const [updatedAttempt] = await db
+        .update(quizAttempts)
+        .set({
+          ...attempt,
+          updatedAt: new Date()
+        })
+        .where(eq(quizAttempts.id, id))
+        .returning() as QuizAttempt[];
+
+      if (!updatedAttempt) {
+        throw new Error('Quiz attempt not found');
+      }
+
+      return updatedAttempt;
+    } catch (error) {
+      console.error('Error updating quiz attempt:', error);
+      throw error instanceof Error ? error : new Error('Failed to update quiz attempt');
+    }
+  }
+  // Add getQuestion implementation
+  async getQuestion(id: number): Promise<Question | undefined> {
+    try {
+      console.log('Fetching question:', id);
+
+      const [question] = await db
+        .select()
+        .from(questions)
+        .where(eq(questions.id, id)) as Question[];
+
+      console.log('Retrieved question:', question?.id);
+      return question;
+    } catch (error) {
+      console.error('Error getting question:', error);
+      throw new Error('Failed to get question');
     }
   }
 }

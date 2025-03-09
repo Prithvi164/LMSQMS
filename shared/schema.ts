@@ -168,22 +168,25 @@ export const quizTemplates = pgTable("quiz_templates", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Update quiz attempts table definition
 export const quizAttempts = pgTable("quiz_attempts", {
   id: serial("id").primaryKey(),
-  quizTemplateId: integer("quiz_template_id")
+  templateId: integer("template_id")
     .references(() => quizTemplates.id)
     .notNull(),
   userId: integer("user_id")
     .references(() => users.id)
     .notNull(),
-  batchId: integer("batch_id")
-    .references(() => organizationBatches.id)
-    .notNull(),
+  questions: jsonb("questions").$type<number[]>().notNull(),
   startTime: timestamp("start_time").notNull(),
   endTime: timestamp("end_time"),
   score: integer("score"),
   status: quizStatusEnum("status").default('in_progress').notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const quizResponses = pgTable("quiz_responses", {
@@ -722,15 +725,17 @@ export const insertQuizAttemptSchema = createInsertSchema(quizAttempts)
   .omit({
     id: true,
     createdAt: true,
+    updatedAt: true,
   })
   .extend({
-    quizTemplateId: z.number().int().positive("Quiz template is required"),
+    templateId: z.number().int().positive("Quiz template is required"),
     userId: z.number().int().positive("User is required"),
-    batchId: z.number().int().positive("Batch is required"),
+    questions: z.array(z.number()).min(1, "At least one question is required"),
     startTime: z.string().min(1, "Start time is required"),
     endTime: z.string().optional(),
     score: z.number().int().min(0).max(100).optional(),
     status: z.enum(['in_progress', 'completed', 'abandoned']).default('in_progress'),
+    organizationId: z.number().int().positive("Organization is required"),
   });
 
 export const insertQuizResponseSchema = createInsertSchema(quizResponses)
@@ -778,16 +783,16 @@ export const quizTemplatesRelations = relations(quizTemplates, ({ one }) => ({
 
 export const quizAttemptsRelations = relations(quizAttempts, ({ one, many }) => ({
   template: one(quizTemplates, {
-    fields: [quizAttempts.quizTemplateId],
+    fields: [quizAttempts.templateId],
     references: [quizTemplates.id],
   }),
   user: one(users, {
     fields: [quizAttempts.userId],
     references: [users.id],
   }),
-  batch: one(organizationBatches, {
-    fields: [quizAttempts.batchId],
-    references: [organizationBatches.id],
+  organization: one(organizations, {
+    fields: [quizAttempts.organizationId],
+    references: [organizations.id],
   }),
   responses: many(quizResponses),
 }));
@@ -823,18 +828,17 @@ export const batchHistory = pgTable("batch_history", {
   newValue: text("new_value"),
   date: timestamp("date").defaultNow().notNull(),
   userId: integer("user_id")
-    .references(() => users.id)
-    .notNull(),
+    .references(() => users.id    .notNull(),
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Add type exports
+// Add type exports for quiz attempts
 export type BatchHistory = InferSelectModel<typeof batchHistory>;
 
-// Add insert schema
+// Add insert schema for quiz attempts
 export const insertBatchHistorySchema = createInsertSchema(batchHistory)
   .omit({
     id: true,
