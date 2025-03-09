@@ -13,7 +13,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
-import type { Question, QuizTemplate } from "@shared/schema";
+import type { Question, QuizTemplate, InsertQuizTemplate } from "@shared/schema";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -70,28 +70,33 @@ const QuizManagement: FC = () => {
   const [isEditTemplateOpen, setIsEditTemplateOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<QuizTemplate | null>(null);
   const [isUpdatingTemplate, setIsUpdatingTemplate] = useState(false);
+  const [previewQuestions, setPreviewQuestions] = useState<Question[]>([]);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
-  const questionForm = useForm<QuestionFormValues>({
-    resolver: zodResolver(questionFormSchema),
+  const templateForm = useForm<InsertQuizTemplate>({
+    resolver: zodResolver(z.object({
+      name: z.string().min(1, "Template name is required"),
+      description: z.string().optional(),
+      timeLimit: z.number().int().positive("Time limit must be positive"),
+      passingScore: z.number().int().min(0).max(100),
+      shuffleQuestions: z.boolean().default(false),
+      shuffleOptions: z.boolean().default(false),
+      questionCount: z.number().int().positive("Must select at least one question"),
+      categoryDistribution: z.record(z.string(), z.number()).optional(),
+      difficultyDistribution: z.record(z.string(), z.number()).optional(),
+      processId: z.number().int().positive("Process is required"),
+    })),
     defaultValues: {
-      type: "multiple_choice",
-      difficultyLevel: 1,
-      options: ["", ""],
-      category: ""
+      timeLimit: 10,
+      questionCount: 10,
+      passingScore: 70,
+      shuffleQuestions: false,
+      shuffleOptions: false,
     }
   });
 
   const { data: processes = [], isLoading: processesLoading, error: processesError } = useQuery<Process[]>({
     queryKey: ['/api/processes']
-  });
-
-  const templateForm = useForm<QuizTemplateFormValues>({
-    resolver: zodResolver(quizTemplateSchema),
-    defaultValues: {
-      timeLimit: 10,
-      questionCount: 10,
-      passingScore: 70,
-    }
   });
 
   const { data: questions = [], isLoading: questionsLoading } = useQuery<Question[]>({
@@ -213,7 +218,7 @@ const QuizManagement: FC = () => {
     }
   };
 
-  const onSubmitTemplate = async (data: QuizTemplateFormValues) => {
+  const onSubmitTemplate = async (data: InsertQuizTemplate) => {
     if (!user?.organizationId || !user?.id) {
       toast({
         title: "Error",
@@ -229,7 +234,6 @@ const QuizManagement: FC = () => {
         ...data,
         organizationId: user.organizationId,
         createdBy: user.id,
-        processId: data.processId
       };
 
       const url = selectedTemplate
@@ -278,8 +282,16 @@ const QuizManagement: FC = () => {
     }
   };
 
-  const [previewQuestions, setPreviewQuestions] = useState<Question[]>([]);
-  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+
+  const questionForm = useForm<QuestionFormValues>({
+    resolver: zodResolver(questionFormSchema),
+    defaultValues: {
+      type: "multiple_choice",
+      difficultyLevel: 1,
+      options: ["", ""],
+      category: ""
+    }
+  });
 
   const categories = useMemo(() => {
     if (!questions) return new Set<string>();
@@ -373,15 +385,21 @@ const QuizManagement: FC = () => {
 
   const handleEditTemplate = (template: QuizTemplate) => {
     setSelectedTemplate(template);
+    // Reset form with template values ensuring all fields are properly set
     templateForm.reset({
-      ...template,
+      name: template.name,
+      description: template.description || '',
+      timeLimit: template.timeLimit,
+      questionCount: template.questionCount,
+      passingScore: template.passingScore,
+      shuffleQuestions: template.shuffleQuestions,
+      shuffleOptions: template.shuffleOptions,
       processId: template.processId,
       categoryDistribution: template.categoryDistribution || {},
       difficultyDistribution: template.difficultyDistribution || {},
     });
-    setIsEditTemplateOpen(true);
+    setIsEditTemplateOpen(true);  // Make sure to open the edit dialog
   };
-
 
   return (
     <div className="container mx-auto py-6">
@@ -882,7 +900,7 @@ const QuizManagement: FC = () => {
               <p>No quiz templates created yet.</p>
             ) : (
               <div className="grid gap-4">
-                {quizTemplates?.map((template) => (
+                {quizTemplates.map((template) => (
                   <Card key={template.id} className="p-4">
                     <div className="flex justify-between items-start mb-2">
                       <div>
@@ -918,10 +936,10 @@ const QuizManagement: FC = () => {
                         <div>
                           <h4 className="font-medium mb-2">Question Selection</h4>
                           {template.categoryDistribution && (
-                            <div className="mb-2">
+                            <div<div className="mb-2">
                               <p className="text-xs text-muted-foreground mb-1">Categories:</p>
                               <div className="flex flex-wrap gap-1">
-                                {Object.entries(template.categoryDistribution).map(([category, count]) => (
+                                {Object.entries(template.categoryDistribution).map(([category,count]) => (
                                   <Badge key={category} variant="outline" className="text-xs">
                                     {category}: {count}
                                   </Badge>
@@ -942,7 +960,7 @@ const QuizManagement: FC = () => {
                             </div>
                           )}
                         </div>
-                                            </div>
+                      </div>
                       <div className="flex flex-wrap gap-2">
                         {template.shuffleQuestions && (
                           <Badge variant="secondary">Shuffle Questions</Badge>
@@ -958,8 +976,8 @@ const QuizManagement: FC = () => {
             )}
 
             {/* Add Template Dialog */}
-            <Dialog 
-              open={isAddTemplateOpen} 
+            <Dialog
+              open={isAddTemplateOpen}
               onOpenChange={(open) => {
                 setIsAddTemplateOpen(open);
                 if (!open) {
@@ -1073,7 +1091,6 @@ const QuizManagement: FC = () => {
                         </FormItem>
                       )}
                     />
-
                     <FormField
                       control={templateForm.control}
                       name="passingScore"
@@ -1094,7 +1111,6 @@ const QuizManagement: FC = () => {
                         </FormItem>
                       )}
                     />
-
                     <div className="flex flex-col gap-4">
                       <FormField
                         control={templateForm.control}
@@ -1125,7 +1141,6 @@ const QuizManagement: FC = () => {
                         )}
                       />
                     </div>
-
                     <div className="space-y-4">
                       <h4 className="font-medium">Question Distribution</h4>
                       <div className="space-y-2">
@@ -1182,7 +1197,6 @@ const QuizManagement: FC = () => {
                         </div>
                       </div>
                     </div>
-
                     <div className="flex justify-between gap-2">
                       <Button
                         type="button"
@@ -1225,8 +1239,8 @@ const QuizManagement: FC = () => {
             </Dialog>
 
             {/* Edit Template Dialog */}
-            <Dialog 
-              open={isEditTemplateOpen} 
+            <Dialog
+              open={isEditTemplateOpen}
               onOpenChange={(open) => {
                 setIsEditTemplateOpen(open);
                 if (!open) {
@@ -1340,7 +1354,6 @@ const QuizManagement: FC = () => {
                         </FormItem>
                       )}
                     />
-
                     <FormField
                       control={templateForm.control}
                       name="passingScore"
@@ -1361,7 +1374,6 @@ const QuizManagement: FC = () => {
                         </FormItem>
                       )}
                     />
-
                     <div className="flex flex-col gap-4">
                       <FormField
                         control={templateForm.control}
@@ -1392,7 +1404,6 @@ const QuizManagement: FC = () => {
                         )}
                       />
                     </div>
-
                     <div className="space-y-4">
                       <h4 className="font-medium">Question Distribution</h4>
                       <div className="space-y-2">
@@ -1449,7 +1460,6 @@ const QuizManagement: FC = () => {
                         </div>
                       </div>
                     </div>
-
                     <div className="flex justify-between gap-2">
                       <Button
                         type="button"

@@ -11,6 +11,9 @@ import {
   rolePermissions,
   userProcesses,
   batchPhaseChangeRequests,
+  quizTemplates,
+  type QuizTemplate,
+  type InsertQuizTemplate,
   type User,
   type InsertUser,
   type Organization,
@@ -38,7 +41,6 @@ import {
   questions,
   type Question,
   type InsertQuestion,
-  quizTemplates, type QuizTemplate, type InsertQuizTemplate
 } from "@shared/schema";
 
 export interface IStorage {
@@ -946,7 +948,7 @@ export class DatabaseStorage implements IStorage {
       const location = await this.getLocation(batch.locationId);
       if (!location) {
         throw new Error('Location not found');
-      }
+      }      }
 
       // Verify the LOB exists
       const lob = await this.getLineOfBusiness(batch.lineOfBusinessId);
@@ -963,7 +965,7 @@ export class DatabaseStorage implements IStorage {
       // If trainer is assigned, verify they exist and belong to the location
       if (batch.trainerId) {
         const trainer = await this.getUser(batch.trainerId);
-                if (!trainer) {
+        if (!trainer) {
           throw new Error('Trainer not found');
         }
         if (trainer.locationId !== batch.locationId) {
@@ -1837,41 +1839,24 @@ export class DatabaseStorage implements IStorage {
   }
   async createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate> {
     try {
-      console.log('Creating quiz template:', {
-        ...template,
-        questions: template.questions?.length || 0
-      });
+      console.log('Creating quiz template with data:', template);
 
       const [newTemplate] = await db
         .insert(quizTemplates)
-        .values({
-          ...template,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
+        .values(template)
         .returning() as QuizTemplate[];
 
-      if (!newTemplate) {
-        throw new Error('Failed to create quiz template');
-      }
-
-      console.log('Successfully created quiz template:', {
-        id: newTemplate.id,
-        name: newTemplate.name,
-        questionCount: newTemplate.questionCount
-      });
-
+      console.log('Successfully created quiz template:', newTemplate);
       return newTemplate;
     } catch (error) {
       console.error('Error creating quiz template:', error);
-      throw error instanceof Error ? error : new Error('Failed to create quiz template');
+      throw error;
     }
   }
 
   async listQuizTemplates(organizationId: number): Promise<QuizTemplate[]> {
     try {
       console.log(`Fetching quiz templates for organization ${organizationId}`);
-
       const templates = await db
         .select()
         .from(quizTemplates)
@@ -1880,47 +1865,7 @@ export class DatabaseStorage implements IStorage {
       console.log(`Found ${templates.length} quiz templates`);
       return templates;
     } catch (error) {
-      console.error('Error listing quiz templates:', error);
-      throw new Error('Failed to list quiz templates');
-    }
-  }
-  async getQuestion(id: number): Promise<Question | undefined> {
-    try {
-      const [question] = await db
-        .select()
-        .from(questions)
-        .where(eq(questions.id, id)) as Question[];
-      return question;
-    } catch (error) {
-      console.error('Error getting question:', error);
-      throw new Error('Failed to get question');
-    }
-  }
-
-  async deleteQuestion(id: number): Promise<void> {
-    try {
-      console.log(`Attempting to delete question with ID: ${id}`);
-
-      // First verify the question exists
-      const question = await this.getQuestion(id);
-      if (!question) {
-        console.log(`Question with ID ${id} not found`);
-        throw new Error('Question not found');
-      }
-
-      // Delete the question
-      const result = await db
-        .delete(questions)
-        .where(eq(questions.id, id))
-        .returning();
-
-      if (!result.length) {
-        throw new Error('Question deletion failed');
-      }
-
-      console.log(`Successfully deleted question with ID: ${id}`);
-    } catch (error) {
-      console.error('Error deleting question:', error);
+      console.error('Error fetching quiz templates:', error);
       throw error;
     }
   }
@@ -1969,7 +1914,7 @@ export class DatabaseStorage implements IStorage {
 
       if (!existingTemplate) {
         throw new Error('Quiz template not found');
-            }
+      }
 
       const [updatedTemplate] = await db
         .update(quizTemplates)

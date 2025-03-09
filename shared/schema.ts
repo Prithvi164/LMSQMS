@@ -142,6 +142,28 @@ export const questions = pgTable("questions", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Add insertQuestionSchema after questions table definition
+export const insertQuestionSchema = createInsertSchema(questions)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    question: z.string().min(1, "Question is required"),
+    type: z.enum(['multiple_choice', 'true_false', 'short_answer']),
+    options: z.array(z.string()).min(1, "At least one option is required"),
+    correctAnswer: z.string().min(1, "Correct answer is required"),
+    explanation: z.string().optional(),
+    difficultyLevel: z.number().int().min(1).max(5),
+    category: z.string().min(1, "Category is required"),
+    processId: z.number().int().positive("Process is required"),
+    organizationId: z.number().int().positive("Organization is required"),
+    createdBy: z.number().int().positive("Creator is required"),
+  });
+
+export type InsertQuestion = z.infer<typeof insertQuestionSchema>;
+
 // Update the quiz templates table with randomization fields
 export const quizTemplates = pgTable("quiz_templates", {
   id: serial("id").primaryKey(),
@@ -167,6 +189,31 @@ export const quizTemplates = pgTable("quiz_templates", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+// Add missing types and schemas for quiz templates
+export const insertQuizTemplateSchema = createInsertSchema(quizTemplates)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    name: z.string().min(1, "Template name is required"),
+    description: z.string().optional(),
+    timeLimit: z.number().int().positive("Time limit must be positive"),
+    passingScore: z.number().int().min(0).max(100),
+    shuffleQuestions: z.boolean().default(false),
+    shuffleOptions: z.boolean().default(false),
+    questionCount: z.number().int().positive("Must select at least one question"),
+    categoryDistribution: z.record(z.string(), z.number()).optional(),
+    difficultyDistribution: z.record(z.string(), z.number()).optional(),
+    processId: z.number().int().positive("Process is required"),
+    organizationId: z.number().int().positive("Organization is required"),
+    createdBy: z.number().int().positive("Creator is required"),
+    questions: z.array(z.number()).min(1, "At least one question is required"),
+  });
+
+export type InsertQuizTemplate = z.infer<typeof insertQuizTemplateSchema>;
 
 export const quizAttempts = pgTable("quiz_attempts", {
   id: serial("id").primaryKey(),
@@ -693,29 +740,6 @@ export type Question = InferSelectModel<typeof questions>;
 export type QuizTemplate = InferSelectModel<typeof quizTemplates>;
 export type QuizAttempt = InferSelectModel<typeof quizAttempts>;
 export type QuizResponse = InferSelectModel<typeof quizResponses>;
-
-// Update the insert schema for quiz templates
-export const insertQuizTemplateSchema = createInsertSchema(quizTemplates)
-  .omit({
-    id: true,
-    createdAt: true,
-    updatedAt: true,
-  })
-  .extend({
-    name: z.string().min(1, "Quiz name is required"),
-    description: z.string().optional(),
-    timeLimit: z.number().int().positive("Time limit must be positive"),
-    passingScore: z.number().int().min(0).max(100),
-    shuffleQuestions: z.boolean().default(false),
-    shuffleOptions: z.boolean().default(false),
-    questionCount: z.number().int().positive("Must select at least one question"),
-    categoryDistribution: z.record(z.string(), z.number()).optional(),
-    difficultyDistribution: z.record(z.string(), z.number()).optional(),
-    processId: z.number().int().positive("Process is required"),
-    organizationId: z.number().int().positive("Organization is required"),
-    createdBy: z.number().int().positive("Creator is required"),
-    questions: z.array(z.number()).min(1, "At least one question is required"),
-  });
 
 // Add insert schemas for quiz attempts and responses
 export const insertQuizAttemptSchema = createInsertSchema(quizAttempts)

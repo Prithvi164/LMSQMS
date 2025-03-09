@@ -833,26 +833,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid template ID" });
       }
 
-      // Get the template to verify ownership
-      const [template] = await db
-        .select()
-        .from(quizTemplates)
-        .where(eq(quizTemplates.id, templateId));
+      // Validate the update data using the schema
+      const updateData = {
+        ...req.body,
+        organizationId: req.user.organizationId,
+        createdBy: req.user.id
+      };
+      
+      // Remove undefined values
+      Object.keys(updateData).forEach(key => {
+        if (updateData[key] === undefined) {
+          delete updateData[key];
+        }
+      });
 
-      if (!template) {
-        return res.status(404).json({ message: "Quiz template not found" });
-      }
-
-      // Verify the template belongs to the user's organization
-      if (template.organizationId !== req.user.organizationId) {
-        return res.status(403).json({ message: "You can only update templates in your organization" });
-      }
+      console.log('Updating template with data:', updateData);
 
       // Update the template
-      const updatedTemplate = await storage.updateQuizTemplate(templateId, {
-        ...req.body,
-        organizationId: req.user.organizationId
-      });
+      const updatedTemplate = await storage.updateQuizTemplate(templateId, updateData);
 
       res.json(updatedTemplate);
     } catch (error: any) {
