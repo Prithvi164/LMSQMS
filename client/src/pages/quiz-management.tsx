@@ -38,13 +38,27 @@ const questionFormSchema = z.object({
   processId: z.number().min(1, "Process is required").optional()
 });
 
-type QuestionFormValues = z.infer<typeof questionFormSchema>;
+// Quiz template schema
+const quizTemplateSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  description: z.string().optional(),
+  timeLimit: z.number().int().min(1, "Time limit is required"),
+  questionCount: z.number().int().min(1, "Question count is required"),
+  passingScore: z.number().int().min(0).max(100, "Passing score must be between 0 and 100"),
+  shuffleQuestions: z.boolean().default(false),
+  shuffleOptions: z.boolean().default(false),
+  categoryDistribution: z.record(z.string(), z.number()).optional(),
+  difficultyDistribution: z.record(z.string(), z.number()).optional(),
+  processId: z.number().min(1, "Process is required"),
+});
 
 // Process filter form schema
 const filterFormSchema = z.object({
   processId: z.string().optional()
 });
 
+type QuestionFormValues = z.infer<typeof questionFormSchema>;
+type QuizTemplateFormValues = z.infer<typeof quizTemplateSchema>;
 type FilterFormValues = z.infer<typeof filterFormSchema>;
 
 export function QuizManagement() {
@@ -93,6 +107,8 @@ export function QuizManagement() {
       timeLimit: 10,
       questionCount: 10,
       passingScore: 70,
+      shuffleQuestions: false,
+      shuffleOptions: false
     }
   });
 
@@ -108,14 +124,12 @@ export function QuizManagement() {
 
     try {
       console.log('Submitting question data:', data);
-      // Always ensure options is an array
       const questionData = {
         ...data,
         options: data.type === 'multiple_choice' ? data.options : [],
         organizationId: user.organizationId,
         createdBy: user.id
       };
-      console.log('Processed question data:', questionData);
 
       const response = await fetch('/api/questions', {
         method: 'POST',
@@ -245,20 +259,6 @@ export function QuizManagement() {
     }
   };
 
-  const quizTemplateSchema = z.object({
-    name: z.string().min(1, "Name is required"),
-    description: z.string().optional(),
-    timeLimit: z.number().int().min(1, "Time limit is required"),
-    questionCount: z.number().int().min(1, "Question count is required"),
-    passingScore: z.number().int().min(0).max(100, "Passing score must be between 0 and 100"),
-    shuffleQuestions: z.boolean().default(false),
-    shuffleOptions: z.boolean().default(false),
-    categoryDistribution: z.record(z.string(), z.number()).optional(),
-    difficultyDistribution: z.record(z.string(), z.number()).optional(),
-    processId: z.number().min(1, "Process is required"),
-  });
-
-  type QuizTemplateFormValues = z.infer<typeof quizTemplateSchema>;
 
   return (
     <div className="container mx-auto py-6">
