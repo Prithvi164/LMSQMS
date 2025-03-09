@@ -16,7 +16,7 @@ import { useAuth } from "@/hooks/use-auth";
 import type { Question, QuizTemplate } from "@shared/schema";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import {Badge} from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 
 // Add type for Process
 interface Process {
@@ -24,6 +24,11 @@ interface Process {
   name: string;
   description?: string;
   status: string;
+}
+
+// Extended Question type to include process
+interface QuestionWithProcess extends Question {
+  process?: Process;
 }
 
 // Question form schema
@@ -72,7 +77,7 @@ export function QuizManagement() {
   const filterForm = useForm<FilterFormValues>({
     resolver: zodResolver(filterFormSchema),
     defaultValues: {
-      processId: "all" 
+      processId: "all"
     }
   });
 
@@ -86,7 +91,7 @@ export function QuizManagement() {
   });
 
   // Update questions query to use processId filter
-  const { data: questions = [], isLoading: questionsLoading } = useQuery<Question[]>({
+  const { data: questions = [], isLoading: questionsLoading } = useQuery<QuestionWithProcess[]>({
     queryKey: ['/api/questions', selectedProcessId],
     queryFn: async () => {
       const url = new URL('/api/questions', window.location.origin);
@@ -179,7 +184,7 @@ export function QuizManagement() {
         ...data,
         organizationId: user.organizationId,
         createdBy: user.id,
-        processId: data.processId 
+        processId: data.processId
       };
 
       const response = await fetch('/api/quiz-templates', {
@@ -522,10 +527,19 @@ export function QuizManagement() {
                 <p>No questions created yet.</p>
               ) : (
                 <div className="grid gap-4">
-                  {questions?.map((question) => (
+                  {questions?.map((question: QuestionWithProcess) => (
                     <Card key={question.id} className="p-4">
                       <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-medium text-lg">{question.question}</h3>
+                        <div className="space-y-1">
+                          <h3 className="font-medium text-lg">{question.question}</h3>
+                          {question.processId && (
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline">
+                                Process: {processes.find(p => p.id === question.processId)?.name || 'Unknown Process'}
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm px-2 py-1 bg-primary/10 rounded-md">
                             Level {question.difficultyLevel}
@@ -832,8 +846,8 @@ export function QuizManagement() {
                       </div>
 
                       <div className="flex justify-between gap-2">
-                        <Button 
-                          type="button" 
+                        <Button
+                          type="button"
                           variant="outline"
                           onClick={() => {
                             const data = templateForm.getValues();
