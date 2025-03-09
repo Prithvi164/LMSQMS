@@ -280,6 +280,43 @@ const QuizManagement: FC = () => {
                   </DialogHeader>
                   <Form {...questionForm}>
                     <form onSubmit={questionForm.handleSubmit(onSubmitQuestion)} className="space-y-4">
+                      {/* Process selection field moved to top */}
+                      <FormField
+                        control={questionForm.control}
+                        name="processId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Process</FormLabel>
+                            <Select
+                              onValueChange={(value) => field.onChange(parseInt(value))}
+                              defaultValue={field.value?.toString()}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder={processesLoading ? "Loading..." : "Select a process"} />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {processesLoading ? (
+                                  <SelectItem value="" disabled>Loading processes...</SelectItem>
+                                ) : processesError ? (
+                                  <SelectItem value="" disabled>Error loading processes</SelectItem>
+                                ) : processes && processes.length > 0 ? (
+                                  processes.map((process) => (
+                                    <SelectItem key={process.id} value={process.id.toString()}>
+                                      {process.name}
+                                    </SelectItem>
+                                  ))
+                                ) : (
+                                  <SelectItem value="" disabled>No processes available</SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
                       <FormField
                         control={questionForm.control}
                         name="question"
@@ -421,43 +458,6 @@ const QuizManagement: FC = () => {
                             <FormControl>
                               <Input placeholder="Enter question category" {...field} />
                             </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      {/* Add process selection field to the form */}
-                      <FormField
-                        control={questionForm.control}
-                        name="processId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Process</FormLabel>
-                            <Select
-                              onValueChange={(value) => field.onChange(parseInt(value))}
-                              defaultValue={field.value?.toString()}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder={processesLoading ? "Loading..." : "Select a process"} />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {processesLoading ? (
-                                  <SelectItem value="" disabled>Loading processes...</SelectItem>
-                                ) : processesError ? (
-                                  <SelectItem value="" disabled>Error loading processes</SelectItem>
-                                ) : processes && processes.length > 0 ? (
-                                  processes.map((process) => (
-                                    <SelectItem key={process.id} value={process.id.toString()}>
-                                      {process.name}
-                                    </SelectItem>
-                                  ))
-                                ) : (
-                                  <SelectItem value="" disabled>No processes available</SelectItem>
-                                )}
-                              </SelectContent>
-                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}
