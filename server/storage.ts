@@ -170,8 +170,6 @@ export interface IStorage {
   // Question operations
   createQuestion(question: InsertQuestion): Promise<Question>;
   listQuestions(organizationId: number): Promise<Question[]>;
-  getQuestion(id: number): Promise<Question | undefined>;
-  deleteQuestion(id: number): Promise<void>;
   getRandomQuestions(
     organizationId: number,
     options: {
@@ -185,7 +183,6 @@ export interface IStorage {
   // Quiz template operations
   createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate>;
   listQuizTemplates(organizationId: number): Promise<QuizTemplate[]>;
-  updateQuestion(id: number, question: Partial<InsertQuestion>): Promise<Question>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -962,7 +959,7 @@ export class DatabaseStorage implements IStorage {
       // If trainer is assigned, verify they exist and belong to the location
       if (batch.trainerId) {
         const trainer = await this.getUser(batch.trainerId);
-                if (!trainer) {
+        if (!trainer) {
           throw new Error('Trainer not found');
         }
         if (trainer.locationId !== batch.locationId) {
@@ -1883,78 +1880,6 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Failed to list quiz templates');
     }
   }
-  async getQuestion(id: number): Promise<Question | undefined> {
-    try {
-      const [question] = await db
-        .select()
-        .from(questions)
-        .where(eq(questions.id, id)) as Question[];
-      return question;
-    } catch (error) {
-      console.error('Error getting question:', error);
-      throw new Error('Failed to get question');
-    }
-  }
-
-  async deleteQuestion(id: number): Promise<void> {
-    try {
-      console.log(`Attempting to delete question with ID: ${id}`);
-
-      // First verify the question exists
-      const question = await this.getQuestion(id);
-      if (!question) {
-        console.log(`Question with ID ${id} not found`);
-        throw new Error('Question not found');
-      }
-
-      // Delete the question
-      const result = await db
-        .delete(questions)
-        .where(eq(questions.id, id))
-        .returning();
-
-      if (!result.length) {
-        throw new Error('Question deletion failed');
-      }
-
-      console.log(`Successfully deleted question with ID: ${id}`);
-    } catch (error) {
-      console.error('Error deleting question:', error);
-      throw error;
-    }
-  }
-
-  async updateQuestion(id: number, question: Partial<InsertQuestion>): Promise<Question> {
-    try {
-      console.log(`Attempting to update question with ID: ${id}`, question);
-
-      // First verify the question exists
-      const existingQuestion = await this.getQuestion(id);
-      if (!existingQuestion) {
-        throw new Error('Question not found');
-      }
-
-      const [updatedQuestion] = await db
-        .update(questions)
-        .set({
-          ...question,
-          updatedAt: new Date()
-        })
-        .where(eq(questions.id, id))
-        .returning() as Question[];
-
-      if (!updatedQuestion) {
-        throw new Error('Question update failed');
-      }
-
-      console.log('Successfully updated question:', updatedQuestion);
-      return updatedQuestion;
-    } catch (error) {
-      console.error('Error updating question:', error);
-      throw error;
-    }
-  }
-
 }
 
 export const storage = new DatabaseStorage();

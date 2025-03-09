@@ -3,14 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { Router } from "express";
-import { 
-  insertUserSchema, 
-  users, 
-  userBatchProcesses, 
-  organizationProcesses,
-  type InsertQuestion,
-  questions 
-} from "@shared/schema";
+import { insertUserSchema, users, userBatchProcesses, organizationProcesses } from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
@@ -822,94 +815,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update phase change request status
-  // Add DELETE endpoint for questions after the existing question routes
-  app.delete("/api/questions/:id", async (req, res) => {
-    if (!req.user || !req.user.organizationId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const questionId = parseInt(req.params.id);
-      if (!questionId) {
-        return res.status(400).json({ message: "Invalid question ID" });
-      }
-
-      // Get the question to verify ownership
-      const question = await storage.getQuestion(questionId);
-      if (!question) {
-        return res.status(404).json({ message: "Question not found" });
-      }
-
-      // Verify the question belongs to the user's organization
-      if (question.organizationId !== req.user.organizationId) {
-        return res.status(403).json({ message: "You can only delete questions in your organization" });
-      }
-
-      // Delete the question
-      await storage.deleteQuestion(questionId);
-      res.json({ message: "Question deleted successfully" });
-    } catch (error: any) {
-      console.error("Error deleting question:", error);
-      res.status(500).json({ message: error.message || "Failed to delete question" });
-    }
-  });
-
-  // Add PUT endpoint for updating questions
-  app.put("/api/questions/:id", async (req, res) => {
-    if (!req.user || !req.user.organizationId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const questionId = parseInt(req.params.id);
-      if (!questionId) {
-        return res.status(400).json({ message: "Invalid question ID" });
-      }
-
-      // Get the question to verify ownership
-      const question = await storage.getQuestion(questionId);
-      if (!question) {
-        return res.status(404).json({ message: "Question not found" });
-      }
-
-      // Verify the question belongs to the user's organization
-      if (question.organizationId !== req.user.organizationId) {
-        return res.status(403).json({ message: "You can only update questions in your organization" });
-      }
-
-      // Validate the update data
-      const updateData = req.body;
-      
-      // Create a Zod schema for updates based on existing question schema
-      const questionUpdateSchema = z.object({
-        question: z.string().optional(),
-        type: z.enum(['multiple_choice', 'true_false', 'short_answer']).optional(),
-        options: z.array(z.string()).optional(),
-        correctAnswer: z.string().optional(),
-        explanation: z.string().nullable().optional(),
-        difficultyLevel: z.number().int().min(1).max(5).optional(),
-        category: z.string().optional(),
-        organizationId: z.number()
-      });
-
-      // Validate the update data
-      const validatedData = await questionUpdateSchema.parseAsync({
-        ...updateData,
-        organizationId: req.user.organizationId
-      });
-
-      // Update the question
-      const updatedQuestion = await storage.updateQuestion(questionId, validatedData);
-      res.json(updatedQuestion);
-    } catch (error: any) {
-      console.error("Error updating question:", error);
-      res.status(500).json({ 
-        message: error.message || "Failed to update question",
-        details: error instanceof z.ZodError ? error.errors : undefined
-      });
-    }
-  });
-
   app.patch("/api/phase-change-requests/:requestId", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
