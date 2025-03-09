@@ -963,157 +963,157 @@ const QuizManagement: FC = () => {
                           <FormItem>
                             <FormLabel>Question Count</FormLabel>
                             <FormControl>
-                              <Input 
-                                type="number" 
-                                min="1" 
-                                {...field} 
-                                onChange={(e) => field.onChange(parseInt(e.target.value))}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
+                            <Input 
+                              type="number" 
+                              min="1" 
+                              {...field} 
+                              onChange={(e) => field.onChange(parseInt(e.target.value))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={templateForm.control}
+                      name="passingScore"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Passing Score (%)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={0}
+                              max={100}
+                              placeholder="Enter passing score"
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="flex flex-col gap-4">
+                      <FormField
+                        control={templateForm.control}
+                        name="shuffleQuestions"
+                        render={({ field }) => (
+                          <div className="flex items-center justify-between">
+                            <Label htmlFor="shuffle-questions">Shuffle Questions</Label>
+                            <Switch
+                              id="shuffle-questions"
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </div>
                         )}
                       />
                       <FormField
                         control={templateForm.control}
-                        name="passingScore"
+                        name="shuffleOptions"
                         render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Passing Score (%)</FormLabel>
-                            <FormControl>
+                          <div className="flex itemscenter justify-between">
+                                                            <Label htmlFor="shuffle-options">Shuffle Answer Options</Label>
+                            <Switch
+                              id="shuffle-options"
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </div>
+                        )}
+                      />
+                    </div>
+                    <div className="space-y-4">
+                      <h4 className="font-medium">Question Distribution</h4>
+                      <div className="space-y-2">
+                        <Label>Category Distribution</Label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {Array.from(categories).map((category) => (
+                            <div key={category} className="flex items-center gap-2">
+                              <Label>{category}</Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                className="w-20"
+                                onChange={(e) => {
+                                  const value = parseInt(e.target.value) || 0;
+                                  const currentDistribution = templateForm.getValues('categoryDistribution') || {};
+                                  templateForm.setValue('categoryDistribution', {
+                                    ...currentDistribution,
+                                    [category]: value
+                                  });
+                                }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Difficulty Distribution</Label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {difficulties.map((level) => (
+                            <div key={level} className="flex items-center gap-2">
+                              <Label>Level {level}</Label>
                               <Input
                                 type="number"
                                 min={0}
-                                max={100}
-                                placeholder="Enter passing score"
-                                {...field}
-                                onChange={(e) => field.onChange(parseInt(e.target.value))}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <div className="flex flex-col gap-4">
-                        <FormField
-                          control={templateForm.control}
-                          name="shuffleQuestions"
-                          render={({ field }) => (
-                            <div className="flex items-center justify-between">
-                              <Label htmlFor="shuffle-questions">Shuffle Questions</Label>
-                              <Switch
-                                id="shuffle-questions"
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </div>
-                          )}
-                        />
-                        <FormField
-                          control={templateForm.control}
-                          name="shuffleOptions"
-                          render={({ field }) => (
-                            <div className="flex itemscenter justify-between">
-                                                            <Label htmlFor="shuffle-options">Shuffle Answer Options</Label>
-                              <Switch
-                                id="shuffle-options"
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </div>
-                          )}
-                        />
-                      </div>
-                      <div className="space-y-4">
-                        <h4 className="font-medium">Question Distribution</h4>
-                        <div className="space-y-2">
-                          <Label>Category Distribution</Label>
-                          <div className="grid grid-cols-2 gap-2">
-                            {Array.from(categories).map((category) => (
-                              <div key={category} className="flex items-center gap-2">
-                                <Label>{category}</Label>
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  className="w-20"
-                                  onChange={(e) => {
-                                    const value = parseInt(e.target.value) || 0;
-                                    const currentDistribution = templateForm.getValues('categoryDistribution') || {};
-                                    templateForm.setValue('categoryDistribution', {
-                                      ...currentDistribution,
-                                      [category]: value
+                                placeholder="Count"
+                                onChange={(e) => {
+                                  const value = parseInt(e.target.value);
+                                  const current = templateForm.getValues('difficultyDistribution') || {};
+                                  if (value > 0) {
+                                    templateForm.setValue('difficultyDistribution', {
+                                      ...current,
+                                      [level]: value
                                     });
-                                  }}
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Difficulty Distribution</Label>
-                          <div className="grid grid-cols-2 gap-2">
-                            {difficulties.map((level) => (
-                              <div key={level} className="flex items-center gap-2">
-                                <Label>Level {level}</Label>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  placeholder="Count"
-                                  onChange={(e) => {
-                                    const value = parseInt(e.target.value);
-                                    const current = templateForm.getValues('difficultyDistribution') || {};
-                                    if (value > 0) {
-                                      templateForm.setValue('difficultyDistribution', {
-                                        ...current,
-                                        [level]: value
-                                      });
-                                    } else {
-                                      const { [level]: _, ...rest } = current;
-                                      templateForm.setValue('difficultyDistribution', rest);
-                                    }
-                                  }}
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex justify-between gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            const data = templateForm.getValues();
-                            previewRandomQuestions(data);
-                          }}
-                          disabled={isPreviewLoading}
-                        >
-                          {isPreviewLoading ? "Loading..." : "Preview Questions"}
-                        </Button>
-                        <Button type="submit">Create Template</Button>
-                      </div>
-                    </form>
-                  </Form>
-                  {previewQuestions.length > 0 && (
-                    <div className="mt-4 space-y-2">
-                      <h4 className="font-medium">Preview Selected Questions</h4>
-                      <div className="max-h-[300px] overflow-y-auto space-y-2">
-                        {previewQuestions.map((question) => (
-                          <Card key={question.id} className="p-2">
-                            <div className="flex justify-between items-start">
-                              <p className="text-sm">{question.question}</p>
-                              <div className="flex gap-1">
-                                <Badge variant="outline">Level {question.difficultyLevel}</Badge>
-                                <Badge variant="outline">{question.category}</Badge>
-                              </div>
+                                  } else {
+                                    const { [level]: _, ...rest } = current;
+                                    templateForm.setValue('difficultyDistribution', rest);
+                                  }
+                                }}
+                              />
                             </div>
-                          </Card>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  )}
-                </DialogContent>
-              </Dialog>
+                    <div className="flex justify-between gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          const data = templateForm.getValues();
+                          previewRandomQuestions(data);
+                        }}
+                        disabled={isPreviewLoading}
+                      >
+                        {isPreviewLoading ? "Loading..." : "Preview Questions"}
+                      </Button>
+                      <Button type="submit">Create Template</Button>
+                    </div>
+                  </form>
+                </Form>
+                {previewQuestions.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    <h4 className="font-medium">Preview Selected Questions</h4>
+                    <div className="max-h-[300px] overflow-y-auto space-y-2">
+                      {previewQuestions.map((question) => (
+                        <Card key={question.id} className="p-2">
+                          <div className="flex justify-between items-start">
+                            <p className="text-sm">{question.question}</p>
+                            <div className="flex gap-1">
+                              <Badge variant="outline">Level {question.difficultyLevel}</Badge>
+                              <Badge variant="outline">{question.category}</Badge>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
             </div>
             {templatesLoading ? (
               <p>Loading templates...</p>
