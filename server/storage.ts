@@ -1006,65 +1006,30 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching batches for organization ${organizationId}`);
 
-      // Explicitly select and cast the batch_category field
       const batches = await db
         .select({
           id: organizationBatches.id,
           name: organizationBatches.name,
-          batchCategory: sql<string>`${organizationBatches.batchCategory}::text`,
+          status: organizationBatches.status,
           startDate: organizationBatches.startDate,
           endDate: organizationBatches.endDate,
-          status: organizationBatches.status,
-          capacityLimit: organizationBatches.capacityLimit,
           locationId: organizationBatches.locationId,
-          processId: organizationBatches.processId,
-          lineOfBusinessId: organizationBatches.lineOfBusinessId,
           trainerId: organizationBatches.trainerId,
           organizationId: organizationBatches.organizationId,
-          inductionStartDate: organizationBatches.inductionStartDate,
-          inductionEndDate: organizationBatches.inductionEndDate,
-          trainingStartDate: organizationBatches.trainingStartDate,
-          trainingEndDate: organizationBatches.trainingEndDate,
-          certificationStartDate: organizationBatches.certificationStartDate,
-          certificationEndDate: organizationBatches.certificationEndDate,
-          ojtStartDate: organizationBatches.ojtStartDate,
-          ojtEndDate: organizationBatches.ojtEndDate,
-          ojtCertificationStartDate: organizationBatches.ojtCertificationStartDate,
-          ojtCertificationEndDate: organizationBatches.ojtCertificationEndDate,
-          handoverToOpsDate: organizationBatches.handoverToOpsDate,
           createdAt: organizationBatches.createdAt,
-          updatedAt: organizationBatches.updatedAt,
-          location: organizationLocations,
-          process: organizationProcesses,
-          line_of_business: organizationLineOfBusinesses,
+          updatedAt: organizationBatches.updatedAt
         })
         .from(organizationBatches)
-        .leftJoin(
-          organizationLocations,
-          eq(organizationBatches.locationId, organizationLocations.id)
-        )
-        .leftJoin(
-          organizationProcesses,
-          eq(organizationBatches.processId, organizationProcesses.id)
-        )
-        .leftJoin(
-          organizationLineOfBusinesses,
-          eq(organizationBatches.lineOfBusinessId, organizationLineOfBusinesses.id)
-        )
         .where(eq(organizationBatches.organizationId, organizationId))
-        .orderBy(desc(organizationBatches.createdAt));
+        .orderBy(desc(organizationBatches.createdAt)) as OrganizationBatch[];
 
-      // Debug log to verify the data      console.log('Raw batch data:', batches.map(b => ({
-      //      //   id: b.id,
-      //   name: b.name,
-      //   category: b.batchCategory,
-      //   rawCategory: JSON.stringify(b.batchCategory)
-      // })));
+      console.log(`Found ${batches.length} batches for organization ${organizationId}`);
+      console.log('Batch data:', batches);
 
-      return batches as OrganizationBatch[];
+      return batches;
     } catch (error) {
       console.error('Error fetching batches:', error);
-      throw error;
+      throw new Error('Failed to fetch batches');
     }
   }
 
