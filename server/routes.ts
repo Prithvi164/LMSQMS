@@ -821,47 +821,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add PUT endpoint for updating quiz templates
-  app.put("/api/quiz-templates/:id", async (req, res) => {
-    if (!req.user || !req.user.organizationId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const templateId = parseInt(req.params.id);
-      if (!templateId) {
-        return res.status(400).json({ message: "Invalid template ID" });
-      }
-
-      // Validate the update data using the schema
-      const updateData = {
-        ...req.body,
-        organizationId: req.user.organizationId,
-        createdBy: req.user.id
-      };
-      
-      // Remove undefined values
-      Object.keys(updateData).forEach(key => {
-        if (updateData[key] === undefined) {
-          delete updateData[key];
-        }
-      });
-
-      console.log('Updating template with data:', updateData);
-
-      // Update the template
-      const updatedTemplate = await storage.updateQuizTemplate(templateId, updateData);
-
-      res.json(updatedTemplate);
-    } catch (error: any) {
-      console.error("Error updating quiz template:", error);
-      res.status(500).json({ 
-        message: error.message || "Failed to update quiz template",
-        details: error instanceof z.ZodError ? error.errors : undefined
-      });
-    }
-  });
-
   // Update phase change request status
   // Add DELETE endpoint for questions after the existing question routes
   app.delete("/api/questions/:id", async (req, res) => {

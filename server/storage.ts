@@ -11,9 +11,6 @@ import {
   rolePermissions,
   userProcesses,
   batchPhaseChangeRequests,
-  quizTemplates,
-  type QuizTemplate,
-  type InsertQuizTemplate,
   type User,
   type InsertUser,
   type Organization,
@@ -41,6 +38,7 @@ import {
   questions,
   type Question,
   type InsertQuestion,
+  quizTemplates, type QuizTemplate, type InsertQuizTemplate
 } from "@shared/schema";
 
 export interface IStorage {
@@ -187,9 +185,7 @@ export interface IStorage {
   // Quiz template operations
   createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate>;
   listQuizTemplates(organizationId: number): Promise<QuizTemplate[]>;
-  updateQuizTemplate(id: number, template: Partial<InsertQuizTemplate>): Promise<QuizTemplate>;
-  getQuizTemplate(id: number): Promise<QuizTemplate | undefined>;
-  deleteQuizTemplate(id: number): Promise<void>;
+  updateQuestion(id: number, question: Partial<InsertQuestion>): Promise<Question>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -954,7 +950,7 @@ export class DatabaseStorage implements IStorage {
       // Verify the LOB exists
       const lob = await this.getLineOfBusiness(batch.lineOfBusinessId);
       if (!lob) {
-        throw new Error('Line of Business notfound');
+        throw new Error('Line of Business not found');
       }
 
       // Verify the process exists and belongs to the LOB
@@ -966,7 +962,7 @@ export class DatabaseStorage implements IStorage {
       // If trainer is assigned, verify they exist and belong to the location
       if (batch.trainerId) {
         const trainer = await this.getUser(batch.trainerId);
-        if (!trainer) {
+                if (!trainer) {
           throw new Error('Trainer not found');
         }
         if (trainer.locationId !== batch.locationId) {
@@ -1058,13 +1054,12 @@ export class DatabaseStorage implements IStorage {
         .where(eq(organizationBatches.organizationId, organizationId))
         .orderBy(desc(organizationBatches.createdAt));
 
-      // Debug log to verify the data
-      console.log('Raw batch data:', batches.map(b => ({
-        //   id: b.id,
-        //   name: b.name,
-        //   category: b.batchCategory,
-        //   rawCategory: JSON.stringify(b.batchCategory)
-      })));
+      // Debug log to verify the data      console.log('Raw batch data:', batches.map(b => ({
+      //      //   id: b.id,
+      //   name: b.name,
+      //   category: b.batchCategory,
+      //   rawCategory: JSON.stringify(b.batchCategory)
+      // })));
 
       return batches as OrganizationBatch[];
     } catch (error) {
@@ -1848,7 +1843,11 @@ export class DatabaseStorage implements IStorage {
 
       const [newTemplate] = await db
         .insert(quizTemplates)
-        .values(template)
+        .values({
+          ...template,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
         .returning() as QuizTemplate[];
 
       if (!newTemplate) {
@@ -1884,77 +1883,78 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Failed to list quiz templates');
     }
   }
-
-  async getQuizTemplate(id: number): Promise<QuizTemplate | undefined> {
+  async getQuestion(id: number): Promise<Question | undefined> {
     try {
-      const [template] = await db
+      const [question] = await db
         .select()
-        .from(quizTemplates)
-        .where(eq(quizTemplates.id, id)) as QuizTemplate[];
-
-      return template;
+        .from(questions)
+        .where(eq(questions.id, id)) as Question[];
+      return question;
     } catch (error) {
-      console.error('Error getting quiz template:', error);
-      throw new Error('Failed to get quiz template');
+      console.error('Error getting question:', error);
+      throw new Error('Failed to get question');
     }
   }
 
-  async updateQuizTemplate(id: number, template: Partial<InsertQuizTemplate>): Promise<QuizTemplate> {
+  async deleteQuestion(id: number): Promise<void> {
     try {
-      console.log(`Updating quiz template with ID: ${id}`, template);
+      console.log(`Attempting to delete question with ID: ${id}`);
 
-      // First verify the template exists
-      const existingTemplate = await this.getQuizTemplate(id);
-      if (!existingTemplate) {
-        throw new Error('Quiz template not found');
+      // First verify the question exists
+      const question = await this.getQuestion(id);
+      if (!question) {
+        console.log(`Question with ID ${id} not found`);
+        throw new Error('Question not found');
       }
 
-      const [updatedTemplate] = await db
-        .update(quizTemplates)
-        .set({
-          ...template,
-          updatedAt: new Date()
-        })
-        .where(eq(quizTemplates.id, id))
-        .returning() as QuizTemplate[];
-
-      if (!updatedTemplate) {
-        throw new Error('Failed to update quiz template');
-      }
-
-      console.log('Successfully updated quiz template:', updatedTemplate);
-      return updatedTemplate;
-    } catch (error) {
-      console.error('Error updating quiz template:', error);
-      throw error instanceof Error ? error : new Error('Failed to update quiz template');
-    }
-  }
-
-  async deleteQuizTemplate(id: number): Promise<void> {
-    try {
-      console.log(`Attempting to delete quiz template with ID: ${id}`);
-
-      // First verify the template exists
-      const template = await this.getQuizTemplate(id);
-      if (!template) {
-        throw new Error('Quiz template not found');
-      }
-
+      // Delete the question
       const result = await db
-        .delete(quizTemplates)
-        .where(eq(quizTemplates.id, id))
+        .delete(questions)
+        .where(eq(questions.id, id))
         .returning();
 
       if (!result.length) {
-        throw new Error('Quiz template deletion failed');
+        throw new Error('Question deletion failed');
       }
 
-      console.log(`Successfully deleted quiz template with ID: ${id}`);
+      console.log(`Successfully deleted question with ID: ${id}`);
     } catch (error) {
-      console.error('Error deleting quiz template:', error);
-      throw error instanceof Error ? error : new Error('Failed to delete quiz template');
+      console.error('Error deleting question:', error);
+      throw error;
     }
   }
+
+  async updateQuestion(id: number, question: Partial<InsertQuestion>): Promise<Question> {
+    try {
+      console.log(`Attempting to update question with ID: ${id}`, question);
+
+      // First verify the question exists
+      const existingQuestion = await this.getQuestion(id);
+      if (!existingQuestion) {
+        throw new Error('Question not found');
+      }
+
+      const [updatedQuestion] = await db
+        .update(questions)
+        .set({
+          ...question,
+          updatedAt: new Date()
+        })
+        .where(eq(questions.id, id))
+        .returning() as Question[];
+
+      if (!updatedQuestion) {
+        throw new Error('Question update failed');
+      }
+
+      console.log('Successfully updated question:', updatedQuestion);
+      return updatedQuestion;
+    } catch (error) {
+      console.error('Error updating question:', error);
+      throw error;
+    }
+  }
+
 }
 
 export const storage = new DatabaseStorage();
