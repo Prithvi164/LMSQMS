@@ -5,22 +5,26 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/hooks/use-auth';
 
 export function BatchMonitoringPage() {
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
+  const { user } = useAuth();
+  const organizationId = user?.organizationId;
 
-  const { data: batches } = useQuery({
+  const { data: batches, isLoading: batchesLoading } = useQuery({
     queryKey: ['/api/organizations', organizationId, 'batches'],
+    enabled: !!organizationId,
     select: (data) => data || []
   });
 
-  const { data: batchTrainees } = useQuery({
+  const { data: batchTrainees, isLoading: traineesLoading } = useQuery({
     queryKey: ['/api/organizations', organizationId, 'batches', selectedBatchId, 'trainees'],
-    enabled: !!selectedBatchId,
+    enabled: !!organizationId && !!selectedBatchId,
     select: (data) => data || []
   });
 
-  const renderPhaseProgress = (batch) => {
+  const renderPhaseProgress = (batch: any) => {
     const phases = ['planned', 'induction', 'training', 'certification', 'ojt', 'ojt_certification'];
     const currentPhaseIndex = phases.indexOf(batch.status);
     const progress = ((currentPhaseIndex + 1) / phases.length) * 100;
@@ -36,31 +40,51 @@ export function BatchMonitoringPage() {
     );
   };
 
+  if (!organizationId) {
+    return (
+      <div className="container mx-auto p-4">
+        <Card>
+          <CardContent className="py-8">
+            <div className="text-center text-muted-foreground">
+              Please select an organization to view batch monitoring.
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6">Batch Monitoring</h1>
-      
+
       <div className="grid md:grid-cols-2 gap-4">
         <Card>
           <CardHeader>
             <CardTitle>Active Batches</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {batches?.map((batch) => (
-                <div 
-                  key={batch.id} 
-                  className="p-4 border rounded-lg cursor-pointer hover:bg-accent"
-                  onClick={() => setSelectedBatchId(batch.id)}
-                >
-                  <div className="flex justify-between items-center mb-2">
-                    <h3 className="font-medium">{batch.name}</h3>
-                    <Badge>{batch.status}</Badge>
+            {batchesLoading ? (
+              <div className="text-center py-4 text-muted-foreground">Loading batches...</div>
+            ) : batches && batches.length > 0 ? (
+              <div className="space-y-4">
+                {batches.map((batch: any) => (
+                  <div 
+                    key={batch.id} 
+                    className="p-4 border rounded-lg cursor-pointer hover:bg-accent"
+                    onClick={() => setSelectedBatchId(batch.id)}
+                  >
+                    <div className="flex justify-between items-center mb-2">
+                      <h3 className="font-medium">{batch.name}</h3>
+                      <Badge>{batch.status}</Badge>
+                    </div>
+                    {renderPhaseProgress(batch)}
                   </div>
-                  {renderPhaseProgress(batch)}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-4 text-muted-foreground">No active batches found.</div>
+            )}
           </CardContent>
         </Card>
 
@@ -78,19 +102,25 @@ export function BatchMonitoringPage() {
                 </TabsList>
 
                 <TabsContent value="trainees">
-                  <div className="space-y-4">
-                    {batchTrainees?.map((trainee) => (
-                      <div key={trainee.id} className="p-4 border rounded-lg">
-                        <div className="flex justify-between items-center">
-                          <span className="font-medium">{trainee.user?.fullName}</span>
-                          <Badge variant="outline">{trainee.status}</Badge>
+                  {traineesLoading ? (
+                    <div className="text-center py-4 text-muted-foreground">Loading trainees...</div>
+                  ) : batchTrainees && batchTrainees.length > 0 ? (
+                    <div className="space-y-4">
+                      {batchTrainees.map((trainee: any) => (
+                        <div key={trainee.id} className="p-4 border rounded-lg">
+                          <div className="flex justify-between items-center">
+                            <span className="font-medium">{trainee.user?.fullName}</span>
+                            <Badge variant="outline">{trainee.status}</Badge>
+                          </div>
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            {trainee.user?.employeeId}
+                          </div>
                         </div>
-                        <div className="mt-2 text-sm text-muted-foreground">
-                          {trainee.user?.employeeId}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 text-muted-foreground">No trainees found in this batch.</div>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="performance">
