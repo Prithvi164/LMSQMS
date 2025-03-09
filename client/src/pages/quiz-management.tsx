@@ -127,7 +127,7 @@ const QuizManagement: FC = () => {
 
   // Add function to handle process selection change 
   const handleProcessChange = (processId: string) => {
-    const newProcessId = processId === "" ? null : parseInt(processId);
+    const newProcessId = processId === "none" ? null : parseInt(processId);
     setSelectedProcessId(newProcessId);
     
     // Reset forms when process changes
@@ -390,7 +390,7 @@ const QuizManagement: FC = () => {
           Select a process to manage its questions and quiz templates. All new questions and templates will be associated with the selected process.
         </p>
         <Select
-          value={selectedProcessId?.toString() || ""}
+          value={selectedProcessId?.toString() || "none"}
           onValueChange={handleProcessChange}
         >
           <SelectTrigger className="w-[300px]">
@@ -398,9 +398,9 @@ const QuizManagement: FC = () => {
           </SelectTrigger>
           <SelectContent>
             {processesLoading ? (
-              <SelectItem value="" disabled>Loading processes...</SelectItem>
+              <SelectItem value="none" disabled>Loading processes...</SelectItem>
             ) : processesError ? (
-              <SelectItem value="" disabled>Error loading processes</SelectItem>
+              <SelectItem value="none" disabled>Error loading processes</SelectItem>
             ) : processes && processes.length > 0 ? (
               processes.map((process) => (
                 <SelectItem key={process.id} value={process.id.toString()}>
@@ -408,7 +408,7 @@ const QuizManagement: FC = () => {
                 </SelectItem>
               ))
             ) : (
-              <SelectItem value="" disabled>No processes available</SelectItem>
+              <SelectItem value="none" disabled>No processes available</SelectItem>
             )}
           </SelectContent>
         </Select>
