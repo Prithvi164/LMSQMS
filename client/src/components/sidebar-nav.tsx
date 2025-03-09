@@ -7,34 +7,21 @@ import {
   BarChart2, 
   Users,
   ClipboardCheck,
-  LogOut,
-  ClipboardList
+  LogOut 
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
 export function SidebarNav() {
   const [location] = useLocation();
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
 
-  const baseNavItems = [
+  const navItems = [
     { href: '/', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/batch-management', label: 'Batch Management', icon: Users },
     { href: '/trainee-management', label: 'Trainee Management', icon: ClipboardCheck },
     { href: '/learning-paths', label: 'Learning Paths', icon: GraduationCap },
     { href: '/performance', label: 'Performance', icon: BarChart2 },
   ];
-
-  // Add manager-specific navigation items
-  const navItems = user?.role === 'manager' 
-    ? [
-        ...baseNavItems,
-        { 
-          href: '/manager-dashboard', 
-          label: 'Approval Requests', 
-          icon: ClipboardList 
-        }
-      ]
-    : baseNavItems;
 
   return (
     <div className="h-screen w-64 bg-sidebar border-r border-sidebar-border p-4 flex flex-col">

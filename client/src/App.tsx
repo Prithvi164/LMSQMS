@@ -7,7 +7,6 @@ import { PermissionsProvider } from "@/hooks/use-permissions";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import Dashboard from "@/pages/dashboard";
-import { ManagerDashboardPage } from "@/pages/manager-dashboard";
 import LearningPaths from "@/pages/learning-paths";
 import Performance from "@/pages/performance";
 import Settings from "@/pages/settings";
@@ -27,6 +26,7 @@ function Router() {
   const isSettingsPage = location === "/settings";
   const isAuthPage = location.startsWith("/auth");
 
+  // Show onboarding flow for authenticated users who haven't completed onboarding
   if (user && !user.onboardingCompleted && !isAuthPage) {
     return <OnboardingFlow />;
   }
@@ -43,11 +43,6 @@ function Router() {
         <Switch>
           <Route path="/auth" component={AuthPage} />
           <ProtectedRoute path="/" component={Dashboard} />
-          <ProtectedRoute 
-            path="/manager-dashboard" 
-            component={ManagerDashboardPage}
-            roles={['manager']} 
-          />
           <ProtectedRoute path="/learning-paths" component={LearningPaths} />
           <ProtectedRoute path="/trainee-management" component={TraineeManagement} />
           <ProtectedRoute path="/performance" component={Performance} />

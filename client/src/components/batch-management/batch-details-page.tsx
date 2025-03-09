@@ -104,7 +104,6 @@ const LoadingSkeleton = () => (
   </div>
 );
 
-// Schema for phase change request form validation
 const phaseChangeFormSchema = z.object({
   requestedPhase: z.enum(['induction', 'training', 'certification', 'ojt', 'ojt_certification']),
   justification: z.string().min(1, "Justification is required"),
@@ -120,7 +119,7 @@ export function BatchDetailsPage() {
   const [selectedTab, setSelectedTab] = useState("attendance");
   const currentDate = format(new Date(), "PPP");
 
-  // Initialize form with validation
+  // Initialize form at the top level
   const form = useForm({
     resolver: zodResolver(phaseChangeFormSchema),
     defaultValues: {
@@ -212,7 +211,6 @@ export function BatchDetailsPage() {
     },
   });
 
-  // Mutation for creating a new phase change request
   const createRequestMutation = useMutation({
     mutationFn: async (data: any) => {
       console.log('Creating phase change request:', data);
@@ -235,7 +233,6 @@ export function BatchDetailsPage() {
       return response.json();
     },
     onSuccess: () => {
-      // Invalidate queries to refresh the data
       queryClient.invalidateQueries({ 
         queryKey: [
           `/api/trainers/${user?.id}/phase-change-requests`,
@@ -247,7 +244,6 @@ export function BatchDetailsPage() {
         description: "Phase change request submitted successfully",
       });
       form.reset();
-      // Close the dialog
       const closeButton = document.querySelector('[data-dialog-close]');
       if (closeButton instanceof HTMLElement) {
         closeButton.click();
@@ -267,7 +263,6 @@ export function BatchDetailsPage() {
     createRequestMutation.mutate(data);
   };
 
-  // Handler for approving phase change requests
   const handleApprove = async (requestId: number) => {
     try {
       await fetch(`/api/phase-change-requests/${requestId}`, {
@@ -298,7 +293,6 @@ export function BatchDetailsPage() {
     }
   };
 
-  // Handler for rejecting phase change requests
   const handleReject = async (requestId: number) => {
     try {
       await fetch(`/api/phase-change-requests/${requestId}`, {
