@@ -593,6 +593,7 @@ export function BatchDetailsPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Requested By</TableHead>
+                        <TableHead>Batch Name</TableHead>
                         <TableHead>Current Phase</TableHead>
                         <TableHead>Requested Phase</TableHead>
                         <TableHead>Status</TableHead>
@@ -603,8 +604,9 @@ export function BatchDetailsPage() {
                       {phaseRequests.map((request: any) => (
                         <TableRow key={request.id}>
                           <TableCell>{request.trainer?.fullName}</TableCell>
-                          <TableCell>{request.currentPhase}</TableCell>
-                          <TableCell>{request.requestedPhase}</TableCell>
+                          <TableCell>{batch.name}</TableCell>
+                          <TableCell className="capitalize">{request.currentPhase}</TableCell>
+                          <TableCell className="capitalize">{request.requestedPhase}</TableCell>
                           <TableCell>
                             <Badge 
                               variant={
