@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -19,7 +19,6 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Pencil, Trash2, Loader2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-
 
 // Define Process interface
 interface Process {
@@ -942,7 +941,8 @@ const QuizManagement: FC = () => {
                               </div>
                             </div>
                           )}
-                        </div>                      </div>
+                        </div>
+                                            </div>
                       <div className="flex flex-wrap gap-2">
                         {template.shuffleQuestions && (
                           <Badge variant="secondary">Shuffle Questions</Badge>
@@ -1195,9 +1195,11 @@ const QuizManagement: FC = () => {
                       >
                         {isPreviewLoading ? "Loading..." : "Preview Questions"}
                       </Button>
-                      <Button type="submit" disabled={isUpdatingTemplate}>
-                        {isUpdatingTemplate ? "Saving..." : (selectedTemplate ? "Save Changes" : "Create Template")}
-                      </Button>
+                      <DialogFooter>
+                        <Button type="submit" disabled={isUpdatingTemplate}>
+                          {isUpdatingTemplate ? "Saving..." : (selectedTemplate ? "Save Changes" : "Create Template")}
+                        </Button>
+                      </DialogFooter>
                     </div>
                   </form>
                 </Form>
@@ -1460,9 +1462,11 @@ const QuizManagement: FC = () => {
                       >
                         {isPreviewLoading ? "Loading..." : "Preview Questions"}
                       </Button>
-                      <Button type="submit" disabled={isUpdatingTemplate}>
-                        {isUpdatingTemplate ? "Saving..." : (selectedTemplate ? "Save Changes" : "Create Template")}
-                      </Button>
+                      <DialogFooter>
+                        <Button type="submit" disabled={isUpdatingTemplate}>
+                          {isUpdatingTemplate ? "Saving..." : (selectedTemplate ? "Save Changes" : "Create Template")}
+                        </Button>
+                      </DialogFooter>
                     </div>
                   </form>
                 </Form>
