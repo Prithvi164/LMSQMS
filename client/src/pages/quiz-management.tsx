@@ -79,25 +79,26 @@ export function QuizManagement() {
   // Get selected process ID from form
   const selectedProcessId = filterForm.watch("processId") !== "all" ? parseInt(filterForm.watch("processId")) : null;
 
-  const questionForm = useForm<QuestionFormValues>({
-    resolver: zodResolver(questionFormSchema),
-    defaultValues: {
-      type: "multiple_choice",
-      difficultyLevel: 1,
-      options: ["", ""],
-      category: "",
-      processId: undefined
-    }
-  });
-
   // Update process query with proper typing
   const { data: processes = [], isLoading: processesLoading } = useQuery<Process[]>({
     queryKey: ['/api/processes'],
     enabled: !!user?.organizationId
   });
 
+  // Update questions query to use processId filter
   const { data: questions = [], isLoading: questionsLoading } = useQuery<Question[]>({
     queryKey: ['/api/questions', selectedProcessId],
+    queryFn: async () => {
+      const url = new URL('/api/questions', window.location.origin);
+      if (selectedProcessId) {
+        url.searchParams.append('processId', selectedProcessId.toString());
+      }
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Failed to fetch questions');
+      }
+      return response.json();
+    },
     enabled: !!user?.organizationId,
   });
 
@@ -259,6 +260,17 @@ export function QuizManagement() {
     }
   };
 
+
+  const questionForm = useForm<QuestionFormValues>({
+    resolver: zodResolver(questionFormSchema),
+    defaultValues: {
+      type: "multiple_choice",
+      difficultyLevel: 1,
+      options: ["", ""],
+      category: "",
+      processId: undefined
+    }
+  });
 
   return (
     <div className="container mx-auto py-6">
