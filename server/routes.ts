@@ -204,6 +204,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+
   // Update organization settings route
   app.get("/api/organizations/:id/settings", async (req, res) => {
     console.log("GET /api/organizations/:id/settings - Request params:", req.params);
@@ -921,6 +923,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
+
+  // Add question routes after batch routes
+  app.post("/api/questions", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      console.log('Received question data:', req.body);
+      const questionData = {
+        ...req.body,
+        createdBy: req.user.id,
+        organizationId: req.user.organizationId,
+        processId: req.user.processId || 1, // Default to first process if none assigned
+      };
+
+      console.log('Saving question with data:', questionData);
+      // Create the question in the database
+      const question = await storage.createQuestion(questionData);
+      console.log('Successfully created question:', question);
+      
+      res.status(201).json(question);
+    } catch (error: any) {
+      console.error("Error creating question:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/questions", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      console.log('Fetching questions for organization:', req.user.organizationId);
+      // Get questions for the user's organization  
+      const questions = await storage.listQuestions(req.user.organizationId);
+      console.log('Retrieved questions:', questions);
+      res.json(questions);
+    } catch (error: any) {
+      console.error("Error fetching questions:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
         console.log('User organization mismatch:', {
           userOrgId: req.user.organizationId,
           requestedOrgId: orgId
@@ -987,40 +1029,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add question routes after batch routes
-  app.post("/api/questions", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-    
-    try {
-      const questionData = {
-        ...req.body,
-        createdBy: req.user.id,
-        organizationId: req.user.organizationId,
-        processId: req.user.processId || 1, // Default to first process if none assigned
-      };
 
-      // Create the question in the database
-      const question = await storage.createQuestion(questionData);
-      console.log('Created question:', question);
-      
-      res.status(201).json(question);
-    } catch (error: any) {
-      console.error("Error creating question:", error);
-      res.status(400).json({ message: error.message });
-    }
-  });
-
-  app.get("/api/questions", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      // Get questions for the user's organization  
-      const questions = await storage.listQuestions(req.user.organizationId);
-      res.json(questions);
-    } catch (error: any) {
-      console.error("Error fetching questions:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
 
   // Add endpoint to get processes by line of business 
   app.get("/api/organizations/:orgId/line-of-businesses/:lobId/processes", async (req, res) => {
