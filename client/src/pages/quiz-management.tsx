@@ -103,7 +103,8 @@ const QuizManagement: FC = () => {
       type: "multiple_choice",
       difficultyLevel: 1,
       options: ["", ""],
-      category: ""
+      category: "",
+      processId: undefined 
     });
     setSelectedQuestion(null);
   };
@@ -114,7 +115,7 @@ const QuizManagement: FC = () => {
       ...question,
       processId: question.processId,
       options: question.type === 'multiple_choice' ? question.options : ["", ""],
-      explanation: question.explanation || undefined // Convert null to undefined for the form
+      explanation: question.explanation || undefined
     });
     setIsEditQuestionOpen(true);
   };
@@ -131,7 +132,6 @@ const QuizManagement: FC = () => {
         throw new Error(errorData.message || 'Failed to delete question');
       }
 
-      // Invalidate and refetch questions after successful deletion
       await queryClient.invalidateQueries({ queryKey: ['/api/questions'] });
 
       toast({
@@ -302,6 +302,45 @@ const QuizManagement: FC = () => {
     }
   };
 
+  // Update the process selection field in both Add and Edit forms
+  const ProcessSelectionField = ({ control }: { control: any }) => (
+    <FormField
+      control={control}
+      name="processId"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Process</FormLabel>
+          <Select
+            onValueChange={(value) => field.onChange(parseInt(value))}
+            value={field.value?.toString()}
+          >
+            <FormControl>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a process" />
+              </SelectTrigger>
+            </FormControl>
+            <SelectContent>
+              {processesLoading ? (
+                <SelectItem value="loading" disabled>Loading processes...</SelectItem>
+              ) : processesError ? (
+                <SelectItem value="error" disabled>Error loading processes</SelectItem>
+              ) : processes && processes.length > 0 ? (
+                processes.map((process) => (
+                  <SelectItem key={process.id} value={process.id.toString()}>
+                    {process.name}
+                  </SelectItem>
+                ))
+              ) : (
+                <SelectItem value="none" disabled>No processes available</SelectItem>
+              )}
+            </SelectContent>
+          </Select>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+
   return (
     <div className="container mx-auto py-6">
       <h1 className="text-2xl font-bold mb-6">Quiz Management</h1>
@@ -329,41 +368,7 @@ const QuizManagement: FC = () => {
                   </DialogHeader>
                   <Form {...questionForm}>
                     <form onSubmit={questionForm.handleSubmit(onSubmitQuestion)} className="space-y-4">
-                      <FormField
-                        control={questionForm.control}
-                        name="processId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Process</FormLabel>
-                            <Select
-                              onValueChange={(value) => field.onChange(parseInt(value))}
-                              defaultValue={field.value?.toString()}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder={processesLoading ? "Loading..." : "Select a process"} />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {processesLoading ? (
-                                  <SelectItem value="" disabled>Loading processes...</SelectItem>
-                                ) : processesError ? (
-                                  <SelectItem value="" disabled>Error loading processes</SelectItem>
-                                ) : processes && processes.length > 0 ? (
-                                  processes.map((process) => (
-                                    <SelectItem key={process.id} value={process.id.toString()}>
-                                      {process.name}
-                                    </SelectItem>
-                                  ))
-                                ) : (
-                                  <SelectItem value="" disabled>No processes available</SelectItem>
-                                )}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <ProcessSelectionField control={questionForm.control} />
                       <FormField
                         control={questionForm.control}
                         name="question"
@@ -521,41 +526,7 @@ const QuizManagement: FC = () => {
                 </DialogHeader>
                 <Form {...questionForm}>
                   <form onSubmit={questionForm.handleSubmit(onSubmitQuestion)} className="space-y-4">
-                    <FormField
-                        control={questionForm.control}
-                        name="processId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Process</FormLabel>
-                            <Select
-                              onValueChange={(value) => field.onChange(parseInt(value))}
-                              defaultValue={field.value?.toString()}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder={processesLoading ? "Loading..." : "Select a process"} />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {processesLoading ? (
-                                  <SelectItem value="" disabled>Loading processes...</SelectItem>
-                                ) : processesError ? (
-                                  <SelectItem value="" disabled>Error loading processes</SelectItem>
-                                ) : processes && processes.length > 0 ? (
-                                  processes.map((process) => (
-                                    <SelectItem key={process.id} value={process.id.toString()}>
-                                      {process.name}
-                                    </SelectItem>
-                                  ))
-                                ) : (
-                                  <SelectItem value="" disabled>No processes available</SelectItem>
-                                )}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                    <ProcessSelectionField control={questionForm.control} />
                     <FormField
                       control={questionForm.control}
                       name="question"
@@ -995,7 +966,7 @@ const QuizManagement: FC = () => {
                                 <Label>{category}</Label>
                                 <Input
                                   type="number"
-                                  min="0"
+                                                                    min="0"
                                   className="w-20"
                                   onChange={(e) => {
                                     const value = parseInt(e.target.value) || 0;
