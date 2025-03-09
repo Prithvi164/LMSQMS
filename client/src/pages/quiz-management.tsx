@@ -97,12 +97,15 @@ export function QuizManagement() {
       const url = new URL('/api/questions', window.location.origin);
       if (selectedProcessId) {
         url.searchParams.append('processId', selectedProcessId.toString());
+        console.log('Fetching questions for process:', selectedProcessId);
       }
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error('Failed to fetch questions');
       }
-      return response.json();
+      const data = await response.json();
+      console.log('Fetched questions:', data);
+      return data;
     },
     enabled: !!user?.organizationId,
   });
@@ -301,7 +304,10 @@ export function QuizManagement() {
                         <FormItem>
                           <FormLabel>Filter by Process</FormLabel>
                           <Select
-                            onValueChange={field.onChange}
+                            onValueChange={(value) => {
+                              console.log('Selected process:', value);
+                              field.onChange(value);
+                            }}
                             value={field.value}
                           >
                             <FormControl>
