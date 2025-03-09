@@ -86,12 +86,12 @@ const QuizManagement: FC = () => {
   });
 
   // Update process query with proper typing and error handling
-  const { data: processes, isLoading: processesLoading, error: processesError } = useQuery<Process[]>({
+  const { data: processes, isLoading: processesLoading, error: processesError } = useQuery<Process[], Error>({
     queryKey: ['/api/processes'],
     refetchOnWindowFocus: false,
     retry: 1,
     staleTime: 30000,
-    onError: (error: Error) => {
+    onError: (error) => {
       console.error('Error fetching processes:', error);
       toast({
         title: "Error",
@@ -110,12 +110,32 @@ const QuizManagement: FC = () => {
     }
   });
 
-  const { data: questions, isLoading: questionsLoading } = useQuery<Question[]>({
+  const { data: questions, isLoading: questionsLoading } = useQuery<Question[], Error>({
     queryKey: ['/api/questions'],
+    refetchOnWindowFocus: false,
+    retry: 1,
+    onError: (error) => {
+      console.error('Error fetching questions:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load questions. Please try again.",
+        variant: "destructive",
+      });
+    }
   });
 
-  const { data: quizTemplates, isLoading: templatesLoading } = useQuery<QuizTemplate[]>({
+  const { data: quizTemplates, isLoading: templatesLoading } = useQuery<QuizTemplate[], Error>({
     queryKey: ['/api/quiz-templates'],
+    refetchOnWindowFocus: false,
+    retry: 1, 
+    onError: (error) => {
+      console.error('Error fetching templates:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load templates. Please try again.",
+        variant: "destructive",
+      });
+    }
   });
 
   // Filter quiz templates based on selected process
@@ -380,80 +400,7 @@ const QuizManagement: FC = () => {
     return process?.name || 'Unknown Process';
   };
 
-  return (
-    <div className="container mx-auto py-6">
-      <h1 className="text-2xl font-bold mb-6">Quiz Management</h1>
 
-      <Card className="p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">Select Process</h2>
-        <p className="text-sm text-muted-foreground mb-4">
-          Select a process to manage its questions and quiz templates. All new questions and templates will be associated with the selected process.
-        </p>
-        <Select
-          value={selectedProcessId?.toString() || "none"}
-          onValueChange={handleProcessChange}
-        >
-          <SelectTrigger className="w-[300px]">
-            <SelectValue placeholder="Select a Process" />
-          </SelectTrigger>
-          <SelectContent>
-            {processesLoading ? (
-              <SelectItem value="none" disabled>Loading processes...</SelectItem>
-            ) : processesError ? (
-              <SelectItem value="none" disabled>Error loading processes</SelectItem>
-            ) : processes && processes.length > 0 ? (
-              processes.map((process) => (
-                <SelectItem key={process.id} value={process.id.toString()}>
-                  {process.name}
-                </SelectItem>
-              ))
-            ) : (
-              <SelectItem value="none" disabled>No processes available</SelectItem>
-            )}
-          </SelectContent>
-        </Select>
-      </Card>
-
-      <Tabs defaultValue="templates">
-        <TabsList>
-          <TabsTrigger value="questions">Question Bank</TabsTrigger>
-          <TabsTrigger value="templates">Quiz Templates</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="questions">
-          <Card className="p-4">
-            <div className="flex justify-between items-center mb-4">
-              <div>
-                <h2 className="text-xl font-semibold">Questions</h2>
-                {selectedProcessId && (
-                  <p className="text-sm text-muted-foreground">
-                    Showing questions for {getProcessName(selectedProcessId)}
-                  </p>
-                )}
-              </div>
-              <Dialog open={isAddQuestionOpen} onOpenChange={setIsAddQuestionOpen}>
-                <DialogTrigger asChild>
-                  <Button>Add Question</Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Add New Question</DialogTitle>
-                  </DialogHeader>
-                  <Form {...questionForm}>
-                    <form onSubmit={questionForm.handleSubmit(onSubmitQuestion)} className="space-y-4">
-                      <FormField
-                        control={questionForm.control}
-                        name="question"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Question Text</FormLabel>
-                            <FormControl>
-                              <Textarea placeholder="Enter your question" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
 
                       <FormField
                         control={questionForm.control}
