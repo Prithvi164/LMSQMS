@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { Router } from "express";
-import { insertUserSchema, users, userBatchProcesses } from "@shared/schema";
+import { insertUserSchema, users, userBatchProcesses, organizationProcesses } from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
@@ -598,6 +598,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Get the first available process for the organization
+      const [process] = await db
+        .select()
+        .from(organizationProcesses)
+        .where(eq(organizationProcesses.organizationId, req.user.organizationId))
+        .limit(1);
+
+      if (!process) {
+        return res.status(400).json({
+          message: "No process found for the organization. Please create a process first."
+        });
+      }
+
       // Create question data with proper type checking
       const questionData = {
         question: String(questionText),
@@ -611,7 +624,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         category: String(category),
         createdBy: req.user.id,
         organizationId: req.user.organizationId,
-        processId: req.user.processId || 1 // Default to first process if none assigned
+        processId: process.id // Use the found process ID
       };
 
       // Validate numeric fields
@@ -628,7 +641,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      console.log('Processed and validated question data:', questionData);
+      console.log('Processed question data:', questionData);
       
       // Create the question in the database
       const newQuestion = await storage.createQuestion(questionData);

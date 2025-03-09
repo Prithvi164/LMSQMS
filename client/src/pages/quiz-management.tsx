@@ -69,7 +69,6 @@ const QuizManagement: FC = () => {
         ...data,
         options: data.type === 'multiple_choice' ? data.options : [],
         organizationId: user.organizationId,
-        processId: user.processId || 1, // Default to first process if none assigned
         createdBy: user.id
       };
       console.log('Processed question data:', questionData);
