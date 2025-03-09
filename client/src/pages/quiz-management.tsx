@@ -62,20 +62,28 @@ const QuizManagement: FC = () => {
     }
 
     try {
+      console.log('Submitting question data:', data);
       const questionData = {
         ...data,
         organizationId: user.organizationId,
         processId: user.processId || 1,
+        createdBy: user.id
       };
+      console.log('Processed question data:', questionData);
 
       // Make API call to save question
-      await fetch('/api/questions', {
+      const response = await fetch('/api/questions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(questionData),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to add question');
+      }
 
       // Invalidate and refetch questions
       await queryClient.invalidateQueries({ queryKey: ['/api/questions'] });
@@ -90,7 +98,7 @@ const QuizManagement: FC = () => {
       console.error('Error saving question:', error);
       toast({
         title: "Error",
-        description: "Failed to add question",
+        description: error instanceof Error ? error.message : "Failed to add question",
         variant: "destructive",
       });
     }
