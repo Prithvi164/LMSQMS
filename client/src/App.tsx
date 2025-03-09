@@ -11,6 +11,7 @@ import LearningPaths from "@/pages/learning-paths";
 import Performance from "@/pages/performance";
 import Settings from "@/pages/settings";
 import TraineeManagement from "@/pages/trainee-management";
+import QuizManagement from "@/pages/quiz-management";
 import { BatchDetail } from "@/components/batch-management/batch-detail";
 import { BatchMonitoringPage } from "@/pages/batch-monitoring";
 import { ProtectedRoute } from "./lib/protected-route";
@@ -51,6 +52,7 @@ function Router() {
           <ProtectedRoute path="/batch-management/:batchId" component={BatchDetail} />
           <ProtectedRoute path="/batch-monitoring" component={BatchMonitoringPage} />
           <ProtectedRoute path="/batch-details/:batchId" component={BatchDetailsPage} />
+          <ProtectedRoute path="/quiz-management" component={QuizManagement} />
           <Route component={NotFound} />
         </Switch>
       </main>

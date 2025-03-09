@@ -7,7 +7,8 @@ import {
   BarChart2, 
   Users,
   ClipboardCheck,
-  LogOut 
+  LogOut,
+  BookOpen 
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -19,6 +20,7 @@ export function SidebarNav() {
     { href: '/', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/batch-management', label: 'Batch Management', icon: Users },
     { href: '/trainee-management', label: 'Trainee Management', icon: ClipboardCheck },
+    { href: '/quiz-management', label: 'Quiz Management', icon: BookOpen },
     { href: '/learning-paths', label: 'Learning Paths', icon: GraduationCap },
     { href: '/performance', label: 'Performance', icon: BarChart2 },
   ];
