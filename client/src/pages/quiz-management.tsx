@@ -690,15 +690,15 @@ const QuizManagement: FC = () => {
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="font-medium text-lg">{question.question}</h3>
                       <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="text-xs">
-                          Process: {getProcessName(question.processId)}
-                        </Badge>
                         <Badge variant="outline" className="text-xs">
+                          {getProcessName(question.processId)}
+                        </Badge>
+                        <span className="text-sm px-2 py-1 bg-primary/10 rounded-md">
                           Level {question.difficultyLevel}
-                        </Badge>
-                        <Badge variant="outline" className="text-xs">
+                        </span>
+                        <span className="text-sm px-2 py-1 bg-primary/10 rounded-md">
                           {question.category}
-                        </Badge>
+                        </span>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -977,7 +977,7 @@ const QuizManagement: FC = () => {
                                   min="0"
                                   className="w20"
                                   onChange={(e) => {
-                                    const value = parseInt(e.target.target.value) || 0;
+                                    const value = parseInt(e.target.value) || 0;
                                     const currentDistribution = templateForm.getValues('categoryDistribution') || {};
                                     templateForm.setValue('categoryDistribution', {
                                       ...currentDistribution,
