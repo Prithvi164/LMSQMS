@@ -732,15 +732,61 @@ const QuizManagement: FC = () => {
               <div className="grid gap-4">
                 {quizTemplates?.map((template) => (
                   <Card key={template.id} className="p-4">
-                    <h3 className="font-medium">{template.name}</h3>
-                    {template.description && (
-                      <p className="text-sm text-muted-foreground mt-1">{template.description}</p>
-                    )}
-                    <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-                      <p>Time Limit: {template.timeLimit} minutes</p>
-                      <p>Questions: {template.questionCount}</p>
-                      <p>Passing Score: {template.passingScore}%</p>
-                      <div className="flex gap-2 mt-2">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <h3 className="text-lg font-medium">{template.name}</h3>
+                        {template.description && (
+                          <p className="text-sm text-muted-foreground mt-1">{template.description}</p>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm">Edit</Button>
+                        <Button variant="outline" size="sm">Start Quiz</Button>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 space-y-3">
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <h4 className="font-medium mb-2">Quiz Settings</h4>
+                          <ul className="space-y-1 text-muted-foreground">
+                            <li>Time Limit: {template.timeLimit} minutes</li>
+                            <li>Number of Questions: {template.questionCount}</li>
+                            <li>Passing Score: {template.passingScore}%</li>
+                          </ul>
+                        </div>
+
+                        <div>
+                          <h4 className="font-medium mb-2">Question Selection</h4>
+                          {template.categoryDistribution && (
+                            <div className="mb-2">
+                              <p className="text-xs text-muted-foreground mb-1">Categories:</p>
+                              <div className="flex flex-wrap gap-1">
+                                {Object.entries(template.categoryDistribution).map(([category, count]) => (
+                                  <Badge key={category} variant="outline" className="text-xs">
+                                    {category}: {count}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {template.difficultyDistribution && (
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">Difficulty Levels:</p>
+                              <div className="flex flex-wrap gap-1">
+                                {Object.entries(template.difficultyDistribution).map(([level, count]) => (
+                                  <Badge key={level} variant="outline" className="text-xs">
+                                    Level {level}: {count}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
                         {template.shuffleQuestions && (
                           <Badge variant="secondary">Shuffle Questions</Badge>
                         )}
