@@ -126,8 +126,8 @@ const QuizManagement: FC = () => {
   }, [quizTemplates, selectedProcessId]);
 
   // Add function to handle process selection change 
-  const handleProcessChange = (processId: string | null) => {
-    setSelectedProcessId(processId ? parseInt(processId) : null);
+  const handleProcessChange = (processId: string) => {
+    setSelectedProcessId(processId === "all" ? null : parseInt(processId));
   };
 
   const onSubmitQuestion = async (data: QuestionFormValues) => {
@@ -371,14 +371,14 @@ const QuizManagement: FC = () => {
       <div className="mb-6">
         <h2 className="text-lg font-semibold mb-2">Filter by Process</h2>
         <Select
-          value={selectedProcessId?.toString() || ""}
-          onValueChange={(value) => handleProcessChange(value || null)}
+          value={selectedProcessId?.toString() || "all"}
+          onValueChange={(value) => handleProcessChange(value)}
         >
           <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="All Processes" />
+            <SelectValue placeholder="Select Process" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Processes</SelectItem>
+            <SelectItem value="all">All Processes</SelectItem>
             {processes?.map((process) => (
               <SelectItem key={process.id} value={process.id.toString()}>
                 {process.name}
