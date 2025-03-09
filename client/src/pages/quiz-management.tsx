@@ -1,4 +1,4 @@
-import { FC, useState, useMemo } from "react";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -56,13 +56,30 @@ const quizTemplateSchema = z.object({
 type QuizTemplateFormValues = z.infer<typeof quizTemplateSchema>;
 
 
+// Process filter form schema
+const filterFormSchema = z.object({
+  processId: z.string().optional()
+});
+
+type FilterFormValues = z.infer<typeof filterFormSchema>;
+
 export function QuizManagement() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
   const [isAddQuestionOpen, setIsAddQuestionOpen] = useState(false);
   const [isAddTemplateOpen, setIsAddTemplateOpen] = useState(false);
-  const [selectedProcessId, setSelectedProcessId] = useState<number | null>(null);
+
+  // Create a form for the process filter
+  const filterForm = useForm<FilterFormValues>({
+    resolver: zodResolver(filterFormSchema),
+    defaultValues: {
+      processId: undefined
+    }
+  });
+
+  // Get selected process ID from form
+  const selectedProcessId = filterForm.watch("processId") ? parseInt(filterForm.watch("processId")) : null;
 
   const questionForm = useForm<QuestionFormValues>({
     resolver: zodResolver(questionFormSchema),
@@ -71,7 +88,7 @@ export function QuizManagement() {
       difficultyLevel: 1,
       options: ["", ""],
       category: "",
-      processId: undefined // Add default for processId
+      processId: undefined
     }
   });
 
@@ -94,7 +111,6 @@ export function QuizManagement() {
       passingScore: 70,
     }
   });
-
 
   const onSubmitQuestion = async (data: QuestionFormValues) => {
     if (!user?.organizationId || !user?.id) {
@@ -258,228 +274,236 @@ export function QuizManagement() {
         <TabsContent value="questions">
           <Card className="p-4">
             <div className="flex flex-col gap-4">
-              {/* Add Process Filter */}
-              <div className="flex items-center gap-4">
-                <div className="flex-1">
-                  <Label>Filter by Process</Label>
-                  <Select
-                    onValueChange={(value) => setSelectedProcessId(value ? parseInt(value) : null)}
-                    value={selectedProcessId?.toString()}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="All Processes" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="">All Processes</SelectItem>
-                      {processes.map((process) => (
-                        <SelectItem key={process.id} value={process.id.toString()}>
-                          {process.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-end">
-                  <Dialog open={isAddQuestionOpen} onOpenChange={setIsAddQuestionOpen}>
-                    <DialogTrigger asChild>
-                      <Button>Add Question</Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
-                      <DialogHeader>
-                        <DialogTitle>Add New Question</DialogTitle>
-                      </DialogHeader>
-                      <Form {...questionForm}>
-                        <form onSubmit={questionForm.handleSubmit(onSubmitQuestion)} className="space-y-4">
-                          {/* Add Process Selection */}
-                          <FormField
-                            control={questionForm.control}
-                            name="processId"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Process</FormLabel>
-                                <Select
-                                  onValueChange={(value) => field.onChange(parseInt(value))}
-                                  value={field.value?.toString()}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder={processesLoading ? "Loading..." : "Select a process"} />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {processesLoading ? (
-                                      <SelectItem value="" disabled>Loading processes...</SelectItem>
-                                    ) : processes.length > 0 ? (
-                                      processes.map((process) => (
-                                        <SelectItem key={process.id} value={process.id.toString()}>
-                                          {process.name}
-                                        </SelectItem>
-                                      ))
-                                    ) : (
-                                      <SelectItem value="" disabled>No processes available</SelectItem>
-                                    )}
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={questionForm.control}
-                            name="question"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Question Text</FormLabel>
-                                <FormControl>
-                                  <Textarea placeholder="Enter your question" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={questionForm.control}
-                            name="type"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Question Type</FormLabel>
-                                <Select
-                                  onValueChange={field.onChange}
-                                  defaultValue={field.value}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select question type" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
-                                    <SelectItem value="true_false">True/False</SelectItem>
-                                    <SelectItem value="short_answer">Short Answer</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          {questionForm.watch("type") === "multiple_choice" && (
+              {/* Process Filter Form */}
+              <Form {...filterForm}>
+                <form className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <FormField
+                      control={filterForm.control}
+                      name="processId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Filter by Process</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="All Processes" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="">All Processes</SelectItem>
+                              {processes.map((process) => (
+                                <SelectItem key={process.id} value={process.id.toString()}>
+                                  {process.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <Dialog open={isAddQuestionOpen} onOpenChange={setIsAddQuestionOpen}>
+                      <DialogTrigger asChild>
+                        <Button>Add Question</Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+                        <DialogHeader>
+                          <DialogTitle>Add New Question</DialogTitle>
+                        </DialogHeader>
+                        <Form {...questionForm}>
+                          <form onSubmit={questionForm.handleSubmit(onSubmitQuestion)} className="space-y-4">
                             <FormField
                               control={questionForm.control}
-                              name="options"
+                              name="processId"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Options</FormLabel>
+                                  <FormLabel>Process</FormLabel>
+                                  <Select
+                                    onValueChange={(value) => field.onChange(parseInt(value))}
+                                    value={field.value?.toString()}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder={processesLoading ? "Loading..." : "Select a process"} />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {processesLoading ? (
+                                        <SelectItem value="" disabled>Loading processes...</SelectItem>
+                                      ) : processes.length > 0 ? (
+                                        processes.map((process) => (
+                                          <SelectItem key={process.id} value={process.id.toString()}>
+                                            {process.name}
+                                          </SelectItem>
+                                        ))
+                                      ) : (
+                                        <SelectItem value="" disabled>No processes available</SelectItem>
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={questionForm.control}
+                              name="question"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Question Text</FormLabel>
                                   <FormControl>
-                                    <div className="space-y-2">
-                                      {field.value?.map((_, index) => (
-                                        <Input
-                                          key={index}
-                                          placeholder={`Option ${index + 1}`}
-                                          value={field.value[index]}
-                                          onChange={(e) => {
-                                            const newOptions = [...field.value!];
-                                            newOptions[index] = e.target.value;
-                                            field.onChange(newOptions);
-                                          }}
-                                        />
-                                      ))}
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => field.onChange([...field.value!, ""])}
-                                      >
-                                        Add Option
-                                      </Button>
-                                    </div>
+                                    <Textarea placeholder="Enter your question" {...field} />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
                               )}
                             />
-                          )}
+                            <FormField
+                              control={questionForm.control}
+                              name="type"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Question Type</FormLabel>
+                                  <Select
+                                    onValueChange={field.onChange}
+                                    defaultValue={field.value}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select question type" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
+                                      <SelectItem value="true_false">True/False</SelectItem>
+                                      <SelectItem value="short_answer">Short Answer</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
 
-                          <FormField
-                            control={questionForm.control}
-                            name="correctAnswer"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Correct Answer</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="Enter correct answer" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
+                            {questionForm.watch("type") === "multiple_choice" && (
+                              <FormField
+                                control={questionForm.control}
+                                name="options"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Options</FormLabel>
+                                    <FormControl>
+                                      <div className="space-y-2">
+                                        {field.value?.map((_, index) => (
+                                          <Input
+                                            key={index}
+                                            placeholder={`Option ${index + 1}`}
+                                            value={field.value[index]}
+                                            onChange={(e) => {
+                                              const newOptions = [...field.value!];
+                                              newOptions[index] = e.target.value;
+                                              field.onChange(newOptions);
+                                            }}
+                                          />
+                                        ))}
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          onClick={() => field.onChange([...field.value!, ""])}
+                                        >
+                                          Add Option
+                                        </Button>
+                                      </div>
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
                             )}
-                          />
 
-                          <FormField
-                            control={questionForm.control}
-                            name="explanation"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Explanation (Optional)</FormLabel>
-                                <FormControl>
-                                  <Textarea placeholder="Explain the correct answer" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={questionForm.control}
-                            name="difficultyLevel"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Difficulty Level (1-5)</FormLabel>
-                                <Select
-                                  onValueChange={(value) => field.onChange(parseInt(value))}
-                                  defaultValue={field.value.toString()}
-                                >
+                            <FormField
+                              control={questionForm.control}
+                              name="correctAnswer"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Correct Answer</FormLabel>
                                   <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select difficulty" />
-                                    </SelectTrigger>
+                                    <Input placeholder="Enter correct answer" {...field} />
                                   </FormControl>
-                                  <SelectContent>
-                                    {[1, 2, 3, 4, 5].map((level) => (
-                                      <SelectItem key={level} value={level.toString()}>
-                                        Level {level}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
 
-                          <FormField
-                            control={questionForm.control}
-                            name="category"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Category</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="Enter question category" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                            <FormField
+                              control={questionForm.control}
+                              name="explanation"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Explanation (Optional)</FormLabel>
+                                  <FormControl>
+                                    <Textarea placeholder="Explain the correct answer" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
 
-                          <Button type="submit">Add Question</Button>
-                        </form>
-                      </Form>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </div>
+                            <FormField
+                              control={questionForm.control}
+                              name="difficultyLevel"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Difficulty Level (1-5)</FormLabel>
+                                  <Select
+                                    onValueChange={(value) => field.onChange(parseInt(value))}
+                                    defaultValue={field.value.toString()}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select difficulty" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {[1, 2, 3, 4, 5].map((level) => (
+                                        <SelectItem key={level} value={level.toString()}>
+                                          Level {level}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={questionForm.control}
+                              name="category"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Category</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="Enter question category" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <Button type="submit">Add Question</Button>
+                          </form>
+                        </Form>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                </form>
+              </Form>
 
               {questionsLoading ? (
                 <p>Loading questions...</p>
@@ -836,8 +860,6 @@ export function QuizManagement() {
               </Dialog>
             </div>
 
-            {/* This part is missing in the original code, need to add it based on context  */}
-
           </Card>
         </TabsContent>
       </Tabs>
@@ -845,5 +867,4 @@ export function QuizManagement() {
   );
 }
 
-// Add default export
 export default QuizManagement;
