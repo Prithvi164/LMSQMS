@@ -34,17 +34,22 @@ export function SidebarNav() {
       <nav className="space-y-2 flex-1">
         {navItems.map((item) => {
           const Icon = item.icon;
+          const isActive = location === item.href;
+
           return (
             <Link key={item.href} href={item.href}>
-              <a className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
-                location === item.href 
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground" 
-                  : "text-sidebar-foreground hover:bg-sidebar-accent/50"
-              )}>
-                <Icon className="h-4 w-4" />
+              <Button
+                variant="ghost"
+                className={cn(
+                  "w-full justify-start",
+                  isActive 
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground" 
+                    : "text-sidebar-foreground hover:bg-sidebar-accent/50"
+                )}
+              >
+                <Icon className="h-4 w-4 mr-3" />
                 {item.label}
-              </a>
+              </Button>
             </Link>
           );
         })}
