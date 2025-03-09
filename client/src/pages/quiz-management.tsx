@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,8 +16,7 @@ import { useAuth } from "@/hooks/use-auth";
 import type { Question, QuizTemplate } from "@shared/schema";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import {Badge} from "@/components/ui/badge"
 
 // Update Process interface to match the database schema
 interface Process {
@@ -39,7 +38,7 @@ const questionFormSchema = z.object({
   explanation: z.string().optional(),
   difficultyLevel: z.number().int().min(1).max(5),
   category: z.string().min(1, "Category is required"),
-  processId: z.number().min(1, "Process is required") // Add processId field
+  processId: z.number().min(1, "Process is required"), // Add processId field
 });
 
 type QuestionFormValues = z.infer<typeof questionFormSchema>;
@@ -59,16 +58,13 @@ const quizTemplateSchema = z.object({
 
 type QuizTemplateFormValues = z.infer<typeof quizTemplateSchema>;
 
+
 const QuizManagement: FC = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
   const [isAddQuestionOpen, setIsAddQuestionOpen] = useState(false);
-  const [isEditQuestionOpen, setIsEditQuestionOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
   const [isAddTemplateOpen, setIsAddTemplateOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const questionForm = useForm<QuestionFormValues>({
     resolver: zodResolver(questionFormSchema),
@@ -83,7 +79,18 @@ const QuizManagement: FC = () => {
 
   // Add query for processes if not already present
   const { data: processes, isLoading: processesLoading, error: processesError } = useQuery<Process[]>({
-    queryKey: ['/api/processes']
+    queryKey: ['/api/processes'],
+    onSuccess: (data) => {
+      console.log('Fetched processes:', data);
+    },
+    onError: (error) => {
+      console.error('Error fetching processes:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load processes. Please try again.",
+        variant: "destructive",
+      });
+    }
   });
 
   const templateForm = useForm<QuizTemplateFormValues>({
@@ -114,17 +121,19 @@ const QuizManagement: FC = () => {
       return;
     }
 
-    setIsSubmitting(true);
     try {
+      console.log('Submitting question data:', data);
+      // Always ensure options is an array
       const questionData = {
         ...data,
         options: data.type === 'multiple_choice' ? data.options : [],
         organizationId: user.organizationId,
         createdBy: user.id
       };
+      console.log('Processed question data:', questionData);
 
-      const response = await fetch(selectedQuestion ? `/api/questions/${selectedQuestion.id}` : '/api/questions', {
-        method: selectedQuestion ? 'PATCH' : 'POST',
+      const response = await fetch('/api/questions', {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -133,76 +142,75 @@ const QuizManagement: FC = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save question');
+        throw new Error(errorData.message || 'Failed to add question');
       }
 
+      // Invalidate and refetch questions
       await queryClient.invalidateQueries({ queryKey: ['/api/questions'] });
 
       toast({
         title: "Success",
-        description: `Question ${selectedQuestion ? 'updated' : 'added'} successfully`,
+        description: "Question added successfully",
       });
       setIsAddQuestionOpen(false);
-      setIsEditQuestionOpen(false);
-      setSelectedQuestion(null);
       questionForm.reset();
     } catch (error) {
       console.error('Error saving question:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to save question",
+        description: error instanceof Error ? error.message : "Failed to add question",
         variant: "destructive",
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
-  const handleEdit = (question: Question) => {
-    setSelectedQuestion(question);
-    questionForm.reset({
-      question: question.question,
-      type: question.type as "multiple_choice" | "true_false" | "short_answer",
-      options: question.options || [],
-      correctAnswer: question.correctAnswer,
-      explanation: question.explanation ?? undefined,
-      difficultyLevel: question.difficultyLevel,
-      category: question.category,
-      processId: question.processId
-    });
-    setIsEditQuestionOpen(true);
-  };
+  const onSubmitTemplate = async (data: QuizTemplateFormValues) => {
+    if (!user?.organizationId || !user?.id) {
+      toast({
+        title: "Error",
+        description: "User or organization information not found",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  const handleDelete = async () => {
-    if (!selectedQuestion) return;
-
-    setIsSubmitting(true);
     try {
-      const response = await fetch(`/api/questions/${selectedQuestion.id}`, {
-        method: 'DELETE',
+      const templateData = {
+        ...data,
+        organizationId: user.organizationId,
+        createdBy: user.id,
+        processId: data.processId // Ensure processId is included
+      };
+
+      const response = await fetch('/api/quiz-templates', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(templateData),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete question');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to add template');
       }
 
-      await queryClient.invalidateQueries({ queryKey: ['/api/questions'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/quiz-templates'] });
 
       toast({
         title: "Success",
-        description: "Question deleted successfully",
+        description: "Quiz template added successfully",
       });
-      setIsDeleteDialogOpen(false);
-      setSelectedQuestion(null);
+      setIsAddTemplateOpen(false);
+      setPreviewQuestions([]);
+      templateForm.reset();
     } catch (error) {
-      console.error('Error deleting question:', error);
+      console.error('Error saving template:', error);
       toast({
         title: "Error",
-        description: "Failed to delete question",
+        description: error instanceof Error ? error.message : "Failed to add template",
         variant: "destructive",
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -252,59 +260,6 @@ const QuizManagement: FC = () => {
     }
   };
 
-  const onSubmitTemplate = async (data: QuizTemplateFormValues) => {
-    if (!user?.organizationId || !user?.id) {
-      toast({
-        title: "Error",
-        description: "User or organization information not found",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const templateData = {
-        ...data,
-        organizationId: user.organizationId,
-        createdBy: user.id,
-        processId: data.processId // Ensure processId is included
-      };
-
-      const response = await fetch('/api/quiz-templates', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(templateData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to add template');
-      }
-
-      await queryClient.invalidateQueries({ queryKey: ['/api/quiz-templates'] });
-
-      toast({
-        title: "Success",
-        description: "Quiz template added successfully",
-      });
-      setIsAddTemplateOpen(false);
-      setPreviewQuestions([]);
-      templateForm.reset();
-    } catch (error) {
-      console.error('Error saving template:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to add template",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   return (
     <div className="container mx-auto py-6">
       <h1 className="text-2xl font-bold mb-6">Quiz Management</h1>
@@ -319,23 +274,13 @@ const QuizManagement: FC = () => {
           <Card className="p-4">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Questions</h2>
-              <Dialog 
-                open={isAddQuestionOpen || isEditQuestionOpen} 
-                onOpenChange={(open) => {
-                  if (!open) {
-                    setIsAddQuestionOpen(false);
-                    setIsEditQuestionOpen(false);
-                    setSelectedQuestion(null);
-                    questionForm.reset();
-                  }
-                }}
-              >
+              <Dialog open={isAddQuestionOpen} onOpenChange={setIsAddQuestionOpen}>
                 <DialogTrigger asChild>
-                  <Button onClick={() => setIsAddQuestionOpen(true)}>Add Question</Button>
+                  <Button>Add Question</Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle>{selectedQuestion ? 'Edit Question' : 'Add New Question'}</DialogTitle>
+                    <DialogTitle>Add New Question</DialogTitle>
                   </DialogHeader>
                   <Form {...questionForm}>
                     <form onSubmit={questionForm.handleSubmit(onSubmitQuestion)} className="space-y-4">
@@ -387,6 +332,7 @@ const QuizManagement: FC = () => {
                           </FormItem>
                         )}
                       />
+
                       <FormField
                         control={questionForm.control}
                         name="type"
@@ -412,6 +358,7 @@ const QuizManagement: FC = () => {
                           </FormItem>
                         )}
                       />
+
                       {questionForm.watch("type") === "multiple_choice" && (
                         <FormField
                           control={questionForm.control}
@@ -447,6 +394,7 @@ const QuizManagement: FC = () => {
                           )}
                         />
                       )}
+
                       <FormField
                         control={questionForm.control}
                         name="correctAnswer"
@@ -460,6 +408,7 @@ const QuizManagement: FC = () => {
                           </FormItem>
                         )}
                       />
+
                       <FormField
                         control={questionForm.control}
                         name="explanation"
@@ -473,6 +422,7 @@ const QuizManagement: FC = () => {
                           </FormItem>
                         )}
                       />
+
                       <FormField
                         control={questionForm.control}
                         name="difficultyLevel"
@@ -500,6 +450,7 @@ const QuizManagement: FC = () => {
                           </FormItem>
                         )}
                       />
+
                       <FormField
                         control={questionForm.control}
                         name="category"
@@ -513,9 +464,8 @@ const QuizManagement: FC = () => {
                           </FormItem>
                         )}
                       />
-                      <Button type="submit" disabled={isSubmitting}>
-                        {isSubmitting ? "Saving..." : "Save Question"}
-                      </Button>
+
+                      <Button type="submit">Add Question</Button>
                     </form>
                   </Form>
                 </DialogContent>
@@ -542,27 +492,6 @@ const QuizManagement: FC = () => {
                         <span className="text-sm px-2 py-1 bg-primary/10 rounded-md">
                           {question.category}
                         </span>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(question)}
-                            disabled={isSubmitting}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedQuestion(question);
-                              setIsDeleteDialogOpen(true);
-                            }}
-                            disabled={isSubmitting}
-                          >
-                            Delete
-                          </Button>
-                        </div>
                       </div>
                     </div>
 
@@ -576,7 +505,7 @@ const QuizManagement: FC = () => {
                                 option === question.correctAnswer
                                   ? 'bg-green-100 dark:bg-green-900/20'
                                   : ''
-                              }`}
+                                }`}
                             >
                               <span className="w-6">{String.fromCharCode(65 + index)}.</span>
                               <span>{option}</span>
@@ -676,6 +605,7 @@ const QuizManagement: FC = () => {
                           </FormItem>
                         )}
                       />
+
                       <FormField
                         control={templateForm.control}
                         name="name"
@@ -689,6 +619,7 @@ const QuizManagement: FC = () => {
                           </FormItem>
                         )}
                       />
+
                       <FormField
                         control={templateForm.control}
                         name="description"
@@ -702,6 +633,7 @@ const QuizManagement: FC = () => {
                           </FormItem>
                         )}
                       />
+
                       <FormField
                         control={templateForm.control}
                         name="timeLimit"
@@ -721,6 +653,7 @@ const QuizManagement: FC = () => {
                           </FormItem>
                         )}
                       />
+
                       <FormField
                         control={templateForm.control}
                         name="questionCount"
@@ -740,6 +673,7 @@ const QuizManagement: FC = () => {
                           </FormItem>
                         )}
                       />
+
                       <FormField
                         control={templateForm.control}
                         name="passingScore"
@@ -760,6 +694,7 @@ const QuizManagement: FC = () => {
                           </FormItem>
                         )}
                       />
+
                       <div className="flex flex-col gap-4">
                         <FormField
                           control={templateForm.control}
@@ -775,6 +710,7 @@ const QuizManagement: FC = () => {
                             </div>
                           )}
                         />
+
                         <FormField
                           control={templateForm.control}
                           name="shuffleOptions"
@@ -790,8 +726,10 @@ const QuizManagement: FC = () => {
                           )}
                         />
                       </div>
+
                       <div className="space-y-4">
                         <h4 className="font-medium">Question Distribution</h4>
+
                         {/* Category Distribution */}
                         <div className="space-y-2">
                           <Label>Category Distribution</Label>
@@ -821,6 +759,7 @@ const QuizManagement: FC = () => {
                             ))}
                           </div>
                         </div>
+
                         {/* Difficulty Distribution */}
                         <div className="space-y-2">
                           <Label>Difficulty Distribution</Label>
@@ -851,6 +790,7 @@ const QuizManagement: FC = () => {
                           </div>
                         </div>
                       </div>
+
                       <div className="flex justify-between gap-2">
                         <Button 
                           type="button" 
@@ -859,13 +799,11 @@ const QuizManagement: FC = () => {
                             const data = templateForm.getValues();
                             previewRandomQuestions(data);
                           }}
-                          disabled={isPreviewLoading || isSubmitting}
+                          disabled={isPreviewLoading}
                         >
                           {isPreviewLoading ? "Loading..." : "Preview Questions"}
                         </Button>
-                        <Button type="submit" disabled={isSubmitting}>
-                          {isSubmitting ? "Creating..." : "Create Template"}
-                        </Button>
+                        <Button type="submit">Create Template</Button>
                       </div>
                     </form>
                   </Form>
@@ -954,12 +892,15 @@ const QuizManagement: FC = () => {
                           )}
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-2">{template.shuffleQuestions && (
-                        <Badge variant="secondary">Shuffle Questions</Badge>
-                      )}
-                      {template.shuffleOptions && (
-                        <Badge variant="secondary">Shuffle Options</Badge>
-                      )}
+
+                      <div className="flex flex-wrap gap-2">
+                        {template.shuffleQuestions && (
+                          <Badge variant="secondary">Shuffle Questions</Badge>
+                        )}
+                        {template.shuffleOptions && (
+                          <Badge variant="secondary">Shuffle Options</Badge>
+                        )}
+                      </div>
                     </div>
                   </Card>
                 ))}
@@ -968,32 +909,6 @@ const QuizManagement: FC = () => {
           </Card>
         </TabsContent>
       </Tabs>
-
-      {/* Delete confirmation dialog */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Question</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this question? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => {
-              setIsDeleteDialogOpen(false);
-              setSelectedQuestion(null);
-            }}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDelete} 
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };

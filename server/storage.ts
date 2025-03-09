@@ -179,9 +179,6 @@ export interface IStorage {
       processId?: number;
     }
   ): Promise<Question[]>;
-  getQuestion(id: number): Promise<Question | undefined>;
-  updateQuestion(id: number, question: Partial<InsertQuestion>): Promise<Question>;
-  deleteQuestion(id: number): Promise<void>;
 
   // Quiz template operations
   createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate>;
@@ -1881,69 +1878,6 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error listing quiz templates:', error);
       throw new Error('Failed to list quiz templates');
-    }
-  }
-  async getQuestion(id: number): Promise<Question | undefined> {
-    try {
-      const [question] = await db
-        .select()
-        .from(questions)
-        .where(eq(questions.id, id)) as Question[];
-      return question;
-    } catch (error) {
-      console.error('Error getting question:', error);
-      throw new Error('Failed to get question');
-    }
-  }
-
-  async updateQuestion(id: number, question: Partial<InsertQuestion>): Promise<Question> {
-    try {
-      console.log(`Updating question with ID: ${id}`, question);
-
-      const [updatedQuestion] = await db
-        .update(questions)
-        .set({
-          ...question,
-          updatedAt: new Date()
-        })
-        .where(eq(questions.id, id))
-        .returning() as Question[];
-
-      if (!updatedQuestion) {
-        throw new Error('Question not found');
-      }
-
-      console.log('Successfully updated question:', updatedQuestion);
-      return updatedQuestion;
-    } catch (error) {
-      console.error('Error updating question:', error);
-      throw error instanceof Error ? error : new Error('Failed to update question');
-    }
-  }
-
-  async deleteQuestion(id: number): Promise<void> {
-    try {
-      console.log(`Attempting to delete question with ID: ${id}`);
-
-      // First verify the question exists
-      const question = await this.getQuestion(id);
-      if (!question) {
-        throw new Error('Question not found');
-      }
-
-      const result = await db
-        .delete(questions)
-        .where(eq(questions.id, id))
-        .returning();
-
-      if (!result.length) {
-        throw new Error('Question deletion failed');
-      }
-
-      console.log(`Successfully deleted question with ID: ${id}`);
-    } catch (error) {
-      console.error('Error deleting question:', error);
-      throw error instanceof Error ? error : new Error('Failed to delete question');
     }
   }
 }
