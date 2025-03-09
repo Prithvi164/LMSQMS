@@ -60,15 +60,12 @@ async function comparePasswords(supplied: string, stored: string) {
 }
 
 export function setupAuth(app: Express) {
-  // Use a consistent session secret from environment or generate one at startup
-  const sessionSecret = process.env.SESSION_SECRET || randomBytes(32).toString("hex");
-
+  const sessionSecret = randomBytes(32).toString("hex");
   const sessionStore = new PostgresSessionStore({
     conObject: {
       connectionString: process.env.DATABASE_URL,
     },
     createTableIfMissing: true,
-    tableName: 'user_sessions' // Explicit table name
   });
 
   app.use(session({
@@ -78,11 +75,8 @@ export function setupAuth(app: Express) {
     store: sessionStore,
     cookie: {
       secure: process.env.NODE_ENV === "production",
-      httpOnly: true, // Prevent XSS
-      sameSite: 'lax', // CSRF protection
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     },
-    name: 'sid' // Change session cookie name from default 'connect.sid'
   }));
 
   app.use(passport.initialize());
