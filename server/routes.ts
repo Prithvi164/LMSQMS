@@ -847,6 +847,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add PUT endpoint for updating questions
+  app.put("/api/questions/:id", async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const questionId = parseInt(req.params.id);
+      if (!questionId) {
+        return res.status(400).json({ message: "Invalid question ID" });
+      }
+
+      // Get the question to verify ownership
+      const question = await storage.getQuestion(questionId);
+      if (!question) {
+        return res.status(404).json({ message: "Question not found" });
+      }
+
+      // Verify the question belongs to the user's organization
+      if (question.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "You can only update questions in your organization" });
+      }
+
+      // Validate the update data
+      const updateData = req.body;
+      const validatedData = await insertQuestionSchema.partial().parseAsync(updateData);
+
+      // Update the question
+      const updatedQuestion = await storage.updateQuestion(questionId, validatedData);
+      res.json(updatedQuestion);
+    } catch (error: any) {
+      console.error("Error updating question:", error);
+      res.status(500).json({ message: error.message || "Failed to update question" });
+    }
+  });
+
   app.patch("/api/phase-change-requests/:requestId", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 

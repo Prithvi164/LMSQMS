@@ -966,7 +966,7 @@ const QuizManagement: FC = () => {
                                 <Label>{category}</Label>
                                 <Input
                                   type="number"
-                                                                    min="0"
+                                  min="0"
                                   className="w-20"
                                   onChange={(e) => {
                                     const value = parseInt(e.target.value) || 0;
@@ -975,7 +975,7 @@ const QuizManagement: FC = () => {
                                       ...currentDistribution,
                                       [category]: value
                                     });
-                                  }}
+                               }}
                                 />
                               </div>
                             ))}

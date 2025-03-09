@@ -172,10 +172,20 @@ export interface IStorage {
   listQuestions(organizationId: number): Promise<Question[]>;
   getQuestion(id: number): Promise<Question | undefined>;
   deleteQuestion(id: number): Promise<void>;
+  getRandomQuestions(
+    organizationId: number,
+    options: {
+      count: number;
+      categoryDistribution?: Record<string, number>;
+      difficultyDistribution?: Record<string, number>;
+      processId?: number;
+    }
+  ): Promise<Question[]>;
 
   // Quiz template operations
   createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate>;
   listQuizTemplates(organizationId: number): Promise<QuizTemplate[]>;
+  updateQuestion(id: number, question: Partial<InsertQuestion>): Promise<Question>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1910,6 +1920,37 @@ export class DatabaseStorage implements IStorage {
       console.log(`Successfully deleted question with ID: ${id}`);
     } catch (error) {
       console.error('Error deleting question:', error);
+      throw error;
+    }
+  }
+
+  async updateQuestion(id: number, question: Partial<InsertQuestion>): Promise<Question> {
+    try {
+      console.log(`Attempting to update question with ID: ${id}`, question);
+
+      // First verify the question exists
+      const existingQuestion = await this.getQuestion(id);
+      if (!existingQuestion) {
+        throw new Error('Question not found');
+      }
+
+      const [updatedQuestion] = await db
+        .update(questions)
+        .set({
+          ...question,
+          updatedAt: new Date()
+        })
+        .where(eq(questions.id, id))
+        .returning() as Question[];
+
+      if (!updatedQuestion) {
+        throw new Error('Question update failed');
+      }
+
+      console.log('Successfully updated question:', updatedQuestion);
+      return updatedQuestion;
+    } catch (error) {
+      console.error('Error updating question:', error);
       throw error;
     }
   }
