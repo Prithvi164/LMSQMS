@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,7 +16,9 @@ import { useAuth } from "@/hooks/use-auth";
 import type { Question, QuizTemplate } from "@shared/schema";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import {Badge} from "@/components/ui/badge"
+import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Pencil, Trash2 } from "lucide-react";
 
 // Add type for Process
 interface Process {
@@ -61,9 +63,10 @@ const QuizManagement: FC = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [isAddQuestionOpen, setIsAddQuestionOpen] = useState(false);
+  const [isEditQuestionOpen, setIsEditQuestionOpen] = useState(false);
   const [isAddTemplateOpen, setIsAddTemplateOpen] = useState(false);
+  const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
 
-  // Update form default values
   const questionForm = useForm<QuestionFormValues>({
     resolver: zodResolver(questionFormSchema),
     defaultValues: {
@@ -74,7 +77,6 @@ const QuizManagement: FC = () => {
     }
   });
 
-  // Update process query with proper typing and error handling
   const { data: processes, isLoading: processesLoading, error: processesError } = useQuery<Process[]>({
     queryKey: ['/api/processes'],
     onSuccess: (data) => {
@@ -107,7 +109,53 @@ const QuizManagement: FC = () => {
     queryKey: ['/api/quiz-templates'],
   });
 
-  // Update the question submission data to include processId
+  const resetQuestionForm = () => {
+    questionForm.reset({
+      type: "multiple_choice",
+      difficultyLevel: 1,
+      options: ["", ""],
+      category: ""
+    });
+    setSelectedQuestion(null);
+  };
+
+  const handleEditQuestion = (question: Question) => {
+    setSelectedQuestion(question);
+    questionForm.reset({
+      ...question,
+      processId: question.processId,
+      options: question.type === 'multiple_choice' ? question.options : ["", ""]
+    });
+    setIsEditQuestionOpen(true);
+  };
+
+  const handleDeleteQuestion = async (questionId: number) => {
+    try {
+      const response = await fetch(`/api/questions/${questionId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete question');
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['/api/questions'] });
+
+      toast({
+        title: "Success",
+        description: "Question deleted successfully",
+      });
+    } catch (error) {
+      console.error('Error deleting question:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete question",
+        variant: "destructive",
+      });
+    }
+  };
+
   const onSubmitQuestion = async (data: QuestionFormValues) => {
     if (!user?.organizationId || !user?.id) {
       toast({
@@ -125,12 +173,16 @@ const QuizManagement: FC = () => {
         options: data.type === 'multiple_choice' ? data.options : [],
         organizationId: user.organizationId,
         createdBy: user.id,
-        processId: data.processId // Include processId in submission
+        processId: data.processId
       };
       console.log('Processed question data:', questionData);
 
-      const response = await fetch('/api/questions', {
-        method: 'POST',
+      const isEditing = selectedQuestion !== null;
+      const url = isEditing ? `/api/questions/${selectedQuestion.id}` : '/api/questions';
+      const method = isEditing ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -139,22 +191,27 @@ const QuizManagement: FC = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to add question');
+        throw new Error(errorData.message || `Failed to ${isEditing ? 'update' : 'add'} question`);
       }
 
       await queryClient.invalidateQueries({ queryKey: ['/api/questions'] });
 
       toast({
         title: "Success",
-        description: "Question added successfully",
+        description: `Question ${isEditing ? 'updated' : 'added'} successfully`,
       });
-      setIsAddQuestionOpen(false);
-      questionForm.reset();
+
+      if (isEditing) {
+        setIsEditQuestionOpen(false);
+      } else {
+        setIsAddQuestionOpen(false);
+      }
+      resetQuestionForm();
     } catch (error) {
       console.error('Error saving question:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to add question",
+        description: error instanceof Error ? error.message : `Failed to ${selectedQuestion ? 'update' : 'add'} question`,
         variant: "destructive",
       });
     }
@@ -175,7 +232,7 @@ const QuizManagement: FC = () => {
         ...data,
         organizationId: user.organizationId,
         createdBy: user.id,
-        processId: data.processId // Ensure processId is included
+        processId: data.processId
       };
 
       const response = await fetch('/api/quiz-templates', {
@@ -210,11 +267,9 @@ const QuizManagement: FC = () => {
     }
   };
 
-  // Add state for tracking selected questions preview
   const [previewQuestions, setPreviewQuestions] = useState<Question[]>([]);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
-  // Add state for tracking unique categories from questions
   const categories = useMemo(() => {
     if (!questions) return new Set<string>();
     return new Set(questions.map(q => q.category));
@@ -222,7 +277,6 @@ const QuizManagement: FC = () => {
 
   const difficulties = [1, 2, 3, 4, 5];
 
-  // Add function to preview random questions
   const previewRandomQuestions = async (data: QuizTemplateFormValues) => {
     setIsPreviewLoading(true);
     try {
@@ -270,7 +324,10 @@ const QuizManagement: FC = () => {
           <Card className="p-4">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Questions</h2>
-              <Dialog open={isAddQuestionOpen} onOpenChange={setIsAddQuestionOpen}>
+              <Dialog open={isAddQuestionOpen} onOpenChange={(open) => {
+                setIsAddQuestionOpen(open);
+                if (!open) resetQuestionForm();
+              }}>
                 <DialogTrigger asChild>
                   <Button>Add Question</Button>
                 </DialogTrigger>
@@ -280,7 +337,6 @@ const QuizManagement: FC = () => {
                   </DialogHeader>
                   <Form {...questionForm}>
                     <form onSubmit={questionForm.handleSubmit(onSubmitQuestion)} className="space-y-4">
-                      {/* Process selection field moved to top */}
                       <FormField
                         control={questionForm.control}
                         name="processId"
@@ -316,7 +372,6 @@ const QuizManagement: FC = () => {
                           </FormItem>
                         )}
                       />
-
                       <FormField
                         control={questionForm.control}
                         name="question"
@@ -330,7 +385,6 @@ const QuizManagement: FC = () => {
                           </FormItem>
                         )}
                       />
-
                       <FormField
                         control={questionForm.control}
                         name="type"
@@ -356,7 +410,6 @@ const QuizManagement: FC = () => {
                           </FormItem>
                         )}
                       />
-
                       {questionForm.watch("type") === "multiple_choice" && (
                         <FormField
                           control={questionForm.control}
@@ -392,7 +445,6 @@ const QuizManagement: FC = () => {
                           )}
                         />
                       )}
-
                       <FormField
                         control={questionForm.control}
                         name="correctAnswer"
@@ -406,7 +458,6 @@ const QuizManagement: FC = () => {
                           </FormItem>
                         )}
                       />
-
                       <FormField
                         control={questionForm.control}
                         name="explanation"
@@ -420,7 +471,6 @@ const QuizManagement: FC = () => {
                           </FormItem>
                         )}
                       />
-
                       <FormField
                         control={questionForm.control}
                         name="difficultyLevel"
@@ -448,7 +498,6 @@ const QuizManagement: FC = () => {
                           </FormItem>
                         )}
                       />
-
                       <FormField
                         control={questionForm.control}
                         name="category"
@@ -462,7 +511,6 @@ const QuizManagement: FC = () => {
                           </FormItem>
                         )}
                       />
-
                       <Button type="submit">Add Question</Button>
                     </form>
                   </Form>
@@ -487,6 +535,36 @@ const QuizManagement: FC = () => {
                         <span className="text-sm px-2 py-1 bg-primary/10 rounded-md">
                           {question.category}
                         </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEditQuestion(question)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Question</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete this question? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => question.id && handleDeleteQuestion(question.id)}
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </div>
 
@@ -500,7 +578,7 @@ const QuizManagement: FC = () => {
                                 option === question.correctAnswer
                                   ? 'bg-green-100 dark:bg-green-900/20'
                                   : ''
-                                }`}
+                              }`}
                             >
                               <span className="w-6">{String.fromCharCode(65 + index)}.</span>
                               <span>{option}</span>
@@ -513,7 +591,6 @@ const QuizManagement: FC = () => {
                           ))}
                         </div>
                       )}
-
                       {question.type === 'true_false' && (
                         <div className="ml-4 space-y-1">
                           <div className={`p-2 rounded-md ${
@@ -528,14 +605,12 @@ const QuizManagement: FC = () => {
                           </div>
                         </div>
                       )}
-
                       {question.type === 'short_answer' && (
                         <div className="ml-4 p-2 bg-green-100 dark:bg-green-900/20 rounded-md">
                           <span className="font-medium">Correct Answer: </span>
                           {question.correctAnswer}
                         </div>
                       )}
-
                       {question.explanation && (
                         <div className="mt-2 p-3 bg-muted/50 rounded-md">
                           <span className="font-medium">Explanation: </span>
@@ -564,7 +639,6 @@ const QuizManagement: FC = () => {
                   </DialogHeader>
                   <Form {...templateForm}>
                     <form onSubmit={templateForm.handleSubmit(onSubmitTemplate)} className="space-y-4">
-                      {/* Inside the template form, add process selection before other fields */}
                       <FormField
                         control={templateForm.control}
                         name="processId"
@@ -600,7 +674,6 @@ const QuizManagement: FC = () => {
                           </FormItem>
                         )}
                       />
-
                       <FormField
                         control={templateForm.control}
                         name="name"
@@ -614,7 +687,6 @@ const QuizManagement: FC = () => {
                           </FormItem>
                         )}
                       />
-
                       <FormField
                         control={templateForm.control}
                         name="description"
@@ -628,7 +700,6 @@ const QuizManagement: FC = () => {
                           </FormItem>
                         )}
                       />
-
                       <FormField
                         control={templateForm.control}
                         name="timeLimit"
@@ -648,7 +719,6 @@ const QuizManagement: FC = () => {
                           </FormItem>
                         )}
                       />
-
                       <FormField
                         control={templateForm.control}
                         name="questionCount"
@@ -668,7 +738,6 @@ const QuizManagement: FC = () => {
                           </FormItem>
                         )}
                       />
-
                       <FormField
                         control={templateForm.control}
                         name="passingScore"
@@ -689,7 +758,6 @@ const QuizManagement: FC = () => {
                           </FormItem>
                         )}
                       />
-
                       <div className="flex flex-col gap-4">
                         <FormField
                           control={templateForm.control}
@@ -705,7 +773,6 @@ const QuizManagement: FC = () => {
                             </div>
                           )}
                         />
-
                         <FormField
                           control={templateForm.control}
                           name="shuffleOptions"
@@ -721,11 +788,8 @@ const QuizManagement: FC = () => {
                           )}
                         />
                       </div>
-
                       <div className="space-y-4">
                         <h4 className="font-medium">Question Distribution</h4>
-
-                        {/* Category Distribution */}
                         <div className="space-y-2">
                           <Label>Category Distribution</Label>
                           <div className="grid grid-cols-2 gap-2">
@@ -754,8 +818,6 @@ const QuizManagement: FC = () => {
                             ))}
                           </div>
                         </div>
-
-                        {/* Difficulty Distribution */}
                         <div className="space-y-2">
                           <Label>Difficulty Distribution</Label>
                           <div className="grid grid-cols-2 gap-2">
@@ -785,10 +847,9 @@ const QuizManagement: FC = () => {
                           </div>
                         </div>
                       </div>
-
                       <div className="flex justify-between gap-2">
-                        <Button 
-                          type="button" 
+                        <Button
+                          type="button"
                           variant="outline"
                           onClick={() => {
                             const data = templateForm.getValues();
@@ -802,8 +863,6 @@ const QuizManagement: FC = () => {
                       </div>
                     </form>
                   </Form>
-
-                  {/* Preview Questions */}
                   {previewQuestions.length > 0 && (
                     <div className="mt-4 space-y-2">
                       <h4 className="font-medium">Preview Selected Questions</h4>
@@ -825,7 +884,6 @@ const QuizManagement: FC = () => {
                 </DialogContent>
               </Dialog>
             </div>
-
             {templatesLoading ? (
               <p>Loading templates...</p>
             ) : quizTemplates?.length === 0 ? (
@@ -846,7 +904,6 @@ const QuizManagement: FC = () => {
                         <Button variant="outline" size="sm">Start Quiz</Button>
                       </div>
                     </div>
-
                     <div className="mt-4 space-y-3">
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
@@ -857,7 +914,6 @@ const QuizManagement: FC = () => {
                             <li>Passing Score: {template.passingScore}%</li>
                           </ul>
                         </div>
-
                         <div>
                           <h4 className="font-medium mb-2">Question Selection</h4>
                           {template.categoryDistribution && (
@@ -872,11 +928,10 @@ const QuizManagement: FC = () => {
                               </div>
                             </div>
                           )}
-
                           {template.difficultyDistribution && (
                             <div>
                               <p className="text-xs text-muted-foreground mb-1">Difficulty Levels:</p>
-                              <div className="flex flex-wrap gap-1">
+                                                            <div className="flex flex-wrap gap-1">
                                 {Object.entries(template.difficultyDistribution).map(([level, count]) => (
                                   <Badge key={level} variant="outline" className="text-xs">
                                     Level {level}: {count}
@@ -887,7 +942,6 @@ const QuizManagement: FC = () => {
                           )}
                         </div>
                       </div>
-
                       <div className="flex flex-wrap gap-2">
                         {template.shuffleQuestions && (
                           <Badge variant="secondary">Shuffle Questions</Badge>
