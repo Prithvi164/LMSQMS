@@ -14,6 +14,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
 import type { Question, QuizTemplate } from "@shared/schema";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import {Badge} from "@/components/ui/badge"
 
 // Question form schema
 const questionFormSchema = z.object({
@@ -28,19 +31,42 @@ const questionFormSchema = z.object({
 
 type QuestionFormValues = z.infer<typeof questionFormSchema>;
 
+const quizTemplateSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  description: z.string().optional(),
+  timeLimit: z.number().int().min(1, "Time limit is required"),
+  questionCount: z.number().int().min(1, "Question count is required"),
+  passingScore: z.number().int().min(0).max(100, "Passing score must be between 0 and 100"),
+  shuffleQuestions: z.boolean().default(false),
+  shuffleOptions: z.boolean().default(false),
+});
+
+type QuizTemplateFormValues = z.infer<typeof quizTemplateSchema>;
+
+
 const QuizManagement: FC = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
   const [isAddQuestionOpen, setIsAddQuestionOpen] = useState(false);
+  const [isAddTemplateOpen, setIsAddTemplateOpen] = useState(false);
 
-  const form = useForm<QuestionFormValues>({
+  const questionForm = useForm<QuestionFormValues>({
     resolver: zodResolver(questionFormSchema),
     defaultValues: {
       type: "multiple_choice",
       difficultyLevel: 1,
       options: ["", ""],  // Initialize with two empty options
       category: ""
+    }
+  });
+
+  const templateForm = useForm<QuizTemplateFormValues>({
+    resolver: zodResolver(quizTemplateSchema),
+    defaultValues: {
+      timeLimit: 10,
+      questionCount: 10,
+      passingScore: 70,
     }
   });
 
@@ -52,7 +78,7 @@ const QuizManagement: FC = () => {
     queryKey: ['/api/quiz-templates'],
   });
 
-  const onSubmit = async (data: QuestionFormValues) => {
+  const onSubmitQuestion = async (data: QuestionFormValues) => {
     if (!user?.organizationId || !user?.id) {
       toast({
         title: "Error",
@@ -94,7 +120,7 @@ const QuizManagement: FC = () => {
         description: "Question added successfully",
       });
       setIsAddQuestionOpen(false);
-      form.reset();
+      questionForm.reset();
     } catch (error) {
       console.error('Error saving question:', error);
       toast({
@@ -104,6 +130,55 @@ const QuizManagement: FC = () => {
       });
     }
   };
+
+  const onSubmitTemplate = async (data: QuizTemplateFormValues) => {
+    if (!user?.organizationId || !user?.id) {
+      toast({
+        title: "Error",
+        description: "User or organization information not found",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const templateData = {
+        ...data,
+        organizationId: user.organizationId,
+        createdBy: user.id
+      };
+
+      const response = await fetch('/api/quiz-templates', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(templateData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to add template');
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['/api/quiz-templates'] });
+
+      toast({
+        title: "Success",
+        description: "Quiz template added successfully",
+      });
+      setIsAddTemplateOpen(false);
+      templateForm.reset();
+    } catch (error) {
+      console.error('Error saving template:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to add template",
+        variant: "destructive",
+      });
+    }
+  };
+
 
   return (
     <div className="container mx-auto py-6">
@@ -127,10 +202,10 @@ const QuizManagement: FC = () => {
                   <DialogHeader>
                     <DialogTitle>Add New Question</DialogTitle>
                   </DialogHeader>
-                  <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <Form {...questionForm}>
+                    <form onSubmit={questionForm.handleSubmit(onSubmitQuestion)} className="space-y-4">
                       <FormField
-                        control={form.control}
+                        control={questionForm.control}
                         name="question"
                         render={({ field }) => (
                           <FormItem>
@@ -144,7 +219,7 @@ const QuizManagement: FC = () => {
                       />
 
                       <FormField
-                        control={form.control}
+                        control={questionForm.control}
                         name="type"
                         render={({ field }) => (
                           <FormItem>
@@ -169,9 +244,9 @@ const QuizManagement: FC = () => {
                         )}
                       />
 
-                      {form.watch("type") === "multiple_choice" && (
+                      {questionForm.watch("type") === "multiple_choice" && (
                         <FormField
-                          control={form.control}
+                          control={questionForm.control}
                           name="options"
                           render={({ field }) => (
                             <FormItem>
@@ -206,7 +281,7 @@ const QuizManagement: FC = () => {
                       )}
 
                       <FormField
-                        control={form.control}
+                        control={questionForm.control}
                         name="correctAnswer"
                         render={({ field }) => (
                           <FormItem>
@@ -220,7 +295,7 @@ const QuizManagement: FC = () => {
                       />
 
                       <FormField
-                        control={form.control}
+                        control={questionForm.control}
                         name="explanation"
                         render={({ field }) => (
                           <FormItem>
@@ -234,7 +309,7 @@ const QuizManagement: FC = () => {
                       />
 
                       <FormField
-                        control={form.control}
+                        control={questionForm.control}
                         name="difficultyLevel"
                         render={({ field }) => (
                           <FormItem>
@@ -262,7 +337,7 @@ const QuizManagement: FC = () => {
                       />
 
                       <FormField
-                        control={form.control}
+                        control={questionForm.control}
                         name="category"
                         render={({ field }) => (
                           <FormItem>
@@ -366,7 +441,142 @@ const QuizManagement: FC = () => {
           <Card className="p-4">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Quiz Templates</h2>
-              <Button>Create Quiz Template</Button>
+              <Dialog open={isAddTemplateOpen} onOpenChange={setIsAddTemplateOpen}>
+                <DialogTrigger asChild>
+                  <Button>Create Quiz Template</Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Create Quiz Template</DialogTitle>
+                  </DialogHeader>
+                  <Form {...templateForm}>
+                    <form onSubmit={templateForm.handleSubmit(onSubmitTemplate)} className="space-y-4">
+                      <FormField
+                        control={templateForm.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Template Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter template name" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={templateForm.control}
+                        name="description"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Description (Optional)</FormLabel>
+                            <FormControl>
+                              <Textarea placeholder="Enter template description" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={templateForm.control}
+                        name="timeLimit"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Time Limit (minutes)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min={1}
+                                placeholder="Enter time limit"
+                                {...field}
+                                onChange={(e) => field.onChange(parseInt(e.target.value))}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={templateForm.control}
+                        name="questionCount"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Number of Questions</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min={1}
+                                placeholder="Enter number of questions"
+                                {...field}
+                                onChange={(e) => field.onChange(parseInt(e.target.value))}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={templateForm.control}
+                        name="passingScore"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Passing Score (%)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min={0}
+                                max={100}
+                                placeholder="Enter passing score"
+                                {...field}
+                                onChange={(e) => field.onChange(parseInt(e.target.value))}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="flex flex-col gap-4">
+                        <FormField
+                          control={templateForm.control}
+                          name="shuffleQuestions"
+                          render={({ field }) => (
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="shuffle-questions">Shuffle Questions</Label>
+                              <Switch
+                                id="shuffle-questions"
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </div>
+                          )}
+                        />
+
+                        <FormField
+                          control={templateForm.control}
+                          name="shuffleOptions"
+                          render={({ field }) => (
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="shuffle-options">Shuffle Answer Options</Label>
+                              <Switch
+                                id="shuffle-options"
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </div>
+                          )}
+                        />
+                      </div>
+
+                      <Button type="submit">Create Template</Button>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
             </div>
 
             {templatesLoading ? (
@@ -378,10 +588,22 @@ const QuizManagement: FC = () => {
                 {quizTemplates?.map((template) => (
                   <Card key={template.id} className="p-4">
                     <h3 className="font-medium">{template.name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Time Limit: {template.timeLimit} minutes |
-                      Passing Score: {template.passingScore}%
-                    </p>
+                    {template.description && (
+                      <p className="text-sm text-muted-foreground mt-1">{template.description}</p>
+                    )}
+                    <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                      <p>Time Limit: {template.timeLimit} minutes</p>
+                      <p>Questions: {template.questionCount}</p>
+                      <p>Passing Score: {template.passingScore}%</p>
+                      <div className="flex gap-2 mt-2">
+                        {template.shuffleQuestions && (
+                          <Badge variant="secondary">Shuffle Questions</Badge>
+                        )}
+                        {template.shuffleOptions && (
+                          <Badge variant="secondary">Shuffle Options</Badge>
+                        )}
+                      </div>
+                    </div>
                   </Card>
                 ))}
               </div>

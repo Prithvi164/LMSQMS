@@ -169,6 +169,15 @@ export interface IStorage {
   // Question operations
   createQuestion(question: InsertQuestion): Promise<Question>;
   listQuestions(organizationId: number): Promise<Question[]>;
+  getRandomQuestions(
+    organizationId: number,
+    options: {
+      count: number;
+      categoryDistribution?: Record<string, number>;
+      difficultyDistribution?: Record<string, number>;
+      processId?: number;
+    }
+  ): Promise<Question[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -941,20 +950,18 @@ export class DatabaseStorage implements IStorage {
       if (!process) {
         throw new Error('Process not found');
       }
-      if (process.lineOfBusinessId !== batch.lineOfBusinessId) {
-        throw new Error('Process does not belong to the selected Line of Business');
+
+      // If trainer is assigned, verify they exist and belong to the location
+      if (batch.trainerId) {
+        const trainer = await this.getUser(batch.trainerId);
+        if (!trainer) {
+          throw new Error('Trainer not found');
+        }
+        if (trainer.locationId !== batch.locationId) {
+          throw new Error('Trainer is not assigned to the selected location');
+        }
       }
 
-      // Verify the trainer exists and is assigned to the location
-      const trainer = await this.getUser(batch.trainerId);
-      if (!trainer) {
-        throw new Error('Trainer not found');
-      }
-      if (trainer.locationId !== batch.locationId) {
-        throw new Error('Trainer is not assigned to the selected location');
-      }
-
-      // Create the batch
       const [newBatch] = await db
         .insert(organizationBatches)
         .values(batch)
@@ -967,7 +974,7 @@ export class DatabaseStorage implements IStorage {
       });
 
       return newBatch;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating batch:', error);
       throw error;
     }
@@ -1750,6 +1757,75 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getRandomQuestions(
+    organizationId: number,
+    options: {
+      count: number;
+      categoryDistribution?: Record<string, number>;
+      difficultyDistribution?: Record<string, number>;
+      processId?: number;
+    }
+  ): Promise<Question[]> {
+    try {
+      console.log('Getting random questions with options:', options);
+
+      // Base query to get questions from the organization
+      let questionsQuery = db
+        .select()
+        .from(questions)
+        .where(eq(questions.organizationId, organizationId));
+
+      // Add process filter if specified
+      if (options.processId) {
+        questionsQuery = questionsQuery.where(eq(questions.processId, options.processId));
+      }
+
+      // Get all available questions first
+      const availableQuestions = await questionsQuery as Question[];
+      console.log(`Found ${availableQuestions.length} available questions`);
+
+      // If no questions available, return empty array
+      if (!availableQuestions.length) {
+        return [];
+      }
+
+      let selectedQuestions: Question[] = [];
+
+      if (options.categoryDistribution) {
+        // Select questions based on category distribution
+        for (const [category, count] of Object.entries(options.categoryDistribution)) {
+          const categoryQuestions = availableQuestions
+            .filter(q => q.category === category)
+            .sort(() => Math.random() - 0.5)
+            .slice(0, count);
+          selectedQuestions.push(...categoryQuestions);
+        }
+      } else if (options.difficultyDistribution) {
+        // Select questions based on difficulty distribution
+        for (const [difficulty, count] of Object.entries(options.difficultyDistribution)) {
+          const difficultyQuestions = availableQuestions
+            .filter(q => q.difficultyLevel === parseInt(difficulty))
+            .sort(() => Math.random() - 0.5)
+            .slice(0, count);
+          selectedQuestions.push(...difficultyQuestions);
+        }
+      } else {
+        // Simple random selection
+        selectedQuestions = availableQuestions
+          .sort(() => Math.random() - 0.5)
+          .slice(0, options.count);
+      }
+
+      // Ensure we don't exceed requested count
+      selectedQuestions = selectedQuestions.slice(0, options.count);
+
+      console.log(`Selected ${selectedQuestions.length} random questions`);
+      return selectedQuestions;
+    } catch (error) {
+      console.error('Error getting random questions:', error);
+      throw new Error('Failed to get random questions');
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();

@@ -142,6 +142,7 @@ export const questions = pgTable("questions", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Update the quiz templates table with randomization fields
 export const quizTemplates = pgTable("quiz_templates", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -150,6 +151,9 @@ export const quizTemplates = pgTable("quiz_templates", {
   passingScore: integer("passing_score").notNull(),
   shuffleQuestions: boolean("shuffle_questions").default(false).notNull(),
   shuffleOptions: boolean("shuffle_options").default(false).notNull(),
+  questionCount: integer("question_count").notNull(), // number of questions to select
+  categoryDistribution: jsonb("category_distribution").$type<Record<string, number>>(), // distribution of questions by category
+  difficultyDistribution: jsonb("difficulty_distribution").$type<Record<string, number>>(), // distribution by difficulty
   processId: integer("process_id")
     .references(() => organizationProcesses.id)
     .notNull(),
@@ -690,26 +694,7 @@ export type QuizTemplate = InferSelectModel<typeof quizTemplates>;
 export type QuizAttempt = InferSelectModel<typeof quizAttempts>;
 export type QuizResponse = InferSelectModel<typeof quizResponses>;
 
-// Define insert schemas
-export const insertQuestionSchema = createInsertSchema(questions)
-  .omit({
-    id: true,
-    createdAt: true,
-    updatedAt: true,
-  })
-  .extend({
-    question: z.string().min(1, "Question is required"),
-    type: z.enum(['multiple_choice', 'true_false', 'short_answer']),
-    options: z.array(z.string()).min(2, "At least two options are required"),
-    correctAnswer: z.string().min(1, "Correct answer is required"),
-    explanation: z.string().optional(),
-    difficultyLevel: z.number().int().min(1).max(5),
-    category: z.string().min(1, "Category is required"),
-    processId: z.number().int().positive("Process is required"),
-    organizationId: z.number().int().positive("Organization is required"),
-    createdBy: z.number().int().positive("Creator is required"),
-  });
-
+// Update the insert schema for quiz templates
 export const insertQuizTemplateSchema = createInsertSchema(quizTemplates)
   .omit({
     id: true,
@@ -723,12 +708,16 @@ export const insertQuizTemplateSchema = createInsertSchema(quizTemplates)
     passingScore: z.number().int().min(0).max(100),
     shuffleQuestions: z.boolean().default(false),
     shuffleOptions: z.boolean().default(false),
+    questionCount: z.number().int().positive("Must select at least one question"),
+    categoryDistribution: z.record(z.string(), z.number()).optional(),
+    difficultyDistribution: z.record(z.string(), z.number()).optional(),
     processId: z.number().int().positive("Process is required"),
     organizationId: z.number().int().positive("Organization is required"),
     createdBy: z.number().int().positive("Creator is required"),
     questions: z.array(z.number()).min(1, "At least one question is required"),
   });
 
+// Add insert schemas for quiz attempts and responses
 export const insertQuizAttemptSchema = createInsertSchema(quizAttempts)
   .omit({
     id: true,
@@ -814,12 +803,6 @@ export const quizResponsesRelations = relations(quizResponses, ({ one }) => ({
   }),
 }));
 
-// Export types
-export type InsertQuestion = z.infer<typeof insertQuestionSchema>;
-export type InsertQuizTemplate = z.infer<typeof insertQuizTemplateSchema>;
-export type InsertQuizAttempt = z.infer<typeof insertQuizAttemptSchema>;
-export type InsertQuizResponse = z.infer<typeof insertQuizResponseSchema>;
-
 // Add batch history event type enum after other enums
 export const batchHistoryEventTypeEnum = pgEnum('batch_history_event_type', [
   'phase_change',
@@ -859,7 +842,7 @@ export const insertBatchHistorySchema = createInsertSchema(batchHistory)
   })
   .extend({
     batchId: z.number().int().positive("Batch ID is required"),
-    eventType: z.enum(['phase_change', 'status_update', 'milestone', 'note']),
+    eventType:z.enum(['phase_change', 'status_update', 'milestone', 'note']),
     description: z.string().min(1, "Description is required"),
     previousValue: z.string().optional(),
     newValue: z.string().optional(),

@@ -673,6 +673,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add route for getting random questions
+  app.get("/api/random-questions", async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      console.log('Random questions request params:', req.query);
+      
+      // Validate count parameter
+      const count = parseInt(req.query.count as string);
+      if (isNaN(count) || count < 1) {
+        return res.status(400).json({ 
+          message: "Question count must be a positive number" 
+        });
+      }
+
+      // Parse optional parameters
+      const options: {
+        count: number;
+        categoryDistribution?: Record<string, number>;
+        difficultyDistribution?: Record<string, number>;
+        processId?: number;
+      } = { count };
+
+      // Parse category distribution if provided
+      if (req.query.categoryDistribution) {
+        try {
+          options.categoryDistribution = JSON.parse(req.query.categoryDistribution as string);
+          if (typeof options.categoryDistribution !== 'object') {
+            throw new Error('Invalid category distribution format');
+          }
+        } catch (error) {
+          return res.status(400).json({
+            message: "Invalid category distribution format. Expected JSON object with category names and counts."
+          });
+        }
+      }
+
+      // Parse difficulty distribution if provided
+      if (req.query.difficultyDistribution) {
+        try {
+          options.difficultyDistribution = JSON.parse(req.query.difficultyDistribution as string);
+          if (typeof options.difficultyDistribution !== 'object') {
+            throw new Error('Invalid difficulty distribution format');
+          }
+        } catch (error) {
+          return res.status(400).json({
+            message: "Invalid difficulty distribution format. Expected JSON object with difficulty levels and counts."
+          });
+        }
+      }
+
+      // Parse processId if provided
+      if (req.query.processId) {
+        const processId = parseInt(req.query.processId as string);
+        if (!isNaN(processId) && processId > 0) {
+          options.processId = processId;
+        }
+      }
+
+      console.log('Getting random questions with options:', options);
+      
+      // Get random questions using the storage method
+      const randomQuestions = await storage.getRandomQuestions(
+        req.user.organizationId,
+        options
+      );
+
+      console.log(`Retrieved ${randomQuestions.length} random questions`);
+      res.json(randomQuestions);
+    } catch (error: any) {
+      console.error("Error getting random questions:", error);
+      res.status(500).json({ 
+        message: error.message || "Failed to get random questions" 
+      });
+    }
+  });
+
   // Update phase change request status
   app.patch("/api/phase-change-requests/:requestId", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
