@@ -251,10 +251,71 @@ const QuizManagement: FC = () => {
               <div className="grid gap-4">
                 {questions?.map((question) => (
                   <Card key={question.id} className="p-4">
-                    <h3 className="font-medium">{question.question}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Type: {question.type} | Difficulty: {question.difficultyLevel}
-                    </p>
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-medium text-lg">{question.question}</h3>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm px-2 py-1 bg-primary/10 rounded-md">
+                          Level {question.difficultyLevel}
+                        </span>
+                        <span className="text-sm px-2 py-1 bg-primary/10 rounded-md">
+                          {question.category}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      {question.type === 'multiple_choice' && (
+                        <div className="ml-4 space-y-1">
+                          {question.options.map((option, index) => (
+                            <div 
+                              key={index}
+                              className={`flex items-center gap-2 p-2 rounded-md ${
+                                option === question.correctAnswer 
+                                  ? 'bg-green-100 dark:bg-green-900/20' 
+                                  : ''
+                                }`}
+                            >
+                              <span className="w-6">{String.fromCharCode(65 + index)}.</span>
+                              <span>{option}</span>
+                              {option === question.correctAnswer && (
+                                <span className="text-sm text-green-600 dark:text-green-400 ml-2">
+                                  (Correct)
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {question.type === 'true_false' && (
+                        <div className="ml-4 space-y-1">
+                          <div className={`p-2 rounded-md ${
+                            'true' === question.correctAnswer ? 'bg-green-100 dark:bg-green-900/20' : ''
+                          }`}>
+                            True {question.correctAnswer === 'true' && '(Correct)'}
+                          </div>
+                          <div className={`p-2 rounded-md ${
+                            'false' === question.correctAnswer ? 'bg-green-100 dark:bg-green-900/20' : ''
+                          }`}>
+                            False {question.correctAnswer === 'false' && '(Correct)'}
+                          </div>
+                        </div>
+                      )}
+
+                      {question.type === 'short_answer' && (
+                        <div className="ml-4 p-2 bg-green-100 dark:bg-green-900/20 rounded-md">
+                          <span className="font-medium">Correct Answer: </span>
+                          {question.correctAnswer}
+                        </div>
+                      )}
+
+                      {question.explanation && (
+                        <div className="mt-2 p-3 bg-muted/50 rounded-md">
+                          <span className="font-medium">Explanation: </span>
+                          {question.explanation}
+                        </div>
+                      )}
+                    </div>
                   </Card>
                 ))}
               </div>
