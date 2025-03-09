@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useAuth } from "@/hooks/use-auth";
 import type { Question, QuizTemplate } from "@shared/schema";
 
 // Question form schema
@@ -30,6 +31,7 @@ type QuestionFormValues = z.infer<typeof questionFormSchema>;
 const QuizManagement: FC = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isAddQuestionOpen, setIsAddQuestionOpen] = useState(false);
 
   const form = useForm<QuestionFormValues>({
@@ -50,14 +52,29 @@ const QuizManagement: FC = () => {
   });
 
   const onSubmit = async (data: QuestionFormValues) => {
+    if (!user?.organizationId) {
+      toast({
+        title: "Error",
+        description: "Organization ID not found",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
+      const questionData = {
+        ...data,
+        organizationId: user.organizationId,
+        processId: user.processId || 1,
+      };
+
       // Make API call to save question
       await fetch('/api/questions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(questionData),
       });
 
       // Invalidate and refetch questions

@@ -35,6 +35,9 @@ import {
   batchHistory,
   type BatchHistory,
   type InsertBatchHistory,
+  questions,
+  type Question,
+  type InsertQuestion,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -162,6 +165,10 @@ export interface IStorage {
   // Add batch history methods
   listBatchHistory(batchId: number): Promise<BatchHistory[]>;
   createBatchHistoryEvent(event: InsertBatchHistory): Promise<BatchHistory>;
+
+  // Question operations
+  createQuestion(question: InsertQuestion): Promise<Question>;
+  listQuestions(organizationId: number): Promise<Question[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -951,7 +958,7 @@ export class DatabaseStorage implements IStorage {
       const [newBatch] = await db
         .insert(organizationBatches)
         .values(batch)
-        .returning() as OrganizationBatch[];
+                .returning() as OrganizationBatch[];
 
       console.log('Successfully created new batch:', {
         id: newBatch.id,
@@ -1686,6 +1693,37 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error creating batch history event:', error);
       throw error;
+    }
+  }
+  async createQuestion(question: InsertQuestion): Promise<Question> {
+    try {
+      console.log('Creating question:', question);
+      const [newQuestion] = await db
+        .insert(questions)
+        .values(question)
+        .returning() as Question[];
+
+      console.log('Created question:', newQuestion);
+      return newQuestion;
+    } catch (error) {
+      console.error('Error creating question:', error);
+      throw new Error('Failed to create question');
+    }
+  }
+
+  async listQuestions(organizationId: number): Promise<Question[]> {
+    try {
+      console.log('Fetching questions for organization:', organizationId);
+      const questionsList = await db
+        .select()
+        .from(questions)
+        .where(eq(questions.organizationId, organizationId)) as Question[];
+
+      console.log('Found questions:', questionsList);
+      return questionsList;
+    } catch (error) {
+      console.error('Error listing questions:', error);
+      throw new Error('Failed to list questions');
     }
   }
 }
