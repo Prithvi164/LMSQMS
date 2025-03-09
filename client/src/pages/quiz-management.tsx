@@ -18,7 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Loader2 } from "lucide-react";
 
 // Define Process interface
 interface Process {
@@ -65,6 +65,7 @@ const QuizManagement: FC = () => {
   const [isEditQuestionOpen, setIsEditQuestionOpen] = useState(false);
   const [isAddTemplateOpen, setIsAddTemplateOpen] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
+  const [isDeletingQuestion, setIsDeletingQuestion] = useState(false);
 
   const questionForm = useForm<QuestionFormValues>({
     resolver: zodResolver(questionFormSchema),
@@ -119,6 +120,7 @@ const QuizManagement: FC = () => {
 
   const handleDeleteQuestion = async (questionId: number) => {
     try {
+      setIsDeletingQuestion(true);
       const response = await fetch(`/api/questions/${questionId}`, {
         method: 'DELETE',
       });
@@ -128,6 +130,7 @@ const QuizManagement: FC = () => {
         throw new Error(errorData.message || 'Failed to delete question');
       }
 
+      // Invalidate and refetch questions after successful deletion
       await queryClient.invalidateQueries({ queryKey: ['/api/questions'] });
 
       toast({
@@ -141,6 +144,8 @@ const QuizManagement: FC = () => {
         description: error instanceof Error ? error.message : "Failed to delete question",
         variant: "destructive",
       });
+    } finally {
+      setIsDeletingQuestion(false);
     }
   };
 
@@ -723,8 +728,12 @@ const QuizManagement: FC = () => {
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <Trash2 className="h-4 w-4 text-destructive" />
+                            <Button variant="ghost" size="icon" disabled={isDeletingQuestion}>
+                              {isDeletingQuestion ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              )}
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
@@ -738,8 +747,16 @@ const QuizManagement: FC = () => {
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
                               <AlertDialogAction
                                 onClick={() => question.id && handleDeleteQuestion(question.id)}
+                                disabled={isDeletingQuestion}
                               >
-                                Delete
+                                {isDeletingQuestion ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Deleting...
+                                  </>
+                                ) : (
+                                  'Delete'
+                                )}
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
@@ -957,7 +974,7 @@ const QuizManagement: FC = () => {
                           name="shuffleOptions"
                           render={({ field }) => (
                             <div className="flex items-center justify-between">
-                              <Label htmlFor="shuffle-options">Shuffle Answer Options</Label>
+                                                            <Label htmlFor="shuffle-options">Shuffle Answer Options</Label>
                               <Switch
                                 id="shuffle-options"
                                 checked={field.value}

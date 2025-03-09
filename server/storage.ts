@@ -170,15 +170,8 @@ export interface IStorage {
   // Question operations
   createQuestion(question: InsertQuestion): Promise<Question>;
   listQuestions(organizationId: number): Promise<Question[]>;
-  getRandomQuestions(
-    organizationId: number,
-    options: {
-      count: number;
-      categoryDistribution?: Record<string, number>;
-      difficultyDistribution?: Record<string, number>;
-      processId?: number;
-    }
-  ): Promise<Question[]>;
+  getQuestion(id: number): Promise<Question | undefined>;
+  deleteQuestion(id: number): Promise<void>;
 
   // Quiz template operations
   createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate>;
@@ -959,7 +952,7 @@ export class DatabaseStorage implements IStorage {
       // If trainer is assigned, verify they exist and belong to the location
       if (batch.trainerId) {
         const trainer = await this.getUser(batch.trainerId);
-        if (!trainer) {
+                if (!trainer) {
           throw new Error('Trainer not found');
         }
         if (trainer.locationId !== batch.locationId) {
@@ -1880,6 +1873,47 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Failed to list quiz templates');
     }
   }
+  async getQuestion(id: number): Promise<Question | undefined> {
+    try {
+      const [question] = await db
+        .select()
+        .from(questions)
+        .where(eq(questions.id, id)) as Question[];
+      return question;
+    } catch (error) {
+      console.error('Error getting question:', error);
+      throw new Error('Failed to get question');
+    }
+  }
+
+  async deleteQuestion(id: number): Promise<void> {
+    try {
+      console.log(`Attempting to delete question with ID: ${id}`);
+
+      // First verify the question exists
+      const question = await this.getQuestion(id);
+      if (!question) {
+        console.log(`Question with ID ${id} not found`);
+        throw new Error('Question not found');
+      }
+
+      // Delete the question
+      const result = await db
+        .delete(questions)
+        .where(eq(questions.id, id))
+        .returning();
+
+      if (!result.length) {
+        throw new Error('Question deletion failed');
+      }
+
+      console.log(`Successfully deleted question with ID: ${id}`);
+    } catch (error) {
+      console.error('Error deleting question:', error);
+      throw error;
+    }
+  }
+
 }
 
 export const storage = new DatabaseStorage();
