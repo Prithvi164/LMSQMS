@@ -395,7 +395,7 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
-  fullName: text("full_name"),
+  fullName: text("full_name").notNull(),
   employeeId: text("employee_id").notNull().unique(),
   role: roleEnum("role").notNull(),
   category: userCategoryTypeEnum("category").default('trainee').notNull(),
@@ -684,7 +684,6 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
 export type InsertOrganizationProcess = z.infer<typeof insertOrganizationProcessSchema>;
 export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
-export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
 export type InsertBatchTemplate = z.infer<typeof insertBatchTemplateSchema>;
 
 
@@ -842,8 +841,7 @@ export const insertBatchHistorySchema = createInsertSchema(batchHistory)
   })
   .extend({
     batchId: z.number().int().positive("Batch ID is required"),
-    eventType:z.enum(['phase_change', 'status_update', 'milestone', 'note']),
-    description: z.string().min(1, "Description is required"),
+    eventType:z.enum(['phase_change', 'status_update', 'milestone', 'note']),    description: z.string().min(1, "Description is required"),
     previousValue: z.string().optional(),
     newValue: z.string().optional(),
     date: z.string().min(1, "Date is required"),
