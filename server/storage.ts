@@ -186,6 +186,7 @@ export interface IStorage {
   createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate>;
   listQuizTemplates(organizationId: number): Promise<QuizTemplate[]>;
   updateQuestion(id: number, question: Partial<InsertQuestion>): Promise<Question>;
+  updateQuizTemplate(id: number, template: Partial<InsertQuizTemplate>): Promise<QuizTemplate>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -950,7 +951,7 @@ export class DatabaseStorage implements IStorage {
       // Verify the LOB exists
       const lob = await this.getLineOfBusiness(batch.lineOfBusinessId);
       if (!lob) {
-        throw new Error('Line of Business not found');
+        throw new Error('Line of Business notfound');
       }
 
       // Verify the process exists and belongs to the LOB
@@ -1951,6 +1952,42 @@ export class DatabaseStorage implements IStorage {
       return updatedQuestion;
     } catch (error) {
       console.error('Error updating question:', error);
+      throw error;
+    }
+  }
+
+  // Quiz template operations
+  async updateQuizTemplate(id: number, template: Partial<InsertQuizTemplate>): Promise<QuizTemplate> {
+    try {
+      console.log(`Attempting to update quiz template with ID: ${id}`, template);
+
+      // First verify the template exists
+      const [existingTemplate] = await db
+        .select()
+        .from(quizTemplates)
+        .where(eq(quizTemplates.id, id)) as QuizTemplate[];
+
+      if (!existingTemplate) {
+        throw new Error('Quiz template not found');
+            }
+
+      const [updatedTemplate] = await db
+        .update(quizTemplates)
+        .set({
+          ...template,
+          updatedAt: new Date()
+        })
+        .where(eq(quizTemplates.id, id))
+        .returning() as QuizTemplate[];
+
+      if (!updatedTemplate) {
+        throw new Error('Quiz template update failed');
+      }
+
+      console.log('Successfully updated quiz template:', updatedTemplate);
+      return updatedTemplate;
+    } catch (error) {
+      console.error('Error updating quiz template:', error);
       throw error;
     }
   }

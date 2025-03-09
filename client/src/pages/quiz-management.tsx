@@ -67,6 +67,9 @@ const QuizManagement: FC = () => {
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
   const [isDeletingQuestion, setIsDeletingQuestion] = useState(false);
   const [selectedProcessFilter, setSelectedProcessFilter] = useState<number | "all">("all");
+  const [isEditTemplateOpen, setIsEditTemplateOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<QuizTemplate | null>(null);
+  const [isUpdatingTemplate, setIsUpdatingTemplate] = useState(false);
 
   const questionForm = useForm<QuestionFormValues>({
     resolver: zodResolver(questionFormSchema),
@@ -221,6 +224,7 @@ const QuizManagement: FC = () => {
     }
 
     try {
+      setIsUpdatingTemplate(true);
       const templateData = {
         ...data,
         organizationId: user.organizationId,
@@ -228,8 +232,14 @@ const QuizManagement: FC = () => {
         processId: data.processId
       };
 
-      const response = await fetch('/api/quiz-templates', {
-        method: 'POST',
+      const url = selectedTemplate
+        ? `/api/quiz-templates/${selectedTemplate.id}`
+        : '/api/quiz-templates';
+
+      const method = selectedTemplate ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -238,25 +248,33 @@ const QuizManagement: FC = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to add template');
+        throw new Error(errorData.message || `Failed to ${selectedTemplate ? 'update' : 'add'} template`);
       }
 
       await queryClient.invalidateQueries({ queryKey: ['/api/quiz-templates'] });
 
       toast({
         title: "Success",
-        description: "Quiz template added successfully",
+        description: `Quiz template ${selectedTemplate ? 'updated' : 'added'} successfully`,
       });
-      setIsAddTemplateOpen(false);
+
+      if (selectedTemplate) {
+        setIsEditTemplateOpen(false);
+      } else {
+        setIsAddTemplateOpen(false);
+      }
+      setSelectedTemplate(null);
       setPreviewQuestions([]);
       templateForm.reset();
     } catch (error) {
       console.error('Error saving template:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to add template",
+        description: error instanceof Error ? error.message : `Failed to ${selectedTemplate ? 'update' : 'add'} template`,
         variant: "destructive",
       });
+    } finally {
+      setIsUpdatingTemplate(false);
     }
   };
 
@@ -352,6 +370,18 @@ const QuizManagement: FC = () => {
     if (selectedProcessFilter === "all") return questions;
     return questions.filter(q => q.processId === selectedProcessFilter);
   }, [questions, selectedProcessFilter]);
+
+  const handleEditTemplate = (template: QuizTemplate) => {
+    setSelectedTemplate(template);
+    templateForm.reset({
+      ...template,
+      processId: template.processId,
+      categoryDistribution: template.categoryDistribution || {},
+      difficultyDistribution: template.difficultyDistribution || {},
+    });
+    setIsEditTemplateOpen(true);
+  };
+
 
   return (
     <div className="container mx-auto py-6">
@@ -830,9 +860,15 @@ const QuizManagement: FC = () => {
           <Card className="p-4">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Quiz Templates</h2>
-              <Dialog open={isAddTemplateOpen} onOpenChange={setIsAddTemplateOpen}>
+              <Dialog open={isAddTemplateOpen} onOpenChange={(open) => {
+                setIsAddTemplateOpen(open);
+                if (!open) {
+                  setSelectedTemplate(null);
+                  templateForm.reset();
+                }
+              }}>
                 <DialogTrigger asChild>
-                  <Button>Create Quiz Template</Button>
+                  <Button>Add Template</Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
                   <DialogHeader>
@@ -925,13 +961,12 @@ const QuizManagement: FC = () => {
                         name="questionCount"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Number of Questions</FormLabel>
+                            <FormLabel>Question Count</FormLabel>
                             <FormControl>
-                              <Input
-                                type="number"
-                                min={1}
-                                placeholder="Enter number of questions"
-                                {...field}
+                              <Input 
+                                type="number" 
+                                min="1" 
+                                {...field} 
                                 onChange={(e) => field.onChange(parseInt(e.target.value))}
                               />
                             </FormControl>
@@ -1000,7 +1035,7 @@ const QuizManagement: FC = () => {
                                 <Input
                                   type="number"
                                   min="0"
-                                  className="w20"
+                                  className="w-20"
                                   onChange={(e) => {
                                     const value = parseInt(e.target.value) || 0;
                                     const currentDistribution = templateForm.getValues('categoryDistribution') || {};
@@ -1095,9 +1130,18 @@ const QuizManagement: FC = () => {
                           <p className="text-sm text-muted-foreground mt-1">{template.description}</p>
                         )}
                       </div>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm">Edit</Button>
-                        <Button variant="outline" size="sm">Start Quiz</Button>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs">
+                          {getProcessName(template.processId)}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEditTemplate(template)}
+                          disabled={isUpdatingTemplate}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                     <div className="mt-4 space-y-3">
