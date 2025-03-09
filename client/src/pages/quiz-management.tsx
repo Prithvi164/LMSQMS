@@ -113,7 +113,8 @@ const QuizManagement: FC = () => {
     questionForm.reset({
       ...question,
       processId: question.processId,
-      options: question.type === 'multiple_choice' ? question.options : ["", ""]
+      options: question.type === 'multiple_choice' ? question.options : ["", ""],
+      explanation: question.explanation || undefined // Convert null to undefined for the form
     });
     setIsEditQuestionOpen(true);
   };
@@ -973,7 +974,7 @@ const QuizManagement: FC = () => {
                           control={templateForm.control}
                           name="shuffleOptions"
                           render={({ field }) => (
-                            <div className="flex items-center justify-between">
+                            <div className="flex itemscenter justify-between">
                                                             <Label htmlFor="shuffle-options">Shuffle Answer Options</Label>
                               <Switch
                                 id="shuffle-options"
