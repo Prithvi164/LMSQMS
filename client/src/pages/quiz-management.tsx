@@ -18,6 +18,14 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {Badge} from "@/components/ui/badge"
 
+// Add type for Process
+interface Process {
+  id: number;
+  name: string;
+  description?: string;
+  status: string;
+}
+
 // Question form schema
 const questionFormSchema = z.object({
   question: z.string().min(1, "Question is required"),
@@ -64,9 +72,20 @@ const QuizManagement: FC = () => {
     }
   });
 
-  // Add query for processes
-  const { data: processes } = useQuery({
+  // Update process query with proper typing and error handling
+  const { data: processes, isLoading: processesLoading, error: processesError } = useQuery<Process[]>({
     queryKey: ['/api/processes'],
+    onSuccess: (data) => {
+      console.log('Fetched processes:', data);
+    },
+    onError: (error) => {
+      console.error('Error fetching processes:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load processes. Please try again.",
+        variant: "destructive",
+      });
+    }
   });
 
   const templateForm = useForm<QuizTemplateFormValues>({
@@ -519,15 +538,23 @@ const QuizManagement: FC = () => {
                             >
                               <FormControl>
                                 <SelectTrigger>
-                                  <SelectValue placeholder="Select a process" />
+                                  <SelectValue placeholder={processesLoading ? "Loading..." : "Select a process"} />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                {processes?.map((process) => (
-                                  <SelectItem key={process.id} value={process.id.toString()}>
-                                    {process.name}
-                                  </SelectItem>
-                                ))}
+                                {processesLoading ? (
+                                  <SelectItem value="" disabled>Loading processes...</SelectItem>
+                                ) : processesError ? (
+                                  <SelectItem value="" disabled>Error loading processes</SelectItem>
+                                ) : processes && processes.length > 0 ? (
+                                  processes.map((process) => (
+                                    <SelectItem key={process.id} value={process.id.toString()}>
+                                      {process.name}
+                                    </SelectItem>
+                                  ))
+                                ) : (
+                                  <SelectItem value="" disabled>No processes available</SelectItem>
+                                )}
                               </SelectContent>
                             </Select>
                             <FormMessage />

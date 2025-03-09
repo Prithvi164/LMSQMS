@@ -152,6 +152,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(organization);
   });
 
+  // Add route to get organization processes
+  app.get("/api/processes", async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      console.log('Fetching processes for organization:', req.user.organizationId);
+      const processes = await storage.listProcesses(req.user.organizationId);
+      console.log(`Retrieved ${processes.length} processes`);
+      res.json(processes);
+    } catch (error: any) {
+      console.error("Error fetching processes:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Update the PATCH /api/organizations/:id/settings route to remove batch handling
   app.patch("/api/organizations/:id/settings", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
