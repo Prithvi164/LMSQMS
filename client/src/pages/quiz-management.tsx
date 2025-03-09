@@ -414,7 +414,7 @@ const QuizManagement: FC = () => {
         </Select>
       </Card>
 
-      <Tabs defaultValue="templates">
+      <Tabs defaultValue="questions">
         <TabsList>
           <TabsTrigger value="questions">Question Bank</TabsTrigger>
           <TabsTrigger value="templates">Quiz Templates</TabsTrigger>
