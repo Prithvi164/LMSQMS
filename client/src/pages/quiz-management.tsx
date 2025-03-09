@@ -19,7 +19,7 @@ import type { Question, QuizTemplate } from "@shared/schema";
 const questionFormSchema = z.object({
   question: z.string().min(1, "Question is required"),
   type: z.enum(["multiple_choice", "true_false", "short_answer"]),
-  options: z.array(z.string()).min(2, "At least two options are required for multiple choice").optional(),
+  options: z.array(z.string()).min(2, "At least two options are required").optional(),
   correctAnswer: z.string().min(1, "Correct answer is required"),
   explanation: z.string().optional(),
   difficultyLevel: z.number().int().min(1).max(5),
@@ -52,10 +52,10 @@ const QuizManagement: FC = () => {
   });
 
   const onSubmit = async (data: QuestionFormValues) => {
-    if (!user?.organizationId) {
+    if (!user?.organizationId || !user?.id) {
       toast({
         title: "Error",
-        description: "Organization ID not found",
+        description: "User or organization information not found",
         variant: "destructive",
       });
       return;
@@ -69,7 +69,7 @@ const QuizManagement: FC = () => {
         ...data,
         options: options || [],
         organizationId: user.organizationId,
-        processId: user.processId || 1,
+        processId: user.processId || 1, // Default to first process if none assigned
         createdBy: user.id
       };
       console.log('Processed question data:', questionData);
