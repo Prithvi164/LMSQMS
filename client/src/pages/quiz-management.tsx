@@ -1,5 +1,5 @@
 import { FC, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -28,6 +28,7 @@ const questionFormSchema = z.object({
 type QuestionFormValues = z.infer<typeof questionFormSchema>;
 
 const QuizManagement: FC = () => {
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const [isAddQuestionOpen, setIsAddQuestionOpen] = useState(false);
 
@@ -50,14 +51,26 @@ const QuizManagement: FC = () => {
 
   const onSubmit = async (data: QuestionFormValues) => {
     try {
-      // TODO: Implement API call to save question
-      console.log("Form data:", data);
+      // Make API call to save question
+      await fetch('/api/questions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      // Invalidate and refetch questions
+      await queryClient.invalidateQueries({ queryKey: ['/api/questions'] });
+
       toast({
         title: "Success",
         description: "Question added successfully",
       });
       setIsAddQuestionOpen(false);
+      form.reset();
     } catch (error) {
+      console.error('Error saving question:', error);
       toast({
         title: "Error",
         description: "Failed to add question",
@@ -267,11 +280,11 @@ const QuizManagement: FC = () => {
                       {question.type === 'multiple_choice' && (
                         <div className="ml-4 space-y-1">
                           {question.options.map((option, index) => (
-                            <div 
+                            <div
                               key={index}
                               className={`flex items-center gap-2 p-2 rounded-md ${
-                                option === question.correctAnswer 
-                                  ? 'bg-green-100 dark:bg-green-900/20' 
+                                option === question.correctAnswer
+                                  ? 'bg-green-100 dark:bg-green-900/20'
                                   : ''
                                 }`}
                             >
@@ -340,7 +353,7 @@ const QuizManagement: FC = () => {
                   <Card key={template.id} className="p-4">
                     <h3 className="font-medium">{template.name}</h3>
                     <p className="text-sm text-muted-foreground">
-                      Time Limit: {template.timeLimit} minutes | 
+                      Time Limit: {template.timeLimit} minutes |
                       Passing Score: {template.passingScore}%
                     </p>
                   </Card>

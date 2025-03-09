@@ -919,13 +919,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const orgId = parseInt(req.params.orgId);
       const batchId = parseInt(req.params.batchId);
 
-      console.log('Fetching batch history:', {
-        orgId,
-        batchId,
-        userId: req.user.id,
-        userRole: req.user.role
-      });
-
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
         console.log('User organization mismatch:', {
@@ -993,6 +986,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add question routes after batch routes
+  app.post("/api/questions", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const questionData = {
+        ...req.body,
+        createdBy: req.user.id,
+        organizationId: req.user.organizationId,
+        processId: req.user.processId || 1, // Default to first process if none assigned
+      };
+
+      // Create the question in the database
+      const question = await storage.createQuestion(questionData);
+      console.log('Created question:', question);
+      
+      res.status(201).json(question);
+    } catch (error: any) {
+      console.error("Error creating question:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/questions", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      // Get questions for the user's organization  
+      const questions = await storage.listQuestions(req.user.organizationId);
+      res.json(questions);
+    } catch (error: any) {
+      console.error("Error fetching questions:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
 
   // Add endpoint to get processes by line of business 
   app.get("/api/organizations/:orgId/line-of-businesses/:lobId/processes", async (req, res) => {
@@ -1011,7 +1039,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(processes);
     } catch (error: any) {
       console.error("Error fetching processes:", error);
-      res.status(500).json({ message: error.message });    }
+      res.status(500).json({ message: error.message });
+    }
   });
 
   // Add better error handling and authentication for line of business routes
@@ -3247,12 +3276,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add question routes
+  app.post("/api/questions", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const questionData = {
+        ...req.body,
+        createdBy: req.user.id,
+        organizationId: req.user.organizationId, 
+        processId: req.user.processId || 1, // Default to first process if none assigned
+      };
+
+      // Create the question in the database
+      const question = await storage.createQuestion(questionData);
+      console.log('Created question:', question);
+      
+      res.status(201).json(question);
+    } catch (error: any) {
+      console.error("Error creating question:", error); 
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/questions", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      // Get questions for the user's organization  
+      const questions = await storage.listQuestions(req.user.organizationId);
+      res.json(questions);
+    } catch (error: any) {
+      console.error("Error fetching questions:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Get batch trainees with attendance
   app.get("/api/organizations/:orgId/batches/:batchId/trainees", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     try {
-      const batchId = parseInt(req.params.batchId);
+      const batchId = parseInt(req.params.batchId); 
       const date = new Date().toISOString().split('T')[0]; // Get current date
 
       const trainees = await storage.getBatchTrainees(batchId);
