@@ -142,6 +142,31 @@ export const questions = pgTable("questions", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Export the Question type
+export type Question = InferSelectModel<typeof questions>;
+
+// Create insert schema
+export const insertQuestionSchema = createInsertSchema(questions)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    question: z.string().min(1, "Question text is required"),
+    type: z.enum(['multiple_choice', 'true_false', 'short_answer']),
+    options: z.array(z.string()).min(2, "At least two options are required for multiple choice"),
+    correctAnswer: z.string().min(1, "Correct answer is required"),
+    explanation: z.string().optional(),
+    difficultyLevel: z.number().int().min(1).max(5),
+    category: z.string().min(1, "Category is required"),
+    processId: z.number().int().positive("Process is required"),
+    organizationId: z.number().int().positive("Organization is required"),
+    createdBy: z.number().int().positive("Creator is required"),
+  });
+
+export type InsertQuestion = z.infer<typeof insertQuestionSchema>;
+
 // Update the quiz templates table with randomization fields
 export const quizTemplates = pgTable("quiz_templates", {
   id: serial("id").primaryKey(),
@@ -688,7 +713,6 @@ export type InsertBatchTemplate = z.infer<typeof insertBatchTemplateSchema>;
 
 
 // Define types
-export type Question = InferSelectModel<typeof questions>;
 export type QuizTemplate = InferSelectModel<typeof quizTemplates>;
 export type QuizAttempt = InferSelectModel<typeof quizAttempts>;
 export type QuizResponse = InferSelectModel<typeof quizResponses>;
@@ -809,7 +833,6 @@ export const batchHistoryEventTypeEnum = pgEnum('batch_history_event_type', [
   'milestone',
   'note'
 ]);
-
 // Add batch history table after batch tables
 export const batchHistory = pgTable("batch_history", {
   id: serial("id").primaryKey(),
