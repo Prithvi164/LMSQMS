@@ -16,24 +16,9 @@ import { useAuth } from "@/hooks/use-auth";
 import type { Question, QuizTemplate } from "@shared/schema";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import {Badge} from "@/components/ui/badge";
+import {Badge} from "@/components/ui/badge"
 
-// Update the quiz template schema to use batchId
-const quizTemplateSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  description: z.string().optional(),
-  timeLimit: z.number().int().min(1, "Time limit is required"),
-  questionCount: z.number().int().min(1, "Question count is required"),
-  passingScore: z.number().int().min(0).max(100, "Passing score must be between 0 and 100"),
-  shuffleQuestions: z.boolean().default(false),
-  shuffleOptions: z.boolean().default(false),
-  categoryDistribution: z.record(z.string(), z.number()).optional(),
-  difficultyDistribution: z.record(z.string(), z.number()).optional(),
-  batchId: z.number().min(1, "Batch is required"), // Changed from processId to batchId
-});
-
-type QuizTemplateFormValues = z.infer<typeof quizTemplateSchema>;
-
+// Question form schema
 const questionFormSchema = z.object({
   question: z.string().min(1, "Question is required"),
   type: z.enum(["multiple_choice", "true_false", "short_answer"]),
@@ -45,6 +30,22 @@ const questionFormSchema = z.object({
 });
 
 type QuestionFormValues = z.infer<typeof questionFormSchema>;
+
+const quizTemplateSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  description: z.string().optional(),
+  timeLimit: z.number().int().min(1, "Time limit is required"),
+  questionCount: z.number().int().min(1, "Question count is required"),
+  passingScore: z.number().int().min(0).max(100, "Passing score must be between 0 and 100"),
+  shuffleQuestions: z.boolean().default(false),
+  shuffleOptions: z.boolean().default(false),
+  categoryDistribution: z.record(z.string(), z.number()).optional(),
+  difficultyDistribution: z.record(z.string(), z.number()).optional(),
+  processId: z.number().min(1, "Process is required"),
+});
+
+type QuizTemplateFormValues = z.infer<typeof quizTemplateSchema>;
+
 
 const QuizManagement: FC = () => {
   const queryClient = useQueryClient();
@@ -63,10 +64,9 @@ const QuizManagement: FC = () => {
     }
   });
 
-  // Replace processes query with batches query
-  const { data: batches } = useQuery({
-    queryKey: ['/api/batches'],
-    enabled: !!user?.organizationId, // Only fetch if we have an organization ID
+  // Add query for processes
+  const { data: processes } = useQuery({
+    queryKey: ['/api/processes'],
   });
 
   const templateForm = useForm<QuizTemplateFormValues>({
@@ -75,8 +75,6 @@ const QuizManagement: FC = () => {
       timeLimit: 10,
       questionCount: 10,
       passingScore: 70,
-      shuffleQuestions: false,
-      shuffleOptions: false,
     }
   });
 
@@ -156,6 +154,7 @@ const QuizManagement: FC = () => {
         ...data,
         organizationId: user.organizationId,
         createdBy: user.id,
+        processId: data.processId // Ensure processId is included
       };
 
       const response = await fetch('/api/quiz-templates', {
@@ -507,26 +506,26 @@ const QuizManagement: FC = () => {
                   </DialogHeader>
                   <Form {...templateForm}>
                     <form onSubmit={templateForm.handleSubmit(onSubmitTemplate)} className="space-y-4">
-                      {/* Replace process selection with batch selection */}
+                      {/* Inside the template form, add process selection before other fields */}
                       <FormField
                         control={templateForm.control}
-                        name="batchId"
+                        name="processId"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Batch</FormLabel>
+                            <FormLabel>Process</FormLabel>
                             <Select
                               onValueChange={(value) => field.onChange(parseInt(value))}
                               defaultValue={field.value?.toString()}
                             >
                               <FormControl>
                                 <SelectTrigger>
-                                  <SelectValue placeholder="Select a batch" />
+                                  <SelectValue placeholder="Select a process" />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                {batches?.map((batch) => (
-                                  <SelectItem key={batch.id} value={batch.id.toString()}>
-                                    {batch.name}
+                                {processes?.map((process) => (
+                                  <SelectItem key={process.id} value={process.id.toString()}>
+                                    {process.name}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
