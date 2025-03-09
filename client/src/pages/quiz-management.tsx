@@ -41,6 +41,7 @@ const quizTemplateSchema = z.object({
   shuffleOptions: z.boolean().default(false),
   categoryDistribution: z.record(z.string(), z.number()).optional(),
   difficultyDistribution: z.record(z.string(), z.number()).optional(),
+  processId: z.number().min(1, "Process is required"),
 });
 
 type QuizTemplateFormValues = z.infer<typeof quizTemplateSchema>;
@@ -61,6 +62,11 @@ const QuizManagement: FC = () => {
       options: ["", ""],  // Initialize with two empty options
       category: ""
     }
+  });
+
+  // Add query for processes
+  const { data: processes } = useQuery({
+    queryKey: ['/api/processes'],
   });
 
   const templateForm = useForm<QuizTemplateFormValues>({
@@ -147,7 +153,8 @@ const QuizManagement: FC = () => {
       const templateData = {
         ...data,
         organizationId: user.organizationId,
-        createdBy: user.id
+        createdBy: user.id,
+        processId: data.processId // Ensure processId is included
       };
 
       const response = await fetch('/api/quiz-templates', {
@@ -499,6 +506,35 @@ const QuizManagement: FC = () => {
                   </DialogHeader>
                   <Form {...templateForm}>
                     <form onSubmit={templateForm.handleSubmit(onSubmitTemplate)} className="space-y-4">
+                      {/* Inside the template form, add process selection before other fields */}
+                      <FormField
+                        control={templateForm.control}
+                        name="processId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Process</FormLabel>
+                            <Select
+                              onValueChange={(value) => field.onChange(parseInt(value))}
+                              defaultValue={field.value?.toString()}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a process" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {processes?.map((process) => (
+                                  <SelectItem key={process.id} value={process.id.toString()}>
+                                    {process.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
                       <FormField
                         control={templateForm.control}
                         name="name"
