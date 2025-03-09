@@ -38,6 +38,7 @@ import {
   questions,
   type Question,
   type InsertQuestion,
+  quizTemplates, type QuizTemplate, type InsertQuizTemplate
 } from "@shared/schema";
 
 export interface IStorage {
@@ -178,6 +179,10 @@ export interface IStorage {
       processId?: number;
     }
   ): Promise<Question[]>;
+
+  // Quiz template operations
+  createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate>;
+  listQuizTemplates(organizationId: number): Promise<QuizTemplate[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1824,6 +1829,55 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error getting random questions:', error);
       throw new Error('Failed to get random questions');
+    }
+  }
+  async createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate> {
+    try {
+      console.log('Creating quiz template:', {
+        ...template,
+        questions: template.questions?.length || 0
+      });
+
+      const [newTemplate] = await db
+        .insert(quizTemplates)
+        .values({
+          ...template,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning() as QuizTemplate[];
+
+      if (!newTemplate) {
+        throw new Error('Failed to create quiz template');
+      }
+
+      console.log('Successfully created quiz template:', {
+        id: newTemplate.id,
+        name: newTemplate.name,
+        questionCount: newTemplate.questionCount
+      });
+
+      return newTemplate;
+    } catch (error) {
+      console.error('Error creating quiz template:', error);
+      throw error instanceof Error ? error : new Error('Failed to create quiz template');
+    }
+  }
+
+  async listQuizTemplates(organizationId: number): Promise<QuizTemplate[]> {
+    try {
+      console.log(`Fetching quiz templates for organization ${organizationId}`);
+
+      const templates = await db
+        .select()
+        .from(quizTemplates)
+        .where(eq(quizTemplates.organizationId, organizationId)) as QuizTemplate[];
+
+      console.log(`Found ${templates.length} quiz templates`);
+      return templates;
+    } catch (error) {
+      console.error('Error listing quiz templates:', error);
+      throw new Error('Failed to list quiz templates');
     }
   }
 }

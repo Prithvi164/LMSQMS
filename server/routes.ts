@@ -752,6 +752,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add quiz template routes
+  app.post("/api/quiz-templates", async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      console.log('Creating quiz template with data:', req.body);
+
+      const templateData = {
+        ...req.body,
+        organizationId: req.user.organizationId,
+        createdBy: req.user.id
+      };
+
+      // Create the template
+      const newTemplate = await storage.createQuizTemplate(templateData);
+      console.log('Successfully created quiz template:', newTemplate);
+
+      res.status(201).json(newTemplate);
+    } catch (error: any) {
+      console.error("Error creating quiz template:", error);
+      res.status(400).json({ 
+        message: error.message || "Failed to create quiz template",
+        details: error.stack
+      });
+    }
+  });
+
+  app.get("/api/quiz-templates", async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      console.log('Fetching quiz templates for organization:', req.user.organizationId);
+      const templates = await storage.listQuizTemplates(req.user.organizationId);
+      console.log(`Retrieved ${templates.length} quiz templates`);
+      res.json(templates);
+    } catch (error: any) {
+      console.error("Error fetching quiz templates:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Update phase change request status
   app.patch("/api/phase-change-requests/:requestId", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
