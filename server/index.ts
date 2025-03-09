@@ -2,30 +2,46 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import rateLimit from 'express-rate-limit';
+import cors from 'cors';
 import { startBatchStatusCron } from './cron/batch-status-cron';
 
 const app = express();
+
+// Configure trust proxy more securely
+app.set('trust proxy', 'loopback'); // Only trust local proxy
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Configure rate limiting
+// Configure CORS
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' ? false : true,
+  credentials: true
+}));
+
+// Configure rate limiting with more secure settings
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: 1000, // Limit each IP to 1000 requests per windowMs
   message: { message: "Too many requests, please try again later." },
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Use IP address from X-Forwarded-For header, but only trust our proxy
+  keyGenerator: (req) => {
+    return req.ip; // This will use the IP from trust proxy chain
+  }
 });
 
 // Apply rate limiting to API routes
 app.use('/api', limiter);
 
-// Enhanced request logging middleware
+// Enhanced request logging middleware with more details
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
+  // Capture response data
   const originalResJson = res.json;
   res.json = function (bodyJson, ...args) {
     capturedJsonResponse = bodyJson;
@@ -56,8 +72,11 @@ app.get("/health", (_req, res) => {
 
 (async () => {
   try {
+    log("Starting server initialization...");
+
     // Create HTTP server explicitly
     const server = await registerRoutes(app);
+    log("Routes registered successfully");
 
     // Start the batch status update cron job
     startBatchStatusCron();
@@ -82,8 +101,9 @@ app.get("/health", (_req, res) => {
       serveStatic(app);
     }
 
-    const port = process.env.PORT || 5001;
+    const port = 5000; // Using port 5000 as per guidelines
     server.listen(port, "0.0.0.0", () => {
+      log(`Server initialization complete`);
       log(`Server running in ${app.get("env")} mode`);
       log(`API and client being served on port ${port}`);
     }).on('error', (error: any) => {
