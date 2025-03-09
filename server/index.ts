@@ -13,8 +13,8 @@ const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // Limit each IP to 100 requests per windowMs
   message: { message: "Too many requests, please try again later." },
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 // Apply rate limiting to API routes
@@ -82,7 +82,8 @@ app.get("/health", (_req, res) => {
       serveStatic(app);
     }
 
-    const port = process.env.PORT || 5001;
+    // Changed port from 5001 to 5000
+    const port = 5000;
     server.listen(port, "0.0.0.0", () => {
       log(`Server running in ${app.get("env")} mode`);
       log(`API and client being served on port ${port}`);

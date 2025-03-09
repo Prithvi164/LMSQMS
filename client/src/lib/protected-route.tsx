@@ -2,13 +2,17 @@ import { Route, Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
+type ProtectedRouteProps = {
+  path: string;
+  component: () => React.JSX.Element;
+  roles?: string[];
+};
+
 export function ProtectedRoute({
   path,
   component: Component,
-}: {
-  path: string;
-  component: () => React.JSX.Element;
-}) {
+  roles
+}: ProtectedRouteProps) {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
@@ -27,6 +31,18 @@ export function ProtectedRoute({
         <Redirect to="/auth" />
       </Route>
     );
+  }
+
+  // Check if the route requires specific roles
+  if (roles && roles.length > 0) {
+    const hasRequiredRole = roles.includes(user.role);
+    if (!hasRequiredRole) {
+      return (
+        <Route path={path}>
+          <Redirect to="/" />
+        </Route>
+      );
+    }
   }
 
   return <Route path={path} component={Component} />;
