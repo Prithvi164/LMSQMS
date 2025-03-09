@@ -26,15 +26,16 @@ interface Process {
   status: string;
 }
 
-// Question form schema
+// Update question form schema to include processId
 const questionFormSchema = z.object({
   question: z.string().min(1, "Question is required"),
   type: z.enum(["multiple_choice", "true_false", "short_answer"]),
-  options: z.array(z.string()).default([]),  // Default to empty array instead of optional
+  options: z.array(z.string()).default([]),
   correctAnswer: z.string().min(1, "Correct answer is required"),
   explanation: z.string().optional(),
   difficultyLevel: z.number().int().min(1).max(5),
-  category: z.string().min(1, "Category is required")
+  category: z.string().min(1, "Category is required"),
+  processId: z.number().min(1, "Process is required")
 });
 
 type QuestionFormValues = z.infer<typeof questionFormSchema>;
@@ -62,12 +63,13 @@ const QuizManagement: FC = () => {
   const [isAddQuestionOpen, setIsAddQuestionOpen] = useState(false);
   const [isAddTemplateOpen, setIsAddTemplateOpen] = useState(false);
 
+  // Update form default values
   const questionForm = useForm<QuestionFormValues>({
     resolver: zodResolver(questionFormSchema),
     defaultValues: {
       type: "multiple_choice",
       difficultyLevel: 1,
-      options: ["", ""],  // Initialize with two empty options
+      options: ["", ""],
       category: ""
     }
   });
@@ -105,6 +107,7 @@ const QuizManagement: FC = () => {
     queryKey: ['/api/quiz-templates'],
   });
 
+  // Update the question submission data to include processId
   const onSubmitQuestion = async (data: QuestionFormValues) => {
     if (!user?.organizationId || !user?.id) {
       toast({
@@ -117,12 +120,12 @@ const QuizManagement: FC = () => {
 
     try {
       console.log('Submitting question data:', data);
-      // Always ensure options is an array
       const questionData = {
         ...data,
         options: data.type === 'multiple_choice' ? data.options : [],
         organizationId: user.organizationId,
-        createdBy: user.id
+        createdBy: user.id,
+        processId: data.processId // Include processId in submission
       };
       console.log('Processed question data:', questionData);
 
@@ -139,7 +142,6 @@ const QuizManagement: FC = () => {
         throw new Error(errorData.message || 'Failed to add question');
       }
 
-      // Invalidate and refetch questions
       await queryClient.invalidateQueries({ queryKey: ['/api/questions'] });
 
       toast({
@@ -419,6 +421,43 @@ const QuizManagement: FC = () => {
                             <FormControl>
                               <Input placeholder="Enter question category" {...field} />
                             </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Add process selection field to the form */}
+                      <FormField
+                        control={questionForm.control}
+                        name="processId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Process</FormLabel>
+                            <Select
+                              onValueChange={(value) => field.onChange(parseInt(value))}
+                              defaultValue={field.value?.toString()}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder={processesLoading ? "Loading..." : "Select a process"} />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {processesLoading ? (
+                                  <SelectItem value="" disabled>Loading processes...</SelectItem>
+                                ) : processesError ? (
+                                  <SelectItem value="" disabled>Error loading processes</SelectItem>
+                                ) : processes && processes.length > 0 ? (
+                                  processes.map((process) => (
+                                    <SelectItem key={process.id} value={process.id.toString()}>
+                                      {process.name}
+                                    </SelectItem>
+                                  ))
+                                ) : (
+                                  <SelectItem value="" disabled>No processes available</SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}
