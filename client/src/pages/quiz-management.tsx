@@ -67,9 +67,6 @@ const QuizManagement: FC = () => {
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
   const [isDeletingQuestion, setIsDeletingQuestion] = useState(false);
   const [selectedProcessFilter, setSelectedProcessFilter] = useState<number | "all">("all");
-  const [isEditTemplateOpen, setIsEditTemplateOpen] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<QuizTemplate | null>(null);
-
 
   const questionForm = useForm<QuestionFormValues>({
     resolver: zodResolver(questionFormSchema),
@@ -231,12 +228,8 @@ const QuizManagement: FC = () => {
         processId: data.processId
       };
 
-      const isEditing = selectedTemplate !== null;
-      const url = isEditing ? `/api/quiz-templates/${selectedTemplate.id}` : '/api/quiz-templates';
-      const method = isEditing ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
+      const response = await fetch('/api/quiz-templates', {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -245,45 +238,26 @@ const QuizManagement: FC = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || `Failed to ${isEditing ? 'update' : 'add'} template`);
+        throw new Error(errorData.message || 'Failed to add template');
       }
 
       await queryClient.invalidateQueries({ queryKey: ['/api/quiz-templates'] });
 
       toast({
         title: "Success",
-        description: `Quiz template ${isEditing ? 'updated' : 'added'} successfully`,
+        description: "Quiz template added successfully",
       });
-
-      if (isEditing) {
-        setIsEditTemplateOpen(false);
-      } else {
-        setIsAddTemplateOpen(false);
-      }
+      setIsAddTemplateOpen(false);
       setPreviewQuestions([]);
       templateForm.reset();
-      setSelectedTemplate(null);
     } catch (error) {
       console.error('Error saving template:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : `Failed to ${selectedTemplate ? 'update' : 'add'} template`,
+        description: error instanceof Error ? error.message : "Failed to add template",
         variant: "destructive",
       });
     }
-  };
-
-  const handleEditTemplate = (template: QuizTemplate) => {
-    setSelectedTemplate(template);
-    templateForm.reset({
-      ...template,
-      processId: template.processId,
-      shuffleQuestions: template.shuffleQuestions || false,
-      shuffleOptions: template.shuffleOptions || false,
-      categoryDistribution: template.categoryDistribution || {},
-      difficultyDistribution: template.difficultyDistribution || {}
-    });
-    setIsEditTemplateOpen(true);
   };
 
   const [previewQuestions, setPreviewQuestions] = useState<Question[]>([]);
@@ -1004,8 +978,8 @@ const QuizManagement: FC = () => {
                           control={templateForm.control}
                           name="shuffleOptions"
                           render={({ field }) => (
-                            <div className="flex items-center justify-between">
-                              <Label htmlFor="shuffle-options">Shuffle Answer Options</Label>
+                            <div className="flex itemscenter justify-between">
+                                                            <Label htmlFor="shuffle-options">Shuffle Answer Options</Label>
                               <Switch
                                 id="shuffle-options"
                                 checked={field.value}
@@ -1026,7 +1000,7 @@ const QuizManagement: FC = () => {
                                 <Input
                                   type="number"
                                   min="0"
-                                  className="w-20"
+                                  className="w20"
                                   onChange={(e) => {
                                     const value = parseInt(e.target.value) || 0;
                                     const currentDistribution = templateForm.getValues('categoryDistribution') || {};
@@ -1121,17 +1095,9 @@ const QuizManagement: FC = () => {
                           <p className="text-sm text-muted-foreground mt-1">{template.description}</p>
                         )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs">
-                          {getProcessName(template.processId)}
-                        </Badge>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEditTemplate(template)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm">Edit</Button>
+                        <Button variant="outline" size="sm">Start Quiz</Button>
                       </div>
                     </div>
                     <div className="mt-4 space-y-3">
@@ -1191,203 +1157,5 @@ const QuizManagement: FC = () => {
     </div>
   );
 };
-
-// Move the EditTemplate dialog inside the component's return statement
-
-const EditTemplateDialog = () => {
-  return (
-    <Dialog open={isEditTemplateOpen} onOpenChange={(open) => {
-      setIsEditTemplateOpen(open);
-      if (!open) {
-        setSelectedTemplate(null);
-        templateForm.reset();
-      }
-    }}>
-      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Edit Quiz Template</DialogTitle>
-        </DialogHeader>
-        <Form {...templateForm}>
-          <form onSubmit={templateForm.handleSubmit(onSubmitTemplate)} className="space-y-4">
-            <ProcessSelectionField control={templateForm.control} />
-            <FormField
-              control={templateForm.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Template Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter template name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={templateForm.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description (Optional)</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Enter template description" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={templateForm.control}
-              name="timeLimit"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Time Limit (minutes)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      min={1}
-                      placeholder="Enter time limit"
-                      {...field}
-                      onChange={(e) => field.onChange(parseInt(e.target.value))}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={templateForm.control}
-              name="questionCount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Number of Questions</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      min={1}
-                      placeholder="Enter number of questions"
-                      {...field}
-                      onChange={(e) => field.onChange(parseInt(e.target.value))}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={templateForm.control}
-              name="passingScore"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Passing Score (%)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={100}
-                      placeholder="Enter passing score"
-                      {...field}
-                      onChange={(e) => field.onChange(parseInt(e.target.value))}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="flex flex-col gap-4">
-              <FormField
-                control={templateForm.control}
-                name="shuffleQuestions"
-                render={({ field }) => (
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="shuffle-questions">Shuffle Questions</Label>
-                    <Switch
-                      id="shuffle-questions"
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </div>
-                )}
-              />
-              <FormField
-                control={templateForm.control}
-                name="shuffleOptions"
-                render={({ field }) => (
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="shuffle-options">Shuffle Answer Options</Label>
-                    <Switch
-                      id="shuffle-options"
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </div>
-                )}
-              />
-            </div>
-            <div className="space-y-4">
-              <h4 className="font-medium">Question Distribution</h4>
-              <div className="space-y-2">
-                <Label>Category Distribution</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {Array.from(categories).map((category) => (
-                    <div key={category} className="flex items-center gap-2">
-                      <Label>{category}</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        className="w-20"
-                        defaultValue={templateForm.getValues('categoryDistribution')?.[category] || 0}
-                        onChange={(e) => {
-                          const value = parseInt(e.target.value) || 0;
-                          const currentDistribution = templateForm.getValues('categoryDistribution') || {};
-                          templateForm.setValue('categoryDistribution', {
-                            ...currentDistribution,
-                            [category]: value
-                          });
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Difficulty Distribution</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {difficulties.map((level) => (
-                    <div key={level} className="flex items-center gap-2">
-                      <Label>Level {level}</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        className="w-20"
-                        defaultValue={templateForm.getValues('difficultyDistribution')?.[level] || 0}
-                        onChange={(e) => {
-                          const value = parseInt(e.target.value);
-                          const current = templateForm.getValues('difficultyDistribution') || {};
-                          if (value > 0) {
-                            templateForm.setValue('difficultyDistribution', {
-                              ...current,
-                              [level]: value
-                            });
-                          } else {
-                            const { [level]: _, ...rest } = current;
-                            templateForm.setValue('difficultyDistribution', rest);
-                          }
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="submit">Save Changes</Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 export default QuizManagement;

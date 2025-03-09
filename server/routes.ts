@@ -821,65 +821,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add PUT endpoint for updating quiz templates
-  app.put("/api/quiz-templates/:id", async (req, res) => {
-    if (!req.user || !req.user.organizationId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const templateId = parseInt(req.params.id);
-      if (!templateId) {
-        return res.status(400).json({ message: "Invalid template ID" });
-      }
-
-      // Get the template to verify ownership
-      const template = await storage.getQuizTemplate(templateId);
-      if (!template) {
-        return res.status(404).json({ message: "Quiz template not found" });
-      }
-
-      // Verify the template belongs to the user's organization
-      if (template.organizationId !== req.user.organizationId) {
-        return res.status(403).json({ message: "You can only update templates in your organization" });
-      }
-
-      // Validate the update data
-      const updateData = req.body;
-      
-      // Create a Zod schema for template updates
-      const templateUpdateSchema = z.object({
-        name: z.string().min(1).optional(),
-        description: z.string().nullable().optional(),
-        timeLimit: z.number().int().min(1).optional(),
-        questionCount: z.number().int().min(1).optional(),
-        passingScore: z.number().int().min(0).max(100).optional(),
-        processId: z.number().optional(),
-        shuffleQuestions: z.boolean().optional(),
-        shuffleOptions: z.boolean().optional(),
-        categoryDistribution: z.record(z.string(), z.number().int().min(0)).optional(),
-        difficultyDistribution: z.record(z.string(), z.number().int().min(0)).optional(),
-        organizationId: z.number()
-      });
-
-      // Validate the update data
-      const validatedData = await templateUpdateSchema.parseAsync({
-        ...updateData,
-        organizationId: req.user.organizationId
-      });
-
-      // Update the template
-      const updatedTemplate = await storage.updateQuizTemplate(templateId, validatedData);
-      res.json(updatedTemplate);
-    } catch (error: any) {
-      console.error("Error updating quiz template:", error);
-      res.status(500).json({ 
-        message: error.message || "Failed to update quiz template",
-        details: error instanceof z.ZodError ? error.errors : undefined
-      });
-    }
-  });
-
   // Update phase change request status
   // Add DELETE endpoint for questions after the existing question routes
   app.delete("/api/questions/:id", async (req, res) => {
