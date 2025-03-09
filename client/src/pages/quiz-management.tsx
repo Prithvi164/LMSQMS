@@ -73,6 +73,7 @@ const QuizManagement: FC = () => {
   const [isAddTemplateOpen, setIsAddTemplateOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [deletingQuestion, setDeletingQuestion] = useState<Question | null>(null);
+  const [selectedProcessId, setSelectedProcessId] = useState<number | null>(null);
 
   const questionForm = useForm<QuestionFormValues>({
     resolver: zodResolver(questionFormSchema),
@@ -116,6 +117,18 @@ const QuizManagement: FC = () => {
   const { data: quizTemplates, isLoading: templatesLoading } = useQuery<QuizTemplate[]>({
     queryKey: ['/api/quiz-templates'],
   });
+
+  // Filter quiz templates based on selected process
+  const filteredQuizTemplates = useMemo(() => {
+    if (!quizTemplates) return [];
+    if (!selectedProcessId) return quizTemplates;
+    return quizTemplates.filter(template => template.processId === selectedProcessId);
+  }, [quizTemplates, selectedProcessId]);
+
+  // Add function to handle process selection change 
+  const handleProcessChange = (processId: string | null) => {
+    setSelectedProcessId(processId ? parseInt(processId) : null);
+  };
 
   const onSubmitQuestion = async (data: QuestionFormValues) => {
     if (!user?.organizationId || !user?.id) {
@@ -355,7 +368,27 @@ const QuizManagement: FC = () => {
     <div className="container mx-auto py-6">
       <h1 className="text-2xl font-bold mb-6">Quiz Management</h1>
 
-      <Tabs defaultValue="questions">
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold mb-2">Filter by Process</h2>
+        <Select
+          value={selectedProcessId?.toString() || ""}
+          onValueChange={(value) => handleProcessChange(value || null)}
+        >
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="All Processes" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">All Processes</SelectItem>
+            {processes?.map((process) => (
+              <SelectItem key={process.id} value={process.id.toString()}>
+                {process.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Tabs defaultValue="templates">
         <TabsList>
           <TabsTrigger value="questions">Question Bank</TabsTrigger>
           <TabsTrigger value="templates">Quiz Templates</TabsTrigger>
@@ -364,7 +397,14 @@ const QuizManagement: FC = () => {
         <TabsContent value="questions">
           <Card className="p-4">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Questions</h2>
+              <div>
+                <h2 className="text-xl font-semibold">Questions</h2>
+                {selectedProcessId && (
+                  <p className="text-sm text-muted-foreground">
+                    Showing questions for {getProcessName(selectedProcessId)}
+                  </p>
+                )}
+              </div>
               <Dialog open={isAddQuestionOpen} onOpenChange={setIsAddQuestionOpen}>
                 <DialogTrigger asChild>
                   <Button>Add Question</Button>
