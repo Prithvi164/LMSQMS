@@ -38,14 +38,13 @@ interface Process {
 
 // Question form schema
 const questionFormSchema = z.object({
-  question: z.string().min(1, "Question is required"),
+  question: z.string().min(1, "Question is required"), 
   type: z.enum(["multiple_choice", "true_false", "short_answer"]),
   options: z.array(z.string()).default([]),  // Default to empty array instead of optional
   correctAnswer: z.string().min(1, "Correct answer is required"),
   explanation: z.string().optional(),
   difficultyLevel: z.number().int().min(1).max(5),
   category: z.string().min(1, "Category is required"),
-  processId: z.number().min(1, "Process is required")
 });
 
 type QuestionFormValues = z.infer<typeof questionFormSchema>;
@@ -128,14 +127,21 @@ const QuizManagement: FC = () => {
 
   // Add function to handle process selection change 
   const handleProcessChange = (processId: string) => {
-    setSelectedProcessId(processId === "all" ? null : parseInt(processId));
+    const newProcessId = processId === "" ? null : parseInt(processId);
+    setSelectedProcessId(newProcessId);
+    
+    // Reset forms when process changes
+    if (newProcessId) {
+      questionForm.reset({ ...questionForm.getValues() });
+      templateForm.setValue('processId', newProcessId);
+    }
   };
 
   const onSubmitQuestion = async (data: QuestionFormValues) => {
-    if (!user?.organizationId || !user?.id) {
+    if (!user?.organizationId || !user?.id || !selectedProcessId) {
       toast({
         title: "Error",
-        description: "User or organization information not found",
+        description: selectedProcessId ? "User or organization information not found" : "Please select a process first",
         variant: "destructive",
       });
       return;
@@ -148,7 +154,8 @@ const QuizManagement: FC = () => {
         ...data,
         options: data.type === 'multiple_choice' ? data.options : [],
         organizationId: user.organizationId,
-        createdBy: user.id
+        createdBy: user.id,
+        processId: selectedProcessId
       };
       console.log('Processed question data:', questionData);
 
@@ -199,7 +206,7 @@ const QuizManagement: FC = () => {
         ...data,
         organizationId: user.organizationId,
         createdBy: user.id,
-        processId: data.processId // Ensure processId is included
+        processId: selectedProcessId // Use globally selected process
       };
 
       const response = await fetch('/api/quiz-templates', {
@@ -244,10 +251,10 @@ const QuizManagement: FC = () => {
     return new Set(questions.map(q => q.category));
   }, [questions]);
 
-  // Filter questions based on selected process
+  // Filter questions based on selected process 
   const filteredQuestions = useMemo(() => {
     if (!questions) return [];
-    if (!selectedProcessId) return questions;
+    if (!selectedProcessId) return []; // Don't show any questions if no process is selected
     return questions.filter(question => question.processId === selectedProcessId);
   }, [questions, selectedProcessId]);
 
@@ -302,7 +309,8 @@ const QuizManagement: FC = () => {
         ...data,
         options: data.type === 'multiple_choice' ? data.options : [],
         organizationId: user.organizationId,
-        createdBy: user.id
+        createdBy: user.id,
+        processId: selectedProcessId
       };
 
       const response = await fetch(`/api/questions/${editingQuestion.id}`, {
@@ -376,25 +384,35 @@ const QuizManagement: FC = () => {
     <div className="container mx-auto py-6">
       <h1 className="text-2xl font-bold mb-6">Quiz Management</h1>
 
-      <div className="mb-6">
-        <h2 className="text-lg font-semibold mb-2">Filter by Process</h2>
+      <Card className="p-6 mb-6">
+        <h2 className="text-xl font-semibold mb-4">Select Process</h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          Select a process to manage its questions and quiz templates. All new questions and templates will be associated with the selected process.
+        </p>
         <Select
-          value={selectedProcessId?.toString() || "all"}
-          onValueChange={(value) => handleProcessChange(value)}
+          value={selectedProcessId?.toString() || ""}
+          onValueChange={handleProcessChange}
         >
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Select Process" />
+          <SelectTrigger className="w-[300px]">
+            <SelectValue placeholder="Select a Process" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Processes</SelectItem>
-            {processes?.map((process) => (
-              <SelectItem key={process.id} value={process.id.toString()}>
-                {process.name}
-              </SelectItem>
-            ))}
+            {processesLoading ? (
+              <SelectItem value="" disabled>Loading processes...</SelectItem>
+            ) : processesError ? (
+              <SelectItem value="" disabled>Error loading processes</SelectItem>
+            ) : processes && processes.length > 0 ? (
+              processes.map((process) => (
+                <SelectItem key={process.id} value={process.id.toString()}>
+                  {process.name}
+                </SelectItem>
+              ))
+            ) : (
+              <SelectItem value="" disabled>No processes available</SelectItem>
+            )}
           </SelectContent>
         </Select>
-      </div>
+      </Card>
 
       <Tabs defaultValue="templates">
         <TabsList>
@@ -569,42 +587,6 @@ const QuizManagement: FC = () => {
                         )}
                       />
 
-                      <FormField
-                        control={questionForm.control}
-                        name="processId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Process</FormLabel>
-                            <Select
-                              onValueChange={(value) => field.onChange(parseInt(value))}
-                              defaultValue={field.value?.toString()}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder={processesLoading ? "Loading..." : "Select a process"} />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {processesLoading ? (
-                                  <SelectItem value="" disabled>Loading processes...</SelectItem>
-                                ) : processesError ? (
-                                  <SelectItem value="" disabled>Error loading processes</SelectItem>
-                                ) : processes && processes.length > 0 ? (
-                                  processes.map((process) => (
-                                    <SelectItem key={process.id} value={process.id.toString()}>
-                                      {process.name}
-                                    </SelectItem>
-                                  ))
-                                ) : (
-                                  <SelectItem value="" disabled>No processes available</SelectItem>
-                                )}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
                       <Button type="submit">Add Question</Button>
                     </form>
                   </Form>
@@ -649,7 +631,6 @@ const QuizManagement: FC = () => {
                               explanation: question.explanation || '',
                               difficultyLevel: question.difficultyLevel,
                               category: question.category,
-                              processId: question.processId,
                             });
                           }}
                         >
