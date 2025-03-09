@@ -1,4 +1,4 @@
-import { FC, useState } from "react";
+import { FC, useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,8 @@ const quizTemplateSchema = z.object({
   passingScore: z.number().int().min(0).max(100, "Passing score must be between 0 and 100"),
   shuffleQuestions: z.boolean().default(false),
   shuffleOptions: z.boolean().default(false),
+  categoryDistribution: z.record(z.string(), z.number()).optional(),
+  difficultyDistribution: z.record(z.string(), z.number()).optional(),
 });
 
 type QuizTemplateFormValues = z.infer<typeof quizTemplateSchema>;
@@ -168,6 +170,7 @@ const QuizManagement: FC = () => {
         description: "Quiz template added successfully",
       });
       setIsAddTemplateOpen(false);
+      setPreviewQuestions([]);
       templateForm.reset();
     } catch (error) {
       console.error('Error saving template:', error);
@@ -179,6 +182,51 @@ const QuizManagement: FC = () => {
     }
   };
 
+  // Add state for tracking selected questions preview
+  const [previewQuestions, setPreviewQuestions] = useState<Question[]>([]);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+
+  // Add state for tracking unique categories from questions
+  const categories = useMemo(() => {
+    if (!questions) return new Set<string>();
+    return new Set(questions.map(q => q.category));
+  }, [questions]);
+
+  const difficulties = [1, 2, 3, 4, 5];
+
+  // Add function to preview random questions
+  const previewRandomQuestions = async (data: QuizTemplateFormValues) => {
+    setIsPreviewLoading(true);
+    try {
+      const params = new URLSearchParams({
+        count: data.questionCount.toString(),
+      });
+
+      if (data.categoryDistribution) {
+        params.append('categoryDistribution', JSON.stringify(data.categoryDistribution));
+      }
+      if (data.difficultyDistribution) {
+        params.append('difficultyDistribution', JSON.stringify(data.difficultyDistribution));
+      }
+
+      const response = await fetch(`/api/random-questions?${params}`);
+      if (!response.ok) {
+        throw new Error('Failed to get random questions');
+      }
+
+      const randomQuestions = await response.json();
+      setPreviewQuestions(randomQuestions);
+    } catch (error) {
+      console.error('Error previewing questions:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to preview questions",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  };
 
   return (
     <div className="container mx-auto py-6">
@@ -445,7 +493,7 @@ const QuizManagement: FC = () => {
                 <DialogTrigger asChild>
                   <Button>Create Quiz Template</Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+                <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Create Quiz Template</DialogTitle>
                   </DialogHeader>
@@ -572,9 +620,106 @@ const QuizManagement: FC = () => {
                         />
                       </div>
 
-                      <Button type="submit">Create Template</Button>
+                      <div className="space-y-4">
+                        <h4 className="font-medium">Question Distribution</h4>
+
+                        {/* Category Distribution */}
+                        <div className="space-y-2">
+                          <Label>Category Distribution</Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {Array.from(categories).map((category) => (
+                              <div key={category} className="flex items-center gap-2">
+                                <Label>{category}</Label>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  placeholder="Count"
+                                  onChange={(e) => {
+                                    const value = parseInt(e.target.value);
+                                    const current = templateForm.getValues('categoryDistribution') || {};
+                                    if (value > 0) {
+                                      templateForm.setValue('categoryDistribution', {
+                                        ...current,
+                                        [category]: value
+                                      });
+                                    } else {
+                                      const { [category]: _, ...rest } = current;
+                                      templateForm.setValue('categoryDistribution', rest);
+                                    }
+                                  }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Difficulty Distribution */}
+                        <div className="space-y-2">
+                          <Label>Difficulty Distribution</Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {difficulties.map((level) => (
+                              <div key={level} className="flex items-center gap-2">
+                                <Label>Level {level}</Label>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  placeholder="Count"
+                                  onChange={(e) => {
+                                    const value = parseInt(e.target.value);
+                                    const current = templateForm.getValues('difficultyDistribution') || {};
+                                    if (value > 0) {
+                                      templateForm.setValue('difficultyDistribution', {
+                                        ...current,
+                                        [level]: value
+                                      });
+                                    } else {
+                                      const { [level]: _, ...rest } = current;
+                                      templateForm.setValue('difficultyDistribution', rest);
+                                    }
+                                  }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between gap-2">
+                        <Button 
+                          type="button" 
+                          variant="outline"
+                          onClick={() => {
+                            const data = templateForm.getValues();
+                            previewRandomQuestions(data);
+                          }}
+                          disabled={isPreviewLoading}
+                        >
+                          {isPreviewLoading ? "Loading..." : "Preview Questions"}
+                        </Button>
+                        <Button type="submit">Create Template</Button>
+                      </div>
                     </form>
                   </Form>
+
+                  {/* Preview Questions */}
+                  {previewQuestions.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      <h4 className="font-medium">Preview Selected Questions</h4>
+                      <div className="max-h-[300px] overflow-y-auto space-y-2">
+                        {previewQuestions.map((question) => (
+                          <Card key={question.id} className="p-2">
+                            <div className="flex justify-between items-start">
+                              <p className="text-sm">{question.question}</p>
+                              <div className="flex gap-1">
+                                <Badge variant="outline">Level {question.difficultyLevel}</Badge>
+                                <Badge variant="outline">{question.category}</Badge>
+                              </div>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </DialogContent>
               </Dialog>
             </div>
