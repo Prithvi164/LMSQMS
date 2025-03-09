@@ -564,6 +564,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add question routes
+  app.post("/api/questions", async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      console.log('Received question data:', req.body);
+      
+      // Validate required fields
+      const { 
+        question: questionText, 
+        type: questionType,
+        options: questionOptions,
+        correctAnswer,
+        explanation,
+        difficultyLevel,
+        category 
+      } = req.body;
+      
+      if (!questionText || !questionType || !correctAnswer || !difficultyLevel || !category) {
+        return res.status(400).json({ 
+          message: "Missing required fields for question creation" 
+        });
+      }
+
+      // Validate question type
+      const validTypes = ["multiple_choice", "true_false", "short_answer"] as const;
+      if (!validTypes.includes(questionType)) {
+        return res.status(400).json({
+          message: `Invalid question type. Must be one of: ${validTypes.join(", ")}`
+        });
+      }
+
+      // Create question data with proper type checking
+      const questionData = {
+        question: String(questionText),
+        type: questionType,
+        options: questionType === 'multiple_choice' ? (Array.isArray(questionOptions) ? questionOptions.map(String) : []) : [],
+        correctAnswer: String(correctAnswer),
+        explanation: explanation ? String(explanation) : null,
+        difficultyLevel: Number(difficultyLevel),
+        category: String(category),
+        createdBy: req.user.id,
+        organizationId: req.user.organizationId,
+        processId: req.user.processId || 1 // Default to first process if none assigned
+      };
+
+      // Validate numeric fields
+      if (isNaN(questionData.difficultyLevel)) {
+        return res.status(400).json({
+          message: "Difficulty level must be a number"
+        });
+      }
+
+      // Validate options for multiple choice questions
+      if (questionData.type === 'multiple_choice' && (!Array.isArray(questionData.options) || questionData.options.length < 2)) {
+        return res.status(400).json({
+          message: "Multiple choice questions must have at least two options"
+        });
+      }
+
+      console.log('Saving question with data:', questionData);
+      
+      // Create the question in the database
+      const newQuestion = await storage.createQuestion(questionData);
+      console.log('Successfully created question:', newQuestion);
+      
+      res.status(201).json(newQuestion);
+    } catch (error: any) {
+      console.error("Error creating question:", error);
+      res.status(400).json({ message: error.message || "Failed to create question" });
+    }
+  });
+
+  app.get("/api/questions", async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      console.log('Fetching questions for organization:', req.user.organizationId);
+      const questions = await storage.listQuestions(req.user.organizationId);
+      console.log('Retrieved questions:', questions);
+      res.json(questions);
+    } catch (error: any) {
+      console.error("Error fetching questions:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Update phase change request status
   app.patch("/api/phase-change-requests/:requestId", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
@@ -923,46 +1014,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
-
-  // Add question routes after batch routes
-  app.post("/api/questions", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-    
-    try {
-      console.log('Received question data:', req.body);
-      const questionData = {
-        ...req.body,
-        createdBy: req.user.id,
-        organizationId: req.user.organizationId,
-        processId: req.user.processId || 1, // Default to first process if none assigned
-      };
-
-      console.log('Saving question with data:', questionData);
-      // Create the question in the database
-      const question = await storage.createQuestion(questionData);
-      console.log('Successfully created question:', question);
-      
-      res.status(201).json(question);
-    } catch (error: any) {
-      console.error("Error creating question:", error);
-      res.status(400).json({ message: error.message });
-    }
-  });
-
-  app.get("/api/questions", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      console.log('Fetching questions for organization:', req.user.organizationId);
-      // Get questions for the user's organization  
-      const questions = await storage.listQuestions(req.user.organizationId);
-      console.log('Retrieved questions:', questions);
-      res.json(questions);
-    } catch (error: any) {
-      console.error("Error fetching questions:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
         console.log('User organization mismatch:', {
           userOrgId: req.user.organizationId,
           requestedOrgId: orgId
@@ -1029,7 +1080,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add question routes after batch routes
+  app.post("/api/questions", async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      console.log('Received question data:', req.body);
+      
+      // Validate required fields
+      const { 
+        question: questionText, 
+        type: questionType,
+        options: questionOptions,
+        correctAnswer,
+        explanation,
+        difficultyLevel,
+        category 
+      } = req.body;
+      
+      if (!questionText || !questionType || !correctAnswer || !difficultyLevel || !category) {
+        return res.status(400).json({ 
+          message: "Missing required fields for question creation" 
+        });
+      }
 
+      // Validate question type
+      const validTypes = ["multiple_choice", "true_false", "short_answer"] as const;
+      if (!validTypes.includes(questionType)) {
+        return res.status(400).json({
+          message: `Invalid question type. Must be one of: ${validTypes.join(", ")}`
+        });
+      }
+
+      // Create question data with proper type checking
+      const questionData = {
+        question: String(questionText),
+        type: questionType,
+        options: questionType === 'multiple_choice' ? (Array.isArray(questionOptions) ? questionOptions.map(String) : []) : [],
+        correctAnswer: String(correctAnswer),
+        explanation: explanation ? String(explanation) : undefined,
+        difficultyLevel: Number(difficultyLevel),
+        category: String(category),
+        createdBy: req.user.id,
+        organizationId: req.user.organizationId,
+        processId: 1 // Default to first process
+      };
+
+      // Validate numeric fields
+      if (isNaN(questionData.difficultyLevel)) {
+        return res.status(400).json({
+          message: "Difficulty level must be a number"
+        });
+      }
+
+      // Validate options for multiple choice questions
+      if (questionData.type === 'multiple_choice' && questionData.options.length === 0) {
+        return res.status(400).json({
+          message: "Multiple choice questions must have options"
+        });
+      }
+
+      console.log('Saving question with data:', questionData);
+      
+      // Create the question in the database
+      const createdQuestion = await storage.createQuestion(questionData);
+      console.log('Successfully created question:', createdQuestion);
+      
+      res.status(201).json(createdQuestion);
+    } catch (error: any) {
+      console.error("Error creating question:", error);
+      res.status(400).json({ message: error.message || "Failed to create question" });
+    }
+  });
+
+  app.get("/api/questions", async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      console.log('Fetching questions for organization:', req.user.organizationId);
+      // Get questions for the user's organization  
+      const questions = await storage.listQuestions(req.user.organizationId);
+      console.log('Retrieved questions:', questions);
+      res.json(questions);
+    } catch (error: any) {
+      console.error("Error fetching questions:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
 
   // Add endpoint to get processes by line of business 
   app.get("/api/organizations/:orgId/line-of-businesses/:lobId/processes", async (req, res) => {
