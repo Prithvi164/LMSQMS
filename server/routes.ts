@@ -769,6 +769,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add PATCH and DELETE endpoints for questions
+  app.patch("/api/questions/:id", async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const questionId = parseInt(req.params.id);
+      console.log('Updating question:', questionId, 'with data:', req.body);
+
+      // Get the original question to verify ownership
+      const originalQuestion = await storage.getQuestion(questionId);
+      if (!originalQuestion) {
+        return res.status(404).json({ message: "Question not found" });
+      }
+
+      // Check if the question belongs to the user's organization
+      if (originalQuestion.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "You can only edit questions in your organization" });
+      }
+
+      const questionData = {
+        ...req.body,
+        organizationId: req.user.organizationId,
+        updatedAt: new Date()
+      };
+
+      // Update the question
+      const updatedQuestion = await storage.updateQuestion(questionId, questionData);
+      console.log('Successfully updated question:', updatedQuestion);
+
+      res.json(updatedQuestion);
+    } catch (error: any) {
+      console.error("Error updating question:", error);
+      res.status(400).json({ 
+        message: error.message || "Failed to update question",
+        details: error.stack
+      });
+    }
+  });
+
+  app.delete("/api/questions/:id", async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const questionId = parseInt(req.params.id);
+      console.log('Deleting question:', questionId);
+
+      // Get the question to verify ownership
+      const question = await storage.getQuestion(questionId);
+      if (!question) {
+        return res.status(404).json({ message: "Question not found" });
+      }
+
+      // Check if the question belongs to the user's organization
+      if (question.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "You can only delete questions in your organization" });
+      }
+
+      // Delete the question
+      await storage.deleteQuestion(questionId);
+      console.log('Successfully deleted question:', questionId);
+
+      res.json({ message: "Question deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting question:", error);
+      res.status(500).json({ message: error.message || "Failed to delete question" });
+    }
+  });
+
   // Add quiz template routes
   app.post("/api/quiz-templates", async (req, res) => {
     if (!req.user || !req.user.organizationId) {
