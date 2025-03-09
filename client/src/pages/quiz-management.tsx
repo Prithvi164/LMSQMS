@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Pencil, Trash2 } from "lucide-react";
 
-// Add type for Process
+// Define Process interface
 interface Process {
   id: number;
   name: string;
@@ -57,7 +57,6 @@ const quizTemplateSchema = z.object({
 
 type QuizTemplateFormValues = z.infer<typeof quizTemplateSchema>;
 
-
 const QuizManagement: FC = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -77,19 +76,8 @@ const QuizManagement: FC = () => {
     }
   });
 
-  const { data: processes, isLoading: processesLoading, error: processesError } = useQuery<Process[]>({
-    queryKey: ['/api/processes'],
-    onSuccess: (data) => {
-      console.log('Fetched processes:', data);
-    },
-    onError: (error) => {
-      console.error('Error fetching processes:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load processes. Please try again.",
-        variant: "destructive",
-      });
-    }
+  const { data: processes = [], isLoading: processesLoading, error: processesError } = useQuery<Process[]>({
+    queryKey: ['/api/processes']
   });
 
   const templateForm = useForm<QuizTemplateFormValues>({
@@ -101,12 +89,12 @@ const QuizManagement: FC = () => {
     }
   });
 
-  const { data: questions, isLoading: questionsLoading } = useQuery<Question[]>({
-    queryKey: ['/api/questions'],
+  const { data: questions = [], isLoading: questionsLoading } = useQuery<Question[]>({
+    queryKey: ['/api/questions']
   });
 
-  const { data: quizTemplates, isLoading: templatesLoading } = useQuery<QuizTemplate[]>({
-    queryKey: ['/api/quiz-templates'],
+  const { data: quizTemplates = [], isLoading: templatesLoading } = useQuery<QuizTemplate[]>({
+    queryKey: ['/api/quiz-templates']
   });
 
   const resetQuestionForm = () => {
@@ -167,7 +155,6 @@ const QuizManagement: FC = () => {
     }
 
     try {
-      console.log('Submitting question data:', data);
       const questionData = {
         ...data,
         options: data.type === 'multiple_choice' ? data.options : [],
@@ -175,7 +162,6 @@ const QuizManagement: FC = () => {
         createdBy: user.id,
         processId: data.processId
       };
-      console.log('Processed question data:', questionData);
 
       const isEditing = selectedQuestion !== null;
       const url = isEditing ? `/api/questions/${selectedQuestion.id}` : '/api/questions';
@@ -518,6 +504,199 @@ const QuizManagement: FC = () => {
               </Dialog>
             </div>
 
+            {/* Edit Question Dialog */}
+            <Dialog open={isEditQuestionOpen} onOpenChange={(open) => {
+              setIsEditQuestionOpen(open);
+              if (!open) resetQuestionForm();
+            }}>
+              <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Edit Question</DialogTitle>
+                </DialogHeader>
+                <Form {...questionForm}>
+                  <form onSubmit={questionForm.handleSubmit(onSubmitQuestion)} className="space-y-4">
+                    <FormField
+                        control={questionForm.control}
+                        name="processId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Process</FormLabel>
+                            <Select
+                              onValueChange={(value) => field.onChange(parseInt(value))}
+                              defaultValue={field.value?.toString()}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder={processesLoading ? "Loading..." : "Select a process"} />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {processesLoading ? (
+                                  <SelectItem value="" disabled>Loading processes...</SelectItem>
+                                ) : processesError ? (
+                                  <SelectItem value="" disabled>Error loading processes</SelectItem>
+                                ) : processes && processes.length > 0 ? (
+                                  processes.map((process) => (
+                                    <SelectItem key={process.id} value={process.id.toString()}>
+                                      {process.name}
+                                    </SelectItem>
+                                  ))
+                                ) : (
+                                  <SelectItem value="" disabled>No processes available</SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    <FormField
+                      control={questionForm.control}
+                      name="question"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Question Text</FormLabel>
+                          <FormControl>
+                            <Textarea placeholder="Enter your question" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={questionForm.control}
+                      name="type"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Question Type</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select question type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
+                              <SelectItem value="true_false">True/False</SelectItem>
+                              <SelectItem value="short_answer">Short Answer</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    {questionForm.watch("type") === "multiple_choice" && (
+                      <FormField
+                        control={questionForm.control}
+                        name="options"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Options</FormLabel>
+                            <FormControl>
+                              <div className="space-y-2">
+                                {field.value?.map((_, index) => (
+                                  <Input
+                                    key={index}
+                                    placeholder={`Option ${index + 1}`}
+                                    value={field.value[index]}
+                                    onChange={(e) => {
+                                      const newOptions = [...field.value!];
+                                      newOptions[index] = e.target.value;
+                                      field.onChange(newOptions);
+                                    }}
+                                  />
+                                ))}
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => field.onChange([...field.value!, ""])}
+                                >
+                                  Add Option
+                                </Button>
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    <FormField
+                      control={questionForm.control}
+                      name="correctAnswer"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Correct Answer</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter correct answer" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={questionForm.control}
+                      name="explanation"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Explanation (Optional)</FormLabel>
+                          <FormControl>
+                            <Textarea placeholder="Explain the correct answer" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={questionForm.control}
+                      name="difficultyLevel"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Difficulty Level (1-5)</FormLabel>
+                          <Select
+                            onValueChange={(value) => field.onChange(parseInt(value))}
+                            defaultValue={field.value.toString()}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select difficulty" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {[1, 2, 3, 4, 5].map((level) => (
+                                <SelectItem key={level} value={level.toString()}>
+                                  Level {level}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={questionForm.control}
+                      name="category"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Category</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter question category" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <DialogFooter>
+                      <Button type="submit">Save Changes</Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
+
             {questionsLoading ? (
               <p>Loading questions...</p>
             ) : questions?.length === 0 ? (
@@ -798,20 +977,15 @@ const QuizManagement: FC = () => {
                                 <Label>{category}</Label>
                                 <Input
                                   type="number"
-                                  min={0}
-                                  placeholder="Count"
+                                  min="0"
+                                  className="w-20"
                                   onChange={(e) => {
-                                    const value = parseInt(e.target.value);
-                                    const current = templateForm.getValues('categoryDistribution') || {};
-                                    if (value > 0) {
-                                      templateForm.setValue('categoryDistribution', {
-                                        ...current,
-                                        [category]: value
-                                      });
-                                    } else {
-                                      const { [category]: _, ...rest } = current;
-                                      templateForm.setValue('categoryDistribution', rest);
-                                    }
+                                    const value = parseInt(e.target.value) || 0;
+                                    const currentDistribution = templateForm.getValues('categoryDistribution') || {};
+                                    templateForm.setValue('categoryDistribution', {
+                                      ...currentDistribution,
+                                      [category]: value
+                                    });
                                   }}
                                 />
                               </div>
@@ -931,7 +1105,7 @@ const QuizManagement: FC = () => {
                           {template.difficultyDistribution && (
                             <div>
                               <p className="text-xs text-muted-foreground mb-1">Difficulty Levels:</p>
-                                                            <div className="flex flex-wrap gap-1">
+                              <div className="flex flex-wrap gap-1">
                                 {Object.entries(template.difficultyDistribution).map(([level, count]) => (
                                   <Badge key={level} variant="outline" className="text-xs">
                                     Level {level}: {count}
