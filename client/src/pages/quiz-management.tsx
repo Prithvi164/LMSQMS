@@ -18,18 +18,15 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {Badge} from "@/components/ui/badge"
 
-// Update Process interface to match the database schema
+// Add type for Process
 interface Process {
   id: number;
   name: string;
   description?: string;
   status: string;
-  organization_id: number;
-  created_at: string;
-  updated_at: string;
 }
 
-// Question form schema with processId
+// Question form schema
 const questionFormSchema = z.object({
   question: z.string().min(1, "Question is required"),
   type: z.enum(["multiple_choice", "true_false", "short_answer"]),
@@ -37,8 +34,7 @@ const questionFormSchema = z.object({
   correctAnswer: z.string().min(1, "Correct answer is required"),
   explanation: z.string().optional(),
   difficultyLevel: z.number().int().min(1).max(5),
-  category: z.string().min(1, "Category is required"),
-  processId: z.number().min(1, "Process is required"), // Add processId field
+  category: z.string().min(1, "Category is required")
 });
 
 type QuestionFormValues = z.infer<typeof questionFormSchema>;
@@ -72,12 +68,11 @@ const QuizManagement: FC = () => {
       type: "multiple_choice",
       difficultyLevel: 1,
       options: ["", ""],  // Initialize with two empty options
-      category: "",
-      processId: 1 //set default value
+      category: ""
     }
   });
 
-  // Add query for processes if not already present
+  // Update process query with proper typing and error handling
   const { data: processes, isLoading: processesLoading, error: processesError } = useQuery<Process[]>({
     queryKey: ['/api/processes'],
     onSuccess: (data) => {
@@ -99,7 +94,6 @@ const QuizManagement: FC = () => {
       timeLimit: 10,
       questionCount: 10,
       passingScore: 70,
-      processId: 1 //set default value
     }
   });
 
@@ -286,41 +280,6 @@ const QuizManagement: FC = () => {
                     <form onSubmit={questionForm.handleSubmit(onSubmitQuestion)} className="space-y-4">
                       <FormField
                         control={questionForm.control}
-                        name="processId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Process</FormLabel>
-                            <Select
-                              onValueChange={(value) => field.onChange(parseInt(value))}
-                              defaultValue={field.value?.toString()}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder={processesLoading ? "Loading..." : "Select a process"} />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {processesLoading ? (
-                                  <SelectItem value="" disabled>Loading processes...</SelectItem>
-                                ) : processesError ? (
-                                  <SelectItem value="" disabled>Error loading processes</SelectItem>
-                                ) : processes && processes.length > 0 ? (
-                                  processes.map((process) => (
-                                    <SelectItem key={process.id} value={process.id.toString()}>
-                                      {process.name}
-                                    </SelectItem>
-                                  ))
-                                ) : (
-                                  <SelectItem value="" disabled>No processes available</SelectItem>
-                                )}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={questionForm.control}
                         name="question"
                         render={({ field }) => (
                           <FormItem>
@@ -483,9 +442,6 @@ const QuizManagement: FC = () => {
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="font-medium text-lg">{question.question}</h3>
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs">
-                          {processes?.find(p => p.id === question.processId)?.name || 'Unknown Process'}
-                        </Badge>
                         <span className="text-sm px-2 py-1 bg-primary/10 rounded-md">
                           Level {question.difficultyLevel}
                         </span>
