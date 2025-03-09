@@ -31,39 +31,11 @@ interface QuestionWithProcess extends Question {
   process?: Process;
 }
 
-// Question form schema
-const questionFormSchema = z.object({
-  question: z.string().min(1, "Question is required"),
-  type: z.enum(["multiple_choice", "true_false", "short_answer"]),
-  options: z.array(z.string()).default([]),
-  correctAnswer: z.string().min(1, "Correct answer is required"),
-  explanation: z.string().optional(),
-  difficultyLevel: z.number().int().min(1).max(5),
-  category: z.string().min(1, "Category is required"),
-  processId: z.number().min(1, "Process is required").optional()
-});
-
-// Quiz template schema
-const quizTemplateSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  description: z.string().optional(),
-  timeLimit: z.number().int().min(1, "Time limit is required"),
-  questionCount: z.number().int().min(1, "Question count is required"),
-  passingScore: z.number().int().min(0).max(100, "Passing score must be between 0 and 100"),
-  shuffleQuestions: z.boolean().default(false),
-  shuffleOptions: z.boolean().default(false),
-  categoryDistribution: z.record(z.string(), z.number()).optional(),
-  difficultyDistribution: z.record(z.string(), z.number()).optional(),
-  processId: z.number().min(1, "Process is required"),
-});
-
 // Process filter form schema
 const filterFormSchema = z.object({
   processId: z.string().optional()
 });
 
-type QuestionFormValues = z.infer<typeof questionFormSchema>;
-type QuizTemplateFormValues = z.infer<typeof quizTemplateSchema>;
 type FilterFormValues = z.infer<typeof filterFormSchema>;
 
 export function QuizManagement() {
@@ -280,6 +252,34 @@ export function QuizManagement() {
     }
   });
 
+  const questionFormSchema = z.object({
+    question: z.string().min(1, "Question is required"),
+    type: z.enum(["multiple_choice", "true_false", "short_answer"]),
+    options: z.array(z.string()).default([]),
+    correctAnswer: z.string().min(1, "Correct answer is required"),
+    explanation: z.string().optional(),
+    difficultyLevel: z.number().int().min(1).max(5),
+    category: z.string().min(1, "Category is required"),
+    processId: z.number().min(1).optional()
+  });
+
+  const quizTemplateSchema = z.object({
+    name: z.string().min(1, "Name is required"),
+    description: z.string().optional(),
+    timeLimit: z.number().int().min(1, "Time limit is required"),
+    questionCount: z.number().int().min(1, "Question count is required"),
+    passingScore: z.number().int().min(0).max(100, "Passing score must be between 0 and 100"),
+    shuffleQuestions: z.boolean().default(false),
+    shuffleOptions: z.boolean().default(false),
+    categoryDistribution: z.record(z.string(), z.number()).optional(),
+    difficultyDistribution: z.record(z.string(), z.number()).optional(),
+    processId: z.number().min(1, "Process is required"),
+  });
+
+  type QuestionFormValues = z.infer<typeof questionFormSchema>;
+  type QuizTemplateFormValues = z.infer<typeof quizTemplateSchema>;
+
+
   return (
     <div className="container mx-auto py-6">
       <h1 className="text-2xl font-bold mb-6">Quiz Management</h1>
@@ -307,6 +307,8 @@ export function QuizManagement() {
                             onValueChange={(value) => {
                               console.log('Selected process:', value);
                               field.onChange(value);
+                              // Force refetch questions when process changes
+                              queryClient.invalidateQueries({ queryKey: ['/api/questions', value === 'all' ? null : parseInt(value)] });
                             }}
                             value={field.value}
                           >
@@ -530,7 +532,7 @@ export function QuizManagement() {
               {questionsLoading ? (
                 <p>Loading questions...</p>
               ) : questions?.length === 0 ? (
-                <p>No questions created yet.</p>
+                <p>No questions found for the selected process.</p>
               ) : (
                 <div className="grid gap-4">
                   {questions?.map((question: QuestionWithProcess) => (
