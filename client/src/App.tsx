@@ -48,7 +48,8 @@ function Router() {
           <ProtectedRoute path="/trainee-management" component={TraineeManagement} />
           <ProtectedRoute path="/performance" component={Performance} />
           <ProtectedRoute path="/settings" component={Settings} />
-          <ProtectedRoute path="/batch-management" component={BatchMonitoringPage} />
+          <ProtectedRoute path="/batch-management" component={BatchDetail} />
+          <ProtectedRoute path="/batch-monitoring" component={BatchMonitoringPage} />
           <ProtectedRoute path="/batch-details/:batchId" component={BatchDetailsPage} />
           <ProtectedRoute path="/quiz-management" component={QuizManagement} />
           <Route component={NotFound} />
