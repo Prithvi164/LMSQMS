@@ -38,13 +38,13 @@ interface Process {
 
 // Question form schema
 const questionFormSchema = z.object({
-  question: z.string().min(1, "Question is required"), 
+  question: z.string().min(1, "Question is required"),
   type: z.enum(["multiple_choice", "true_false", "short_answer"]),
   options: z.array(z.string()).default([]),  // Default to empty array instead of optional
   correctAnswer: z.string().min(1, "Correct answer is required"),
   explanation: z.string().optional(),
   difficultyLevel: z.number().int().min(1).max(5),
-  category: z.string().min(1, "Category is required"),
+  category: z.string().min(1, "Category is required")
 });
 
 type QuestionFormValues = z.infer<typeof questionFormSchema>;
@@ -73,7 +73,6 @@ const QuizManagement: FC = () => {
   const [isAddTemplateOpen, setIsAddTemplateOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [deletingQuestion, setDeletingQuestion] = useState<Question | null>(null);
-  const [selectedProcessId, setSelectedProcessId] = useState<number | null>(null);
 
   const questionForm = useForm<QuestionFormValues>({
     resolver: zodResolver(questionFormSchema),
@@ -88,10 +87,10 @@ const QuizManagement: FC = () => {
   // Update process query with proper typing and error handling
   const { data: processes, isLoading: processesLoading, error: processesError } = useQuery<Process[]>({
     queryKey: ['/api/processes'],
-    refetchOnWindowFocus: false,
-    retry: 1,
-    staleTime: 30000,
-    onError: (error: Error) => {
+    onSuccess: (data) => {
+      console.log('Fetched processes:', data);
+    },
+    onError: (error) => {
       console.error('Error fetching processes:', error);
       toast({
         title: "Error",
@@ -118,30 +117,11 @@ const QuizManagement: FC = () => {
     queryKey: ['/api/quiz-templates'],
   });
 
-  // Filter quiz templates based on selected process
-  const filteredQuizTemplates = useMemo(() => {
-    if (!quizTemplates) return [];
-    if (!selectedProcessId) return []; // Don't show any templates if no process is selected
-    return quizTemplates.filter(template => template.processId === selectedProcessId);
-  }, [quizTemplates, selectedProcessId]);
-
-  // Add function to handle process selection change 
-  const handleProcessChange = (processId: string) => {
-    const newProcessId = processId === "none" ? null : parseInt(processId);
-    setSelectedProcessId(newProcessId);
-    
-    // Reset forms when process changes
-    if (newProcessId) {
-      questionForm.reset({ ...questionForm.getValues() });
-      templateForm.setValue('processId', newProcessId);
-    }
-  };
-
   const onSubmitQuestion = async (data: QuestionFormValues) => {
-    if (!user?.organizationId || !user?.id || !selectedProcessId) {
+    if (!user?.organizationId || !user?.id) {
       toast({
         title: "Error",
-        description: selectedProcessId ? "User or organization information not found" : "Please select a process first",
+        description: "User or organization information not found",
         variant: "destructive",
       });
       return;
@@ -154,8 +134,7 @@ const QuizManagement: FC = () => {
         ...data,
         options: data.type === 'multiple_choice' ? data.options : [],
         organizationId: user.organizationId,
-        createdBy: user.id,
-        processId: selectedProcessId
+        createdBy: user.id
       };
       console.log('Processed question data:', questionData);
 
@@ -206,7 +185,7 @@ const QuizManagement: FC = () => {
         ...data,
         organizationId: user.organizationId,
         createdBy: user.id,
-        processId: selectedProcessId // Use globally selected process
+        processId: data.processId // Ensure processId is included
       };
 
       const response = await fetch('/api/quiz-templates', {
@@ -250,13 +229,6 @@ const QuizManagement: FC = () => {
     if (!questions) return new Set<string>();
     return new Set(questions.map(q => q.category));
   }, [questions]);
-
-  // Filter questions based on selected process 
-  const filteredQuestions = useMemo(() => {
-    if (!questions) return [];
-    if (!selectedProcessId) return []; // Don't show any questions if no process is selected
-    return questions.filter(question => question.processId === selectedProcessId);
-  }, [questions, selectedProcessId]);
 
   const difficulties = [1, 2, 3, 4, 5];
 
@@ -309,8 +281,7 @@ const QuizManagement: FC = () => {
         ...data,
         options: data.type === 'multiple_choice' ? data.options : [],
         organizationId: user.organizationId,
-        createdBy: user.id,
-        processId: selectedProcessId
+        createdBy: user.id
       };
 
       const response = await fetch(`/api/questions/${editingQuestion.id}`, {
@@ -374,45 +345,9 @@ const QuizManagement: FC = () => {
     }
   };
 
-  // Add function to get process name by ID
-  const getProcessName = (processId: number): string => {
-    const process = processes?.find(p => p.id === processId);
-    return process?.name || 'Unknown Process';
-  };
-
   return (
     <div className="container mx-auto py-6">
       <h1 className="text-2xl font-bold mb-6">Quiz Management</h1>
-
-      <Card className="p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">Select Process</h2>
-        <p className="text-sm text-muted-foreground mb-4">
-          Select a process to manage its questions and quiz templates. All new questions and templates will be associated with the selected process.
-        </p>
-        <Select
-          value={selectedProcessId?.toString() || "none"}
-          onValueChange={handleProcessChange}
-        >
-          <SelectTrigger className="w-[300px]">
-            <SelectValue placeholder="Select a Process" />
-          </SelectTrigger>
-          <SelectContent>
-            {processesLoading ? (
-              <SelectItem value="none" disabled>Loading processes...</SelectItem>
-            ) : processesError ? (
-              <SelectItem value="none" disabled>Error loading processes</SelectItem>
-            ) : processes && processes.length > 0 ? (
-              processes.map((process) => (
-                <SelectItem key={process.id} value={process.id.toString()}>
-                  {process.name}
-                </SelectItem>
-              ))
-            ) : (
-              <SelectItem value="none" disabled>No processes available</SelectItem>
-            )}
-          </SelectContent>
-        </Select>
-      </Card>
 
       <Tabs defaultValue="questions">
         <TabsList>
@@ -423,14 +358,7 @@ const QuizManagement: FC = () => {
         <TabsContent value="questions">
           <Card className="p-4">
             <div className="flex justify-between items-center mb-4">
-              <div>
-                <h2 className="text-xl font-semibold">Questions</h2>
-                {selectedProcessId && (
-                  <p className="text-sm text-muted-foreground">
-                    Showing questions for {getProcessName(selectedProcessId)}
-                  </p>
-                )}
-              </div>
+              <h2 className="text-xl font-semibold">Questions</h2>
               <Dialog open={isAddQuestionOpen} onOpenChange={setIsAddQuestionOpen}>
                 <DialogTrigger asChild>
                   <Button>Add Question</Button>
@@ -596,11 +524,11 @@ const QuizManagement: FC = () => {
 
             {questionsLoading ? (
               <p>Loading questions...</p>
-            ) : filteredQuestions?.length === 0 ? (
-              <p>No questions found {selectedProcessId ? `for ${getProcessName(selectedProcessId)}` : ''}.</p>
+            ) : questions?.length === 0 ? (
+              <p>No questions created yet.</p>
             ) : (
               <div className="grid gap-4">
-                {filteredQuestions?.map((question) => (
+                {questions?.map((question) => (
                   <Card key={question.id} className="p-4">
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1">
@@ -611,9 +539,6 @@ const QuizManagement: FC = () => {
                           </span>
                           <span className="text-sm px-2 py-1 bg-primary/10 rounded-md">
                             {question.category}
-                          </span>
-                          <span className="text-sm px-2 py-1 bg-primary/10 rounded-md">
-                            {getProcessName(question.processId)}
                           </span>
                         </div>
                       </div>
@@ -994,9 +919,6 @@ const QuizManagement: FC = () => {
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <h3 className="text-lg font-medium">{template.name}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline">{getProcessName(template.processId)}</Badge>
-                        </div>
                         {template.description && (
                           <p className="text-sm text-muted-foreground mt-1">{template.description}</p>
                         )}
@@ -1350,9 +1272,6 @@ const QuizManagement: FC = () => {
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <h3 className="text-lg font-medium">{template.name}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline">{getProcessName(template.processId)}</Badge>
-                        </div>
                         {template.description && (
                           <p className="text-sm text-muted-foreground mt-1">{template.description}</p>
                         )}
@@ -1411,363 +1330,8 @@ const QuizManagement: FC = () => {
                         {template.shuffleOptions && (
                           <Badge variant="secondary">Shuffle Options</Badge>
                         )}
-                      </div>                    </div>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="templates">
-          <Card className="p-4">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Quiz Templates</h2>
-              <Dialog open={isAddTemplateOpen} onOpenChange={setIsAddTemplateOpen}>
-                <DialogTrigger asChild>
-                  <Button>Create Quiz Template</Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Create Quiz Template</DialogTitle>
-                  </DialogHeader>
-                  <Form {...templateForm}>
-                    <form onSubmit={templateForm.handleSubmit(onSubmitTemplate)} className="space-y-4">
-                      {/* Inside the template form, add process selection before other fields */}
-                      <FormField
-                        control={templateForm.control}
-                        name="processId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Process</FormLabel>
-                            <Select
-                              onValueChange={(value) => field.onChange(parseInt(value))}
-                              defaultValue={field.value?.toString()}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder={processesLoading ? "Loading..." : "Select a process"} />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {processesLoading ? (
-                                  <SelectItem value="" disabled>Loading processes...</SelectItem>
-                                ) : processesError ? (
-                                  <SelectItem value="" disabled>Error loading processes</SelectItem>
-                                ) : processes && processes.length > 0 ? (
-                                  processes.map((process) => (
-                                    <SelectItem key={process.id} value={process.id.toString()}>
-                                      {process.name}
-                                    </SelectItem>
-                                  ))
-                                ) : (
-                                  <SelectItem value="" disabled>No processes available</SelectItem>
-                                )}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={templateForm.control}
-                        name="name"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Template Name</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Enter template name" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={templateForm.control}
-                        name="description"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Description (Optional)</FormLabel>
-                            <FormControl>
-                              <Textarea placeholder="Enter template description" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={templateForm.control}
-                        name="timeLimit"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Time Limit (minutes)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                min={1}
-                                placeholder="Enter time limit"
-                                {...field}
-                                onChange={(e) => field.onChange(parseInt(e.target.value))}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={templateForm.control}
-                        name="questionCount"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Number of Questions</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                min={1}
-                                placeholder="Enter number of questions"
-                                {...field}
-                                onChange={(e) => field.onChange(parseInt(e.target.value))}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={templateForm.control}
-                        name="passingScore"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Passing Score (%)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                min={0}
-                                max={100}
-                                placeholder="Enter passing score"
-                                {...field}
-                                onChange={(e) => field.onChange(parseInt(e.target.value))}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <div className="flex flex-col gap-4">
-                        <FormField
-                          control={templateForm.control}
-                          name="shuffleQuestions"
-                          render={({ field }) => (
-                            <div className="flex items-center justify-between">
-                              <Label htmlFor="shuffle-questions">Shuffle Questions</Label>
-                              <Switch
-                                id="shuffle-questions"
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </div>
-                          )}
-                        />
-
-                        <FormField
-                          control={templateForm.control}
-                          name="shuffleOptions"
-                          render={({ field }) => (
-                            <div className="flex items-center justify-between">
-                              <Label htmlFor="shuffle-options">Shuffle Answer Options</Label>
-                              <Switch
-                                id="shuffle-options"
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </div>
-                          )}
-                        />
-                      </div>
-
-                      <div className="space-y-4">
-                        <h4 className="font-medium">Question Distribution</h4>
-
-                        {/* Category Distribution */}
-                        <div className="space-y-2">
-                          <Label>Category Distribution</Label>
-                          <div className="grid grid-cols-2 gap-2">
-                            {Array.from(categories).map((category) => (
-                              <div key={category} className="flex items-center gap-2">
-                                <Label>{category}</Label>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  placeholder="Count"
-                                  onChange={(e) => {
-                                    const value = parseInt(e.target.value);
-                                    const current = templateForm.getValues('categoryDistribution') || {};
-                                    if (value > 0) {
-                                      templateForm.setValue('categoryDistribution', {
-                                        ...current,
-                                        [category]: value
-                                      });
-                                    } else {
-                                      const { [category]: _, ...rest } = current;
-                                      templateForm.setValue('categoryDistribution', rest);
-                                    }
-                                  }}
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Difficulty Distribution */}
-                        <div className="space-y-2">
-                          <Label>Difficulty Distribution</Label>
-                          <div className="grid grid-cols-2 gap-2">
-                            {difficulties.map((level) => (
-                              <div key={level} className="flex items-center gap-2">
-                                <Label>Level {level}</Label>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  placeholder="Count"
-                                  onChange={(e) => {
-                                    const value = parseInt(e.target.value);
-                                    const current = templateForm.getValues('difficultyDistribution') || {};
-                                    if (value > 0) {
-                                      templateForm.setValue('difficultyDistribution', {
-                                        ...current,
-                                        [level]: value
-                                      });
-                                    } else {
-                                      const { [level]: _, ...rest } = current;
-                                      templateForm.setValue('difficultyDistribution', rest);
-                                    }
-                                  }}
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex justify-between gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            const data = templateForm.getValues();
-                            previewRandomQuestions(data);
-                          }}
-                          disabled={isPreviewLoading}
-                        >
-                          {isPreviewLoading ? "Loading..." : "Preview Questions"}
-                        </Button>
-                        <Button type="submit">Create Template</Button>
-                      </div>
-                    </form>
-                  </Form>
-
-                  {/* Preview Questions */}
-                  {previewQuestions.length > 0 && (
-                    <div className="mt-4 space-y-2">
-                      <h4 className="font-medium">Preview Selected Questions</h4>
-                      <div className="max-h-[300px] overflow-y-auto space-y-2">
-                        {previewQuestions.map((question) => (
-                          <Card key={question.id} className="p-2">
-                            <div className="flex justify-between items-start">
-                              <p className="text-sm">{question.question}</p>
-                              <div className="flex gap-1">
-                                <Badge variant="outline">Level {question.difficultyLevel}</Badge>
-                                <Badge variant="outline">{question.category}</Badge>
-                              </div>
-                            </div>
-                          </Card>
-                        ))}
                       </div>
                     </div>
-                  )}
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            {templatesLoading ? (
-              <p>Loading templates...</p>
-            ) : quizTemplates?.length === 0 ? (
-              <p>No quiz templates created yet.</p>
-            ) : (
-              <div className="grid gap-4">
-                {quizTemplates?.map((template) => (
-                  <Card key={template.id} className="p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h3 className="text-lg font-medium">{template.name}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline">{getProcessName(template.processId)}</Badge>
-                        </div>
-                        {template.description && (
-                          <p className="text-sm text-muted-foreground mt-1">{template.description}</p>
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm">Edit</Button>
-                        <Button variant="outline" size="sm">Start Quiz</Button>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 space-y-3">
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <h4 className="font-medium mb-2">Quiz Settings</h4>
-                          <ul className="space-y-1 text-muted-foreground">
-                            <li>Time Limit: {template.timeLimit} minutes</li>
-                            <li>Number of Questions: {template.questionCount}</li>
-                            <li>Passing Score: {template.passingScore}%</li>
-                          </ul>
-                        </div>
-
-                        <div>
-                          <h4 className="font-medium mb-2">Question Selection</h4>
-                          {template.categoryDistribution && (
-                            <div className="mb-2">
-                              <p className="text-xs text-muted-foreground mb-1">Categories:</p>
-                              <div className="flex flex-wrap gap-1">
-                                {Object.entries(template.categoryDistribution).map(([category, count]) => (
-                                  <Badge key={category} variant="outline" className="text-xs">
-                                    {category}: {count}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {template.difficultyDistribution && (
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-1">Difficulty Levels:</p>
-                              <div className="flex flex-wrap gap-1">
-                                {Object.entries(template.difficultyDistribution).map(([level, count]) => (
-                                  <Badge key={level} variant="outline" className="text-xs">
-                                    Level {level}: {count}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2">
-                        {template.shuffleQuestions && (
-                          <Badge variant="secondary">Shuffle Questions</Badge>
-                        )}
-                        {template.shuffleOptions && (
-                          <Badge variant="secondary">Shuffle Options</Badge>
-                        )}
-                      </div>                    </div>
                   </Card>
                 ))}
               </div>
