@@ -19,7 +19,7 @@ import type { Question, QuizTemplate } from "@shared/schema";
 const questionFormSchema = z.object({
   question: z.string().min(1, "Question is required"),
   type: z.enum(["multiple_choice", "true_false", "short_answer"]),
-  options: z.array(z.string()).min(2, "At least two options are required").optional(),
+  options: z.array(z.string()).default([]),  // Default to empty array instead of optional
   correctAnswer: z.string().min(1, "Correct answer is required"),
   explanation: z.string().optional(),
   difficultyLevel: z.number().int().min(1).max(5),
@@ -39,7 +39,8 @@ const QuizManagement: FC = () => {
     defaultValues: {
       type: "multiple_choice",
       difficultyLevel: 1,
-      options: ["", ""]
+      options: ["", ""],  // Initialize with two empty options
+      category: ""
     }
   });
 
@@ -63,11 +64,10 @@ const QuizManagement: FC = () => {
 
     try {
       console.log('Submitting question data:', data);
-      // Ensure options is an array for multiple choice questions
-      const options = data.type === 'multiple_choice' ? data.options : [];
+      // Always ensure options is an array
       const questionData = {
         ...data,
-        options: options || [],
+        options: data.type === 'multiple_choice' ? data.options : [],
         organizationId: user.organizationId,
         processId: user.processId || 1, // Default to first process if none assigned
         createdBy: user.id

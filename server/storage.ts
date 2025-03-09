@@ -958,7 +958,7 @@ export class DatabaseStorage implements IStorage {
       const [newBatch] = await db
         .insert(organizationBatches)
         .values(batch)
-                .returning() as OrganizationBatch[];
+        .returning() as OrganizationBatch[];
 
       console.log('Successfully created new batch:', {
         id: newBatch.id,
@@ -1697,17 +1697,40 @@ export class DatabaseStorage implements IStorage {
   }
   async createQuestion(question: InsertQuestion): Promise<Question> {
     try {
-      console.log('Creating question:', question);
+      console.log('Creating question with data:', {
+        ...question,
+        options: Array.isArray(question.options) ? question.options : [],
+      });
+
+      // Ensure required fields are present
+      if (!question.question || !question.type || !question.correctAnswer) {
+        throw new Error('Missing required fields');
+      }
+
+      // Ensure options is always an array
+      const questionData = {
+        ...question,
+        options: Array.isArray(question.options) ? question.options : [],
+        explanation: question.explanation || null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      // Insert the question
       const [newQuestion] = await db
         .insert(questions)
-        .values(question)
+        .values(questionData)
         .returning() as Question[];
 
-      console.log('Created question:', newQuestion);
+      if (!newQuestion) {
+        throw new Error('Failed to create question - no question returned');
+      }
+
+      console.log('Successfully created question:', newQuestion);
       return newQuestion;
     } catch (error) {
-      console.error('Error creating question:', error);
-      throw new Error('Failed to create question');
+      console.error('Error in createQuestion:', error);
+      throw error instanceof Error ? error : new Error('Failed to create question');
     }
   }
 
@@ -1719,13 +1742,14 @@ export class DatabaseStorage implements IStorage {
         .from(questions)
         .where(eq(questions.organizationId, organizationId)) as Question[];
 
-      console.log('Found questions:', questionsList);
+      console.log(`Found ${questionsList.length} questions`);
       return questionsList;
     } catch (error) {
       console.error('Error listing questions:', error);
       throw new Error('Failed to list questions');
     }
   }
+
 }
 
 export const storage = new DatabaseStorage();

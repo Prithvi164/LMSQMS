@@ -602,7 +602,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const questionData = {
         question: String(questionText),
         type: questionType,
-        options: questionType === 'multiple_choice' ? (Array.isArray(questionOptions) ? questionOptions.map(String) : []) : [],
+        options: questionType === 'multiple_choice' ? 
+          (Array.isArray(questionOptions) ? questionOptions.map(String) : []) : 
+          [],
         correctAnswer: String(correctAnswer),
         explanation: explanation ? String(explanation) : null,
         difficultyLevel: Number(difficultyLevel),
@@ -626,7 +628,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      console.log('Saving question with data:', questionData);
+      console.log('Processed and validated question data:', questionData);
       
       // Create the question in the database
       const newQuestion = await storage.createQuestion(questionData);
@@ -635,7 +637,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(newQuestion);
     } catch (error: any) {
       console.error("Error creating question:", error);
-      res.status(400).json({ message: error.message || "Failed to create question" });
+      res.status(400).json({ 
+        message: error.message || "Failed to create question",
+        details: error.stack
+      });
     }
   });
 
