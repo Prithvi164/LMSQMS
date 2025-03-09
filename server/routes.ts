@@ -3,7 +3,14 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { Router } from "express";
-import { insertUserSchema, users, userBatchProcesses, organizationProcesses } from "@shared/schema";
+import { 
+  insertUserSchema, 
+  users, 
+  userBatchProcesses, 
+  organizationProcesses,
+  type InsertQuestion,
+  questions 
+} from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
@@ -872,14 +879,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Validate the update data
       const updateData = req.body;
-      const validatedData = await insertQuestionSchema.partial().parseAsync(updateData);
+      
+      // Create a Zod schema for updates based on existing question schema
+      const questionUpdateSchema = z.object({
+        question: z.string().optional(),
+        type: z.enum(['multiple_choice', 'true_false', 'short_answer']).optional(),
+        options: z.array(z.string()).optional(),
+        correctAnswer: z.string().optional(),
+        explanation: z.string().nullable().optional(),
+        difficultyLevel: z.number().int().min(1).max(5).optional(),
+        category: z.string().optional(),
+        organizationId: z.number()
+      });
+
+      // Validate the update data
+      const validatedData = await questionUpdateSchema.parseAsync({
+        ...updateData,
+        organizationId: req.user.organizationId
+      });
 
       // Update the question
       const updatedQuestion = await storage.updateQuestion(questionId, validatedData);
       res.json(updatedQuestion);
     } catch (error: any) {
       console.error("Error updating question:", error);
-      res.status(500).json({ message: error.message || "Failed to update question" });
+      res.status(500).json({ 
+        message: error.message || "Failed to update question",
+        details: error instanceof z.ZodError ? error.errors : undefined
+      });
     }
   });
 
