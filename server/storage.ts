@@ -185,7 +185,8 @@ export interface IStorage {
   // Quiz template operations
   createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate>;
   listQuizTemplates(organizationId: number): Promise<QuizTemplate[]>;
-  updateQuestion(id: number, question: Partial<InsertQuestion>): Promise<Question>;
+  updateQuizTemplate(id: number, template: Partial<InsertQuizTemplate>): Promise<QuizTemplate>;
+  getQuizTemplate(id: number): Promise<QuizTemplate | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -950,7 +951,7 @@ export class DatabaseStorage implements IStorage {
       // Verify the LOB exists
       const lob = await this.getLineOfBusiness(batch.lineOfBusinessId);
       if (!lob) {
-        throw new Error('Line of Business not found');
+        throw new Error('Line ofBusiness not found');
       }
 
       // Verify the process exists and belongs to the LOB
@@ -962,7 +963,7 @@ export class DatabaseStorage implements IStorage {
       // If trainer is assigned, verify they exist and belong to the location
       if (batch.trainerId) {
         const trainer = await this.getUser(batch.trainerId);
-                if (!trainer) {
+        if (!trainer) {
           throw new Error('Trainer not found');
         }
         if (trainer.locationId !== batch.locationId) {
@@ -1952,6 +1953,50 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error updating question:', error);
       throw error;
+    }
+  }
+
+  async updateQuizTemplate(id: number, template: Partial<InsertQuizTemplate>): Promise<QuizTemplate> {
+    try {
+      console.log(`Attempting to update quiz template with ID: ${id}`, template);
+
+      // First verify the template exists
+      const existingTemplate = await this.getQuizTemplate(id);
+      if (!existingTemplate) {
+        throw new Error('Quiz template not found');
+      }
+
+      const [updatedTemplate] = await db
+        .update(quizTemplates)
+        .set({
+          ...template,
+          updatedAt: new Date()
+        })
+        .where(eq(quizTemplates.id, id))
+        .returning() as QuizTemplate[];
+
+      if (!updatedTemplate) {
+        throw new Error('Quiz template update failed');
+      }
+
+      console.log('Successfully updated quiz template:', updatedTemplate);
+      return updatedTemplate;
+    } catch (error) {
+      console.error('Error updating quiz template:', error);
+      throw error;
+    }
+  }
+
+  async getQuizTemplate(id: number): Promise<QuizTemplate | undefined> {
+    try {
+      const [template] = await db
+        .select()
+        .from(quizTemplates)
+        .where(eq(quizTemplates.id, id)) as QuizTemplate[];
+      return template;
+    } catch (error) {
+      console.error('Error getting quiz template:', error);
+      throw new Error('Failed to get quiz template');
     }
   }
 
