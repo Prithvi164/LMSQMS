@@ -104,7 +104,7 @@ const QuizManagement: FC = () => {
       difficultyLevel: 1,
       options: ["", ""],
       category: "",
-      processId: undefined 
+      processId: undefined
     });
     setSelectedQuestion(null);
   };
@@ -340,6 +340,11 @@ const QuizManagement: FC = () => {
       )}
     />
   );
+
+  const getProcessName = (processId: number) => {
+    const process = processes.find(p => p.id === processId);
+    return process?.name || 'Unknown Process';
+  };
 
   return (
     <div className="container mx-auto py-6">
@@ -685,6 +690,9 @@ const QuizManagement: FC = () => {
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="font-medium text-lg">{question.question}</h3>
                       <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs">
+                          {getProcessName(question.processId)}
+                        </Badge>
                         <span className="text-sm px-2 py-1 bg-primary/10 rounded-md">
                           Level {question.difficultyLevel}
                         </span>
@@ -967,7 +975,7 @@ const QuizManagement: FC = () => {
                                 <Input
                                   type="number"
                                   min="0"
-                                  className="w-20"
+                                  className="w20"
                                   onChange={(e) => {
                                     const value = parseInt(e.target.value) || 0;
                                     const currentDistribution = templateForm.getValues('categoryDistribution') || {};
@@ -975,7 +983,7 @@ const QuizManagement: FC = () => {
                                       ...currentDistribution,
                                       [category]: value
                                     });
-                               }}
+                                  }}
                                 />
                               </div>
                             ))}
