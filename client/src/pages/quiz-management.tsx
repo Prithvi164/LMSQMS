@@ -121,7 +121,7 @@ const QuizManagement: FC = () => {
   // Filter quiz templates based on selected process
   const filteredQuizTemplates = useMemo(() => {
     if (!quizTemplates) return [];
-    if (!selectedProcessId) return quizTemplates;
+    if (!selectedProcessId) return []; // Don't show any templates if no process is selected
     return quizTemplates.filter(template => template.processId === selectedProcessId);
   }, [quizTemplates, selectedProcessId]);
 
