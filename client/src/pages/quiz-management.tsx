@@ -66,6 +66,7 @@ const QuizManagement: FC = () => {
   const [isAddTemplateOpen, setIsAddTemplateOpen] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
   const [isDeletingQuestion, setIsDeletingQuestion] = useState(false);
+  const [selectedProcessFilter, setSelectedProcessFilter] = useState<number | "all">("all");
 
   const questionForm = useForm<QuestionFormValues>({
     resolver: zodResolver(questionFormSchema),
@@ -346,6 +347,12 @@ const QuizManagement: FC = () => {
     return process?.name || 'Unknown Process';
   };
 
+  const filteredQuestions = useMemo(() => {
+    if (!questions) return [];
+    if (selectedProcessFilter === "all") return questions;
+    return questions.filter(q => q.processId === selectedProcessFilter);
+  }, [questions, selectedProcessFilter]);
+
   return (
     <div className="container mx-auto py-6">
       <h1 className="text-2xl font-bold mb-6">Quiz Management</h1>
@@ -359,7 +366,25 @@ const QuizManagement: FC = () => {
         <TabsContent value="questions">
           <Card className="p-4">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Questions</h2>
+              <div className="flex items-center gap-4">
+                <h2 className="text-xl font-semibold">Questions</h2>
+                <Select
+                  value={selectedProcessFilter.toString()}
+                  onValueChange={(value) => setSelectedProcessFilter(value === "all" ? "all" : parseInt(value))}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Filter by process" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Processes</SelectItem>
+                    {processes.map((process) => (
+                      <SelectItem key={process.id} value={process.id.toString()}>
+                        {process.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <Dialog open={isAddQuestionOpen} onOpenChange={(open) => {
                 setIsAddQuestionOpen(open);
                 if (!open) resetQuestionForm();
@@ -681,11 +706,11 @@ const QuizManagement: FC = () => {
 
             {questionsLoading ? (
               <p>Loading questions...</p>
-            ) : questions?.length === 0 ? (
-              <p>No questions created yet.</p>
+            ) : filteredQuestions.length === 0 ? (
+              <p>No questions found for the selected filter.</p>
             ) : (
               <div className="grid gap-4">
-                {questions?.map((question) => (
+                {filteredQuestions.map((question) => (
                   <Card key={question.id} className="p-4">
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="font-medium text-lg">{question.question}</h3>
