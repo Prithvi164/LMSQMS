@@ -63,15 +63,17 @@ const QuizManagement: FC = () => {
 
     try {
       console.log('Submitting question data:', data);
+      // Ensure options is an array for multiple choice questions
+      const options = data.type === 'multiple_choice' ? data.options : [];
       const questionData = {
         ...data,
+        options: options || [],
         organizationId: user.organizationId,
         processId: user.processId || 1,
         createdBy: user.id
       };
       console.log('Processed question data:', questionData);
 
-      // Make API call to save question
       const response = await fetch('/api/questions', {
         method: 'POST',
         headers: {
@@ -122,7 +124,7 @@ const QuizManagement: FC = () => {
                 <DialogTrigger asChild>
                   <Button>Add Question</Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[600px]">
+                <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Add New Question</DialogTitle>
                   </DialogHeader>
