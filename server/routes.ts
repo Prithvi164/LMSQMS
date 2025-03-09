@@ -270,57 +270,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add the batches endpoint
-  app.get("/api/organizations/:organizationId/batches", async (req, res) => {
-    if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const organizationId = parseInt(req.params.organizationId);
-      
-      // Verify user belongs to the organization
-      if (req.user.organizationId !== organizationId) {
-        return res.status(403).json({ message: "You can only view batches in your organization" });
-      }
-
-      console.log(`Fetching batches for organization: ${organizationId}`);
-      const batches = await storage.listBatches(organizationId);
-      console.log(`Found ${batches?.length || 0} batches`);
-      
-      res.json(batches || []);
-    } catch (error: any) {
-      console.error("Error fetching batches:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch batches" });
-    }
-  });
-
-  // Add route for fetching batch trainees
-  app.get("/api/organizations/:organizationId/batches/:batchId/trainees", async (req, res) => {
-    if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const organizationId = parseInt(req.params.organizationId);
-      const batchId = parseInt(req.params.batchId);
-
-      // Verify user belongs to the organization
-      if (req.user.organizationId !== organizationId) {
-        return res.status(403).json({ message: "You can only view trainees in your organization's batches" });
-      }
-
-      console.log(`Fetching trainees for batch: ${batchId}`);
-      const trainees = await storage.getBatchTrainees(batchId);
-      console.log(`Found ${trainees?.length || 0} trainees`);
-
-      res.json(trainees || []);
-    } catch (error: any) {
-      console.error("Error fetching batch trainees:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch batch trainees" });
-    }
-  });
-
   // User management routes
   app.get("/api/users", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
