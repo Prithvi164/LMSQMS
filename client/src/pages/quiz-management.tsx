@@ -44,7 +44,8 @@ const questionFormSchema = z.object({
   correctAnswer: z.string().min(1, "Correct answer is required"),
   explanation: z.string().optional(),
   difficultyLevel: z.number().int().min(1).max(5),
-  category: z.string().min(1, "Category is required")
+  category: z.string().min(1, "Category is required"),
+  processId: z.number().min(1, "Process is required")
 });
 
 type QuestionFormValues = z.infer<typeof questionFormSchema>;
@@ -242,6 +243,13 @@ const QuizManagement: FC = () => {
     if (!questions) return new Set<string>();
     return new Set(questions.map(q => q.category));
   }, [questions]);
+
+  // Filter questions based on selected process
+  const filteredQuestions = useMemo(() => {
+    if (!questions) return [];
+    if (!selectedProcessId) return questions;
+    return questions.filter(question => question.processId === selectedProcessId);
+  }, [questions, selectedProcessId]);
 
   const difficulties = [1, 2, 3, 4, 5];
 
@@ -561,6 +569,42 @@ const QuizManagement: FC = () => {
                         )}
                       />
 
+                      <FormField
+                        control={questionForm.control}
+                        name="processId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Process</FormLabel>
+                            <Select
+                              onValueChange={(value) => field.onChange(parseInt(value))}
+                              defaultValue={field.value?.toString()}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder={processesLoading ? "Loading..." : "Select a process"} />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {processesLoading ? (
+                                  <SelectItem value="" disabled>Loading processes...</SelectItem>
+                                ) : processesError ? (
+                                  <SelectItem value="" disabled>Error loading processes</SelectItem>
+                                ) : processes && processes.length > 0 ? (
+                                  processes.map((process) => (
+                                    <SelectItem key={process.id} value={process.id.toString()}>
+                                      {process.name}
+                                    </SelectItem>
+                                  ))
+                                ) : (
+                                  <SelectItem value="" disabled>No processes available</SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
                       <Button type="submit">Add Question</Button>
                     </form>
                   </Form>
@@ -570,11 +614,11 @@ const QuizManagement: FC = () => {
 
             {questionsLoading ? (
               <p>Loading questions...</p>
-            ) : questions?.length === 0 ? (
-              <p>No questions created yet.</p>
+            ) : filteredQuestions?.length === 0 ? (
+              <p>No questions found {selectedProcessId ? `for ${getProcessName(selectedProcessId)}` : ''}.</p>
             ) : (
               <div className="grid gap-4">
-                {questions?.map((question) => (
+                {filteredQuestions?.map((question) => (
                   <Card key={question.id} className="p-4">
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1">
@@ -585,6 +629,9 @@ const QuizManagement: FC = () => {
                           </span>
                           <span className="text-sm px-2 py-1 bg-primary/10 rounded-md">
                             {question.category}
+                          </span>
+                          <span className="text-sm px-2 py-1 bg-primary/10 rounded-md">
+                            {getProcessName(question.processId)}
                           </span>
                         </div>
                       </div>
@@ -602,6 +649,7 @@ const QuizManagement: FC = () => {
                               explanation: question.explanation || '',
                               difficultyLevel: question.difficultyLevel,
                               category: question.category,
+                              processId: question.processId,
                             });
                           }}
                         >
