@@ -5,6 +5,10 @@ import rateLimit from 'express-rate-limit';
 import { startBatchStatusCron } from './cron/batch-status-cron';
 
 const app = express();
+
+// Trust proxy - required for rate limiting behind Replit's proxy
+app.set('trust proxy', 1);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -82,8 +86,11 @@ app.get("/health", (_req, res) => {
       serveStatic(app);
     }
 
-    const port = process.env.PORT || 5001;
-    server.listen(port, "0.0.0.0", () => {
+    // Force port 5000 for consistency
+    const port = 5000;
+    log(`Attempting to start server on port ${port}...`);
+
+    server.listen(port, () => {
       log(`Server running in ${app.get("env")} mode`);
       log(`API and client being served on port ${port}`);
     }).on('error', (error: any) => {
