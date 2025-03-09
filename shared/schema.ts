@@ -152,8 +152,8 @@ export const quizTemplates = pgTable("quiz_templates", {
   shuffleQuestions: boolean("shuffle_questions").default(false).notNull(),
   shuffleOptions: boolean("shuffle_options").default(false).notNull(),
   questionCount: integer("question_count").notNull(), // number of questions to select
-  categoryDistribution: jsonb("category_distribution").$type<Record<string, number>>(), // distribution of questions by category
-  difficultyDistribution: jsonb("difficulty_distribution").$type<Record<string, number>>(), // distribution by difficulty
+  categoryDistribution: jsonb("category_distribution"), // distribution of questions by category
+  difficultyDistribution: jsonb("difficulty_distribution"), // distribution by difficulty
   processId: integer("process_id")
     .references(() => organizationProcesses.id)
     .notNull(),
@@ -842,8 +842,7 @@ export const insertBatchHistorySchema = createInsertSchema(batchHistory)
   })
   .extend({
     batchId: z.number().int().positive("Batch ID is required"),
-    eventType:z.enum(['phase_change', 'status_update', 'milestone', 'note']),
-    description: z.string().min(1, "Description is required"),
+    eventType:z.enum(['phase_change', 'status_update', 'milestone', ''note']),    description: z.string().min(1, "Description is required"),
     previousValue: z.string().optional(),
     newValue: z.string().optional(),
     date: z.string().min(1, "Date is required"),
