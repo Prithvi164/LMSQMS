@@ -82,6 +82,9 @@ export function QuizManagement() {
   const [isAddTemplateOpen, setIsAddTemplateOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [deletingQuestionId, setDeletingQuestionId] = useState<number | null>(null);
+  const [deletingTemplateId, setDeletingTemplateId] = useState<number | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<QuizTemplate | null>(null);
+
 
   // Create a form for the process filter
   const filterForm = useForm<FilterFormValues>({
@@ -291,44 +294,116 @@ export function QuizManagement() {
     }
 
     try {
-      const templateData = {
-        ...data,
-        organizationId: user.organizationId,
-        createdBy: user.id,
-        processId: data.processId
-      };
+      if (editingTemplate) {
+        // Update existing template
+        await updateTemplateMutation.mutateAsync({
+          id: editingTemplate.id,
+          template: {
+            ...data,
+            organizationId: user.organizationId,
+          },
+        });
+      } else {
+        // Create new template (existing logic)
+        const templateData = {
+          ...data,
+          organizationId: user.organizationId,
+          createdBy: user.id,
+          processId: data.processId
+        };
 
-      const response = await fetch('/api/quiz-templates', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(templateData),
-      });
+        const response = await fetch('/api/quiz-templates', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(templateData),
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to add template');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to add template');
+        }
+
+        await queryClient.invalidateQueries({ queryKey: ['/api/quiz-templates'] });
+
+        toast({
+          title: "Success",
+          description: "Quiz template added successfully",
+        });
       }
-
-      await queryClient.invalidateQueries({ queryKey: ['/api/quiz-templates'] });
-
-      toast({
-        title: "Success",
-        description: "Quiz template added successfully",
-      });
       setIsAddTemplateOpen(false);
+      setEditingTemplate(null);
       setPreviewQuestions([]);
       templateForm.reset();
     } catch (error) {
       console.error('Error saving template:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to add template",
+        description: error instanceof Error ? error.message : "Failed to save template",
         variant: "destructive",
       });
     }
   };
+
+  // Add delete mutation
+  const deleteTemplateMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/quiz-templates/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to delete template');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/quiz-templates', selectedTemplateProcessId] });
+      toast({
+        title: "Success",
+        description: "Quiz template deleted successfully",
+      });
+      setDeletingTemplateId(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Add update mutation
+  const updateTemplateMutation = useMutation({
+    mutationFn: async (data: { id: number; template: Partial<QuizTemplate> }) => {
+      const response = await fetch(`/api/quiz-templates/${data.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data.template),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update template');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/quiz-templates', selectedTemplateProcessId] });
+      toast({
+        title: "Success",
+        description: "Quiz template updated successfully",
+      });
+      setEditingTemplate(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   // Add state for tracking selected questions preview
   const [previewQuestions, setPreviewQuestions] = useState<Question[]>([]);
@@ -422,6 +497,23 @@ export function QuizManagement() {
     queryKey: ['/api/quiz-templates', selectedTemplateProcessId !== 'all' ? parseInt(selectedTemplateProcessId) : null],
     enabled: !!user?.organizationId
   });
+
+  // Add function to handle edit template
+  const handleEditTemplate = (template: QuizTemplate) => {
+    setEditingTemplate(template);
+    templateForm.reset({
+      name: template.name,
+      description: template.description || "",
+      timeLimit: template.timeLimit,
+      questionCount: template.questionCount,
+      passingScore: template.passingScore,
+      shuffleQuestions: template.shuffleQuestions,
+      shuffleOptions: template.shuffleOptions,
+      processId: template.processId,
+      categoryDistribution: template.categoryDistribution,
+      difficultyDistribution: template.difficultyDistribution,
+    });
+  };
 
   return (
     <div className="container mx-auto py-6">
@@ -1115,11 +1207,11 @@ export function QuizManagement() {
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" onClick={() => handleEditTemplate(template)}>
                             <Pencil className="h-4 w-4 mr-1" />
                             Edit
                           </Button>
-                          <Button variant="outline" size="sm" className="text-red-500 hover:text-red-600">
+                          <Button variant="outline" size="sm" className="text-red-500 hover:text-red-600" onClick={() => setDeletingTemplateId(template.id)}>
                             <Trash2 className="h-4 w-4 mr-1" />
                             Delete
                           </Button>
@@ -1146,6 +1238,28 @@ export function QuizManagement() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deletingQuestionId && deleteQuestionMutation.mutate(deletingQuestionId)}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog 
+        open={deletingTemplateId !== null} 
+        onOpenChange={(open) => !open && setDeletingTemplateId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Quiz Template</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this quiz template? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingTemplateId && deleteTemplateMutation.mutate(deletingTemplateId)}
               className="bg-red-500 hover:bg-red-600"
             >
               Delete

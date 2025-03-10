@@ -924,7 +924,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add delete endpoint for quiz templates
+  // Add update endpoint for quiz templates
+  app.put("/api/quiz-templates/:id", async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const templateId = parseInt(req.params.id);
+      if (isNaN(templateId)) {
+        return res.status(400).json({ message: "Invalid template ID" });
+      }
+
+      // Get the template to verify ownership
+      const template = await storage.getQuizTemplate(templateId);
+      if (!template) {
+        return res.status(404).json({ message: "Quiz template not found" });
+      }
+
+      // Verify organization ownership
+      if (template.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Update the template
+      const updatedTemplate = await storage.updateQuizTemplate(templateId, {
+        ...req.body,
+        organizationId: req.user.organizationId // Ensure organization ID cannot be changed
+      });
+
+      res.json(updatedTemplate);
+    } catch (error: any) {
+      console.error("Error updating quiz template:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Add delete endpoint for quiz templates with proper error handling
   app.delete("/api/quiz-templates/:id", async (req, res) => {
     if (!req.user || !req.user.organizationId) {
       return res.status(401).json({ message: "Unauthorized" });

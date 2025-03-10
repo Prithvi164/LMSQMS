@@ -184,12 +184,12 @@ export interface IStorage {
   createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate>;
   listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]>;
   deleteQuizTemplate(id: number): Promise<void>;
-  getQuizTemplate(id: number): Promise<QuizTemplate | undefined>; // Added here
+  getQuizTemplate(id: number): Promise<QuizTemplate | undefined>;
+  updateQuizTemplate(id: number, template: Partial<InsertQuizTemplate>): Promise<QuizTemplate>;
 
   // Add new method for process-based question filtering
   listQuestionsByProcess(organizationId: number, processId: number): Promise<Question[]>;
 
-  // Add new methods for question operations
   updateQuestion(id: number, question: Partial<Question>): Promise<Question>;
   deleteQuestion(id: number): Promise<void>;
   getQuestionById(id: number): Promise<Question | undefined>;
@@ -943,6 +943,7 @@ export class DatabaseStorage implements IStorage {
         .where(eq(organizationLocations.organizationId, location.organizationId))
         .where(eq(organizationLocations.name, location.name));
 
+      ```typescript
       if (existingLocations.length > 0) {
         throw new Error('A location with this name already exists in this organization');
       }
@@ -2021,6 +2022,7 @@ export class DatabaseStorage implements IStorage {
   }
   // Add to IStorage interface
   deleteQuizTemplate(id: number): Promise<void>;
+  updateQuizTemplate(id: number, template: Partial<InsertQuizTemplate>): Promise<QuizTemplate>;
 
   // Add implementation in DatabaseStorage class
   async deleteQuizTemplate(id: number): Promise<void> {
@@ -2062,6 +2064,47 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error fetching quiz template by ID:', error);
       throw new Error(`Failed to fetch template: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async updateQuizTemplate(id: number, template: Partial<InsertQuizTemplate>): Promise<QuizTemplate> {
+    try {
+      console.log(`Updating quiz template with ID: ${id}`, template);
+
+      // Get the existing template to verify it exists
+      const existingTemplate = await this.getQuizTemplate(id);
+      if (!existingTemplate) {
+        throw new Error('Quiz template not found');
+      }
+
+      // Check if name is being updated and if it would conflict
+      if (template.name && template.name !== existingTemplate.name) {
+        const nameExists = await db
+          .select()
+          .from(quizTemplates)
+          .where(eq(quizTemplates.organizationId, existingTemplate.organizationId))
+          .where(eq(quizTemplates.name, template.name))
+          .then(results => results.some(t => t.id !== id));
+
+        if (nameExists) {
+          throw new Error('A quiz template with this name already exists in this organization');
+        }
+      }
+
+      const [updatedTemplate] = await db
+        .update(quizTemplates)
+        .set({
+          ...template,
+          updatedAt: new Date()
+        })
+        .where(eq(quizTemplates.id, id))
+        .returning() as QuizTemplate[];
+
+      console.log('Successfully updated quiz template:', updatedTemplate);
+      return updatedTemplate;
+    } catch (error) {
+      console.error('Error updating quiz template:', error);
+      throw error;
     }
   }
 
