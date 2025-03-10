@@ -444,11 +444,24 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching processes for organization ${organizationId}`);
       const processes = await db
-        .select()
+        .select({
+          id: organizationProcesses.id,
+          name: organizationProcesses.name,
+          description: organizationProcesses.description,
+          organizationId: organizationProcesses.organizationId,
+          lineOfBusinessId: organizationProcesses.lineOfBusinessId,
+          createdAt: organizationProcesses.createdAt,
+          updatedAt: organizationProcesses.updatedAt,
+          lineOfBusinessName: organizationLineOfBusinesses.name,
+        })
         .from(organizationProcesses)
+        .leftJoin(
+          organizationLineOfBusinesses,
+          eq(organizationProcesses.lineOfBusinessId, organizationLineOfBusinesses.id)
+        )
         .where(eq(organizationProcesses.organizationId, organizationId)) as OrganizationProcess[];
 
-      console.log(`Found ${processes.length} processes`);
+      console.log(`Found ${processes.length} processes with line of business details`);
       return processes;
     } catch (error) {
       console.error('Error fetching processes:', error);
