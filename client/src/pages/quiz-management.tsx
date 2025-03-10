@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,7 +13,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
-import type { Question } from "@shared/schema";
+import type { Question, QuizTemplate } from "@shared/schema";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -54,7 +54,7 @@ const quizTemplateSchema = z.object({
   shuffleOptions: z.boolean().default(false),
   categoryDistribution: z.record(z.string(), z.number()).optional(),
   difficultyDistribution: z.record(z.string(), z.number()).optional(),
-  processId: z.number().min(1, "Process is required")
+  processId: z.number().min(1, "Process is required"),
 });
 
 // Process filter form schema
@@ -118,8 +118,7 @@ export function QuizManagement() {
       questionCount: 10,
       passingScore: 70,
       shuffleQuestions: false,
-      shuffleOptions: false,
-      processId: 0 // added default value
+      shuffleOptions: false
     }
   });
 
@@ -281,6 +280,7 @@ export function QuizManagement() {
     }
   };
 
+
   return (
     <div className="container mx-auto py-6">
       <h1 className="text-2xl font-bold mb-6">Quiz Management</h1>
@@ -360,7 +360,7 @@ export function QuizManagement() {
                                     </FormControl>
                                     <SelectContent>
                                       {processesLoading ? (
-                                        <SelectItem value="0" disabled>Loading processes...</SelectItem>
+                                        <SelectItem value="" disabled>Loading processes...</SelectItem>
                                       ) : processes.length > 0 ? (
                                         processes.map((process) => (
                                           <SelectItem key={process.id} value={process.id.toString()}>
@@ -368,7 +368,7 @@ export function QuizManagement() {
                                           </SelectItem>
                                         ))
                                       ) : (
-                                        <SelectItem value="0" disabled>No processes available</SelectItem>
+                                        <SelectItem value="" disabled>No processes available</SelectItem>
                                       )}
                                     </SelectContent>
                                   </Select>
@@ -376,7 +376,6 @@ export function QuizManagement() {
                                 </FormItem>
                               )}
                             />
-
                             <FormField
                               control={questionForm.control}
                               name="question"
@@ -390,7 +389,6 @@ export function QuizManagement() {
                                 </FormItem>
                               )}
                             />
-
                             <FormField
                               control={questionForm.control}
                               name="type"
@@ -538,7 +536,7 @@ export function QuizManagement() {
                 <p>No questions found for the selected process.</p>
               ) : (
                 <div className="grid gap-4">
-                  {questions?.map((question) => (
+                  {questions?.map((question: QuestionWithProcess) => (
                     <Card key={question.id} className="p-4">
                       <div className="flex justify-between items-start mb-2">
                         <div className="space-y-1">
@@ -654,7 +652,7 @@ export function QuizManagement() {
                               </FormControl>
                               <SelectContent>
                                 {processesLoading ? (
-                                  <SelectItem value="0" disabled>Loading processes...</SelectItem>
+                                  <SelectItem value="" disabled>Loading processes...</SelectItem>
                                 ) : processes.length > 0 ? (
                                   processes.map((process) => (
                                     <SelectItem key={process.id} value={process.id.toString()}>
@@ -662,7 +660,7 @@ export function QuizManagement() {
                                     </SelectItem>
                                   ))
                                 ) : (
-                                  <SelectItem value="0" disabled>No processes available</SelectItem>
+                                  <SelectItem value="" disabled>No processes available</SelectItem>
                                 )}
                               </SelectContent>
                             </Select>
@@ -760,27 +758,19 @@ export function QuizManagement() {
                         )}
                       />
 
-                      <div className="space-y-4">
+                      <div className="flex flex-col gap-4">
                         <FormField
                           control={templateForm.control}
                           name="shuffleQuestions"
                           render={({ field }) => (
-                            <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                              <div className="space-y-0.5">
-                                <FormLabel className="text-base">
-                                  Shuffle Questions
-                                </FormLabel>
-                                <FormDescription>
-                                  Randomize the order of questions in each quiz attempt
-                                </FormDescription>
-                              </div>
-                              <FormControl>
-                                <Switch
-                                  checked={field.value}
-                                  onCheckedChange={field.onChange}
-                                />
-                              </FormControl>
-                            </FormItem>
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="shuffle-questions">Shuffle Questions</Label>
+                              <Switch
+                                id="shuffle-questions"
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </div>
                           )}
                         />
 
@@ -788,24 +778,80 @@ export function QuizManagement() {
                           control={templateForm.control}
                           name="shuffleOptions"
                           render={({ field }) => (
-                            <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                              <div className="space-y-0.5">
-                                <FormLabel className="text-base">
-                                  Shuffle Options
-                                </FormLabel>
-                                <FormDescription>
-                                  Randomize the order of multiple choice options
-                                </FormDescription>
-                              </div>
-                              <FormControl>
-                                <Switch
-                                  checked={field.value}
-                                  onCheckedChange={field.onChange}
-                                />
-                              </FormControl>
-                            </FormItem>
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="shuffle-options">Shuffle Answer Options</Label>
+                              <Switch
+                                id="shuffle-options"
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </div>
                           )}
                         />
+                      </div>
+
+                      <div className="space-y-4">
+                        <h4 className="font-medium">Question Distribution</h4>
+
+                        {/* Category Distribution */}
+                        <div className="space-y-2">
+                          <Label>Category Distribution</Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {Array.from(categories).map((category) => (
+                              <div key={category} className="flex items-center gap-2">
+                                <Label>{category}</Label>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  placeholder="Count"
+                                  onChange={(e) => {
+                                    const value = parseInt(e.target.value);
+                                    const current = templateForm.getValues('categoryDistribution') || {};
+                                    if (value > 0) {
+                                      templateForm.setValue('categoryDistribution', {
+                                        ...current,
+                                        [category]: value
+                                      });
+                                    } else {
+                                      const { [category]: _, ...rest } = current;
+                                      templateForm.setValue('categoryDistribution', rest);
+                                    }
+                                  }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Difficulty Distribution */}
+                        <div className="space-y-2">
+                          <Label>Difficulty Distribution</Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {difficulties.map((level) => (
+                              <div key={level} className="flex items-center gap-2">
+                                <Label>Level {level}</Label>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  placeholder="Count"
+                                  onChange={(e) => {
+                                    const value = parseInt(e.target.value);
+                                    const current = templateForm.getValues('difficultyDistribution') || {};
+                                    if (value > 0) {
+                                      templateForm.setValue('difficultyDistribution', {
+                                        ...current,
+                                        [level]: value
+                                      });
+                                    } else {
+                                      const { [level]: _, ...rest } = current;
+                                      templateForm.setValue('difficultyDistribution', rest);
+                                    }
+                                  }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       </div>
 
                       <div className="flex justify-between gap-2">
@@ -822,31 +868,32 @@ export function QuizManagement() {
                         </Button>
                         <Button type="submit">Create Template</Button>
                       </div>
-
-                      {/* Preview Questions */}
-                      {previewQuestions.length > 0 && (
-                        <div className="mt-4 space-y-2">
-                          <h4 className="font-medium">Preview Selected Questions</h4>
-                          <div className="max-h-[300px] overflow-y-auto space-y-2">
-                            {previewQuestions.map((question) => (
-                              <Card key={question.id} className="p-2">
-                                <div className="flex justify-between items-start">
-                                  <p className="text-sm">{question.question}</p>
-                                  <div className="flex gap-1">
-                                    <Badge variant="outline">Level {question.difficultyLevel}</Badge>
-                                    <Badge variant="outline">{question.category}</Badge>
-                                  </div>
-                                </div>
-                              </Card>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </form>
                   </Form>
+
+                  {/* Preview Questions */}
+                  {previewQuestions.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      <h4 className="font-medium">Preview Selected Questions</h4>
+                      <div className="max-h-[300px] overflow-y-auto space-y-2">
+                        {previewQuestions.map((question) => (
+                          <Card key={question.id} className="p-2">
+                            <div className="flex justify-between items-start">
+                              <p className="text-sm">{question.question}</p>
+                              <div className="flex gap-1">
+                                <Badge variant="outline">Level {question.difficultyLevel}</Badge>
+                                <Badge variant="outline">{question.category}</Badge>
+                              </div>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </DialogContent>
               </Dialog>
             </div>
+
           </Card>
         </TabsContent>
       </Tabs>
