@@ -15,8 +15,6 @@ import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
 import type { Question } from "@shared/schema";
 import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 
 // Define Process interface
 interface Process {
@@ -24,10 +22,6 @@ interface Process {
   name: string;
   description?: string;
   status: string;
-}
-
-interface QuestionWithProcess extends Question {
-  processId: number;
 }
 
 // Define schemas
@@ -59,9 +53,14 @@ const filterFormSchema = z.object({
   processId: z.string()
 });
 
+// Define types
 type QuestionFormValues = z.infer<typeof questionFormSchema>;
 type QuizTemplateFormValues = z.infer<typeof quizTemplateSchema>;
 type FilterFormValues = z.infer<typeof filterFormSchema>;
+
+interface QuestionWithProcess extends Question {
+  processId: number;
+}
 
 export function QuizManagement() {
   const queryClient = useQueryClient();
@@ -99,7 +98,7 @@ export function QuizManagement() {
       passingScore: 70,
       shuffleQuestions: false,
       shuffleOptions: false,
-      processId: undefined
+      processId: undefined //Added to fix error
     }
   });
 
@@ -227,48 +226,9 @@ export function QuizManagement() {
     }
   };
 
-  // Preview random questions handler
-  const previewRandomQuestions = async (data: QuizTemplateFormValues) => {
-    setIsPreviewLoading(true);
-    try {
-      const params = new URLSearchParams({
-        count: data.questionCount.toString(),
-        processId: data.processId.toString()
-      });
-
-      if (data.categoryDistribution) {
-        params.append('categoryDistribution', JSON.stringify(data.categoryDistribution));
-      }
-      if (data.difficultyDistribution) {
-        params.append('difficultyDistribution', JSON.stringify(data.difficultyDistribution));
-      }
-
-      const response = await fetch(`/api/random-questions?${params}`);
-      if (!response.ok) {
-        throw new Error('Failed to get random questions');
-      }
-
-      const randomQuestions = await response.json();
-      setPreviewQuestions(randomQuestions);
-    } catch (error) {
-      console.error('Error previewing questions:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to preview questions",
-        variant: "destructive",
-      });
-    } finally {
-      setIsPreviewLoading(false);
-    }
-  };
-
   // Computed values
   const categories = useMemo(() => {
     return new Set(questions.map(q => q.category));
-  }, [questions]);
-
-  const difficulties = useMemo(() => {
-    return new Set(questions.map(q => q.difficultyLevel));
   }, [questions]);
 
   // Render UI
@@ -616,6 +576,7 @@ export function QuizManagement() {
                   </DialogHeader>
                   <Form {...templateForm}>
                     <form onSubmit={templateForm.handleSubmit(onSubmitTemplate)} className="space-y-4">
+                      {/* Inside the template form, add process selection before other fields */}
                       <FormField
                         control={templateForm.control}
                         name="processId"
@@ -808,7 +769,7 @@ export function QuizManagement() {
                         <div className="space-y-2">
                           <Label>Difficulty Distribution</Label>
                           <div className="grid grid-cols-2 gap-2">
-                            {Array.from(difficulties).map((level) => (
+                            {difficulties.map((level) => (
                               <div key={level} className="flex items-center gap-2">
                                 <Label>Level {level}</Label>
                                 <Input
