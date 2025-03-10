@@ -183,6 +183,8 @@ export interface IStorage {
   // Quiz template operations
   createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate>;
   listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]>;
+  deleteQuizTemplate(id: number): Promise<void>;
+  getQuizTemplate(id: number): Promise<QuizTemplate | undefined>; // Added here
 
   // Add new method for process-based question filtering
   listQuestionsByProcess(organizationId: number, processId: number): Promise<Question[]>;
@@ -2017,6 +2019,52 @@ export class DatabaseStorage implements IStorage {
       throw new Error(`Failed to fetch question: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
+  // Add to IStorage interface
+  deleteQuizTemplate(id: number): Promise<void>;
+
+  // Add implementation in DatabaseStorage class
+  async deleteQuizTemplate(id: number): Promise<void> {
+    try {
+      console.log(`Attempting to delete quiz template with ID: ${id}`);
+
+      const result = await db
+        .delete(quizTemplates)
+        .where(eq(quizTemplates.id, id))
+        .returning();
+
+      if (!result.length) {
+        throw new Error('Quiz template not found or deletion failed');
+      }
+
+      console.log(`Successfully deleted quiz template with ID: ${id}`);
+    } catch (error) {
+      console.error('Error deleting quiz template:', error);
+      throw error;
+    }
+  }
+
+  async getQuizTemplate(id: number): Promise<QuizTemplate | undefined> {
+    try {
+      console.log(`Fetching quiz template with ID: ${id}`);
+
+      const [template] = await db
+        .select()
+        .from(quizTemplates)
+        .where(eq(quizTemplates.id, id)) as QuizTemplate[];
+
+      if (template) {
+        console.log('Found template:', { id: template.id, name: template.name });
+      } else {
+        console.log('Template not found');
+      }
+
+      return template;
+    } catch (error) {
+      console.error('Error fetching quiz template by ID:', error);
+      throw new Error(`Failed to fetch template: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
 }
 
 export const storage = new DatabaseStorage();
