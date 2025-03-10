@@ -600,10 +600,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         correctAnswer,
         explanation,
         difficultyLevel,
-        category 
+        category,
+        processId  // Add processId to destructuring
       } = req.body;
       
-      if (!questionText || !questionType || !correctAnswer || !difficultyLevel || !category) {
+      if (!questionText || !questionType || !correctAnswer || !difficultyLevel || !category || !processId) {
         return res.status(400).json({ 
           message: "Missing required fields for question creation" 
         });
@@ -617,16 +618,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Get the first available process for the organization
-      const [process] = await db
+      // Verify the process exists and belongs to the organization
+      const process = await db
         .select()
         .from(organizationProcesses)
-        .where(eq(organizationProcesses.organizationId, req.user.organizationId))
+        .where(and(
+          eq(organizationProcesses.id, processId),
+          eq(organizationProcesses.organizationId, req.user.organizationId)
+        ))
         .limit(1);
 
-      if (!process) {
+      if (!process[0]) {
         return res.status(400).json({
-          message: "No process found for the organization. Please create a process first."
+          message: "Invalid process ID or process does not belong to your organization."
         });
       }
 
@@ -643,7 +647,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         category: String(category),
         createdBy: req.user.id,
         organizationId: req.user.organizationId,
-        processId: process.id // Use the found process ID
+        processId: Number(processId) // Use the processId from request body
       };
 
       // Validate numeric fields

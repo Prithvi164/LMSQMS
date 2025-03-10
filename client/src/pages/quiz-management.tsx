@@ -169,6 +169,8 @@ export function QuizManagement() {
         createdBy: user.id
       };
 
+      console.log('Creating question with data:', questionData);
+
       const response = await fetch('/api/questions', {
         method: 'POST',
         headers: {
