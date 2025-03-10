@@ -1773,16 +1773,31 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching all questions for organization ${organizationId}`);
 
-      const questions = await db
-        .select()
+      // Select all columns explicitly and use the correct table reference
+      const results = await db
+        .select({
+          id: questions.id,
+          question: questions.question,
+          type: questions.type,
+          options: questions.options,
+          correctAnswer: questions.correctAnswer,
+          explanation: questions.explanation,
+          difficultyLevel: questions.difficultyLevel,
+          category: questions.category,
+          organizationId: questions.organizationId,
+          createdBy: questions.createdBy,
+          processId: questions.processId,
+          createdAt: questions.createdAt,
+          updatedAt: questions.updatedAt
+        })
         .from(questions)
         .where(eq(questions.organizationId, organizationId)) as Question[];
 
-      console.log(`Found ${questions.length} questions`);
-      return questions;
+      console.log(`Found ${results.length} questions`);
+      return results;
     } catch (error) {
       console.error('Error fetching questions:', error);
-      throw new Error(`Failed to fetch questions: ${error.message}`);
+      throw new Error(`Failed to fetch questions: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -1907,22 +1922,9 @@ export class DatabaseStorage implements IStorage {
   async listQuestionsByProcess(organizationId: number, processId: number): Promise<Question[]> {
     try {
       console.log(`Fetching questions for organization ${organizationId} and process ${processId}`);
-      const filteredQuestions = await db
-        .select({
-          id: questions.id,
-          question: questions.question,
-          type: questions.type,
-          options: questions.options,
-          correctAnswer: questions.correctAnswer,
-          explanation: questions.explanation,
-          difficultyLevel: questions.difficultyLevel,
-          category: questions.category,
-          organizationId: questions.organizationId,
-          createdBy: questions.createdBy,
-          processId: questions.processId,
-          createdAt: questions.createdAt,
-          updatedAt: questions.updatedAt
-        })
+
+      const results = await db
+        .select()
         .from(questions)
         .where(
           and(
@@ -1931,11 +1933,11 @@ export class DatabaseStorage implements IStorage {
           )
         ) as Question[];
 
-      console.log(`Found ${filteredQuestions.length} questions for process ${processId}`);
-      return filteredQuestions;
-    } catch (error: any) {
+      console.log(`Found ${results.length} questions for process ${processId}`);
+      return results;
+    } catch (error) {
       console.error('Error fetching questions by process:', error);
-      throw new Error(`Failed to fetch questions by process: ${error.message}`);
+      throw new Error(`Failed to fetch questions: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }
