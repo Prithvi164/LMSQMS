@@ -18,7 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Loader2, PlayCircle } from "lucide-react";
 
 // Process filter form schema
 const filterFormSchema = z.object({
@@ -529,6 +529,39 @@ export function QuizManagement() {
     });
   };
 
+  // Add new mutation for generating quiz from template
+  const generateQuizMutation = useMutation({
+    mutationFn: async (templateId: number) => {
+      const response = await fetch(`/api/quiz-templates/${templateId}/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to generate quiz');
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/quizzes'] });
+      toast({
+        title: "Success",
+        description: "Quiz generated successfully",
+      });
+      // Navigate to the quiz link
+      window.location.href = `/quiz/${data.id}`;
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   return (
     <div className="container mx-auto py-6">
       <h1 className="text-2xl font-bold mb-6">Quiz Management</h1>
@@ -961,7 +994,7 @@ export function QuizManagement() {
                                       ) : processes.length > 0 ? (
                                         processes.map((process) => (
                                           <SelectItem key={process.id} value={process.id.toString()}>
-                                                                           {process.name}
+                                            {process.name}
                                           </SelectItem>
                                         ))
                                       ) : (
@@ -971,7 +1004,8 @@ export function QuizManagement() {
                                   </Select>
                                   <FormMessage />
                                 </FormItem>
-                              )}                            />
+                              )}
+                            />
 
                             <FormField
                               control={templateForm.control}
@@ -1210,13 +1244,13 @@ export function QuizManagement() {
                 <p>No quiz templates found for the selected process.</p>
               ) : (
                 <div className="grid gap-4">
-                  {quizTemplates.map((template: QuizTemplate) => (
+                  {quizTemplates.map((template: any) => (
                     <Card key={template.id} className="p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="text-lg font-medium">{template.name}</h3>
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="space-y-1">
+                          <h3 className="font-medium text-lg">{template.name}</h3>
                           <p className="text-sm text-muted-foreground">{template.description}</p>
-                          <div className="mt-2 flex flex-wrap gap-2">
+                          <div className="flex items-center gap-2">
                             <Badge variant="outline">
                               Time: {template.timeLimit} min
                             </Badge>
@@ -1226,17 +1260,41 @@ export function QuizManagement() {
                             <Badge variant="outline">
                               Pass: {template.passingScore}%
                             </Badge>
-                            <Badge variant="outline">
-                              Process: {processes.find(p => p.id === template.processId)?.name || 'Unknown'}
-                            </Badge>
                           </div>
                         </div>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" onClick={() => handleEditTemplate(template)}>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditTemplate(template)}
+                          >
                             <Pencil className="h-4 w-4 mr-1" />
                             Edit
                           </Button>
-                          <Button variant="outline" size="sm" className="text-red-500 hover:text-red-600" onClick={() => setDeletingTemplateId(template.id)}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => generateQuizMutation.mutate(template.id)}
+                            disabled={generateQuizMutation.isPending}
+                          >
+                            {generateQuizMutation.isPending ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                Generating...
+                              </>
+                            ) : (
+                              <>
+                                <PlayCircle className="h-4 w-4 mr-1" />
+                                Take Quiz
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-500 hover:text-red-600"
+                            onClick={() => setDeletingTemplateId(template.id)}
+                          >
                             <Trash2 className="h-4 w-4 mr-1" />
                             Delete
                           </Button>

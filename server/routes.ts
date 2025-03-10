@@ -960,6 +960,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate quiz from template
+  app.post("/api/quiz-templates/:id/generate", async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const templateId = parseInt(req.params.id);
+      if (isNaN(templateId)) {
+        return res.status(400).json({ message: "Invalid template ID" });
+      }
+
+      // Get the template
+      const template = await storage.getQuizTemplate(templateId);
+      if (!template) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+
+      // Verify organization access
+      if (template.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Get random questions based on template configuration
+      const questions = await storage.getRandomQuestions(
+        req.user.organizationId,
+        {
+          count: template.questionCount,
+          categoryDistribution: template.categoryDistribution,
+          difficultyDistribution: template.difficultyDistribution,
+          processId: template.processId
+        }
+      );
+
+      if (questions.length < template.questionCount) {
+        return res.status(400).json({
+          message: "Not enough questions available to generate quiz"
+        });
+      }
+
+      // Create a new quiz instance
+      const quiz = await storage.createQuiz({
+        name: template.name,
+        description: template.description,
+        timeLimit: template.timeLimit,
+        passingScore: template.passingScore,
+        questions: questions.map(q => q.id),
+        templateId: template.id,
+        organizationId: req.user.organizationId,
+        createdBy: req.user.id,
+        processId: template.processId,
+        status: 'active',
+        startTime: new Date(),
+        endTime: new Date(Date.now() + template.timeLimit * 60 * 1000)
+      });
+
+      res.status(201).json(quiz);
+    } catch (error: any) {
+      console.error("Error generating quiz:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Add delete endpoint for quiz templates with proper error handling
   app.delete("/api/quiz-templates/:id", async (req, res) => {
     if (!req.user || !req.user.organizationId) {
