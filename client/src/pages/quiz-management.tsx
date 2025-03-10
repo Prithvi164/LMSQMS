@@ -400,6 +400,15 @@ export function QuizManagement() {
     });
   };
 
+  // Add state for template process filter
+  const [selectedTemplateProcessId, setSelectedTemplateProcessId] = useState<string>("all");
+
+  // Add query for quiz templates
+  const { data: quizTemplates = [], isLoading: templatesLoading } = useQuery({
+    queryKey: ['/api/quiz-templates', selectedTemplateProcessId !== 'all' ? parseInt(selectedTemplateProcessId) : null],
+    enabled: !!user?.organizationId
+  });
+
   return (
     <div className="container mx-auto py-6">
       <h1 className="text-2xl font-bold mb-6">Quiz Management</h1>
@@ -753,282 +762,347 @@ export function QuizManagement() {
 
         <TabsContent value="templates">
           <Card className="p-4">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Quiz Templates</h2>
-              <Dialog open={isAddTemplateOpen} onOpenChange={setIsAddTemplateOpen}>
-                <DialogTrigger asChild>
-                  <Button>Create Quiz Template</Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Create Quiz Template</DialogTitle>
-                  </DialogHeader>
-                  <Form {...templateForm}>
-                    <form onSubmit={templateForm.handleSubmit(onSubmitTemplate)} className="space-y-4">
-                      {/* Inside the template form, add process selection before other fields */}
-                      <FormField
-                        control={templateForm.control}
-                        name="processId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Process</FormLabel>
-                            <Select
-                              onValueChange={(value) => field.onChange(parseInt(value))}
-                              defaultValue={field.value?.toString()}
+            <div className="flex flex-col gap-4">
+              {/* Process Filter for Templates */}
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <FormLabel>Filter by Process</FormLabel>
+                  <Select
+                    onValueChange={setSelectedTemplateProcessId}
+                    value={selectedTemplateProcessId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Processes" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Processes</SelectItem>
+                      {processes.map((process) => (
+                        <SelectItem key={process.id} value={process.id.toString()}>
+                          {process.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end">
+                  <Dialog open={isAddTemplateOpen} onOpenChange={setIsAddTemplateOpen}>
+                    <DialogTrigger asChild>
+                      <Button>Create Quiz Template</Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Create Quiz Template</DialogTitle>
+                      </DialogHeader>
+                      <Form {...templateForm}>
+                        <form onSubmit={templateForm.handleSubmit(onSubmitTemplate)} className="space-y-4">
+                          {/* Inside the template form, add process selection before other fields */}
+                          <FormField
+                            control={templateForm.control}
+                            name="processId"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Process</FormLabel>
+                                <Select
+                                  onValueChange={(value) => field.onChange(parseInt(value))}
+                                  defaultValue={field.value?.toString()}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder={processesLoading ? "Loading..." : "Select a process"} />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {processesLoading ? (
+                                      <SelectItem value="" disabled>Loading processes...</SelectItem>
+                                    ) : processes.length > 0 ? (
+                                      processes.map((process) => (
+                                        <SelectItem key={process.id} value={process.id.toString()}>
+                                          {process.name}
+                                        </SelectItem>
+                                      ))
+                                    ) : (
+                                      <SelectItem value="" disabled>No processes available</SelectItem>
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={templateForm.control}
+                            name="name"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Template Name</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Enter template name" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={templateForm.control}
+                            name="description"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Description (Optional)</FormLabel>
+                                <FormControl>
+                                  <Textarea placeholder="Enter template description" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={templateForm.control}
+                            name="timeLimit"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Time Limit (minutes)</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    min={1}
+                                    placeholder="Enter time limit"
+                                    {...field}
+                                    onChange={(e) => field.onChange(parseInt(e.target.value))}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={templateForm.control}
+                            name="questionCount"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Number of Questions</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    min={1}
+                                    placeholder="Enter number of questions"
+                                    {...field}
+                                    onChange={(e) => field.onChange(parseInt(e.target.value))}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={templateForm.control}
+                            name="passingScore"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Passing Score (%)</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    placeholder="Enter passing score"
+                                    {...field}
+                                    onChange={(e) => field.onChange(parseInt(e.target.value))}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <div className="flex flex-col gap-4">
+                            <FormField
+                              control={templateForm.control}
+                              name="shuffleQuestions"
+                              render={({ field }) => (
+                                <div className="flex items-center justify-between">
+                                  <Label htmlFor="shuffle-questions">Shuffle Questions</Label>
+                                  <Switch
+                                    id="shuffle-questions"
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </div>
+                              )}
+                            />
+
+                            <FormField
+                              control={templateForm.control}
+                              name="shuffleOptions"
+                              render={({ field }) => (
+                                <div className="flex items-center justify-between">
+                                  <Label htmlFor="shuffle-options">Shuffle Answer Options</Label>
+                                  <Switch
+                                    id="shuffle-options"
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </div>
+                              )}
+                            />
+                          </div>
+
+                          <div className="space-y-4">
+                            <h4 className="font-medium">Question Distribution</h4>
+
+                            {/* Category Distribution */}
+                            <div className="space-y-2">
+                              <Label>Category Distribution</Label>
+                              <div className="grid grid-cols-2 gap-2">
+                                {Array.from(categories).map((category) => (
+                                  <div key={category} className="flex items-center gap-2">
+                                    <Label>{category}</Label>
+                                    <Input
+                                      type="number"
+                                      min={0}
+                                      placeholder="Count"
+                                      onChange={(e) => {
+                                        const value = parseInt(e.target.value);
+                                        const current = templateForm.getValues('categoryDistribution') || {};
+                                        if (value > 0) {
+                                          templateForm.setValue('categoryDistribution', {
+                                            ...current,
+                                            [category]: value
+                                          });
+                                        } else {
+                                          const { [category]: _, ...rest } = current;
+                                          templateForm.setValue('categoryDistribution', rest);
+                                        }
+                                      }}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Difficulty Distribution */}
+                            <div className="space-y-2">
+                              <Label>Difficulty Distribution</Label>
+                              <div className="grid grid-cols-2 gap-2">
+                                {difficulties.map((level) => (
+                                  <div key={level} className="flex items-center gap-2">
+                                    <Label>Level {level}</Label>
+                                    <Input
+                                      type="number"
+                                      min={0}
+                                      placeholder="Count"
+                                      onChange={(e) => {
+                                        const value = parseInt(e.target.value);
+                                        const current = templateForm.getValues('difficultyDistribution') || {};
+                                        if (value > 0) {
+                                          templateForm.setValue('difficultyDistribution', {
+                                            ...current,
+                                            [level]: value
+                                          });
+                                        } else {
+                                          const { [level]: _, ...rest } = current;
+                                          templateForm.setValue('difficultyDistribution', rest);
+                                        }
+                                      }}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex justify-between gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                const data = templateForm.getValues();
+                                previewRandomQuestions(data);
+                              }}
+                              disabled={isPreviewLoading}
                             >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder={processesLoading ? "Loading..." : "Select a process"} />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {processesLoading ? (
-                                  <SelectItem value="" disabled>Loading processes...</SelectItem>
-                                ) : processes.length > 0 ? (
-                                  processes.map((process) => (
-                                    <SelectItem key={process.id} value={process.id.toString()}>
-                                      {process.name}
-                                    </SelectItem>
-                                  ))
-                                ) : (
-                                  <SelectItem value="" disabled>No processes available</SelectItem>
-                                )}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                              {isPreviewLoading ? "Loading..." : "Preview Questions"}
+                            </Button>
+                            <Button type="submit">Create Template</Button>
+                          </div>
+                        </form>
+                      </Form>
 
-                      <FormField
-                        control={templateForm.control}
-                        name="name"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Template Name</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Enter template name" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={templateForm.control}
-                        name="description"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Description (Optional)</FormLabel>
-                            <FormControl>
-                              <Textarea placeholder="Enter template description" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={templateForm.control}
-                        name="timeLimit"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Time Limit (minutes)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                min={1}
-                                placeholder="Enter time limit"
-                                {...field}
-                                onChange={(e) => field.onChange(parseInt(e.target.value))}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={templateForm.control}
-                        name="questionCount"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Number of Questions</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                min={1}
-                                placeholder="Enter number of questions"
-                                {...field}
-                                onChange={(e) => field.onChange(parseInt(e.target.value))}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={templateForm.control}
-                        name="passingScore"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Passing Score (%)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                min={0}
-                                max={100}
-                                placeholder="Enter passing score"
-                                {...field}
-                                onChange={(e) => field.onChange(parseInt(e.target.value))}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <div className="flex flex-col gap-4">
-                        <FormField
-                          control={templateForm.control}
-                          name="shuffleQuestions"
-                          render={({ field }) => (
-                            <div className="flex items-center justify-between">
-                              <Label htmlFor="shuffle-questions">Shuffle Questions</Label>
-                              <Switch
-                                id="shuffle-questions"
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </div>
-                          )}
-                        />
-
-                        <FormField
-                          control={templateForm.control}
-                          name="shuffleOptions"
-                          render={({ field }) => (
-                            <div className="flex items-center justify-between">
-                              <Label htmlFor="shuffle-options">Shuffle Answer Options</Label>
-                              <Switch
-                                id="shuffle-options"
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </div>
-                          )}
-                        />
-                      </div>
-
-                      <div className="space-y-4">
-                        <h4 className="font-medium">Question Distribution</h4>
-
-                        {/* Category Distribution */}
-                        <div className="space-y-2">
-                          <Label>Category Distribution</Label>
-                          <div className="grid grid-cols-2 gap-2">
-                            {Array.from(categories).map((category) => (
-                              <div key={category} className="flex items-center gap-2">
-                                <Label>{category}</Label>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  placeholder="Count"
-                                  onChange={(e) => {
-                                    const value = parseInt(e.target.value);
-                                    const current = templateForm.getValues('categoryDistribution') || {};
-                                    if (value > 0) {
-                                      templateForm.setValue('categoryDistribution', {
-                                        ...current,
-                                        [category]: value
-                                      });
-                                    } else {
-                                      const { [category]: _, ...rest } = current;
-                                      templateForm.setValue('categoryDistribution', rest);
-                                    }
-                                  }}
-                                />
-                              </div>
+                      {/* Preview Questions */}
+                      {previewQuestions.length > 0 && (
+                        <div className="mt-4 space-y-2">
+                          <h4 className="font-medium">Preview Selected Questions</h4>
+                          <div className="max-h-[300px] overflow-y-auto space-y-2">
+                            {previewQuestions.map((question) => (
+                              <Card key={question.id} className="p-2">
+                                <div className="flex justify-between items-start">
+                                  <p className="text-sm">{question.question}</p>
+                                  <div className="flex gap-1">
+                                    <Badge variant="outline">Level {question.difficultyLevel}</Badge>
+                                    <Badge variant="outline">{question.category}</Badge>
+                                  </div>
+                                </div>
+                              </Card>
                             ))}
                           </div>
                         </div>
+                      )}
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </div>
 
-                        {/* Difficulty Distribution */}
-                        <div className="space-y-2">
-                          <Label>Difficulty Distribution</Label>
-                          <div className="grid grid-cols-2 gap-2">
-                            {difficulties.map((level) => (
-                              <div key={level} className="flex items-center gap-2">
-                                <Label>Level {level}</Label>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  placeholder="Count"
-                                  onChange={(e) => {
-                                    const value = parseInt(e.target.value);
-                                    const current = templateForm.getValues('difficultyDistribution') || {};
-                                    if (value > 0) {
-                                      templateForm.setValue('difficultyDistribution', {
-                                        ...current,
-                                        [level]: value
-                                      });
-                                    } else {
-                                      const { [level]: _, ...rest } = current;
-                                      templateForm.setValue('difficultyDistribution', rest);
-                                    }
-                                  }}
-                                />
-                              </div>
-                            ))}
+              {/* Template List */}
+              {templatesLoading ? (
+                <p>Loading templates...</p>
+              ) : quizTemplates.length === 0 ? (
+                <p>No quiz templates found for the selected process.</p>
+              ) : (
+                <div className="grid gap-4">
+                  {quizTemplates.map((template: QuizTemplate) => (
+                    <Card key={template.id} className="p-4">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="text-lg font-medium">{template.name}</h3>
+                          <p className="text-sm text-muted-foreground">{template.description}</p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <Badge variant="outline">
+                              Time: {template.timeLimit} min
+                            </Badge>
+                            <Badge variant="outline">
+                              Questions: {template.questionCount}
+                            </Badge>
+                            <Badge variant="outline">
+                              Pass: {template.passingScore}%
+                            </Badge>
+                            <Badge variant="outline">
+                              Process: {processes.find(p => p.id === template.processId)?.name || 'Unknown'}
+                            </Badge>
                           </div>
                         </div>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm">
+                            <Pencil className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                          <Button variant="outline" size="sm" className="text-red-500 hover:text-red-600">
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Delete
+                          </Button>
+                        </div>
                       </div>
-
-                      <div className="flex justify-between gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            const data = templateForm.getValues();
-                            previewRandomQuestions(data);
-                          }}
-                          disabled={isPreviewLoading}
-                        >
-                          {isPreviewLoading ? "Loading..." : "Preview Questions"}
-                        </Button>
-                        <Button type="submit">Create Template</Button>
-                      </div>
-                    </form>
-                  </Form>
-
-                  {/* Preview Questions */}
-                  {previewQuestions.length > 0 && (
-                    <div className="mt-4 space-y-2">
-                      <h4 className="font-medium">Preview Selected Questions</h4>
-                      <div className="max-h-[300px] overflow-y-auto space-y-2">
-                        {previewQuestions.map((question) => (
-                          <Card key={question.id} className="p-2">
-                            <div className="flex justify-between items-start">
-                              <p className="text-sm">{question.question}</p>
-                              <div className="flex gap-1">
-                                <Badge variant="outline">Level {question.difficultyLevel}</Badge>
-                                <Badge variant="outline">{question.category}</Badge>
-                              </div>
-                            </div>
-                          </Card>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </DialogContent>
-              </Dialog>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
-
           </Card>
         </TabsContent>
       </Tabs>
-
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deletingQuestionId !== null} onOpenChange={(open) => !open && setDeletingQuestionId(null)}>
         <AlertDialogContent>
