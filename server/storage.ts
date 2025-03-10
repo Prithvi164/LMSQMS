@@ -66,7 +66,7 @@ export interface IStorage {
 
   // Organization settings operations
   createProcess(process: InsertOrganizationProcess): Promise<OrganizationProcess>;
-  listProcesses(organizationId: number): Promise<OrganizationProcess[]>;
+  listProcesses(organizationId: number, name?: string): Promise<OrganizationProcess[]>;
 
   // Role Permissions operations
   listRolePermissions(organizationId: number): Promise<RolePermission[]>;
@@ -440,10 +440,11 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async listProcesses(organizationId: number): Promise<OrganizationProcess[]> {
+  async listProcesses(organizationId: number, name?: string): Promise<OrganizationProcess[]> {
     try {
-      console.log(`Fetching processes for organization ${organizationId}`);
-      const processes = await db
+      console.log(`Fetching processes for organization ${organizationId}${name ? ` with name filter: ${name}` : ''}`);
+
+      let query = db
         .select({
           id: organizationProcesses.id,
           name: organizationProcesses.name,
@@ -459,7 +460,13 @@ export class DatabaseStorage implements IStorage {
           organizationLineOfBusinesses,
           eq(organizationProcesses.lineOfBusinessId, organizationLineOfBusinesses.id)
         )
-        .where(eq(organizationProcesses.organizationId, organizationId)) as OrganizationProcess[];
+        .where(eq(organizationProcesses.organizationId, organizationId));
+
+      if (name) {
+        query = query.where(sql`lower(${organizationProcesses.name}) like ${`%${name.toLowerCase()}%`}`);
+      }
+
+      const processes = await query as OrganizationProcess[];
 
       console.log(`Found ${processes.length} processes with line of business details`);
       return processes;
@@ -1765,28 +1772,15 @@ export class DatabaseStorage implements IStorage {
   async listQuestions(organizationId: number): Promise<Question[]> {
     try {
       console.log(`Fetching all questions for organization ${organizationId}`);
+
       const questions = await db
-        .select({
-          id: questions.id,
-          question: questions.question,
-          type: questions.type,
-          options: questions.options,
-          correctAnswer: questions.correctAnswer,
-          explanation: questions.explanation,
-          difficultyLevel: questions.difficultyLevel,
-          category: questions.category,
-          organizationId: questions.organizationId,
-          createdBy: questions.createdBy,
-          processId: questions.processId,
-          createdAt: questions.createdAt,
-          updatedAt: questions.updatedAt
-        })
+        .select()
         .from(questions)
         .where(eq(questions.organizationId, organizationId)) as Question[];
 
       console.log(`Found ${questions.length} questions`);
       return questions;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching questions:', error);
       throw new Error(`Failed to fetch questions: ${error.message}`);
     }

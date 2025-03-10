@@ -159,8 +159,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      console.log('Fetching processes for organization:', req.user.organizationId);
-      const processes = await storage.listProcesses(req.user.organizationId);
+      const name = req.query.name as string | undefined;
+      console.log(`Fetching processes for organization: ${req.user.organizationId}${name ? " with name filter: " + name : ""}`);
+      
+      const processes = await storage.listProcesses(req.user.organizationId, name);
       console.log(`Retrieved ${processes.length} processes`);
       res.json(processes);
     } catch (error: any) {
