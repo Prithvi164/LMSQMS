@@ -826,13 +826,14 @@ export const quizResponsesRelations = relations(quizResponses, ({ one }) => ({
   }),
 }));
 
-// Add batch history event type enum after other enums
+// Fix the batchHistoryEventTypeEnum syntax error
 export const batchHistoryEventTypeEnum = pgEnum('batch_history_event_type', [
   'phase_change',
   'status_update',
   'milestone',
   'note'
 ]);
+
 // Add batch history table after batch tables
 export const batchHistory = pgTable("batch_history", {
   id: serial("id").primaryKey(),
@@ -1051,21 +1052,29 @@ export type InsertBatchPhaseChangeRequest = z.infer<typeof insertBatchPhaseChang
 
 // Add quiz status enum
 
+
 // Update quizAttempts to use the enum
+
 
 // Add insert schemas for quiz attempts and responses
 
+
 // Remove duplicate relations and consolidate export types
 
-// Export types
-export type InsertQuestion = z.infer<typeof insertQuestionSchema>;
-export type InsertQuizTemplate = z.infer<typeof insertQuizTemplateSchema>;
-export type InsertQuizAttempt = z.infer<typeof insertQuizAttemptSchema>;
-export type InsertQuizResponse = z.infer<typeof insertQuizResponseSchema>;
 
-// Consolidate all exports (remove duplicates)
+// Export types
 export type {
-  // Existing types
+  Question,
+  QuizTemplate,
+  QuizAttempt,
+  QuizResponse,
+  InsertQuestion,
+  InsertQuizTemplate,
+  InsertQuizAttempt,
+  InsertQuizResponse,
+} from './types';
+
+export type {
   Organization,
   OrganizationProcess,
   OrganizationLocation,
@@ -1087,14 +1096,5 @@ export type {
   InsertBatchPhaseChangeRequest,
   InsertAttendance,
   BatchHistory,
-  InsertBatchHistory,
-  // Quiz related types
-  Question,
-  QuizTemplate,
-  QuizAttempt,
-  QuizResponse,
-  InsertQuestion,
-  InsertQuizTemplate,
-  InsertQuizAttempt,
-  InsertQuizResponse,
+  InsertBatchHistory
 };
