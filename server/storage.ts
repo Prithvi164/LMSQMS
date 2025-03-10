@@ -950,7 +950,7 @@ export class DatabaseStorage implements IStorage {
       const existingLocations = await db
         .select()
         .from(organizationLocations)
-        .where(eq(organizationLocations.organizationId, location.organizationId))
+.where(eq(organizationLocations.organizationId, location.organizationId))
         .where(eq(organizationLocations.name, location.name));
 
       if (existingLocations.length > 0) {
@@ -1994,10 +1994,13 @@ export class DatabaseStorage implements IStorage {
         processId: template.processId
       });
 
-      // Ensure we have an array of numbers
+      // Ensure we have an array of numbers and format it for PostgreSQL
       const questionIds = (Array.isArray(template.questions) ? template.questions : [])
         .map(q => Number(q))
         .filter(id => !isNaN(id));
+
+      // Format the array using PostgreSQL syntax
+      const formattedQuestions = `{${questionIds.join(',')}}`;
 
       const [newTemplate] = await db
         .insert(quizTemplates)
@@ -2018,7 +2021,7 @@ export class DatabaseStorage implements IStorage {
           processId: template.processId,
           organizationId: template.organizationId,
           createdBy: template.createdBy,
-          questions: questionIds,
+          questions: formattedQuestions,
           createdAt: new Date(),
           updatedAt: new Date()
         })
