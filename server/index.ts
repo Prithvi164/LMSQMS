@@ -82,10 +82,15 @@ app.get("/health", (_req, res) => {
       serveStatic(app);
     }
 
-    const port = 5000; // Changed from 5001 to 5000
-    server.listen(port, () => {
+    // ALWAYS use port 5000 and bind to 0.0.0.0
+    const port = 5000;
+    const host = '0.0.0.0';
+
+    log(`Attempting to start server on ${host}:${port}`);
+
+    server.listen(port, host, () => {
       log(`Server running in ${app.get("env")} mode`);
-      log(`API and client being served on port ${port}`);
+      log(`API and client being served on http://${host}:${port}`);
     }).on('error', (error: any) => {
       if (error.code === 'EADDRINUSE') {
         log(`Port ${port} is already in use. Please try a different port.`);
