@@ -92,18 +92,19 @@ export function QuizManagement() {
     enabled: !!user?.organizationId
   });
 
-  // Update questions query to use processId filter
+  // Update the questions query with detailed logging
   const { data: questions = [], isLoading: questionsLoading } = useQuery<QuestionWithProcess[]>({
     queryKey: ['/api/questions', selectedProcessId],
     queryFn: async () => {
       try {
-        // Build URL with proper query parameters
         const url = new URL('/api/questions', window.location.origin);
 
-        // Only add processId parameter if a specific process is selected
         if (selectedProcessId) {
           url.searchParams.append('processId', selectedProcessId.toString());
-          console.log('Fetching questions for process:', selectedProcessId);
+          console.log('[Quiz Management] Fetching questions with URL:', url.toString());
+          console.log('[Quiz Management] Selected Process ID:', selectedProcessId);
+        } else {
+          console.log('[Quiz Management] Fetching all questions (no process filter)');
         }
 
         const response = await fetch(url);
@@ -112,15 +113,15 @@ export function QuizManagement() {
         }
 
         const data = await response.json();
-        console.log('API Response:', {
+        console.log('[Quiz Management] API Response:', {
           selectedProcess: selectedProcessId,
           questionCount: data.length,
-          questions: data
+          questions: data.map(q => ({ id: q.id, processId: q.processId }))
         });
 
         return data;
       } catch (error) {
-        console.error('Error fetching questions:', error);
+        console.error('[Quiz Management] Error fetching questions:', error);
         throw error;
       }
     },
@@ -297,6 +298,20 @@ export function QuizManagement() {
   };
 
 
+  // Update the process selection handler
+  const handleProcessChange = (value: string) => {
+    console.log('[Quiz Management] Process selection changed:', {
+      newValue: value,
+      parsedId: value === 'all' ? null : parseInt(value)
+    });
+
+    filterForm.setValue('processId', value);
+    // Force refetch questions with new process filter
+    queryClient.invalidateQueries({ 
+      queryKey: ['/api/questions', value === 'all' ? null : parseInt(value)]
+    });
+  };
+
   return (
     <div className="container mx-auto py-6">
       <h1 className="text-2xl font-bold mb-6">Quiz Management</h1>
@@ -321,13 +336,8 @@ export function QuizManagement() {
                         <FormItem>
                           <FormLabel>Filter by Process</FormLabel>
                           <Select
-                            onValueChange={(value) => {
-                              console.log('Selected process:', value);
-                              field.onChange(value);
-                              // Force refetch questions when process changes
-                              queryClient.invalidateQueries({ queryKey: ['/api/questions', value === 'all' ? null : parseInt(value)] });
-                            }}
-                            value={field.value}
+                            onValueChange={handleProcessChange}
+                            value={filterForm.watch('processId')}
                           >
                             <FormControl>
                               <SelectTrigger>
