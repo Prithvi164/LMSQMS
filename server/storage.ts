@@ -38,7 +38,9 @@ import {
   questions,
   type Question,
   type InsertQuestion,
-  quizTemplates, type QuizTemplate, type InsertQuizTemplate
+  quizTemplates,
+  type QuizTemplate,
+  type InsertQuizTemplate
 } from "@shared/schema";
 
 export interface IStorage {
@@ -51,6 +53,13 @@ export interface IStorage {
   updateUserPassword(email: string, hashedPassword: string): Promise<void>;
   deleteUser(id: number): Promise<void>;
   listUsers(organizationId: number): Promise<User[]>;
+
+  // Quiz template operations
+  createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate>;
+  listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]>;
+  deleteQuizTemplate(id: number): Promise<void>;
+  getQuizTemplate(id: number): Promise<QuizTemplate | undefined>;
+  updateQuizTemplate(id: number, template: Partial<InsertQuizTemplate>): Promise<QuizTemplate>;
 
   // User Process operations
   assignProcessesToUser(processes: InsertUserProcess[]): Promise<UserProcess[]>;
@@ -179,17 +188,7 @@ export interface IStorage {
       processId?: number;
     }
   ): Promise<Question[]>;
-
-  // Quiz template operations
-  createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate>;
-  listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]>;
-  deleteQuizTemplate(id: number): Promise<void>;
-  getQuizTemplate(id: number): Promise<QuizTemplate | undefined>;
-  updateQuizTemplate(id: number, template: Partial<InsertQuizTemplate>): Promise<QuizTemplate>;
-
-  // Add new method for process-based question filtering
   listQuestionsByProcess(organizationId: number, processId: number): Promise<Question[]>;
-
   updateQuestion(id: number, question: Partial<Question>): Promise<Question>;
   deleteQuestion(id: number): Promise<void>;
   getQuestionById(id: number): Promise<Question | undefined>;
@@ -943,7 +942,7 @@ export class DatabaseStorage implements IStorage {
         .where(eq(organizationLocations.organizationId, location.organizationId))
         .where(eq(organizationLocations.name, location.name));
 
-      ```typescript
+
       if (existingLocations.length > 0) {
         throw new Error('A location with this name already exists in this organization');
       }
@@ -1082,12 +1081,6 @@ export class DatabaseStorage implements IStorage {
         .where(eq(organizationBatches.organizationId, organizationId))
         .orderBy(desc(organizationBatches.createdAt));
 
-      // Debug log to verify the data      console.log('Raw batch data:', batches.map(b => ({
-      //      //   id: b.id,
-      //   name: b.name,
-      //   category: b.batchCategory,
-      //   rawCategory: JSON.stringify(b.batchCategory)
-      // })));
 
       return batches as OrganizationBatch[];
     } catch (error) {
@@ -2071,13 +2064,11 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Updating quiz template with ID: ${id}`, template);
 
-      // Get the existing template to verify it exists
       const existingTemplate = await this.getQuizTemplate(id);
       if (!existingTemplate) {
         throw new Error('Quiz template not found');
       }
 
-      // Check if name is being updated and if it would conflict
       if (template.name && template.name !== existingTemplate.name) {
         const nameExists = await db
           .select()
@@ -2107,7 +2098,6 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-
 }
 
 export const storage = new DatabaseStorage();
