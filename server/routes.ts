@@ -16,9 +16,20 @@ import * as XLSX from 'xlsx';
 import { db } from './db';
 import { join } from 'path';
 import express from 'express';
-import { eq, and } from "drizzle-orm";
-import { toIST, fromIST, formatIST, toUTCStorage, formatISTDateOnly } from './utils/timezone';
+import { eq, and, sql } from "drizzle-orm";
+import { toIST, formatIST, toUTCStorage, formatISTDateOnly } from './utils/timezone';
 import { attendance } from "@shared/schema";
+import type { User } from "@shared/schema";
+
+// Type definitions for user updates
+type AllowedSelfUpdateFields = Pick<User, "fullName" | "email" | "phoneNumber" | "locationId" | "dateOfBirth" | "education">;
+type AllowedUpdateFields = {
+  fullName?: string;
+  phoneNumber?: string;
+  locationId?: number;
+  dateOfBirth?: string;
+  education?: string;
+};
 
 const scryptAsync = promisify(scrypt);
 
@@ -50,7 +61,8 @@ const upload = multer({
     if (file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
       cb(null, true);
     } else {
-      cb(new Error('Only .xlsx files are allowed'), false);
+      // Pass null as first argument since the second argument false indicates reject
+      cb(null, false);
     }
   },
 });
@@ -370,10 +382,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           'dateOfBirth',
           'education'
         ];
+
         const filteredUpdateData = Object.keys(updateData)
           .filter(key => allowedSelfUpdateFields.includes(key))
-          .reduce((obj, key) => {
-            obj[key] = updateData[key];
+          .reduce<Partial<AllowedSelfUpdateFields>>((obj, key) => {
+            obj[key as keyof AllowedSelfUpdateFields] = updateData[key];
             return obj;
           }, {});
 
@@ -405,8 +418,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allowedFields = ['fullName', 'phoneNumber', 'locationId', 'dateOfBirth', 'education'];
       const filteredUpdateData = Object.keys(updateData)
         .filter(key => allowedFields.includes(key))
-        .reduce((obj, key) => {
-          obj[key] = updateData[key];
+        .reduce<Partial<AllowedUpdateFields>>((obj, key) => {
+          obj[key as keyof AllowedUpdateFields] = updateData[key] as any;
           return obj;
         }, {});
 
@@ -612,23 +625,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Validate question type
       const validTypes = ["multiple_choice", "true_false", "short_answer"] as const;
-      if (!validTypes.includes(questionType)) {
+      type QuestionType = typeof validTypes[number];
+      
+      if (!validTypes.includes(questionType as QuestionType)) {
         return res.status(400).json({
           message: `Invalid question type. Must be one of: ${validTypes.join(", ")}`
         });
       }
 
+      // Convert processId to number and validate
+      const processIdNum = Number(processId);
+      if (isNaN(processIdNum)) {
+        return res.status(400).json({
+          message: "Invalid process ID format"
+        });
+      }
+
       // Verify the process exists and belongs to the organization
-      const process = await db
+      const processes = await db
         .select()
         .from(organizationProcesses)
         .where(and(
-          eq(organizationProcesses.id, processId),
+          eq(organizationProcesses.id, processIdNum),
           eq(organizationProcesses.organizationId, req.user.organizationId)
         ))
         .limit(1);
 
-      if (!process[0]) {
+      if (processes.length === 0) {
         return res.status(400).json({
           message: "Invalid process ID or process does not belong to your organization."
         });
@@ -637,17 +660,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create question data with proper type checking
       const questionData = {
         question: String(questionText),
-        type: questionType,
+        type: questionType as QuestionType,
         options: questionType === 'multiple_choice' ? 
           (Array.isArray(questionOptions) ? questionOptions.map(String) : []) : 
           [],
         correctAnswer: String(correctAnswer),
-        explanation: explanation ? String(explanation) : null,
+        explanation: explanation ? String(explanation) : undefined,
         difficultyLevel: Number(difficultyLevel),
         category: String(category),
         createdBy: req.user.id,
         organizationId: req.user.organizationId,
-        processId: Number(processId) // Use the processId from request body
+        processId: processIdNum
       };
 
       // Validate numeric fields
