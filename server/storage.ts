@@ -1949,7 +1949,7 @@ export class DatabaseStorage implements IStorage {
       console.log(`Attempting to delete question with ID: ${id}`);
 
       const result = await db
-                .delete(questions)
+        .delete(questions)
         .where(eq(questions.id, id))
         .returning();
 
@@ -1990,22 +1990,12 @@ export class DatabaseStorage implements IStorage {
       console.log('Creating quiz template:', {
         name: template.name,
         questionCount: template.questionCount,
-        questions: template.questions?.length || 0
+        questions: template.questions?.length || 0,
+        processId: template.processId
       });
 
-      // Ensure questions is an array
-      if (!Array.isArray(template.questions)) {
-        throw new Error('Questions must be an array');
-      }
-
-      // Convert distributions to JSONB if they exist
-      const categoryDist = template.categoryDistribution
-        ? sql`${JSON.stringify(template.categoryDistribution)}::jsonb`
-        : null;
-
-      const difficultyDist = template.difficultyDistribution
-        ? sql`${JSON.stringify(template.difficultyDistribution)}::jsonb`
-        : null;
+      // Prepare the questions array
+      const questions = Array.isArray(template.questions) ? template.questions : [];
 
       const [newTemplate] = await db
         .insert(quizTemplates)
@@ -2017,12 +2007,16 @@ export class DatabaseStorage implements IStorage {
           shuffleQuestions: template.shuffleQuestions ?? false,
           shuffleOptions: template.shuffleOptions ?? false,
           questionCount: template.questionCount,
-          categoryDistribution: categoryDist,
-          difficultyDistribution: difficultyDist,
+          categoryDistribution: template.categoryDistribution
+            ? sql`${JSON.stringify(template.categoryDistribution)}::jsonb`
+            : null,
+          difficultyDistribution: template.difficultyDistribution
+            ? sql`${JSON.stringify(template.difficultyDistribution)}::jsonb`
+            : null,
           processId: template.processId,
           organizationId: template.organizationId,
           createdBy: template.createdBy,
-          questions: template.questions,
+          questions: sql`array[${questions}]::integer[]`,
           createdAt: new Date(),
           updatedAt: new Date()
         })
@@ -2035,7 +2029,8 @@ export class DatabaseStorage implements IStorage {
       console.log('Successfully created quiz template:', {
         id: newTemplate.id,
         name: newTemplate.name,
-        questionCount: newTemplate.questionCount
+        questionCount: newTemplate.questionCount,
+        questionsLength: questions.length
       });
 
       return newTemplate;

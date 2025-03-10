@@ -876,7 +876,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add quiz template routes
+  // Create quiz template route
   app.post("/api/quiz-templates", async (req, res) => {
     if (!req.user || !req.user.organizationId) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -885,43 +885,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('Creating quiz template with data:', req.body);
 
-      // Initialize and validate questions array
+      // Ensure questions array exists and is properly formatted
       const questions = Array.isArray(req.body.questions) ? req.body.questions : [];
-      if (!questions.length) {
-        return res.status(400).json({
-          message: "At least one question is required for the quiz template"
-        });
-      }
-
-      // Define question type
-      type QuizQuestion = {
-        id: number;
-        [key: string]: unknown;
-      };
-
-      // Validate each question has an ID
-      const questionIds = questions.map((q: QuizQuestion) => {
-        if (typeof q?.id !== 'number') {
-          throw new Error('Invalid question format - each question must have a numeric ID');
-        }
-        return q.id;
-      });
-
-      // Parse and validate distributions
-      let categoryDistribution: Record<string, number> | undefined;
-      let difficultyDistribution: Record<string, number> | undefined;
+      
+      // Parse distributions if they exist
+      let categoryDistribution = undefined;
+      let difficultyDistribution = undefined;
 
       if (req.body.categoryDistribution) {
         try {
-          const parsed = typeof req.body.categoryDistribution === 'string' 
+          categoryDistribution = typeof req.body.categoryDistribution === 'string'
             ? JSON.parse(req.body.categoryDistribution)
             : req.body.categoryDistribution;
-            
-          if (typeof parsed === 'object' && parsed !== null) {
-            categoryDistribution = parsed as Record<string, number>;
-          } else {
-            throw new Error('Category distribution must be an object');
-          }
         } catch (e) {
           return res.status(400).json({
             message: "Invalid category distribution format"
@@ -931,15 +906,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (req.body.difficultyDistribution) {
         try {
-          const parsed = typeof req.body.difficultyDistribution === 'string'
+          difficultyDistribution = typeof req.body.difficultyDistribution === 'string'
             ? JSON.parse(req.body.difficultyDistribution)
             : req.body.difficultyDistribution;
-            
-          if (typeof parsed === 'object' && parsed !== null) {
-            difficultyDistribution = parsed as Record<string, number>;
-          } else {
-            throw new Error('Difficulty distribution must be an object');
-          }
         } catch (e) {
           return res.status(400).json({
             message: "Invalid difficulty distribution format"
@@ -947,44 +916,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Prepare template data with proper types and defaults
+      // Prepare template data 
       const templateData = {
-        name: String(req.body.name || ''),
-        description: String(req.body.description || ''),
-        timeLimit: Number(req.body.timeLimit || 0),
-        passingScore: Number(req.body.passingScore || 0),
-        processId: Number(req.body.processId || 0),
-        questions: questionIds,
-        organizationId: req.user.organizationId,
-        createdBy: req.user.id,
+        name: req.body.name,
+        description: req.body.description || '',
+        timeLimit: Number(req.body.timeLimit),
+        passingScore: Number(req.body.passingScore),
         shuffleQuestions: Boolean(req.body.shuffleQuestions),
         shuffleOptions: Boolean(req.body.shuffleOptions),
-        questionCount: questionIds.length,
-        categoryDistribution: categoryDistribution || undefined,
-        difficultyDistribution: difficultyDistribution || undefined,
-        status: 'in_progress' as const
+        questionCount: Number(req.body.questionCount),
+        categoryDistribution,
+        difficultyDistribution,
+        processId: Number(req.body.processId),
+        organizationId: req.user.organizationId,
+        createdBy: req.user.id,
+        questions: questions,
+        status: 'active'
       };
 
       // Validate required fields
-      if (!templateData.name || !templateData.timeLimit || !templateData.passingScore || !templateData.processId) {
+      if (!templateData.name || !templateData.timeLimit || !templateData.passingScore) {
         return res.status(400).json({
-          message: "Required fields missing or invalid: name, timeLimit, passingScore and processId"
+          message: "Required fields missing: name, timeLimit, and passingScore"
         });
       }
 
-      // Create the template
+      // Create the template 
       const newTemplate = await storage.createQuizTemplate(templateData);
       console.log('Successfully created quiz template:', newTemplate);
 
       res.status(201).json(newTemplate);
     } catch (error: any) {
-      console.error("Error creating quiz template:", error);
-      res.status(400).json({ 
-        message: error.message || "Failed to create quiz template",
-        details: error.stack
+      console.error('Error creating quiz template:', error);
+      res.status(400).json({
+        message: error.message || "Failed to create quiz template"
       });
     }
   });
+
+
 
   app.get("/api/quiz-templates", async (req, res) => {
     if (!req.user || !req.user.organizationId) {

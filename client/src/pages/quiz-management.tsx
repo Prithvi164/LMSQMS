@@ -315,7 +315,7 @@ export function QuizManagement() {
           template: {
             ...data,
             organizationId: user.organizationId,
-            questions: [], // Initialize with empty array for now
+            questions: previewQuestions.map(q => q.id), // Use preview questions
           },
         });
       } else {
@@ -325,7 +325,7 @@ export function QuizManagement() {
           organizationId: user.organizationId,
           createdBy: user.id,
           processId: data.processId,
-          questions: [] // Initialize with empty array for now
+          questions: previewQuestions.map(q => q.id) // Use preview questions
         };
 
         const response = await fetch('/api/quiz-templates', {
