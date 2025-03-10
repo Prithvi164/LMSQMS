@@ -947,8 +947,7 @@ export class DatabaseStorage implements IStorage {
       console.log('Creating location with data:', location);
 
       // Check if location with same name exists in the organization
-      const existingLocations = await db
-        .select()
+      const existingLocations = await db        .select()
         .from(organizationLocations)
         .where(eq(organizationLocations.organizationId, location.organizationId))
         .where(eq(organizationLocations.name, location.name));
@@ -1825,117 +1824,78 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log('Getting random questions with options:', options);
 
-      // Base query to get questions from the organization
-      let questionsQuery = db
+      // Base query for questions
+      let query = db
         .select()
         .from(questions)
         .where(eq(questions.organizationId, organizationId));
 
-      // Add process filter if specified
       if (options.processId) {
-        questionsQuery = questionsQuery.where(eq(questions.processId, options.processId));
+        query = query.where(eq(questions.processId, options.processId));
       }
 
-      // Get all available questions first
-      const availableQuestions = await questionsQuery as Question[];
+      // First get all available questions
+      const availableQuestions = await query as Question[];
       console.log(`Found ${availableQuestions.length} available questions`);
 
-      // If no questions available, return empty array
-      if (!availableQuestions.length) {
+      if (availableQuestions.length === 0) {
         return [];
+      }
+
+      // If no distribution specified, randomly select required number of questions
+      if (!options.categoryDistribution && !options.difficultyDistribution) {
+        const shuffled = [...availableQuestions].sort(() => Math.random() - 0.5);
+        return shuffled.slice(0, options.count);
       }
 
       let selectedQuestions: Question[] = [];
 
+      // Handle category distribution
       if (options.categoryDistribution) {
-        // Select questions based on category distribution
         for (const [category, count] of Object.entries(options.categoryDistribution)) {
-          const categoryQuestions = availableQuestions
-            .filter(q => q.category === category)
-            .sort(() => Math.random() - 0.5)
-            .slice(0, count);
-          selectedQuestions.push(...categoryQuestions);
+          const categoryQuestions = availableQuestions.filter(q => q.category === category);
+          const shuffled = [...categoryQuestions].sort(() => Math.random() - 0.5);
+          selectedQuestions.push(...shuffled.slice(0, count));
         }
-      } else if (options.difficultyDistribution) {
-        // Select questions based on difficulty distribution
-        for (const [difficulty, count] of Object.entries(options.difficultyDistribution)) {
-          const difficultyQuestions = availableQuestions
-            .filter(q => q.difficultyLevel === parseInt(difficulty))
-            .sort(() => Math.random() - 0.5)
-            .slice(0, count);
-          selectedQuestions.push(...difficultyQuestions);
-        }
-      } else {
-        // Simple random selection
-        selectedQuestions = availableQuestions
-          .sort(() => Math.random() - 0.5)
-          .slice(0, options.count);
       }
 
-      // Ensure we don't exceed requested count
-      selectedQuestions = selectedQuestions.slice(0, options.count);
+      // Handle difficulty distribution
+      if (options.difficultyDistribution) {
+        const remainingCount = options.count - selectedQuestions.length;
+        if (remainingCount > 0) {
+          for (const [difficulty, count] of Object.entries(options.difficultyDistribution)) {
+            const difficultyQuestions = availableQuestions.filter(
+              q => q.difficultyLevel === parseInt(difficulty) && 
+              !selectedQuestions.find(selected => selected.id === q.id)
+            );
+            const shuffled = [...difficultyQuestions].sort(() => Math.random() - 0.5);
+            selectedQuestions.push(...shuffled.slice(0, count));
+          }
+        }
+      }
+
+      // If we still need more questions to meet the count
+      const remainingCount = options.count - selectedQuestions.length;
+      if (remainingCount > 0) {
+        const remainingQuestions = availableQuestions.filter(
+          q => !selectedQuestions.find(selected => selected.id === q.id)
+        );
+        const shuffled = [...remainingQuestions].sort(() => Math.random() - 0.5);
+        selectedQuestions.push(...shuffled.slice(0, remainingCount));
+      }
 
       console.log(`Selected ${selectedQuestions.length} random questions`);
+
+      // If we couldn't get enough questions, return empty array to trigger error
+      if (selectedQuestions.length < options.count) {
+        console.log('Not enough questions available matching the criteria');
+        return [];
+      }
+
       return selectedQuestions;
     } catch (error) {
       console.error('Error getting random questions:', error);
-      throw new Error('Failed to get random questions');
-    }
-  }
-  async createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate> {
-    try {
-      console.log('Creating quiz template:', {
-        ...template,
-        questions: template.questions?.length || 0
-      });
-
-      const [newTemplate] = await db
-        .insert(quizTemplates)
-        .values({
-          ...template,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-        .returning() as QuizTemplate[];
-
-      if (!newTemplate) {
-        throw new Error('Failed to create quiz template');
-      }
-
-      console.log('Successfully created quiz template:', {
-        id: newTemplate.id,
-        name: newTemplate.name,
-        questionCount: newTemplate.questionCount
-      });
-
-      return newTemplate;
-    } catch (error) {
-      console.error('Error creating quiz template:', error);
-      throw error instanceof Error ? error : new Error('Failed to create quiz template');
-    }
-  }
-
-  async listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]> {
-    try {
-      console.log(`Fetching quiz templates for organization ${organizationId}${processId ? ` and process ${processId}` : ''}`);
-
-      let query = db
-        .select()
-        .from(quizTemplates)
-        .where(eq(quizTemplates.organizationId, organizationId));
-
-      // Add process filter if processId is provided
-      if (processId !== undefined) {
-        query = query.where(eq(quizTemplates.processId, processId));
-      }
-
-      const templates = await query as QuizTemplate[];
-
-      console.log(`Found ${templates.length} templates${processId ? ` for process ${processId}` : ''}`);
-      return templates;
-    } catch (error) {
-      console.error('Error fetching quiz templates:', error);
-      throw new Error(`Failed to fetch quiz templates: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw error;
     }
   }
   async listQuestionsByProcess(organizationId: number, processId: number): Promise<Question[]> {

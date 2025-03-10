@@ -995,8 +995,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       if (questions.length < template.questionCount) {
-        return res.status(400).json({
-          message: "Not enough questions available to generate quiz"
+        const errorDetails = [];
+        if (template.categoryDistribution) {
+          errorDetails.push(`category distribution (${Object.entries(template.categoryDistribution).map(([cat, count]) => `${count} from ${cat}`).join(', ')})`);
+        }
+        if (template.difficultyDistribution) {
+          errorDetails.push(`difficulty distribution (${Object.entries(template.difficultyDistribution).map(([diff, count]) => `${count} with difficulty ${diff}`).join(', ')})`);
+        }
+        
+        return res.status(400).json({ 
+          message: "Not enough questions available to generate quiz",
+          details: `Need ${template.questionCount} questions matching: ${errorDetails.join(' and ')}`
         });
       }
 
