@@ -947,7 +947,8 @@ export class DatabaseStorage implements IStorage {
       console.log('Creating location with data:', location);
 
       // Check if location with same name exists in the organization
-      const existingLocations = await db        .select()
+      const existingLocations = await db
+        .select()
         .from(organizationLocations)
         .where(eq(organizationLocations.organizationId, location.organizationId))
         .where(eq(organizationLocations.name, location.name));
@@ -1864,8 +1865,8 @@ export class DatabaseStorage implements IStorage {
         if (remainingCount > 0) {
           for (const [difficulty, count] of Object.entries(options.difficultyDistribution)) {
             const difficultyQuestions = availableQuestions.filter(
-              q => q.difficultyLevel === parseInt(difficulty) && 
-              !selectedQuestions.find(selected => selected.id === q.id)
+              q => q.difficultyLevel === parseInt(difficulty) &&
+                !selectedQuestions.find(selected => selected.id === q.id)
             );
             const shuffled = [...difficultyQuestions].sort(() => Math.random() - 0.5);
             selectedQuestions.push(...shuffled.slice(0, count));
@@ -1948,7 +1949,7 @@ export class DatabaseStorage implements IStorage {
       console.log(`Attempting to delete question with ID: ${id}`);
 
       const result = await db
-        .delete(questions)
+                .delete(questions)
         .where(eq(questions.id, id))
         .returning();
 
@@ -1996,25 +1997,28 @@ export class DatabaseStorage implements IStorage {
         throw new Error('Missing required fields');
       }
 
+      // Convert arrays and objects to proper PostgreSQL format
+      const templateData = {
+        name: template.name,
+        description: template.description,
+        timeLimit: template.timeLimit,
+        passingScore: template.passingScore,
+        shuffleQuestions: template.shuffleQuestions ?? false,
+        shuffleOptions: template.shuffleOptions ?? false,
+        questionCount: template.questionCount,
+        categoryDistribution: template.categoryDistribution ? JSON.stringify(template.categoryDistribution) : null,
+        difficultyDistribution: template.difficultyDistribution ? JSON.stringify(template.difficultyDistribution) : null,
+        processId: template.processId,
+        organizationId: template.organizationId,
+        createdBy: template.createdBy,
+        questions: sql`array[${template.questions.map(q => sql`${q}`)}]::integer[]`,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
       const [newTemplate] = await db
         .insert(quizTemplates)
-        .values({
-          name: template.name,
-          description: template.description,
-          timeLimit: template.timeLimit,
-          passingScore: template.passingScore,
-          shuffleQuestions: template.shuffleQuestions ?? false,
-          shuffleOptions: template.shuffleOptions ?? false,
-          questionCount: template.questionCount,
-          categoryDistribution: template.categoryDistribution,
-          difficultyDistribution: template.difficultyDistribution,
-          processId: template.processId,
-          organizationId: template.organizationId,
-          createdBy: template.createdBy,
-          questions: template.questions || [],
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
+        .values(templateData)
         .returning() as QuizTemplate[];
 
       if (!newTemplate) {

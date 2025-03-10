@@ -885,8 +885,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('Creating quiz template with data:', req.body);
 
+      // Validate and parse questions array
+      if (!Array.isArray(req.body.questions)) {
+        return res.status(400).json({
+          message: "Questions must be an array"
+        });
+      }
+
+      // Parse and validate distributions
+      let categoryDistribution = null;
+      let difficultyDistribution = null;
+
+      if (req.body.categoryDistribution) {
+        try {
+          categoryDistribution = typeof req.body.categoryDistribution === 'string' 
+            ? JSON.parse(req.body.categoryDistribution)
+            : req.body.categoryDistribution;
+        } catch (e) {
+          return res.status(400).json({
+            message: "Invalid category distribution format"
+          });
+        }
+      }
+
+      if (req.body.difficultyDistribution) {
+        try {
+          difficultyDistribution = typeof req.body.difficultyDistribution === 'string'
+            ? JSON.parse(req.body.difficultyDistribution)
+            : req.body.difficultyDistribution;
+        } catch (e) {
+          return res.status(400).json({
+            message: "Invalid difficulty distribution format"
+          });
+        }
+      }
+
+      // Prepare template data
       const templateData = {
         ...req.body,
+        questions: req.body.questions,
+        categoryDistribution,
+        difficultyDistribution,
         organizationId: req.user.organizationId,
         createdBy: req.user.id
       };
