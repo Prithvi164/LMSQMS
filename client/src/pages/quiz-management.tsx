@@ -609,15 +609,15 @@ export function QuizManagement() {
                     />
                   </div>
                   <div className="flex items-end">
-                    <Dialog open={isAddQuestionOpen || editingQuestion !== null} onOpenChange={(open) => {
+                    <Dialog open={isAddQuestionOpen} onOpenChange={(open) => {
+                      setIsAddQuestionOpen(open);
                       if (!open) {
-                        setIsAddQuestionOpen(false);
                         setEditingQuestion(null);
                         questionForm.reset();
                       }
                     }}>
                       <DialogTrigger asChild>
-                        <Button>Add Question</Button>
+                        <Button onClick={() => setIsAddQuestionOpen(true)}>Add Question</Button>
                       </DialogTrigger>
                       <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
                         <DialogHeader>
