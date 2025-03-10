@@ -389,17 +389,25 @@ export function QuizManagement() {
         body: JSON.stringify(data.template),
       });
       if (!response.ok) {
-        throw new Error('Failed to update template');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update template');
       }
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/quiz-templates', selectedTemplateProcessId] });
+      // Invalidate all quiz template queries to ensure UI updates
+      queryClient.invalidateQueries({
+        queryKey: ['/api/quiz-templates']
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['/api/quiz-templates', selectedTemplateProcessId !== 'all' ? parseInt(selectedTemplateProcessId) : null]
+      });
       toast({
         title: "Success",
         description: "Quiz template updated successfully",
       });
       setEditingTemplate(null);
+      setIsAddTemplateOpen(false);
     },
     onError: (error: Error) => {
       toast({
@@ -953,7 +961,7 @@ export function QuizManagement() {
                                       ) : processes.length > 0 ? (
                                         processes.map((process) => (
                                           <SelectItem key={process.id} value={process.id.toString()}>
-                                            {process.name}
+                                                                           {process.name}
                                           </SelectItem>
                                         ))
                                       ) : (
@@ -1162,7 +1170,9 @@ export function QuizManagement() {
                               >
                                 {isPreviewLoading ? "Loading..." : "Preview Questions"}
                               </Button>
-                              <Button type="submit">Create Template</Button>
+                              <Button type="submit">
+                                {editingTemplate ? 'Update Template' : 'Create Template'}
+                              </Button>
                             </div>
                           </form>
 
