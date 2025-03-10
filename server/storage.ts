@@ -959,7 +959,7 @@ export class DatabaseStorage implements IStorage {
         throw new Error('Process not found');
       }
 
-      // If trainer is assigned, verify they exist and belong to the location
+      //      // If trainer is assigned, verify they exist and belong to the location
       if (batch.trainerId) {
         const trainer = await this.getUser(batch.trainerId);
         if (!trainer) {
@@ -1751,7 +1751,8 @@ export class DatabaseStorage implements IStorage {
 
   async listQuestions(organizationId: number): Promise<Question[]> {
     try {
-      console.log(`Fetching all questions for organization ${organizationId}`);
+      console.log('Fetching all questions for organization', organizationId);
+
       const questions = await db
         .select({
           id: questions.id,
@@ -1766,12 +1767,19 @@ export class DatabaseStorage implements IStorage {
           createdBy: questions.createdBy,
           processId: questions.processId,
           createdAt: questions.createdAt,
-          updatedAt: questions.updatedAt
+          updatedAt: questions.updatedAt,
+          // Include process details
+          processName: organizationProcesses.name,
+          processDescription: organizationProcesses.description
         })
         .from(questions)
-        .where(eq(questions.organizationId, organizationId)) as Question[];
+        .leftJoin(
+          organizationProcesses,
+          eq(questions.processId, organizationProcesses.id)
+        )
+        .where(eq(questions.organizationId, organizationId));
 
-      console.log(`Found ${questions.length} questions`);
+      console.log(`Successfully found ${questions.length} questions`);
       return questions;
     } catch (error: any) {
       console.error('Error fetching questions:', error);
