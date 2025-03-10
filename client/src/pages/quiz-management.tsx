@@ -506,6 +506,7 @@ export function QuizManagement() {
   // Add function to handle edit template
   const handleEditTemplate = (template: QuizTemplate) => {
     setEditingTemplate(template);
+    setIsAddTemplateOpen(true);
     templateForm.reset({
       name: template.name,
       description: template.description || "",
@@ -515,8 +516,8 @@ export function QuizManagement() {
       shuffleQuestions: template.shuffleQuestions,
       shuffleOptions: template.shuffleOptions,
       processId: template.processId,
-      categoryDistribution: template.categoryDistribution,
-      difficultyDistribution: template.difficultyDistribution,
+      categoryDistribution: template.categoryDistribution || {},
+      difficultyDistribution: template.difficultyDistribution || {},
     });
   };
 
@@ -911,13 +912,22 @@ export function QuizManagement() {
                     />
                   </div>
                   <div className="flex items-end">
-                    <Dialog open={isAddTemplateOpen} onOpenChange={setIsAddTemplateOpen}>
+                    <Dialog open={isAddTemplateOpen || editingTemplate !== null} onOpenChange={(open) => {
+                      setIsAddTemplateOpen(open);
+                      if (!open) {
+                        setEditingTemplate(null);
+                        templateForm.reset();
+                        setPreviewQuestions([]);
+                      }
+                    }}>
                       <DialogTrigger asChild>
                         <Button>Create Quiz Template</Button>
                       </DialogTrigger>
                       <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
                         <DialogHeader>
-                          <DialogTitle>Create Quiz Template</DialogTitle>
+                          <DialogTitle>
+                            {editingTemplate ? 'Edit Quiz Template' : 'Create Quiz Template'}
+                          </DialogTitle>
                         </DialogHeader>
                         <Form {...templateForm}>
                           <form onSubmit={templateForm.handleSubmit(onSubmitTemplate)} className="space-y-4">
@@ -953,8 +963,7 @@ export function QuizManagement() {
                                   </Select>
                                   <FormMessage />
                                 </FormItem>
-                              )}
-                            />
+                              )}                            />
 
                             <FormField
                               control={templateForm.control}
