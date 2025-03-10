@@ -1994,8 +1994,10 @@ export class DatabaseStorage implements IStorage {
         processId: template.processId
       });
 
-      // Prepare the questions array
-      const questions = Array.isArray(template.questions) ? template.questions : [];
+      // Ensure we have an array of numbers
+      const questionIds = (Array.isArray(template.questions) ? template.questions : [])
+        .map(q => Number(q))
+        .filter(id => !isNaN(id));
 
       const [newTemplate] = await db
         .insert(quizTemplates)
@@ -2008,15 +2010,15 @@ export class DatabaseStorage implements IStorage {
           shuffleOptions: template.shuffleOptions ?? false,
           questionCount: template.questionCount,
           categoryDistribution: template.categoryDistribution
-            ? sql`${JSON.stringify(template.categoryDistribution)}::jsonb`
+            ? JSON.stringify(template.categoryDistribution)
             : null,
           difficultyDistribution: template.difficultyDistribution
-            ? sql`${JSON.stringify(template.difficultyDistribution)}::jsonb`
+            ? JSON.stringify(template.difficultyDistribution)
             : null,
           processId: template.processId,
           organizationId: template.organizationId,
           createdBy: template.createdBy,
-          questions: sql`array[${questions}]::integer[]`,
+          questions: questionIds,
           createdAt: new Date(),
           updatedAt: new Date()
         })
@@ -2030,7 +2032,7 @@ export class DatabaseStorage implements IStorage {
         id: newTemplate.id,
         name: newTemplate.name,
         questionCount: newTemplate.questionCount,
-        questionsLength: questions.length
+        questionsLength: questionIds.length
       });
 
       return newTemplate;
