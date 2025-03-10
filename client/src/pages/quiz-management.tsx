@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,6 +17,8 @@ import type { Question, QuizTemplate } from "@shared/schema";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Pencil, Trash2 } from "lucide-react";
 
 // Process filter form schema
 const filterFormSchema = z.object({
@@ -61,8 +63,6 @@ const quizTemplateSchema = z.object({
   processId: z.number().min(1, "Process is required"),
 });
 
-// Process filter form schema
-
 // Define all types after schemas
 type QuestionFormValues = z.infer<typeof questionFormSchema>;
 type QuizTemplateFormValues = z.infer<typeof quizTemplateSchema>;
@@ -74,6 +74,8 @@ export function QuizManagement() {
   const { user } = useAuth();
   const [isAddQuestionOpen, setIsAddQuestionOpen] = useState(false);
   const [isAddTemplateOpen, setIsAddTemplateOpen] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+  const [deletingQuestionId, setDeletingQuestionId] = useState<number | null>(null);
 
   // Create a form for the process filter
   const filterForm = useForm<FilterFormValues>({
@@ -150,6 +152,65 @@ export function QuizManagement() {
     }
   });
 
+  // Add update mutation
+  const updateQuestionMutation = useMutation({
+    mutationFn: async (data: { id: number; question: Partial<Question> }) => {
+      const response = await fetch(`/api/questions/${data.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data.question),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update question');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/questions', selectedProcessId] });
+      toast({
+        title: "Success",
+        description: "Question updated successfully",
+      });
+      setEditingQuestion(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Add delete mutation
+  const deleteQuestionMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/questions/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to delete question');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/questions', selectedProcessId] });
+      toast({
+        title: "Success",
+        description: "Question deleted successfully",
+      });
+      setDeletingQuestionId(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmitQuestion = async (data: QuestionFormValues) => {
     if (!user?.organizationId || !user?.id) {
       toast({
@@ -161,43 +222,53 @@ export function QuizManagement() {
     }
 
     try {
-      console.log('Submitting question data:', data);
-      const questionData = {
-        ...data,
-        options: data.type === 'multiple_choice' ? data.options : [],
-        organizationId: user.organizationId,
-        createdBy: user.id
-      };
+      if (editingQuestion) {
+        // Update existing question
+        await updateQuestionMutation.mutateAsync({
+          id: editingQuestion.id,
+          question: {
+            ...data,
+            options: data.type === 'multiple_choice' ? data.options : [],
+            organizationId: user.organizationId,
+          },
+        });
+      } else {
+        // Create new question (existing logic)
+        const questionData = {
+          ...data,
+          options: data.type === 'multiple_choice' ? data.options : [],
+          organizationId: user.organizationId,
+          createdBy: user.id
+        };
 
-      console.log('Creating question with data:', questionData);
+        const response = await fetch('/api/questions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(questionData),
+        });
 
-      const response = await fetch('/api/questions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(questionData),
-      });
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to add question');
+        }
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to add question');
+        await queryClient.invalidateQueries({ queryKey: ['/api/questions', selectedProcessId] });
+
+        toast({
+          title: "Success",
+          description: "Question added successfully",
+        });
       }
-
-      // Invalidate and refetch questions
-      await queryClient.invalidateQueries({ queryKey: ['/api/questions', selectedProcessId] });
-
-      toast({
-        title: "Success",
-        description: "Question added successfully",
-      });
       setIsAddQuestionOpen(false);
+      setEditingQuestion(null);
       questionForm.reset();
     } catch (error) {
       console.error('Error saving question:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to add question",
+        description: error instanceof Error ? error.message : "Failed to save question",
         variant: "destructive",
       });
     }
@@ -309,8 +380,23 @@ export function QuizManagement() {
 
     filterForm.setValue('processId', value);
     // Force refetch questions with new process filter
-    queryClient.invalidateQueries({ 
+    queryClient.invalidateQueries({
       queryKey: ['/api/questions', value === 'all' ? null : parseInt(value)]
+    });
+  };
+
+  // Function to handle edit question
+  const handleEditQuestion = (question: Question) => {
+    setEditingQuestion(question);
+    questionForm.reset({
+      question: question.question,
+      type: question.type,
+      options: question.options || ["", ""],
+      correctAnswer: question.correctAnswer,
+      explanation: question.explanation || "",
+      difficultyLevel: question.difficultyLevel,
+      category: question.category,
+      processId: question.processId,
     });
   };
 
@@ -361,13 +447,19 @@ export function QuizManagement() {
                     />
                   </div>
                   <div className="flex items-end">
-                    <Dialog open={isAddQuestionOpen} onOpenChange={setIsAddQuestionOpen}>
+                    <Dialog open={isAddQuestionOpen || editingQuestion !== null} onOpenChange={(open) => {
+                      if (!open) {
+                        setIsAddQuestionOpen(false);
+                        setEditingQuestion(null);
+                        questionForm.reset();
+                      }
+                    }}>
                       <DialogTrigger asChild>
                         <Button>Add Question</Button>
                       </DialogTrigger>
                       <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
                         <DialogHeader>
-                          <DialogTitle>Add New Question</DialogTitle>
+                          <DialogTitle>{editingQuestion ? 'Edit Question' : 'Add New Question'}</DialogTitle>
                         </DialogHeader>
                         <Form {...questionForm}>
                           <form onSubmit={questionForm.handleSubmit(onSubmitQuestion)} className="space-y-4">
@@ -549,7 +641,7 @@ export function QuizManagement() {
                               )}
                             />
 
-                            <Button type="submit">Add Question</Button>
+                            <Button type="submit">Save Question</Button>
                           </form>
                         </Form>
                       </DialogContent>
@@ -578,12 +670,23 @@ export function QuizManagement() {
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm px-2 py-1 bg-primary/10 rounded-md">
-                            Level {question.difficultyLevel}
-                          </span>
-                          <span className="text-sm px-2 py-1 bg-primary/10 rounded-md">
-                            {question.category}
-                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditQuestion(question)}
+                          >
+                            <Pencil className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-500 hover:text-red-600"
+                            onClick={() => setDeletingQuestionId(question.id)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Delete
+                          </Button>
                         </div>
                       </div>
 
@@ -925,6 +1028,27 @@ export function QuizManagement() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deletingQuestionId !== null} onOpenChange={(open) => !open && setDeletingQuestionId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Question</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this question? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingQuestionId && deleteQuestionMutation.mutate(deletingQuestionId)}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
