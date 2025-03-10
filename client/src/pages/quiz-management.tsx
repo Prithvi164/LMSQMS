@@ -353,11 +353,15 @@ export function QuizManagement() {
         method: 'DELETE',
       });
       if (!response.ok) {
-        throw new Error('Failed to delete template');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete template');
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/quiz-templates', selectedTemplateProcessId] });
+      // Invalidate both filtered and unfiltered queries
+      queryClient.invalidateQueries({
+        queryKey: ['/api/quiz-templates']
+      });
       toast({
         title: "Success",
         description: "Quiz template deleted successfully",
@@ -370,6 +374,7 @@ export function QuizManagement() {
         description: error.message,
         variant: "destructive",
       });
+      setDeletingTemplateId(null);
     },
   });
 
@@ -1151,6 +1156,7 @@ export function QuizManagement() {
                               <Button type="submit">Create Template</Button>
                             </div>
                           </form>
+
                         </Form>
 
                         {/* Preview Questions */}
@@ -1245,8 +1251,8 @@ export function QuizManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <AlertDialog 
-        open={deletingTemplateId !== null} 
+      <AlertDialog
+        open={deletingTemplateId !== null}
         onOpenChange={(open) => !open && setDeletingTemplateId(null)}
       >
         <AlertDialogContent>
