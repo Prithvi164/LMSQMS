@@ -1953,8 +1953,7 @@ export class DatabaseStorage implements IStorage {
         .where(eq(questions.id, id))
         .returning();
 
-      if (!result.length) {
-        throw new Error('Question not found or deletion failed');
+      if (!result.length) {        throw new Error('Question not found or deletion failed');
       }
 
       console.log(`Successfully deleted question with ID: ${id}`);
@@ -2018,7 +2017,7 @@ export class DatabaseStorage implements IStorage {
           processId: template.processId,
           organizationId: template.organizationId,
           createdBy: template.createdBy,
-          questions: sql`ARRAY[${sql.join(questionIds, ',')}]::integer[]`,
+          questions: questionIds, // Pass the array directly
           createdAt: new Date(),
           updatedAt: new Date()
         })
@@ -2038,7 +2037,7 @@ export class DatabaseStorage implements IStorage {
       return newTemplate;
     } catch (error) {
       console.error('Error creating quiz template:', error);
-      throw error instanceof Error ? error : new Error('Failed to create quiz template');
+      throw error;
     }
   }
 
