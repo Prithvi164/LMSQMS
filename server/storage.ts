@@ -950,7 +950,7 @@ export class DatabaseStorage implements IStorage {
       const existingLocations = await db
         .select()
         .from(organizationLocations)
-.where(eq(organizationLocations.organizationId, location.organizationId))
+        .where(eq(organizationLocations.organizationId, location.organizationId))
         .where(eq(organizationLocations.name, location.name));
 
       if (existingLocations.length > 0) {
@@ -1949,7 +1949,7 @@ export class DatabaseStorage implements IStorage {
       console.log(`Attempting to delete question with ID: ${id}`);
 
       const result = await db
-        .delete(questions)
+                .delete(questions)
         .where(eq(questions.id, id))
         .returning();
 
@@ -1994,19 +1994,16 @@ export class DatabaseStorage implements IStorage {
         processId: template.processId
       });
 
-      // Ensure we have an array of numbers and format it for PostgreSQL
+      // Ensure we have an array of numbers
       const questionIds = (Array.isArray(template.questions) ? template.questions : [])
         .map(q => Number(q))
         .filter(id => !isNaN(id));
-
-      // Format the array using PostgreSQL syntax
-      const formattedQuestions = `{${questionIds.join(',')}}`;
 
       const [newTemplate] = await db
         .insert(quizTemplates)
         .values({
           name: template.name,
-          description: template.description || '',
+          description: template.description,
           timeLimit: template.timeLimit,
           passingScore: template.passingScore,
           shuffleQuestions: template.shuffleQuestions ?? false,
@@ -2021,7 +2018,7 @@ export class DatabaseStorage implements IStorage {
           processId: template.processId,
           organizationId: template.organizationId,
           createdBy: template.createdBy,
-          questions: formattedQuestions,
+          questions: sql`ARRAY[${sql.join(questionIds, ',')}]::integer[]`,
           createdAt: new Date(),
           updatedAt: new Date()
         })
