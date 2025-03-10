@@ -4,9 +4,22 @@ import { setupVite, serveStatic, log } from "./vite";
 import rateLimit from 'express-rate-limit';
 import { startBatchStatusCron } from './cron/batch-status-cron';
 
+// Add debug logging
+const DEBUG = true;
+function debugLog(message: string) {
+  if (DEBUG) {
+    console.log(`[DEBUG] ${new Date().toISOString()}: ${message}`);
+  }
+}
+
+debugLog("Starting server initialization");
+
 const app = express();
+debugLog("Express app created");
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+debugLog("Basic middleware setup complete");
 
 // Configure rate limiting
 const limiter = rateLimit({
@@ -19,6 +32,7 @@ const limiter = rateLimit({
 
 // Apply rate limiting to API routes
 app.use('/api', limiter);
+debugLog("Rate limiting configured");
 
 // Enhanced request logging middleware
 app.use((req, res, next) => {
@@ -48,20 +62,28 @@ app.use((req, res, next) => {
 
   next();
 });
+debugLog("Request logging middleware setup complete");
 
 // Add a test route to verify server is handling requests
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", mode: app.get("env") });
 });
+debugLog("Health check route added");
 
 (async () => {
   try {
+    debugLog("Starting async initialization");
+
     // Create HTTP server explicitly
+    debugLog("Registering routes...");
     const server = await registerRoutes(app);
+    debugLog("Routes registered successfully");
 
     // Start the batch status update cron job
+    debugLog("Starting batch status cron job...");
     startBatchStatusCron();
     log("Started batch status update cron job");
+    debugLog("Batch status cron job started");
 
     // Error handling middleware
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -70,31 +92,40 @@ app.get("/health", (_req, res) => {
       log(`Error: ${message}`);
       res.status(status).json({ message });
     });
+    debugLog("Error handling middleware setup complete");
 
     // Set development mode explicitly
     app.set("env", "development");
+    debugLog(`Environment set to: ${app.get("env")}`);
 
     if (app.get("env") === "development") {
-      log("Setting up Vite middleware for development");
+      debugLog("Setting up Vite middleware for development");
       await setupVite(app, server);
+      debugLog("Vite middleware setup complete");
     } else {
-      log("Setting up static file serving for production");
+      debugLog("Setting up static file serving for production");
       serveStatic(app);
+      debugLog("Static file serving setup complete");
     }
 
     const port = process.env.PORT || 5001;
-    server.listen(port, "0.0.0.0", () => {
+    debugLog(`Attempting to start server on port ${port}`);
+
+    server.listen(port, () => {
       log(`Server running in ${app.get("env")} mode`);
       log(`API and client being served on port ${port}`);
+      debugLog("Server started successfully");
     }).on('error', (error: any) => {
       if (error.code === 'EADDRINUSE') {
         log(`Port ${port} is already in use. Please try a different port.`);
       } else {
         log(`Failed to start server: ${error}`);
       }
+      debugLog(`Server startup error: ${error.message}`);
       process.exit(1);
     });
   } catch (error) {
+    debugLog(`Fatal error during initialization: ${error}`);
     log(`Failed to start server: ${error}`);
     process.exit(1);
   }

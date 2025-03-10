@@ -40,7 +40,13 @@ import {
   type InsertQuestion,
   quizTemplates,
   type QuizTemplate,
-  type InsertQuizTemplate
+  type InsertQuizTemplate,
+  quizzes,
+  type Quiz,
+  type InsertQuiz,
+  quizAttempts,
+  type QuizAttempt,
+  type InsertQuizAttempt
 } from "@shared/schema";
 
 export interface IStorage {
@@ -192,6 +198,11 @@ export interface IStorage {
   updateQuestion(id: number, question: Partial<Question>): Promise<Question>;
   deleteQuestion(id: number): Promise<void>;
   getQuestionById(id: number): Promise<Question | undefined>;
+
+  // Quiz operations
+  createQuiz(quiz: InsertQuiz): Promise<Quiz>;
+  getQuizWithQuestions(id: number): Promise<Quiz | undefined>;
+  createQuizAttempt(attempt: InsertQuizAttempt): Promise<QuizAttempt>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2095,6 +2106,95 @@ export class DatabaseStorage implements IStorage {
       return updatedTemplate;
     } catch (error) {
       console.error('Error updating quiz template:', error);
+      throw error;
+    }
+  }
+  async createQuiz(quiz: InsertQuiz): Promise<Quiz> {
+    try {
+      console.log('Creating quiz:', quiz);
+
+      const [newQuiz] = await db
+        .insert(quizzes)
+        .values({
+          name: quiz.name,
+          description: quiz.description,
+          timeLimit: quiz.timeLimit,
+          passingScore: quiz.passingScore,
+          questions: quiz.questions,
+          templateId: quiz.templateId,
+          organizationId: quiz.organizationId,
+          createdBy: quiz.createdBy,
+          processId: quiz.processId,
+          status: quiz.status,
+          startTime: quiz.startTime,
+          endTime: quiz.endTime
+        })
+        .returning() as Quiz[];
+
+      console.log('Successfully created quiz:', newQuiz);
+      return newQuiz;
+    } catch (error) {
+      console.error('Error creating quiz:', error);
+      throw error;
+    }
+  }
+
+  async getQuizWithQuestions(id: number): Promise<Quiz | undefined> {
+    try {
+      const [quiz] = await db
+        .select({
+          id: quizzes.id,
+          name: quizzes.name,
+          description: quizzes.description,
+          timeLimit: quizzes.timeLimit,
+          passingScore: quizzes.passingScore,
+          questions: quizzes.questions,
+          templateId: quizzes.templateId,
+          organizationId: quizzes.organizationId,
+          createdBy: quizzes.createdBy,
+          processId: quizzes.processId,
+          status: quizzes.status,
+          startTime: quizzes.startTime,
+          endTime: quizzes.endTime,
+        })
+        .from(quizzes)
+        .where(eq(quizzes.id, id)) as Quiz[];
+
+      if (!quiz) return undefined;
+
+      // Fetch all questions for this quiz
+      const quizQuestions = await db
+        .select()
+        .from(questions)
+        .where(inArray(questions.id, quiz.questions)) as Question[];
+
+      return {
+        ...quiz,
+        questions: quizQuestions
+      };
+    } catch (error) {
+      console.error('Error fetching quiz with questions:', error);
+      throw error;
+    }
+  }
+
+  async createQuizAttempt(attempt: InsertQuizAttempt): Promise<QuizAttempt> {
+    try {
+      const [newAttempt] = await db
+        .insert(quizAttempts)
+        .values({
+          quizId: attempt.quizId,
+          userId: attempt.userId,
+          organizationId: attempt.organizationId,
+          score: attempt.score,
+          answers: attempt.answers,
+          completedAt: attempt.completedAt
+        })
+        .returning() as QuizAttempt[];
+
+      return newAttempt;
+    } catch (error) {
+      console.error('Error creating quiz attempt:', error);
       throw error;
     }
   }

@@ -3,7 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { relations, type InferSelectModel } from "drizzle-orm";
 import { z } from "zod";
 
-// Add quiz-related enums first
+// Define all enums at the top
 export const questionTypeEnum = pgEnum('question_type', [
   'multiple_choice',
   'true_false',
@@ -16,13 +16,11 @@ export const quizStatusEnum = pgEnum('quiz_status', [
   'abandoned'
 ]);
 
-// Add batch category enum
 export const batchCategoryEnum = pgEnum('batch_category', [
   'new_training',
   'upskill'
 ]);
 
-// Existing enums remain unchanged
 export const batchStatusEnum = pgEnum('batch_status', [
   'planned',
   'induction',
@@ -33,20 +31,347 @@ export const batchStatusEnum = pgEnum('batch_status', [
   'completed'
 ]);
 
-// Existing enums remain unchanged
 export const userCategoryTypeEnum = pgEnum('user_category_type', ['active', 'trainee']);
 export const roleEnum = pgEnum('role', [
-  'owner',     
-  'admin',     
-  'manager',   
-  'team_lead', 
-  'quality_analyst', 
-  'trainer',   
+  'owner',
+  'admin',
+  'manager',
+  'team_lead',
+  'quality_analyst',
+  'trainer',
   'advisor',
-  'trainee'    
+  'trainee'
 ]);
 
-// Update the batch templates table definition to allow null trainer
+export const permissionEnum = pgEnum('permission', [
+  'manage_billing',
+  'manage_subscription',
+  'create_admin',
+  'manage_organization_settings',
+  'manage_users',
+  'view_users',
+  'edit_users',
+  'delete_users',
+  'upload_users',
+  'manage_courses',
+  'view_courses',
+  'edit_courses',
+  'delete_courses',
+  'create_courses',
+  'manage_learning_paths',
+  'view_learning_paths',
+  'edit_learning_paths',
+  'delete_learning_paths',
+  'create_learning_paths',
+  'manage_organization',
+  'view_organization',
+  'edit_organization',
+  'manage_locations',
+  'manage_processes',
+  'view_performance',
+  'manage_performance',
+  'export_reports'
+]);
+
+export const processStatusEnum = pgEnum('process_status', [
+  'active',
+  'inactive',
+  'archived'
+]);
+
+// Quiz-related tables
+export const questions = pgTable("questions", {
+  id: serial("id").primaryKey(),
+  question: text("question").notNull(),
+  type: questionTypeEnum("type").notNull(),
+  options: jsonb("options").$type<string[]>().notNull(),
+  correctAnswer: text("correct_answer").notNull(),
+  explanation: text("explanation"),
+  difficultyLevel: integer("difficulty_level").notNull(),
+  category: text("category").notNull(),
+  processId: integer("process_id")
+    .references(() => organizationProcesses.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdBy: integer("created_by")
+    .references(() => users.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const quizTemplates = pgTable("quiz_templates", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  timeLimit: integer("time_limit").notNull(),
+  passingScore: integer("passing_score").notNull(),
+  shuffleQuestions: boolean("shuffle_questions").default(false).notNull(),
+  shuffleOptions: boolean("shuffle_options").default(false).notNull(),
+  questionCount: integer("question_count").notNull(),
+  categoryDistribution: jsonb("category_distribution").$type<Record<string, number>>(),
+  difficultyDistribution: jsonb("difficulty_distribution").$type<Record<string, number>>(),
+  processId: integer("process_id")
+    .references(() => organizationProcesses.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdBy: integer("created_by")
+    .references(() => users.id)
+    .notNull(),
+  questions: jsonb("questions").$type<number[]>().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const quizzes = pgTable("quizzes", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  timeLimit: integer("time_limit").notNull(),
+  passingScore: integer("passing_score").notNull(),
+  questions: jsonb("questions").$type<number[]>().notNull(),
+  templateId: integer("template_id")
+    .references(() => quizTemplates.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdBy: integer("created_by")
+    .references(() => users.id)
+    .notNull(),
+  processId: integer("process_id")
+    .references(() => organizationProcesses.id)
+    .notNull(),
+  status: quizStatusEnum("status").default('in_progress').notNull(),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const quizAttempts = pgTable("quiz_attempts", {
+  id: serial("id").primaryKey(),
+  quizId: integer("quiz_id")
+    .references(() => quizzes.id)
+    .notNull(),
+  userId: integer("user_id")
+    .references(() => users.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  score: integer("score").notNull(),
+  answers: jsonb("answers").$type<{
+    questionId: number;
+    userAnswer: string;
+    correctAnswer: string;
+    isCorrect: boolean;
+  }[]>().notNull(),
+  completedAt: timestamp("completed_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const quizResponses = pgTable("quiz_responses", {
+  id: serial("id").primaryKey(),
+  quizAttemptId: integer("quiz_attempt_id")
+    .references(() => quizAttempts.id)
+    .notNull(),
+  questionId: integer("question_id")
+    .references(() => questions.id)
+    .notNull(),
+  selectedAnswer: text("selected_answer").notNull(),
+  isCorrect: boolean("is_correct").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Quiz-related types
+export type Question = InferSelectModel<typeof questions>;
+export type QuizTemplate = InferSelectModel<typeof quizTemplates>;
+export type Quiz = InferSelectModel<typeof quizzes>;
+export type QuizAttempt = InferSelectModel<typeof quizAttempts>;
+export type QuizResponse = InferSelectModel<typeof quizResponses>;
+
+// Quiz-related schemas
+export const insertQuestionSchema = createInsertSchema(questions)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    question: z.string().min(1, "Question text is required"),
+    type: z.enum(['multiple_choice', 'true_false', 'short_answer']),
+    options: z.array(z.string()).min(2, "At least two options are required for multiple choice"),
+    correctAnswer: z.string().min(1, "Correct answer is required"),
+    explanation: z.string().optional(),
+    difficultyLevel: z.number().int().min(1).max(5),
+    category: z.string().min(1, "Category is required"),
+    processId: z.number().int().positive("Process is required"),
+    organizationId: z.number().int().positive("Organization is required"),
+    createdBy: z.number().int().positive("Creator is required"),
+  });
+
+export const insertQuizTemplateSchema = createInsertSchema(quizTemplates)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    name: z.string().min(1, "Quiz name is required"),
+    description: z.string().optional(),
+    timeLimit: z.number().int().positive("Time limit must be positive"),
+    passingScore: z.number().int().min(0).max(100),
+    shuffleQuestions: z.boolean().default(false),
+    shuffleOptions: z.boolean().default(false),
+    questionCount: z.number().int().positive("Must select at least one question"),
+    categoryDistribution: z.record(z.string(), z.number()).optional(),
+    difficultyDistribution: z.record(z.string(), z.number()).optional(),
+    processId: z.number().int().positive("Process is required"),
+    organizationId: z.number().int().positive("Organization is required"),
+    createdBy: z.number().int().positive("Creator is required"),
+    questions: z.array(z.number()).min(1, "At least one question is required"),
+  });
+
+export const insertQuizSchema = createInsertSchema(quizzes)
+  .omit({
+    id: true,
+    createdAt: true,
+  })
+  .extend({
+    name: z.string().min(1, "Quiz name is required"),
+    description: z.string().optional(),
+    timeLimit: z.number().int().positive("Time limit must be positive"),
+    passingScore: z.number().int().min(0).max(100),
+    questions: z.array(z.number()).min(1, "At least one question is required"),
+    templateId: z.number().int().positive("Template is required"),
+    organizationId: z.number().int().positive("Organization is required"),
+    createdBy: z.number().int().positive("Creator is required"),
+    processId: z.number().int().positive("Process is required"),
+    status: z.enum(['in_progress', 'completed', 'abandoned']).default('in_progress'),
+    startTime: z.date(),
+    endTime: z.date(),
+  });
+
+export const insertQuizAttemptSchema = createInsertSchema(quizAttempts)
+  .omit({
+    id: true,
+    createdAt: true,
+  })
+  .extend({
+    quizId: z.number().int().positive("Quiz is required"),
+    userId: z.number().int().positive("User is required"),
+    organizationId: z.number().int().positive("Organization is required"),
+    score: z.number().int().min(0).max(100),
+    answers: z.array(z.object({
+      questionId: z.number(),
+      userAnswer: z.string(),
+      correctAnswer: z.string(),
+      isCorrect: z.boolean(),
+    })),
+    completedAt: z.date(),
+  });
+
+export const insertQuizResponseSchema = createInsertSchema(quizResponses)
+  .omit({
+    id: true,
+    createdAt: true,
+  })
+  .extend({
+    quizAttemptId: z.number().int().positive("Quiz attempt is required"),
+    questionId: z.number().int().positive("Question is required"),
+    selectedAnswer: z.string().min(1, "Selected answer is required"),
+    isCorrect: z.boolean(),
+  });
+
+// Quiz-related types based on schemas
+export type InsertQuestion = z.infer<typeof insertQuestionSchema>;
+export type InsertQuizTemplate = z.infer<typeof insertQuizTemplateSchema>;
+export type InsertQuiz = z.infer<typeof insertQuizSchema>;
+export type InsertQuizAttempt = z.infer<typeof insertQuizAttemptSchema>;
+export type InsertQuizResponse = z.infer<typeof insertQuizResponseSchema>;
+
+// Quiz-related relations
+export const questionsRelations = relations(questions, ({ one }) => ({
+  process: one(organizationProcesses, {
+    fields: [questions.processId],
+    references: [organizationProcesses.id],
+  }),
+  organization: one(organizations, {
+    fields: [questions.organizationId],
+    references: [organizations.id],
+  }),
+  creator: one(users, {
+    fields: [questions.createdBy],
+    references: [users.id],
+  }),
+}));
+
+export const quizTemplatesRelations = relations(quizTemplates, ({ one }) => ({
+  process: one(organizationProcesses, {
+    fields: [quizTemplates.processId],
+    references: [organizationProcesses.id],
+  }),
+  organization: one(organizations, {
+    fields: [quizTemplates.organizationId],
+    references: [organizations.id],
+  }),
+  creator: one(users, {
+    fields: [quizTemplates.createdBy],
+    references: [users.id],
+  }),
+}));
+
+export const quizzesRelations = relations(quizzes, ({ one, many }) => ({
+  template: one(quizTemplates, {
+    fields: [quizzes.templateId],
+    references: [quizTemplates.id],
+  }),
+  organization: one(organizations, {
+    fields: [quizzes.organizationId],
+    references: [organizations.id],
+  }),
+  creator: one(users, {
+    fields: [quizzes.createdBy],
+    references: [users.id],
+  }),
+  process: one(organizationProcesses, {
+    fields: [quizzes.processId],
+    references: [organizationProcesses.id],
+  }),
+  attempts: many(quizAttempts),
+}));
+
+export const quizAttemptsRelations = relations(quizAttempts, ({ one }) => ({
+  quiz: one(quizzes, {
+    fields: [quizAttempts.quizId],
+    references: [quizzes.id],
+  }),
+  user: one(users, {
+    fields: [quizAttempts.userId],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [quizAttempts.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
+export const quizResponsesRelations = relations(quizResponses, ({ one }) => ({
+  attempt: one(quizAttempts, {
+    fields: [quizResponses.quizAttemptId],
+    references: [quizAttempts.id],
+  }),
+  question: one(questions, {
+    fields: [quizResponses.questionId],
+    references: [questions.id],
+  }),
+}));
+
+
 export const batchTemplates = pgTable("batch_templates", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -119,112 +444,6 @@ export const batchTemplatesRelations = relations(batchTemplates, ({ one }) => ({
 }));
 
 
-// Add quiz-related tables after existing tables
-export const questions = pgTable("questions", {
-  id: serial("id").primaryKey(),
-  question: text("question").notNull(),
-  type: questionTypeEnum("type").notNull(),
-  options: jsonb("options").$type<string[]>().notNull(),
-  correctAnswer: text("correct_answer").notNull(),
-  explanation: text("explanation"),
-  difficultyLevel: integer("difficulty_level").notNull(),
-  category: text("category").notNull(),
-  processId: integer("process_id")
-    .references(() => organizationProcesses.id)
-    .notNull(),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
-  createdBy: integer("created_by")
-    .references(() => users.id)
-    .notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-// Export the Question type
-export type Question = InferSelectModel<typeof questions>;
-
-// Create insert schema
-export const insertQuestionSchema = createInsertSchema(questions)
-  .omit({
-    id: true,
-    createdAt: true,
-    updatedAt: true,
-  })
-  .extend({
-    question: z.string().min(1, "Question text is required"),
-    type: z.enum(['multiple_choice', 'true_false', 'short_answer']),
-    options: z.array(z.string()).min(2, "At least two options are required for multiple choice"),
-    correctAnswer: z.string().min(1, "Correct answer is required"),
-    explanation: z.string().optional(),
-    difficultyLevel: z.number().int().min(1).max(5),
-    category: z.string().min(1, "Category is required"),
-    processId: z.number().int().positive("Process is required"),
-    organizationId: z.number().int().positive("Organization is required"),
-    createdBy: z.number().int().positive("Creator is required"),
-  });
-
-export type InsertQuestion = z.infer<typeof insertQuestionSchema>;
-
-// Update the quiz templates table with randomization fields
-export const quizTemplates = pgTable("quiz_templates", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  description: text("description"),
-  timeLimit: integer("time_limit").notNull(), // in minutes
-  passingScore: integer("passing_score").notNull(),
-  shuffleQuestions: boolean("shuffle_questions").default(false).notNull(),
-  shuffleOptions: boolean("shuffle_options").default(false).notNull(),
-  questionCount: integer("question_count").notNull(), // number of questions to select
-  categoryDistribution: jsonb("category_distribution").$type<Record<string, number>>(), // distribution of questions by category
-  difficultyDistribution: jsonb("difficulty_distribution").$type<Record<string, number>>(), // distribution by difficulty
-  processId: integer("process_id")
-    .references(() => organizationProcesses.id)
-    .notNull(),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
-  createdBy: integer("created_by")
-    .references(() => users.id)
-    .notNull(),
-  questions: jsonb("questions").$type<number[]>().notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const quizAttempts = pgTable("quiz_attempts", {
-  id: serial("id").primaryKey(),
-  quizTemplateId: integer("quiz_template_id")
-    .references(() => quizTemplates.id)
-    .notNull(),
-  userId: integer("user_id")
-    .references(() => users.id)
-    .notNull(),
-  batchId: integer("batch_id")
-    .references(() => organizationBatches.id)
-    .notNull(),
-  startTime: timestamp("start_time").notNull(),
-  endTime: timestamp("end_time"),
-  score: integer("score"),
-  status: quizStatusEnum("status").default('in_progress').notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const quizResponses = pgTable("quiz_responses", {
-  id: serial("id").primaryKey(),
-  quizAttemptId: integer("quiz_attempt_id")
-    .references(() => quizAttempts.id)
-    .notNull(),
-  questionId: integer("question_id")
-    .references(() => questions.id)
-    .notNull(),
-  selectedAnswer: text("selected_answer").notNull(),
-  isCorrect: boolean("is_correct").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-// Update the batch table definition to ensure proper enum handling
 export const organizationBatches = pgTable("organization_batches", {
   id: serial("id").primaryKey(),
   batchCategory: batchCategoryEnum("batch_category").notNull(),
@@ -321,43 +540,6 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
   });
 
 export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
-
-export const permissionEnum = pgEnum('permission', [
-  'manage_billing',
-  'manage_subscription',
-  'create_admin',
-  'manage_organization_settings',
-  'manage_users',
-  'view_users',
-  'edit_users',
-  'delete_users',
-  'upload_users',
-  'manage_courses',
-  'view_courses',
-  'edit_courses',
-  'delete_courses',
-  'create_courses',
-  'manage_learning_paths',
-  'view_learning_paths',
-  'edit_learning_paths',
-  'delete_learning_paths',
-  'create_learning_paths',
-  'manage_organization',
-  'view_organization',
-  'edit_organization',
-  'manage_locations',
-  'manage_processes',
-  'view_performance',
-  'manage_performance',
-  'export_reports'
-]);
-
-// Add new process status enum
-export const processStatusEnum = pgEnum('process_status', [
-  'active',
-  'inactive',
-  'archived'
-]);
 
 export const organizations = pgTable("organizations", {
   id: serial("id").primaryKey(),
@@ -512,7 +694,6 @@ export const organizationLocationsRelations = relations(organizationLocations, (
   batches: many(organizationBatches)
 }));
 
-// Add user batch process status enum
 export const userBatchStatusEnum = pgEnum('user_batch_status', [
   'active',
   'completed',
@@ -520,7 +701,6 @@ export const userBatchStatusEnum = pgEnum('user_batch_status', [
   'on_hold'
 ]);
 
-// Add user batch process table
 export const userBatchProcesses = pgTable("user_batch_processes", {
   id: serial("id").primaryKey(),
   userId: integer("user_id")
@@ -544,10 +724,8 @@ export const userBatchProcesses = pgTable("user_batch_processes", {
   };
 });
 
-// Add type for user batch process
 export type UserBatchProcess = InferSelectModel<typeof userBatchProcesses>;
 
-// Add insert schema for user batch process
 export const insertUserBatchProcessSchema = createInsertSchema(userBatchProcesses)
   .omit({
     id: true,
@@ -565,7 +743,6 @@ export const insertUserBatchProcessSchema = createInsertSchema(userBatchProcesse
 
 export type InsertUserBatchProcess = z.infer<typeof insertUserBatchProcessSchema>;
 
-// Add relations for user batch processes
 export const userBatchProcessesRelations = relations(userBatchProcesses, ({ one }) => ({
   user: one(users, {
     fields: [userBatchProcesses.userId],
@@ -581,7 +758,6 @@ export const userBatchProcessesRelations = relations(userBatchProcesses, ({ one 
   }),
 }));
 
-// Update user relations to include batch processes
 export const usersRelations = relations(users, ({ one, many }) => ({
   organization: one(organizations, {
     fields: [users.organizationId],
@@ -630,7 +806,6 @@ export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => 
   }),
 }));
 
-// Update validation schema for organization process to allow 0 days
 export const insertOrganizationProcessSchema = createInsertSchema(organizationProcesses)
   .omit({
     id: true,
@@ -712,128 +887,13 @@ export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
 export type InsertBatchTemplate = z.infer<typeof insertBatchTemplateSchema>;
 
 
-// Define types
-export type QuizTemplate = InferSelectModel<typeof quizTemplates>;
-export type QuizAttempt = InferSelectModel<typeof quizAttempts>;
-export type QuizResponse = InferSelectModel<typeof quizResponses>;
-
-// Update the insert schema for quiz templates
-export const insertQuizTemplateSchema = createInsertSchema(quizTemplates)
-  .omit({
-    id: true,
-    createdAt: true,
-    updatedAt: true,
-  })
-  .extend({
-    name: z.string().min(1, "Quiz name is required"),
-    description: z.string().optional(),
-    timeLimit: z.number().int().positive("Time limit must be positive"),
-    passingScore: z.number().int().min(0).max(100),
-    shuffleQuestions: z.boolean().default(false),
-    shuffleOptions: z.boolean().default(false),
-    questionCount: z.number().int().positive("Must select at least one question"),
-    categoryDistribution: z.record(z.string(), z.number()).optional(),
-    difficultyDistribution: z.record(z.string(), z.number()).optional(),
-    processId: z.number().int().positive("Process is required"),
-    organizationId: z.number().int().positive("Organization is required"),
-    createdBy: z.number().int().positive("Creator is required"),
-    questions: z.array(z.number()).min(1, "At least one question is required"),
-  });
-
-// Add insert schemas for quiz attempts and responses
-export const insertQuizAttemptSchema = createInsertSchema(quizAttempts)
-  .omit({
-    id: true,
-    createdAt: true,
-  })
-  .extend({
-    quizTemplateId: z.number().int().positive("Quiz template is required"),
-    userId: z.number().int().positive("User is required"),
-    batchId: z.number().int().positive("Batch is required"),
-    startTime: z.string().min(1, "Start time is required"),
-    endTime: z.string().optional(),
-    score: z.number().int().min(0).max(100).optional(),
-    status: z.enum(['in_progress', 'completed', 'abandoned']).default('in_progress'),
-  });
-
-export const insertQuizResponseSchema = createInsertSchema(quizResponses)
-  .omit({
-    id: true,
-    createdAt: true,
-  })
-  .extend({
-    quizAttemptId: z.number().int().positive("Quiz attempt is required"),
-    questionId: z.number().int().positive("Question is required"),
-    selectedAnswer: z.string().min(1, "Selected answer is required"),
-    isCorrect: z.boolean(),
-  });
-
-// Define relations
-export const questionsRelations = relations(questions, ({ one }) => ({
-  process: one(organizationProcesses, {
-    fields: [questions.processId],
-    references: [organizationProcesses.id],
-  }),
-  organization: one(organizations, {
-    fields: [questions.organizationId],
-    references: [organizations.id],
-  }),
-  creator: one(users, {
-    fields: [questions.createdBy],
-    references: [users.id],
-  }),
-}));
-
-export const quizTemplatesRelations = relations(quizTemplates, ({ one }) => ({
-  process: one(organizationProcesses, {
-    fields: [quizTemplates.processId],
-    references: [organizationProcesses.id],
-  }),
-  organization: one(organizations, {
-    fields: [quizTemplates.organizationId],
-    references: [organizations.id],
-  }),
-  creator: one(users, {
-    fields: [quizTemplates.createdBy],
-    references: [users.id],
-  }),
-}));
-
-export const quizAttemptsRelations = relations(quizAttempts, ({ one, many }) => ({
-  template: one(quizTemplates, {
-    fields: [quizAttempts.quizTemplateId],
-    references: [quizTemplates.id],
-  }),
-  user: one(users, {
-    fields: [quizAttempts.userId],
-    references: [users.id],
-  }),
-  batch: one(organizationBatches, {
-    fields: [quizAttempts.batchId],
-    references: [organizationBatches.id],
-  }),
-  responses: many(quizResponses),
-}));
-
-export const quizResponsesRelations = relations(quizResponses, ({ one }) => ({
-  attempt: one(quizAttempts, {
-    fields: [quizResponses.quizAttemptId],
-    references: [quizAttempts.id],
-  }),
-  question: one(questions, {
-    fields: [quizResponses.questionId],
-    references: [questions.id],
-  }),
-}));
-
-// Add batch history event type enum after other enums
 export const batchHistoryEventTypeEnum = pgEnum('batch_history_event_type', [
   'phase_change',
   'status_update',
   'milestone',
   'note'
 ]);
-// Add batch history table after batch tables
+
 export const batchHistory = pgTable("batch_history", {  id: serial("id").primaryKey(),
   batchId: integer("batch_id")
     .references(() => organizationBatches.id)
@@ -852,10 +912,8 @@ export const batchHistory = pgTable("batch_history", {  id: serial("id").primary
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Add type exports
 export type BatchHistory = InferSelectModel<typeof batchHistory>;
 
-// Add insert schema
 export const insertBatchHistorySchema = createInsertSchema(batchHistory)
   .omit({
     id: true,
@@ -873,7 +931,6 @@ export const insertBatchHistorySchema = createInsertSchema(batchHistory)
 
 export type InsertBatchHistory = z.infer<typeof insertBatchHistorySchema>;
 
-// Add relations
 export const batchHistoryRelations = relations(batchHistory, ({ one }) => ({
   batch: one(organizationBatches, {
     fields: [batchHistory.batchId],
@@ -889,7 +946,6 @@ export const batchHistoryRelations = relations(batchHistory, ({ one }) => ({
   }),
 }));
 
-// Define RolePermission type that was missing
 export interface RolePermission {
   id: number;
   role: string;
@@ -899,7 +955,6 @@ export interface RolePermission {
   updatedAt: Date;
 }
 
-// Add attendance status enum
 export const attendanceStatusEnum = pgEnum('attendance_status', [
   'present',
   'absent',
@@ -907,7 +962,6 @@ export const attendanceStatusEnum = pgEnum('attendance_status', [
   'leave'
 ]);
 
-// Update the attendance table definition with batch and phase tracking
 export const attendance = pgTable("attendance", {
   id: serial("id").primaryKey(),
   traineeId: integer("trainee_id")
@@ -934,7 +988,6 @@ export const attendance = pgTable("attendance", {
   };
 });
 
-// Update attendance relations to include batch
 export const attendanceRelations = relations(attendance, ({ one }) => ({
   trainee: one(users, {
     fields: [attendance.traineeId],
@@ -954,7 +1007,6 @@ export const attendanceRelations = relations(attendance, ({ one }) => ({
   }),
 }));
 
-// Update insert schema for attendance
 export const insertAttendanceSchema = createInsertSchema(attendance)
   .omit({
     id: true,
@@ -974,14 +1026,12 @@ export const insertAttendanceSchema = createInsertSchema(attendance)
 export type InsertAttendance = z.infer<typeof insertAttendanceSchema>;
 export type Attendance = InferSelectModel<typeof attendance>;
 
-// Add phase change request status enum after existing enums
 export const phaseChangeRequestStatusEnum = pgEnum('phase_change_request_status', [
   'pending',
   'approved',
   'rejected'
 ]);
 
-// Add new table for phase change requests after attendance table
 export const batchPhaseChangeRequests = pgTable("batch_phase_change_requests", {
   id: serial("id").primaryKey(),
   batchId: integer("batch_id")
@@ -1005,7 +1055,6 @@ export const batchPhaseChangeRequests = pgTable("batch_phase_change_requests", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Add relations
 export const batchPhaseChangeRequestsRelations = relations(batchPhaseChangeRequests, ({ one }) => ({
   batch: one(organizationBatches, {
     fields: [batchPhaseChangeRequests.batchId],
@@ -1025,7 +1074,6 @@ export const batchPhaseChangeRequestsRelations = relations(batchPhaseChangeReque
   }),
 }));
 
-// Add type and schema
 export type BatchPhaseChangeRequest = InferSelectModel<typeof batchPhaseChangeRequests>;
 
 export const insertBatchPhaseChangeRequestSchema = createInsertSchema(batchPhaseChangeRequests)
@@ -1048,23 +1096,7 @@ export const insertBatchPhaseChangeRequestSchema = createInsertSchema(batchPhase
 
 export type InsertBatchPhaseChangeRequest = z.infer<typeof insertBatchPhaseChangeRequestSchema>;
 
-// Add quiz status enum
-
-// Update quizAttempts to use the enum
-
-// Add insert schemas for quiz attempts and responses
-
-// Remove duplicate relations and consolidate export types
-
-// Export types
-export type InsertQuestion = z.infer<typeof insertQuestionSchema>;
-export type InsertQuizTemplate = z.infer<typeof insertQuizTemplateSchema>;
-export type InsertQuizAttempt = z.infer<typeof insertQuizAttemptSchema>;
-export type InsertQuizResponse = z.infer<typeof insertQuizResponseSchema>;
-
-// Consolidate all exports (remove duplicates)
 export type {
-  // Existing types
   Organization,
   OrganizationProcess,
   OrganizationLocation,
@@ -1087,7 +1119,6 @@ export type {
   InsertAttendance,
   BatchHistory,
   InsertBatchHistory,
-  // Quiz related types
   Question,
   QuizTemplate,
   QuizAttempt,
@@ -1096,4 +1127,6 @@ export type {
   InsertQuizTemplate,
   InsertQuizAttempt,
   InsertQuizResponse,
+  Quiz,
+  InsertQuiz
 };
