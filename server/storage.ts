@@ -186,6 +186,11 @@ export interface IStorage {
 
   // Add new method for process-based question filtering
   listQuestionsByProcess(organizationId: number, processId: number): Promise<Question[]>;
+
+  // Add new methods for question operations
+  updateQuestion(id: number, question: Partial<Question>): Promise<Question>;
+  deleteQuestion(id: number): Promise<void>;
+  getQuestionById(id: number): Promise<Question | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1938,6 +1943,71 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error fetching questions by process:', error);
       throw new Error(`Failed to fetch questions: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+  async updateQuestion(id: number, questionData: Partial<Question>): Promise<Question> {
+    try {
+      console.log(`Updating question with ID: ${id}`, questionData);
+
+      const [updatedQuestion] = await db
+        .update(questions)
+        .set({
+          ...questionData,
+          updatedAt: new Date()
+        })
+        .where(eq(questions.id, id))
+        .returning() as Question[];
+
+      if (!updatedQuestion) {
+        throw new Error('Question not found');
+      }
+
+      console.log('Successfully updated question:', updatedQuestion);
+      return updatedQuestion;
+    } catch (error) {
+      console.error('Error updating question:', error);
+      throw error;
+    }
+  }
+
+  async deleteQuestion(id: number): Promise<void> {
+    try {
+      console.log(`Attempting to delete question with ID: ${id}`);
+
+      const result = await db
+        .delete(questions)
+        .where(eq(questions.id, id))
+        .returning();
+
+      if (!result.length) {
+        throw new Error('Question not found or deletion failed');
+      }
+
+      console.log(`Successfully deleted question with ID: ${id}`);
+    } catch (error) {
+      console.error('Error deleting question:', error);
+      throw error;
+    }
+  }
+  async getQuestionById(id: number): Promise<Question | undefined> {
+    try {
+      console.log(`Fetching question with ID: ${id}`);
+
+      const [question] = await db
+        .select()
+        .from(questions)
+        .where(eq(questions.id, id)) as Question[];
+
+      if (question) {
+        console.log('Found question:', { id: question.id, type: question.type });
+      } else {
+        console.log('Question not found');
+      }
+
+      return question;
+    } catch (error) {
+      console.error('Error fetching question by ID:', error);
+      throw new Error(`Failed to fetch question: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }

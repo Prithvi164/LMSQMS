@@ -808,6 +808,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update question endpoint
+  app.put("/api/questions/:id", async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const questionId = parseInt(req.params.id);
+      if (isNaN(questionId)) {
+        return res.status(400).json({ message: "Invalid question ID" });
+      }
+
+      // Get the existing question to verify ownership
+      const existingQuestion = await storage.getQuestionById(questionId);
+      if (!existingQuestion) {
+        return res.status(404).json({ message: "Question not found" });
+      }
+
+      // Verify organization ownership
+      if (existingQuestion.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Update the question
+      const updatedQuestion = await storage.updateQuestion(questionId, {
+        ...req.body,
+        organizationId: req.user.organizationId // Ensure organization ID cannot be changed
+      });
+
+      res.json(updatedQuestion);
+    } catch (error: any) {
+      console.error("Error updating question:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Delete question endpoint
+  app.delete("/api/questions/:id", async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const questionId = parseInt(req.params.id);
+      if (isNaN(questionId)) {
+        return res.status(400).json({ message: "Invalid question ID" });
+      }
+
+      // Get the existing question to verify ownership
+      const existingQuestion = await storage.getQuestionById(questionId);
+      if (!existingQuestion) {
+        return res.status(404).json({ message: "Question not found" });
+      }
+
+      // Verify organization ownership
+      if (existingQuestion.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Delete the question
+      await storage.deleteQuestion(questionId);
+      res.json({ message: "Question deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting question:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Add quiz template routes
   app.post("/api/quiz-templates", async (req, res) => {
     if (!req.user || !req.user.organizationId) {
