@@ -17,7 +17,7 @@ import type { Question, QuizTemplate } from "@shared/schema";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Pencil, Trash2, Loader2, PlayCircle } from "lucide-react";
 
 // Process filter form schema
@@ -820,18 +820,73 @@ export function QuizManagement() {
                 <div className="grid gap-4">
                   {questions?.map((question: QuestionWithProcess) => (
                     <Card key={question.id} className="p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="space-y-1">
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-2 flex-1">
                           <h3 className="font-medium text-lg">{question.question}</h3>
-                          {question.processId && (
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline">
-                                Process: {processes.find(p => p.id === question.processId)?.name || 'Unknown Process'}
-                              </Badge>
+                          <div className="flex flex-wrap gap-2">
+                            <Badge variant="outline">
+                              Process: {processes.find(p => p.id === question.processId)?.name || 'Unknown Process'}
+                            </Badge>
+                            <Badge variant="secondary">
+                              Difficulty: Level {question.difficultyLevel}
+                            </Badge>
+                            <Badge>
+                              Category: {question.category}
+                            </Badge>
+                            <Badge variant="outline">
+                              Type: {question.type}
+                            </Badge>
+                          </div>
+
+                          {/* Display question options */}
+                          {question.type === 'multiple_choice' && (
+                            <div className="mt-3 space-y-2">
+                              <p className="font-medium text-sm">Options:</p>
+                              <div className="grid gap-1">
+                                {question.options.map((option, index) => (
+                                  <div
+                                    key={index}
+                                    className={`p-2 rounded-md ${
+                                      option === question.correctAnswer
+                                        ? 'bg-green-100 dark:bg-green-900/20'
+                                        : 'bg-muted/50'
+                                    }`}
+                                  >
+                                    {option}
+                                    {option === question.correctAnswer && (
+                                      <span className="ml-2 text-sm text-green-600 dark:text-green-400">
+                                        (Correct Answer)
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Display correct answer for other types */}
+                          {question.type !== 'multiple_choice' && (
+                            <div className="mt-3">
+                              <p className="font-medium text-sm">Correct Answer:</p>
+                              <div className="p-2 mt-1 bg-green-100 dark:bg-green-900/20 rounded-md">
+                                {question.correctAnswer}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Display explanation if available */}
+                          {question.explanation && (
+                            <div className="mt-3">
+                              <p className="font-medium text-sm">Explanation:</p>
+                              <div className="p-2 mt-1 bg-muted/50 rounded-md">
+                                {question.explanation}
+                              </div>
                             </div>
                           )}
                         </div>
-                        <div className="flex items-center gap-2">
+
+                        {/* Action buttons */}
+                        <div className="flex items-start gap-2 ml-4">
                           <Button
                             variant="outline"
                             size="sm"
@@ -840,70 +895,36 @@ export function QuizManagement() {
                             <Pencil className="h-4 w-4 mr-1" />
                             Edit
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-red-500 hover:text-red-600"
-                            onClick={() => setDeletingQuestionId(question.id)}
-                          >
-                            <Trash2 className="h-4 w-4 mr-1" />
-                            Delete
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        {question.type === 'multiple_choice' && (
-                          <div className="ml-4 space-y-1">
-                            {question.options.map((option, index) => (
-                              <div
-                                key={index}
-                                className={`flex items-center gap-2 p-2 rounded-md ${
-                                  option === question.correctAnswer
-                                    ? 'bg-green-100 dark:bg-green-900/20'
-                                    : ''
-                                  }`}
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
                               >
-                                <span className="w-6">{String.fromCharCode(65 + index)}.</span>
-                                <span>{option}</span>
-                                {option === question.correctAnswer && (
-                                  <span className="text-sm text-green-600 dark:text-green-400 ml-2">
-                                    (Correct)
-                                  </span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {question.type === 'true_false' && (
-                          <div className="ml-4 space-y-1">
-                            <div className={`p-2 rounded-md ${
-                              'true' === question.correctAnswer ? 'bg-green-100 dark:bg-green-900/20' : ''
-                            }`}>
-                              True {question.correctAnswer === 'true' && '(Correct)'}
-                            </div>
-                            <div className={`p-2 rounded-md ${
-                              'false' === question.correctAnswer ? 'bg-green-100 dark:bg-green-900/20' : ''
-                            }`}>
-                              False {question.correctAnswer === 'false' && '(Correct)'}
-                            </div>
-                          </div>
-                        )}
-
-                        {question.type === 'short_answer' && (
-                          <div className="ml-4 p-2 bg-green-100 dark:bg-green-900/20 rounded-md">
-                            <span className="font-medium">Correct Answer: </span>
-                            {question.correctAnswer}
-                          </div>
-                        )}
-
-                        {question.explanation && (
-                          <div className="mt-2 p-3 bg-muted/50 rounded-md">
-                            <span className="font-medium">Explanation: </span>
-                            {question.explanation}
-                          </div>
-                        )}
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Delete
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Question</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete this question? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteQuestionMutation.mutate(question.id)}
+                                  className="bg-destructive hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </div>
                     </Card>
                   ))}
