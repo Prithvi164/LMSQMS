@@ -66,19 +66,6 @@ const quizTemplateSchema = z.object({
   categoryDistribution: z.record(z.string(), z.number()).optional(),
   difficultyDistribution: z.record(z.string(), z.number()).optional(),
   processId: z.number().min(1, "Process is required"),
-  questions: z.array(z.object({
-    id: z.number(),
-    question: z.string(),
-    type: z.enum(['multiple_choice', 'true_false', 'short_answer']),
-    options: z.array(z.string()).optional(),
-    correctAnswer: z.string(),
-    explanation: z.string().optional(),
-    difficultyLevel: z.number(),
-    category: z.string(),
-    processId: z.number().optional(),
-    organizationId: z.number(),
-    createdBy: z.number()
-  })).optional()
 });
 
 // Define all types after schemas
@@ -159,8 +146,7 @@ export function QuizManagement() {
       questionCount: 10,
       passingScore: 70,
       shuffleQuestions: false,
-      shuffleOptions: false,
-      questions: []
+      shuffleOptions: false
     }
   });
 
@@ -315,17 +301,15 @@ export function QuizManagement() {
           template: {
             ...data,
             organizationId: user.organizationId,
-            questions: previewQuestions.map(q => q.id), // Use preview questions
           },
         });
       } else {
-        // Create new template
+        // Create new template (existing logic)
         const templateData = {
           ...data,
           organizationId: user.organizationId,
           createdBy: user.id,
-          processId: data.processId,
-          questions: previewQuestions.map(q => q.id) // Use preview questions
+          processId: data.processId
         };
 
         const response = await fetch('/api/quiz-templates', {
@@ -542,7 +526,6 @@ export function QuizManagement() {
       processId: template.processId,
       categoryDistribution: template.categoryDistribution || {},
       difficultyDistribution: template.difficultyDistribution || {},
-      questions: template.questions || []
     });
   };
 
