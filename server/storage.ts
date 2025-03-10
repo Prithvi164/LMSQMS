@@ -182,7 +182,7 @@ export interface IStorage {
 
   // Quiz template operations
   createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate>;
-  listQuizTemplates(organizationId: number): Promise<QuizTemplate[]>;
+  listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]>;
 
   // Add new method for process-based question filtering
   listQuestionsByProcess(organizationId: number, processId: number): Promise<Question[]>;
@@ -1908,20 +1908,27 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async listQuizTemplates(organizationId: number): Promise<QuizTemplate[]> {
+  async listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]> {
     try {
-      console.log(`Fetching quiz templates for organization ${organizationId}`);
+      console.log(`Fetching quiz templates for organization ${organizationId}${processId ? ` and process ${processId}` : ''}`);
 
-      const templates = await db
+      let query = db
         .select()
         .from(quizTemplates)
-        .where(eq(quizTemplates.organizationId, organizationId)) as QuizTemplate[];
+        .where(eq(quizTemplates.organizationId, organizationId));
 
-      console.log(`Found ${templates.length} quiz templates`);
+      // Add process filter if processId is provided
+      if (processId !== undefined) {
+        query = query.where(eq(quizTemplates.processId, processId));
+      }
+
+      const templates = await query as QuizTemplate[];
+
+      console.log(`Found ${templates.length} templates${processId ? ` for process ${processId}` : ''}`);
       return templates;
     } catch (error) {
-      console.error('Error listing quiz templates:', error);
-      throw new Error('Failed to list quiz templates');
+      console.error('Error fetching quiz templates:', error);
+      throw new Error(`Failed to fetch quiz templates: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
   async listQuestionsByProcess(organizationId: number, processId: number): Promise<Question[]> {

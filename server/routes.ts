@@ -911,8 +911,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      console.log('Fetching quiz templates for organization:', req.user.organizationId);
-      const templates = await storage.listQuizTemplates(req.user.organizationId);
+      console.log('Fetching quiz templates');
+      const processId = req.query.processId ? parseInt(req.query.processId as string) : undefined;
+      console.log('Process ID filter:', processId);
+      
+      const templates = await storage.listQuizTemplates(req.user.organizationId, processId);
       console.log(`Retrieved ${templates.length} quiz templates`);
       res.json(templates);
     } catch (error: any) {
