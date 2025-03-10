@@ -5,10 +5,6 @@ import rateLimit from 'express-rate-limit';
 import { startBatchStatusCron } from './cron/batch-status-cron';
 
 const app = express();
-
-// Configure trust proxy
-app.set('trust proxy', 1);
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -86,8 +82,7 @@ app.get("/health", (_req, res) => {
       serveStatic(app);
     }
 
-    // Always use port 5000 as required by development guidelines
-    const port = 5000;
+    const port = process.env.PORT || 5001;
     server.listen(port, "0.0.0.0", () => {
       log(`Server running in ${app.get("env")} mode`);
       log(`API and client being served on port ${port}`);

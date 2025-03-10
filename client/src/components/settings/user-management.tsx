@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import type { User, Organization, OrganizationLocation, InsertUser } from "@shared/schema";
+import type { User, Organization, OrganizationLocation } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -38,12 +38,6 @@ const editUserSchema = insertUserSchema.extend({
 }).omit({ certified: true }).partial();  // Remove certified from the schema
 
 type UserFormData = z.infer<typeof editUserSchema>;
-
-// Add type for organization settings
-interface OrganizationSettings {
-  locations?: OrganizationLocation[];
-  [key: string]: any;
-}
 
 export function UserManagement() {
   const { user } = useAuth();
@@ -145,15 +139,10 @@ export function UserManagement() {
     return manager ? manager.username : "Unknown Manager";
   };
 
-  const { data: orgSettings } = useQuery<OrganizationSettings>({
-    queryKey: [`/api/organizations/${user?.organizationId}/settings`],
-    enabled: !!user?.organizationId,
-  });
-
   // Find location name for a user
   const getLocationName = (locationId: number | null) => {
-    if (!locationId) return "No Location";
-    const location = orgSettings?.locations?.find(l => l.id === locationId);
+    if (!locationId ) return "No Location";
+    const location = orgSettings?.locations?.find((l: OrganizationLocation) => l.id === locationId);
     return location ? location.name : "Unknown Location";
   };
 
@@ -230,11 +219,11 @@ export function UserManagement() {
     const form = useForm<UserFormData>({
       resolver: zodResolver(editUserSchema),
       defaultValues: {
-        username: editUser.username || "",
+        username: editUser.username,
         fullName: editUser.fullName || "",
-        email: editUser.email || "",
+        email: editUser.email,
         employeeId: editUser.employeeId || "",
-        role: editUser.role || "",
+        role: editUser.role,
         phoneNumber: editUser.phoneNumber || "",
         locationId: editUser.locationId?.toString() || "none",
         managerId: editUser.managerId?.toString() || "none",
@@ -276,10 +265,10 @@ export function UserManagement() {
                 // Clean up the data before submission
                 const cleanedData = {
                   ...data,
-                  locationId: data.locationId === "none" ? null : parseInt(data.locationId),
-                  managerId: data.managerId === "none" ? null : parseInt(data.managerId),
+                  locationId: data.locationId === "none" ? null : parseInt(data.locationId!),
+                  managerId: data.managerId === "none" ? null : parseInt(data.managerId!),
                   // Only include lastWorkingDay if it has a value
-                  lastWorkingDay: data.lastWorkingDay || null,
+                  lastWorkingDay: data.lastWorkingDay ? data.lastWorkingDay : null,
                 };
 
                 await updateUserMutation.mutateAsync({
@@ -425,7 +414,7 @@ export function UserManagement() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Location</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select location" />
@@ -433,7 +422,7 @@ export function UserManagement() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="none">No Location</SelectItem>
-                          {orgSettings?.locations?.map((location) => (
+                          {orgSettings?.locations?.map((location: OrganizationLocation) => (
                             <SelectItem key={location.id} value={location.id.toString()}>
                               {location.name}
                             </SelectItem>
@@ -450,7 +439,7 @@ export function UserManagement() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Manager</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select manager" />
@@ -546,6 +535,11 @@ export function UserManagement() {
       });
     }
   };
+
+  const { data: orgSettings } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/settings`],
+    enabled: !!user?.organizationId,
+  });
 
   return (
     <div className="space-y-6">
