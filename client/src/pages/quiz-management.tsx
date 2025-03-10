@@ -13,12 +13,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
-import type { Question, QuizTemplate } from "@shared/schema";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import type { Question } from "@shared/schema";
 import { Badge } from "@/components/ui/badge";
 
-// Add type for Process
+// Define Process interface
 interface Process {
   id: number;
   name: string;
@@ -26,12 +24,7 @@ interface Process {
   status: string;
 }
 
-// Extended Question type to include process
-interface QuestionWithProcess extends Question {
-  process?: Process;
-}
-
-// Question form schema
+// Define schemas
 const questionFormSchema = z.object({
   question: z.string().min(1, "Question is required"),
   type: z.enum(["multiple_choice", "true_false", "short_answer"]),
@@ -40,10 +33,9 @@ const questionFormSchema = z.object({
   explanation: z.string().optional(),
   difficultyLevel: z.number().int().min(1).max(5),
   category: z.string().min(1, "Category is required"),
-  processId: z.number().min(1).optional()
+  processId: z.number().int().positive("Process is required")
 });
 
-// Quiz template schema
 const quizTemplateSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
@@ -54,18 +46,21 @@ const quizTemplateSchema = z.object({
   shuffleOptions: z.boolean().default(false),
   categoryDistribution: z.record(z.string(), z.number()).optional(),
   difficultyDistribution: z.record(z.string(), z.number()).optional(),
-  processId: z.number().min(1, "Process is required"),
+  processId: z.number().int().positive("Process is required")
 });
 
-// Process filter form schema
 const filterFormSchema = z.object({
-  processId: z.string().optional()
+  processId: z.string()
 });
 
-// Define all types after schemas
+// Define types
 type QuestionFormValues = z.infer<typeof questionFormSchema>;
 type QuizTemplateFormValues = z.infer<typeof quizTemplateSchema>;
 type FilterFormValues = z.infer<typeof filterFormSchema>;
+
+interface QuestionWithProcess extends Question {
+  processId: number;
+}
 
 export function QuizManagement() {
   const queryClient = useQueryClient();
@@ -73,52 +68,14 @@ export function QuizManagement() {
   const { user } = useAuth();
   const [isAddQuestionOpen, setIsAddQuestionOpen] = useState(false);
   const [isAddTemplateOpen, setIsAddTemplateOpen] = useState(false);
+  const [previewQuestions, setPreviewQuestions] = useState<Question[]>([]);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
-  // Create a form for the process filter
+  // Initialize forms
   const filterForm = useForm<FilterFormValues>({
     resolver: zodResolver(filterFormSchema),
     defaultValues: {
       processId: "all"
-    }
-  });
-
-  // Get selected process ID from form
-  const selectedProcessId = filterForm.watch("processId") !== "all" ? parseInt(filterForm.watch("processId")) : null;
-
-  // Update process query with proper typing
-  const { data: processes = [], isLoading: processesLoading } = useQuery<Process[]>({
-    queryKey: ['/api/processes'],
-    enabled: !!user?.organizationId
-  });
-
-  // Update questions query to use processId filter
-  const { data: questions = [], isLoading: questionsLoading } = useQuery<QuestionWithProcess[]>({
-    queryKey: ['/api/questions', selectedProcessId],
-    queryFn: async () => {
-      const url = new URL('/api/questions', window.location.origin);
-      if (selectedProcessId) {
-        url.searchParams.append('processId', selectedProcessId.toString());
-        console.log('Fetching questions for process:', selectedProcessId);
-      }
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error('Failed to fetch questions');
-      }
-      const data = await response.json();
-      console.log('Fetched questions:', data);
-      return data;
-    },
-    enabled: !!user?.organizationId,
-  });
-
-  const templateForm = useForm<QuizTemplateFormValues>({
-    resolver: zodResolver(quizTemplateSchema),
-    defaultValues: {
-      timeLimit: 10,
-      questionCount: 10,
-      passingScore: 70,
-      shuffleQuestions: false,
-      shuffleOptions: false
     }
   });
 
@@ -133,6 +90,44 @@ export function QuizManagement() {
     }
   });
 
+  const templateForm = useForm<QuizTemplateFormValues>({
+    resolver: zodResolver(quizTemplateSchema),
+    defaultValues: {
+      timeLimit: 10,
+      questionCount: 10,
+      passingScore: 70,
+      shuffleQuestions: false,
+      shuffleOptions: false,
+      processId: undefined //Added to fix error
+    }
+  });
+
+  // Get selected process ID from form
+  const selectedProcessId = filterForm.watch("processId") !== "all" ? parseInt(filterForm.watch("processId")) : null;
+
+  // Queries
+  const { data: processes = [], isLoading: processesLoading } = useQuery<Process[]>({
+    queryKey: ['/api/processes'],
+    enabled: !!user?.organizationId
+  });
+
+  const { data: questions = [], isLoading: questionsLoading } = useQuery<QuestionWithProcess[]>({
+    queryKey: ['/api/questions', selectedProcessId],
+    queryFn: async () => {
+      const url = new URL('/api/questions', window.location.origin);
+      if (selectedProcessId) {
+        url.searchParams.append('processId', selectedProcessId.toString());
+      }
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Failed to fetch questions');
+      }
+      return response.json();
+    },
+    enabled: !!user?.organizationId
+  });
+
+  // Handlers
   const onSubmitQuestion = async (data: QuestionFormValues) => {
     if (!user?.organizationId || !user?.id) {
       toast({
@@ -144,7 +139,6 @@ export function QuizManagement() {
     }
 
     try {
-      console.log('Submitting question data:', data);
       const questionData = {
         ...data,
         options: data.type === 'multiple_choice' ? data.options : [],
@@ -165,7 +159,6 @@ export function QuizManagement() {
         throw new Error(errorData.message || 'Failed to add question');
       }
 
-      // Invalidate and refetch questions
       await queryClient.invalidateQueries({ queryKey: ['/api/questions', selectedProcessId] });
 
       toast({
@@ -198,8 +191,7 @@ export function QuizManagement() {
       const templateData = {
         ...data,
         organizationId: user.organizationId,
-        createdBy: user.id,
-        processId: data.processId
+        createdBy: user.id
       };
 
       const response = await fetch('/api/quiz-templates', {
@@ -234,53 +226,12 @@ export function QuizManagement() {
     }
   };
 
-  // Add state for tracking selected questions preview
-  const [previewQuestions, setPreviewQuestions] = useState<Question[]>([]);
-  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
-
-  // Add state for tracking unique categories from questions
+  // Computed values
   const categories = useMemo(() => {
-    if (!questions) return new Set<string>();
     return new Set(questions.map(q => q.category));
   }, [questions]);
 
-  const difficulties = [1, 2, 3, 4, 5];
-
-  // Add function to preview random questions
-  const previewRandomQuestions = async (data: QuizTemplateFormValues) => {
-    setIsPreviewLoading(true);
-    try {
-      const params = new URLSearchParams({
-        count: data.questionCount.toString(),
-      });
-
-      if (data.categoryDistribution) {
-        params.append('categoryDistribution', JSON.stringify(data.categoryDistribution));
-      }
-      if (data.difficultyDistribution) {
-        params.append('difficultyDistribution', JSON.stringify(data.difficultyDistribution));
-      }
-
-      const response = await fetch(`/api/random-questions?${params}`);
-      if (!response.ok) {
-        throw new Error('Failed to get random questions');
-      }
-
-      const randomQuestions = await response.json();
-      setPreviewQuestions(randomQuestions);
-    } catch (error) {
-      console.error('Error previewing questions:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to preview questions",
-        variant: "destructive",
-      });
-    } finally {
-      setIsPreviewLoading(false);
-    }
-  };
-
-
+  // Render UI
   return (
     <div className="container mx-auto py-6">
       <h1 className="text-2xl font-bold mb-6">Quiz Management</h1>
@@ -294,7 +245,6 @@ export function QuizManagement() {
         <TabsContent value="questions">
           <Card className="p-4">
             <div className="flex flex-col gap-4">
-              {/* Process Filter Form */}
               <Form {...filterForm}>
                 <form className="flex items-center gap-4">
                   <div className="flex-1">
@@ -305,12 +255,7 @@ export function QuizManagement() {
                         <FormItem>
                           <FormLabel>Filter by Process</FormLabel>
                           <Select
-                            onValueChange={(value) => {
-                              console.log('Selected process:', value);
-                              field.onChange(value);
-                              // Force refetch questions when process changes
-                              queryClient.invalidateQueries({ queryKey: ['/api/questions', value === 'all' ? null : parseInt(value)] });
-                            }}
+                            onValueChange={field.onChange}
                             value={field.value}
                           >
                             <FormControl>
@@ -532,22 +477,20 @@ export function QuizManagement() {
 
               {questionsLoading ? (
                 <p>Loading questions...</p>
-              ) : questions?.length === 0 ? (
+              ) : questions.length === 0 ? (
                 <p>No questions found for the selected process.</p>
               ) : (
                 <div className="grid gap-4">
-                  {questions?.map((question: QuestionWithProcess) => (
+                  {questions.map((question) => (
                     <Card key={question.id} className="p-4">
                       <div className="flex justify-between items-start mb-2">
                         <div className="space-y-1">
                           <h3 className="font-medium text-lg">{question.question}</h3>
-                          {question.processId && (
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline">
-                                Process: {processes.find(p => p.id === question.processId)?.name || 'Unknown Process'}
-                              </Badge>
-                            </div>
-                          )}
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">
+                              Process: {processes.find(p => p.id === question.processId)?.name || 'Unknown Process'}
+                            </Badge>
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm px-2 py-1 bg-primary/10 rounded-md">
@@ -558,7 +501,6 @@ export function QuizManagement() {
                           </span>
                         </div>
                       </div>
-
                       <div className="space-y-2">
                         {question.type === 'multiple_choice' && (
                           <div className="ml-4 space-y-1">
