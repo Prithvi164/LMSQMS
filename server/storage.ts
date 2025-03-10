@@ -183,6 +183,9 @@ export interface IStorage {
   // Quiz template operations
   createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate>;
   listQuizTemplates(organizationId: number): Promise<QuizTemplate[]>;
+
+  // Add new method for process-based question filtering
+  listQuestionsByProcess(organizationId: number, processId: number): Promise<Question[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1748,17 +1751,31 @@ export class DatabaseStorage implements IStorage {
 
   async listQuestions(organizationId: number): Promise<Question[]> {
     try {
-      console.log('Fetching questions for organization:', organizationId);
-      const questionsList = await db
-        .select()
+      console.log(`Fetching all questions for organization ${organizationId}`);
+      const questions = await db
+        .select({
+          id: questions.id,
+          question: questions.question,
+          type: questions.type,
+          options: questions.options,
+          correctAnswer: questions.correctAnswer,
+          explanation: questions.explanation,
+          difficultyLevel: questions.difficultyLevel,
+          category: questions.category,
+          organizationId: questions.organizationId,
+          createdBy: questions.createdBy,
+          processId: questions.processId,
+          createdAt: questions.createdAt,
+          updatedAt: questions.updatedAt
+        })
         .from(questions)
         .where(eq(questions.organizationId, organizationId)) as Question[];
 
-      console.log(`Found ${questionsList.length} questions`);
-      return questionsList;
-    } catch (error) {
-      console.error('Error listing questions:', error);
-      throw new Error('Failed to list questions');
+      console.log(`Found ${questions.length} questions`);
+      return questions;
+    } catch (error: any) {
+      console.error('Error fetching questions:', error);
+      throw new Error(`Failed to fetch questions: ${error.message}`);
     }
   }
 
@@ -1878,6 +1895,40 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error listing quiz templates:', error);
       throw new Error('Failed to list quiz templates');
+    }
+  }
+  async listQuestionsByProcess(organizationId: number, processId: number): Promise<Question[]> {
+    try {
+      console.log(`Fetching questions for organization ${organizationId} and process ${processId}`);
+      const filteredQuestions = await db
+        .select({
+          id: questions.id,
+          question: questions.question,
+          type: questions.type,
+          options: questions.options,
+          correctAnswer: questions.correctAnswer,
+          explanation: questions.explanation,
+          difficultyLevel: questions.difficultyLevel,
+          category: questions.category,
+          organizationId: questions.organizationId,
+          createdBy: questions.createdBy,
+          processId: questions.processId,
+          createdAt: questions.createdAt,
+          updatedAt: questions.updatedAt
+        })
+        .from(questions)
+        .where(
+          and(
+            eq(questions.organizationId, organizationId),
+            eq(questions.processId, processId)
+          )
+        ) as Question[];
+
+      console.log(`Found ${filteredQuestions.length} questions for process ${processId}`);
+      return filteredQuestions;
+    } catch (error: any) {
+      console.error('Error fetching questions by process:', error);
+      throw new Error(`Failed to fetch questions by process: ${error.message}`);
     }
   }
 }

@@ -18,7 +18,12 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 
-// Add type for Process
+// Process filter form schema
+const filterFormSchema = z.object({
+  processId: z.string().optional()
+});
+
+// Process type definitions
 interface Process {
   id: number;
   name: string;
@@ -26,7 +31,6 @@ interface Process {
   status: string;
 }
 
-// Extended Question type to include process
 interface QuestionWithProcess extends Question {
   process?: Process;
 }
@@ -58,9 +62,6 @@ const quizTemplateSchema = z.object({
 });
 
 // Process filter form schema
-const filterFormSchema = z.object({
-  processId: z.string().optional()
-});
 
 // Define all types after schemas
 type QuestionFormValues = z.infer<typeof questionFormSchema>;
@@ -95,18 +96,33 @@ export function QuizManagement() {
   const { data: questions = [], isLoading: questionsLoading } = useQuery<QuestionWithProcess[]>({
     queryKey: ['/api/questions', selectedProcessId],
     queryFn: async () => {
-      const url = new URL('/api/questions', window.location.origin);
-      if (selectedProcessId) {
-        url.searchParams.append('processId', selectedProcessId.toString());
-        console.log('Fetching questions for process:', selectedProcessId);
+      try {
+        // Build URL with proper query parameters
+        const url = new URL('/api/questions', window.location.origin);
+
+        // Only add processId parameter if a specific process is selected
+        if (selectedProcessId) {
+          url.searchParams.append('processId', selectedProcessId.toString());
+          console.log('Fetching questions for process:', selectedProcessId);
+        }
+
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error('Failed to fetch questions');
+        }
+
+        const data = await response.json();
+        console.log('API Response:', {
+          selectedProcess: selectedProcessId,
+          questionCount: data.length,
+          questions: data
+        });
+
+        return data;
+      } catch (error) {
+        console.error('Error fetching questions:', error);
+        throw error;
       }
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error('Failed to fetch questions');
-      }
-      const data = await response.json();
-      console.log('Fetched questions:', data);
-      return data;
     },
     enabled: !!user?.organizationId,
   });

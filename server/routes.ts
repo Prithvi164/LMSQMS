@@ -680,9 +680,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      console.log('Fetching questions for organization:', req.user.organizationId);
-      const questions = await storage.listQuestions(req.user.organizationId);
-      console.log('Retrieved questions:', questions);
+      const processId = req.query.processId ? parseInt(req.query.processId as string) : null;
+      console.log('Fetching questions with process filter:', processId);
+
+      let questions;
+      if (processId) {
+        // If processId is provided, filter questions by process
+        questions = await storage.listQuestionsByProcess(req.user.organizationId, processId);
+      } else {
+        // If no processId, get all questions for the organization
+        questions = await storage.listQuestions(req.user.organizationId);
+      }
+
+      console.log(`Retrieved ${questions.length} questions for process ${processId || 'all'}`);
       res.json(questions);
     } catch (error: any) {
       console.error("Error fetching questions:", error);
