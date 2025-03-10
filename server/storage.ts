@@ -946,7 +946,7 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log('Creating location with data:', location);
 
-      // Check if location with same name exists in the organization
+      // Check if location with same nameexists in the organization
       const existingLocations = await db
         .select()
         .from(organizationLocations)
@@ -1988,37 +1988,44 @@ export class DatabaseStorage implements IStorage {
   async createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate> {
     try {
       console.log('Creating quiz template:', {
-        ...template,
+        name: template.name,
+        questionCount: template.questionCount,
         questions: template.questions?.length || 0
       });
 
-      // Validate required fields
-      if (!template.name || !template.timeLimit || !template.passingScore) {
-        throw new Error('Missing required fields');
+      // Ensure questions is an array
+      if (!Array.isArray(template.questions)) {
+        throw new Error('Questions must be an array');
       }
 
-      // Convert arrays and objects to proper PostgreSQL format
-      const templateData = {
-        name: template.name,
-        description: template.description,
-        timeLimit: template.timeLimit,
-        passingScore: template.passingScore,
-        shuffleQuestions: template.shuffleQuestions ?? false,
-        shuffleOptions: template.shuffleOptions ?? false,
-        questionCount: template.questionCount,
-        categoryDistribution: template.categoryDistribution ? JSON.stringify(template.categoryDistribution) : null,
-        difficultyDistribution: template.difficultyDistribution ? JSON.stringify(template.difficultyDistribution) : null,
-        processId: template.processId,
-        organizationId: template.organizationId,
-        createdBy: template.createdBy,
-        questions: sql`array[${template.questions.map(q => sql`${q}`)}]::integer[]`,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
+      // Convert distributions to JSONB if they exist
+      const categoryDist = template.categoryDistribution
+        ? sql`${JSON.stringify(template.categoryDistribution)}::jsonb`
+        : null;
+
+      const difficultyDist = template.difficultyDistribution
+        ? sql`${JSON.stringify(template.difficultyDistribution)}::jsonb`
+        : null;
 
       const [newTemplate] = await db
         .insert(quizTemplates)
-        .values(templateData)
+        .values({
+          name: template.name,
+          description: template.description || '',
+          timeLimit: template.timeLimit,
+          passingScore: template.passingScore,
+          shuffleQuestions: template.shuffleQuestions ?? false,
+          shuffleOptions: template.shuffleOptions ?? false,
+          questionCount: template.questionCount,
+          categoryDistribution: categoryDist,
+          difficultyDistribution: difficultyDist,
+          processId: template.processId,
+          organizationId: template.organizationId,
+          createdBy: template.createdBy,
+          questions: template.questions,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
         .returning() as QuizTemplate[];
 
       if (!newTemplate) {

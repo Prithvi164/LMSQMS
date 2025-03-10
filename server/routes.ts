@@ -885,22 +885,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('Creating quiz template with data:', req.body);
 
-      // Validate and parse questions array
-      if (!Array.isArray(req.body.questions)) {
+      // Initialize and validate questions array
+      const questions = Array.isArray(req.body.questions) ? req.body.questions : [];
+      if (!questions.length) {
         return res.status(400).json({
-          message: "Questions must be an array"
+          message: "At least one question is required for the quiz template"
         });
       }
 
+      // Define question type
+      type QuizQuestion = {
+        id: number;
+        [key: string]: unknown;
+      };
+
+      // Validate each question has an ID
+      const questionIds = questions.map((q: QuizQuestion) => {
+        if (typeof q?.id !== 'number') {
+          throw new Error('Invalid question format - each question must have a numeric ID');
+        }
+        return q.id;
+      });
+
       // Parse and validate distributions
-      let categoryDistribution = null;
-      let difficultyDistribution = null;
+      let categoryDistribution: Record<string, number> | undefined;
+      let difficultyDistribution: Record<string, number> | undefined;
 
       if (req.body.categoryDistribution) {
         try {
-          categoryDistribution = typeof req.body.categoryDistribution === 'string' 
+          const parsed = typeof req.body.categoryDistribution === 'string' 
             ? JSON.parse(req.body.categoryDistribution)
             : req.body.categoryDistribution;
+            
+          if (typeof parsed === 'object' && parsed !== null) {
+            categoryDistribution = parsed as Record<string, number>;
+          } else {
+            throw new Error('Category distribution must be an object');
+          }
         } catch (e) {
           return res.status(400).json({
             message: "Invalid category distribution format"
@@ -910,9 +931,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (req.body.difficultyDistribution) {
         try {
-          difficultyDistribution = typeof req.body.difficultyDistribution === 'string'
+          const parsed = typeof req.body.difficultyDistribution === 'string'
             ? JSON.parse(req.body.difficultyDistribution)
             : req.body.difficultyDistribution;
+            
+          if (typeof parsed === 'object' && parsed !== null) {
+            difficultyDistribution = parsed as Record<string, number>;
+          } else {
+            throw new Error('Difficulty distribution must be an object');
+          }
         } catch (e) {
           return res.status(400).json({
             message: "Invalid difficulty distribution format"
@@ -920,15 +947,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Prepare template data
+      // Prepare template data with proper types and defaults
       const templateData = {
-        ...req.body,
-        questions: req.body.questions,
-        categoryDistribution,
-        difficultyDistribution,
+        name: String(req.body.name || ''),
+        description: String(req.body.description || ''),
+        timeLimit: Number(req.body.timeLimit || 0),
+        passingScore: Number(req.body.passingScore || 0),
+        processId: Number(req.body.processId || 0),
+        questions: questionIds,
         organizationId: req.user.organizationId,
-        createdBy: req.user.id
+        createdBy: req.user.id,
+        shuffleQuestions: Boolean(req.body.shuffleQuestions),
+        shuffleOptions: Boolean(req.body.shuffleOptions),
+        questionCount: questionIds.length,
+        categoryDistribution: categoryDistribution || undefined,
+        difficultyDistribution: difficultyDistribution || undefined,
+        status: 'in_progress' as const
       };
+
+      // Validate required fields
+      if (!templateData.name || !templateData.timeLimit || !templateData.passingScore || !templateData.processId) {
+        return res.status(400).json({
+          message: "Required fields missing or invalid: name, timeLimit, passingScore and processId"
+        });
+      }
 
       // Create the template
       const newTemplate = await storage.createQuizTemplate(templateData);
@@ -1027,13 +1069,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.user.organizationId,
         {
           count: template.questionCount,
-          categoryDistribution: template.categoryDistribution,
-          difficultyDistribution: template.difficultyDistribution,
+          categoryDistribution: template.categoryDistribution || undefined,
+          difficultyDistribution: template.difficultyDistribution || undefined,
           processId: template.processId
         }
       );
 
-      if (questions.length < template.questionCount) {
+      type Question = {
+        id: number;
+        [key: string]: unknown;
+      };
+
+      // Ensure questions array has proper type
+      const typedQuestions = questions as Question[];
+
+      if (typedQuestions.length < template.questionCount) {
         const errorDetails = [];
         if (template.categoryDistribution) {
           errorDetails.push(`category distribution (${Object.entries(template.categoryDistribution).map(([cat, count]) => `${count} from ${cat}`).join(', ')})`);
@@ -1051,15 +1101,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create a new quiz instance
       const quiz = await storage.createQuiz({
         name: template.name,
-        description: template.description,
+        description: template.description || '',
         timeLimit: template.timeLimit,
         passingScore: template.passingScore,
-        questions: questions.map(q => q.id),
+        questions: typedQuestions.map(q => q.id),
         templateId: template.id,
         organizationId: req.user.organizationId,
         createdBy: req.user.id,
         processId: template.processId,
-        status: 'active',
+        status: 'in_progress' as const,
         startTime: new Date(),
         endTime: new Date(Date.now() + template.timeLimit * 60 * 1000)
       });
@@ -1126,11 +1176,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
 
+      // Define question type
+      type QuizQuestion = {
+        id: number;
+        correctAnswer?: string | number;
+        [key: string]: unknown;
+      };
+
       // Remove correct answers from questions before sending to client
-      const sanitizedQuestions = quiz.questions.map(question => ({
-        ...question,
-        correctAnswer: undefined
-      }));
+      const sanitizedQuestions = (quiz.questions as QuizQuestion[]).map(question => {
+        const { correctAnswer, ...rest } = question;
+        return rest;
+      });
 
       res.json({
         ...quiz,
@@ -1159,28 +1216,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid answers format" });
       }
 
-      // Get quiz with correct answers
+      // Get quiz with correct answers 
       const quiz = await storage.getQuizWithQuestions(quizId);
       if (!quiz) {
         return res.status(404).json({ message: "Quiz not found" });
       }
 
+      // Define question and answer types
+      type QuizQuestion = {
+        id: number;
+        correctAnswer: string;
+        [key: string]: unknown;
+      };
+
+      type AnswerResult = {
+        correctAnswer: string;
+        questionId: number;
+        isCorrect: boolean;
+        userAnswer: string;
+      };
+      
+      // Validate questions array and cast to proper type
+      if (!Array.isArray(quiz.questions)) {
+        return res.status(500).json({ message: "Invalid quiz structure" });
+      }
+
+      const questions = quiz.questions as unknown[] as QuizQuestion[];
+      
+      // Convert answers to Map for better lookup performance
+      const answersMap = new Map<number, string>();
+      Object.entries(answers).forEach(([id, answer]) => {
+        answersMap.set(Number(id), String(answer || ''));
+      });
+
       // Calculate score
       let correctAnswers = 0;
-      const results = quiz.questions.map(question => {
-        const userAnswer = answers[question.id];
-        const isCorrect = userAnswer === question.correctAnswer;
+      const results: AnswerResult[] = questions.map(question => {
+        const userAnswer = answersMap.get(question.id) || '';
+        const correctAnswer = String(question.correctAnswer);
+        const isCorrect = userAnswer === correctAnswer;
         if (isCorrect) correctAnswers++;
         
         return {
           questionId: question.id,
           userAnswer,
-          correctAnswer: question.correctAnswer,
+          correctAnswer,
           isCorrect
         };
       });
 
-      const score = (correctAnswers / quiz.questions.length) * 100;
+      // Calculate score using validated array length
+      const totalQuestions = questions.length;
+      const score = totalQuestions ? (correctAnswers / totalQuestions) * 100 : 0;
 
       // Save quiz attempt
       const attempt = await storage.createQuizAttempt({
