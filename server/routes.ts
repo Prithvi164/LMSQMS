@@ -992,6 +992,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get quiz for taking
+  app.get("/api/quizzes/:id", async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const quizId = parseInt(req.params.id);
+      if (isNaN(quizId)) {
+        return res.status(400).json({ message: "Invalid quiz ID" });
+      }
+
+      // Get quiz details with questions
+      const quiz = await storage.getQuizWithQuestions(quizId);
+      if (!quiz) {
+        return res.status(404).json({ message: "Quiz not found" });
+      }
+
+      // Verify organization access
+      if (quiz.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Remove correct answers from questions before sending to client
+      const sanitizedQuestions = quiz.questions.map(question => ({
+        ...question,
+        correctAnswer: undefined
+      }));
+
+      res.json({
+        ...quiz,
+        questions: sanitizedQuestions
+      });
+    } catch (error: any) {
+      console.error("Error fetching quiz:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Submit quiz answers
+  app.post("/api/quizzes/:id/submit", async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const quizId = parseInt(req.params.id);
+      if (isNaN(quizId)) {
+        return res.status(400).json({ message: "Invalid quiz ID" });
+      }
+
+      const { answers } = req.body;
+      if (!answers || typeof answers !== 'object') {
+        return res.status(400).json({ message: "Invalid answers format" });
+      }
+
+      // Get quiz with correct answers
+      const quiz = await storage.getQuizWithQuestions(quizId);
+      if (!quiz) {
+        return res.status(404).json({ message: "Quiz not found" });
+      }
+
+      // Calculate score
+      let correctAnswers = 0;
+      const results = quiz.questions.map(question => {
+        const userAnswer = answers[question.id];
+        const isCorrect = userAnswer === question.correctAnswer;
+        if (isCorrect) correctAnswers++;
+        
+        return {
+          questionId: question.id,
+          userAnswer,
+          correctAnswer: question.correctAnswer,
+          isCorrect
+        };
+      });
+
+      const score = (correctAnswers / quiz.questions.length) * 100;
+
+      // Save quiz attempt
+      const attempt = await storage.createQuizAttempt({
+        quizId,
+        userId: req.user.id,
+        organizationId: req.user.organizationId,
+        score,
+        answers: results,
+        completedAt: new Date()
+      });
+
+      res.json(attempt);
+    } catch (error: any) {
+      console.error("Error submitting quiz:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Update phase change request status
   app.patch("/api/phase-change-requests/:requestId", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
