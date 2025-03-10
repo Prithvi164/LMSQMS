@@ -168,18 +168,19 @@ export function setupAuth(app: Express) {
         email: data.email,
         password: hashedPassword,
         organizationId: organization.id,
-        role: "owner", // Changed from admin to owner
-        fullName: data.username, // Default to username
-        employeeId: `EMP${Date.now()}`, // Generate a unique employee ID
-        phoneNumber: "", // Empty string for optional fields
-        active: true
+        role: "owner" as const,
+        fullName: data.username,
+        employeeId: `EMP${Date.now()}`,
+        phoneNumber: "",
+        active: true,
+        category: "active" as const
       });
 
       // Set up initial permissions for owner
       await storage.updateRolePermissions(
         organization.id,
         'owner',
-        permissionEnum.enumValues // Owner gets all permissions
+        permissionEnum.enumValues
       );
 
       // Log the user in
@@ -200,7 +201,7 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", (req, res, next) => {
-    passport.authenticate("local", (err, user, info) => {
+    passport.authenticate("local", (err: any, user: Express.User | false, info: any) => {
       if (err) {
         console.error("Login error:", err);
         return res.status(500).json({ message: "Internal server error" });

@@ -834,8 +834,7 @@ export const batchHistoryEventTypeEnum = pgEnum('batch_history_event_type', [
   'note'
 ]);
 // Add batch history table after batch tables
-export const batchHistory = pgTable("batch_history", {
-  id: serial("id").primaryKey(),
+export const batchHistory = pgTable("batch_history", {  id: serial("id").primaryKey(),
   batchId: integer("batch_id")
     .references(() => organizationBatches.id)
     .notNull(),
