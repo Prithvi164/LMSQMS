@@ -939,8 +939,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add update endpoint for quiz templates
   // Add route for getting quiz attempt details with detailed responses
-  app.get("/api/quiz-attempts/:id", async (req: Request, res: Response) => {
+  app.get("/api/quiz-attempts/:id", async (req: Express.Request, res: Express.Response) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     try {
@@ -957,110 +958,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if the user has permission to view this attempt
-      if (attempt.userId !== req.user.id && req.user.role !== 'owner' && req.user.role !== 'admin') {
+      const user = req.user as User;
+      if (attempt.userId !== user.id && user.role !== 'owner' && user.role !== 'admin') {
         return res.status(403).json({ message: "You can only view your own quiz attempts" });
       }
 
-      if (!attempt.quiz || !Array.isArray(attempt.quiz.questions)) {
-        return res.status(500).json({ message: "Invalid quiz data structure" });
-      }
-
-      // Transform the data into the expected format
-      const response = {
+      // Return a simplified response structure
+      res.json({
         id: attempt.id,
-        score: attempt.score || 0,
-        completedAt: attempt.completedAt || new Date().toISOString(),
+        score: attempt.score,
+        completedAt: attempt.completedAt,
         quiz: {
           id: attempt.quiz.id,
-          title: attempt.quiz.name || '',
+          title: attempt.quiz.name,
           description: attempt.quiz.description || '',
-          questions: attempt.quiz.questions.map((question, index) => {
-            const answer = attempt.answers.find(a => a.questionId === question.id);
-            return {
-              id: question.id,
-              number: index + 1,
-              question: question.question || '',
-              type: question.type || 'multiple_choice',
-              options: Array.isArray(question.options) ? question.options : [],
-              userAnswer: answer?.userAnswer || '',
-              correctAnswer: question.correctAnswer || '',
-              isCorrect: answer?.isCorrect || false
-            };
-          })
+          questions: attempt.quiz.questions.map((q: QuizQuestion, index: number) => ({
+            id: q.id,
+            number: index + 1,
+            question: q.question,
+            type: q.type,
+            options: q.options || [],
+            userAnswer: attempt.answers.find((a: QuizAnswer) => a.questionId === q.id)?.userAnswer || '',
+            correctAnswer: q.correctAnswer,
+            isCorrect: attempt.answers.find((a: QuizAnswer) => a.questionId === q.id)?.isCorrect || false
+          }))
         }
-      };
-
-      res.json(response);
+      });
     } catch (error) {
       console.error("Error fetching quiz attempt:", error);
-      res.status(500).json({ 
-        message: error instanceof Error ? error.message : "Failed to fetch quiz attempt" 
-      });
-    }
-  });
-
-  // Add route for getting quiz attempt details with detailed responses
-  app.get("/api/quiz-attempts/:id", async (req: Request, res: Response) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const attemptId = parseInt(req.params.id);
-      if (isNaN(attemptId)) {
-        return res.status(400).json({ message: "Invalid attempt ID" });
-      }
-
-      console.log(`Fetching quiz attempt with ID: ${attemptId}`);
-      const attempt = await storage.getQuizAttempt(attemptId);
-      
-      if (!attempt) {
-        return res.status(404).json({ message: "Quiz attempt not found" });
-      }
-
-      // Check if the user has permission to view this attempt
-      if (attempt.userId !== req.user.id && req.user.role !== 'owner' && req.user.role !== 'admin') {
-        return res.status(403).json({ message: "You can only view your own quiz attempts" });
-      }
-
-      if (!attempt.quiz || !Array.isArray(attempt.quiz.questions)) {
-        return res.status(500).json({ message: "Invalid quiz data structure" });
-      }
-
-      // Transform the data into the expected format with proper null checks
-      const response = {
-        id: attempt.id,
-        score: attempt.score ?? 0,
-        completedAt: attempt.completedAt ?? new Date().toISOString(),
-        quiz: {
-          id: attempt.quiz.id,
-          title: attempt.quiz.name ?? '',
-          description: attempt.quiz.description ?? '',
-          questions: attempt.quiz.questions.map((question, index) => {
-            const answer = attempt.answers?.find(a => a.questionId === question.id);
-            return {
-              id: question.id,
-              number: index + 1,
-              question: question.question ?? '',
-              type: question.type ?? 'multiple_choice',
-              options: Array.isArray(question.options) ? question.options : [],
-              userAnswer: answer?.userAnswer ?? '',
-              correctAnswer: question.correctAnswer ?? '',
-              isCorrect: answer?.isCorrect ?? false
-            };
-          })
-        }
-      };
-
-      res.json(response);
-    } catch (error) {
-      console.error("Error fetching quiz attempt:", error);
-      res.status(500).json({ 
-        message: error instanceof Error ? error.message : "Failed to fetch quiz attempt" 
-      });
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch quiz attempt" });
     }
   });
 
   // Add route for getting quiz responses
-  app.get("/api/quiz-responses/:attemptId", async (req: Express.Request, res: Express.Response) => {
+  app.get("/api/quiz-responses/:attemptId", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     try {
@@ -1074,20 +1005,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only view your own quiz responses" });
       }
 
-      // Get the responses from the attempt answers with proper type safety
-      const responses = attempt.answers?.map((answer: QuizAnswer) => ({
+      // Get the responses from the attempt answers
+      const responses = attempt.answers.map(answer => ({
         questionId: answer.questionId,
-        userAnswer: answer.userAnswer ?? '',
-        correctAnswer: answer.correctAnswer ?? '',
-        isCorrect: answer.isCorrect ?? false
-      })) ?? [];
+        userAnswer: answer.userAnswer,
+        correctAnswer: answer.correctAnswer,
+        isCorrect: answer.isCorrect
+      }));
 
       res.json(responses);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching quiz responses:", error);
-      res.status(500).json({ 
-        message: error instanceof Error ? error.message : "Failed to fetch quiz responses"
-      });
+      res.status(500).json({ message: error.message || "Failed to fetch quiz responses" });
     }
   });
 
