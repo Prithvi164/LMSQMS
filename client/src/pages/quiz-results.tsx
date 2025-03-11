@@ -10,10 +10,35 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 
+interface QuizAnswer {
+  questionId: number;
+  userAnswer: string;
+  correctAnswer: string;
+  isCorrect: boolean;
+}
+
+interface QuizAttemptResult {
+  id: number;
+  score: number;
+  answers: QuizAnswer[];
+  completedAt: string;
+  quiz: {
+    name: string;
+    description: string | null;
+    questions: {
+      id: number;
+      question: string;
+      type: string;
+      options: string[];
+      correctAnswer: string;
+    }[];
+  };
+}
+
 export function QuizResultsPage() {
   const { attemptId } = useParams();
 
-  const { data: result, isLoading } = useQuery({
+  const { data: result, isLoading } = useQuery<QuizAttemptResult>({
     queryKey: [`/api/quiz-attempts/${attemptId}`],
     enabled: !!attemptId,
   });
@@ -39,14 +64,14 @@ export function QuizResultsPage() {
     <div className="container mx-auto py-8 max-w-3xl">
       <Card>
         <CardHeader>
-          <CardTitle>Quiz Results</CardTitle>
+          <CardTitle>Quiz Results: {result.quiz.name}</CardTitle>
           <CardDescription>
             Your score: {result.score.toFixed(1)}%
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-            {result.answers.map((answer: any, index: number) => (
+            {result.answers.map((answer, index) => (
               <div
                 key={answer.questionId}
                 className={`p-4 rounded-lg border ${
@@ -63,7 +88,7 @@ export function QuizResultsPage() {
                   </div>
                   <div className="flex-1">
                     <h3 className="font-medium">
-                      Question {index + 1}
+                      Question {index + 1}: {result.quiz.questions[index].question}
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1">
                       Your answer: {answer.userAnswer}

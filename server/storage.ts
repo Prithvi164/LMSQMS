@@ -203,6 +203,7 @@ export interface IStorage {
   createQuiz(quiz: InsertQuiz): Promise<Quiz>;
   getQuizWithQuestions(id: number): Promise<Quiz | undefined>;
   createQuizAttempt(attempt: InsertQuizAttempt): Promise<QuizAttempt>;
+  getQuizAttempt(id: number): Promise<QuizAttempt | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -949,7 +950,7 @@ export class DatabaseStorage implements IStorage {
       // Check if location with same name exists in the organization
       const existingLocations = await db
         .select()
-                .from(organizationLocations)
+        .from(organizationLocations)
         .where(eq(organizationLocations.organizationId, location.organizationId))
         .where(eq(organizationLocations.name, location.name));
 
@@ -2049,12 +2050,74 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getQuizAttempt(id: number): Promise<QuizAttempt | undefined> {
+    try {
+      console.log(`Fetching quiz attempt with ID: ${id}`);
+
+      const [attempt] = await db
+        .select()
+        .from(quizAttempts)
+        .where(eq(quizAttempts.id, id)) as QuizAttempt[];
+
+      if (!attempt) {
+        console.log(`No quiz attempt found with ID: ${id}`);
+        return undefined;
+      }
+
+      // Get the associated quiz for this attempt
+      const [quiz] = await db
+        .select()
+        .from(quizzes)
+        .where(eq(quizzes.id, attempt.quizId)) as Quiz[];
+
+      // Get the questions for this quiz
+      const questions = await db
+        .select()
+        .from(questions)
+        .where(inArray(questions.id, quiz.questions)) as Question[];
+
+      // Combine the attempt data with question details
+      return {
+        ...attempt,
+        quiz: {
+          ...quiz,
+          questions
+        }
+      };
+
+    } catch (error) {
+      console.error('Error fetching quiz attempt:', error);
+      throw error;
+    }
+  }
+
   async createQuizAttempt(attempt: InsertQuizAttempt): Promise<QuizAttempt> {
     try {
+      console.log('Creating quiz attempt:', attempt);
+
+      // Calculate the score based on correct answers
+      let correctCount = 0;
+      attempt.answers.forEach(answer => {
+        if (answer.isCorrect) {
+          correctCount++;
+        }
+      });
+
+      const score = (correctCount / attempt.answers.length) * 100;
+
       const [newAttempt] = await db
         .insert(quizAttempts)
-        .values(attempt)
-        .returning();
+        .values({
+          ...attempt,
+          score,
+          status: 'completed',
+          completedAt: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning() as QuizAttempt[];
+
+      console.log('Successfully created quiz attempt:', newAttempt);
       return newAttempt;
     } catch (error) {
       console.error('Error creating quiz attempt:', error);
