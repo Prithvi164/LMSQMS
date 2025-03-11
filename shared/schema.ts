@@ -256,7 +256,6 @@ export const insertQuizSchema = createInsertSchema(quizzes)
     endTime: z.date(),
   });
 
-// Quiz attempt schema
 export const insertQuizAttemptSchema = createInsertSchema(quizAttempts)
   .omit({
     id: true,
@@ -276,7 +275,6 @@ export const insertQuizAttemptSchema = createInsertSchema(quizAttempts)
     completedAt: z.date(),
   });
 
-// Quiz response schema
 export const insertQuizResponseSchema = createInsertSchema(quizResponses)
   .omit({
     id: true,
@@ -346,7 +344,6 @@ export const quizzesRelations = relations(quizzes, ({ one, many }) => ({
   attempts: many(quizAttempts),
 }));
 
-// Quiz attempt relations
 export const quizAttemptsRelations = relations(quizAttempts, ({ one, many }) => ({
   quiz: one(quizzes, {
     fields: [quizAttempts.quizId],
@@ -363,7 +360,6 @@ export const quizAttemptsRelations = relations(quizAttempts, ({ one, many }) => 
   responses: many(quizResponses)
 }));
 
-// Quiz response relations
 export const quizResponsesRelations = relations(quizResponses, ({ one }) => ({
   attempt: one(quizAttempts, {
     fields: [quizResponses.quizAttemptId],
@@ -834,7 +830,7 @@ export const insertOrganizationLocationSchema = createInsertSchema(organizationL
     createdAt: true
   })
   .extend({
-    name: z.string().min(1, "Locationname is required"),
+    name: z.string().min(1, "Location name is required"),
     address: z.string().min(1, "Address is required"),
     city: z.string().min(1, "City is required"),
     state: z.string().min(1, "State is required"),
@@ -842,14 +838,12 @@ export const insertOrganizationLocationSchema = createInsertSchema(organizationL
     organizationId: z.number().int().positive("Organization is required"),
   });
 
-// Fix the insertOrganizationLineOfBusinessSchema definition
 export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organizationLineOfBusinesses)
   .omit({
     id: true,
     createdAt: true
   })
-  .extend({
-    name: z.string().min(1, "LOB name is required"),
+  .extend({    name: z.string().min(1, "LOB name is required"),
     description: z.string().min(1, "Description is required"),
     organizationId: z.number().int().positive("Organization is required"),
   });
@@ -889,7 +883,6 @@ export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
 export type InsertOrganizationProcess = z.infer<typeof insertOrganizationProcessSchema>;
 export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
 export type InsertBatchTemplate = z.infer<typeof insertBatchTemplateSchema>;
-
 
 
 export const batchHistoryEventTypeEnum = pgEnum('batch_history_event_type', [

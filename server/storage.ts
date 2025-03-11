@@ -938,15 +938,15 @@ export class DatabaseStorage implements IStorage {
           .where(eq(organizationLocations.id, id))
           .returning();
 
-        if (!result.length) {
-          throw new Error('Location not found or deletion failed');
+        if (!result.length) {          throw new Error('Location not foundor deletion failed');
         }
-      });
 
-      console.log(`Successfully deleted location with ID: ${id}`);
+        console.log(`Successfully deleted location with ID: ${id}`);
+      });
     } catch (error) {
       console.error('Error deleting location:', error);
-      throw error;    }
+      throw error;
+    }
   }
 
   async createLocation(location: InsertOrganizationLocation): Promise<OrganizationLocation> {
@@ -1097,6 +1097,7 @@ export class DatabaseStorage implements IStorage {
         )
         .where(eq(organizationBatches.organizationId, organizationId))
         .orderBy(desc(organizationBatches.createdAt));
+
 
       return batches as OrganizationBatch[];
     } catch (error) {
@@ -1944,15 +1945,15 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return newTemplate;
     } catch (error) {
-      console.error('Errorcreating quiz template:', error);
+      console.error('Error creating quiz template:', error);
       throw error;
     }
   }
 
-  async listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]>{
+  async listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]> {
     try {
       let baseQuery = db
-                .select()
+        .select()
         .from(quizTemplates)
         .where(eq(quizTemplates.organizationId, organizationId));
 
@@ -2020,9 +2021,7 @@ export class DatabaseStorage implements IStorage {
 
   async getQuizWithQuestions(id: number): Promise<Quiz | undefined> {
     try {
-      console.log(`Fetching quiz with ID: ${id}`);
-
-      // Get quiz details
+      // First fetch the quiz
       const [quiz] = await db
         .select()
         .from(quizzes)
@@ -2033,17 +2032,22 @@ export class DatabaseStorage implements IStorage {
         return undefined;
       }
 
-      // Get questions
-      const questions = await db
+      // Then fetch all questions for this quiz
+      const quizQuestions = await db
         .select()
         .from(questions)
         .where(inArray(questions.id, quiz.questions)) as Question[];
 
+      console.log(`Found ${quizQuestions.length} questions for quiz ${id}`);
+
+      // Ensure questions are in the correct order as specified in quiz.questions
+      const orderedQuestions = quiz.questions.map(questionId =>
+        quizQuestions.find(q => q.id === questionId)
+      ).filter(q => q) as Question[];
+
       return {
         ...quiz,
-        questions: questions.sort((a, b) =>
-          quiz.questions.indexOf(a.id) - quiz.questions.indexOf(b.id)
-        )
+        questions: orderedQuestions
       };
     } catch (error) {
       console.error('Error fetching quiz with questions:', error);
@@ -2055,7 +2059,7 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching quiz attempt with ID: ${id}`);
 
-      // Get the quiz attempt
+      // Get the attempt
       const [attempt] = await db
         .select()
         .from(quizAttempts)
@@ -2066,63 +2070,43 @@ export class DatabaseStorage implements IStorage {
         return undefined;
       }
 
-      // Get quiz details
+      // Get the associated quiz
       const [quiz] = await db
         .select()
         .from(quizzes)
         .where(eq(quizzes.id, attempt.quizId)) as Quiz[];
 
-      if (!quiz) {
-        console.log(`No quiz found for attempt ${id}`);
-        return undefined;
-      }
-
-      // Get all questions for this quiz
-      const questionsList = await db
+      // Get the questions
+      const questions = await db
         .select()
         .from(questions)
         .where(inArray(questions.id, quiz.questions)) as Question[];
 
-      // Get responses for this attempt
+      // Get the responses for this attempt
       const responses = await db
         .select()
         .from(quizResponses)
-        .where(eq(quizResponses.quizAttemptId, id)) as QuizResponse[];
+        .where(eq(quizResponses.quizAttemptId, attempt.id)) as QuizResponse[];
 
-      console.log(`Found ${questionsList.length} questions and ${responses.length} responses`);
+      // Format the responses to match the expected structure
+      const formattedResponses = responses.map(response => ({
+        questionId: response.questionId,
+        userAnswer: response.selectedAnswer,
+        correctAnswer: questions.find(q => q.id === response.questionId)?.correctAnswer || '',
+        isCorrect: response.isCorrect
+      }));
 
-      // Map questions with responses in the correct order
-      const formattedQuestions = quiz.questions.map(questionId => {
-        const question = questionsList.find(q => q.id === questionId);
-        const response = responses.find(r => r.questionId === questionId);
-
-        if (!question) {
-          console.log(`Warning: Question ${questionId} not found`);
-          return null;
-        }
-
-        return {
-          id: question.id,
-          number: quiz.questions.indexOf(questionId) + 1,
-          question: question.question,
-          type: question.type,
-          options: question.options,
-          userAnswer: response?.selectedAnswer || '',
-          correctAnswer: question.correctAnswer,
-          isCorrect: response?.isCorrect || false,
-          explanation: question.explanation
-        };
-      }).filter(q => q !== null);
-
-      // Return formatted attempt data
+      // Return the full attempt with quiz and responses
       return {
         ...attempt,
+        answers: formattedResponses,
         quiz: {
           ...quiz,
-          questions: formattedQuestions
+          questions: questions.sort((a, b) =>
+            quiz.questions.indexOf(a.id) - quiz.questions.indexOf(b.id)
+          )
         }
       };
-
     } catch (error) {
       console.error('Error fetching quiz attempt:', error);
       throw error;
@@ -2131,11 +2115,21 @@ export class DatabaseStorage implements IStorage {
 
   async createQuizAttempt(attempt: InsertQuizAttempt): Promise<QuizAttempt> {
     try {
-      const correctCount = attempt.answers.filter(a => a.isCorrect).length;
+      console.log('Creating quiz attempt:', attempt);
+
+      // Calculate the score based on correct answers
+      let correctCount = 0;
+      attempt.answers.forEach(answer => {
+        if (answer.isCorrect) {
+          correctCount++;
+        }
+      });
+
       const score = (correctCount / attempt.answers.length) * 100;
 
+      // Start a transaction to create both attempt and responses
       return await db.transaction(async (tx) => {
-        // Create the attempt first
+        // Create the attempt first without the answers field
         const [newAttempt] = await tx
           .insert(quizAttempts)
           .values({
@@ -2150,7 +2144,9 @@ export class DatabaseStorage implements IStorage {
           })
           .returning() as QuizAttempt[];
 
-        // Create response records for each answer
+        console.log('Created quiz attempt:', newAttempt);
+
+        // Create individual responses for each answer
         const responseValues = attempt.answers.map(answer => ({
           quizAttemptId: newAttempt.id,
           questionId: answer.questionId,
@@ -2163,10 +2159,8 @@ export class DatabaseStorage implements IStorage {
           .insert(quizResponses)
           .values(responseValues);
 
-        return {
-          ...newAttempt,
-          answers: attempt.answers
-        };
+        console.log('Created quiz responses for attempt:', newAttempt.id);
+        return newAttempt;
       });
     } catch (error) {
       console.error('Error creating quiz attempt:', error);

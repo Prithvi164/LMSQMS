@@ -1,14 +1,14 @@
 import type { Express } from "express";
-import { Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { Router } from "express";
-import { insertUserSchema, users, userBatchProcesses, organizationProcesses, type User, Question as QuizQuestion } from "@shared/schema";
+import { insertUserSchema, users, userBatchProcesses, organizationProcesses } from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { insertOrganizationProcessSchema } from "@shared/schema";
+import { insertBatchTemplateSchema } from "@shared/schema";
 import { batchStatusEnum } from "@shared/schema";
 import { permissionEnum } from '@shared/schema';
 import multer from 'multer';
@@ -19,22 +19,7 @@ import express from 'express';
 import { eq, and, sql } from "drizzle-orm";
 import { toIST, formatIST, toUTCStorage, formatISTDateOnly } from './utils/timezone';
 import { attendance } from "@shared/schema";
-
-// Use declare to make TypeScript aware of Express request session data
-declare module 'express-session' {
-  interface SessionData {
-    user?: User;
-  }
-}
-
-// Extend Express.Request to include user field
-declare global {
-  namespace Express {
-    interface Request {
-      user?: User;
-    }
-  }
-}
+import type { User } from "@shared/schema";
 
 // Type definitions for user updates
 type AllowedSelfUpdateFields = Pick<User, "fullName" | "email" | "phoneNumber" | "locationId" | "dateOfBirth" | "education">;
@@ -939,77 +924,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add route for getting quiz attempt details with proper error handling
-  app.get("/api/quiz-attempts/:id", async (req: Request, res: Response) => {
-    if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const attemptId = parseInt(req.params.id);
-      if (isNaN(attemptId)) {
-        return res.status(400).json({ message: "Invalid attempt ID" });
-      }
-
-      console.log('Fetching quiz attempt:', attemptId);
-      
-      // Get the attempt with quiz and responses
-      const attempt = await storage.getQuizAttempt(attemptId);
-      if (!attempt) {
-        return res.status(404).json({ message: "Quiz attempt not found" });
-      }
-
-      // Check if user has permission to view this attempt
-      if (attempt.userId !== req.user.id && req.user.role !== 'owner' && req.user.role !== 'admin') {
-        return res.status(403).json({ message: "You can only view your own quiz attempts" });
-      }
-
-      // Get quiz with questions and responses
-      const quiz = await storage.getQuizWithQuestions(attempt.quizId);
-      if (!quiz) {
-        return res.status(404).json({ message: "Quiz not found" });
-      }
-
-      // Format the response data
-      const response = {
-        id: attempt.id,
-        score: attempt.score,
-        completedAt: attempt.completedAt,
-        quiz: {
-          id: quiz.id,
-          name: quiz.name,
-          description: quiz.description || null,
-          questions: quiz.questions.map((question: QuizQuestion, index: number) => {
-            const answer = attempt.answers.find((a: { questionId: number; userAnswer: string; isCorrect: boolean }) => 
-              a.questionId === question.id
-            );
-            return {
-              id: question.id,
-              number: index + 1,
-              question: question.question,
-              type: question.type,
-              options: question.options || [],
-              userAnswer: answer?.userAnswer || '',
-              correctAnswer: question.correctAnswer,
-              isCorrect: answer?.isCorrect || false,
-              explanation: question.explanation || ''
-            };
-          })
-        }
-      };
-
-      res.json(response);
-    } catch (error) {
-      console.error("Error fetching quiz attempt:", error);
-      res.status(500).json({ 
-        message: error instanceof Error ? error.message : "Failed to fetch quiz attempt" 
-      });
-    }
-  });
-
-
-
-
+  // Add update endpoint for quiz templates
   app.put("/api/quiz-templates/:id", async (req, res) => {
     if (!req.user || !req.user.organizationId) {
       return res.status(401).json({ message: "Unauthorized" });
