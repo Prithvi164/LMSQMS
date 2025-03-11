@@ -942,7 +942,7 @@ export class DatabaseStorage implements IStorage {
           throw new Error('Location not found or deletion failed');
         }
 
-        console.log(`Successfully deleted location with ID: ${id}`);
+        consolelog(`Successfully deleted location with ID: ${id}`);
       });
     } catch (error) {      console.error('Error deleting location:', error);
       throw error;
@@ -1946,7 +1946,7 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error creating quiz template:', error);
       throw error;
-    }
+    }    }
   }
 
   async listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]> {
@@ -2056,68 +2056,80 @@ export class DatabaseStorage implements IStorage {
 
   async getQuizAttempt(id: number): Promise<QuizAttempt | undefined> {
     try {
-      // Get the attempt with all related data in a single query
+      // First get the attempt with basic info
       const [attempt] = await db
         .select({
           id: quizAttempts.id,
           quizId: quizAttempts.quizId,
           userId: quizAttempts.userId,
+          organizationId: quizAttempts.organizationId,
           score: quizAttempts.score,
           status: quizAttempts.status,
           completedAt: quizAttempts.completedAt,
           createdAt: quizAttempts.createdAt,
         })
         .from(quizAttempts)
-        .where(eq(quizAttempts.id, id)) as QuizAttempt[];
+        .where(eq(quizAttempts.id, id));
 
       if (!attempt) {
+        console.log(`No attempt found with ID: ${id}`);
         return undefined;
       }
 
-      // Get the associated quiz and its questions
+      // Get the quiz details
       const [quiz] = await db
         .select()
         .from(quizzes)
-        .where(eq(quizzes.id, attempt.quizId)) as Quiz[];
+        .where(eq(quizzes.id, attempt.quizId));
 
-      if (!quiz) {
-        return undefined;
+      if (!quiz || !quiz.questions || !Array.isArray(quiz.questions)) {
+        console.log(`Quiz data invalid for ID: ${attempt.quizId}`);
+        throw new Error('Invalid quiz data');
       }
 
       // Get all questions for this quiz
       const questions = await db
         .select()
         .from(questions)
-        .where(inArray(questions.id, quiz.questions)) as Question[];
+        .where(inArray(questions.id, quiz.questions));
+
+      if (!questions.length) {
+        console.log(`No questions found for quiz ID: ${quiz.id}`);
+        throw new Error('No questions found for this quiz');
+      }
 
       // Get all responses for this attempt
       const responses = await db
         .select()
         .from(quizResponses)
-        .where(eq(quizResponses.quizAttemptId, attempt.id)) as QuizResponse[];
+        .where(eq(quizResponses.quizAttemptId, attempt.id));
 
-      // Format the responses to match the expected structure
+      // Format responses to match each question
       const formattedResponses = questions.map(question => {
         const response = responses.find(r => r.questionId === question.id);
         return {
           questionId: question.id,
           userAnswer: response?.selectedAnswer || '',
-          correctAnswer: question.correctAnswer,
+          correctAnswer: question.correctAnswer || '',
           isCorrect: response?.isCorrect || false
         };
       });
 
-      // Return the complete attempt data
+      // Return complete attempt data with quiz and formatted responses
       return {
         ...attempt,
         quiz: {
-          ...quiz,
-          questions: questions.sort((a, b) =>
-            quiz.questions.indexOf(a.id) - quiz.questions.indexOf(b.id)
-          )
+          id: quiz.id,
+          name: quiz.name,
+          description: quiz.description || '',
+          questions: questions.map(q => ({
+            ...q,
+            options: Array.isArray(q.options) ? q.options : []
+          }))
         },
         answers: formattedResponses
       };
+
     } catch (error) {
       console.error('Error fetching quiz attempt:', error);
       throw error;

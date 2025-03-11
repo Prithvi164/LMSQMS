@@ -10,27 +10,23 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 
-interface QuizAnswer {
-  questionId: number;
-  userAnswer: string;
-  correctAnswer: string;
-  isCorrect: boolean;
-}
-
-interface QuizAttemptResult {
+interface QuizResult {
   id: number;
   score: number;
-  answers: QuizAnswer[];
   completedAt: string;
   quiz: {
-    name: string;
-    description: string | null;
+    id: number;
+    title: string;
+    description: string;
     questions: {
       id: number;
+      number: number;
       question: string;
       type: string;
       options: string[];
+      userAnswer: string;
       correctAnswer: string;
+      isCorrect: boolean;
     }[];
   };
 }
@@ -38,7 +34,7 @@ interface QuizAttemptResult {
 export function QuizResultsPage() {
   const { attemptId } = useParams();
 
-  const { data: result, isLoading } = useQuery<QuizAttemptResult>({
+  const { data: result, isLoading } = useQuery<QuizResult>({
     queryKey: [`/api/quiz-attempts/${attemptId}`],
     enabled: !!attemptId,
   });
@@ -64,23 +60,23 @@ export function QuizResultsPage() {
     <div className="container mx-auto py-8 max-w-3xl">
       <Card>
         <CardHeader>
-          <CardTitle>Quiz Results: {result.quiz.name}</CardTitle>
+          <CardTitle>Quiz Results: {result.quiz.title}</CardTitle>
           <CardDescription>
             Your score: {result.score.toFixed(1)}%
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-            {result.answers.map((answer, index) => (
+            {result.quiz.questions.map((question) => (
               <div
-                key={answer.questionId}
+                key={question.id}
                 className={`p-4 rounded-lg border ${
-                  answer.isCorrect ? "bg-green-50" : "bg-red-50"
+                  question.isCorrect ? "bg-green-50" : "bg-red-50"
                 }`}
               >
                 <div className="flex items-start gap-4">
                   <div className="mt-1">
-                    {answer.isCorrect ? (
+                    {question.isCorrect ? (
                       <CheckCircle2 className="h-5 w-5 text-green-500" />
                     ) : (
                       <XCircle className="h-5 w-5 text-red-500" />
@@ -88,14 +84,14 @@ export function QuizResultsPage() {
                   </div>
                   <div className="flex-1">
                     <h3 className="font-medium">
-                      Question {index + 1}: {result.quiz.questions[index].question}
+                      Question {question.number}: {question.question}
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Your answer: {answer.userAnswer}
+                      Your answer: {question.userAnswer}
                     </p>
-                    {!answer.isCorrect && (
+                    {!question.isCorrect && (
                       <p className="text-sm text-green-600 mt-1">
-                        Correct answer: {answer.correctAnswer}
+                        Correct answer: {question.correctAnswer}
                       </p>
                     )}
                   </div>
