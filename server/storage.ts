@@ -946,7 +946,7 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log('Creating location with data:', location);
 
-      // Check if location with same name exists in the organization
+            // Check if location with same name exists in the organization
       const existingLocations = await db        .select()
         .from(organizationLocations)
         .where(eq(organizationLocations.organizationId, location.organizationId))
@@ -2320,11 +2320,11 @@ export class DatabaseStorage implements IStorage {
       
 
       const templates = await query as QuizTemplate[];
-      console.log(`Found ${templates.length} quiz templates`);
+      console.log(`Found ${templates.length} templates${processId ? ` for process ${processId}` : ''}`);
       return templates;
     } catch (error) {
       console.error('Error fetching quiz templates:', error);
-      throw new Error('Failed to fetch quiz templates');
+      throw new Error(`Failed to fetch quiz templates: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
