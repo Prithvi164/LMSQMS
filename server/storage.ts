@@ -935,9 +935,11 @@ export class DatabaseStorage implements IStorage {
         // Then delete the location
         const result = await tx
           .delete(organizationLocations)
-          .where(eq(organizationLocations.id, id))          .returning();
+          .where(eq(organizationLocations.id, id))
+          .returning();
 
-        if (!result.length) {          throw new Error('Location not foundor deletion failed');
+        if (!result.length) {
+          throw new Error('Location not foundor deletion failed');
         }
 
         console.log(`Successfully deleted location with ID: ${id}`);
@@ -2080,54 +2082,58 @@ export class DatabaseStorage implements IStorage {
 
   async getQuizAttempt(id: number): Promise<QuizAttempt | undefined> {
     try {
-      console.log(`Fetching quiz attempt with ID: ${id}`);
+      const result = await db.query(
+        `
+        SELECT 
+          qa.id as attempt_id,
+          qa.score,
+          qa.completed_at,
+          q.name as quiz_name,
+          q.description as quiz_description,
+          COALESCE(
+            json_agg(
+              json_build_object(
+                'questionId', que.id,
+                'question', que.question,
+                'type', que.type,
+                'options', que.options,
+                'userAnswer', qr.selected_answer,
+                'correctAnswer', que.correct_answer,
+                'isCorrect', qr.is_correct
+              ) ORDER BY qr.id
+            ) FILTER (WHERE que.id IS NOT NULL),
+            '[]'
+          ) as answers
+        FROM quiz_attempts qa
+        LEFT JOIN quizzes q ON qa.quiz_id = q.id
+        LEFT JOIN quiz_responses qr ON qa.id = qr.quiz_attempt_id
+        LEFT JOIN questions que ON qr.question_id = que.id
+        WHERE qa.id = $1
+        GROUP BY qa.id, q.id, q.name, q.description
+        `,
+        [id]
+      );
 
-      // Get the attempt
-      const [attempt] = await db
-        .select()
-        .from(quizAttempts)
-        .where(eq(quizAttempts.id, id)) as QuizAttempt[];
-
-      if (!attempt) {
-        console.log(`No quiz attempt found with ID: ${id}`);
+      if (!result.rows.length) {
         return undefined;
       }
 
-      // Get the associated quiz
-      const [quiz] = await db
-        .select()
-        .from(quizzes)
-        .where(eq(quizzes.id, attempt.quizId)) as Quiz[];
-
-      // Get the questions
-      const questions = await db
-        .select()
-        .from(questions)
-        .where(inArray(questions.id, quiz.questions)) as Question[];
-
-      // Get the responses for this attempt
-      const responses = await db
-        .select()
-        .from(quizResponses)
-        .where(eq(quizResponses.quizAttemptId, attempt.id)) as QuizResponse[];
-
-      // Format the responses to match the expected structure
-      const formattedResponses = responses.map(response => ({
-        questionId: response.questionId,
-        userAnswer: response.selectedAnswer,
-        correctAnswer: questions.find(q => q.id === response.questionId)?.correctAnswer || '',
-        isCorrect: response.isCorrect
-      }));
-
-      // Return the full attempt with quiz and responses
+      const row = result.rows[0];
       return {
-        ...attempt,
-        answers: formattedResponses,
+        id: row.attempt_id,
+        score: row.score,
+        completedAt: row.completed_at,
+        answers: row.answers,
         quiz: {
-          ...quiz,
-          questions: questions.sort((a, b) =>
-            quiz.questions.indexOf(a.id) - quiz.questions.indexOf(b.id)
-          )
+          name: row.quiz_name,
+          description: row.quiz_description,
+          questions: row.answers.map((answer: any) => ({
+            id: answer.questionId,
+            question: answer.question,
+            type: answer.type,
+            options: answer.options,
+            correctAnswer: answer.correctAnswer
+          }))
         }
       };
     } catch (error) {
