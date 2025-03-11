@@ -84,7 +84,7 @@ export function QuizResultsPage() {
           </CardHeader>
           <CardContent>
             <div className="flex justify-center pt-4">
-              <Button onClick={() => window.history.back()}>
+              <Button onClick={() => setLocation('/dashboard')}>
                 Return to Dashboard
               </Button>
             </div>
@@ -145,7 +145,7 @@ export function QuizResultsPage() {
             ))}
 
             <div className="flex justify-center pt-4">
-              <Button onClick={() => window.history.back()}>
+              <Button onClick={() => setLocation('/dashboard')}>
                 Return to Dashboard
               </Button>
             </div>
