@@ -946,8 +946,7 @@ export class DatabaseStorage implements IStorage {
       console.log(`Successfully deleted location with ID: ${id}`);
     } catch (error) {
       console.error('Error deleting location:', error);
-      throw error;
-    }
+      throw error;    }
   }
 
   async createLocation(location: InsertOrganizationLocation): Promise<OrganizationLocation> {
@@ -1950,10 +1949,10 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-async listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]>{
+  async listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]>{
     try {
       let baseQuery = db
-        .select()
+                .select()
         .from(quizTemplates)
         .where(eq(quizTemplates.organizationId, organizationId));
 
@@ -2042,7 +2041,7 @@ async listQuizTemplates(organizationId: number, processId?: number): Promise<Qui
 
       return {
         ...quiz,
-        questions: questions.sort((a, b) => 
+        questions: questions.sort((a, b) =>
           quiz.questions.indexOf(a.id) - quiz.questions.indexOf(b.id)
         )
       };
@@ -2056,7 +2055,7 @@ async listQuizTemplates(organizationId: number, processId?: number): Promise<Qui
     try {
       console.log(`Fetching quiz attempt with ID: ${id}`);
 
-      // First get the attempt
+      // Get the quiz attempt
       const [attempt] = await db
         .select()
         .from(quizAttempts)
@@ -2067,33 +2066,35 @@ async listQuizTemplates(organizationId: number, processId?: number): Promise<Qui
         return undefined;
       }
 
-      // Get quiz details
+      // Get quiz with its questions
       const [quiz] = await db
         .select()
         .from(quizzes)
         .where(eq(quizzes.id, attempt.quizId)) as Quiz[];
 
       if (!quiz) {
-        console.log(`No quiz found with ID: ${attempt.quizId}`);
+        console.log(`No quiz found for attempt ${id}`);
         return undefined;
       }
 
-      // Get all questions and responses in parallel
-      const [questions, responses] = await Promise.all([
-        db
-          .select()
-          .from(questions)
-          .where(inArray(questions.id, quiz.questions)),
-        db
-          .select()
-          .from(quizResponses)
-          .where(eq(quizResponses.quizAttemptId, id))
-      ]) as [Question[], QuizResponse[]];
+      // Get responses for this attempt
+      const responses = await db
+        .select()
+        .from(quizResponses)
+        .where(eq(quizResponses.quizAttemptId, id)) as QuizResponse[];
 
-      console.log(`Found ${questions.length} questions and ${responses.length} responses`);
+      console.log(`Found ${responses.length} responses for attempt ${id}`);
 
-      // Map answers with questions in correct order
-      const answers = questions.map(question => {
+      // Get all questions
+      const questionsList = await db
+        .select()
+        .from(questions)
+        .where(inArray(questions.id, quiz.questions)) as Question[];
+
+      console.log(`Found ${questionsList.length} questions for quiz ${quiz.id}`);
+
+      // Map questions with responses
+      const formattedAnswers = questionsList.map(question => {
         const response = responses.find(r => r.questionId === question.id);
         return {
           questionId: question.id,
@@ -2103,16 +2104,16 @@ async listQuizTemplates(organizationId: number, processId?: number): Promise<Qui
         };
       });
 
-      // Return complete attempt data
+      // Return formatted attempt data
       return {
         ...attempt,
         quiz: {
           ...quiz,
-          questions: questions.sort((a, b) => 
+          questions: questionsList.sort((a, b) =>
             quiz.questions.indexOf(a.id) - quiz.questions.indexOf(b.id)
           )
         },
-        answers
+        answers: formattedAnswers
       };
 
     } catch (error) {
