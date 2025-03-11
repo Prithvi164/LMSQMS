@@ -1947,7 +1947,7 @@ export class DatabaseStorage implements IStorage {
       return newTemplate;
     } catch (error) {
       console.error('Error creating quiz template:', error);
-      throw error;error;
+      throw error;
     }
   }
 
@@ -2082,6 +2082,8 @@ export class DatabaseStorage implements IStorage {
 
   async getQuizAttempt(id: number): Promise<QuizAttempt | undefined> {
     try {
+      console.log("Debug - Fetching quiz attempt with ID:", id);
+
       const result = await db.query(
         `
         SELECT 
@@ -2114,13 +2116,25 @@ export class DatabaseStorage implements IStorage {
         [id]
       );
 
+      console.log("Debug - SQL Query Result:", result.rows);
+
       if (!result.rows.length) {
+        console.log("Debug - No quiz attempt found for ID:", id);
         return undefined;
       }
 
       const row = result.rows[0];
+      console.log("Debug - Transformed Result:", {
+        id: row.attempt_id,
+        score: row.score,
+        completedAt: row.completed_at,
+        quiz: {
+          name: row.quiz_name,
+          description: row.quiz_description
+        },
+        answers: row.answers
+      });
 
-      // Transform the data to match the expected interface
       return {
         id: row.attempt_id,
         score: row.score,
@@ -2132,7 +2146,7 @@ export class DatabaseStorage implements IStorage {
         answers: Array.isArray(row.answers) ? row.answers : []
       };
     } catch (error) {
-      console.error('Error fetching quiz attempt:', error);
+      console.error("Debug - Error in getQuizAttempt:", error);
       throw error;
     }
   }

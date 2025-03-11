@@ -23,13 +23,17 @@ interface QuizAttemptResult {
 export function QuizResultsPage() {
   const { attemptId } = useParams();
 
-  const { data: result, isLoading } = useQuery<QuizAttemptResult>({
+  // Debug: Log the attempt ID
+  console.log("Debug - Attempt ID from URL:", attemptId);
+
+  const { data: result, isLoading, error } = useQuery<QuizAttemptResult>({
     queryKey: [`/api/quiz-attempts/${attemptId}`],
     enabled: !!attemptId,
   });
 
-  console.log("Quiz attempt ID:", attemptId);
-  console.log("API Response data:", result);
+  // Debug: Log the query result and any errors
+  console.log("Debug - Query Result:", result);
+  console.log("Debug - Query Error:", error);
 
   if (isLoading) {
     return (
@@ -41,7 +45,7 @@ export function QuizResultsPage() {
   }
 
   if (!result) {
-    console.log("No result found for attempt ID:", attemptId);
+    console.log("Debug - No result found. Attempt ID:", attemptId);
     return (
       <div className="flex items-center justify-center min-h-screen">
         <p>Results not found.</p>
