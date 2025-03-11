@@ -939,8 +939,7 @@ export class DatabaseStorage implements IStorage {
           .returning();
 
         if (!result.length) {
-          throw new Error('Location not found or deletion failed');
-        }
+          throw new Error('Location not found or deletion failed');        }
 
         consolelog(`Successfully deleted location with ID: ${id}`);
       });
@@ -1947,7 +1946,6 @@ export class DatabaseStorage implements IStorage {
       console.error('Error creating quiz template:', error);
       throw error;
     }    }
-  }
 
   async listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]> {
     try {
@@ -1960,7 +1958,8 @@ export class DatabaseStorage implements IStorage {
         baseQuery = baseQuery.where(eq(quizTemplates.processId, processId));
       }
 
-      return await baseQuery;
+      const templates = await baseQuery as QuizTemplate[];
+      return templates;
     } catch (error) {
       console.error('Error listing quiz templates:', error);
       throw error;
@@ -1969,13 +1968,13 @@ export class DatabaseStorage implements IStorage {
 
   async getQuizTemplate(id: number): Promise<QuizTemplate | undefined> {
     try {
-      const result = await db
+      const [template] = await db
         .select()
         .from(quizTemplates)
-        .where(eq(quizTemplates.id, id));
-      return result[0];
+        .where(eq(quizTemplates.id, id)) as QuizTemplate[];
+      return template;
     } catch (error) {
-      console.error('Error fetching quiz template:', error);
+      console.error('Error getting quiz template:', error);
       throw error;
     }
   }
@@ -1993,24 +1992,10 @@ export class DatabaseStorage implements IStorage {
 
   async createQuiz(quiz: InsertQuiz): Promise<Quiz> {
     try {
-      console.log('Creating quiz:', quiz);
-
-      // Validate quiz data
-      if (!quiz.questions || quiz.questions.length === 0) {
-        throw new Error('Quiz must have at least one question');
-      }
-
       const [newQuiz] = await db
         .insert(quizzes)
-        .values({
-          ...quiz,
-          status: 'active',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
+        .values(quiz)
         .returning() as Quiz[];
-
-      console.log('Successfully created quiz:', newQuiz);
       return newQuiz;
     } catch (error) {
       console.error('Error creating quiz:', error);
@@ -2020,118 +2005,29 @@ export class DatabaseStorage implements IStorage {
 
   async getQuizWithQuestions(id: number): Promise<Quiz | undefined> {
     try {
-      // First fetch the quiz
       const [quiz] = await db
         .select()
         .from(quizzes)
         .where(eq(quizzes.id, id)) as Quiz[];
 
       if (!quiz) {
-        console.log(`No quiz found with ID: ${id}`);
         return undefined;
       }
 
-      // Then fetch all questions for this quiz
-      const quizQuestions = await db
+      // Get associated questions if the quiz exists
+      const questions = await db
         .select()
         .from(questions)
         .where(inArray(questions.id, quiz.questions)) as Question[];
 
-      console.log(`Found ${quizQuestions.length} questions for quiz ${id}`);
-
-      // Ensure questions are in the correct order as specified in quiz.questions
-      const orderedQuestions = quiz.questions.map(questionId =>
-        quizQuestions.find(q => q.id === questionId)
-      ).filter(q => q) as Question[];
-
       return {
         ...quiz,
-        questions: orderedQuestions
+        questions: questions.sort((a, b) => 
+          quiz.questions.indexOf(a.id) - quiz.questions.indexOf(b.id)
+        )
       };
     } catch (error) {
       console.error('Error fetching quiz with questions:', error);
-      throw error;
-    }
-  }
-
-  async getQuizAttempt(id: number): Promise<QuizAttempt | undefined> {
-    try {
-      // First get the attempt with basic info
-      const [attempt] = await db
-        .select({
-          id: quizAttempts.id,
-          quizId: quizAttempts.quizId,
-          userId: quizAttempts.userId,
-          organizationId: quizAttempts.organizationId,
-          score: quizAttempts.score,
-          status: quizAttempts.status,
-          completedAt: quizAttempts.completedAt,
-          createdAt: quizAttempts.createdAt,
-        })
-        .from(quizAttempts)
-        .where(eq(quizAttempts.id, id));
-
-      if (!attempt) {
-        console.log(`No attempt found with ID: ${id}`);
-        return undefined;
-      }
-
-      // Get the quiz details
-      const [quiz] = await db
-        .select()
-        .from(quizzes)
-        .where(eq(quizzes.id, attempt.quizId));
-
-      if (!quiz || !quiz.questions || !Array.isArray(quiz.questions)) {
-        console.log(`Quiz data invalid for ID: ${attempt.quizId}`);
-        throw new Error('Invalid quiz data');
-      }
-
-      // Get all questions for this quiz
-      const questions = await db
-        .select()
-        .from(questions)
-        .where(inArray(questions.id, quiz.questions));
-
-      if (!questions.length) {
-        console.log(`No questions found for quiz ID: ${quiz.id}`);
-        throw new Error('No questions found for this quiz');
-      }
-
-      // Get all responses for this attempt
-      const responses = await db
-        .select()
-        .from(quizResponses)
-        .where(eq(quizResponses.quizAttemptId, attempt.id));
-
-      // Format responses to match each question
-      const formattedResponses = questions.map(question => {
-        const response = responses.find(r => r.questionId === question.id);
-        return {
-          questionId: question.id,
-          userAnswer: response?.selectedAnswer || '',
-          correctAnswer: question.correctAnswer || '',
-          isCorrect: response?.isCorrect || false
-        };
-      });
-
-      // Return complete attempt data with quiz and formatted responses
-      return {
-        ...attempt,
-        quiz: {
-          id: quiz.id,
-          name: quiz.name,
-          description: quiz.description || '',
-          questions: questions.map(q => ({
-            ...q,
-            options: Array.isArray(q.options) ? q.options : []
-          }))
-        },
-        answers: formattedResponses
-      };
-
-    } catch (error) {
-      console.error('Error fetching quiz attempt:', error);
       throw error;
     }
   }
