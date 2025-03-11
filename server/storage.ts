@@ -935,8 +935,7 @@ export class DatabaseStorage implements IStorage {
         // Then delete the location
         const result = await tx
           .delete(organizationLocations)
-          .where(eq(organizationLocations.id, id))
-          .returning();
+          .where(eq(organizationLocations.id, id))          .returning();
 
         if (!result.length) {          throw new Error('Location not foundor deletion failed');
         }
@@ -1981,6 +1980,31 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async updateQuizTemplate(id: number, template: Partial<InsertQuizTemplate>): Promise<QuizTemplate> {
+    try {
+      console.log(`Updating quiz template with ID: ${id}`, template);
+
+      const [updatedTemplate] = await db
+        .update(quizTemplates)
+        .set({
+          ...template,
+          updatedAt: new Date()
+        })
+        .where(eq(quizTemplates.id, id))
+        .returning() as QuizTemplate[];
+
+      if (!updatedTemplate) {
+        throw new Error('Quiz template not found');
+      }
+
+      console.log('Successfully updated quiz template:', updatedTemplate);
+      return updatedTemplate;
+    } catch (error) {
+      console.error('Error updating quiz template:', error);
+      throw error;
+    }
+  }
+
   async deleteQuizTemplate(id: number): Promise<void> {
     try {
       await db
@@ -1991,7 +2015,6 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-
   async createQuiz(quiz: InsertQuiz): Promise<Quiz> {
     try {
       console.log('Creating quiz:', quiz);
