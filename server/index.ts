@@ -17,6 +17,10 @@ debugLog("Starting server initialization");
 const app = express();
 debugLog("Express app created");
 
+// Configure trust proxy - Add this before other middleware
+app.set('trust proxy', 1);
+debugLog("Trust proxy configured");
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 debugLog("Basic middleware setup complete");
@@ -108,22 +112,32 @@ debugLog("Health check route added");
       debugLog("Static file serving setup complete");
     }
 
-    const port = process.env.PORT || 5001;
-    debugLog(`Attempting to start server on port ${port}`);
-
-    server.listen(port, () => {
-      log(`Server running in ${app.get("env")} mode`);
-      log(`API and client being served on port ${port}`);
-      debugLog("Server started successfully");
-    }).on('error', (error: any) => {
-      if (error.code === 'EADDRINUSE') {
-        log(`Port ${port} is already in use. Please try a different port.`);
-      } else {
-        log(`Failed to start server: ${error}`);
+    // Try different ports if the default one is in use
+    const tryPort = async (port: number): Promise<number> => {
+      try {
+        await new Promise((resolve, reject) => {
+          server.listen(port)
+            .once('error', reject)
+            .once('listening', resolve);
+        });
+        return port;
+      } catch (error: any) {
+        if (error.code === 'EADDRINUSE' && port < 5010) {
+          debugLog(`Port ${port} in use, trying ${port + 1}`);
+          return tryPort(port + 1);
+        }
+        throw error;
       }
-      debugLog(`Server startup error: ${error.message}`);
-      process.exit(1);
-    });
+    };
+
+    const startPort = parseInt(process.env.PORT || '5001');
+    debugLog(`Attempting to start server on port ${startPort}`);
+
+    const port = await tryPort(startPort);
+    log(`Server running in ${app.get("env")} mode`);
+    log(`API and client being served on port ${port}`);
+    debugLog("Server started successfully");
+
   } catch (error) {
     debugLog(`Fatal error during initialization: ${error}`);
     log(`Failed to start server: ${error}`);
