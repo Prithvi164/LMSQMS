@@ -287,7 +287,18 @@ export const insertQuizResponseSchema = createInsertSchema(quizResponses)
     isCorrect: z.boolean(),
   });
 
-// Quiz-related types based on schemas
+export const insertQuizResponseSchema = createInsertSchema(quizResponses)
+  .omit({
+    id: true,
+    createdAt: true,
+  })
+  .extend({
+    quizAttemptId: z.number().int().positive("Quiz attempt is required"),
+    questionId: z.number().int().positive("Question is required"),
+    selectedAnswer: z.string().min(1, "Selected answer is required"),
+    isCorrect: z.boolean(),
+  });
+
 export type InsertQuestion = z.infer<typeof insertQuestionSchema>;
 export type InsertQuizTemplate = z.infer<typeof insertQuizTemplateSchema>;
 export type InsertQuiz = z.infer<typeof insertQuizSchema>;

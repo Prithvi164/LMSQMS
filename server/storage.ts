@@ -11,6 +11,9 @@ import {
   rolePermissions,
   userProcesses,
   batchPhaseChangeRequests,
+  quizResponses,
+  type QuizResponse,
+  type InsertQuizResponse,
   type User,
   type InsertUser,
   type Organization,
@@ -204,6 +207,10 @@ export interface IStorage {
   getQuizWithQuestions(id: number): Promise<Quiz | undefined>;
   createQuizAttempt(attempt: InsertQuizAttempt): Promise<QuizAttempt>;
   getQuizAttempt(id: number): Promise<QuizAttempt | undefined>;
+
+  // Add new methods for quiz responses
+  createQuizResponse(response: InsertQuizResponse): Promise<QuizResponse>;
+  getQuizResponses(quizAttemptId: number): Promise<QuizResponse[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -932,7 +939,7 @@ export class DatabaseStorage implements IStorage {
           .returning();
 
         if (!result.length) {
-          throw new Error('Location not found or deletion failed');
+          throw new Error('Location not foundor deletion failed');
         }
 
         console.log(`Successfully deleted location with ID: ${id}`);
@@ -2054,6 +2061,7 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching quiz attempt with ID: ${id}`);
 
+      // Get the attempt
       const [attempt] = await db
         .select()
         .from(quizAttempts)
@@ -2064,7 +2072,7 @@ export class DatabaseStorage implements IStorage {
         return undefined;
       }
 
-      // Get the associated quiz for this attempt
+      // Get the associated quiz
       const [quiz] = await db
         .select()
         .from(quizzes)
@@ -2076,15 +2084,31 @@ export class DatabaseStorage implements IStorage {
         .from(questions)
         .where(inArray(questions.id, quiz.questions)) as Question[];
 
-      // Combine the attempt data with question details
+      // Get the responses for this attempt
+      const responses = await db
+        .select()
+        .from(quizResponses)
+        .where(eq(quizResponses.quizAttemptId, attempt.id)) as QuizResponse[];
+
+      // Format the responses to match the expected structure
+      const formattedResponses = responses.map(response => ({
+        questionId: response.questionId,
+        userAnswer: response.selectedAnswer,
+        correctAnswer: questions.find(q => q.id === response.questionId)?.correctAnswer || '',
+        isCorrect: response.isCorrect
+      }));
+
+      // Combine all the data
       return {
         ...attempt,
+        answers: formattedResponses,
         quiz: {
           ...quiz,
-          questions
+          questions: questions.sort((a, b) =>
+            quiz.questions.indexOf(a.id) - quiz.questions.indexOf(b.id)
+          )
         }
       };
-
     } catch (error) {
       console.error('Error fetching quiz attempt:', error);
       throw error;
@@ -2105,22 +2129,66 @@ export class DatabaseStorage implements IStorage {
 
       const score = (correctCount / attempt.answers.length) * 100;
 
-      const [newAttempt] = await db
-        .insert(quizAttempts)
-        .values({
-          ...attempt,
-          score,
-          status: 'completed',
-          completedAt: new Date(),
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-        .returning() as QuizAttempt[];
+      // Start a transaction to create both attempt and responses
+      return await db.transaction(async (tx) => {
+        // Create the attempt first
+        const [newAttempt] = await tx
+          .insert(quizAttempts)
+          .values({
+            quizId: attempt.quizId,
+            userId: attempt.userId,
+            organizationId: attempt.organizationId,
+            score,
+            status: 'completed',
+            completedAt: new Date(),
+            createdAt: new Date(),
+            updatedAt: new Date()
+          })
+          .returning() as QuizAttempt[];
 
-      console.log('Successfully created quiz attempt:', newAttempt);
-      return newAttempt;
+        // Create individual responses for each answer
+        const responses = attempt.answers.map(answer => ({
+          quizAttemptId: newAttempt.id,
+          questionId: answer.questionId,
+          selectedAnswer: answer.userAnswer,
+          isCorrect: answer.isCorrect,
+          createdAt: new Date()
+        }));
+
+        await tx
+          .insert(quizResponses)
+          .values(responses);
+
+        console.log('Successfully created quiz attempt and responses:', newAttempt.id);
+        return newAttempt;
+      });
     } catch (error) {
       console.error('Error creating quiz attempt:', error);
+      throw error;
+    }
+  }
+
+  async createQuizResponse(response: InsertQuizResponse): Promise<QuizResponse> {
+    try {
+      const [newResponse] = await db
+        .insert(quizResponses)
+        .values(response)
+        .returning() as QuizResponse[];
+      return newResponse;
+    } catch (error) {
+      console.error('Error creating quiz response:', error);
+      throw error;
+    }
+  }
+
+  async getQuizResponses(quizAttemptId: number): Promise<QuizResponse[]> {
+    try {
+      return await db
+        .select()
+        .from(quizResponses)
+        .where(eq(quizResponses.quizAttemptId, quizAttemptId)) as QuizResponse[];
+    } catch (error) {
+      console.error('Error fetching quiz responses:', error);
       throw error;
     }
   }
