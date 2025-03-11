@@ -924,6 +924,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add new endpoint for quiz attempt results
+  app.get("/api/quiz-attempts/:attemptId", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const attemptId = parseInt(req.params.attemptId);
+      if (isNaN(attemptId)) {
+        return res.status(400).json({ message: "Invalid attempt ID" });
+      }
+
+      // Get the quiz attempt with all related data
+      const attempt = await storage.getQuizAttempt(attemptId);
+      if (!attempt) {
+        return res.status(404).json({ message: "Quiz attempt not found" });
+      }
+
+      // Get quiz details including questions
+      const quiz = await storage.getQuiz(attempt.quizId);
+      if (!quiz) {
+        return res.status(404).json({ message: "Quiz not found" });
+      }
+
+      // Get user's answers for this attempt
+      const answers = await storage.getQuizResponses(attemptId);
+
+      // Calculate score
+      const totalQuestions = quiz.questions.length;
+      const correctAnswers = answers.filter(answer => answer.isCorrect).length;
+      const score = (correctAnswers / totalQuestions) * 100;
+
+      // Format response to match frontend expectations
+      const result = {
+        id: attempt.id,
+        score,
+        completedAt: attempt.completedAt,
+        answers: answers.map(answer => ({
+          questionId: answer.questionId,
+          userAnswer: answer.response,
+          correctAnswer: answer.correctAnswer,
+          isCorrect: answer.isCorrect,
+        })),
+        quiz: {
+          name: quiz.name,
+          description: quiz.description,
+          questions: quiz.questions.map(q => ({
+            id: q.id,
+            question: q.question,
+            type: q.type,
+            options: q.options || [],
+            correctAnswer: q.correctAnswer,
+          })),
+        },
+      };
+
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error fetching quiz attempt results:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Add update endpoint for quiz templates
   app.put("/api/quiz-templates/:id", async (req, res) => {
     if (!req.user || !req.user.organizationId) {
