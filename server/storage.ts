@@ -1951,7 +1951,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]> {
-    try{
+    try {
       let baseQuery = db
         .select()
         .from(quizTemplates)
@@ -2059,65 +2059,54 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching quiz attempt with ID: ${id}`);
 
-      // First get the basic attempt data
+      // Get the attempt
       const [attempt] = await db
         .select()
         .from(quizAttempts)
         .where(eq(quizAttempts.id, id)) as QuizAttempt[];
 
       if (!attempt) {
+        console.log(`No quiz attempt found with ID: ${id}`);
         return undefined;
       }
 
-      // Get the quiz with its questions
+      // Get the associated quiz
       const [quiz] = await db
         .select()
         .from(quizzes)
         .where(eq(quizzes.id, attempt.quizId)) as Quiz[];
 
-      if (!quiz) {
-        throw new Error('Quiz not found');
-      }
-
-      // Get questions for this quiz
-      const quizQuestions = await db
+      // Get the questions
+      const questions = await db
         .select()
         .from(questions)
-        .where(inArray(questions.id, quiz.questionIds)) as Question[];
+        .where(inArray(questions.id, quiz.questions)) as Question[];
 
-      // Get responses for this attempt
-      const responses = await this.getQuizResponses(id);
+      // Get the responses for this attempt
+      const responses = await db
+        .select()
+        .from(quizResponses)
+        .where(eq(quizResponses.quizAttemptId, attempt.id)) as QuizResponse[];
 
-      // Calculate score
-      const score = responses.length > 0
-        ? (responses.filter(r => r.isCorrect).length / responses.length) * 100
-        : 0;
+      // Format the responses to match the expected structure
+      const formattedResponses = responses.map(response => ({
+        questionId: response.questionId,
+        userAnswer: response.selectedAnswer,
+        correctAnswer: questions.find(q => q.id === response.questionId)?.correctAnswer || '',
+        isCorrect: response.isCorrect
+      }));
 
-      // Format the response to match frontend expectations
-      const formattedAttempt = {
-        id: attempt.id,
-        score,
-        completedAt: attempt.completedAt,
+      // Return the full attempt with quiz and responses
+      return {
+        ...attempt,
+        answers: formattedResponses,
         quiz: {
-          name: quiz.name,
-          description: quiz.description,
-          questions: quizQuestions.map(q => ({
-            id: q.id,
-            question: q.question,
-            type: q.type,
-            options: q.options,
-            correctAnswer: q.correctAnswer
-          }))
-        },
-        answers: responses.map(r => ({
-          questionId: r.questionId,
-          userAnswer: r.selectedAnswer,
-          correctAnswer: quizQuestions.find(q => q.id === r.questionId)?.correctAnswer || '',
-          isCorrect: r.isCorrect
-        }))
+          ...quiz,
+          questions: questions.sort((a, b) =>
+            quiz.questions.indexOf(a.id) - quiz.questions.indexOf(b.id)
+          )
+        }
       };
-
-      return formattedAttempt as QuizAttempt;
     } catch (error) {
       console.error('Error fetching quiz attempt:', error);
       throw error;
