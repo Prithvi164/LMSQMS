@@ -22,6 +22,10 @@ import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
 import { BatchDetailsPage } from "@/components/batch-management/batch-details-page";
 import { BatchDetail } from "@/components/batch-management/batch-detail";
 
+interface BatchDetailProps {
+  onCreateBatch?: () => void;
+}
+
 function Router() {
   const { user } = useAuth();
   const [location] = useLocation();
@@ -50,7 +54,10 @@ function Router() {
           <ProtectedRoute path="/trainee-management" component={TraineeManagement} />
           <ProtectedRoute path="/performance" component={Performance} />
           <ProtectedRoute path="/settings" component={Settings} />
-          <ProtectedRoute path="/batch-management" component={BatchDetail} />
+          <ProtectedRoute 
+            path="/batch-management" 
+            component={() => <BatchDetail onCreateBatch={() => {}} />} 
+          />
           <ProtectedRoute path="/batch-monitoring" component={BatchMonitoringPage} />
           <ProtectedRoute path="/batch-details/:batchId" component={BatchDetailsPage} />
           <ProtectedRoute path="/quiz-management" component={QuizManagement} />
