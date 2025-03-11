@@ -938,8 +938,7 @@ export class DatabaseStorage implements IStorage {
           .where(eq(organizationLocations.id, id))
           .returning();
 
-        if (!result.length) {
-          throw new Error('Location not foundor deletion failed');
+        if (!result.length) {          throw new Error('Location not foundor deletion failed');
         }
 
         console.log(`Successfully deleted location with ID: ${id}`);
@@ -960,7 +959,6 @@ export class DatabaseStorage implements IStorage {
         .from(organizationLocations)
         .where(eq(organizationLocations.organizationId, location.organizationId))
         .where(eq(organizationLocations.name, location.name));
-
 
       if (existingLocations.length > 0) {
         throw new Error('A location with this name already exists in this organization');
@@ -2078,7 +2076,7 @@ export class DatabaseStorage implements IStorage {
         .from(quizzes)
         .where(eq(quizzes.id, attempt.quizId)) as Quiz[];
 
-      // Get the questions for this quiz
+      // Get the questions
       const questions = await db
         .select()
         .from(questions)
@@ -2098,7 +2096,7 @@ export class DatabaseStorage implements IStorage {
         isCorrect: response.isCorrect
       }));
 
-      // Combine all the data
+      // Return the full attempt with quiz and responses
       return {
         ...attempt,
         answers: formattedResponses,
@@ -2131,7 +2129,7 @@ export class DatabaseStorage implements IStorage {
 
       // Start a transaction to create both attempt and responses
       return await db.transaction(async (tx) => {
-        // Create the attempt first
+        // Create the attempt first without the answers field
         const [newAttempt] = await tx
           .insert(quizAttempts)
           .values({
@@ -2146,8 +2144,10 @@ export class DatabaseStorage implements IStorage {
           })
           .returning() as QuizAttempt[];
 
+        console.log('Created quiz attempt:', newAttempt);
+
         // Create individual responses for each answer
-        const responses = attempt.answers.map(answer => ({
+        const responseValues = attempt.answers.map(answer => ({
           quizAttemptId: newAttempt.id,
           questionId: answer.questionId,
           selectedAnswer: answer.userAnswer,
@@ -2157,9 +2157,9 @@ export class DatabaseStorage implements IStorage {
 
         await tx
           .insert(quizResponses)
-          .values(responses);
+          .values(responseValues);
 
-        console.log('Successfully created quiz attempt and responses:', newAttempt.id);
+        console.log('Created quiz responses for attempt:', newAttempt.id);
         return newAttempt;
       });
     } catch (error) {
