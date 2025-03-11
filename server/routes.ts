@@ -925,6 +925,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add update endpoint for quiz templates
+  // Add new route for getting quiz attempt details
+  app.get("/api/quiz-attempts/:id", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const attemptId = parseInt(req.params.id);
+      if (isNaN(attemptId)) {
+        return res.status(400).json({ message: "Invalid attempt ID" });
+      }
+
+      console.log(`Fetching quiz attempt with ID: ${attemptId}`);
+      const attempt = await storage.getQuizAttempt(attemptId);
+      
+      if (!attempt) {
+        return res.status(404).json({ message: "Quiz attempt not found" });
+      }
+
+      // Check if the user has permission to view this attempt
+      if (attempt.userId !== req.user.id && req.user.role !== 'owner' && req.user.role !== 'admin') {
+        return res.status(403).json({ message: "You can only view your own quiz attempts" });
+      }
+
+      res.json(attempt);
+    } catch (error) {
+      console.error("Error fetching quiz attempt:", error);
+      res.status(500).json({ message: "Failed to fetch quiz attempt" });
+    }
+  });
+
   app.put("/api/quiz-templates/:id", async (req, res) => {
     if (!req.user || !req.user.organizationId) {
       return res.status(401).json({ message: "Unauthorized" });

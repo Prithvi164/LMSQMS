@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "wouter";
+import { useParams, useLocation } from "wouter";
 import {
   Card,
   CardContent,
@@ -20,6 +20,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 export function QuizTakingPage() {
   const { quizId } = useParams();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -135,8 +136,8 @@ export function QuizTakingPage() {
 
       const result = await response.json();
 
-      // Redirect to results page
-      window.location.href = `/quiz-results/${result.id}`;
+      // Use wouter's setLocation instead of window.location.href
+      setLocation(`/quiz-results/${result.id}`);
     } catch (error) {
       toast({
         title: "Error",
