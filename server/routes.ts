@@ -1,14 +1,14 @@
 import type { Express } from "express";
+import { Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { Router } from "express";
-import { insertUserSchema, users, userBatchProcesses, organizationProcesses } from "@shared/schema";
+import { insertUserSchema, users, userBatchProcesses, organizationProcesses, type User, Question as QuizQuestion, QuizAnswer } from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { insertOrganizationProcessSchema } from "@shared/schema";
-import { insertBatchTemplateSchema } from "@shared/schema";
 import { batchStatusEnum } from "@shared/schema";
 import { permissionEnum } from '@shared/schema';
 import multer from 'multer';
@@ -19,7 +19,22 @@ import express from 'express';
 import { eq, and, sql } from "drizzle-orm";
 import { toIST, formatIST, toUTCStorage, formatISTDateOnly } from './utils/timezone';
 import { attendance } from "@shared/schema";
-import type { User } from "@shared/schema";
+
+// Use declare to make TypeScript aware of Express request session data
+declare module 'express-session' {
+  interface SessionData {
+    user?: User;
+  }
+}
+
+// Extend Express.Request to include user field
+declare global {
+  namespace Express {
+    interface Request {
+      user?: User;
+    }
+  }
+}
 
 // Type definitions for user updates
 type AllowedSelfUpdateFields = Pick<User, "fullName" | "email" | "phoneNumber" | "locationId" | "dateOfBirth" | "education">;
@@ -925,8 +940,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add update endpoint for quiz templates
-  // Add new route for getting quiz attempt details
-  app.get("/api/quiz-attempts/:id", async (req, res) => {
+  // Add route for getting quiz attempt details with detailed responses
+  app.get("/api/quiz-attempts/:id", async (req: Express.Request, res: Express.Response) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     try {
@@ -943,33 +958,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if the user has permission to view this attempt
-      if (attempt.userId !== req.user.id && req.user.role !== 'owner' && req.user.role !== 'admin') {
+      const user = req.user as User;
+      if (attempt.userId !== user.id && user.role !== 'owner' && user.role !== 'admin') {
         return res.status(403).json({ message: "You can only view your own quiz attempts" });
       }
 
-      // Get the associated quiz
-      const quiz = await storage.getQuizWithQuestions(attempt.quizId);
-
-      // Return the full attempt with quiz details and responses
+      // Return a simplified response structure
       res.json({
         id: attempt.id,
         score: attempt.score,
         completedAt: attempt.completedAt,
-        answers: attempt.answers,
-        quizInfo: quiz ? {
-          name: quiz.name,
-          description: quiz.description || '',
-          questions: quiz.questions.map(question => ({
-            id: question.id,
-            question: question.question,
-            type: question.type,
-            options: question.options || []
+        quiz: {
+          id: attempt.quiz.id,
+          title: attempt.quiz.name,
+          description: attempt.quiz.description || '',
+          questions: attempt.quiz.questions.map((q: QuizQuestion, index: number) => ({
+            id: q.id,
+            number: index + 1,
+            question: q.question,
+            type: q.type,
+            options: q.options || [],
+            userAnswer: attempt.answers.find((a: QuizAnswer) => a.questionId === q.id)?.userAnswer || '',
+            correctAnswer: q.correctAnswer,
+            isCorrect: attempt.answers.find((a: QuizAnswer) => a.questionId === q.id)?.isCorrect || false
           }))
-        } : null
+        }
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error fetching quiz attempt:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch quiz attempt" });
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch quiz attempt" });
     }
   });
 
