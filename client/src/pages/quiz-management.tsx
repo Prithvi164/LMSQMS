@@ -482,7 +482,7 @@ export function QuizManagement() {
   // Adding proper state management for edit dialog
   const handleEditQuestion = (question: Question) => {
     setEditingQuestion(question);
-    setIsAddQuestionOpen(true); 
+    setIsAddQuestionOpen(true);
     questionForm.reset({
       question: question.question,
       type: question.type,
@@ -627,7 +627,21 @@ export function QuizManagement() {
                       }
                     }}>
                       <DialogTrigger asChild>
-                        <Button onClick={() => setIsAddQuestionOpen(true)}>Add Question</Button>
+                        <Button onClick={() => {
+                          // Reset form before opening dialog
+                          questionForm.reset({
+                            question: "",
+                            type: "multiple_choice",
+                            options: ["", ""],
+                            correctAnswer: "",
+                            explanation: "",
+                            difficultyLevel: 1,
+                            category: "",
+                            processId: undefined
+                          });
+                          setEditingQuestion(null);
+                          setIsAddQuestionOpen(true);
+                        }}>Add Question</Button>
                       </DialogTrigger>
                       <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
                         <DialogHeader>
