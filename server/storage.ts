@@ -1,4 +1,4 @@
-import { eq, inArray, sql, desc, and } from "drizzle-orm";
+import { eq, inArray, sql, desc, and, or } from "drizzle-orm";
 import { db } from "./db";
 import { batchStatusEnum } from "@shared/schema";
 import {
@@ -1744,40 +1744,14 @@ export class DatabaseStorage implements IStorage {
   }
   async createQuestion(question: InsertQuestion): Promise<Question> {
     try {
-      console.log('Creating question with data:', {
-        ...question,
-        options: Array.isArray(question.options) ? question.options : [],
-      });
-
-      // Ensure required fields are present
-      if (!question.question || !question.type || !question.correctAnswer) {
-        throw new Error('Missing required fields');
-      }
-
-      // Ensure options is always an array
-      const questionData = {
-        ...question,
-        options: Array.isArray(question.options) ? question.options : [],
-        explanation: question.explanation || null,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-
-      // Insert the question
       const [newQuestion] = await db
         .insert(questions)
-        .values(questionData)
-        .returning() as Question[];
-
-      if (!newQuestion) {
-        throw new Error('Failed to create question - no question returned');
-      }
-
-      console.log('Successfully created question:', newQuestion);
+        .values(question)
+        .returning();
       return newQuestion;
     } catch (error) {
-      console.error('Error in createQuestion:', error);
-      throw error instanceof Error ? error : new Error('Failed to create question');
+      console.error('Error creating question:', error);
+      throw error;
     }
   }
 
@@ -1920,24 +1894,13 @@ export class DatabaseStorage implements IStorage {
       throw new Error(`Failed to fetch questions: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
-  async updateQuestion(id: number, questionData: Partial<Question>): Promise<Question> {
+  async updateQuestion(id: number, question: Partial<Question>): Promise<Question> {
     try {
-      console.log(`Updating question with ID: ${id}`, questionData);
-
       const [updatedQuestion] = await db
         .update(questions)
-        .set({
-          ...questionData,
-          updatedAt: new Date()
-        })
+        .set(question)
         .where(eq(questions.id, id))
-        .returning() as Question[];
-
-      if (!updatedQuestion) {
-        throw new Error('Question not found');
-      }
-
-      console.log('Successfully updated question:', updatedQuestion);
+        .returning();
       return updatedQuestion;
     } catch (error) {
       console.error('Error updating question:', error);
@@ -1947,18 +1910,9 @@ export class DatabaseStorage implements IStorage {
 
   async deleteQuestion(id: number): Promise<void> {
     try {
-      console.log(`Attempting to delete question with ID: ${id}`);
-
-      const result = await db
+      await db
         .delete(questions)
-        .where(eq(questions.id.id, id))
-        .returning();
-
-      if (!result.length) {
-        throw new Error('Question not found or deletion failed');
-      }
-
-      console.log(`Successfully deleted question with ID: ${id}`);
+        .where(eq(questions.id, id));
     } catch (error) {
       console.error('Error deleting question:', error);
       throw error;
@@ -1966,35 +1920,23 @@ export class DatabaseStorage implements IStorage {
   }
   async getQuestionById(id: number): Promise<Question | undefined> {
     try {
-      console.log(`Fetching question with ID: ${id}`);
-
-      const [question] = await db
+      const result = await db
         .select()
         .from(questions)
-        .where(eq(questions.id, id)) as Question[];
-
-      if (question) {
-        console.log('Found question:', { id: question.id, type: question.type });
-      } else {
-        console.log('Question not found');
-      }
-
-      return question;
+        .where(eq(questions.id, id));
+      return result[0];
     } catch (error) {
-      console.error('Error fetching question by ID:', error);
-      throw new Error(`Failed to fetch question: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Error fetching question:', error);
+      throw error;
     }
   }
   // Quiz template operations
   async createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate> {
     try {
-      console.log('Creating quiz template:', template);
       const [newTemplate] = await db
         .insert(quizTemplates)
         .values(template)
-        .returning() as QuizTemplate[];
-
-      console.log('Successfully created quiz template:', newTemplate);
+        .returning();
       return newTemplate;
     } catch (error) {
       console.error('Error creating quiz template:', error);
@@ -2004,151 +1946,56 @@ export class DatabaseStorage implements IStorage {
 
   async listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]> {
     try {
-      console.log(`Fetching quiz templates for organization ${organizationId}${processId ? ` and process ${processId}` : ''}`);
-
-      let query = db
+      let baseQuery = db
         .select()
         .from(quizTemplates)
         .where(eq(quizTemplates.organizationId, organizationId));
 
       if (processId) {
-        query = query.where(eq(quizTemplates.processId, processId));
+        baseQuery = baseQuery.where(eq(quizTemplates.processId, processId));
       }
 
-      const templates = await query as QuizTemplate[];
-      console.log(`Found ${templates.length} quiz templates`);
-      return templates;
+      return await baseQuery;
     } catch (error) {
-      console.error('Error fetching quiz templates:', error);
+      console.error('Error listing quiz templates:', error);
       throw error;
     }
   }
 
   async getQuizTemplate(id: number): Promise<QuizTemplate | undefined> {
     try {
-      console.log(`Fetching quiz template with ID: ${id}`);
-      const [template] = await db
+      const result = await db
         .select()
         .from(quizTemplates)
-        .where(eq(quizTemplates.id, id)) as QuizTemplate[];
-
-      return template;
+        .where(eq(quizTemplates.id, id));
+      return result[0];
     } catch (error) {
       console.error('Error fetching quiz template:', error);
       throw error;
     }
   }
 
-  async updateQuizTemplate(id: number, template: Partial<InsertQuizTemplate>): Promise<QuizTemplate> {
-    try {
-      console.log(`Updating quiz template with ID: ${id}`, template);
-
-      const [updatedTemplate] = await db
-        .update(quizTemplates)
-        .set({
-          ...template,
-          updatedAt: new Date()
-        })
-        .where(eq(quizTemplates.id, id))
-        .returning() as QuizTemplate[];
-
-      if (!updatedTemplate) {
-        throw new Error('Quiz template not found');
-      }
-
-      console.log('Successfully updated quiz template:', updatedTemplate);
-      return updatedTemplate;
-    } catch (error) {
-      console.error('Error updating quiz template:', error);
-      throw error;
-    }
-  }
-
   async deleteQuizTemplate(id: number): Promise<void> {
     try {
-      console.log(`Attempting to delete quiz template with ID: ${id}`);
-
-      const result = await db
+      await db
         .delete(quizTemplates)
-        .where(eq(quizTemplates.id, id))
-        .returning();
-
-      if (!result.length) {
-        throw new Error('Quiz template not found or deletion failed');
-      }
-
-      console.log(`Successfully deleted quiz template with ID: ${id}`);
+        .where(eq(quizTemplates.id, id));
     } catch (error) {
       console.error('Error deleting quiz template:', error);
       throw error;
     }
   }
 
+  // Quiz operations
   async createQuiz(quiz: InsertQuiz): Promise<Quiz> {
     try {
-      console.log('Creating quiz:', quiz);
-
       const [newQuiz] = await db
         .insert(quizzes)
-        .values({
-          name: quiz.name,
-          description: quiz.description,
-          timeLimit: quiz.timeLimit,
-          passingScore: quiz.passingScore,
-          questions: quiz.questions,
-          templateId: quiz.templateId,
-          organizationId: quiz.organizationId,
-          createdBy: quiz.createdBy,
-          processId: quiz.processId,
-          status: quiz.status,
-          startTime: quiz.startTime,
-          endTime: quiz.endTime
-        })
-        .returning() as Quiz[];
-
-      console.log('Successfully created quiz:', newQuiz);
+        .values(quiz)
+        .returning();
       return newQuiz;
     } catch (error) {
       console.error('Error creating quiz:', error);
-      throw error;
-    }
-  }
-
-  async getQuizWithQuestions(id: number): Promise<Quiz | undefined> {
-    try {
-      const [quiz] = await db
-        .select({
-          id: quizzes.id,
-          name: quizzes.name,
-          description: quizzes.description,
-          timeLimit: quizzes.timeLimit,
-          passingScore: quizzes.passingScore,
-          questions: quizzes.questions,
-          templateId: quizzes.templateId,
-          organizationId: quizzes.organizationId,
-          createdBy: quizzes.createdBy,
-          processId: quizzes.processId,
-          status: quizzes.status,
-          startTime: quizzes.startTime,
-          endTime: quizzes.endTime,
-        })
-        .from(quizzes)
-        .where(eq(quizzes.id, id)) as Quiz[];
-
-      if (!quiz) return undefined;
-
-      // Fetch all questions for this quiz
-      const quizQuestions = await db
-        .select()
-        .from(questions)
-        .where(inArray(questions.id, quiz.questions)) as Question[];
-
-      return {
-        ...quiz,
-        questions: quizQuestions
-      };
-    } catch (error) {
-      console.error('Error fetching quiz with questions:', error);
       throw error;
     }
   }
@@ -2157,16 +2004,8 @@ export class DatabaseStorage implements IStorage {
     try {
       const [newAttempt] = await db
         .insert(quizAttempts)
-        .values({
-          quizId: attempt.quizId,
-          userId: attempt.userId,
-          organizationId: attempt.organizationId,
-          score: attempt.score,
-          answers: attempt.answers,
-          completedAt: attempt.completedAt
-        })
-        .returning() as QuizAttempt[];
-
+        .values(attempt)
+        .returning();
       return newAttempt;
     } catch (error) {
       console.error('Error creating quiz attempt:', error);
