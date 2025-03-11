@@ -287,18 +287,6 @@ export const insertQuizResponseSchema = createInsertSchema(quizResponses)
     isCorrect: z.boolean(),
   });
 
-export const insertQuizResponseSchema = createInsertSchema(quizResponses)
-  .omit({
-    id: true,
-    createdAt: true,
-  })
-  .extend({
-    quizAttemptId: z.number().int().positive("Quiz attempt is required"),
-    questionId: z.number().int().positive("Question is required"),
-    selectedAnswer: z.string().min(1, "Selected answer is required"),
-    isCorrect: z.boolean(),
-  });
-
 export type InsertQuestion = z.infer<typeof insertQuestionSchema>;
 export type InsertQuizTemplate = z.infer<typeof insertQuizTemplateSchema>;
 export type InsertQuiz = z.infer<typeof insertQuizSchema>;
@@ -356,7 +344,7 @@ export const quizzesRelations = relations(quizzes, ({ one, many }) => ({
   attempts: many(quizAttempts),
 }));
 
-export const quizAttemptsRelations = relations(quizAttempts, ({ one }) => ({
+export const quizAttemptsRelations = relations(quizAttempts, ({ one, many }) => ({
   quiz: one(quizzes, {
     fields: [quizAttempts.quizId],
     references: [quizzes.id],
@@ -369,6 +357,7 @@ export const quizAttemptsRelations = relations(quizAttempts, ({ one }) => ({
     fields: [quizAttempts.organizationId],
     references: [organizations.id],
   }),
+  responses: many(quizResponses)
 }));
 
 export const quizResponsesRelations = relations(quizResponses, ({ one }) => ({
@@ -453,7 +442,6 @@ export const batchTemplatesRelations = relations(batchTemplates, ({ one }) => ({
     references: [users.id],
   }),
 }));
-
 
 export const organizationBatches = pgTable("organization_batches", {
   id: serial("id").primaryKey(),
@@ -855,8 +843,7 @@ export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organiz
     id: true,
     createdAt: true
   })
-  .extend({
-    name: z.string().min(1, "LOB name is required"),
+  .extend({    name: z.string().min(1, "LOB name is required"),
     description: z.string().min(1, "Description is required"),
     organizationId: z.number().int().positive("Organization is required"),
   });
