@@ -12,6 +12,9 @@ import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 
 interface QuizAnswer {
   questionId: number;
+  question: string;
+  type: string;
+  options: string[];
   userAnswer: string;
   correctAnswer: string;
   isCorrect: boolean;
@@ -20,19 +23,12 @@ interface QuizAnswer {
 interface QuizAttemptResult {
   id: number;
   score: number;
-  answers: QuizAnswer[];
   completedAt: string;
   quiz: {
     name: string;
     description: string | null;
-    questions: {
-      id: number;
-      question: string;
-      type: string;
-      options: string[];
-      correctAnswer: string;
-    }[];
   };
+  answers: QuizAnswer[];
 }
 
 export function QuizResultsPage() {
@@ -67,6 +63,8 @@ export function QuizResultsPage() {
           <CardTitle>Quiz Results: {result.quiz.name}</CardTitle>
           <CardDescription>
             Your score: {result.score.toFixed(1)}%
+            <br />
+            Completed at: {new Date(result.completedAt).toLocaleString()}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -88,9 +86,29 @@ export function QuizResultsPage() {
                   </div>
                   <div className="flex-1">
                     <h3 className="font-medium">
-                      Question {index + 1}: {result.quiz.questions[index].question}
+                      Question {index + 1}: {answer.question}
                     </h3>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    {answer.type === "multiple_choice" && (
+                      <div className="mt-2 space-y-1">
+                        {answer.options.map((option, optIndex) => (
+                          <div
+                            key={optIndex}
+                            className={`p-2 rounded ${
+                              option === answer.userAnswer
+                                ? answer.isCorrect
+                                  ? "bg-green-100"
+                                  : "bg-red-100"
+                                : option === answer.correctAnswer && !answer.isCorrect
+                                ? "bg-green-100"
+                                : "bg-gray-50"
+                            }`}
+                          >
+                            {option}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-sm text-muted-foreground mt-2">
                       Your answer: {answer.userAnswer}
                     </p>
                     {!answer.isCorrect && (
