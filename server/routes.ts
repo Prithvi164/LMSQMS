@@ -947,10 +947,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only view your own quiz attempts" });
       }
 
-      res.json(attempt);
-    } catch (error) {
+      // Get the associated quiz
+      const quiz = await storage.getQuizWithQuestions(attempt.quizId);
+
+      // Return the full attempt with quiz details and responses
+      res.json({
+        id: attempt.id,
+        score: attempt.score,
+        completedAt: attempt.completedAt,
+        answers: attempt.answers,
+        quizInfo: quiz ? {
+          name: quiz.name,
+          description: quiz.description || '',
+          questions: quiz.questions.map(question => ({
+            id: question.id,
+            question: question.question,
+            type: question.type,
+            options: question.options || []
+          }))
+        } : null
+      });
+    } catch (error: any) {
       console.error("Error fetching quiz attempt:", error);
-      res.status(500).json({ message: "Failed to fetch quiz attempt" });
+      res.status(500).json({ message: error.message || "Failed to fetch quiz attempt" });
+    }
+  });
+
+  // Add route for getting quiz responses
+  app.get("/api/quiz-responses/:attemptId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const attemptId = parseInt(req.params.attemptId);
+      if (isNaN(attemptId)) {
+        return res.status(400).json({ message: "Invalid attempt ID" });
+      }
+
+      const attempt = await storage.getQuizAttempt(attemptId);
+      if (!attempt || (attempt.userId !== req.user.id && req.user.role !== 'owner' && req.user.role !== 'admin')) {
+        return res.status(403).json({ message: "You can only view your own quiz responses" });
+      }
+
+      // Get the responses from the attempt answers
+      const responses = attempt.answers.map(answer => ({
+        questionId: answer.questionId,
+        userAnswer: answer.userAnswer,
+        correctAnswer: answer.correctAnswer,
+        isCorrect: answer.isCorrect
+      }));
+
+      res.json(responses);
+    } catch (error: any) {
+      console.error("Error fetching quiz responses:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch quiz responses" });
     }
   });
 
