@@ -2068,8 +2068,8 @@ export class DatabaseStorage implements IStorage {
         return undefined;
       }
 
-      // Get the quiz details and responses in parallel
-      const [quiz, responses] = await Promise.all([
+      // Get the quiz details and questions in parallel
+      const [quiz, questions] = await Promise.all([
         db
           .select()
           .from(quizzes)
@@ -2077,9 +2077,9 @@ export class DatabaseStorage implements IStorage {
           .then(results => results[0] as Quiz),
         db
           .select()
-          .from(quizResponses)
-          .where(eq(quizResponses.quizAttemptId, id))
-          .then(results => results as QuizResponse[])
+          .from(questions)
+          .whereIn('id', attempt.answers.map(a => a.questionId))
+          .then(results => results as Question[])
       ]);
 
       if (!quiz) {
@@ -2087,27 +2087,22 @@ export class DatabaseStorage implements IStorage {
         return undefined;
       }
 
-      // Get all questions for this quiz
-      const questions = await db
+      // Get responses for this attempt
+      const responses = await db
         .select()
-        .from(questions)
-        .where(inArray(questions.id, quiz.questions))
-        .then(results => results as Question[]);
+        .from(quizResponses)
+        .where(eq(quizResponses.quizAttemptId, id)) as QuizResponse[];
 
-      // Format the answers with correct ordering
-      const formattedAnswers = quiz.questions.map(questionId => {
-        const question = questions.find(q => q.id === questionId);
-        const response = responses.find(r => r.questionId === questionId);
-
-        if (!question) return null;
-
+      // Map answers with questions in correct order
+      const orderedAnswers = attempt.answers.map(answer => {
+        const question = questions.find(q => q.id === answer.questionId);
         return {
-          questionId,
-          userAnswer: response?.selectedAnswer || '',
-          correctAnswer: question.correctAnswer,
-          isCorrect: response?.isCorrect || false
+          questionId: answer.questionId,
+          userAnswer: answer.userAnswer,
+          correctAnswer: question?.correctAnswer || '',
+          isCorrect: answer.isCorrect
         };
-      }).filter(answer => answer !== null);
+      });
 
       // Return complete attempt data
       return {
@@ -2116,7 +2111,7 @@ export class DatabaseStorage implements IStorage {
           ...quiz,
           questions
         },
-        answers: formattedAnswers
+        answers: orderedAnswers
       };
     } catch (error) {
       console.error('Error fetching quiz attempt:', error);
