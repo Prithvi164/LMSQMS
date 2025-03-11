@@ -2084,46 +2084,28 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log("Debug - Fetching quiz attempt with ID:", id);
 
-      const result = await db.query(
-        `
-        SELECT 
-          qa.id as attempt_id,
-          qa.score,
-          qa.completed_at,
-          q.name as quiz_name,
-          q.description as quiz_description,
-          COALESCE(
-            json_agg(
-              json_build_object(
-                'questionId', que.id,
-                'question', que.question,
-                'type', que.type,
-                'options', que.options,
-                'userAnswer', qr.selected_answer,
-                'correctAnswer', que.correct_answer,
-                'isCorrect', qr.is_correct
-              ) ORDER BY qr.id
-            ) FILTER (WHERE que.id IS NOT NULL),
-            '[]'::json
-          ) as answers
-        FROM quiz_attempts qa
-        JOIN quizzes q ON qa.quiz_id = q.id
-        LEFT JOIN quiz_responses qr ON qa.id = qr.quiz_attempt_id
-        LEFT JOIN questions que ON qr.question_id = que.id
-        WHERE qa.id = $1
-        GROUP BY qa.id, q.id, q.name, q.description
-        `,
-        [id]
-      );
+      const result = await db
+        .select({
+          attempt_id: quizAttempts.id,
+          score: quizAttempts.score,
+          completed_at: quizAttempts.completedAt,
+          quiz_name: quizzes.name,
+          quiz_description: quizzes.description,
+          answers: quizResponses.answers
+        })
+        .from(quizAttempts)
+        .leftJoin(quizzes, eq(quizAttempts.quizId, quizzes.id))
+        .leftJoin(quizResponses, eq(quizAttempts.id, quizResponses.quizAttemptId))
+        .where(eq(quizAttempts.id, id));
 
-      console.log("Debug - SQL Query Result:", result.rows);
+      console.log("Debug - SQL Query Result:", result);
 
-      if (!result.rows.length) {
+      if (!result.length) {
         console.log("Debug - No quiz attempt found for ID:", id);
         return undefined;
       }
 
-      const row = result.rows[0];
+      const row = result[0];
       console.log("Debug - Transformed Result:", {
         id: row.attempt_id,
         score: row.score,
@@ -2131,8 +2113,7 @@ export class DatabaseStorage implements IStorage {
         quiz: {
           name: row.quiz_name,
           description: row.quiz_description
-        },
-        answers: row.answers
+        }
       });
 
       return {
@@ -2142,8 +2123,7 @@ export class DatabaseStorage implements IStorage {
         quiz: {
           name: row.quiz_name,
           description: row.quiz_description
-        },
-        answers: Array.isArray(row.answers) ? row.answers : []
+        }
       };
     } catch (error) {
       console.error("Debug - Error in getQuizAttempt:", error);
