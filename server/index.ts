@@ -108,22 +108,47 @@ debugLog("Health check route added");
       debugLog("Static file serving setup complete");
     }
 
-    const port = process.env.PORT || 5001;
-    debugLog(`Attempting to start server on port ${port}`);
+    // Try different ports if the default one is in use
+    const ports = [3000, 3001, 8080, 8081];
+    let port = parseInt(process.env.PORT || "3000");
 
-    server.listen(port, () => {
-      log(`Server running in ${app.get("env")} mode`);
-      log(`API and client being served on port ${port}`);
-      debugLog("Server started successfully");
-    }).on('error', (error: any) => {
-      if (error.code === 'EADDRINUSE') {
-        log(`Port ${port} is already in use. Please try a different port.`);
-      } else {
-        log(`Failed to start server: ${error}`);
+    const startServer = async (currentPort: number): Promise<void> => {
+      try {
+        debugLog(`Attempting to start server on port ${currentPort}`);
+        await new Promise((resolve, reject) => {
+          server.listen(currentPort, "0.0.0.0", () => {
+            log(`Server running in ${app.get("env")} mode`);
+            log(`API and client being served on port ${currentPort}`);
+            debugLog("Server started successfully");
+            resolve(undefined);
+          }).on('error', (error: any) => {
+            if (error.code === 'EADDRINUSE') {
+              debugLog(`Port ${currentPort} is already in use`);
+              reject(error);
+            } else {
+              log(`Failed to start server: ${error}`);
+              debugLog(`Server startup error: ${error.message}`);
+              reject(error);
+            }
+          });
+        });
+      } catch (error: any) {
+        if (error.code === 'EADDRINUSE') {
+          const nextPort = ports.find(p => p > currentPort);
+          if (nextPort) {
+            debugLog(`Trying next port: ${nextPort}`);
+            return startServer(nextPort);
+          } else {
+            log("No available ports found.");
+            debugLog("No available ports found.");
+            process.exit(1);
+          }
+        }
+        throw error;
       }
-      debugLog(`Server startup error: ${error.message}`);
-      process.exit(1);
-    });
+    };
+
+    await startServer(port);
   } catch (error) {
     debugLog(`Fatal error during initialization: ${error}`);
     log(`Failed to start server: ${error}`);
