@@ -949,7 +949,7 @@ export class DatabaseStorage implements IStorage {
       // Check if location with same name exists in the organization
       const existingLocations = await db
         .select()
-        .from(organizationLocations)
+                .from(organizationLocations)
         .where(eq(organizationLocations.organizationId, location.organizationId))
         .where(eq(organizationLocations.name, location.name));
 
@@ -1956,7 +1956,7 @@ export class DatabaseStorage implements IStorage {
       }
 
       return await baseQuery;
-} catch (error) {
+    } catch (error) {
       console.error('Error listing quiz templates:', error);
       throw error;
     }
@@ -1986,13 +1986,26 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Quiz operations
   async createQuiz(quiz: InsertQuiz): Promise<Quiz> {
     try {
+      console.log('Creating quiz:', quiz);
+
+      // Validate quiz data
+      if (!quiz.questions || quiz.questions.length === 0) {
+        throw new Error('Quiz must have at least one question');
+      }
+
       const [newQuiz] = await db
         .insert(quizzes)
-        .values(quiz)
-        .returning();
+        .values({
+          ...quiz,
+          status: 'active',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning() as Quiz[];
+
+      console.log('Successfully created quiz:', newQuiz);
       return newQuiz;
     } catch (error) {
       console.error('Error creating quiz:', error);
@@ -2008,18 +2021,27 @@ export class DatabaseStorage implements IStorage {
         .from(quizzes)
         .where(eq(quizzes.id, id)) as Quiz[];
 
-      if (!quiz) return undefined;
+      if (!quiz) {
+        console.log(`No quiz found with ID: ${id}`);
+        return undefined;
+      }
 
-      // Then fetch the questions associated with this quiz
+      // Then fetch all questions for this quiz
       const quizQuestions = await db
         .select()
         .from(questions)
         .where(inArray(questions.id, quiz.questions)) as Question[];
 
-      // Return the quiz with its questions
+      console.log(`Found ${quizQuestions.length} questions for quiz ${id}`);
+
+      // Ensure questions are in the correct order as specified in quiz.questions
+      const orderedQuestions = quiz.questions.map(questionId =>
+        quizQuestions.find(q => q.id === questionId)
+      ).filter(q => q) as Question[];
+
       return {
         ...quiz,
-        questions: quizQuestions
+        questions: orderedQuestions
       };
     } catch (error) {
       console.error('Error fetching quiz with questions:', error);
