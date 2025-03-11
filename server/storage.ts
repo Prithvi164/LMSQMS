@@ -941,10 +941,11 @@ export class DatabaseStorage implements IStorage {
         if (!result.length) {
           throw new Error('Location not found or deletion failed');
         }
-
-        console.log(`Successfully deleted location with ID: ${id}`);
       });
-    } catch (error) {      console.error('Error deleting location:', error);
+
+      console.log(`Successfully deleted location with ID: ${id}`);
+    } catch (error) {
+      console.error('Error deleting location:', error);
       throw error;
     }
   }
@@ -2063,43 +2064,52 @@ export class DatabaseStorage implements IStorage {
         .where(eq(quizAttempts.id, id)) as QuizAttempt[];
 
       if (!attempt) {
+        console.log(`No quiz attempt found with ID: ${id}`);
         return undefined;
       }
 
-      // Get the quiz details
-      const [quiz] = await db
-        .select()
-        .from(quizzes)
-        .where(eq(quizzes.id, attempt.quizId)) as Quiz[];
+      // Get the quiz details and responses in parallel
+      const [quiz, responses] = await Promise.all([
+        db
+          .select()
+          .from(quizzes)
+          .where(eq(quizzes.id, attempt.quizId))
+          .then(results => results[0] as Quiz),
+        db
+          .select()
+          .from(quizResponses)
+          .where(eq(quizResponses.quizAttemptId, id))
+          .then(results => results as QuizResponse[])
+      ]);
 
       if (!quiz) {
+        console.log(`No quiz found for attempt ${id}`);
         return undefined;
       }
 
-      // Get the questions for this quiz
+      // Get all questions for this quiz
       const questions = await db
         .select()
         .from(questions)
-        .where(inArray(questions.id, quiz.questions)) as Question[];
+        .where(inArray(questions.id, quiz.questions))
+        .then(results => results as Question[]);
 
-      // Get the responses for this attempt
-      const responses = await db
-        .select()
-        .from(quizResponses)
-        .where(eq(quizResponses.quizAttemptId, id)) as QuizResponse[];
+      // Format the answers with correct ordering
+      const formattedAnswers = quiz.questions.map(questionId => {
+        const question = questions.find(q => q.id === questionId);
+        const response = responses.find(r => r.questionId === questionId);
 
-      // Format the responses to match each question
-      const formattedAnswers = questions.map(question => {
-        const response = responses.find(r => r.questionId === question.id);
+        if (!question) return null;
+
         return {
-          questionId: question.id,
+          questionId,
           userAnswer: response?.selectedAnswer || '',
           correctAnswer: question.correctAnswer,
           isCorrect: response?.isCorrect || false
         };
-      });
+      }).filter(answer => answer !== null);
 
-      // Return the complete attempt with all related data
+      // Return complete attempt data
       return {
         ...attempt,
         quiz: {

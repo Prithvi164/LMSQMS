@@ -938,10 +938,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message });
     }
   });
-  
+
   // Add route for getting quiz responses with proper error handling
-  app.get("/api/quiz-responses/:attemptId", async (req: Express.Request, res: Express.Response) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+  app.get("/api/quiz-responses/:attemptId", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
     try {
       const attemptId = parseInt(req.params.attemptId);
@@ -967,37 +969,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Quiz not found" });
       }
 
-      // Map responses with question details
-      const responses = quiz.questions.map((question, index) => {
-        const answer = attempt.answers.find(a => a.questionId === question.id);
-        return {
-          questionNumber: index + 1,
-          questionId: question.id,
-          question: question.question,
-          type: question.type,
-          options: question.options || [],
-          userAnswer: answer?.userAnswer || '',
-          correctAnswer: question.correctAnswer,
-          isCorrect: answer?.isCorrect || false,
-          explanation: question.explanation
-        };
-      });
-
-      res.json({
+      // Format the response
+      const response = {
         id: attempt.id,
         score: attempt.score,
         completedAt: attempt.completedAt,
         quiz: {
           id: quiz.id,
           name: quiz.name,
-          description: quiz.description || ''
-        },
-        responses
-      });
+          description: quiz.description || '',
+          questions: quiz.questions.map((question: QuizQuestion, index: number) => {
+            const answer = attempt.answers.find(a => a.questionId === question.id);
+            return {
+              id: question.id,
+              number: index + 1,
+              question: question.question,
+              type: question.type,
+              options: question.options || [],
+              userAnswer: answer?.userAnswer || '',
+              correctAnswer: question.correctAnswer,
+              isCorrect: answer?.isCorrect || false,
+              explanation: question.explanation || ''
+            };
+          })
+        }
+      };
 
-    } catch (error: any) {
+      res.json(response);
+    } catch (error) {
       console.error("Error fetching quiz responses:", error);
-      res.status(500).json({ message: error.message });
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to fetch quiz responses" 
+      });
     }
   });
 
