@@ -920,10 +920,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(templates);
     } catch (error: any) {
       console.error("Error fetching quiz templates:", error);
-      res.status(500).json({ 
-        message: error.message || "Failed to fetch quiz templates",
-        details: error.stack
-      });
+      res.status(500).json({ message: error.message });
     }
   });
 

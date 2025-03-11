@@ -946,23 +946,21 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log('Creating location with data:', location);
 
-            // Check if location with same name exists in the organization
+      // Check if location with same name exists in the organization
       const existingLocations = await db        .select()
         .from(organizationLocations)
         .where(eq(organizationLocations.organizationId, location.organizationId))
         .where(eq(organizationLocations.name, location.name));
-      
+
 
       if (existingLocations.length > 0) {
         throw new Error('A location with this name already exists in this organization');
       }
-      
 
       const [newLocation] = await db
         .insert(organizationLocations)
         .values(location)
         .returning() as OrganizationLocation[];
-      
 
       console.log('Successfully created new location:', newLocation);
       return newLocation;
@@ -971,7 +969,6 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  
 
   // Batch operations
   async createBatch(batch: InsertOrganizationBatch): Promise<OrganizationBatch> {
@@ -980,28 +977,24 @@ export class DatabaseStorage implements IStorage {
         ...batch,
         password: '[REDACTED]' // Ensure we don't log sensitive data
       });
-      
 
       // Verify the location exists
       const location = await this.getLocation(batch.locationId);
       if (!location) {
         throw new Error('Location not found');
       }
-      
 
       // Verify the LOB exists
       const lob = await this.getLineOfBusiness(batch.lineOfBusinessId);
       if (!lob) {
         throw new Error('Line of Business not found');
       }
-      
 
       // Verify the process exists and belongs to the LOB
       const process = await this.getProcess(batch.processId);
       if (!process) {
         throw new Error('Process not found');
       }
-      
 
       // If trainer is assigned, verify they exist and belong to the location
       if (batch.trainerId) {
@@ -1013,20 +1006,17 @@ export class DatabaseStorage implements IStorage {
           throw new Error('Trainer is not assigned to the selected location');
         }
       }
-      
 
       const [newBatch] = await db
         .insert(organizationBatches)
         .values(batch)
         .returning() as OrganizationBatch[];
-      
 
       console.log('Successfully created new batch:', {
         id: newBatch.id,
         name: newBatch.name,
         batchCode: newBatch.batchCode
       });
-      
 
       return newBatch;
     } catch (error) {
@@ -1034,7 +1024,6 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  
 
   async getBatch(id: number): Promise<OrganizationBatch | undefined> {
     try {
@@ -1042,7 +1031,6 @@ export class DatabaseStorage implements IStorage {
         .select()
         .from(organizationBatches)
         .where(eq(organizationBatches.id, id)) as OrganizationBatch[];
-      
 
       return batch;
     } catch (error) {
@@ -1050,12 +1038,10 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  
 
   async listBatches(organizationId: number): Promise<OrganizationBatch[]> {
     try {
       console.log(`Fetching batches for organization ${organizationId}`);
-      
 
       // Explicitly select and cast the batch_category field
       const batches = await db
@@ -1104,7 +1090,7 @@ export class DatabaseStorage implements IStorage {
         )
         .where(eq(organizationBatches.organizationId, organizationId))
         .orderBy(desc(organizationBatches.createdAt));
-      
+
 
       return batches as OrganizationBatch[];
     } catch (error) {
@@ -1112,12 +1098,10 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  
 
   async updateBatch(id: number, batch: Partial<InsertOrganizationBatch>): Promise<OrganizationBatch> {
     try {
       console.log(`Updating batch with ID: ${id}`, batch);
-      
 
       const [updatedBatch] = await db
         .update(organizationBatches)
@@ -1127,12 +1111,10 @@ export class DatabaseStorage implements IStorage {
         })
         .where(eq(organizationBatches.id, id))
         .returning() as OrganizationBatch[];
-      
 
       if (!updatedBatch) {
         throw new Error('Batch not found');
       }
-      
 
       console.log('Successfully updated batch:', updatedBatch);
       return updatedBatch;
@@ -1141,23 +1123,19 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  
 
   async deleteBatch(id: number): Promise<void> {
     try {
       console.log(`Attempting to delete batch with ID: ${id}`);
-      
 
       const result = await db
         .delete(organizationBatches)
         .where(eq(organizationBatches.id, id))
         .returning();
-      
 
       if (!result.length) {
         throw new Error('Batch not found or deletion failed');
       }
-      
 
       console.log(`Successfully deleted batch with ID: ${id}`);
     } catch (error) {
@@ -1165,7 +1143,6 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  
 
   async getLocation(id: number): Promise<OrganizationLocation | undefined> {
     try {
@@ -1174,7 +1151,6 @@ export class DatabaseStorage implements IStorage {
         .select()
         .from(organizationLocations)
         .where(eq(organizationLocations.id, id)) as OrganizationLocation[];
-      
 
       console.log('Location found:', location);
       return location;
@@ -1183,13 +1159,11 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  
 
   // Get LOBs from user_processes table based on location
   async getLineOfBusinessesByLocation(organizationId: number, locationId: number): Promise<OrganizationLineOfBusiness[]> {
     try {
       console.log(`Starting LOB query for location ${locationId}`);
-      
 
       // First verify if the location exists
       const location = await this.getLocation(locationId);
@@ -1197,7 +1171,6 @@ export class DatabaseStorage implements IStorage {
         console.log(`Location ${locationId} not found`);
         return [];
       }
-      
 
       // Get trainers for this location
       const trainers = await db
@@ -1206,19 +1179,16 @@ export class DatabaseStorage implements IStorage {
         .where(eq(users.locationId, locationId))
         .where(eq(users.role, 'trainer'))
         .where(eq(users.organizationId, organizationId));
-      
 
       console.log(`Found trainers for location ${locationId}:`, {
         trainerCount: trainers.length,
         trainerIds: trainers.map(t => t.id)
       });
-      
 
       if (!trainers.length) {
         console.log(`No trainers found for location ${locationId}`);
         return [];
       }
-      
 
       // Get LOBs from user_processes for these trainers
       const lobs = await db
@@ -1239,7 +1209,6 @@ export class DatabaseStorage implements IStorage {
         .where(eq(organizationLineOfBusinesses.organizationId, organizationId))
         .groupBy(organizationLineOfBusinesses.id)
         .orderBy(organizationLineOfBusinesses.name) as OrganizationLineOfBusiness[];
-      
 
       console.log(`Found LOBs for location ${locationId}:`, {
         count: lobs.length,
@@ -1248,7 +1217,6 @@ export class DatabaseStorage implements IStorage {
           name: lob.name
         }))
       });
-      
 
       return lobs;
     } catch (error) {
@@ -1263,13 +1231,11 @@ export class DatabaseStorage implements IStorage {
         ...template,
         organizationId: template.organizationId
       });
-      
 
       const [newTemplate] = await db
         .insert(batchTemplates)
         .values(template)
         .returning() as BatchTemplate[];
-      
 
       console.log('Successfully created batch template:', newTemplate);
       return newTemplate;
@@ -1278,7 +1244,6 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  
 
   async listBatchTemplates(organizationId: number): Promise<BatchTemplate[]> {
     try {
@@ -1287,7 +1252,6 @@ export class DatabaseStorage implements IStorage {
         .select()
         .from(batchTemplates)
         .where(eq(batchTemplates.organizationId, organizationId)) as BatchTemplate[];
-      
 
       console.log(`Found ${templates.length} templates`);
       return templates;
@@ -1296,7 +1260,6 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Failed to fetch batch templates');
     }
   }
-  
 
   async getBatchTemplate(id: number): Promise<BatchTemplate | undefined> {
     try {
@@ -1305,7 +1268,6 @@ export class DatabaseStorage implements IStorage {
         .select()
         .from(batchTemplates)
         .where(eq(batchTemplates.id, id)) as BatchTemplate[];
-      
 
       console.log('Template found:', template);
       return template;
@@ -1314,23 +1276,19 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  
 
   async deleteBatchTemplate(id: number): Promise<void> {
     try {
       console.log(`Attempting to delete batch template with ID: ${id}`);
-      
 
       const result = await db
         .delete(batchTemplates)
         .where(eq(batchTemplates.id, id))
         .returning();
-      
 
       if (!result.length) {
         throw new Error('Batch template not found or deletion failed');
       }
-      
 
       console.log(`Successfully deleted batch template with ID: ${id}`);
     } catch (error) {
@@ -1345,7 +1303,6 @@ export class DatabaseStorage implements IStorage {
   ): Promise<OrganizationBatch[]> {
     try {
       console.log(`Fetching batches for trainer ${trainerId} with statuses:`, statuses);
-      
 
       const batches = await db
         .select()
@@ -1354,7 +1311,6 @@ export class DatabaseStorage implements IStorage {
         .where(eq(organizationBatches.organizationId, organizationId))
         .where(sql`${organizationBatches.status}::text = ANY(${sql`ARRAY[${statuses.join(',')}]`}::text[])`)
         .orderBy(desc(organizationBatches.startDate)) as OrganizationBatch[];
-      
 
       console.log(`Found ${batches.length} batches for trainer ${trainerId}`);
       return batches;
@@ -1380,7 +1336,6 @@ export class DatabaseStorage implements IStorage {
           updatedAt: new Date()
         })
         .returning() as UserBatchProcess[];
-      
 
       return result;
     } catch (error) {
@@ -1388,7 +1343,6 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  
 
   async getUserBatchProcesses(userId: number): Promise<UserBatchProcess[]> {
     try {
@@ -1396,7 +1350,6 @@ export class DatabaseStorage implements IStorage {
         .select()
         .from(userBatchProcesses)
         .where(eq(userBatchProcesses.userId, userId)) as UserBatchProcess[];
-      
 
       return processes;
     } catch (error) {
@@ -1404,12 +1357,10 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  
 
   async getBatchTrainees(batchId: number): Promise<UserBatchProcess[]> {
     try {
       console.log(`Fetching trainees for batch ${batchId}`);
-      
 
       const trainees = await db
         .select({
@@ -1438,7 +1389,6 @@ export class DatabaseStorage implements IStorage {
           eq(userBatchProcesses.batchId, batchId),
           eq(users.category, 'trainee')  // Only count users with category='trainee'
         )) as UserBatchProcess[];
-      
 
       console.log(`Found ${trainees.length} trainees in batch ${batchId}`);
       return trainees;
@@ -1447,7 +1397,6 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  
 
   async updateUserBatchStatus(
     userId: number,
@@ -1465,12 +1414,10 @@ export class DatabaseStorage implements IStorage {
         .where(eq(userBatchProcesses.userId, userId))
         .where(eq(userBatchProcesses.batchId, batchId))
         .returning() as UserBatchProcess[];
-      
 
       if (!updated) {
         throw new Error('User batch process not found');
       }
-      
 
       return updated;
     } catch (error) {
@@ -1496,7 +1443,6 @@ export class DatabaseStorage implements IStorage {
           updatedAt: new Date()
         })
         .returning() as UserProcess[];
-      
 
       return result;
     } catch (error) {
@@ -1507,7 +1453,6 @@ export class DatabaseStorage implements IStorage {
   async updateUserBatchProcess(userId: number, oldBatchId: number, newBatchId: number): Promise<void> {
     try {
       console.log(`Transferring user ${userId} from batch ${oldBatchId} to batch ${newBatchId}`);
-      
 
       // Update the user's batch process record
       await db
@@ -1522,7 +1467,6 @@ export class DatabaseStorage implements IStorage {
             eq(userBatchProcesses.batchId, oldBatchId)
           )
         );
-      
 
       console.log('Successfully transferred user to new batch');
     } catch (error: any) {
@@ -1530,12 +1474,10 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  
 
   async removeUserFromBatch(userId: number, batchId: number): Promise<void> {
     try {
       console.log(`Removing user ${userId} from batch ${batchId}`);
-      
 
       // Remove the user's batch process record
       await db
@@ -1546,7 +1488,6 @@ export class DatabaseStorage implements IStorage {
             eq(userBatchProcesses.batchId, batchId)
           )
         );
-      
 
       console.log('Successfully removed user from batch');
     } catch (error: any) {
@@ -1557,23 +1498,19 @@ export class DatabaseStorage implements IStorage {
   async removeTraineeFromBatch(userBatchProcessId: number): Promise<void> {
     try {
       console.log(`Attempting to remove trainee batch process ${userBatchProcessId}`);
-      
 
       // First get the user_batch_process record to get userId
       const [record] = await db
         .select()
         .from(userBatchProcesses)
         .where(eq(userBatchProcesses.id, userBatchProcessId));
-      
 
       if (!record) {
         throw new Error('Trainee not found in batch');
       }
-      
 
       const userId = record.userId;
       console.log(`Found user ID ${userId} for batch process ${userBatchProcessId}`);
-      
 
       // Use a transaction to ensure all deletions succeed or none do
       await db.transaction(async (tx) => {
@@ -1583,7 +1520,6 @@ export class DatabaseStorage implements IStorage {
           .where(eq(userBatchProcesses.id, userBatchProcessId))
           .execute();
         console.log(`Deleted user_batch_process record ${userBatchProcessId}`);
-        
 
         // 2. Delete from user_processes for this user
         await tx
@@ -1591,7 +1527,6 @@ export class DatabaseStorage implements IStorage {
           .where(eq(userProcesses.userId, userId))
           .execute();
         console.log(`Deleted user_processes records for user ${userId}`);
-        
 
         // 3. Delete the user
         await tx
@@ -1600,7 +1535,6 @@ export class DatabaseStorage implements IStorage {
           .execute();
         console.log(`Deleted user record ${userId}`);
       });
-      
 
       console.log(`Successfully removed trainee and related records`);
     } catch (error) {
@@ -1612,13 +1546,11 @@ export class DatabaseStorage implements IStorage {
   async createPhaseChangeRequest(request: InsertBatchPhaseChangeRequest): Promise<BatchPhaseChangeRequest> {
     try {
       console.log('Creating phase change request:', request);
-      
 
       const [newRequest] = await db
         .insert(batchPhaseChangeRequests)
         .values(request)
         .returning() as BatchPhaseChangeRequest[];
-      
 
       console.log('Successfully created phase change request:', newRequest);
       return newRequest;
@@ -1627,7 +1559,6 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  
 
   async getPhaseChangeRequest(id: number): Promise<BatchPhaseChangeRequest | undefined> {
     try {
@@ -1641,7 +1572,6 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  
 
   async listPhaseChangeRequests(organizationId: number, status?: string): Promise<BatchPhaseChangeRequest[]> {
     try {
@@ -1649,12 +1579,10 @@ export class DatabaseStorage implements IStorage {
         .select()
         .from(batchPhaseChangeRequests)
         .where(eq(batchPhaseChangeRequests.organizationId, organizationId));
-      
 
       if (status) {
         query = query.where(eq(batchPhaseChangeRequests.status, status));
       }
-      
 
       return await query as BatchPhaseChangeRequest[];
     } catch (error) {
@@ -1662,7 +1590,6 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  
 
   async updatePhaseChangeRequest(
     id: number,
@@ -1673,7 +1600,6 @@ export class DatabaseStorage implements IStorage {
   ): Promise<BatchPhaseChangeRequest> {
     try {
       console.log(`Updating phase change request ${id}:`, update);
-      
 
       const [updatedRequest] = await db
         .update(batchPhaseChangeRequests)
@@ -1683,12 +1609,10 @@ export class DatabaseStorage implements IStorage {
         })
         .where(eq(batchPhaseChangeRequests.id, id))
         .returning() as BatchPhaseChangeRequest[];
-      
 
       if (!updatedRequest) {
         throw new Error('Phase change request not found');
       }
-      
 
       console.log('Successfully updated phase change request:', updatedRequest);
       return updatedRequest;
@@ -1697,7 +1621,6 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  
 
   async listTrainerPhaseChangeRequests(trainerId: number): Promise<BatchPhaseChangeRequest[]> {
     try {
@@ -1710,7 +1633,6 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  
 
   async listManagerPhaseChangeRequests(managerId: number): Promise<BatchPhaseChangeRequest[]> {
     try {
@@ -1726,14 +1648,12 @@ export class DatabaseStorage implements IStorage {
   async getReportingTrainers(managerId: number): Promise<User[]> {
     try {
       console.log(`Fetching trainers reporting to manager ${managerId}`);
-      
 
       const trainers = await db
         .select()
         .from(users)
         .where(eq(users.managerId, managerId))
         .where(eq(users.role, 'trainer')) as User[];
-      
 
       console.log(`Found ${trainers.length} reporting trainers`);
       return trainers;
@@ -1745,13 +1665,11 @@ export class DatabaseStorage implements IStorage {
   async listBatchesForTrainer(trainerId: number): Promise<OrganizationBatch[]> {
     try {
       console.log(`Fetching batches for trainer ${trainerId}`);
-      
 
       const batches = await db
         .select()
         .from(organizationBatches)
         .where(eq(organizationBatches.trainerId, trainerId)) as OrganizationBatch[];
-      
 
       console.log(`Found ${batches.length} batches for trainer ${trainerId}`);
       return batches;
@@ -1760,18 +1678,15 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Failed to fetch trainer batches');
     }
   }
-  
 
   async listBatchesForTrainers(trainerIds: number[]): Promise<OrganizationBatch[]> {
     try {
       console.log(`Fetching batches for trainers:`, trainerIds);
-      
 
       const batches = await db
         .select()
         .from(organizationBatches)
         .where(inArray(organizationBatches.trainerId, trainerIds)) as OrganizationBatch[];
-      
 
       console.log(`Found ${batches.length} batches for trainers`);
       return batches;
@@ -1783,7 +1698,6 @@ export class DatabaseStorage implements IStorage {
   async listBatchHistory(batchId: number): Promise<BatchHistory[]> {
     try {
       console.log(`Fetching history for batch ${batchId}`);
-      
 
       const history = await db
         .select({
@@ -1802,7 +1716,6 @@ export class DatabaseStorage implements IStorage {
         .leftJoin(users, eq(batchHistory.userId, users.id))
         .where(eq(batchHistory.batchId, batchId))
         .orderBy(desc(batchHistory.date)) as BatchHistory[];
-      
 
       console.log(`Found ${history.length} history events`);
       return history;
@@ -1811,18 +1724,15 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Failed to fetch batch history');
     }
   }
-  
 
   async createBatchHistoryEvent(event: InsertBatchHistory): Promise<BatchHistory> {
     try {
       console.log('Creating batch history event:', event);
-      
 
       const [newEvent] = await db
         .insert(batchHistory)
         .values(event)
         .returning() as BatchHistory[];
-      
 
       console.log('Successfully created batch history event:', newEvent);
       return newEvent;
@@ -1837,13 +1747,11 @@ export class DatabaseStorage implements IStorage {
         ...question,
         options: Array.isArray(question.options) ? question.options : [],
       });
-      
 
       // Ensure required fields are present
       if (!question.question || !question.type || !question.correctAnswer) {
         throw new Error('Missing required fields');
       }
-      
 
       // Ensure options is always an array
       const questionData = {
@@ -1853,19 +1761,16 @@ export class DatabaseStorage implements IStorage {
         createdAt: new Date(),
         updatedAt: new Date()
       };
-      
 
       // Insert the question
       const [newQuestion] = await db
         .insert(questions)
         .values(questionData)
         .returning() as Question[];
-      
 
       if (!newQuestion) {
         throw new Error('Failed to create question - no question returned');
       }
-      
 
       console.log('Successfully created question:', newQuestion);
       return newQuestion;
@@ -1874,12 +1779,10 @@ export class DatabaseStorage implements IStorage {
       throw error instanceof Error ? error : new Error('Failed to create question');
     }
   }
-  
 
   async listQuestions(organizationId: number): Promise<Question[]> {
     try {
       console.log(`Fetching all questions for organization ${organizationId}`);
-      
 
       // Select all columns explicitly and use the correct table reference
       const results = await db
@@ -1900,7 +1803,6 @@ export class DatabaseStorage implements IStorage {
         })
         .from(questions)
         .where(eq(questions.organizationId, organizationId)) as Question[];
-      
 
       console.log(`Found ${results.length} questions`);
       return results;
@@ -1909,7 +1811,6 @@ export class DatabaseStorage implements IStorage {
       throw new Error(`Failed to fetch questions: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
-  
 
   async getRandomQuestions(
     organizationId: number,
@@ -1922,39 +1823,32 @@ export class DatabaseStorage implements IStorage {
   ): Promise<Question[]> {
     try {
       console.log('Getting random questions with options:', options);
-      
 
       // Base query for questions
       let query = db
         .select()
         .from(questions)
         .where(eq(questions.organizationId, organizationId));
-      
 
       if (options.processId) {
         query = query.where(eq(questions.processId, options.processId));
       }
-      
 
       // First get all available questions
       const availableQuestions = await query as Question[];
       console.log(`Found ${availableQuestions.length} available questions`);
-      
 
       if (availableQuestions.length === 0) {
         return [];
       }
-      
 
       // If no distribution specified, randomly select required number of questions
       if (!options.categoryDistribution && !options.difficultyDistribution) {
         const shuffled = [...availableQuestions].sort(() => Math.random() - 0.5);
         return shuffled.slice(0, options.count);
       }
-      
 
       let selectedQuestions: Question[] = [];
-      
 
       // Handle category distribution
       if (options.categoryDistribution) {
@@ -1964,7 +1858,6 @@ export class DatabaseStorage implements IStorage {
           selectedQuestions.push(...shuffled.slice(0, count));
         }
       }
-      
 
       // Handle difficulty distribution
       if (options.difficultyDistribution) {
@@ -1980,7 +1873,6 @@ export class DatabaseStorage implements IStorage {
           }
         }
       }
-      
 
       // If we still need more questions to meet the count
       const remainingCount = options.count - selectedQuestions.length;
@@ -1991,17 +1883,14 @@ export class DatabaseStorage implements IStorage {
         const shuffled = [...remainingQuestions].sort(() => Math.random() - 0.5);
         selectedQuestions.push(...shuffled.slice(0, remainingCount));
       }
-      
 
       console.log(`Selected ${selectedQuestions.length} random questions`);
-      
 
       // If we couldn't get enough questions, return empty array to trigger error
       if (selectedQuestions.length < options.count) {
         console.log('Not enough questions available matching the criteria');
         return [];
       }
-      
 
       return selectedQuestions;
     } catch (error) {
@@ -2012,7 +1901,6 @@ export class DatabaseStorage implements IStorage {
   async listQuestionsByProcess(organizationId: number, processId: number): Promise<Question[]> {
     try {
       console.log(`Fetching questions for organization ${organizationId} and process ${processId}`);
-      
 
       const results = await db
         .select()
@@ -2023,7 +1911,6 @@ export class DatabaseStorage implements IStorage {
             eq(questions.processId, processId)
           )
         ) as Question[];
-      
 
       console.log(`Found ${results.length} questions for process ${processId}`);
       return results;
@@ -2035,7 +1922,6 @@ export class DatabaseStorage implements IStorage {
   async updateQuestion(id: number, questionData: Partial<Question>): Promise<Question> {
     try {
       console.log(`Updating question with ID: ${id}`, questionData);
-      
 
       const [updatedQuestion] = await db
         .update(questions)
@@ -2045,12 +1931,10 @@ export class DatabaseStorage implements IStorage {
         })
         .where(eq(questions.id, id))
         .returning() as Question[];
-      
 
       if (!updatedQuestion) {
         throw new Error('Question not found');
       }
-      
 
       console.log('Successfully updated question:', updatedQuestion);
       return updatedQuestion;
@@ -2059,23 +1943,19 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  
 
   async deleteQuestion(id: number): Promise<void> {
     try {
       console.log(`Attempting to delete question with ID: ${id}`);
-      
 
       const result = await db
         .delete(questions)
         .where(eq(questions.id, id))
         .returning();
-      
 
       if (!result.length) {
         throw new Error('Question not found or deletion failed');
       }
-      
 
       console.log(`Successfully deleted question with ID: ${id}`);
     } catch (error) {
@@ -2086,20 +1966,17 @@ export class DatabaseStorage implements IStorage {
   async getQuestionById(id: number): Promise<Question | undefined> {
     try {
       console.log(`Fetching question with ID: ${id}`);
-      
 
       const [question] = await db
         .select()
         .from(questions)
         .where(eq(questions.id, id)) as Question[];
-      
 
       if (question) {
         console.log('Found question:', { id: question.id, type: question.type });
       } else {
         console.log('Question not found');
       }
-      
 
       return question;
     } catch (error) {
@@ -2110,24 +1987,20 @@ export class DatabaseStorage implements IStorage {
   // Add to IStorage interface
   deleteQuizTemplate(id: number): Promise<void>;
   updateQuizTemplate(id: number, template: Partial<InsertQuizTemplate>): Promise<QuizTemplate>;
-  
 
   // Add implementation in DatabaseStorage class
   async deleteQuizTemplate(id: number): Promise<void> {
     try {
       console.log(`Attempting to delete quiz template with ID: ${id}`);
-      
 
       const result = await db
         .delete(quizTemplates)
         .where(eq(quizTemplates.id, id))
         .returning();
-      
 
       if (!result.length) {
         throw new Error('Quiz template not found or deletion failed');
       }
-      
 
       console.log(`Successfully deleted quiz template with ID: ${id}`);
     } catch (error) {
@@ -2135,25 +2008,21 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  
 
   async getQuizTemplate(id: number): Promise<QuizTemplate | undefined> {
     try {
       console.log(`Fetching quiz template with ID: ${id}`);
-      
 
       const [template] = await db
         .select()
         .from(quizTemplates)
         .where(eq(quizTemplates.id, id)) as QuizTemplate[];
-      
 
       if (template) {
         console.log('Found template:', { id: template.id, name: template.name });
       } else {
         console.log('Template not found');
       }
-      
 
       return template;
     } catch (error) {
@@ -2161,18 +2030,15 @@ export class DatabaseStorage implements IStorage {
       throw new Error(`Failed to fetch template: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
-  
 
   async updateQuizTemplate(id: number, template: Partial<InsertQuizTemplate>): Promise<QuizTemplate> {
     try {
       console.log(`Updating quiz template with ID: ${id}`, template);
-      
 
       const existingTemplate = await this.getQuizTemplate(id);
       if (!existingTemplate) {
         throw new Error('Quiz template not found');
       }
-      
 
       if (template.name && template.name !== existingTemplate.name) {
         const nameExists = await db
@@ -2181,13 +2047,11 @@ export class DatabaseStorage implements IStorage {
           .where(eq(quizTemplates.organizationId, existingTemplate.organizationId))
           .where(eq(quizTemplates.name, template.name))
           .then(results => results.some(t => t.id !== id));
-        
 
         if (nameExists) {
           throw new Error('A quiz template with this name already exists in this organization');
         }
       }
-      
 
       const [updatedTemplate] = await db
         .update(quizTemplates)
@@ -2197,7 +2061,6 @@ export class DatabaseStorage implements IStorage {
         })
         .where(eq(quizTemplates.id, id))
         .returning() as QuizTemplate[];
-      
 
       console.log('Successfully updated quiz template:', updatedTemplate);
       return updatedTemplate;
@@ -2209,7 +2072,6 @@ export class DatabaseStorage implements IStorage {
   async createQuiz(quiz: InsertQuiz): Promise<Quiz> {
     try {
       console.log('Creating quiz:', quiz);
-      
 
       const [newQuiz] = await db
         .insert(quizzes)
@@ -2228,7 +2090,6 @@ export class DatabaseStorage implements IStorage {
           endTime: quiz.endTime
         })
         .returning() as Quiz[];
-      
 
       console.log('Successfully created quiz:', newQuiz);
       return newQuiz;
@@ -2237,7 +2098,6 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  
 
   async getQuizWithQuestions(id: number): Promise<Quiz | undefined> {
     try {
@@ -2259,17 +2119,14 @@ export class DatabaseStorage implements IStorage {
         })
         .from(quizzes)
         .where(eq(quizzes.id, id)) as Quiz[];
-      
 
       if (!quiz) return undefined;
-      
 
       // Fetch all questions for this quiz
       const quizQuestions = await db
         .select()
         .from(questions)
         .where(inArray(questions.id, quiz.questions)) as Question[];
-      
 
       return {
         ...quiz,
@@ -2280,7 +2137,6 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  
 
   async createQuizAttempt(attempt: InsertQuizAttempt): Promise<QuizAttempt> {
     try {
@@ -2295,7 +2151,6 @@ export class DatabaseStorage implements IStorage {
           completedAt: attempt.completedAt
         })
         .returning() as QuizAttempt[];
-      
 
       return newAttempt;
     } catch (error) {
@@ -2303,31 +2158,6 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  async listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]> {
-    try {
-      console.log(`Fetching quiz templates for organization ${organizationId}${processId ? ` and process ${processId}` : ''}`);
-      
-
-      let query = db
-        .select()
-        .from(quizTemplates)
-        .where(eq(quizTemplates.organizationId, organizationId));
-      
-
-      if (processId !== undefined) {
-        query = query.where(eq(quizTemplates.processId, processId));
-      }
-      
-
-      const templates = await query as QuizTemplate[];
-      console.log(`Found ${templates.length} templates${processId ? ` for process ${processId}` : ''}`);
-      return templates;
-    } catch (error) {
-      console.error('Error fetching quiz templates:', error);
-      throw new Error(`Failed to fetch quiz templates: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
 }
 
 export const storage = new DatabaseStorage();
