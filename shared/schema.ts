@@ -289,18 +289,6 @@ export const insertQuizResponseSchema = createInsertSchema(quizResponses)
     isCorrect: z.boolean(),
   });
 
-export const insertQuizResponseSchema = createInsertSchema(quizResponses)
-  .omit({
-    id: true,
-    createdAt: true,
-  })
-  .extend({
-    quizAttemptId: z.number().int().positive("Quiz attempt is required"),
-    questionId: z.number().int().positive("Question is required"),
-    selectedAnswer: z.string().min(1, "Selected answer is required"),
-    isCorrect: z.boolean(),
-  });
-
 export type InsertQuestion = z.infer<typeof insertQuestionSchema>;
 export type InsertQuizTemplate = z.infer<typeof insertQuizTemplateSchema>;
 export type InsertQuiz = z.infer<typeof insertQuizSchema>;
@@ -854,12 +842,14 @@ export const insertOrganizationLocationSchema = createInsertSchema(organizationL
     organizationId: z.number().int().positive("Organization is required"),
   });
 
+// Fix the insertOrganizationLineOfBusinessSchema definition
 export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organizationLineOfBusinesses)
   .omit({
     id: true,
     createdAt: true
   })
-  .extend({    name: z.string().min(1, "LOB name is required"),
+  .extend({
+    name: z.string().min(1, "LOB name is required"),
     description: z.string().min(1, "Description is required"),
     organizationId: z.number().int().positive("Organization is required"),
   });
@@ -899,6 +889,7 @@ export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
 export type InsertOrganizationProcess = z.infer<typeof insertOrganizationProcessSchema>;
 export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
 export type InsertBatchTemplate = z.infer<typeof insertBatchTemplateSchema>;
+
 
 
 export const batchHistoryEventTypeEnum = pgEnum('batch_history_event_type', [
