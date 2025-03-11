@@ -479,9 +479,10 @@ export function QuizManagement() {
     });
   };
 
-  // Function to handle edit question
+  // Adding proper state management for edit dialog
   const handleEditQuestion = (question: Question) => {
     setEditingQuestion(question);
+    setIsAddQuestionOpen(true); 
     questionForm.reset({
       question: question.question,
       type: question.type,
@@ -613,7 +614,16 @@ export function QuizManagement() {
                       setIsAddQuestionOpen(open);
                       if (!open) {
                         setEditingQuestion(null);
-                        questionForm.reset();
+                        questionForm.reset({
+                          question: "",
+                          type: "multiple_choice",
+                          options: ["", ""],
+                          correctAnswer: "",
+                          explanation: "",
+                          difficultyLevel: 1,
+                          category: "",
+                          processId: undefined
+                        });
                       }
                     }}>
                       <DialogTrigger asChild>
