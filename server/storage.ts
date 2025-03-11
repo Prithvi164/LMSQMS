@@ -206,11 +206,12 @@ export interface IStorage {
   createQuiz(quiz: InsertQuiz): Promise<Quiz>;
   getQuizWithQuestions(id: number): Promise<Quiz | undefined>;
   createQuizAttempt(attempt: InsertQuizAttempt): Promise<QuizAttempt>;
+  getQuizResponses(quizAttemptId: number): Promise<QuizResponse[]>;
   getQuizAttempt(id: number): Promise<QuizAttempt | undefined>;
 
   // Add new methods for quiz responses
   createQuizResponse(response: InsertQuizResponse): Promise<QuizResponse>;
-  getQuizResponses(quizAttemptId: number): Promise<QuizResponse[]>;
+
 }
 
 export class DatabaseStorage implements IStorage {
@@ -939,11 +940,13 @@ export class DatabaseStorage implements IStorage {
           .returning();
 
         if (!result.length) {
-          throw new Error('Location not found or deletion failed');        }
+          throw new Error('Location not found or deletion failed');
+        }
 
-        consolelog(`Successfully deleted location with ID: ${id}`);
+        console.log(`Successfully deleted location with ID: ${id}`);
       });
-    } catch (error) {      console.error('Error deleting location:', error);
+    } catch (error) {
+      console.error('Error deleting location:', error);
       throw error;
     }
   }
@@ -1945,7 +1948,8 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error creating quiz template:', error);
       throw error;
-    }    }
+    }
+  }
 
   async listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]> {
     try {
@@ -2005,26 +2009,33 @@ export class DatabaseStorage implements IStorage {
 
   async getQuizWithQuestions(id: number): Promise<Quiz | undefined> {
     try {
+      // First fetch the quiz
       const [quiz] = await db
         .select()
         .from(quizzes)
         .where(eq(quizzes.id, id)) as Quiz[];
 
       if (!quiz) {
+        console.log(`No quiz found with ID: ${id}`);
         return undefined;
       }
 
-      // Get associated questions if the quiz exists
+      // Then fetch all questions for this quiz
       const questions = await db
         .select()
         .from(questions)
         .where(inArray(questions.id, quiz.questions)) as Question[];
 
+      console.log(`Found ${questions.length} questions for quiz ${id}`);
+
+      // Ensure questions are in the correct order as specified in quiz.questions
+      const orderedQuestions = quiz.questions
+        .map(questionId => questions.find(q => q.id === questionId))
+        .filter((q): q is Question => q !== undefined);
+
       return {
         ...quiz,
-        questions: questions.sort((a, b) => 
-          quiz.questions.indexOf(a.id) - quiz.questions.indexOf(b.id)
-        )
+        questions: orderedQuestions
       };
     } catch (error) {
       console.error('Error fetching quiz with questions:', error);
@@ -2098,6 +2109,87 @@ export class DatabaseStorage implements IStorage {
         .where(eq(quizResponses.quizAttemptId, quizAttemptId)) as QuizResponse[];
     } catch (error) {
       console.error('Error fetching quiz responses:', error);
+      throw error;
+    }
+  }
+  async getQuizAttempt(id: number): Promise<QuizAttempt | undefined> {
+    try {
+      // First get the attempt with basic info
+      const [attempt] = await db
+        .select({
+          id: quizAttempts.id,
+          quizId: quizAttempts.quizId,
+          userId: quizAttempts.userId,
+          organizationId: quizAttempts.organizationId,
+          score: quizAttempts.score,
+          status: quizAttempts.status,
+          completedAt: quizAttempts.completedAt,
+          createdAt: quizAttempts.createdAt,
+        })
+        .from(quizAttempts)
+        .where(eq(quizAttempts.id, id));
+
+      if (!attempt) {
+        console.log(`No attempt found with ID: ${id}`);
+        return undefined;
+      }
+
+      // Get the quiz details
+      const [quiz] = await db
+        .select()
+        .from(quizzes)
+        .where(eq(quizzes.id, attempt.quizId));
+
+      if (!quiz || !quiz.questions || !Array.isArray(quiz.questions)) {
+        console.log(`Quiz data invalid for ID: ${attempt.quizId}`);
+        throw new Error('Invalid quiz data');
+      }
+
+      // Get all questions for this quiz
+      const questions = await db
+        .select()
+        .from(questions)
+        .where(inArray(questions.id, quiz.questions));
+
+      if (!questions.length) {
+        console.log(`No questions found for quiz ID: ${quiz.id}`);
+        throw new Error('No questions found for this quiz');
+      }
+
+      // Get all responses for this attempt
+      const responses = await db
+        .select()
+        .from(quizResponses)
+        .where(eq(quizResponses.quizAttemptId, attempt.id));
+
+      // Format responses to match each question
+      const formattedResponses = questions.map(question => {
+        const response = responses.find(r => r.questionId === question.id);
+        return {
+          questionId: question.id,
+          userAnswer: response?.selectedAnswer || '',
+          correctAnswer: question.correctAnswer || '',
+          isCorrect: response?.isCorrect || false
+        };
+      });
+
+      // Return complete attempt data with quiz and formatted responses
+      return {
+        ...attempt,
+        quiz: {
+          id: quiz.id,
+          name: quiz.name,
+          description: quiz.description || '',
+          questions: questions.map(q => ({
+            ...q,
+            options: Array.isArray(q.options) ? q.options : []
+          }))
+        },
+        answers: formattedResponses
+      };
+
+    } catch (error) {
+      console.error('Error fetching quiz attempt:', error);
       throw error;
     }
   }
