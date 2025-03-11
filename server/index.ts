@@ -108,49 +108,22 @@ debugLog("Health check route added");
       debugLog("Static file serving setup complete");
     }
 
-    // Try multiple ports if the default one is in use
-    const tryPorts = [3000, 3001, 4000, 4001, 5000, 5001];
-    let portIndex = 0;
-    let serverStarted = false;
+    const port = process.env.PORT || 5001;
+    debugLog(`Attempting to start server on port ${port}`);
 
-    while (portIndex < tryPorts.length && !serverStarted) {
-      const port = process.env.PORT || tryPorts[portIndex];
-      debugLog(`Attempting to start server on port ${port}`);
-
-      try {
-        await new Promise((resolve, reject) => {
-          server.listen(port, "0.0.0.0")
-            .once('listening', () => {
-              log(`Server running in ${app.get("env")} mode`);
-              log(`API and client being served on port ${port}`);
-              debugLog("Server started successfully");
-              serverStarted = true;
-              resolve(true);
-            })
-            .once('error', (error: any) => {
-              if (error.code === 'EADDRINUSE') {
-                debugLog(`Port ${port} is already in use, trying next port`);
-                portIndex++;
-                resolve(false);
-              } else {
-                debugLog(`Server startup error: ${error.message}`);
-                reject(error);
-              }
-            });
-        });
-      } catch (error: any) {
+    server.listen(port, () => {
+      log(`Server running in ${app.get("env")} mode`);
+      log(`API and client being served on port ${port}`);
+      debugLog("Server started successfully");
+    }).on('error', (error: any) => {
+      if (error.code === 'EADDRINUSE') {
+        log(`Port ${port} is already in use. Please try a different port.`);
+      } else {
         log(`Failed to start server: ${error}`);
-        debugLog(`Fatal error during server startup: ${error}`);
-        process.exit(1);
       }
-    }
-
-    if (!serverStarted) {
-      const error = new Error(`Could not find an available port in range ${tryPorts.join(', ')}`);
-      log(error.message);
-      debugLog(`Fatal error: ${error.message}`);
+      debugLog(`Server startup error: ${error.message}`);
       process.exit(1);
-    }
+    });
   } catch (error) {
     debugLog(`Fatal error during initialization: ${error}`);
     log(`Failed to start server: ${error}`);
