@@ -11,13 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
-interface QuizAnswer {
-  questionId: number;
-  userAnswer: string;
-  correctAnswer: string;
-  isCorrect: boolean;
-}
-
 interface QuizAttemptResult {
   id: number;
   score: number;
@@ -45,7 +38,6 @@ export function QuizResultsPage() {
   const [, setLocation] = useLocation();
   const { user, isLoading: authLoading } = useAuth();
 
-  // Use the quiz-attempts endpoint
   const { data: result, isLoading: dataLoading } = useQuery<QuizAttemptResult>({
     queryKey: [`/api/quiz-attempts/${attemptId}`],
     enabled: !!attemptId && !!user,
@@ -74,7 +66,7 @@ export function QuizResultsPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Loading results...</span>
+        <span className="ml-2">Loading quiz results...</span>
       </div>
     );
   }

@@ -2066,7 +2066,7 @@ export class DatabaseStorage implements IStorage {
         return undefined;
       }
 
-      // Get quiz with its questions
+      // Get quiz details
       const [quiz] = await db
         .select()
         .from(quizzes)
@@ -2077,43 +2077,50 @@ export class DatabaseStorage implements IStorage {
         return undefined;
       }
 
+      // Get all questions for this quiz
+      const questionsList = await db
+        .select()
+        .from(questions)
+        .where(inArray(questions.id, quiz.questions)) as Question[];
+
       // Get responses for this attempt
       const responses = await db
         .select()
         .from(quizResponses)
         .where(eq(quizResponses.quizAttemptId, id)) as QuizResponse[];
 
-      console.log(`Found ${responses.length} responses for attempt ${id}`);
+      console.log(`Found ${questionsList.length} questions and ${responses.length} responses`);
 
-      // Get all questions
-      const questionsList = await db
-        .select()
-        .from(questions)
-        .where(inArray(questions.id, quiz.questions)) as Question[];
+      // Map questions with responses in the correct order
+      const formattedQuestions = quiz.questions.map(questionId => {
+        const question = questionsList.find(q => q.id === questionId);
+        const response = responses.find(r => r.questionId === questionId);
 
-      console.log(`Found ${questionsList.length} questions for quiz ${quiz.id}`);
+        if (!question) {
+          console.log(`Warning: Question ${questionId} not found`);
+          return null;
+        }
 
-      // Map questions with responses
-      const formattedAnswers = questionsList.map(question => {
-        const response = responses.find(r => r.questionId === question.id);
         return {
-          questionId: question.id,
+          id: question.id,
+          number: quiz.questions.indexOf(questionId) + 1,
+          question: question.question,
+          type: question.type,
+          options: question.options,
           userAnswer: response?.selectedAnswer || '',
           correctAnswer: question.correctAnswer,
-          isCorrect: response?.isCorrect || false
+          isCorrect: response?.isCorrect || false,
+          explanation: question.explanation
         };
-      });
+      }).filter(q => q !== null);
 
       // Return formatted attempt data
       return {
         ...attempt,
         quiz: {
           ...quiz,
-          questions: questionsList.sort((a, b) =>
-            quiz.questions.indexOf(a.id) - quiz.questions.indexOf(b.id)
-          )
-        },
-        answers: formattedAnswers
+          questions: formattedQuestions
+        }
       };
 
     } catch (error) {
