@@ -1947,7 +1947,7 @@ export class DatabaseStorage implements IStorage {
       return newTemplate;
     } catch (error) {
       console.error('Error creating quiz template:', error);
-      throw error;
+      throw error;error;
     }
   }
 
@@ -2102,10 +2102,10 @@ export class DatabaseStorage implements IStorage {
                 'isCorrect', qr.is_correct
               ) ORDER BY qr.id
             ) FILTER (WHERE que.id IS NOT NULL),
-            '[]'
+            '[]'::json
           ) as answers
         FROM quiz_attempts qa
-        LEFT JOIN quizzes q ON qa.quiz_id = q.id
+        JOIN quizzes q ON qa.quiz_id = q.id
         LEFT JOIN quiz_responses qr ON qa.id = qr.quiz_attempt_id
         LEFT JOIN questions que ON qr.question_id = que.id
         WHERE qa.id = $1
@@ -2119,22 +2119,17 @@ export class DatabaseStorage implements IStorage {
       }
 
       const row = result.rows[0];
+
+      // Transform the data to match the expected interface
       return {
         id: row.attempt_id,
         score: row.score,
         completedAt: row.completed_at,
-        answers: row.answers,
         quiz: {
           name: row.quiz_name,
-          description: row.quiz_description,
-          questions: row.answers.map((answer: any) => ({
-            id: answer.questionId,
-            question: answer.question,
-            type: answer.type,
-            options: answer.options,
-            correctAnswer: answer.correctAnswer
-          }))
-        }
+          description: row.quiz_description
+        },
+        answers: Array.isArray(row.answers) ? row.answers : []
       };
     } catch (error) {
       console.error('Error fetching quiz attempt:', error);
