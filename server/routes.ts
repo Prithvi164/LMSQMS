@@ -18,8 +18,58 @@ import { join } from 'path';
 import express from 'express';
 import { eq, and, sql } from "drizzle-orm";
 import { toIST, formatIST, toUTCStorage, formatISTDateOnly } from './utils/timezone';
-import { attendance } from "@shared/schema";
-import type { User } from "@shared/schema";
+import { attendance, questions, quizResponses } from "@shared/schema";
+import type { User, Question, QuizResponse } from "@shared/schema";
+
+// Type definitions for quiz responses
+interface QuizResponseWithDetails extends QuizResponse {
+  question?: Question;
+}
+
+interface QuizQuestion {
+  id: number;
+  question: string;
+  type: 'multiple_choice' | 'true_false' | 'short_answer';
+  options: string[];
+  correctAnswer: string;
+}
+
+interface QuizWithQuestions {
+  id: number;
+  name: string;
+  description?: string;
+  organizationId: number;
+  questions: QuizQuestion[];
+  status: 'completed' | 'in_progress' | 'abandoned';
+}
+
+interface QuizResponseDetail {
+  questionId: number;
+  userAnswer: string;
+  isCorrect: boolean;
+}
+
+interface QuizAttempt {
+  id: number;
+  userId: number;
+  quizId: number;
+  completedAt: Date;
+  score: number;
+  createdAt: Date;
+  status: 'completed' | 'in_progress' | 'abandoned';
+}
+
+interface QuizDetail {
+  id: number;
+  name: string;
+  description?: string;
+  questions: QuizQuestion[];
+  status: 'completed' | 'in_progress' | 'abandoned';
+  organizationId: number;
+  createdBy: number;
+  startTime?: Date;
+  endTime?: Date;
+}
 
 // Type definitions for user updates
 type AllowedSelfUpdateFields = Pick<User, "fullName" | "email" | "phoneNumber" | "locationId" | "dateOfBirth" | "education">;
@@ -925,6 +975,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add new endpoint for quiz attempt results
+  // Add new endpoint for quiz responses
+  app.get("/api/quiz-responses/:attemptId", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const attemptId = parseInt(req.params.attemptId);
+      if (isNaN(attemptId)) {
+        return res.status(400).json({ message: "Invalid attempt ID" });
+      }
+
+      // Get the responses for this attempt
+      const responses = await storage.getQuizResponses(attemptId);
+      if (!responses || responses.length === 0) {
+        return res.status(404).json({ message: "No responses found for this attempt" });
+      }
+
+      // Get questions details one by one
+      const questionDetails = await Promise.all(
+        responses.map(r => storage.getQuestionById(r.questionId))
+      );
+
+      if (responses.length === 0) {
+        return res.status(404).json({ message: "No responses found for this attempt" });
+      }
+
+      // Calculate score
+      const score = (responses.filter(r => r.isCorrect).length / responses.length) * 100;
+
+      // Format response
+      const result = {
+        id: attemptId,
+        score,
+        answers: responses.map(r => {
+          const question = questionDetails.find(q => q && 'id' in q && q.id === r.questionId) as QuizQuestion | undefined;
+          return {
+            questionId: r.questionId,
+            question: question?.question ?? "",
+            userAnswer: r.selectedAnswer,
+            correctAnswer: question?.correctAnswer ?? "",
+            options: question?.options ?? [],
+            isCorrect: r.isCorrect
+          };
+        })
+      };
+
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error fetching quiz responses:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.get("/api/quiz-attempts/:attemptId", async (req, res) => {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
