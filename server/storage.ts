@@ -944,7 +944,7 @@ export class DatabaseStorage implements IStorage {
 
         console.log(`Successfully deleted location with ID: ${id}`);
       });
-    } catch (error) {
+    }catch (error) {
       console.error('Error deleting location:', error);
       throw error;
     }
@@ -2084,50 +2084,56 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log("Debug - Fetching quiz attempt with ID:", id);
 
+      // First get the quiz attempt and basic quiz info
       const result = await db
         .select({
-          attempt_id: quizAttempts.id,
+          id: quizAttempts.id,
           score: quizAttempts.score,
-          completed_at: quizAttempts.completedAt,
-          quiz_name: quizzes.name,
-          quiz_description: quizzes.description,
-          answers: quizResponses.answers
+          completedAt: quizAttempts.completedAt,
+          quiz: {
+            id: quizzes.id,
+            name: quizzes.name,
+            description: quizzes.description
+          }
         })
         .from(quizAttempts)
         .leftJoin(quizzes, eq(quizAttempts.quizId, quizzes.id))
-        .leftJoin(quizResponses, eq(quizAttempts.id, quizResponses.quizAttemptId))
         .where(eq(quizAttempts.id, id));
-
-      console.log("Debug - SQL Query Result:", result);
 
       if (!result.length) {
         console.log("Debug - No quiz attempt found for ID:", id);
         return undefined;
       }
 
-      const row = result[0];
-      console.log("Debug - Transformed Result:", {
-        id: row.attempt_id,
-        score: row.score,
-        completedAt: row.completed_at,
-        quiz: {
-          name: row.quiz_name,
-          description: row.quiz_description
-        }
-      });
+      const attempt = result[0];
+      console.log("Debug - Found quiz attempt:", attempt);
+
+      // Now get the responses for this attempt
+      const responses = await db
+        .select({
+          id: quizResponses.id,
+          questionId: quizResponses.questionId,
+          selectedAnswer: quizResponses.selectedAnswer,
+          isCorrect: quizResponses.isCorrect
+        })
+        .from(quizResponses)
+        .where(eq(quizResponses.quizAttemptId, id));
+
+      console.log("Debug - Found responses:", responses);
 
       return {
-        id: row.attempt_id,
-        score: row.score,
-        completedAt: row.completed_at,
+        id: attempt.id,
+        score: attempt.score,
+        completedAt: attempt.completedAt.toISOString(),
         quiz: {
-          name: row.quiz_name,
-          description: row.quiz_description
-        }
+          name: attempt.quiz.name,
+          description: attempt.quiz.description
+        },
+        responses: responses
       };
     } catch (error) {
       console.error("Debug - Error in getQuizAttempt:", error);
-      throw error;
+      throw new Error("Failed to fetch quiz attempt");
     }
   }
 
