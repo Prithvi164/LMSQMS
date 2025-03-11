@@ -2056,17 +2056,9 @@ export class DatabaseStorage implements IStorage {
 
   async getQuizAttempt(id: number): Promise<QuizAttempt | undefined> {
     try {
-      // Get the attempt with all related data in a single query
+      // Get the attempt first
       const [attempt] = await db
-        .select({
-          id: quizAttempts.id,
-          quizId: quizAttempts.quizId,
-          userId: quizAttempts.userId,
-          score: quizAttempts.score,
-          status: quizAttempts.status,
-          completedAt: quizAttempts.completedAt,
-          createdAt: quizAttempts.createdAt,
-        })
+        .select()
         .from(quizAttempts)
         .where(eq(quizAttempts.id, id)) as QuizAttempt[];
 
@@ -2074,7 +2066,7 @@ export class DatabaseStorage implements IStorage {
         return undefined;
       }
 
-      // Get the associated quiz and its questions
+      // Get the quiz details
       const [quiz] = await db
         .select()
         .from(quizzes)
@@ -2084,20 +2076,20 @@ export class DatabaseStorage implements IStorage {
         return undefined;
       }
 
-      // Get all questions for this quiz
+      // Get the questions for this quiz
       const questions = await db
         .select()
         .from(questions)
         .where(inArray(questions.id, quiz.questions)) as Question[];
 
-      // Get all responses for this attempt
+      // Get the responses for this attempt
       const responses = await db
         .select()
         .from(quizResponses)
-        .where(eq(quizResponses.quizAttemptId, attempt.id)) as QuizResponse[];
+        .where(eq(quizResponses.quizAttemptId, id)) as QuizResponse[];
 
-      // Format the responses to match the expected structure
-      const formattedResponses = questions.map(question => {
+      // Format the responses to match each question
+      const formattedAnswers = questions.map(question => {
         const response = responses.find(r => r.questionId === question.id);
         return {
           questionId: question.id,
@@ -2107,16 +2099,14 @@ export class DatabaseStorage implements IStorage {
         };
       });
 
-      // Return the complete attempt data
+      // Return the complete attempt with all related data
       return {
         ...attempt,
         quiz: {
           ...quiz,
-          questions: questions.sort((a, b) =>
-            quiz.questions.indexOf(a.id) - quiz.questions.indexOf(b.id)
-          )
+          questions
         },
-        answers: formattedResponses
+        answers: formattedAnswers
       };
     } catch (error) {
       console.error('Error fetching quiz attempt:', error);
