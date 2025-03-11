@@ -1956,7 +1956,7 @@ export class DatabaseStorage implements IStorage {
       }
 
       return await baseQuery;
-    } catch (error) {
+} catch (error) {
       console.error('Error listing quiz templates:', error);
       throw error;
     }
@@ -1996,6 +1996,33 @@ export class DatabaseStorage implements IStorage {
       return newQuiz;
     } catch (error) {
       console.error('Error creating quiz:', error);
+      throw error;
+    }
+  }
+
+  async getQuizWithQuestions(id: number): Promise<Quiz | undefined> {
+    try {
+      // First fetch the quiz
+      const [quiz] = await db
+        .select()
+        .from(quizzes)
+        .where(eq(quizzes.id, id)) as Quiz[];
+
+      if (!quiz) return undefined;
+
+      // Then fetch the questions associated with this quiz
+      const quizQuestions = await db
+        .select()
+        .from(questions)
+        .where(inArray(questions.id, quiz.questions)) as Question[];
+
+      // Return the quiz with its questions
+      return {
+        ...quiz,
+        questions: quizQuestions
+      };
+    } catch (error) {
+      console.error('Error fetching quiz with questions:', error);
       throw error;
     }
   }
