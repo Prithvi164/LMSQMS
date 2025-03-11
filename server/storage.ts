@@ -947,8 +947,7 @@ export class DatabaseStorage implements IStorage {
       console.log('Creating location with data:', location);
 
       // Check if location with same name exists in the organization
-      const existingLocations = await db
-        .select()
+      const existingLocations = await db        .select()
         .from(organizationLocations)
         .where(eq(organizationLocations.organizationId, location.organizationId))
         .where(eq(organizationLocations.name, location.name));
@@ -1866,7 +1865,7 @@ export class DatabaseStorage implements IStorage {
         if (remainingCount > 0) {
           for (const [difficulty, count] of Object.entries(options.difficultyDistribution)) {
             const difficultyQuestions = availableQuestions.filter(
-              q => q.difficultyLevel === parseInt(difficulty) &&
+              q => q.difficultyLevel === parseInt(difficulty) && 
               !selectedQuestions.find(selected => selected.id === q.id)
             );
             const shuffled = [...difficultyQuestions].sort(() => Math.random() - 0.5);
@@ -1956,7 +1955,7 @@ export class DatabaseStorage implements IStorage {
 
       if (!result.length) {
         throw new Error('Question not found or deletion failed');
-            }
+      }
 
       console.log(`Successfully deleted question with ID: ${id}`);
     } catch (error) {
@@ -2159,30 +2158,6 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  async listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]> {
-    try {
-      console.log(`Fetching quiz templates for organization ${organizationId}${processId ? ` and process ${processId}` : ''}`);
-
-      let query = db
-        .select()
-        .from(quizTemplates)
-        .where(eq(quizTemplates.organizationId, organizationId));
-
-      // Add process filter if processId is provided
-      if (processId !== undefined) {
-        query = query.where(eq(quizTemplates.processId, processId));
-      }
-
-      const templates = await query as QuizTemplate[];
-
-      console.log(`Found ${templates.length} templates${processId ? ` for process ${processId}` : ''}`);
-      return templates;
-    } catch (error) {
-      console.error('Error fetching quiz templates:', error);
-      throw new Error(`Failed to fetch quiz templates: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
 }
 
 export const storage = new DatabaseStorage();
