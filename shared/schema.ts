@@ -256,6 +256,7 @@ export const insertQuizSchema = createInsertSchema(quizzes)
     endTime: z.date(),
   });
 
+// Quiz attempt schema
 export const insertQuizAttemptSchema = createInsertSchema(quizAttempts)
   .omit({
     id: true,
@@ -273,6 +274,19 @@ export const insertQuizAttemptSchema = createInsertSchema(quizAttempts)
       isCorrect: z.boolean(),
     })),
     completedAt: z.date(),
+  });
+
+// Quiz response schema
+export const insertQuizResponseSchema = createInsertSchema(quizResponses)
+  .omit({
+    id: true,
+    createdAt: true,
+  })
+  .extend({
+    quizAttemptId: z.number().int().positive("Quiz attempt is required"),
+    questionId: z.number().int().positive("Question is required"),
+    selectedAnswer: z.string().min(1, "Selected answer is required"),
+    isCorrect: z.boolean(),
   });
 
 export const insertQuizResponseSchema = createInsertSchema(quizResponses)
@@ -344,6 +358,7 @@ export const quizzesRelations = relations(quizzes, ({ one, many }) => ({
   attempts: many(quizAttempts),
 }));
 
+// Quiz attempt relations
 export const quizAttemptsRelations = relations(quizAttempts, ({ one, many }) => ({
   quiz: one(quizzes, {
     fields: [quizAttempts.quizId],
@@ -360,6 +375,7 @@ export const quizAttemptsRelations = relations(quizAttempts, ({ one, many }) => 
   responses: many(quizResponses)
 }));
 
+// Quiz response relations
 export const quizResponsesRelations = relations(quizResponses, ({ one }) => ({
   attempt: one(quizAttempts, {
     fields: [quizResponses.quizAttemptId],
@@ -830,7 +846,7 @@ export const insertOrganizationLocationSchema = createInsertSchema(organizationL
     createdAt: true
   })
   .extend({
-    name: z.string().min(1, "Location name is required"),
+    name: z.string().min(1, "Locationname is required"),
     address: z.string().min(1, "Address is required"),
     city: z.string().min(1, "City is required"),
     state: z.string().min(1, "State is required"),

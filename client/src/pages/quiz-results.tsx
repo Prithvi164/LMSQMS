@@ -28,12 +28,14 @@ interface QuizAttemptResult {
     description: string | null;
     questions: Array<{
       id: number;
+      number: number;
       question: string;
       type: string;
       options: string[];
       userAnswer: string;
       correctAnswer: string;
       isCorrect: boolean;
+      explanation?: string;
     }>;
   };
 }
@@ -43,6 +45,7 @@ export function QuizResultsPage() {
   const [, setLocation] = useLocation();
   const { user, isLoading: authLoading } = useAuth();
 
+  // Use the quiz-attempts endpoint
   const { data: result, isLoading: dataLoading } = useQuery<QuizAttemptResult>({
     queryKey: [`/api/quiz-attempts/${attemptId}`],
     enabled: !!attemptId && !!user,
@@ -103,14 +106,16 @@ export function QuizResultsPage() {
     <div className="container mx-auto py-8 max-w-3xl">
       <Card>
         <CardHeader>
-          <CardTitle>Quiz Results: {result.quiz.name}</CardTitle>
+          <CardTitle>{result.quiz.name}</CardTitle>
           <CardDescription>
-            Your score: {result.score.toFixed(1)}%
+            Score: {result.score.toFixed(1)}%
+            <br />
+            Completed: {new Date(result.completedAt).toLocaleString()}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-            {result.quiz.questions.map((question, index) => (
+            {result.quiz.questions.map((question) => (
               <div
                 key={question.id}
                 className={`p-4 rounded-lg border ${
@@ -127,7 +132,7 @@ export function QuizResultsPage() {
                   </div>
                   <div className="flex-1">
                     <h3 className="font-medium">
-                      Question {index + 1}: {question.question}
+                      Question {question.number}: {question.question}
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1">
                       Your answer: {question.userAnswer}
@@ -135,6 +140,11 @@ export function QuizResultsPage() {
                     {!question.isCorrect && (
                       <p className="text-sm text-green-600 mt-1">
                         Correct answer: {question.correctAnswer}
+                      </p>
+                    )}
+                    {question.explanation && (
+                      <p className="text-sm text-muted-foreground mt-2">
+                        {question.explanation}
                       </p>
                     )}
                   </div>
