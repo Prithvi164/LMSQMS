@@ -155,6 +155,62 @@ export const users = pgTable("users", {
   onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
 });
 
+// User-Process assignments
+export const userProcesses = pgTable("user_processes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .references(() => users.id)
+    .notNull(),
+  processId: integer("process_id")
+    .references(() => organizationProcesses.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  lineOfBusinessId: integer("line_of_business_id")
+    .references(() => organizationLineOfBusinesses.id),  
+  locationId: integer("location_id")
+    .references(() => organizationLocations.id),  
+  status: text("status").default('assigned').notNull(),
+  assignedAt: timestamp("assigned_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    unq: unique().on(table.userId, table.processId),
+  };
+});
+
+export const userBatchStatusEnum = pgEnum('user_batch_status', [
+  'active',
+  'completed',
+  'dropped',
+  'on_hold'
+]);
+
+export const userBatchProcesses = pgTable("user_batch_processes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .references(() => users.id)
+    .notNull(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id)
+    .notNull(),
+  processId: integer("process_id")
+    .references(() => organizationProcesses.id)
+    .notNull(),
+  status: userBatchStatusEnum("status").default('active').notNull(),
+  joinedAt: timestamp("joined_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    unq: unique().on(table.userId, table.batchId, table.processId),
+  };
+});
+
 export const rolePermissions = pgTable("role_permissions", {
   id: serial("id").primaryKey(),
   role: roleEnum("role").notNull(),
@@ -418,7 +474,7 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   rolePermissions: many(rolePermissions)
 }));
 
-export const usersRelations = relations(users, ({ one }) => ({
+export const usersRelations = relations(users, ({ one, many }) => ({
   organization: one(organizations, {
     fields: [users.organizationId],
     references: [organizations.id],
@@ -430,7 +486,9 @@ export const usersRelations = relations(users, ({ one }) => ({
   location: one(organizationLocations, {
     fields: [users.locationId],
     references: [organizationLocations.id],
-  })
+  }),
+  processes: many(userProcesses),
+  batchProcesses: many(userBatchProcesses)
 }));
 
 export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => ({
@@ -774,10 +832,13 @@ export type Organization = InferSelectModel<typeof organizations>;
 export type OrganizationLocation = InferSelectModel<typeof organizationLocations>;
 export type OrganizationLineOfBusiness = InferSelectModel<typeof organizationLineOfBusinesses>;
 export type OrganizationProcess = typeof organizationProcesses.$inferSelect;
+export type OrganizationBatch = InferSelectModel<typeof organizationBatches>;
 
 // User-related types
 export type User = InferSelectModel<typeof users>;
-export type RolePermission = InferSelectModel<typeof rolePermissions>;
+export typeRolePermission = InferSelectModel<typeof rolePermissions>;
+export type UserProcess = typeof userProcesses.$inferSelect;
+export type UserBatchProcess = InferSelectModel<typeof userBatchProcesses>;
 
 // Quiz-related types
 export type Question = InferSelectModel<typeof questions>;
@@ -785,23 +846,48 @@ export type QuizTemplate = InferSelectModel<typeof quizTemplates>;
 export type Quiz = InferSelectModel<typeof quizzes>;
 export type QuizAttempt = InferSelectModel<typeof quizAttempts>;
 export type QuizResponse = InferSelectModel<typeof quizResponses>;
+export type BatchQuizTemplate = InferSelectModel<typeof batchQuizTemplates>;
 
-// Add to the list of exported types at the end of the file
+// Export all types
 export type {
-  InsertBatchHistory,
-  BatchHistory,
-  OrganizationBatch,
-  InsertOrganizationBatch,
   InsertUser,
   InsertOrganization,
-  InsertRolePermission,
+  InsertOrganizationProcess,
+  InsertOrganizationLocation,
+  InsertOrganizationLineOfBusiness,
+  InsertUserProcess,
+  InsertUserBatchProcess,
   InsertQuestion,
   InsertQuizTemplate,
   InsertQuiz,
   InsertQuizAttempt,
   InsertQuizResponse,
-  BatchQuizTemplate,
   InsertBatchQuizTemplate,
   BatchPhaseChangeRequest,
-  InsertBatchPhaseChangeRequest
+  InsertBatchPhaseChangeRequest,
+  InsertOrganizationBatch,
+  InsertBatchHistory,
+  BatchHistory,
+};
+
+// Export all tables
+export {
+  userProcesses,
+  userBatchProcesses,
+  organizationBatches,
+  batchQuizTemplates,
+  organizations,
+  organizationLocations,
+  organizationLineOfBusinesses,
+  organizationProcesses,
+  users,
+  rolePermissions,
+  questions,
+  quizTemplates,
+  quizzes,
+  quizAttempts,
+  quizResponses,
+  batchHistory,
+  batchPhaseChangeRequests,
+  batchQuizTemplates,
 };
