@@ -953,7 +953,6 @@ export class DatabaseStorage implements IStorage {
   }
 
 
-
   async createLocation(location: InsertOrganizationLocation): Promise<OrganizationLocation> {
     try {
       console.log('Creating location with data:', location);
@@ -1807,6 +1806,8 @@ export class DatabaseStorage implements IStorage {
     }
   ): Promise<Question[]> {
     try {
+      console.log('Getting random questions with options:', options);
+
       if (options.count <= 0) {
         throw new Error("Question count must be greater than 0");
       }
@@ -1821,29 +1822,10 @@ export class DatabaseStorage implements IStorage {
           )
         );
 
-      // Validate process and filter questions
       if (options.processId) {
-        // Verify process exists and belongs to organization
-        const process = await db
-          .select()
-          .from(organizationProcesses)
-          .where(
-            and(
-              eq(organizationProcesses.id, options.processId),
-              eq(organizationProcesses.organizationId, organizationId)
-            )
-          )
-          .then(results => results[0]);
-
-        if (!process) {
-          console.log(`Process ${options.processId} not found in organization ${organizationId}`);
-          return [];
-        }
-
         query = query.where(eq(questions.processId, options.processId));
       }
 
-      // Get available questions
       const availableQuestions = await query as Question[];
       console.log(`Found ${availableQuestions.length} available questions`);
 
@@ -1858,21 +1840,16 @@ export class DatabaseStorage implements IStorage {
 
       let selectedQuestions: Question[] = [];
 
-      // Random selection if no distribution specified
-      if (!options.categoryDistribution && !options.difficultyDistribution) {
-        selectedQuestions = availableQuestions
-          .sort(() => Math.random() - 0.5)
-          .slice(0, options.count);
-        return selectedQuestions;
-      }
-
-      // Handle category distribution if specified
       if (options.categoryDistribution) {
+        console.log('Selecting questions by category distribution:', options.categoryDistribution);
+
         for (const [category, count] of Object.entries(options.categoryDistribution)) {
           const categoryQuestions = availableQuestions
             .filter(q => q.category === category)
             .sort(() => Math.random() - 0.5)
             .slice(0, count);
+
+          console.log(`Found ${categoryQuestions.length} questions for category ${category}`);
 
           if (categoryQuestions.length < count) {
             throw new Error(`Not enough questions available for category ${category}. Requested ${count} but found ${categoryQuestions.length}`);
@@ -1880,15 +1857,17 @@ export class DatabaseStorage implements IStorage {
 
           selectedQuestions.push(...categoryQuestions);
         }
-      }
+      } else if (options.difficultyDistribution) {
+        console.log('Selecting questions by difficulty distribution:', options.difficultyDistribution);
 
-      // Handle difficulty distribution if specified
-      if (options.difficultyDistribution) {
         for (const [difficulty, count] of Object.entries(options.difficultyDistribution)) {
+          const difficultyLevel = parseInt(difficulty);
           const difficultyQuestions = availableQuestions
-            .filter(q => q.difficultyLevel === parseInt(difficulty))
+            .filter(q => q.difficultyLevel === difficultyLevel)
             .sort(() => Math.random() - 0.5)
             .slice(0, count);
+
+          console.log(`Found ${difficultyQuestions.length} questions for difficulty level ${difficulty}`);
 
           if (difficultyQuestions.length < count) {
             throw new Error(`Not enough questions available for difficulty level ${difficulty}. Requested ${count} but found ${difficultyQuestions.length}`);
@@ -1896,11 +1875,17 @@ export class DatabaseStorage implements IStorage {
 
           selectedQuestions.push(...difficultyQuestions);
         }
+      } else {
+        // Random selection without distribution
+        selectedQuestions = availableQuestions
+          .sort(() => Math.random() - 0.5)
+          .slice(0, options.count);
       }
 
+      console.log(`Selected ${selectedQuestions.length} questions`);
       return selectedQuestions;
     } catch (error: any) {
-      console.error('Error in getRandomQuestions:', error);
+      console.error('Error getting random questions:', error);
       throw error;
     }
   }
@@ -1980,7 +1965,7 @@ export class DatabaseStorage implements IStorage {
       console.error('Error fetching question:', error);
       throw error;
     }
-  }
+    }
   // Quiz template operations
   async createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate> {
     try {
