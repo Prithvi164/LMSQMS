@@ -1889,21 +1889,28 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching questions for organization ${organizationId} and process ${processId}`);
 
-      const results = await db
+      if (!processId) {
+        console.log('No process ID provided');
+        return [];
+      }
+
+      const questions = await db
         .select()
         .from(questions)
         .where(
           and(
             eq(questions.organizationId, organizationId),
-            eq(questions.processId, processId)
+            eq(questions.processId, processId),
+            eq(questions.active, true)
           )
-        ) as Question[];
+        )
+        .orderBy(desc(questions.createdAt)) as Question[];
 
-      console.log(`Found ${results.length} questions for process ${processId}`);
-      return results;
-    } catch (error) {
+      console.log(`Found ${questions.length} questions for process ${processId}`);
+      return questions;
+    } catch (error: any) {
       console.error('Error fetching questions by process:', error);
-      throw new Error(`Failed to fetch questions: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(`Failed to fetch questions: ${error.message}`);
     }
   }
   async updateQuestion(id: number, question: Partial<Question>): Promise<Question> {
@@ -2146,11 +2153,14 @@ export class DatabaseStorage implements IStorage {
   }
   async createQuiz(quiz: InsertQuiz): Promise<Quiz> {
     try {
-      console.log('Creating quiz:', quiz);
+      console.log('Creating new quiz:', quiz);
 
-      // Validate quiz data
-      if (!quiz.questions || quiz.questions.length === 0) {
-        throw new Error('Quiz must have at least one question');
+      // Validate process ID and check if questions exist for this process
+      if (quiz.processId) {
+        const availableQuestions = await this.listQuestionsByProcess(quiz.organizationId, quiz.processId);
+        if (availableQuestions.length === 0) {
+          throw new Error(`No questions available for process ID ${quiz.processId}`);
+        }
       }
 
       const [newQuiz] = await db
@@ -2165,7 +2175,7 @@ export class DatabaseStorage implements IStorage {
 
       console.log('Successfully created quiz:', newQuiz);
       return newQuiz;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating quiz:', error);
       throw error;
     }
@@ -2173,35 +2183,48 @@ export class DatabaseStorage implements IStorage {
 
   async getQuizWithQuestions(id: number): Promise<Quiz | undefined> {
     try {
-      // First fetch the quiz
       const [quiz] = await db
-        .select()
+        .select({
+          id: quizzes.id,
+          name: quizzes.name,
+          description: quizzes.description,
+          organizationId: quizzes.organizationId,
+          processId: quizzes.processId,
+          timeLimit: quizzes.timeLimit,
+          passingScore: quizzes.passingScore,
+          questions: quizzes.questions,
+          status: quizzes.status,
+          createdAt: quizzes.createdAt,
+          updatedAt: quizzes.updatedAt
+        })
         .from(quizzes)
         .where(eq(quizzes.id, id)) as Quiz[];
 
       if (!quiz) {
-        console.log(`No quiz found with ID: ${id}`);
         return undefined;
       }
 
-      // Then fetch all questions for this quiz
-      const quizQuestions = await db
-        .select()
-        .from(questions)
-        .where(inArray(questions.id, quiz.questions)) as Question[];
+      // Only fetch questions if they exist and belong to the same process
+      if (quiz.questions && quiz.questions.length > 0 && quiz.processId) {
+        const questions = await db
+          .select()
+          .from(questions)
+          .where(
+            and(
+              inArray(questions.id, quiz.questions),
+              eq(questions.processId, quiz.processId),
+              eq(questions.active, true)
+            )
+          ) as Question[];
 
-      console.log(`Found ${quizQuestions.length} questions for quiz ${id}`);
+        return {
+          ...quiz,
+          questionDetails: questions
+        };
+      }
 
-      // Ensure questions are in the correct order as specified in quiz.questions
-      const orderedQuestions = quiz.questions.map(questionId =>
-        quizQuestions.find(q => q.id === questionId)
-      ).filter(q => q) as Question[];
-
-      return {
-        ...quiz,
-        questions: orderedQuestions
-      };
-    } catch (error) {
+      return quiz;
+    } catch (error: any) {
       console.error('Error fetching quiz with questions:', error);
       throw error;
     }
