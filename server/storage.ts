@@ -1106,7 +1106,6 @@ export class DatabaseStorage implements IStorage {
         .where(eq(organizationBatches.organizationId, organizationId))
         .orderBy(desc(organizationBatches.createdAt));
 
-
       return batches as OrganizationBatch[];
     } catch (error) {
       console.error('Error fetching batches:', error);
@@ -1811,22 +1810,41 @@ export class DatabaseStorage implements IStorage {
     }
   ): Promise<Question[]> {
     try {
+      console.log('Getting random questions with options:', {
+        organizationId,
+        count: options.count,
+        categoryDistribution: options.categoryDistribution,
+        difficultyDistribution: options.difficultyDistribution,
+        processId: options.processId
+      });
+
       // Validate input parameters
       if (options.count <= 0) {
         throw new Error("Question count must be greater than 0");
       }
 
+      // Base query to get all available questions for the organization
       let query = db
         .select()
         .from(questions)
         .where(eq(questions.organizationId, organizationId));
 
-      if (options.processId) {
-        query = query.where(eq(questions.processId, options.processId));
+      // If processId is specified, try to get questions for that process first
+      let availableQuestions = options.processId 
+        ? await query.where(eq(questions.processId, options.processId)) as Question[]
+        : await query as Question[];
+
+      // If no questions found for specific process, get questions from any process
+      if (availableQuestions.length === 0 && options.processId) {
+        console.log(`No questions found for process ${options.processId}, fetching from all processes`);
+        availableQuestions = await query as Question[];
       }
 
-      // Get all available questions first
-      const availableQuestions = await query as Question[];
+      console.log(`Found ${availableQuestions.length} total available questions`);
+
+      if (availableQuestions.length === 0) {
+        throw new Error(`No questions available in the organization`);
+      }
 
       if (availableQuestions.length < options.count) {
         throw new Error(`Not enough questions available. Requested ${options.count} but only ${availableQuestions.length} found.`);
@@ -1835,42 +1853,54 @@ export class DatabaseStorage implements IStorage {
       let selectedQuestions: Question[] = [];
 
       if (options.categoryDistribution) {
-        // Handle count-based category distribution
-        const totalRequested = Object.values(options.categoryDistribution).reduce((a, b) => a + b, 0);
-        if (totalRequested !== options.count) {
-          throw new Error(`Category distribution total (${totalRequested}) must match requested count (${options.count})`);
+        // Log categories and their counts
+        const categoryQuestionCounts = availableQuestions.reduce((acc, q) => {
+          acc[q.category] = (acc[q.category] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+        console.log('Available questions by category:', categoryQuestionCounts);
+
+        // Verify we have enough questions for each requested category
+        for (const [category, count] of Object.entries(options.categoryDistribution)) {
+          const availableCount = availableQuestions.filter(q => q.category === category).length;
+          if (availableCount < count) {
+            throw new Error(`Not enough questions for category "${category}". Need ${count}, but only have ${availableCount}`);
+          }
         }
 
+        // Select questions for each category
         for (const [category, count] of Object.entries(options.categoryDistribution)) {
-          const categoryQuestions = availableQuestions
-            .filter(q => q.category === category)
+          const categoryQuestions = availableQuestions.filter(q => q.category === category);
+          const randomlySelected = categoryQuestions
             .sort(() => Math.random() - 0.5)
             .slice(0, count);
-
-          if (categoryQuestions.length < count) {
-            throw new Error(`Not enough questions available for category ${category}. Requested ${count} but found ${categoryQuestions.length}`);
-          }
-
-          selectedQuestions.push(...categoryQuestions);
+          selectedQuestions.push(...randomlySelected);
         }
       } else if (options.difficultyDistribution) {
-        // Handle count-based difficulty distribution
-        const totalRequested = Object.values(options.difficultyDistribution).reduce((a, b) => a + b, 0);
-        if (totalRequested !== options.count) {
-          throw new Error(`Difficulty distribution total (${totalRequested}) must match requested count (${options.count})`);
+        // Log difficulties and their counts
+        const difficultyQuestionCounts = availableQuestions.reduce((acc, q) => {
+          acc[q.difficultyLevel] = (acc[q.difficultyLevel] || 0) + 1;
+          return acc;
+        }, {} as Record<number, number>);
+        console.log('Available questions by difficulty:', difficultyQuestionCounts);
+
+        // Verify we have enough questions for each difficulty level
+        for (const [difficulty, count] of Object.entries(options.difficultyDistribution)) {
+          const difficultyLevel = parseInt(difficulty);
+          const availableCount = availableQuestions.filter(q => q.difficultyLevel === difficultyLevel).length;
+          if (availableCount < count) {
+            throw new Error(`Not enough questions for difficulty level ${difficulty}. Need ${count}, but only have ${availableCount}`);
+          }
         }
 
+        // Select questions for each difficulty level
         for (const [difficulty, count] of Object.entries(options.difficultyDistribution)) {
-          const difficultyQuestions = availableQuestions
-            .filter(q => q.difficultyLevel === parseInt(difficulty))
+          const difficultyLevel = parseInt(difficulty);
+          const difficultyQuestions = availableQuestions.filter(q => q.difficultyLevel === difficultyLevel);
+          const randomlySelected = difficultyQuestions
             .sort(() => Math.random() - 0.5)
             .slice(0, count);
-
-          if (difficultyQuestions.length < count) {
-            throw new Error(`Not enough questions available for difficulty level ${difficulty}. Requested ${count} but found ${difficultyQuestions.length}`);
-          }
-
-          selectedQuestions.push(...difficultyQuestions);
+          selectedQuestions.push(...randomlySelected);
         }
       } else {
         // Random selection without distribution
@@ -1879,6 +1909,7 @@ export class DatabaseStorage implements IStorage {
           .slice(0, options.count);
       }
 
+      console.log(`Successfully selected ${selectedQuestions.length} questions`);
       return selectedQuestions;
     } catch (error: any) {
       console.error('Error in getRandomQuestions:', error);
@@ -1889,17 +1920,19 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching questions for organization ${organizationId} and process ${processId}`);
 
-      const results = await db
+      const query = db
         .select()
         .from(questions)
-        .where(
-          and(
-            eq(questions.organizationId, organizationId),
-            eq(questions.processId, processId)
-          )
-        ) as Question[];
+        .where(eq(questions.organizationId, organizationId)); 
 
-      console.log(`Found ${results.length} questions for process ${processId}`);
+      // Add process filter if specified
+      if (processId) {
+        query.where(eq(questions.processId, processId));
+      }
+
+      const results = await query as Question[];
+
+      console.log(`Found ${results.length} questions ${processId ? `for process ${processId}` : 'across all processes'}`);
       return results;
     } catch (error) {
       console.error('Error fetching questions by process:', error);
