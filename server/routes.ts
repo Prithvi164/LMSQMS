@@ -876,6 +876,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add new routes for batch quiz template management
+  app.post("/api/batches/:batchId/quiz-templates", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const batchId = parseInt(req.params.batchId);
+      const { quizTemplateId } = req.body;
+
+      if (!batchId || !quizTemplateId) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      // Check if batch exists and belongs to user's organization
+      const batch = await storage.getBatch(batchId);
+      if (!batch || batch.organizationId !== req.user.organizationId) {
+        return res.status(404).json({ message: "Batch not found" });
+      }
+
+      const assignment = await storage.assignQuizTemplateToBatch({
+        batchId,
+        quizTemplateId,
+        organizationId: req.user.organizationId,
+        assignedBy: req.user.id
+      });
+
+      res.status(201).json(assignment);
+    } catch (error: any) {
+      console.error("Error assigning quiz template to batch:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/batches/:batchId/quiz-templates", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const batchId = parseInt(req.params.batchId);
+      if (!batchId) {
+        return res.status(400).json({ message: "Invalid batch ID" });
+      }
+
+      // Check if batch exists and belongs to user's organization
+      const batch = await storage.getBatch(batchId);
+      if (!batch || batch.organizationId !== req.user.organizationId) {
+        return res.status(404).json({ message: "Batch not found" });
+      }
+
+      const assignments = await storage.listQuizTemplatesForBatch(batchId);
+      res.json(assignments);
+    } catch (error: any) {
+      console.error("Error listing quiz templates for batch:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/batches/quiz-templates/:mappingId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const mappingId = parseInt(req.params.mappingId);
+      if (!mappingId) {
+        return res.status(400).json({ message: "Invalid mapping ID" });
+      }
+
+      // Get the assignment to verify ownership
+      const assignment = await storage.getBatchQuizTemplate(mappingId);
+      if (!assignment || assignment.organizationId !== req.user.organizationId) {
+        return res.status(404).json({ message: "Assignment not found" });
+      }
+
+      await storage.removeQuizTemplateFromBatch(mappingId);
+      res.json({ message: "Quiz template assignment removed successfully" });
+    } catch (error: any) {
+      console.error("Error removing quiz template from batch:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Add quiz template routes
   app.post("/api/quiz-templates", async (req, res) => {
     if (!req.user || !req.user.organizationId) {

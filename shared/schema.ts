@@ -483,7 +483,7 @@ export const organizationBatches = pgTable("organization_batches", {
 export type OrganizationBatch = InferSelectModel<typeof organizationBatches>;
 
 // Add relations for batches
-export const organizationBatchesRelations = relations(organizationBatches, ({ one }) => ({
+export const organizationBatchesRelations = relations(organizationBatches, ({ one, many }) => ({
   organization: one(organizations, {
     fields: [organizationBatches.organizationId],
     references: [organizations.id],
@@ -504,6 +504,7 @@ export const organizationBatchesRelations = relations(organizationBatches, ({ on
     fields: [organizationBatches.trainerId],
     references: [users.id],
   }),
+  quizTemplates: many(batchQuizTemplates)
 }));
 
 // Update validation schema to properly handle the enum
@@ -840,7 +841,7 @@ export const insertOrganizationLocationSchema = createInsertSchema(organizationL
 
 export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organizationLineOfBusinesses)
   .omit({
-    id: true,
+    id:true,
     createdAt: true
   })
   .extend({    name: z.string().min(1, "LOB name is required"),
@@ -942,6 +943,91 @@ export const batchHistoryRelations = relations(batchHistory, ({ one }) => ({
     fields: [batchHistory.organizationId],
     references: [organizations.id],
   }),
+}));
+
+// Add batch quiz template mapping table after batchHistory table
+export const batchQuizTemplates = pgTable("batch_quiz_templates", {
+  id: serial("id").primaryKey(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id)
+    .notNull(),
+  quizTemplateId: integer("quiz_template_id")
+    .references(() => quizTemplates.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  assignedBy: integer("assigned_by")
+    .references(() => users.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    unq: unique().on(table.batchId, table.quizTemplateId),
+  };
+});
+
+export type BatchQuizTemplate = InferSelectModel<typeof batchQuizTemplates>;
+
+export const insertBatchQuizTemplateSchema = createInsertSchema(batchQuizTemplates)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    batchId: z.number().int().positive("Batch ID is required"),
+    quizTemplateId: z.number().int().positive("Quiz template ID is required"),
+    organizationId: z.number().int().positive("Organization ID is required"),
+    assignedBy: z.number().int().positive("Assigner ID is required"),
+  });
+
+export type InsertBatchQuizTemplate = z.infer<typeof insertBatchQuizTemplateSchema>;
+
+// Add relations
+export const batchQuizTemplatesRelations = relations(batchQuizTemplates, ({ one }) => ({
+  batch: one(organizationBatches, {
+    fields: [batchQuizTemplates.batchId],
+    references: [organizationBatches.id],
+  }),
+  template: one(quizTemplates, {
+    fields: [batchQuizTemplates.quizTemplateId],
+    references: [quizTemplates.id],
+  }),
+  organization: one(organizations, {
+    fields: [batchQuizTemplates.organizationId],
+    references: [organizations.id],
+  }),
+  assigner: one(users, {
+    fields: [batchQuizTemplates.assignedBy],
+    references: [users.id],
+  }),
+}));
+
+// Update organizationBatches relations to include quiz templates
+export const organizationBatchesRelations = relations(organizationBatches, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [organizationBatches.organizationId],
+    references: [organizations.id],
+  }),
+  process: one(organizationProcesses, {
+    fields: [organizationBatches.processId],
+    references: [organizationProcesses.id],
+  }),
+  location: one(organizationLocations, {
+    fields: [organizationBatches.locationId],
+    references: [organizationLocations.id],
+  }),
+  lob: one(organizationLineOfBusinesses, {
+    fields: [organizationBatches.lineOfBusinessId],
+    references: [organizationLineOfBusinesses.id],
+  }),
+  trainer: one(users, {
+    fields: [organizationBatches.trainerId],
+    references: [users.id],
+  }),
+  quizTemplates: many(batchQuizTemplates)
 }));
 
 export interface RolePermission {
@@ -1126,5 +1212,7 @@ export type {
   InsertQuizAttempt,
   InsertQuizResponse,
   Quiz,
-  InsertQuiz
+  InsertQuiz,
+  BatchQuizTemplate,
+  InsertBatchQuizTemplate
 };

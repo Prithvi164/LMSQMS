@@ -50,7 +50,10 @@ import {
   type InsertQuiz,
   quizAttempts,
   type QuizAttempt,
-  type InsertQuizAttempt
+  type InsertQuizAttempt,
+  batchQuizTemplates,
+  type BatchQuizTemplate,
+  type InsertBatchQuizTemplate
 } from "@shared/schema";
 
 export interface IStorage {
@@ -212,6 +215,12 @@ export interface IStorage {
   // Add new methods for quiz responses
   createQuizResponse(response: InsertQuizResponse): Promise<QuizResponse>;
   getQuizResponses(quizAttemptId: number): Promise<QuizResponse[]>;
+
+  // Quiz template assignment methods
+  assignQuizTemplateToBatch(mapping: InsertBatchQuizTemplate): Promise<BatchQuizTemplate>;
+  listQuizTemplatesForBatch(batchId: number): Promise<BatchQuizTemplate[]>;
+  removeQuizTemplateFromBatch(mappingId: number): Promise<void>;
+  getBatchQuizTemplate(mappingId: number): Promise<BatchQuizTemplate | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1933,8 +1942,7 @@ export class DatabaseStorage implements IStorage {
   async getQuestionById(id: number): Promise<Question | undefined> {
     try {
       const result = await db
-        .select()
-        .from(questions)
+        .select        .from(questions)
         .where(eq(questions.id, id));
       return result[0];
     } catch (error) {
@@ -2353,6 +2361,135 @@ export class DatabaseStorage implements IStorage {
         .where(eq(quizResponses.quizAttemptId, quizAttemptId)) as QuizResponse[];
     } catch (error) {
       console.error('Error fetching quiz responses:', error);
+      throw error;
+    }
+  }
+  // Assign a quiz template to a batch
+  async assignQuizTemplateToBatch(mapping: InsertBatchQuizTemplate): Promise<BatchQuizTemplate> {
+    try {
+      console.log('Assigning quiz template to batch:', mapping);
+
+      // Verify batch exists
+      const batch = await this.getBatch(mapping.batchId);
+      if (!batch) {
+        throw new Error('Batch not found');
+      }
+
+      // Verify quiz template exists
+      const template = await this.getQuizTemplate(mapping.quizTemplateId);
+      if (!template) {
+        throw new Error('Quiz template not found');
+      }
+
+      // Check if assignment already exists
+      const existing = await db
+        .select()
+        .from(batchQuizTemplates)
+        .where(
+          and(
+            eq(batchQuizTemplates.batchId, mapping.batchId),
+            eq(batchQuizTemplates.quizTemplateId, mapping.quizTemplateId)
+          )
+        ) as BatchQuizTemplate[];
+
+      if (existing.length > 0) {
+        throw new Error('Quiz template is already assigned to this batch');
+      }
+
+      const [result] = await db
+        .insert(batchQuizTemplates)
+        .values({
+          ...mapping,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning() as BatchQuizTemplate[];
+
+      console.log('Successfully assigned quiz template to batch:', result);
+      return result;
+    } catch (error: any) {
+      console.error('Error assigning quiz template to batch:', error);
+      throw error;
+    }
+  }
+
+  // List all quiz templates for a batch
+  async listQuizTemplatesForBatch(batchId: number): Promise<BatchQuizTemplate[]> {
+    try {
+      console.log(`Fetching quiz templates for batch ${batchId}`);
+
+      const assignments = await db
+        .select({
+          id: batchQuizTemplates.id,
+          batchId: batchQuizTemplates.batchId,
+          quizTemplateId: batchQuizTemplates.quizTemplateId,
+          organizationId: batchQuizTemplates.organizationId,
+          assignedBy: batchQuizTemplates.assignedBy,
+          createdAt: batchQuizTemplates.createdAt,
+          updatedAt: batchQuizTemplates.updatedAt,
+          templateName: quizTemplates.name,
+          templateDescription: quizTemplates.description,
+          assignerName: users.username
+        })
+        .from(batchQuizTemplates)
+        .leftJoin(
+          quizTemplates,
+          eq(batchQuizTemplates.quizTemplateId, quizTemplates.id)
+        )
+        .leftJoin(
+          users,
+          eq(batchQuizTemplates.assignedBy, users.id)
+        )
+        .where(eq(batchQuizTemplates.batchId, batchId)) as BatchQuizTemplate[];
+
+      console.log(`Found ${assignments.length} quiz templates assigned to batch`);
+      return assignments;
+    } catch (error: any) {
+      console.error('Error fetching quiz templates for batch:', error);
+      throw error;
+    }
+  }
+
+  // Get a specific batch quiz template assignment
+  async getBatchQuizTemplate(mappingId: number): Promise<BatchQuizTemplate | undefined> {
+    try {
+      console.log(`Fetching batch quiz template assignment ${mappingId}`);
+
+      const [assignment] = await db
+        .select()
+        .from(batchQuizTemplates)
+        .where(eq(batchQuizTemplates.id, mappingId)) as BatchQuizTemplate[];
+
+      return assignment;
+    } catch (error: any) {
+      console.error('Error fetching batch quiz template:', error);
+      throw error;
+    }
+  }
+
+  // Remove a quiz template assignment from a batch
+  async removeQuizTemplateFromBatch(mappingId: number): Promise<void> {
+    try {
+      console.log(`Attempting to remove quiz template assignment ${mappingId}`);
+
+      // Verify assignment exists
+      const assignment = await this.getBatchQuizTemplate(mappingId);
+      if (!assignment) {
+        throw new Error('Quiz template assignment not found');
+      }
+
+      const result = await db
+        .delete(batchQuizTemplates)
+        .where(eq(batchQuizTemplates.id, mappingId))
+        .returning();
+
+      if (!result.length) {
+        throw new Error('Failed to remove quiz template assignment');
+      }
+
+      console.log('Successfully removed quiz template assignment');
+    } catch (error: any) {
+      console.error('Error removing quiz template from batch:', error);
       throw error;
     }
   }
