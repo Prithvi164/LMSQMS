@@ -1810,76 +1810,28 @@ export class DatabaseStorage implements IStorage {
     }
   ): Promise<Question[]> {
     try {
-      // First validate process ID and check if questions exist
-      if (options.processId) {
-        const processQuestions = await this.listQuestionsByProcess(organizationId, options.processId);
-        if (processQuestions.length === 0) {
-          console.log(`No questions available for process ID ${options.processId}`);
-          return [];
-        }
-      }
+      console.log('Getting random questions with options:', options);
 
-      if (options.count <= 0) {
-        throw new Error("Question count must be greater than 0");
-      }
-
-      let query = db
-        .select()
-        .from(questions)
-        .where(eq(questions.organizationId, organizationId));
-
-      if (options.processId) {
-        query = query.where(eq(questions.processId, options.processId));
-      }
-
-      // Get all available questions first
-      const availableQuestions = await query as Question[];
-
-      if (availableQuestions.length === 0) {
-        console.log('No questions available matching the criteria');
+      if (!options.processId) {
+        console.log('No process ID provided');
         return [];
       }
 
-      let selectedQuestions: Question[] = [];
-
-      if (options.categoryDistribution) {
-        // Handle count-based category distribution
-        const totalRequested = Object.values(options.categoryDistribution).reduce((a, b) => a + b, 0);
-        if (totalRequested !== options.count) {
-          throw new Error(`Category distribution total (${totalRequested}) must match requested count (${options.count})`);
-        }
-
-        for (const [category, count] of Object.entries(options.categoryDistribution)) {
-          const categoryQuestions = availableQuestions
-            .filter(q => q.category === category)
-            .sort(() => Math.random() - 0.5)
-            .slice(0, count);
-
-          selectedQuestions.push(...categoryQuestions);
-        }
-      } else if (options.difficultyDistribution) {
-        // Handle count-based difficulty distribution
-        const totalRequested = Object.values(options.difficultyDistribution).reduce((a, b) => a + b, 0);
-        if (totalRequested !== options.count) {
-          throw new Error(`Difficulty distribution total (${totalRequested}) must match requested count (${options.count})`);
-        }
-
-        for (const [difficulty, count] of Object.entries(options.difficultyDistribution)) {
-          const difficultyQuestions = availableQuestions
-            .filter(q => q.difficultyLevel === parseInt(difficulty))
-            .sort(() => Math.random() - 0.5)
-            .slice(0, count);
-
-          selectedQuestions.push(...difficultyQuestions);
-        }
-      } else {
-        // Random selection without distribution
-        selectedQuestions = availableQuestions
-          .sort(() => Math.random() - 0.5)
-          .slice(0, options.count);
+      // Verify process exists and has questions
+      const processQuestions = await this.listQuestionsByProcess(organizationId, options.processId);
+      if (processQuestions.length === 0) {
+        console.log(`No questions available for process ID ${options.processId}`);
+        return [];
       }
 
-      return selectedQuestions;
+      if (options.count <= 0) {
+        console.log('Invalid question count requested');
+        return [];
+      }
+
+      return processQuestions
+        .sort(() => Math.random() - 0.5)
+        .slice(0, Math.min(options.count, processQuestions.length));
     } catch (error: any) {
       console.error('Error in getRandomQuestions:', error);
       throw error;
@@ -1894,6 +1846,13 @@ export class DatabaseStorage implements IStorage {
         return [];
       }
 
+      // First verify if the process exists
+      const process = await this.getProcess(processId);
+      if (!process) {
+        console.log(`Process ${processId} not found`);
+        return [];
+      }
+
       const questions = await db
         .select()
         .from(questions)
@@ -1904,20 +1863,27 @@ export class DatabaseStorage implements IStorage {
             eq(questions.active, true)
           )
         )
-        .orderBy(desc(questions.createdAt)) as Question[];
+        .orderBy(desc(questions.createdAt));
 
-      console.log(`Found ${questions.length} active questions for process ${processId}`);
+      const foundQuestions = questions as Question[];
+      console.log(`Found ${foundQuestions.length} active questions for process ${processId}`);
 
-      if (questions.length === 0) {
-        console.log(`No questions found for process ${processId}`);
+      if (foundQuestions.length === 0) {
+        console.log(`No active questions found for process ${processId}`);
       }
 
-      return questions;
+      // Log the found questions for debugging
+      foundQuestions.forEach(q => {
+        console.log(`Question ID: ${q.id}, Process ID: ${q.processId}, Active: ${q.active}`);
+      });
+
+      return foundQuestions;
     } catch (error: any) {
       console.error('Error fetching questions by process:', error);
       throw new Error(`Failed to fetch questions: ${error.message}`);
     }
   }
+
   async updateQuestion(id: number, question: Partial<Question>): Promise<Question> {
     try {
       const [updatedQuestion] = await db
