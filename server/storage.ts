@@ -760,58 +760,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Add new methods for user process management
-  async assignProcessesToUser(processes: InsertUserProcess[]): Promise<UserProcess[]> {
-    try {
-      const assignedProcesses = await db
-        .insert(userProcesses)
-        .values(processes)
-        .returning() as UserProcess[];
-      return assignedProcesses;
-    } catch (error) {
-      console.error('Error assigning processes to user:', error);
-      throw new Error('Failed to assign processes to user');
-    }
-  }
 
-  async getUserProcesses(userId: number): Promise<UserProcess[]> {
-    try {
-      const processes = await db
-        .select({
-          id: userProcesses.id,
-          userId: userProcesses.userId,
-          processId: userProcesses.processId,
-          organizationId: userProcesses.organizationId,
-          status: userProcesses.status,
-          assignedAt: userProcesses.assignedAt,
-          completedAt: userProcesses.completedAt,
-          processName: organizationProcesses.name,
-        })
-        .from(userProcesses)
-        .leftJoin(
-          organizationProcesses,
-          eq(userProcesses.processId, organizationProcesses.id)
-        )
-        .where(eq(userProcesses.userId, userId)) as UserProcess[];
-
-      return processes;
-    } catch (error) {
-      console.error('Error fetching user processes:', error);
-      throw new Error('Failed to fetch user processes');
-    }
-  }
-
-  async removeUserProcess(userId: number, processId: number): Promise<void> {
-    try {
-      await db
-        .delete(userProcesses)
-        .where(eq(userProcesses.userId, userId))
-        .where(eq(userProcesses.processId, processId));
-    } catch (error) {
-      console.error('Error removing user process:', error);
-      throw new Error('Failed to remove user process');
-    }
-  }
   async createUserWithProcesses(
     user: InsertUser,
     processIds: number[],
@@ -937,8 +886,6 @@ export class DatabaseStorage implements IStorage {
           .set({ locationId: null })
           .where(eq(users.locationId, id));
 
-        console.log(`Updated users' location references to null`);
-
         // Then delete the location
         const result = await tx
           .delete(organizationLocations)
@@ -946,7 +893,7 @@ export class DatabaseStorage implements IStorage {
           .returning();
 
         if (!result.length) {
-          throw new Error('Location not found or deletionfailed');
+          throw new Error('Location not found or deletion failed');
         }
 
         console.log(`Successfully deleted location with ID: ${id}`);
@@ -956,6 +903,56 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+
+  async listQuestionsByProcess(organizationId: number, processId: number): Promise<Question[]> {
+    try {
+      console.log(`Fetching questions for organization ${organizationId} and process ${processId}`);
+
+      // Validate process ID
+      if (!processId) {
+        console.log('No process ID provided, returning empty list');
+        return [];
+      }
+
+      // First verify if the process exists and belongs to the organization  
+      const process = await db
+        .select()
+        .from(organizationProcesses)
+        .where(
+          and(
+            eq(organizationProcesses.id, processId),
+            eq(organizationProcesses.organizationId, organizationId)
+          )
+        )
+        .then(results => results[0]);
+
+      if (!process) {
+        console.log(`Process ${processId} not found in organization ${organizationId}`);
+        return [];
+      }
+
+      // Fetch only active questions that belong to this process
+      const questions = await db
+        .select()
+        .from(questions)
+        .where(
+          and(
+            eq(questions.organizationId, organizationId),
+            eq(questions.processId, processId),
+            eq(questions.active, true)
+          )
+        )
+        .orderBy(desc(questions.createdAt)) as Question[];
+
+      console.log(`Found ${questions.length} active questions for process ${processId}`);
+      return questions;
+    } catch (error: any) {
+      console.error('Error fetching questions by process:', error);
+      throw new Error(`Failed to fetch questions: ${error.message}`);
+    }
+  }
+
+
 
   async createLocation(location: InsertOrganizationLocation): Promise<OrganizationLocation> {
     try {
@@ -1105,7 +1102,6 @@ export class DatabaseStorage implements IStorage {
         )
         .where(eq(organizationBatches.organizationId, organizationId))
         .orderBy(desc(organizationBatches.createdAt));
-
 
       return batches as OrganizationBatch[];
     } catch (error) {
@@ -1811,7 +1807,6 @@ export class DatabaseStorage implements IStorage {
     }
   ): Promise<Question[]> {
     try {
-      // Validate input parameters
       if (options.count <= 0) {
         throw new Error("Question count must be greater than 0");
       }
@@ -1819,14 +1814,43 @@ export class DatabaseStorage implements IStorage {
       let query = db
         .select()
         .from(questions)
-        .where(eq(questions.organizationId, organizationId));
+        .where(
+          and(
+            eq(questions.organizationId, organizationId),
+            eq(questions.active, true)
+          )
+        );
 
+      // Validate process and filter questions
       if (options.processId) {
+        // Verify process exists and belongs to organization
+        const process = await db
+          .select()
+          .from(organizationProcesses)
+          .where(
+            and(
+              eq(organizationProcesses.id, options.processId),
+              eq(organizationProcesses.organizationId, organizationId)
+            )
+          )
+          .then(results => results[0]);
+
+        if (!process) {
+          console.log(`Process ${options.processId} not found in organization ${organizationId}`);
+          return [];
+        }
+
         query = query.where(eq(questions.processId, options.processId));
       }
 
-      // Get all available questions first
+      // Get available questions
       const availableQuestions = await query as Question[];
+      console.log(`Found ${availableQuestions.length} available questions`);
+
+      if (availableQuestions.length === 0) {
+        console.log('No questions available matching the criteria');
+        return [];
+      }
 
       if (availableQuestions.length < options.count) {
         throw new Error(`Not enough questions available. Requested ${options.count} but only ${availableQuestions.length} found.`);
@@ -1834,13 +1858,16 @@ export class DatabaseStorage implements IStorage {
 
       let selectedQuestions: Question[] = [];
 
-      if (options.categoryDistribution) {
-        // Handle count-based category distribution
-        const totalRequested = Object.values(options.categoryDistribution).reduce((a, b) => a + b, 0);
-        if (totalRequested !== options.count) {
-          throw new Error(`Category distribution total (${totalRequested}) must match requested count (${options.count})`);
-        }
+      // Random selection if no distribution specified
+      if (!options.categoryDistribution && !options.difficultyDistribution) {
+        selectedQuestions = availableQuestions
+          .sort(() => Math.random() - 0.5)
+          .slice(0, options.count);
+        return selectedQuestions;
+      }
 
+      // Handle category distribution if specified
+      if (options.categoryDistribution) {
         for (const [category, count] of Object.entries(options.categoryDistribution)) {
           const categoryQuestions = availableQuestions
             .filter(q => q.category === category)
@@ -1853,13 +1880,10 @@ export class DatabaseStorage implements IStorage {
 
           selectedQuestions.push(...categoryQuestions);
         }
-      } else if (options.difficultyDistribution) {
-        // Handle count-based difficulty distribution
-        const totalRequested = Object.values(options.difficultyDistribution).reduce((a, b) => a + b, 0);
-        if (totalRequested !== options.count) {
-          throw new Error(`Difficulty distribution total (${totalRequested}) must match requested count (${options.count})`);
-        }
+      }
 
+      // Handle difficulty distribution if specified
+      if (options.difficultyDistribution) {
         for (const [difficulty, count] of Object.entries(options.difficultyDistribution)) {
           const difficultyQuestions = availableQuestions
             .filter(q => q.difficultyLevel === parseInt(difficulty))
@@ -1872,11 +1896,6 @@ export class DatabaseStorage implements IStorage {
 
           selectedQuestions.push(...difficultyQuestions);
         }
-      } else {
-        // Random selection without distribution
-        selectedQuestions = availableQuestions
-          .sort(() => Math.random() - 0.5)
-          .slice(0, options.count);
       }
 
       return selectedQuestions;
@@ -1885,34 +1904,47 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+
   async listQuestionsByProcess(organizationId: number, processId: number): Promise<Question[]> {
     try {
       console.log(`Fetching questions for organization ${organizationId} and process ${processId}`);
 
+      // Validate process ID
       if (!processId) {
-        console.log('No process ID provided');
+        console.log('No process ID provided, returning empty list');
         return [];
       }
 
+      // First verify if the process exists and belongs to the organization
+      const process = await db
+        .select()
+        .from(organizationProcesses)
+        .where(eq(organizationProcesses.id, processId))
+        .where(eq(organizationProcesses.organizationId, organizationId))
+        .then(results => results[0]);
+
+      if (!process) {
+        console.log(`Process ${processId} not found in organization ${organizationId}`);
+        return [];
+      }
+
+      // Fetch only active questions that belong to this process
       const questions = await db
         .select()
         .from(questions)
-        .where(
-          and(
-            eq(questions.organizationId, organizationId),
-            eq(questions.processId, processId),
-            eq(questions.active, true)
-          )
-        )
+        .where(eq(questions.organizationId, organizationId))
+        .where(eq(questions.processId, processId))
+        .where(eq(questions.active, true))
         .orderBy(desc(questions.createdAt)) as Question[];
 
-      console.log(`Found ${questions.length} questions for process ${processId}`);
+      console.log(`Found ${questions.length} active questions for process ${processId}`);
       return questions;
     } catch (error: any) {
       console.error('Error fetching questions by process:', error);
       throw new Error(`Failed to fetch questions: ${error.message}`);
     }
   }
+
   async updateQuestion(id: number, question: Partial<Question>): Promise<Question> {
     try {
       const [updatedQuestion] = await db
