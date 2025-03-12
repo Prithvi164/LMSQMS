@@ -30,8 +30,8 @@ const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // Limit each IP to 100 requests per windowMs
   message: { message: "Too many requests, please try again later." },
-  standardHeaders: true,
-  legacyHeaders: false,
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
 // Apply rate limiting to API routes
@@ -112,16 +112,31 @@ debugLog("Health check route added");
       debugLog("Static file serving setup complete");
     }
 
-    // Fixed port configuration
-    const PORT = 5000; // Hardcoded to 5000 as required
-    debugLog(`Starting server on port ${PORT}`);
+    // Try different ports if the default one is in use
+    const tryPort = async (port: number): Promise<number> => {
+      try {
+        await new Promise((resolve, reject) => {
+          server.listen(port)
+            .once('error', reject)
+            .once('listening', resolve);
+        });
+        return port;
+      } catch (error: any) {
+        if (error.code === 'EADDRINUSE' && port < 5010) {
+          debugLog(`Port ${port} in use, trying ${port + 1}`);
+          return tryPort(port + 1);
+        }
+        throw error;
+      }
+    };
 
-    // Bind to 0.0.0.0 to ensure accessibility
-    server.listen(PORT, '0.0.0.0', () => {
-      log(`Server running in ${app.get("env")} mode`);
-      log(`API and client being served at http://0.0.0.0:${PORT}`);
-      debugLog("Server started successfully");
-    });
+    const startPort = parseInt(process.env.PORT || '5001');
+    debugLog(`Attempting to start server on port ${startPort}`);
+
+    const port = await tryPort(startPort);
+    log(`Server running in ${app.get("env")} mode`);
+    log(`API and client being served on port ${port}`);
+    debugLog("Server started successfully");
 
   } catch (error) {
     debugLog(`Fatal error during initialization: ${error}`);

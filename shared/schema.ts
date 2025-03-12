@@ -483,13 +483,7 @@ export const organizationBatches = pgTable("organization_batches", {
 export type OrganizationBatch = InferSelectModel<typeof organizationBatches>;
 
 // Add relations for batches
-export const organizationBatchesRelations = relations(organizationBatches, ({ one }): {
-  organization: ReturnType<typeof one<typeof organizations>>;
-  process: ReturnType<typeof one<typeof organizationProcesses>>;
-  location: ReturnType<typeof one<typeof organizationLocations>>;
-  lob: ReturnType<typeof one<typeof organizationLineOfBusinesses>>;
-  trainer: ReturnType<typeof one<typeof users>>;
-} => ({
+export const organizationBatchesRelations = relations(organizationBatches, ({ one }) => ({
   organization: one(organizations, {
     fields: [organizationBatches.organizationId],
     references: [organizations.id],
@@ -603,7 +597,6 @@ export const organizationLineOfBusinesses = pgTable("organization_line_of_busine
 
 export type OrganizationLineOfBusiness = InferSelectModel<typeof organizationLineOfBusinesses>;
 
-// Fix the circular reference in users table
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
@@ -627,7 +620,7 @@ export const users = pgTable("users", {
   certified: boolean("certified").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
-}) satisfies pgTable;
+});
 
 export type User = InferSelectModel<typeof users>;
 
@@ -764,15 +757,7 @@ export const userBatchProcessesRelations = relations(userBatchProcesses, ({ one 
   }),
 }));
 
-// Fix circular references in relations
-export const usersRelations = relations(users, ({ one, many }): { 
-  organization: ReturnType<typeof one<typeof organizations>>;
-  manager: ReturnType<typeof one<typeof users>>;
-  location: ReturnType<typeof one<typeof organizationLocations>>;
-  managedProcesses: ReturnType<typeof many<typeof userProcesses>>;
-  batches: ReturnType<typeof many<typeof organizationBatches>>;
-  batchProcesses: ReturnType<typeof many<typeof userBatchProcesses>>;
-} => ({
+export const usersRelations = relations(users, ({ one, many }) => ({
   organization: one(organizations, {
     fields: [users.organizationId],
     references: [organizations.id],
@@ -789,7 +774,6 @@ export const usersRelations = relations(users, ({ one, many }): {
   batches: many(organizationBatches),
   batchProcesses: many(userBatchProcesses)
 }));
-
 
 export const userProcessesRelations = relations(userProcesses, ({ one }) => ({
   user: one(users, {
@@ -835,7 +819,8 @@ export const insertOrganizationProcessSchema = createInsertSchema(organizationPr
     trainingDays: z.number().min(0, "Training days cannot be negative"),
     certificationDays: z.number().min(0, "Certification days cannot be negative"),
     ojtDays: z.number().min(0, "OJT days cannot be negative"),
-    ojtCertificationDays: z.number().min(0, "OJT certification days cannot be negative"),    lineOfBusinessId: z.number().int().positive("Line of Business is required"),
+    ojtCertificationDays: z.number().min(0, "OJT certification days cannot be negative"),
+    lineOfBusinessId: z.number().int().positive("Line of Business is required"),
     organizationId: z.number().int().positive("Organization is required")
   });
 
