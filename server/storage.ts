@@ -1106,7 +1106,6 @@ export class DatabaseStorage implements IStorage {
         .where(eq(organizationBatches.organizationId, organizationId))
         .orderBy(desc(organizationBatches.createdAt));
 
-
       return batches as OrganizationBatch[];
     } catch (error) {
       console.error('Error fetching batches:', error);
@@ -1811,7 +1810,15 @@ export class DatabaseStorage implements IStorage {
     }
   ): Promise<Question[]> {
     try {
-      // Validate input parameters
+      // First validate process ID and check if questions exist
+      if (options.processId) {
+        const processQuestions = await this.listQuestionsByProcess(organizationId, options.processId);
+        if (processQuestions.length === 0) {
+          console.log(`No questions available for process ID ${options.processId}`);
+          return [];
+        }
+      }
+
       if (options.count <= 0) {
         throw new Error("Question count must be greater than 0");
       }
@@ -1828,8 +1835,9 @@ export class DatabaseStorage implements IStorage {
       // Get all available questions first
       const availableQuestions = await query as Question[];
 
-      if (availableQuestions.length < options.count) {
-        throw new Error(`Not enough questions available. Requested ${options.count} but only ${availableQuestions.length} found.`);
+      if (availableQuestions.length === 0) {
+        console.log('No questions available matching the criteria');
+        return [];
       }
 
       let selectedQuestions: Question[] = [];
@@ -1847,10 +1855,6 @@ export class DatabaseStorage implements IStorage {
             .sort(() => Math.random() - 0.5)
             .slice(0, count);
 
-          if (categoryQuestions.length < count) {
-            throw new Error(`Not enough questions available for category ${category}. Requested ${count} but found ${categoryQuestions.length}`);
-          }
-
           selectedQuestions.push(...categoryQuestions);
         }
       } else if (options.difficultyDistribution) {
@@ -1865,10 +1869,6 @@ export class DatabaseStorage implements IStorage {
             .filter(q => q.difficultyLevel === parseInt(difficulty))
             .sort(() => Math.random() - 0.5)
             .slice(0, count);
-
-          if (difficultyQuestions.length < count) {
-            throw new Error(`Not enough questions available for difficulty level ${difficulty}. Requested ${count} but found ${difficultyQuestions.length}`);
-          }
 
           selectedQuestions.push(...difficultyQuestions);
         }
@@ -1906,7 +1906,12 @@ export class DatabaseStorage implements IStorage {
         )
         .orderBy(desc(questions.createdAt)) as Question[];
 
-      console.log(`Found ${questions.length} questions for process ${processId}`);
+      console.log(`Found ${questions.length} active questions for process ${processId}`);
+
+      if (questions.length === 0) {
+        console.log(`No questions found for process ${processId}`);
+      }
+
       return questions;
     } catch (error: any) {
       console.error('Error fetching questions by process:', error);
