@@ -1,7 +1,10 @@
 import { eq, inArray, sql, desc, and, or } from "drizzle-orm";
 import { db } from "./db";
-import { batchStatusEnum } from "@shared/schema";
 import {
+  // Enums
+  batchStatusEnum,
+  
+  // Tables
   users,
   organizations,
   organizationProcesses,
@@ -10,50 +13,50 @@ import {
   organizationLocations,
   rolePermissions,
   userProcesses,
+  userBatchProcesses,
   batchPhaseChangeRequests,
   quizResponses,
-  type QuizResponse,
-  type InsertQuizResponse,
-  type User,
-  type InsertUser,
+  batchHistory,
+  questions,
+  quizTemplates,
+  quizzes,
+  quizAttempts,
+  batchQuizTemplates,
+  
+  // Types
   type Organization,
   type InsertOrganization,
   type OrganizationProcess,
   type InsertOrganizationProcess,
-  type OrganizationBatch,
+  type OrganizationBatch, 
   type InsertOrganizationBatch,
+  type OrganizationLocation,
+  type InsertOrganizationLocation,
   type RolePermission,
   type OrganizationLineOfBusiness,
   type InsertOrganizationLineOfBusiness,
+  type User,
+  type InsertUser,
   type UserProcess,
   type InsertUserProcess,
-  type OrganizationLocation,
-  type InsertOrganizationLocation,
-  type BatchPhaseChangeRequest,
-  type InsertBatchPhaseChangeRequest,
-  batchTemplates,
-  type BatchTemplate,
-  type InsertBatchTemplate,
   type UserBatchProcess,
   type InsertUserBatchProcess,
-  batchHistory,
+  type BatchPhaseChangeRequest,
+  type InsertBatchPhaseChangeRequest,
   type BatchHistory,
   type InsertBatchHistory,
-  questions,
   type Question,
   type InsertQuestion,
-  quizTemplates,
   type QuizTemplate,
   type InsertQuizTemplate,
-  quizzes,
   type Quiz,
   type InsertQuiz,
-  quizAttempts,
   type QuizAttempt,
   type InsertQuizAttempt,
-  batchQuizTemplates,
+  type QuizResponse,
+  type InsertQuizResponse,
   type BatchQuizTemplate,
-  type InsertBatchQuizTemplate
+  type InsertBatchQuizTemplate,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -357,58 +360,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.organizationId, organizationId)) as User[];
   }
 
-  // User Process operations
-  async assignProcessesToUser(processes: InsertUserProcess[]): Promise<UserProcess[]> {
-    try {
-      const assignedProcesses = await db
-        .insert(userProcesses)
-        .values(processes)
-        .returning() as UserProcess[];
-      return assignedProcesses;
-    } catch (error) {
-      console.error('Error assigning processes to user:', error);
-      throw new Error('Failed to assign processes to user');
-    }
-  }
 
-  async getUserProcesses(userId: number): Promise<UserProcess[]> {
-    try {
-      const processes = await db
-        .select({
-          id: userProcesses.id,
-          userId: userProcesses.userId,
-          processId: userProcesses.processId,
-          organizationId: userProcesses.organizationId,
-          status: userProcesses.status,
-          assignedAt: userProcesses.assignedAt,
-          completedAt: userProcesses.completedAt,
-          processName: organizationProcesses.name,
-        })
-        .from(userProcesses)
-        .leftJoin(
-          organizationProcesses,
-          eq(userProcesses.processId, organizationProcesses.id)
-        )
-        .where(eq(userProcesses.userId, userId)) as UserProcess[];
-
-      return processes;
-    } catch (error) {
-      console.error('Error fetching user processes:', error);
-      throw new Error('Failed to fetch user processes');
-    }
-  }
-
-  async removeUserProcess(userId: number, processId: number): Promise<void> {
-    try {
-      await db
-        .delete(userProcesses)
-        .where(eq(userProcesses.userId, userId))
-        .where(eq(userProcesses.processId, processId));
-    } catch (error) {
-      console.error('Error removing user process:', error);
-      throw new Error('Failed to remove user process');
-    }
-  }
 
   // Organization operations
   async getOrganization(id: number): Promise<Organization | undefined> {
@@ -769,58 +721,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Add new methods for user process management
-  async assignProcessesToUser(processes: InsertUserProcess[]): Promise<UserProcess[]> {
-    try {
-      const assignedProcesses = await db
-        .insert(userProcesses)
-        .values(processes)
-        .returning() as UserProcess[];
-      return assignedProcesses;
-    } catch (error) {
-      console.error('Error assigning processes to user:', error);
-      throw new Error('Failed to assign processes to user');
-    }
-  }
 
-  async getUserProcesses(userId: number): Promise<UserProcess[]> {
-    try {
-      const processes = await db
-        .select({
-          id: userProcesses.id,
-          userId: userProcesses.userId,
-          processId: userProcesses.processId,
-          organizationId: userProcesses.organizationId,
-          status: userProcesses.status,
-          assignedAt: userProcesses.assignedAt,
-          completedAt: userProcesses.completedAt,
-          processName: organizationProcesses.name,
-        })
-        .from(userProcesses)
-        .leftJoin(
-          organizationProcesses,
-          eq(userProcesses.processId, organizationProcesses.id)
-        )
-        .where(eq(userProcesses.userId, userId)) as UserProcess[];
-
-      return processes;
-    } catch (error) {
-      console.error('Error fetching user processes:', error);
-      throw new Error('Failed to fetch user processes');
-    }
-  }
-
-  async removeUserProcess(userId: number, processId: number): Promise<void> {
-    try {
-      await db
-        .delete(userProcesses)
-        .where(eq(userProcesses.userId, userId))
-        .where(eq(userProcesses.processId, processId));
-    } catch (error) {
-      console.error('Error removing user process:', error);
-      throw new Error('Failed to remove user process');
-    }
-  }
   async createUserWithProcesses(
     user: InsertUser,
     processIds: number[],
