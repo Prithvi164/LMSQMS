@@ -1,11 +1,7 @@
 import { eq, inArray, sql, desc, and, or } from "drizzle-orm";
 import { db } from "./db";
+import { batchStatusEnum } from "@shared/schema";
 import {
-  // Enums
-  batchStatusEnum,
-  userBatchStatusEnum,
-
-  // Tables
   users,
   organizations,
   organizationProcesses,
@@ -14,50 +10,47 @@ import {
   organizationLocations,
   rolePermissions,
   userProcesses,
-  userBatchProcesses,
   batchPhaseChangeRequests,
   quizResponses,
-  batchHistory,
-  questions,
-  quizTemplates,
-  quizzes,
-  quizAttempts,
-  batchQuizTemplates,
-
-  // Types
+  type QuizResponse,
+  type InsertQuizResponse,
+  type User,
+  type InsertUser,
   type Organization,
   type InsertOrganization,
   type OrganizationProcess,
   type InsertOrganizationProcess,
   type OrganizationBatch,
   type InsertOrganizationBatch,
-  type OrganizationLocation,
-  type InsertOrganizationLocation,
   type RolePermission,
   type OrganizationLineOfBusiness,
   type InsertOrganizationLineOfBusiness,
-  type User,
-  type InsertUser,
   type UserProcess,
   type InsertUserProcess,
-  type UserBatchProcess,
-  type InsertUserBatchProcess,
+  type OrganizationLocation,
+  type InsertOrganizationLocation,
   type BatchPhaseChangeRequest,
   type InsertBatchPhaseChangeRequest,
+  batchTemplates,
+  type BatchTemplate,
+  type InsertBatchTemplate,
+  type UserBatchProcess,
+  type InsertUserBatchProcess,
+  batchHistory,
   type BatchHistory,
   type InsertBatchHistory,
+  questions,
   type Question,
   type InsertQuestion,
+  quizTemplates,
   type QuizTemplate,
   type InsertQuizTemplate,
+  quizzes,
   type Quiz,
   type InsertQuiz,
+  quizAttempts,
   type QuizAttempt,
-  type InsertQuizAttempt,
-  type QuizResponse,
-  type InsertQuizResponse,
-  type BatchQuizTemplate,
-  type InsertBatchQuizTemplate,
+  type InsertQuizAttempt
 } from "@shared/schema";
 
 export interface IStorage {
@@ -71,11 +64,17 @@ export interface IStorage {
   deleteUser(id: number): Promise<void>;
   listUsers(organizationId: number): Promise<User[]>;
 
+  // Quiz template operations
+  createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate>;
+  listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]>;
+  deleteQuizTemplate(id: number): Promise<void>;
+  getQuizTemplate(id: number): Promise<QuizTemplate | undefined>;
+  updateQuizTemplate(id: number, template: Partial<InsertQuizTemplate>): Promise<QuizTemplate>;
+
   // User Process operations
   assignProcessesToUser(processes: InsertUserProcess[]): Promise<UserProcess[]>;
   getUserProcesses(userId: number): Promise<UserProcess[]>;
   removeUserProcess(userId: number, processId: number): Promise<void>;
-  createUserProcess(process: InsertUserProcess): Promise<UserProcess>;
 
   // Organization operations
   getOrganization(id: number): Promise<Organization | undefined>;
@@ -84,7 +83,7 @@ export interface IStorage {
   updateOrganization(id: number, org: Partial<Organization>): Promise<Organization>;
   hasOrganizationOwner(organizationId: number): Promise<boolean>;
 
-  // Process operations
+  // Organization settings operations
   createProcess(process: InsertOrganizationProcess): Promise<OrganizationProcess>;
   listProcesses(organizationId: number, name?: string): Promise<OrganizationProcess[]>;
 
@@ -93,96 +92,130 @@ export interface IStorage {
   getRolePermissions(organizationId: number, role: string): Promise<RolePermission | undefined>;
   updateRolePermissions(organizationId: number, role: string, permissions: string[]): Promise<RolePermission>;
 
+  // Process operations
+  getProcess(id: number): Promise<OrganizationProcess | undefined>;
+  updateProcess(id: number, process: Partial<InsertOrganizationProcess>): Promise<OrganizationProcess>;
+  deleteProcess(id: number): Promise<void>;
+
+  // Line of Business operations
+  createLineOfBusiness(lob: InsertOrganizationLineOfBusiness): Promise<OrganizationLineOfBusiness>;
+  getLineOfBusiness(id: number): Promise<OrganizationLineOfBusiness | undefined>;
+  listLineOfBusinesses(organizationId: number): Promise<OrganizationLineOfBusiness[]>;
+  updateLineOfBusiness(id: number, lob: Partial<InsertOrganizationLineOfBusiness>): Promise<OrganizationLineOfBusiness>;
+  deleteLineOfBusiness(id: number): Promise<void>;
+
+  // Add new method for creating user with processes
+  createUserWithProcesses(
+    user: InsertUser,
+    processIds: number[],
+    organizationId: number,
+    lineOfBusinessId: number | null
+  ): Promise<{ user: User; processes: UserProcess[] }>;
+
+  // Add new method for getting processes by line of business
+  getProcessesByLineOfBusiness(organizationId: number, lobId: number): Promise<OrganizationProcess[]>;
+
+  // Location operations
+  listLocations(organizationId: number): Promise<OrganizationLocation[]>;
+  updateLocation(id: number, location: Partial<InsertOrganizationLocation>): Promise<OrganizationLocation>;
+  deleteLocation(id: number): Promise<void>;
+  createLocation(location: InsertOrganizationLocation): Promise<OrganizationLocation>;
+  getLocation(id: number): Promise<OrganizationLocation | undefined>;
+
+  // Batch operations
+  createBatch(batch: InsertOrganizationBatch): Promise<OrganizationBatch>;
+  getBatch(id: number): Promise<OrganizationBatch | undefined>;
+  listBatches(organizationId: number): Promise<OrganizationBatch[]>;
+  updateBatch(id: number, batch: Partial<InsertOrganizationBatch>): Promise<OrganizationBatch>;
+  deleteBatch(id: number): Promise<void>;
+  getLineOfBusinessesByLocation(organizationId: number, locationId: number): Promise<OrganizationLineOfBusiness[]>;
+
+  // Batch Template operations
+  createBatchTemplate(template: InsertBatchTemplate): Promise<BatchTemplate>;
+  listBatchTemplates(organizationId: number): Promise<BatchTemplate[]>;
+  getBatchTemplate(id: number): Promise<BatchTemplate | undefined>;
+  deleteBatchTemplate(id: number): Promise<void>;
+
+  // Add new method for getting trainer's batches
+  getBatchesByTrainer(
+    trainerId: number,
+    organizationId: number,
+    statuses: typeof batchStatusEnum.enumValues[number][]
+  ): Promise<OrganizationBatch[]>;
+
+  // User Batch Process operations
+  assignUserToBatch(userBatchProcess: InsertUserBatchProcess): Promise<UserBatchProcess>;
+  getUserBatchProcesses(userId: number): Promise<UserBatchProcess[]>;
+  getBatchTrainees(batchId: number): Promise<UserBatchProcess[]>;
+  updateUserBatchStatus(
+    userId: number,
+    batchId: number,
+    status: string
+  ): Promise<UserBatchProcess>;
+
+  // Add new method for creating user process
+  createUserProcess(process: InsertUserProcess): Promise<UserProcess>;
+
+  // Add new methods for trainee management
+  updateUserBatchProcess(userId: number, oldBatchId: number, newBatchId: number): Promise<void>;
+  removeUserFromBatch(userId: number, batchId: number): Promise<void>;
+  removeTraineeFromBatch(userBatchProcessId: number): Promise<void>;
+
+  // Phase change request operations
+  createPhaseChangeRequest(request: InsertBatchPhaseChangeRequest): Promise<BatchPhaseChangeRequest>;
+  getPhaseChangeRequest(id: number): Promise<BatchPhaseChangeRequest | undefined>;
+  listPhaseChangeRequests(organizationId: number, status?: string): Promise<BatchPhaseChangeRequest[]>;
+  updatePhaseChangeRequest(
+    id: number,
+    update: {
+      status: string;
+      managerComments?: string;
+    }
+  ): Promise<BatchPhaseChangeRequest>;
+  listTrainerPhaseChangeRequests(trainerId: number): Promise<BatchPhaseChangeRequest[]>;
+  listManagerPhaseChangeRequests(managerId: number): Promise<BatchPhaseChangeRequest[]>;
+
+  // Add new method for getting reporting trainers
+  getReportingTrainers(managerId: number): Promise<User[]>;
+
+  // Add new methods for batch filtering
+  listBatchesForTrainer(trainerId: number): Promise<OrganizationBatch[]>;
+  listBatchesForTrainers(trainerIds: number[]): Promise<OrganizationBatch[]>;
+
+  // Add batch history methods
+  listBatchHistory(batchId: number): Promise<BatchHistory[]>;
+  createBatchHistoryEvent(event: InsertBatchHistory): Promise<BatchHistory>;
+
+  // Question operations
+  createQuestion(question: InsertQuestion): Promise<Question>;
+  listQuestions(organizationId: number): Promise<Question[]>;
+  getRandomQuestions(
+    organizationId: number,
+    options: {
+      count: number;
+      categoryDistribution?: Record<string, number>;
+      difficultyDistribution?: Record<string, number>;
+      processId?: number;
+    }
+  ): Promise<Question[]>;
+  listQuestionsByProcess(organizationId: number, processId: number): Promise<Question[]>;
+  updateQuestion(id: number, question: Partial<Question>): Promise<Question>;
+  deleteQuestion(id: number): Promise<void>;
+  getQuestionById(id: number): Promise<Question | undefined>;
+
   // Quiz operations
   createQuiz(quiz: InsertQuiz): Promise<Quiz>;
   getQuizWithQuestions(id: number): Promise<Quiz | undefined>;
   createQuizAttempt(attempt: InsertQuizAttempt): Promise<QuizAttempt>;
   getQuizAttempt(id: number): Promise<QuizAttempt | undefined>;
+
+  // Add new methods for quiz responses
   createQuizResponse(response: InsertQuizResponse): Promise<QuizResponse>;
   getQuizResponses(quizAttemptId: number): Promise<QuizResponse[]>;
-
-  // Quiz template operations
-  createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate>;
-  listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]>;
-  deleteQuizTemplate(id: number): Promise<void>;
-  getQuizTemplate(id: number): Promise<QuizTemplate | undefined>;
-  updateQuizTemplate(id: number, template: Partial<InsertQuizTemplate>): Promise<QuizTemplate>;
-
-  // Batch Quiz Template operations
-  assignQuizTemplateToBatch(mapping: InsertBatchQuizTemplate): Promise<BatchQuizTemplate>;
-  listQuizTemplatesForBatch(batchId: number): Promise<BatchQuizTemplate[]>;
-  removeQuizTemplateFromBatch(mappingId: number): Promise<void>;
-  getBatchQuizTemplate(mappingId: number): Promise<BatchQuizTemplate | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
-  // User Process methods
-  async assignProcessesToUser(processes: InsertUserProcess[]): Promise<UserProcess[]> {
-    try {
-      const assignedProcesses = await db
-        .insert(userProcesses)
-        .values(processes)
-        .returning() as UserProcess[];
-      return assignedProcesses;
-    } catch (error) {
-      console.error('Error assigning processes to user:', error);
-      throw new Error('Failed to assign processes to user');
-    }
-  }
-
-  async getUserProcesses(userId: number): Promise<UserProcess[]> {
-    try {
-      const processes = await db
-        .select({
-          id: userProcesses.id,
-          userId: userProcesses.userId,
-          processId: userProcesses.processId,
-          organizationId: userProcesses.organizationId,
-          status: userProcesses.status,
-          assignedAt: userProcesses.assignedAt,
-          completedAt: userProcesses.completedAt,
-          processName: organizationProcesses.name,
-        })
-        .from(userProcesses)
-        .leftJoin(
-          organizationProcesses,
-          eq(userProcesses.processId, organizationProcesses.id)
-        )
-        .where(eq(userProcesses.userId, userId)) as UserProcess[];
-
-      return processes;
-    } catch (error) {
-      console.error('Error fetching user processes:', error);
-      throw new Error('Failed to fetch user processes');
-    }
-  }
-
-  async removeUserProcess(userId: number, processId: number): Promise<void> {
-    try {
-      await db
-        .delete(userProcesses)
-        .where(eq(userProcesses.userId, userId))
-        .where(eq(userProcesses.processId, processId));
-    } catch (error) {
-      console.error('Error removing user process:', error);
-      throw new Error('Failed to remove user process');
-    }
-  }
-
-  async createUserProcess(process: InsertUserProcess): Promise<UserProcess> {
-    try {
-      const [newProcess] = await db
-        .insert(userProcesses)
-        .values(process)
-        .returning() as UserProcess[];
-      return newProcess;
-    } catch (error) {
-      console.error('Error creating user process:', error);
-      throw new Error('Failed to create user process');
-    }
-  }
-
-
+  // User operations
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id)) as User[];
     return user;
@@ -315,6 +348,58 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.organizationId, organizationId)) as User[];
   }
 
+  // User Process operations
+  async assignProcessesToUser(processes: InsertUserProcess[]): Promise<UserProcess[]> {
+    try {
+      const assignedProcesses = await db
+        .insert(userProcesses)
+        .values(processes)
+        .returning() as UserProcess[];
+      return assignedProcesses;
+    } catch (error) {
+      console.error('Error assigning processes to user:', error);
+      throw new Error('Failed to assign processes to user');
+    }
+  }
+
+  async getUserProcesses(userId: number): Promise<UserProcess[]> {
+    try {
+      const processes = await db
+        .select({
+          id: userProcesses.id,
+          userId: userProcesses.userId,
+          processId: userProcesses.processId,
+          organizationId: userProcesses.organizationId,
+          status: userProcesses.status,
+          assignedAt: userProcesses.assignedAt,
+          completedAt: userProcesses.completedAt,
+          processName: organizationProcesses.name,
+        })
+        .from(userProcesses)
+        .leftJoin(
+          organizationProcesses,
+          eq(userProcesses.processId, organizationProcesses.id)
+        )
+        .where(eq(userProcesses.userId, userId)) as UserProcess[];
+
+      return processes;
+    } catch (error) {
+      console.error('Error fetching user processes:', error);
+      throw new Error('Failed to fetch user processes');
+    }
+  }
+
+  async removeUserProcess(userId: number, processId: number): Promise<void> {
+    try {
+      await db
+        .delete(userProcesses)
+        .where(eq(userProcesses.userId, userId))
+        .where(eq(userProcesses.processId, processId));
+    } catch (error) {
+      console.error('Error removing user process:', error);
+      throw new Error('Failed to remove user process');
+    }
+  }
 
   // Organization operations
   async getOrganization(id: number): Promise<Organization | undefined> {
@@ -675,7 +760,58 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // Add new methods for user process management
+  async assignProcessesToUser(processes: InsertUserProcess[]): Promise<UserProcess[]> {
+    try {
+      const assignedProcesses = await db
+        .insert(userProcesses)
+        .values(processes)
+        .returning() as UserProcess[];
+      return assignedProcesses;
+    } catch (error) {
+      console.error('Error assigning processes to user:', error);
+      throw new Error('Failed to assign processes to user');
+    }
+  }
 
+  async getUserProcesses(userId: number): Promise<UserProcess[]> {
+    try {
+      const processes = await db
+        .select({
+          id: userProcesses.id,
+          userId: userProcesses.userId,
+          processId: userProcesses.processId,
+          organizationId: userProcesses.organizationId,
+          status: userProcesses.status,
+          assignedAt: userProcesses.assignedAt,
+          completedAt: userProcesses.completedAt,
+          processName: organizationProcesses.name,
+        })
+        .from(userProcesses)
+        .leftJoin(
+          organizationProcesses,
+          eq(userProcesses.processId, organizationProcesses.id)
+        )
+        .where(eq(userProcesses.userId, userId)) as UserProcess[];
+
+      return processes;
+    } catch (error) {
+      console.error('Error fetching user processes:', error);
+      throw new Error('Failed to fetch user processes');
+    }
+  }
+
+  async removeUserProcess(userId: number, processId: number): Promise<void> {
+    try {
+      await db
+        .delete(userProcesses)
+        .where(eq(userProcesses.userId, userId))
+        .where(eq(userProcesses.processId, processId));
+    } catch (error) {
+      console.error('Error removing user process:', error);
+      throw new Error('Failed to remove user process');
+    }
+  }
   async createUserWithProcesses(
     user: InsertUser,
     processIds: number[],
@@ -972,8 +1108,7 @@ export class DatabaseStorage implements IStorage {
 
 
       return batches as OrganizationBatch[];
-    }
-    catch (error) {
+    } catch (error) {
       console.error('Error fetching batches:', error);
       throw error;
     }
@@ -1408,12 +1543,12 @@ export class DatabaseStorage implements IStorage {
           .execute();
         console.log(`Deleted user_processes records for user ${userId}`);
 
-        // 3. Delete the user (This part seems incorrect, should not delete the user)
-        //await tx
-        //  .delete(users)
-        //  .where(eq(users.id, userId))
-        //  .execute();
-        //console.log(`Deleted user record ${userId}`);
+        // 3. Delete the user
+        await tx
+          .delete(users)
+          .where(eq(users.id, userId))
+          .execute();
+        console.log(`Deleted user record ${userId}`);
       });
 
       console.log(`Successfully removed trainee and related records`);
@@ -1818,8 +1953,7 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Check for duplicate template names in the organization
-      const existingTemplate = await db
-        .select()
+      const existingTemplate = await db        .select()
         .from(quizTemplates)
         .where(
           and(
@@ -1983,7 +2117,7 @@ export class DatabaseStorage implements IStorage {
 
       console.log('Successfully updated quiz template:', updatedTemplate);
       return updatedTemplate;
-    } catch(error: any) {
+    } catch (error: any) {
       console.error('Error updating quiz template:', error);
       throw error;
     }
@@ -2219,135 +2353,6 @@ export class DatabaseStorage implements IStorage {
         .where(eq(quizResponses.quizAttemptId, quizAttemptId)) as QuizResponse[];
     } catch (error) {
       console.error('Error fetching quiz responses:', error);
-      throw error;
-    }
-  }
-  // Assign a quiz template to a batch
-  async assignQuizTemplateToBatch(mapping: InsertBatchQuizTemplate): Promise<BatchQuizTemplate> {
-    try {
-      console.log('Assigning quiz template to batch:', mapping);
-
-      // Verify batch exists
-      const batch = await this.getBatch(mapping.batchId);
-      if (!batch) {
-        throw new Error('Batch not found');
-      }
-
-      // Verify quiz template exists
-      const template = await this.getQuizTemplate(mapping.quizTemplateId);
-      if (!template) {
-        throw new Error('Quiz template not found');
-      }
-
-      // Check if assignment already exists
-      const existing = await db
-        .select()
-        .from(batchQuizTemplates)
-        .where(
-          and(
-            eq(batchQuizTemplates.batchId, mapping.batchId),
-            eq(batchQuizTemplates.quizTemplateId, mapping.quizTemplateId)
-          )
-        ) as BatchQuizTemplate[];
-
-      if (existing.length > 0) {
-        throw new Error('Quiz template is already assigned to this batch');
-      }
-
-      const [result] = await db
-        .insert(batchQuizTemplates)
-        .values({
-          ...mapping,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-        .returning() as BatchQuizTemplate[];
-
-      console.log('Successfully assigned quiz template to batch:', result);
-      return result;
-    } catch (error: any) {
-      console.error('Error assigning quiz template to batch:', error);
-      throw error;
-    }
-  }
-
-  // List all quiz templates for a batch
-  async listQuizTemplatesForBatch(batchId: number): Promise<BatchQuizTemplate[]> {
-    try {
-      console.log(`Fetching quiz templates for batch ${batchId}`);
-
-      const assignments = await db
-        .select({
-          id: batchQuizTemplates.id,
-          batchId: batchQuizTemplates.batchId,
-          quizTemplateId: batchQuizTemplates.quizTemplateId,
-          organizationId: batchQuizTemplates.organizationId,
-          assignedBy: batchQuizTemplates.assignedBy,
-          createdAt: batchQuizTemplates.createdAt,
-          updatedAt: batchQuizTemplates.updatedAt,
-          templateName: quizTemplates.name,
-          templateDescription: quizTemplates.description,
-          assignerName: users.username
-        })
-        .from(batchQuizTemplates)
-        .leftJoin(
-          quizTemplates,
-          eq(batchQuizTemplates.quizTemplateId, quizTemplates.id)
-        )
-        .leftJoin(
-          users,
-          eq(batchQuizTemplates.assignedBy, users.id)
-        )
-        .where(eq(batchQuizTemplates.batchId, batchId)) as BatchQuizTemplate[];
-
-      console.log(`Found ${assignments.length} quiz templates assigned to batch`);
-      return assignments;
-    } catch (error: any) {
-      console.error('Error fetching quiz templates for batch:', error);
-      throw error;
-    }
-  }
-
-  // Get a specific batch quiz template assignment
-  async getBatchQuizTemplate(mappingId: number): Promise<BatchQuizTemplate | undefined> {
-    try {
-      console.log(`Fetching batch quiz template assignment ${mappingId}`);
-
-      const [assignment] = await db
-        .select()
-        .from(batchQuizTemplates)
-        .where(eq(batchQuizTemplates.id, mappingId)) as BatchQuizTemplate[];
-
-      return assignment;
-    } catch (error: any) {
-      console.error('Error fetching batch quiz template:', error);
-      throw error;
-    }
-  }
-
-  // Remove a quiz template assignment from a batch
-  async removeQuizTemplateFromBatch(mappingId: number): Promise<void> {
-    try {
-      console.log(`Attempting to remove quiz template assignment ${mappingId}`);
-
-      // Verify assignment exists
-      const assignment = await this.getBatchQuizTemplate(mappingId);
-      if (!assignment) {
-        throw new Error('Quiz template assignment not found');
-      }
-
-      const result = await db
-        .delete(batchQuizTemplates)
-        .where(eq(batchQuizTemplates.id, mappingId))
-        .returning();
-
-      if (!result.length) {
-        throw new Error('Failed to remove quiz template assignment');
-      }
-
-      console.log('Successfully removed quiz template assignment');
-    } catch (error: any) {
-      console.error('Error removing quiz template from batch:', error);
       throw error;
     }
   }

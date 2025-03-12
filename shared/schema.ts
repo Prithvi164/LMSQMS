@@ -32,7 +32,6 @@ export const batchStatusEnum = pgEnum('batch_status', [
 ]);
 
 export const userCategoryTypeEnum = pgEnum('user_category_type', ['active', 'trainee']);
-
 export const roleEnum = pgEnum('role', [
   'owner',
   'admin',
@@ -79,148 +78,6 @@ export const processStatusEnum = pgEnum('process_status', [
   'inactive',
   'archived'
 ]);
-
-// Core tables
-export const organizations = pgTable("organizations", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const organizationLocations = pgTable("organization_locations", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull().unique(),
-  address: text("address").notNull(),
-  city: text("city").notNull(),
-  state: text("state").notNull(),
-  country: text("country").notNull(),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const organizationLineOfBusinesses = pgTable("organization_line_of_businesses", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull().unique(),
-  description: text("description").notNull(),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const organizationProcesses = pgTable("organization_processes", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull().unique(),
-  description: text("description"),
-  status: processStatusEnum("status").default('active').notNull(),
-  inductionDays: integer("induction_days").notNull(),
-  trainingDays: integer("training_days").notNull(),
-  certificationDays: integer("certification_days").notNull(),
-  ojtDays: integer("ojt_days").notNull(),
-  ojtCertificationDays: integer("ojt_certification_days").notNull(),
-  lineOfBusinessId: integer("line_of_business_id")
-    .references(() => organizationLineOfBusinesses.id)
-    .notNull(),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  fullName: text("full_name").notNull(),
-  employeeId: text("employee_id").notNull().unique(),
-  role: roleEnum("role").notNull(),
-  category: userCategoryTypeEnum("category").default('trainee').notNull(),
-  locationId: integer("location_id").references(() => organizationLocations.id),
-  email: text("email").notNull(),
-  education: text("education"),
-  dateOfJoining: date("date_of_joining"),
-  phoneNumber: text("phone_number"),
-  dateOfBirth: date("date_of_birth"),
-  lastWorkingDay: date("last_working_day"),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id),
-  managerId: integer("manager_id")
-    .references(() => users.id),
-  active: boolean("active").notNull().default(true),
-  certified: boolean("certified").notNull().default(false),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
-});
-
-// User-Process assignments
-export const userProcesses = pgTable("user_processes", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id")
-    .references(() => users.id)
-    .notNull(),
-  processId: integer("process_id")
-    .references(() => organizationProcesses.id)
-    .notNull(),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
-  lineOfBusinessId: integer("line_of_business_id")
-    .references(() => organizationLineOfBusinesses.id),  
-  locationId: integer("location_id")
-    .references(() => organizationLocations.id),  
-  status: text("status").default('assigned').notNull(),
-  assignedAt: timestamp("assigned_at").defaultNow().notNull(),
-  completedAt: timestamp("completed_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-}, (table) => {
-  return {
-    unq: unique().on(table.userId, table.processId),
-  };
-});
-
-export const userBatchStatusEnum = pgEnum('user_batch_status', [
-  'active',
-  'completed',
-  'dropped',
-  'on_hold'
-]);
-
-export const userBatchProcesses = pgTable("user_batch_processes", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id")
-    .references(() => users.id)
-    .notNull(),
-  batchId: integer("batch_id")
-    .references(() => organizationBatches.id)
-    .notNull(),
-  processId: integer("process_id")
-    .references(() => organizationProcesses.id)
-    .notNull(),
-  status: userBatchStatusEnum("status").default('active').notNull(),
-  joinedAt: timestamp("joined_at").defaultNow().notNull(),
-  completedAt: timestamp("completed_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-}, (table) => {
-  return {
-    unq: unique().on(table.userId, table.batchId, table.processId),
-  };
-});
-
-export const rolePermissions = pgTable("role_permissions", {
-  id: serial("id").primaryKey(),
-  role: roleEnum("role").notNull(),
-  permissions: jsonb("permissions").notNull().$type<string[]>(),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
 
 // Quiz-related tables
 export const questions = pgTable("questions", {
@@ -330,252 +187,14 @@ export const quizResponses = pgTable("quiz_responses", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// After the quiz-related types, before the relations
-// Add batch-related enums and tables
-export const batchHistoryEventTypeEnum = pgEnum('batch_history_event_type', [
-  'phase_change',
-  'status_update',
-  'milestone',
-  'note'
-]);
+// Quiz-related types
+export type Question = InferSelectModel<typeof questions>;
+export type QuizTemplate = InferSelectModel<typeof quizTemplates>;
+export type Quiz = InferSelectModel<typeof quizzes>;
+export type QuizAttempt = InferSelectModel<typeof quizAttempts>;
+export type QuizResponse = InferSelectModel<typeof quizResponses>;
 
-export const batchHistory = pgTable("batch_history", {
-  id: serial("id").primaryKey(),
-  batchId: integer("batch_id")
-    .references(() => organizationBatches.id)
-    .notNull(),
-  eventType: batchHistoryEventTypeEnum("event_type").notNull(),
-  description: text("description").notNull(),
-  previousValue: text("previous_value"),
-  newValue: text("new_value"),
-  date: timestamp("date").defaultNow().notNull(),
-  userId: integer("user_id")
-    .references(() => users.id)
-    .notNull(),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export type BatchHistory = InferSelectModel<typeof batchHistory>;
-
-export const insertBatchHistorySchema = createInsertSchema(batchHistory)
-  .omit({
-    id: true,
-    createdAt: true,
-  })
-  .extend({
-    batchId: z.number().int().positive("Batch ID is required"),
-    eventType: z.enum(['phase_change', 'status_update', 'milestone', 'note']),
-    description: z.string().min(1, "Description is required"),
-    previousValue: z.string().optional(),
-    newValue: z.string().optional(),
-    date: z.string().min(1, "Date is required"),
-    userId: z.number().int().positive("User ID is required"),
-    organizationId: z.number().int().positive("Organization ID is required"),
-  });
-
-export type InsertBatchHistory = z.infer<typeof insertBatchHistorySchema>;
-
-export const organizationBatches = pgTable("organization_batches", {
-  id: serial("id").primaryKey(),
-  batchCategory: batchCategoryEnum("batch_category").notNull(),
-  name: text("name").notNull().unique(),
-  startDate: date("start_date").notNull(),
-  endDate: date("end_date").notNull(),
-  status: batchStatusEnum("status").default('planned').notNull(),
-  capacityLimit: integer("capacity_limit").notNull(),
-  processId: integer("process_id")
-    .references(() => organizationProcesses.id)
-    .notNull(),
-  locationId: integer("location_id")
-    .references(() => organizationLocations.id)
-    .notNull(),
-  trainerId: integer("trainer_id")
-    .references(() => users.id, { onDelete: 'set null' }),  
-  organizationId: integer("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
-  lineOfBusinessId: integer("line_of_business_id")
-    .references(() => organizationLineOfBusinesses.id)
-    .notNull(),
-  inductionStartDate: date("induction_start_date").notNull(),
-  inductionEndDate: date("induction_end_date"),
-  trainingStartDate: date("training_start_date"),
-  trainingEndDate: date("training_end_date"),
-  certificationStartDate: date("certification_start_date"),
-  certificationEndDate: date("certification_end_date"),
-  ojtStartDate: date("ojt_start_date"),
-  ojtEndDate: date("ojt_end_date"),
-  ojtCertificationStartDate: date("ojt_certification_start_date"),
-  ojtCertificationEndDate: date("ojt_certification_end_date"),
-  handoverToOpsDate: date("handover_to_ops_date"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export type OrganizationBatch = InferSelectModel<typeof organizationBatches>;
-
-export const insertOrganizationBatchSchema = createInsertSchema(organizationBatches)
-  .omit({
-    id: true,
-    createdAt: true,
-    updatedAt: true,
-  })
-  .extend({
-    batchCategory: z.enum(['new_training', 'upskill']),
-    name: z.string().min(1, "Batch name is required"),
-    startDate: z.string().min(1, "Start date is required"),
-    endDate: z.string().min(1, "End date is required"),
-    inductionStartDate: z.string().min(1, "Induction Start date is required"),
-    inductionEndDate: z.string().optional(),
-    trainingStartDate: z.string().optional(),
-    trainingEndDate: z.string().optional(),
-    certificationStartDate: z.string().optional(),
-    certificationEndDate: z.string().optional(),
-    ojtStartDate: z.string().optional(),
-    ojtEndDate: z.string().optional(),
-    ojtCertificationStartDate: z.string().optional(),
-    ojtCertificationEndDate: z.string().optional(),
-    handoverToOpsDate: z.string().optional(),
-    capacityLimit: z.number().int().min(1, "Capacity must be at least 1"),
-    status: z.enum(['planned', 'induction', 'training', 'certification', 'ojt', 'ojt_certification', 'completed']).default('planned'),
-    processId: z.number().int().positive("Process is required"),
-    locationId: z.number().int().positive("Location is required"),
-    lineOfBusinessId: z.number().int().positive("Line of Business is required"),
-    trainerId: z.number().int().positive("Trainer is required"),
-    organizationId: z.number().int().positive("Organization is required"),
-  });
-
-export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
-
-export const batchHistoryRelations = relations(batchHistory, ({ one }) => ({
-  batch: one(organizationBatches, {
-    fields: [batchHistory.batchId],
-    references: [organizationBatches.id],
-  }),
-  user: one(users, {
-    fields: [batchHistory.userId],
-    references: [users.id],
-  }),
-  organization: one(organizations, {
-    fields: [batchHistory.organizationId],
-    references: [organizations.id],
-  }),
-}));
-
-// Relations
-export const organizationsRelations = relations(organizations, ({ many }) => ({
-  users: many(users),
-  processes: many(organizationProcesses),
-  locations: many(organizationLocations),
-  lineOfBusinesses: many(organizationLineOfBusinesses),
-  rolePermissions: many(rolePermissions)
-}));
-
-export const usersRelations = relations(users, ({ one, many }) => ({
-  organization: one(organizations, {
-    fields: [users.organizationId],
-    references: [organizations.id],
-  }),
-  manager: one(users, {
-    fields: [users.managerId],
-    references: [users.id],
-  }),
-  location: one(organizationLocations, {
-    fields: [users.locationId],
-    references: [organizationLocations.id],
-  }),
-  processes: many(userProcesses),
-  batchProcesses: many(userBatchProcesses)
-}));
-
-export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => ({
-  organization: one(organizations, {
-    fields: [rolePermissions.organizationId],
-    references: [organizations.id],
-  }),
-}));
-
-export const questionsRelations = relations(questions, ({ one }) => ({
-  process: one(organizationProcesses, {
-    fields: [questions.processId],
-    references: [organizationProcesses.id],
-  }),
-  organization: one(organizations, {
-    fields: [questions.organizationId],
-    references: [organizations.id],
-  }),
-  creator: one(users, {
-    fields: [questions.createdBy],
-    references: [users.id],
-  }),
-}));
-
-export const quizTemplatesRelations = relations(quizTemplates, ({ one }) => ({
-  process: one(organizationProcesses, {
-    fields: [quizTemplates.processId],
-    references: [organizationProcesses.id],
-  }),
-  organization: one(organizations, {
-    fields: [quizTemplates.organizationId],
-    references: [organizations.id],
-  }),
-  creator: one(users, {
-    fields: [quizTemplates.createdBy],
-    references: [users.id],
-  }),
-}));
-
-export const quizzesRelations = relations(quizzes, ({ one, many }) => ({
-  template: one(quizTemplates, {
-    fields: [quizzes.templateId],
-    references: [quizTemplates.id],
-  }),
-  organization: one(organizations, {
-    fields: [quizzes.organizationId],
-    references: [organizations.id],
-  }),
-  creator: one(users, {
-    fields: [quizzes.createdBy],
-    references: [users.id],
-  }),
-  process: one(organizationProcesses, {
-    fields: [quizzes.processId],
-    references: [organizationProcesses.id],
-  }),
-  attempts: many(quizAttempts)
-}));
-
-// Insert schemas
-export const insertUserSchema = createInsertSchema(users)
-  .omit({ id: true, createdAt: true })
-  .extend({
-    fullName: z.string().min(1, "Full name is required"),
-    employeeId: z.string().min(1, "Employee ID is required"),
-    email: z.string().email("Invalid email format"),
-    phoneNumber: z.string().regex(/^\d{10}$/, "Phone number must be 10 digits"),
-    dateOfJoining: z.string().optional(),
-    dateOfBirth: z.string().optional(),
-    lastWorkingDay: z.string().optional().nullable(),
-    education: z.string().optional(),
-    certified: z.boolean().default(false),
-    active: z.boolean().default(true),
-    category: z.enum(['active', 'trainee']).default('trainee'),
-    role: z.enum(['owner', 'admin', 'manager', 'team_lead', 'quality_analyst', 'trainer', 'advisor', 'trainee']).default('trainee'),
-  });
-
-export const insertRolePermissionSchema = createInsertSchema(rolePermissions)
-  .omit({
-    id: true,
-    createdAt: true,
-    updatedAt: true,
-  });
-
-export const insertOrganizationSchema = createInsertSchema(organizations)
-  .omit({ id: true, createdAt: true });
-
+// Quiz-related schemas
 export const insertQuestionSchema = createInsertSchema(questions)
   .omit({
     id: true,
@@ -668,15 +287,749 @@ export const insertQuizResponseSchema = createInsertSchema(quizResponses)
     isCorrect: z.boolean(),
   });
 
+export type InsertQuestion = z.infer<typeof insertQuestionSchema>;
+export type InsertQuizTemplate = z.infer<typeof insertQuizTemplateSchema>;
+export type InsertQuiz = z.infer<typeof insertQuizSchema>;
+export type InsertQuizAttempt = z.infer<typeof insertQuizAttemptSchema>;
+export type InsertQuizResponse = z.infer<typeof insertQuizResponseSchema>;
 
-// Add phase change request status enum
+// Quiz-related relations
+export const questionsRelations = relations(questions, ({ one }) => ({
+  process: one(organizationProcesses, {
+    fields: [questions.processId],
+    references: [organizationProcesses.id],
+  }),
+  organization: one(organizations, {
+    fields: [questions.organizationId],
+    references: [organizations.id],
+  }),
+  creator: one(users, {
+    fields: [questions.createdBy],
+    references: [users.id],
+  }),
+}));
+
+export const quizTemplatesRelations = relations(quizTemplates, ({ one }) => ({
+  process: one(organizationProcesses, {
+    fields: [quizTemplates.processId],
+    references: [organizationProcesses.id],
+  }),
+  organization: one(organizations, {
+    fields: [quizTemplates.organizationId],
+    references: [organizations.id],
+  }),
+  creator: one(users, {
+    fields: [quizTemplates.createdBy],
+    references: [users.id],
+  }),
+}));
+
+export const quizzesRelations = relations(quizzes, ({ one, many }) => ({
+  template: one(quizTemplates, {
+    fields: [quizzes.templateId],
+    references: [quizTemplates.id],
+  }),
+  organization: one(organizations, {
+    fields: [quizzes.organizationId],
+    references: [organizations.id],
+  }),
+  creator: one(users, {
+    fields: [quizzes.createdBy],
+    references: [users.id],
+  }),
+  process: one(organizationProcesses, {
+    fields: [quizzes.processId],
+    references: [organizationProcesses.id],
+  }),
+  attempts: many(quizAttempts),
+}));
+
+export const quizAttemptsRelations = relations(quizAttempts, ({ one, many }) => ({
+  quiz: one(quizzes, {
+    fields: [quizAttempts.quizId],
+    references: [quizzes.id],
+  }),
+  user: one(users, {
+    fields: [quizAttempts.userId],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [quizAttempts.organizationId],
+    references: [organizations.id],
+  }),
+  responses: many(quizResponses)
+}));
+
+export const quizResponsesRelations = relations(quizResponses, ({ one }) => ({
+  attempt: one(quizAttempts, {
+    fields: [quizResponses.quizAttemptId],
+    references: [quizAttempts.id],
+  }),
+  question: one(questions, {
+    fields: [quizResponses.questionId],
+    references: [questions.id],
+  }),
+}));
+
+
+export const batchTemplates = pgTable("batch_templates", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  processId: integer("process_id")
+    .references(() => organizationProcesses.id)
+    .notNull(),
+  locationId: integer("location_id")
+    .references(() => organizationLocations.id)
+    .notNull(),
+  lineOfBusinessId: integer("line_of_business_id")
+    .references(() => organizationLineOfBusinesses.id)
+    .notNull(),
+  trainerId: integer("trainer_id")
+    .references(() => users.id, { onDelete: 'set null' }),  
+  batchCategory: batchCategoryEnum("batch_category").notNull(),
+  capacityLimit: integer("capacity_limit").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type BatchTemplate = InferSelectModel<typeof batchTemplates>;
+
+// Add template schema validation
+export const insertBatchTemplateSchema = createInsertSchema(batchTemplates)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    name: z.string().min(1, "Template name is required"),
+    description: z.string().optional(),
+    organizationId: z.number().int().positive("Organization is required"),
+    processId: z.number().int().positive("Process is required"),
+    locationId: z.number().int().positive("Location is required"),
+    lineOfBusinessId: z.number().int().positive("Line of Business is required"),
+    trainerId: z.number().int().positive("Trainer is required"),
+    batchCategory: z.enum(['new_training', 'upskill']),
+    capacityLimit: z.number().int().min(1, "Capacity must be at least 1"),
+  });
+
+export type InsertBatchTemplate = z.infer<typeof insertBatchTemplateSchema>;
+
+// Add relations for batch templates
+export const batchTemplatesRelations = relations(batchTemplates, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [batchTemplates.organizationId],
+    references: [organizations.id],
+  }),
+  process: one(organizationProcesses, {
+    fields: [batchTemplates.processId],
+    references: [organizationProcesses.id],
+  }),
+  location: one(organizationLocations, {
+    fields: [batchTemplates.locationId],
+    references: [organizationLocations.id],
+  }),
+  lob: one(organizationLineOfBusinesses, {
+    fields: [batchTemplates.lineOfBusinessId],
+    references: [organizationLineOfBusinesses.id],
+  }),
+  trainer: one(users, {
+    fields: [batchTemplates.trainerId],
+    references: [users.id],
+  }),
+}));
+
+export const organizationBatches = pgTable("organization_batches", {
+  id: serial("id").primaryKey(),
+  batchCategory: batchCategoryEnum("batch_category").notNull(),
+  name: text("name").notNull().unique(),
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date").notNull(),
+  status: batchStatusEnum("status").default('planned').notNull(),
+  capacityLimit: integer("capacity_limit").notNull(),
+  processId: integer("process_id")
+    .references(() => organizationProcesses.id)
+    .notNull(),
+  locationId: integer("location_id")
+    .references(() => organizationLocations.id)
+    .notNull(),
+  trainerId: integer("trainer_id")
+    .references(() => users.id, { onDelete: 'set null' }),  
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  lineOfBusinessId: integer("line_of_business_id")
+    .references(() => organizationLineOfBusinesses.id)
+    .notNull(),
+  inductionStartDate: date("induction_start_date").notNull(),
+  inductionEndDate: date("induction_end_date"),
+  trainingStartDate: date("training_start_date"),
+  trainingEndDate: date("training_end_date"),
+  certificationStartDate: date("certification_start_date"),
+  certificationEndDate: date("certification_end_date"),
+  ojtStartDate: date("ojt_start_date"),
+  ojtEndDate: date("ojt_end_date"),
+  ojtCertificationStartDate: date("ojt_certification_start_date"),
+  ojtCertificationEndDate: date("ojt_certification_end_date"),
+  handoverToOpsDate: date("handover_to_ops_date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type OrganizationBatch = InferSelectModel<typeof organizationBatches>;
+
+// Add relations for batches
+export const organizationBatchesRelations = relations(organizationBatches, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [organizationBatches.organizationId],
+    references: [organizations.id],
+  }),
+  process: one(organizationProcesses, {
+    fields: [organizationBatches.processId],
+    references: [organizationProcesses.id],
+  }),
+  location: one(organizationLocations, {
+    fields: [organizationBatches.locationId],
+    references: [organizationLocations.id],
+  }),
+  lob: one(organizationLineOfBusinesses, {
+    fields: [organizationBatches.lineOfBusinessId],
+    references: [organizationLineOfBusinesses.id],
+  }),
+  trainer: one(users, {
+    fields: [organizationBatches.trainerId],
+    references: [users.id],
+  }),
+}));
+
+// Update validation schema to properly handle the enum
+export const insertOrganizationBatchSchema = createInsertSchema(organizationBatches)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    batchCategory: z.enum(['new_training', 'upskill']),
+    name: z.string().min(1, "Batch name is required"),
+    startDate: z.string().min(1, "Start date is required"),
+    endDate: z.string().min(1, "End date is required"),
+    inductionStartDate: z.string().min(1, "Induction Start date is required"),
+    inductionEndDate: z.string().optional(),
+    trainingStartDate: z.string().optional(),
+    trainingEndDate: z.string().optional(),
+    certificationStartDate: z.string().optional(),
+    certificationEndDate: z.string().optional(),
+    ojtStartDate: z.string().optional(),
+    ojtEndDate: z.string().optional(),
+    ojtCertificationStartDate: z.string().optional(),
+    ojtCertificationEndDate: z.string().optional(),
+    handoverToOpsDate: z.string().optional(),
+    capacityLimit: z.number().int().min(1, "Capacity must be at least 1"),
+    status: z.enum(['planned', 'induction', 'training', 'certification', 'ojt', 'ojt_certification', 'completed']).default('planned'),
+    processId: z.number().int().positive("Process is required"),
+    locationId: z.number().int().positive("Location is required"),
+    lineOfBusinessId: z.number().int().positive("Line of Business is required"),
+    trainerId: z.number().int().positive("Trainer is required"),
+    organizationId: z.number().int().positive("Organization is required"),
+  });
+
+export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
+
+export const organizations = pgTable("organizations", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type Organization = InferSelectModel<typeof organizations>;
+
+export const organizationProcesses = pgTable("organization_processes", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  status: processStatusEnum("status").default('active').notNull(),
+  inductionDays: integer("induction_days").notNull(),
+  trainingDays: integer("training_days").notNull(),
+  certificationDays: integer("certification_days").notNull(),
+  ojtDays: integer("ojt_days").notNull(),
+  ojtCertificationDays: integer("ojt_certification_days").notNull(),
+  lineOfBusinessId: integer("line_of_business_id")
+    .references(() => organizationLineOfBusinesses.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type OrganizationProcess = typeof organizationProcesses.$inferSelect;
+
+export const organizationLocations = pgTable("organization_locations", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  address: text("address").notNull(),
+  city: text("city").notNull(),
+  state: text("state").notNull(),
+  country: text("country").notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type OrganizationLocation = InferSelectModel<typeof organizationLocations>;
+
+export const organizationLineOfBusinesses = pgTable("organization_line_of_businesses", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description").notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type OrganizationLineOfBusiness = InferSelectModel<typeof organizationLineOfBusinesses>;
+
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+  fullName: text("full_name").notNull(),
+  employeeId: text("employee_id").notNull().unique(),
+  role: roleEnum("role").notNull(),
+  category: userCategoryTypeEnum("category").default('trainee').notNull(),
+  locationId: integer("location_id").references(() => organizationLocations.id),
+  email: text("email").notNull(),
+  education: text("education"),
+  dateOfJoining: date("date_of_joining"),
+  phoneNumber: text("phone_number"),
+  dateOfBirth: date("date_of_birth"),
+  lastWorkingDay: date("last_working_day"),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id),
+  managerId: integer("manager_id")
+    .references(() => users.id),
+  active: boolean("active").notNull().default(true),
+  certified: boolean("certified").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
+});
+
+export type User = InferSelectModel<typeof users>;
+
+export const userProcesses = pgTable("user_processes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .references(() => users.id)
+    .notNull(),
+  processId: integer("process_id")
+    .references(() => organizationProcesses.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  lineOfBusinessId: integer("line_of_business_id")
+    .references(() => organizationLineOfBusinesses.id),  
+  locationId: integer("location_id")
+    .references(() => organizationLocations.id),  
+  status: text("status").default('assigned').notNull(),
+  assignedAt: timestamp("assigned_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    unq: unique().on(table.userId, table.processId),
+  };
+});
+
+export type UserProcess = typeof userProcesses.$inferSelect;
+
+export const rolePermissions = pgTable("role_permissions", {
+  id: serial("id").primaryKey(),
+  role: roleEnum("role").notNull(),
+  permissions: jsonb("permissions").notNull().$type<string[]>(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const organizationsRelations = relations(organizations, ({ many }) => ({
+  users: many(users),
+  processes: many(organizationProcesses),
+  locations: many(organizationLocations),
+  lineOfBusinesses: many(organizationLineOfBusinesses),
+  rolePermissions: many(rolePermissions),
+  batches: many(organizationBatches)
+}));
+
+export const organizationProcessesRelations = relations(organizationProcesses, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [organizationProcesses.organizationId],
+    references: [organizations.id],
+  }),
+  lineOfBusiness: one(organizationLineOfBusinesses, {
+    fields: [organizationProcesses.lineOfBusinessId],
+    references: [organizationLineOfBusinesses.id],
+  }),
+  batches: many(organizationBatches),
+  templates: many(batchTemplates)
+}));
+
+export const organizationLocationsRelations = relations(organizationLocations, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [organizationLocations.organizationId],
+    references: [organizations.id],
+  }),
+  batches: many(organizationBatches)
+}));
+
+export const userBatchStatusEnum = pgEnum('user_batch_status', [
+  'active',
+  'completed',
+  'dropped',
+  'on_hold'
+]);
+
+export const userBatchProcesses = pgTable("user_batch_processes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .references(() => users.id)
+    .notNull(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id)
+    .notNull(),
+  processId: integer("process_id")
+    .references(() => organizationProcesses.id)
+    .notNull(),
+  status: userBatchStatusEnum("status").default('active').notNull(),
+  joinedAt: timestamp("joined_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    // Ensure a user can only be assigned to a batch-process combination once
+    unq: unique().on(table.userId, table.batchId, table.processId),
+  };
+});
+
+export type UserBatchProcess = InferSelectModel<typeof userBatchProcesses>;
+
+export const insertUserBatchProcessSchema = createInsertSchema(userBatchProcesses)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    userId: z.number().int().positive("User ID is required"),
+    batchId: z.number().int().positive("Batch ID is required"),
+    processId: z.number().int().positive("Process ID is required"),
+    status: z.enum(['active', 'completed', 'dropped', 'on_hold']).default('active'),
+    joinedAt: z.string().min(1, "Joined date is required"),
+    completedAt: z.string().optional(),
+  });
+
+export type InsertUserBatchProcess = z.infer<typeof insertUserBatchProcessSchema>;
+
+export const userBatchProcessesRelations = relations(userBatchProcesses, ({ one }) => ({
+  user: one(users, {
+    fields: [userBatchProcesses.userId],
+    references: [users.id],
+  }),
+  batch: one(organizationBatches, {
+    fields: [userBatchProcesses.batchId],
+    references: [organizationBatches.id],
+  }),
+  process: one(organizationProcesses, {
+    fields: [userBatchProcesses.processId],
+    references: [organizationProcesses.id],
+  }),
+}));
+
+export const usersRelations = relations(users, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [users.organizationId],
+    references: [organizations.id],
+  }),
+  manager: one(users, {
+    fields: [users.managerId],
+    references: [users.id],
+  }),
+  location: one(organizationLocations, {
+    fields: [users.locationId],
+    references: [organizationLocations.id],
+  }),
+  managedProcesses: many(userProcesses),
+  batches: many(organizationBatches),
+  batchProcesses: many(userBatchProcesses)
+}));
+
+export const userProcessesRelations = relations(userProcesses, ({ one }) => ({
+  user: one(users, {
+    fields: [userProcesses.userId],
+    references: [users.id],
+  }),
+  process: one(organizationProcesses, {
+    fields: [userProcesses.processId],
+    references: [organizationProcesses.id],
+  }),
+  organization: one(organizations, {
+    fields: [userProcesses.organizationId],
+    references: [organizations.id],
+  }),
+  lineOfBusiness: one(organizationLineOfBusinesses, {
+    fields: [userProcesses.lineOfBusinessId],
+    references: [organizationLineOfBusinesses.id],
+  }),
+  location: one(organizationLocations, {
+    fields: [userProcesses.locationId],
+    references: [organizationLocations.id],
+  }),
+}));
+
+export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [rolePermissions.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
+export const insertOrganizationProcessSchema = createInsertSchema(organizationProcesses)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true
+  })
+  .extend({
+    name: z.string().min(1, "Process name is required"),
+    description: z.string().optional(),
+    status: z.enum(['active', 'inactive', 'archived']).default('active'),
+    inductionDays: z.number().min(0, "Induction days cannot be negative"),
+    trainingDays: z.number().min(0, "Training days cannot be negative"),
+    certificationDays: z.number().min(0, "Certification days cannot be negative"),
+    ojtDays: z.number().min(0, "OJT days cannot be negative"),
+    ojtCertificationDays: z.number().min(0, "OJT certification days cannot be negative"),
+    lineOfBusinessId: z.number().int().positive("Line of Business is required"),
+    organizationId: z.number().int().positive("Organization is required")
+  });
+
+export const insertOrganizationLocationSchema = createInsertSchema(organizationLocations)
+  .omit({
+    id: true,
+    createdAt: true
+  })
+  .extend({
+    name: z.string().min(1, "Location name is required"),
+    address: z.string().min(1, "Address is required"),
+    city: z.string().min(1, "City is required"),
+    state: z.string().min(1, "State is required"),
+    country: z.string().min(1, "Country is required"),
+    organizationId: z.number().int().positive("Organization is required"),
+  });
+
+export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organizationLineOfBusinesses)
+  .omit({
+    id: true,
+    createdAt: true
+  })
+  .extend({    name: z.string().min(1, "LOB name is required"),
+    description: z.string().min(1, "Description is required"),
+    organizationId: z.number().int().positive("Organization is required"),
+  });
+
+export const insertOrganizationSchema = createInsertSchema(organizations).omit({ id: true, createdAt: true });
+
+export const insertUserSchema = createInsertSchema(users)
+  .omit({ id: true, createdAt: true })
+  .extend({
+    fullName: z.string().min(1, "Full name is required"),
+    employeeId: z.string().min(1, "Employee ID is required"),
+    email: z.string().email("Invalid email format"),
+    phoneNumber: z.string().regex(/^\d{10}$/, "Phone number must be 10 digits"),
+    dateOfJoining: z.string().optional(),
+    dateOfBirth: z.string().optional(),
+    lastWorkingDay: z.string().optional().nullable(),
+    education: z.string().optional(),
+    certified: z.boolean().default(false),
+    active: z.boolean().default(true),
+    category: z.enum(['active', 'trainee']).default('trainee'),
+    role: z.enum(['owner', 'admin', 'manager', 'team_lead', 'quality_analyst', 'trainer', 'advisor', 'trainee']).default('trainee'),
+  });
+
+export const insertRolePermissionSchema = createInsertSchema(rolePermissions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertUserWithProcessesSchema = insertUserSchema.extend({
+  processes: z.array(z.number()).optional(),
+});
+
+export type InsertUserWithProcesses = z.infer<typeof insertUserWithProcessesSchema>;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
+export type InsertOrganizationProcess = z.infer<typeof insertOrganizationProcessSchema>;
+export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
+export type InsertBatchTemplate = z.infer<typeof insertBatchTemplateSchema>;
+
+
+export const batchHistoryEventTypeEnum = pgEnum('batch_history_event_type', [
+  'phase_change',
+  'status_update',
+  'milestone',
+  'note'
+]);
+
+export const batchHistory = pgTable("batch_history", {  id: serial("id").primaryKey(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id)
+    .notNull(),
+  eventType: batchHistoryEventTypeEnum("event_type").notNull(),
+  description: text("description").notNull(),
+  previousValue: text("previous_value"),
+  newValue: text("new_value"),
+  date: timestamp("date").defaultNow().notNull(),
+  userId: integer("user_id")
+    .references(() => users.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type BatchHistory = InferSelectModel<typeof batchHistory>;
+
+export const insertBatchHistorySchema = createInsertSchema(batchHistory)
+  .omit({
+    id: true,
+    createdAt: true,
+  })
+  .extend({
+    batchId: z.number().int().positive("Batch ID is required"),
+    eventType:z.enum(['phase_change', 'status_update', 'milestone', 'note']),    description: z.string().min(1, "Description is required"),
+    previousValue: z.string().optional(),
+    newValue: z.string().optional(),
+    date: z.string().min(1, "Date is required"),
+    userId: z.number().int().positive("User ID is required"),
+    organizationId: z.number().int().positive("Organization ID is required"),
+  });
+
+export type InsertBatchHistory = z.infer<typeof insertBatchHistorySchema>;
+
+export const batchHistoryRelations = relations(batchHistory, ({ one }) => ({
+  batch: one(organizationBatches, {
+    fields: [batchHistory.batchId],
+    references: [organizationBatches.id],
+  }),
+  user: one(users, {
+    fields: [batchHistory.userId],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [batchHistory.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
+export interface RolePermission {
+  id: number;
+  role: string;
+  permissions: string[];
+  organizationId: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export const attendanceStatusEnum = pgEnum('attendance_status', [
+  'present',
+  'absent',
+  'late',
+  'leave'
+]);
+
+export const attendance = pgTable("attendance", {
+  id: serial("id").primaryKey(),
+  traineeId: integer("trainee_id")
+    .references(() => users.id)
+    .notNull(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id)
+    .notNull(),
+  phase: batchStatusEnum("phase").notNull(),
+  status: attendanceStatusEnum("status").notNull(),
+  date: date("date").notNull(),
+  markedById: integer("marked_by_id")
+    .references(() => users.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    // Ensure only one attendance record per trainee per day per batch
+    unq: unique().on(table.traineeId, table.date, table.batchId),
+  };
+});
+
+export const attendanceRelations = relations(attendance, ({ one }) => ({
+  trainee: one(users, {
+    fields: [attendance.traineeId],
+    references: [users.id],
+  }),
+  markedBy: one(users, {
+    fields: [attendance.markedById],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [attendance.organizationId],
+    references: [organizations.id],
+  }),
+  batch: one(organizationBatches, {
+    fields: [attendance.batchId],
+    references: [organizationBatches.id],
+  }),
+}));
+
+export const insertAttendanceSchema = createInsertSchema(attendance)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    traineeId: z.number().int().positive("Trainee ID is required"),
+    batchId: z.number().int().positive("Batch ID is required"),
+    phase: z.enum(['induction', 'training', 'certification', 'ojt', 'ojt_certification']),
+    status: z.enum(['present', 'absent', 'late', 'leave']),
+    date: z.string().min(1, "Date is required"),
+    markedById: z.number().int().positive("Marker ID is required"),
+    organizationId: z.number().int().positive("Organization ID is required"),
+  });
+
+export type InsertAttendance = z.infer<typeof insertAttendanceSchema>;
+export type Attendance = InferSelectModel<typeof attendance>;
+
 export const phaseChangeRequestStatusEnum = pgEnum('phase_change_request_status', [
   'pending',
   'approved',
   'rejected'
 ]);
 
-// Add batch phase change requests table
 export const batchPhaseChangeRequests = pgTable("batch_phase_change_requests", {
   id: serial("id").primaryKey(),
   batchId: integer("batch_id")
@@ -741,153 +1094,37 @@ export const insertBatchPhaseChangeRequestSchema = createInsertSchema(batchPhase
 
 export type InsertBatchPhaseChangeRequest = z.infer<typeof insertBatchPhaseChangeRequestSchema>;
 
-// After the batch history table and before the final type exports
-export const batchQuizTemplates = pgTable("batch_quiz_templates", {
-  id: serial("id").primaryKey(),
-  batchId: integer("batch_id")
-    .references(() => organizationBatches.id)
-    .notNull(),
-  quizTemplateId: integer("quiz_template_id")
-    .references(() => quizTemplates.id)
-    .notNull(),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
-  assignedBy: integer("assigned_by")
-    .references(() => users.id)
-    .notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-}, (table) => {
-  return {
-    unq: unique().on(table.batchId, table.quizTemplateId),
-  };
-});
-
-export type BatchQuizTemplate = InferSelectModel<typeof batchQuizTemplates>;
-
-export const insertBatchQuizTemplateSchema = createInsertSchema(batchQuizTemplates)
-  .omit({
-    id: true,
-    createdAt: true,
-    updatedAt: true,
-  })
-  .extend({
-    batchId: z.number().int().positive("Batch ID is required"),
-    quizTemplateId: z.number().int().positive("Quiz template ID is required"),
-    organizationId: z.number().int().positive("Organization ID is required"),
-    assignedBy: z.number().int().positive("Assigner ID is required"),
-  });
-
-export type InsertBatchQuizTemplate = z.infer<typeof insertBatchQuizTemplateSchema>;
-
-export const batchQuizTemplatesRelations = relations(batchQuizTemplates, ({ one }) => ({
-  batch: one(organizationBatches, {
-    fields: [batchQuizTemplates.batchId],
-    references: [organizationBatches.id],
-  }),
-  template: one(quizTemplates, {
-    fields: [batchQuizTemplates.quizTemplateId],
-    references: [quizTemplates.id],
-  }),
-  organization: one(organizations, {
-    fields: [batchQuizTemplates.organizationId],
-    references: [organizations.id],
-  }),
-  assigner: one(users, {
-    fields: [batchQuizTemplates.assignedBy],
-    references: [users.id],
-  }),
-}));
-
-// Add to organization batches relations
-export const organizationBatchesRelations = relations(organizationBatches, ({ one, many }) => ({
-  organization: one(organizations, {
-    fields: [organizationBatches.organizationId],
-    references: [organizations.id],
-  }),
-  process: one(organizationProcesses, {
-    fields: [organizationBatches.processId],
-    references: [organizationProcesses.id],
-  }),
-  location: one(organizationLocations, {
-    fields: [organizationBatches.locationId],
-    references: [organizationLocations.id],
-  }),
-  lob: one(organizationLineOfBusinesses, {
-    fields: [organizationBatches.lineOfBusinessId],
-    references: [organizationLineOfBusinesses.id],
-  }),
-  trainer: one(users, {
-    fields: [organizationBatches.trainerId],
-    references: [users.id],
-  }),
-  quizTemplates: many(batchQuizTemplates),
-  history: many(batchHistory),
-  phaseChangeRequests: many(batchPhaseChangeRequests)
-}));
-
-// Organization-related types
-export type Organization = InferSelectModel<typeof organizations>;
-export type OrganizationLocation = InferSelectModel<typeof organizationLocations>;
-export type OrganizationLineOfBusiness = InferSelectModel<typeof organizationLineOfBusinesses>;
-export type OrganizationProcess = typeof organizationProcesses.$inferSelect;
-export type OrganizationBatch = InferSelectModel<typeof organizationBatches>;
-
-// User-related types
-export type User = InferSelectModel<typeof users>;
-export typeRolePermission = InferSelectModel<typeof rolePermissions>;
-export type UserProcess = typeof userProcesses.$inferSelect;
-export type UserBatchProcess = InferSelectModel<typeof userBatchProcesses>;
-
-// Quiz-related types
-export type Question = InferSelectModel<typeof questions>;
-export type QuizTemplate = InferSelectModel<typeof quizTemplates>;
-export type Quiz = InferSelectModel<typeof quizzes>;
-export type QuizAttempt = InferSelectModel<typeof quizAttempts>;
-export type QuizResponse = InferSelectModel<typeof quizResponses>;
-export type BatchQuizTemplate = InferSelectModel<typeof batchQuizTemplates>;
-
-// Export all types
 export type {
+  Organization,
+  OrganizationProcess,
+  OrganizationLocation,
+  OrganizationLineOfBusiness,
+  User,
+  UserProcess,
+  BatchTemplate,
+  UserBatchProcess,
   InsertUser,
   InsertOrganization,
   InsertOrganizationProcess,
-  InsertOrganizationLocation,
-  InsertOrganizationLineOfBusiness,
-  InsertUserProcess,
+  InsertRolePermission,
+  InsertOrganizationBatch,
+  InsertBatchTemplate,
   InsertUserBatchProcess,
-  InsertQuestion,
-  InsertQuizTemplate,
-  InsertQuiz,
-  InsertQuizAttempt,
-  InsertQuizResponse,
-  InsertBatchQuizTemplate,
+  RolePermission,
+  Attendance,
   BatchPhaseChangeRequest,
   InsertBatchPhaseChangeRequest,
-  InsertOrganizationBatch,
-  InsertBatchHistory,
+  InsertAttendance,
   BatchHistory,
-};
-
-// Export all tables
-export {
-  userProcesses,
-  userBatchProcesses,
-  organizationBatches,
-  batchQuizTemplates,
-  organizations,
-  organizationLocations,
-  organizationLineOfBusinesses,
-  organizationProcesses,
-  users,
-  rolePermissions,
-  questions,
-  quizTemplates,
-  quizzes,
-  quizAttempts,
-  quizResponses,
-  batchHistory,
-  batchPhaseChangeRequests,
-  batchQuizTemplates,
+  InsertBatchHistory,
+  Question,
+  QuizTemplate,
+  QuizAttempt,
+  QuizResponse,
+  InsertQuestion,
+  InsertQuizTemplate,
+  InsertQuizAttempt,
+  InsertQuizResponse,
+  Quiz,
+  InsertQuiz
 };
