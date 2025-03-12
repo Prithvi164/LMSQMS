@@ -221,12 +221,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username)) as User[];
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(sql`LOWER(${users.username}) = LOWER(${username})`) as User[];
     return user;
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email)) as User[];
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(sql`LOWER(${users.email}) = LOWER(${email})`) as User[];
     return user;
   }
 
@@ -939,7 +945,7 @@ export class DatabaseStorage implements IStorage {
           .returning();
 
         if (!result.length) {
-          throw new Error('Location not foundor deletion failed');
+          throw newError('Location not foundor deletion failed');
         }
 
         console.log(`Successfully deleted location with ID: ${id}`);
@@ -1804,9 +1810,22 @@ export class DatabaseStorage implements IStorage {
     }
   ): Promise<Question[]> {
     try {
-      console.log('Getting random questions with options:', options);
+      // Validate input parameters
+      if (options.count <= 0) {
+        throw new Error("Question count must be greater than 0");
+      }
 
-      // Base query for questions
+      // Validate distribution totals
+      if (options.categoryDistribution && 
+          Object.values(options.categoryDistribution).reduce((a, b) => a + b, 0) !== 100) {
+        throw new Error("Category distribution must total 100%");
+      }
+
+      if (options.difficultyDistribution && 
+          Object.values(options.difficultyDistribution).reduce((a, b) => a + b, 0) !== 100) {
+        throw new Error("Difficulty distribution must total 100%");
+      }
+
       let query = db
         .select()
         .from(questions)
@@ -1816,67 +1835,55 @@ export class DatabaseStorage implements IStorage {
         query = query.where(eq(questions.processId, options.processId));
       }
 
-      // First get all available questions
+      // Get all available questions first
       const availableQuestions = await query as Question[];
-      console.log(`Found ${availableQuestions.length} available questions`);
 
-      if (availableQuestions.length === 0) {
-        return [];
-      }
-
-      // If no distribution specified, randomly select required number of questions
-      if (!options.categoryDistribution && !options.difficultyDistribution) {
-        const shuffled = [...availableQuestions].sort(() => Math.random() - 0.5);
-        return shuffled.slice(0, options.count);
+      if (availableQuestions.length < options.count) {
+        throw new Error(`Not enough questions available. Requested ${options.count} but only ${availableQuestions.length} found.`);
       }
 
       let selectedQuestions: Question[] = [];
 
-      // Handle category distribution
       if (options.categoryDistribution) {
-        for (const [category, count] of Object.entries(options.categoryDistribution)) {
-          const categoryQuestions = availableQuestions.filter(q => q.category === category);
-          const shuffled = [...categoryQuestions].sort(() => Math.random() - 0.5);
-          selectedQuestions.push(...shuffled.slice(0, count));
-        }
-      }
+        // Select questions based on category distribution
+        for (const [category, percentage] of Object.entries(options.categoryDistribution)) {
+          const categoryCount = Math.round((percentage / 100) * options.count);
+          const categoryQuestions = availableQuestions
+            .filter(q => q.category === category)
+            .sort(() => Math.random() - 0.5)
+            .slice(0, categoryCount);
 
-      // Handle difficulty distribution
-      if (options.difficultyDistribution) {
-        const remainingCount = options.count - selectedQuestions.length;
-        if (remainingCount > 0) {
-          for (const [difficulty, count] of Object.entries(options.difficultyDistribution)) {
-            const difficultyQuestions = availableQuestions.filter(
-              q => q.difficultyLevel === parseInt(difficulty) &&
-                !selectedQuestions.find(selected => selected.id === q.id)
-            );
-            const shuffled = [...difficultyQuestions].sort(() => Math.random() - 0.5);
-            selectedQuestions.push(...shuffled.slice(0, count));
+          if (categoryQuestions.length < categoryCount) {
+            throw new Error(`Not enough questions available for category ${category}`);
           }
+
+          selectedQuestions.push(...categoryQuestions);
         }
-      }
+      } else if (options.difficultyDistribution) {
+        // Select questions based on difficulty distribution
+        for (const [difficulty, percentage] of Object.entries(options.difficultyDistribution)) {
+          const difficultyCount = Math.round((percentage / 100) * options.count);
+          const difficultyQuestions = availableQuestions
+            .filter(q => q.difficulty === difficulty)
+            .sort(() => Math.random() - 0.5)
+            .slice(0, difficultyCount);
 
-      // If we still need more questions to meet the count
-      const remainingCount = options.count - selectedQuestions.length;
-      if (remainingCount > 0) {
-        const remainingQuestions = availableQuestions.filter(
-          q => !selectedQuestions.find(selected => selected.id === q.id)
-        );
-        const shuffled = [...remainingQuestions].sort(() => Math.random() - 0.5);
-        selectedQuestions.push(...shuffled.slice(0, remainingCount));
-      }
+          if (difficultyQuestions.length < difficultyCount) {
+            throw new Error(`Not enough questions available for difficulty ${difficulty}`);
+          }
 
-      console.log(`Selected ${selectedQuestions.length} random questions`);
-
-      // If we couldn't get enough questions, return empty array to trigger error
-      if (selectedQuestions.length < options.count) {
-        console.log('Not enough questions available matching the criteria');
-        return [];
+          selectedQuestions.push(...difficultyQuestions);
+        }
+      } else {
+        // Random selection without distribution
+        selectedQuestions = availableQuestions
+          .sort(() => Math.random() - 0.5)
+          .slice(0, options.count);
       }
 
       return selectedQuestions;
-    } catch (error) {
-      console.error('Error getting random questions:', error);
+    } catch (error: any) {
+      console.error('Error in getRandomQuestions:', error);
       throw error;
     }
   }
@@ -1946,7 +1953,7 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return newTemplate;
     } catch (error) {
-      console.error('Error creating quiz template:', error);
+      consoleerror('Error creating quiz template:', error);
       throw error;
     }
   }
@@ -2194,12 +2201,25 @@ export class DatabaseStorage implements IStorage {
 
   async createQuizResponse(response: InsertQuizResponse): Promise<QuizResponse> {
     try {
+      // Validate question existence
+      const question = await this.getQuestionById(response.questionId);
+      if (!question) {
+        throw new Error(`Question with ID ${response.questionId} not found`);
+      }
+
+      // Validate quiz attempt existence
+      const attempt = await this.getQuizAttempt(response.quizAttemptId);
+      if (!attempt) {
+        throw new Error(`Quiz attempt with ID ${response.quizAttemptId} not found`);
+      }
+
       const [newResponse] = await db
         .insert(quizResponses)
         .values(response)
         .returning() as QuizResponse[];
+
       return newResponse;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating quiz response:', error);
       throw error;
     }
