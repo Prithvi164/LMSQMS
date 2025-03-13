@@ -8,26 +8,16 @@ import { storage } from "./storage";
 import { User as SelectUser, permissionEnum } from "@shared/schema";
 import connectPg from "connect-pg-simple";
 import { z } from "zod";
-import rateLimit from "express-rate-limit";
 
 const PostgresSessionStore = connectPg(session);
 const scryptAsync = promisify(scrypt);
 
-// Enhanced registration validation schema
+// Registration validation schema
 const registrationSchema = z.object({
-  username: z.string()
-    .min(3, "Username must be at least 3 characters")
-    .max(50, "Username cannot exceed 50 characters")
-    .regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, underscores, and hyphens"),
+  username: z.string().min(3, "Username must be at least 3 characters"),
   email: z.string().email("Invalid email format"),
-  password: z.string()
-    .min(8, "Password must be at least 8 characters")
-    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/, 
-      "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"),
-  organizationName: z.string()
-    .min(2, "Organization name must be at least 2 characters")
-    .max(100, "Organization name cannot exceed 100 characters")
-    .regex(/^[a-zA-Z0-9\s-_&]+$/, "Organization name can only contain letters, numbers, spaces, hyphens, underscores, and ampersands"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  organizationName: z.string().min(2, "Organization name must be at least 2 characters"),
 });
 
 declare global {
@@ -45,12 +35,22 @@ async function hashPassword(password: string) {
 async function comparePasswords(supplied: string, stored: string) {
   try {
     if (!stored || !stored.includes(".")) {
-      console.error("Invalid stored password format");
+      console.error("Invalid stored password format:", stored);
       return false;
     }
     const [hashed, salt] = stored.split(".");
+    console.log("Password comparison details:");
+    console.log("- Salt:", salt);
+    console.log("- Stored hash length:", hashed.length);
+    console.log("- Stored hash:", hashed);
+
     const hashedBuf = Buffer.from(hashed, "hex");
     const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+    const suppliedHex = suppliedBuf.toString("hex");
+
+    console.log("- Supplied password length:", supplied.length);
+    console.log("- Generated hash:", suppliedHex);
+    console.log("- Generated hash length:", suppliedBuf.length);
 
     return timingSafeEqual(hashedBuf, suppliedBuf);
   } catch (error) {
@@ -59,82 +59,61 @@ async function comparePasswords(supplied: string, stored: string) {
   }
 }
 
-// Use a persistent session secret from environment variable or generate one on first run
-const SESSION_SECRET = process.env.SESSION_SECRET || randomBytes(32).toString("hex");
-
 export function setupAuth(app: Express) {
-  console.log("Setting up authentication...");
-
-  // Rate limiting for login attempts
-  const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // 5 attempts per window per IP
-    message: { message: "Too many login attempts, please try again later" }
-  });
-
+  const sessionSecret = randomBytes(32).toString("hex");
   const sessionStore = new PostgresSessionStore({
     conObject: {
       connectionString: process.env.DATABASE_URL,
     },
     createTableIfMissing: true,
-    pruneSessionInterval: 60 * 15, // Prune expired sessions every 15 minutes
   });
 
-  // Session middleware configuration
   app.use(session({
-    secret: SESSION_SECRET,
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     store: sessionStore,
     cookie: {
       secure: process.env.NODE_ENV === "production",
-      httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite: 'lax',
-      path: '/'
     },
-    name: 'sessionId', // Change from default 'connect.sid'
   }));
 
-  // Initialize passport after session middleware
   app.use(passport.initialize());
   app.use(passport.session());
-
-  // Debug middleware to log session and authentication status
-  app.use((req, res, next) => {
-    console.log("Request path:", req.path);
-    console.log("Session ID:", req.sessionID);
-    console.log("Is authenticated:", req.isAuthenticated());
-    console.log("Session user:", req.session?.passport?.user);
-    next();
-  });
 
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
         console.log("Attempting login for:", username);
-        // Case-insensitive username/email lookup
-        let user = await storage.getUserByUsername(username.toLowerCase());
+        let user = await storage.getUserByUsername(username);
 
         if (!user) {
-          user = await storage.getUserByEmail(username.toLowerCase());
+          console.log("User not found by username, trying email...");
+          user = await storage.getUserByEmail(username);
         }
 
         if (!user) {
+          console.log("User not found");
           return done(null, false, { message: "Invalid username or password" });
         }
 
+        // Check if user is active
         if (!user.active) {
+          console.log("User account is inactive");
           return done(null, false, { message: "Account is inactive. Please contact your administrator." });
         }
 
+        console.log("Found user:", user.username, "role:", user.role);
+        console.log("Stored password format:", user.password);
+
         const isValidPassword = await comparePasswords(password, user.password);
+        console.log("Password validation result:", isValidPassword);
 
         if (!isValidPassword) {
           return done(null, false, { message: "Invalid username or password" });
         }
 
-        console.log("Login successful for user:", user.id);
         return done(null, user);
       } catch (err) {
         console.error("Login error:", err);
@@ -144,52 +123,49 @@ export function setupAuth(app: Express) {
   );
 
   passport.serializeUser((user, done) => {
-    console.log("Serializing user:", user.id);
     done(null, user.id);
   });
 
   passport.deserializeUser(async (id: number, done) => {
     try {
-      console.log("Deserializing user:", id);
       const user = await storage.getUser(id);
       if (!user) {
-        console.log("User not found during deserialization:", id);
         return done(null, false);
       }
-      console.log("User deserialized successfully:", user.id);
       done(null, user);
     } catch (err) {
-      console.error("Deserialization error:", err);
       done(err);
     }
   });
 
-  // Registration endpoint with enhanced validation
+  // Add registration endpoint
   app.post("/api/register", async (req, res) => {
     try {
-      console.log("Registration attempt:", req.body.username);
+      // Validate registration data
       const data = registrationSchema.parse(req.body);
 
-      // Case-insensitive username check
-      const existingUser = await storage.getUserByUsername(data.username.toLowerCase());
+      // Check if username already exists
+      const existingUser = await storage.getUserByUsername(data.username);
       if (existingUser) {
         return res.status(400).json({ message: "Username already exists" });
       }
 
-      // Case-insensitive email check
-      const existingEmail = await storage.getUserByEmail(data.email.toLowerCase());
+      // Check if email already exists
+      const existingEmail = await storage.getUserByEmail(data.email);
       if (existingEmail) {
         return res.status(400).json({ message: "Email already exists" });
       }
 
+      // Create organization first
       const organization = await storage.createOrganization({
-        name: data.organizationName.trim(),
+        name: data.organizationName,
       });
 
+      // Create owner user
       const hashedPassword = await hashPassword(data.password);
       const user = await storage.createUser({
-        username: data.username.toLowerCase(),
-        email: data.email.toLowerCase(),
+        username: data.username,
+        email: data.email,
         password: hashedPassword,
         organizationId: organization.id,
         role: "owner" as const,
@@ -200,18 +176,19 @@ export function setupAuth(app: Express) {
         category: "active" as const
       });
 
+      // Set up initial permissions for owner
       await storage.updateRolePermissions(
         organization.id,
         'owner',
         permissionEnum.enumValues
       );
 
+      // Log the user in
       req.login(user, (err) => {
         if (err) {
           console.error("Login error after registration:", err);
           return res.status(500).json({ message: "Error logging in after registration" });
         }
-        console.log("Registration and login successful for user:", user.id);
         return res.status(201).json(user);
       });
     } catch (error) {
@@ -223,9 +200,7 @@ export function setupAuth(app: Express) {
     }
   });
 
-  // Login endpoint with rate limiting
-  app.post("/api/login", loginLimiter, (req, res, next) => {
-    console.log("Login attempt:", req.body.username);
+  app.post("/api/login", (req, res, next) => {
     passport.authenticate("local", (err: any, user: Express.User | false, info: any) => {
       if (err) {
         console.error("Login error:", err);
@@ -239,14 +214,12 @@ export function setupAuth(app: Express) {
           console.error("Login session error:", err);
           return res.status(500).json({ message: "Session error" });
         }
-        console.log("Login successful, session created for user:", user.id);
         return res.json(user);
       });
     })(req, res, next);
   });
 
   app.post("/api/logout", (req, res) => {
-    console.log("Logout request for user:", req.user?.id);
     if (!req.session) {
       return res.status(200).json({ message: "Already logged out" });
     }
@@ -255,18 +228,12 @@ export function setupAuth(app: Express) {
         console.error("Logout error:", err);
         return res.status(500).json({ message: "Logout failed" });
       }
-      res.clearCookie('sessionId');
-      console.log("Logout successful");
+      res.clearCookie('connect.sid');
       res.status(200).json({ message: "Logged out successfully" });
     });
   });
 
   app.get("/api/user", (req, res) => {
-    console.log("User info request");
-    console.log("Session:", req.session);
-    console.log("Is authenticated:", req.isAuthenticated());
-    console.log("User:", req.user);
-
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Not authenticated" });
     }
