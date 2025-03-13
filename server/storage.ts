@@ -31,7 +31,6 @@ import {
   type InsertOrganizationLocation,
   type BatchPhaseChangeRequest,
   type InsertBatchPhaseChangeRequest,
-  batchTemplates,
   type BatchTemplate,
   type InsertBatchTemplate,
   type UserBatchProcess,
@@ -946,12 +945,12 @@ export class DatabaseStorage implements IStorage {
           .returning();
 
         if (!result.length) {
-          throw new Error('Location not found or deletionfailed');
+          throw newError('Location not foundor deletion failed');
         }
 
         console.log(`Successfully deleted location with ID: ${id}`);
       });
-    } catch (error) {
+    }catch (error) {
       console.error('Error deleting location:', error);
       throw error;
     }
@@ -1816,6 +1815,17 @@ export class DatabaseStorage implements IStorage {
         throw new Error("Question count must be greater than 0");
       }
 
+      // Validate distribution totals
+      if (options.categoryDistribution && 
+          Object.values(options.categoryDistribution).reduce((a, b) => a + b, 0) !== 100) {
+        throw new Error("Category distribution must total 100%");
+      }
+
+      if (options.difficultyDistribution && 
+          Object.values(options.difficultyDistribution).reduce((a, b) => a + b, 0) !== 100) {
+        throw new Error("Difficulty distribution must total 100%");
+      }
+
       let query = db
         .select()
         .from(questions)
@@ -1835,39 +1845,31 @@ export class DatabaseStorage implements IStorage {
       let selectedQuestions: Question[] = [];
 
       if (options.categoryDistribution) {
-        // Handle count-based category distribution
-        const totalRequested = Object.values(options.categoryDistribution).reduce((a, b) => a + b, 0);
-        if (totalRequested !== options.count) {
-          throw new Error(`Category distribution total (${totalRequested}) must match requested count (${options.count})`);
-        }
-
-        for (const [category, count] of Object.entries(options.categoryDistribution)) {
+        // Select questions based on category distribution
+        for (const [category, percentage] of Object.entries(options.categoryDistribution)) {
+          const categoryCount = Math.round((percentage / 100) * options.count);
           const categoryQuestions = availableQuestions
             .filter(q => q.category === category)
             .sort(() => Math.random() - 0.5)
-            .slice(0, count);
+            .slice(0, categoryCount);
 
-          if (categoryQuestions.length < count) {
-            throw new Error(`Not enough questions available for category ${category}. Requested ${count} but found ${categoryQuestions.length}`);
+          if (categoryQuestions.length < categoryCount) {
+            throw new Error(`Not enough questions available for category ${category}`);
           }
 
           selectedQuestions.push(...categoryQuestions);
         }
       } else if (options.difficultyDistribution) {
-        // Handle count-based difficulty distribution
-        const totalRequested = Object.values(options.difficultyDistribution).reduce((a, b) => a + b, 0);
-        if (totalRequested !== options.count) {
-          throw new Error(`Difficulty distribution total (${totalRequested}) must match requested count (${options.count})`);
-        }
-
-        for (const [difficulty, count] of Object.entries(options.difficultyDistribution)) {
+        // Select questions based on difficulty distribution
+        for (const [difficulty, percentage] of Object.entries(options.difficultyDistribution)) {
+          const difficultyCount = Math.round((percentage / 100) * options.count);
           const difficultyQuestions = availableQuestions
-            .filter(q => q.difficultyLevel === parseInt(difficulty))
+            .filter(q => q.difficulty === difficulty)
             .sort(() => Math.random() - 0.5)
-            .slice(0, count);
+            .slice(0, difficultyCount);
 
-          if (difficultyQuestions.length < count) {
-            throw new Error(`Not enough questions available for difficulty level ${difficulty}. Requested ${count} but found ${difficultyQuestions.length}`);
+          if (difficultyQuestions.length < difficultyCount) {
+            throw new Error(`Not enough questions available for difficulty ${difficulty}`);
           }
 
           selectedQuestions.push(...difficultyQuestions);
@@ -1945,133 +1947,43 @@ export class DatabaseStorage implements IStorage {
   // Quiz template operations
   async createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate> {
     try {
-      console.log('Creating quiz template:', template);
-
-      // Validate template data
-      if (!template.name || !template.organizationId || !template.timeLimit) {
-        throw new Error('Missing required quiz template fields');
-      }
-
-      // Check for duplicate template names in the organization
-      const existingTemplate = await db        .select()
-        .from(quizTemplates)
-        .where(
-          and(
-            eq(quizTemplates.organizationId, template.organizationId),
-            sql`LOWER(${quizTemplates.name}) = LOWER(${template.name})`
-          )
-        ) as QuizTemplate[];
-
-      if (existingTemplate.length > 0) {
-        throw new Error('A quiz template with this name already exists');
-      }
-
       const [newTemplate] = await db
         .insert(quizTemplates)
-        .values({
-          ...template,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-        .returning() as QuizTemplate[];
-
-      console.log('Successfully created quiz template:', newTemplate);
+        .values(template)
+        .returning();
       return newTemplate;
-    } catch (error: any) {
-      console.error('Error creating quiz template:', error);
+    } catch (error) {
+      consoleerror('Error creating quiz template:', error);
       throw error;
     }
   }
 
   async listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]> {
     try {
-      console.log(`Fetching quiz templates for organization ${organizationId}`);
-
-      let query = db
-        .select({
-          id: quizTemplates.id,
-          name: quizTemplates.name,
-          description: quizTemplates.description,
-          organizationId: quizTemplates.organizationId,
-          processId: quizTemplates.processId,
-          timeLimit: quizTemplates.timeLimit,
-          passingScore: quizTemplates.passingScore,
-          difficultyDistribution: quizTemplates.difficultyDistribution,
-          categoryDistribution: quizTemplates.categoryDistribution,
-          questionCount: quizTemplates.questionCount,
-          createdAt: quizTemplates.createdAt,
-          updatedAt: quizTemplates.updatedAt,
-          processName: organizationProcesses.name
-        })
+      let baseQuery = db
+        .select()
         .from(quizTemplates)
-        .leftJoin(
-          organizationProcesses,
-          eq(quizTemplates.processId, organizationProcesses.id)
-        )
         .where(eq(quizTemplates.organizationId, organizationId));
 
       if (processId) {
-        query = query.where(eq(quizTemplates.processId, processId));
+        baseQuery = baseQuery.where(eq(quizTemplates.processId, processId));
       }
 
-      const templates = await query.orderBy(desc(quizTemplates.createdAt)) as QuizTemplate[];
-      console.log(`Found ${templates.length} quiz templates`);
-      return templates;
-    } catch (error: any) {
-      console.error('Error fetching quiz templates:', error);
-      throw error;
-    }
-  }
-
-  async deleteQuizTemplate(id: number): Promise<void> {
-    try {
-      console.log(`Attempting to delete quiz template with ID: ${id}`);
-
-      // First verify the template exists
-      const template = await this.getQuizTemplate(id);
-      if (!template) {
-        throw new Error('Quiz template not found');
-      }
-
-      // Delete the template
-      await db
-        .delete(quizTemplates)
-        .where(eq(quizTemplates.id, id));
-
-      console.log(`Successfully deleted quiz template with ID: ${id}`);
-    } catch (error: any) {
-      console.error('Error deleting quiz template:', error);
+      return await baseQuery;
+    } catch (error) {
+      console.error('Error listing quiz templates:', error);
       throw error;
     }
   }
 
   async getQuizTemplate(id: number): Promise<QuizTemplate | undefined> {
     try {
-      const [template] = await db
-        .select({
-          id: quizTemplates.id,
-          name: quizTemplates.name,
-          description: quizTemplates.description,
-          organizationId: quizTemplates.organizationId,
-          processId: quizTemplates.processId,
-          timeLimit: quizTemplates.timeLimit,
-          passingScore: quizTemplates.passingScore,
-          difficultyDistribution: quizTemplates.difficultyDistribution,
-          categoryDistribution: quizTemplates.categoryDistribution,
-          questionCount: quizTemplates.questionCount,
-          createdAt: quizTemplates.createdAt,
-          updatedAt: quizTemplates.updatedAt,
-          processName: organizationProcesses.name
-        })
+      const result = await db
+        .select()
         .from(quizTemplates)
-        .leftJoin(
-          organizationProcesses,
-          eq(quizTemplates.processId, organizationProcesses.id)
-        )
-        .where(eq(quizTemplates.id, id)) as QuizTemplate[];
-
-      return template;
-    } catch (error: any) {
+        .where(eq(quizTemplates.id, id));
+      return result[0];
+    } catch (error) {
       console.error('Error fetching quiz template:', error);
       throw error;
     }
@@ -2080,31 +1992,6 @@ export class DatabaseStorage implements IStorage {
   async updateQuizTemplate(id: number, template: Partial<InsertQuizTemplate>): Promise<QuizTemplate> {
     try {
       console.log(`Updating quiz template with ID: ${id}`, template);
-
-      // Check if template exists
-      const existingTemplate = await this.getQuizTemplate(id);
-      if (!existingTemplate) {
-        throw new Error('Quiz template not found');
-      }
-
-      // Check if name is being updated and if it would conflict
-      if (template.name && template.name !== existingTemplate.name) {
-        const nameExists = await db
-          .select()
-          .from(quizTemplates)
-          .where(
-            and(
-              eq(quizTemplates.organizationId, existingTemplate.organizationId),
-              sql`LOWER(${quizTemplates.name}) = LOWER(${template.name})`,
-              sql`${quizTemplates.id} != ${id}`
-            )
-          )
-          .then(results => results.length > 0);
-
-        if (nameExists) {
-          throw new Error('A quiz template with this name already exists');
-        }
-      }
 
       const [updatedTemplate] = await db
         .update(quizTemplates)
@@ -2115,9 +2002,13 @@ export class DatabaseStorage implements IStorage {
         .where(eq(quizTemplates.id, id))
         .returning() as QuizTemplate[];
 
+      if (!updatedTemplate) {
+        throw new Error('Quiz template not found');
+      }
+
       console.log('Successfully updated quiz template:', updatedTemplate);
       return updatedTemplate;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error updating quiz template:', error);
       throw error;
     }
@@ -2125,21 +2016,10 @@ export class DatabaseStorage implements IStorage {
 
   async deleteQuizTemplate(id: number): Promise<void> {
     try {
-      console.log(`Attempting to delete quiz template with ID: ${id}`);
-
-      // First verify the template exists
-      const template = await this.getQuizTemplate(id);
-      if (!template) {
-        throw new Error('Quiz template not found');
-      }
-
-      // Delete the template
       await db
         .delete(quizTemplates)
         .where(eq(quizTemplates.id, id));
-
-      console.log(`Successfully deleted quiz template with ID: ${id}`);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error deleting quiz template:', error);
       throw error;
     }
