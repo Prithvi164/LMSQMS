@@ -949,25 +949,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([]);
       }
 
-            // Get quizzes for these processes with specific fields 
+      // Get current time for quiz availability check
+      const now = new Date();
+
+      // Get quizzes for these processes with specific fields and time check 
       const quizList = await db
-        .select()
+        .select({
+          id: quizzes.id,
+          name: quizzes.name,
+          description: quizzes.description,
+          status: quizzes.status,
+          startTime: quizzes.startTime,
+          endTime: quizzes.endTime,
+          createdAt: quizzes.createdAt,
+          processId: quizzes.processId,
+          timeLimit: quizzes.timeLimit,
+          passingScore: quizzes.passingScore,
+          organizationId: quizzes.organizationId,
+          questions: quizzes.questions,
+          templateId: quizzes.templateId,
+          createdBy: quizzes.createdBy
+        })
         .from(quizzes)
         .where(and(
-          inArray(quizzes.processId, processIds),
-          eq(quizzes.status, 'active')  // Use 'active' status for available quizzes
+          eq(quizzes.status, 'in_progress'), // Use in_progress status for available quizzes
+          sql`${quizzes.startTime} <= ${now}::timestamp`,
+          sql`${quizzes.endTime} >= ${now}::timestamp`,
+          // Use native Postgres array operator
+          sql`${quizzes.processId} = ANY(${processIds.filter(Boolean)})`
         ));
+
+      console.log('Available quizzes:', quizList);
 
       // Get quiz attempts for each quiz
       const quizzesWithAttempts = await Promise.all(
         quizList.map(async (quiz) => {
           // Get all attempts for this quiz
           const attempts = await db
-            .select()
-            .from(quizResponses)
+            .select({
+              id: quizAttempts.id,
+              quizId: quizAttempts.quizId,
+              userId: quizAttempts.userId, 
+              score: quizAttempts.score,
+              answers: quizAttempts.answers,
+              completedAt: quizAttempts.completedAt,
+              createdAt: quizAttempts.createdAt
+            })
+            .from(quizAttempts)
             .where(and(
-              eq(quizResponses.quizId, quiz.id),
-              eq(quizResponses.userId, req.user!.id)
+              eq(quizAttempts.quizId, quiz.id),
+              eq(quizAttempts.userId, req.user?.id || 0)
             ));
 
           return {
