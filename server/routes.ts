@@ -920,35 +920,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
+      // Verify user is a trainee by category  
+      if (req.user.category !== 'trainee') {
+        console.log(`User ${req.user.id} attempted to access trainee quizzes but has category: ${req.user.category}`);
+        return res.status(403).json({ message: "Access denied. Only trainees can view quizzes." });
+      }
+
       console.log(`Fetching quizzes for trainee ${req.user.id}`);
 
       // Get trainee's active batch assignments
-      interface BatchAssignment {
-        processId: number;
-        batchStatus: string;
-      }
+      const batchAssignments = await db
+        .select({
+          processId: organizationBatches.processId,
+          batchStatus: organizationBatches.status
+        })
+        .from(userBatchProcesses)
+        .leftJoin(
+          organizationBatches,
+          eq(userBatchProcesses.batchId, organizationBatches.id)
+        )
+        .where(and(
+          eq(userBatchProcesses.userId, req.user.id),
+          // Only get batches in valid phases
+          sql`${organizationBatches.status}::text = ANY(ARRAY['induction', 'training', 'certification'])`
+        ));
 
-      // First get the list of active batches
-      const batchResults = await db.select({
-        processId: organizationBatches.processId,
-        batchStatus: organizationBatches.status
-      })
-      .from(userBatchProcesses)
-      .leftJoin(
-        organizationBatches, 
-        eq(userBatchProcesses.batchId, organizationBatches.id)
-      )
-      .where(and(
-        eq(userBatchProcesses.userId, req.user.id),
-        sql`${organizationBatches.status}::text = ANY(ARRAY['induction', 'training', 'certification'])`
-      ));
-
-      // Filter out null processIds
-      const batchAssignments = batchResults.filter((ba): ba is BatchAssignment => ba.processId !== null);
       console.log('Found batch assignments:', batchAssignments);
 
-      // Get unique process IDs
-      const processIds = [...new Set(batchAssignments.map(ba => ba.processId))];
+      // Get unique process IDs, filtering out nulls
+      const batchProcessIds = batchAssignments
+        .map(ba => ba.processId)
+        .filter((id): id is number => id !== null);
+      const processIds = Array.from(new Set(batchProcessIds));
 
       console.log('Process IDs for trainee:', processIds);
 
@@ -957,69 +960,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get active quizzes for these processes
-      interface Quiz {
-        id: number;
-        name: string;
-        description: string | null;
-        status: string;
-        startTime: Date;
-        endTime: Date;
-        processId: number;
-        processName: string | null;
-        timeLimit: number;
-        passingScore: number;
-        questions: number[];
-      }
+      // Get active quizzes
+      const quizList = await db
+        .select({
+          id: quizzes.id,
+          name: quizzes.name,
+          description: quizzes.description,
+          status: quizzes.status,
+          startTime: quizzes.startTime,
+          endTime: quizzes.endTime,
+          processId: quizzes.processId,
+          processName: organizationProcesses.name,
+          timeLimit: quizzes.timeLimit,
+          passingScore: quizzes.passingScore,
+          questions: quizzes.questionIds, // Using questionIds field
+          organizationId: quizzes.organizationId
+        })
+        .from(quizzes)
+        .leftJoin(
+          organizationProcesses,
+          eq(quizzes.processId, organizationProcesses.id)
+        )
+        .where(and(
+          sql`${quizzes.status}::text = 'active'`,
+          sql`${quizzes.startTime}::timestamptz <= NOW()`,
+          sql`${quizzes.endTime}::timestamptz >= NOW()`,
+          inArray(quizzes.processId, processIds)
+        ));
 
-      const quizList = await db.select({
-        id: quizzes.id,
-        name: quizzes.name,
-        description: quizzes.description,
-        status: quizzes.status,
-        startTime: quizzes.startTime,
-        endTime: quizzes.endTime,
-        processId: quizzes.processId,
-        processName: organizationProcesses.name,
-        timeLimit: quizzes.timeLimit,
-        passingScore: quizzes.passingScore,
-        questions: quizzes.questions
-      })
-      .from(quizzes)
-      .leftJoin(
-        organizationProcesses,
-        eq(quizzes.processId, organizationProcesses.id)
-      )
-      .where(and(
-        sql`${quizzes.status}::text = 'active'`,
-        sql`${quizzes.startTime}::timestamptz <= NOW()::timestamptz`,
-        sql`${quizzes.endTime}::timestamptz >= NOW()::timestamptz`,
-        inArray(quizzes.processId, processIds)
-      )) as Quiz[];
+      console.log('Found quizzes:', quizList);
 
-      // Get attempts for each quiz
-      interface QuizResponseRecord {
-        id: number;
-        quizId: number;
-        userId: number;
-        score: number;
-        completedAt: Date;
-      }
+      // Get attempts for these quizzes
+      const attempts = await db
+        .select({
+          id: quizResponses.id,
+          quizId: quizResponses.quizId,
+          userId: quizResponses.userId,
+          score: quizResponses.score,
+          completedAt: quizResponses.completedAt
+        })
+        .from(quizResponses)
+        .where(and(
+          inArray(quizResponses.quizId, quizList.map(q => q.id)),
+          eq(quizResponses.userId, req.user.id)
+        ));
 
-      // Fetch attempts using a single query
-      const attempts = await db.select({
-        id: quizResponses.id,
-        quizId: quizResponses.quizId,
-        userId: quizResponses.userId,
-        score: quizResponses.score,
-        completedAt: quizResponses.completedAt
-      })
-      .from(quizResponses)
-      .where(sql`
-        ${quizResponses.quizId} = ANY(${quizList.map(q => q.id)}) 
-        AND ${quizResponses.userId} = ${req.user.id}
-      `) as QuizResponseRecord[];
-
-      // Map quizzes with attempts
+      // Combine quizzes with their attempts
       const quizzesWithAttempts = quizList.map(quiz => ({
         ...quiz,
         attempts: attempts.filter(a => a.quizId === quiz.id) || []
