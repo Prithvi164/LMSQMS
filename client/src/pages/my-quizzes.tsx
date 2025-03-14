@@ -16,7 +16,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Clock, CheckCircle, XCircle } from "lucide-react";
+import { Clock, CheckCircle, XCircle } from "lucide-react";
 import { format } from "date-fns";
 
 export function MyQuizzesPage() {
@@ -32,7 +32,7 @@ export function MyQuizzesPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <Clock className="h-8 w-8 animate-spin" /> {/* Changed Loader2 to Clock */}
       </div>
     );
   }
@@ -54,19 +54,23 @@ export function MyQuizzesPage() {
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6">My Quizzes</h1>
-      
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {quizzes.map((quiz: any) => {
           const startTime = new Date(quiz.startTime);
           const endTime = new Date(quiz.endTime);
           const now = new Date();
-          
+
           const isActive = quiz.status === "active" && 
                           now >= startTime && 
                           now <= endTime;
-          
+
           const hasAttempted = quiz.attempts && quiz.attempts.length > 0;
-          
+
+          const timeLeft = isActive ? Math.max(0, endTime.getTime() - now.getTime()) : 0;
+          const formattedTimeLeft = isActive ?  Math.floor(timeLeft / (1000 * 60)) + " minutes" : "";
+
+
           return (
             <Card key={quiz.id} className="relative">
               <CardHeader>
@@ -98,10 +102,11 @@ export function MyQuizzesPage() {
                   <div className="flex items-center text-sm text-muted-foreground">
                     <Clock className="mr-2 h-4 w-4" />
                     <span>
-                      {format(startTime, "PPp")} - {format(endTime, "PPp")}
+                      {format(startTime, "PPp")} - {format(endTime, "PPp")} {/* Added time remaining */}
+                      {isActive && <span> ({formattedTimeLeft} remaining)</span>}
                     </span>
                   </div>
-                  
+
                   {hasAttempted ? (
                     <div className="flex items-center text-sm">
                       <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
@@ -113,7 +118,7 @@ export function MyQuizzesPage() {
                       <span>Not available</span>
                     </div>
                   ) : null}
-                  
+
                   <Button
                     className="w-full mt-4"
                     onClick={() => setLocation(`/quiz-taking/${quiz.id}`)}
