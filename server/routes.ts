@@ -913,22 +913,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Define types for the response data
+  interface QuizResponse {
+    id: number;
+    quizId: number;
+    userId: number;
+    score: number;
+    completedAt: Date;
+  }
+
+  interface Quiz {
+    id: number;
+    name: string;
+    description: string | null;
+    status: string;
+    startTime: Date;
+    endTime: Date;
+    processId: number;
+    processName: string | null;
+    timeLimit: number;
+    passingScore: number;
+    questions: number[];
+    organizationId: number;
+    attempts?: QuizResponse[];
+  }
+
+  interface BatchAssignment {
+    processId: number;
+    batchStatus: string;
+  }
+
   // Add route to get trainee quizzes
   app.get("/api/trainee/quizzes", async (req, res) => {
     try {
-      if (!req.user || !req.user.id) {
+      if (!req.user?.id) {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      // Verify user is a trainee by category  
+      // Verify user is a trainee  
       if (req.user.category !== 'trainee') {
-        console.log(`User ${req.user.id} attempted to access trainee quizzes but has category: ${req.user.category}`);
         return res.status(403).json({ message: "Access denied. Only trainees can view quizzes." });
       }
 
-      console.log(`Fetching quizzes for trainee ${req.user.id}`);
-
-      // Get trainee's active batch assignments
+      // Get trainee's batch assignments
       const batchAssignments = await db
         .select({
           processId: organizationBatches.processId,
@@ -941,26 +968,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         )
         .where(and(
           eq(userBatchProcesses.userId, req.user.id),
-          // Only get batches in valid phases
-          sql`${organizationBatches.status}::text = ANY(ARRAY['induction', 'training', 'certification'])`
-        ));
+          sql`${organizationBatches.status}::text = ANY(ARRAY['induction', 'training', 'certification']::text[])`
+        ))
+        .execute() as BatchAssignment[];
 
       console.log('Found batch assignments:', batchAssignments);
 
       // Get unique process IDs, filtering out nulls
-      const batchProcessIds = batchAssignments
-        .map(ba => ba.processId)
-        .filter((id): id is number => id !== null);
-      const processIds = Array.from(new Set(batchProcessIds));
-
-      console.log('Process IDs for trainee:', processIds);
+      const processIds = Array.from(new Set(
+        batchAssignments
+          .map(ba => ba.processId)
+          .filter((id): id is number => id !== null)
+      ));
 
       if (processIds.length === 0) {
         return res.json([]);
       }
 
       // Get active quizzes for these processes
-      // Get active quizzes
       const quizList = await db
         .select({
           id: quizzes.id,
@@ -973,7 +998,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           processName: organizationProcesses.name,
           timeLimit: quizzes.timeLimit,
           passingScore: quizzes.passingScore,
-          questions: quizzes.questionIds, // Using questionIds field
+          questions: quizzes.questions,
           organizationId: quizzes.organizationId
         })
         .from(quizzes)
@@ -986,7 +1011,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sql`${quizzes.startTime}::timestamptz <= NOW()`,
           sql`${quizzes.endTime}::timestamptz >= NOW()`,
           inArray(quizzes.processId, processIds)
-        ));
+        ))
+        .execute();
 
       console.log('Found quizzes:', quizList);
 
@@ -1001,18 +1027,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .from(quizResponses)
         .where(and(
-          inArray(quizResponses.quizId, quizList.map(q => q.id)),
+          quizList.length > 0 
+            ? inArray(quizResponses.quizId, quizList.map(q => q.id))
+            : sql`1=0`, // No quizzes match
           eq(quizResponses.userId, req.user.id)
-        ));
+        ))
+        .orderBy(quizResponses.completedAt)
+        .execute();
 
-      // Combine quizzes with their attempts
+      // Combine quizzes with their attempts 
       const quizzesWithAttempts = quizList.map(quiz => ({
         ...quiz,
-        attempts: attempts.filter(a => a.quizId === quiz.id) || []
+        attempts: attempts.filter(a => a.quizId === quiz.id)
       }));
 
       console.log(`Returning ${quizzesWithAttempts.length} quizzes with attempts`);
       res.json(quizzesWithAttempts);
+    } catch (error) {
+      console.error("Error fetching trainee quizzes:", error); 
+      res.status(500).json({ message: "Failed to fetch quizzes" });
+    }
+  });
 
     } catch (error) {
       console.error("Error fetching trainee quizzes:", error);
