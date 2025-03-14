@@ -2346,12 +2346,17 @@ export class DatabaseStorage implements IStorage {
         )
         .where(
           and(
+            // Must match exact process IDs
             inArray(quizzes.processId, processIds),
+            // Must be from user's organization
+            eq(quizzes.organizationId, organizationId),
+            // Must not be expired
             sql`${quizzes.endTime} > NOW()`,
-            organizationId ? eq(quizzes.organizationId, organizationId) : undefined,
-            status ? eq(quizzes.status, status) : undefined
+            // Must have specified status
+            eq(quizzes.status, status)
           )
-        );
+        )
+        .orderBy(desc(quizzes.createdAt));
 
       const foundQuizzes = await query as (Quiz & { processName: string })[];
 
