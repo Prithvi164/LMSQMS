@@ -823,7 +823,9 @@ export class DatabaseStorage implements IStorage {
           processId: userBatchProcesses.processId,
           status: userBatchProcesses.status,
           joinedAt: userBatchProcesses.joinedAt,
-          completedAt: userBatchProcesses.completedAt
+          completedAt: userBatchProcesses.completedAt,
+          createdAt: userBatchProcesses.createdAt,
+          updatedAt: userBatchProcesses.updatedAt
         })
         .from(userBatchProcesses)
         .where(
@@ -848,7 +850,7 @@ export class DatabaseStorage implements IStorage {
       return assignments;
     } catch (error) {
       console.error('Error fetching batch assignments:', error);
-      throw new Error('Failed to fetch trainee batch assignments');
+      throw new Error('Failed to fetch batch assignments');
     }
   }
 
