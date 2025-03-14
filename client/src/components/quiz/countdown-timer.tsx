@@ -73,9 +73,9 @@ export function CountdownTimer({
   };
 
   return (
-    <div className="fixed top-4 right-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-4 rounded-lg shadow-lg border flex items-center gap-2">
+    <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted/50">
       <AlertCircle className="h-4 w-4" />
-      <span className={`font-mono text-lg ${getTimerStyle()}`}>
+      <span className={`font-mono font-medium ${getTimerStyle()}`}>
         {formatTime(timeLeft)}
       </span>
     </div>

@@ -102,14 +102,6 @@ export function QuizTakingPage() {
 
   return (
     <div className="container mx-auto py-8 max-w-3xl">
-      {quiz.endTime && (
-        <CountdownTimer
-          endTime={new Date(quiz.endTime)}
-          onTimeExpired={handleTimeExpired}
-          warningThresholds={[300, 60]} // Warnings at 5 minutes and 1 minute
-        />
-      )}
-
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
@@ -119,6 +111,13 @@ export function QuizTakingPage() {
                 Question {currentQuestionIndex + 1} of {quiz.questions.length}
               </CardDescription>
             </div>
+            {quiz.endTime && (
+              <CountdownTimer
+                endTime={new Date(quiz.endTime)}
+                onTimeExpired={handleTimeExpired}
+                warningThresholds={[300, 60]}
+              />
+            )}
           </div>
           <Progress value={progress} className="mt-2" />
         </CardHeader>
