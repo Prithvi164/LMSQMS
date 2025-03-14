@@ -66,6 +66,10 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
 
+  // Get current trainee count from batch's enrolledCount
+  const traineeCount = batch.enrolledCount || 0;
+  const remainingCapacity = (batch.capacityLimit || 0) - traineeCount;
+
   const { data: batchDetails } = useQuery({
     queryKey: [`/api/organizations/${batch.organizationId}/batches/${batch.id}`],
     enabled: !!batch.id,
@@ -212,8 +216,6 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
     }
   };
 
-  const traineeCount = batchDetails?.traineeCount || 0;
-  const remainingCapacity = (batch.capacityLimit || 0) - traineeCount;
 
   return (
     <div className="max-h-[70vh] overflow-y-auto px-4">
