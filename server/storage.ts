@@ -213,6 +213,7 @@ export interface IStorage {
   // Add new methods for quiz responses
   createQuizResponse(response: InsertQuizResponse): Promise<QuizResponse>;
   getQuizResponses(quizAttemptId: number): Promise<QuizResponse[]>;
+  getEnrolledCount(batchId: number): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -942,8 +943,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async createLocation(location: InsertOrganizationLocation): Promise<OrganizationLocation> {
-    try {
+  async createLocation(location: InsertOrganizationLocation): Promise<OrganizationLocation> {    try {
       console.log('Creating location with data:', location);
 
       // Check if location with same name exists in the organization
@@ -1365,8 +1365,8 @@ export class DatabaseStorage implements IStorage {
       const trainees = await db
         .select({
           id: userBatchProcesses.id,
-          batchId: userBatchProcesses.batchId,
           userId: userBatchProcesses.userId,
+          batchId: userBatchProcesses.batchId,
           processId: userBatchProcesses.processId,
           status: userBatchProcesses.status,
           joinedAt: userBatchProcesses.joinedAt,
@@ -1385,9 +1385,9 @@ export class DatabaseStorage implements IStorage {
         })
         .from(userBatchProcesses)
         .leftJoin(users, eq(userBatchProcesses.userId, users.id))
-        .where(eq(userBatchProcesses.batchId, batchId)) as UserBatchProcess[]; // Removed category filter
+        .where(eq(userBatchProcesses.batchId, batchId)) as UserBatchProcess[]; // Removed category filter to match enrolledCount
 
-      console.log(`Found ${trainees.length} trainees in batch ${batchId}`);
+      console.log(`Found ${trainees.length} trainees in batch ${batchId}:`, trainees);
       return trainees;
     } catch (error) {
       console.error('Error fetching batch trainees:', error);
@@ -2202,6 +2202,59 @@ export class DatabaseStorage implements IStorage {
         .where(eq(quizResponses.quizAttemptId, quizAttemptId)) as QuizResponse[];
     } catch (error) {
       console.error('Error fetching quiz responses:', error);
+      throw error;
+    }
+  }
+  async getBatchTrainees(batchId: number): Promise<UserBatchProcess[]> {
+    try {
+      console.log(`Fetching trainees for batch ${batchId}`);
+
+      const trainees = await db
+        .select({
+          id: userBatchProcesses.id,
+          userId: userBatchProcesses.userId,
+          batchId: userBatchProcesses.batchId,
+          processId: userBatchProcesses.processId,
+          status: userBatchProcesses.status,
+          joinedAt: userBatchProcesses.joinedAt,
+          completedAt: userBatchProcesses.completedAt,
+          createdAt: userBatchProcesses.createdAt,
+          updatedAt: userBatchProcesses.updatedAt,
+          user: {
+            id: users.id,
+            username: users.username,
+            fullName: users.fullName,
+            email: users.email,
+            employeeId: users.employeeId,
+            category: users.category,
+            role: users.role
+          }
+        })
+        .from(userBatchProcesses)
+        .leftJoin(users, eq(userBatchProcesses.userId, users.id))
+        .where(eq(userBatchProcesses.batchId, batchId)) as UserBatchProcess[]; // Removed category filter to match enrolledCount
+
+      console.log(`Found ${trainees.length} trainees in batch ${batchId}:`, trainees);
+      return trainees;
+    } catch (error) {
+      console.error('Error fetching batch trainees:', error);
+      throw error;
+    }
+  }
+
+  // Update the method to count enrolled users consistently
+  async getEnrolledCount(batchId: number): Promise<number> {
+    try {
+      const result = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(userBatchProcesses)
+        .where(eq(userBatchProcesses.batchId, batchId))
+        .then(rows => rows[0].count);
+
+      console.log(`Enrolled count for batch ${batchId}:`, result);
+      return result;
+    } catch (error) {
+      console.error('Error getting enrolled count:', error);
       throw error;
     }
   }
