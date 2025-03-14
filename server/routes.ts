@@ -644,11 +644,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add question routes
-  app.post("/api/questions", async (req, res) => {
-    if (!req.user || !req.user.organizationId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-    
+  app.post("/api/questions", validateQuizTemplateAccess, async (req, res) => {
     try {
       console.log('Received question data:', req.body);
       
@@ -776,7 +772,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add new middleware for quiz access validation
+  // Add new middleware for quiz template access validation
+  async function validateQuizTemplateAccess(req: any, res: any, next: any) {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    // Allow administrative roles to access quiz templates
+    const adminRoles = ['owner', 'admin', 'trainer'];
+    if (adminRoles.includes(req.user.role)) {
+      return next();
+    }
+
+    // For non-admin roles, check if they have specific permissions
+    if (req.user.permissions?.includes('manageQuizzes')) {
+      return next();
+    }
+
+    return res.status(403).json({
+      message: "You don't have permission to manage quiz templates"
+    });
+  }
+
+  // Update quiz access validation middleware
   async function validateQuizAccess(req: any, res: any, next: any) {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -791,22 +809,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Quiz not found" });
       }
 
-      // Check if quiz is active and within timeframe
-      const now = new Date();
-      if (quiz.status !== 'active' || 
-          now < new Date(quiz.startTime) || 
-          now > new Date(quiz.endTime)) {
-        return res.status(403).json({ 
-          message: "Quiz is not currently available" 
-        });
+      // Allow admin roles to access any quiz
+      const adminRoles = ['owner', 'admin', 'trainer'];
+      if (adminRoles.includes(req.user.role)) {
+        req.quiz = quiz;
+        return next();
       }
 
-      // For trainees, check batch assignment and process link
-      if (req.user.role === 'trainee') {
-        // Verify if user is actually a trainee (both role and category)
-        if (req.user.role !== 'trainee' || req.user.category !== 'trainee') {
+      // For trainees, check if quiz is active and within timeframe
+      if (req.user.category === 'trainee') {
+        const now = new Date();
+        if (quiz.status !== 'active' || 
+            now < new Date(quiz.startTime) || 
+            now > new Date(quiz.endTime)) {
           return res.status(403).json({ 
-            message: "Only trainees can take quizzes" 
+            message: "Quiz is not currently available" 
           });
         }
 
@@ -1114,11 +1131,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add quiz template routes
-  app.post("/api/quiz-templates", async (req, res) => {
-    if (!req.user || !req.user.organizationId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
+  app.post("/api/quiz-templates", validateQuizTemplateAccess, async (req, res) => {
     try {
       console.log('Creating quiz template with data:', req.body);
 
@@ -1142,11 +1155,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/quiz-templates", async (req, res) => {
-    if (!req.user || !req.user.organizationId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
+  app.get("/api/quiz-templates", validateQuizTemplateAccess, async (req, res) => {
     try {
       console.log('Fetching quiz templates');
       const processId = req.query.processId ? parseInt(req.query.processId as string) : undefined;
@@ -1190,11 +1199,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/quiz-templates/:id", async (req, res) => {
-    if (!req.user || !req.user.organizationId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
+  app.put("/api/quiz-templates/:id", validateQuizTemplateAccess, async (req, res) => {
     try {
       const templateId = parseInt(req.params.id);
       if (isNaN(templateId)) {
@@ -1226,11 +1231,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate quiz from template
-  app.post("/api/quiz-templates/:id/generate", async (req, res) => {
-    if (!req.user || !req.user.organizationId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
+  app.post("/api/quiz-templates/:id/generate", validateQuizTemplateAccess, async (req, res) => {
     try {
       const templateId = parseInt(req.params.id);
       if (isNaN(templateId)) {
@@ -1298,11 +1299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add delete endpoint for quiz templates with proper error handling
-  app.delete("/api/quiz-templates/:id", async (req, res) => {
-    if (!req.user || !req.user.organizationId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
+  app.delete("/api/quiz-templates/:id", validateQuizTemplateAccess, async (req, res) => {
     try {
       const templateId = parseInt(req.params.id);
       if (isNaN(templateId)) {
