@@ -755,9 +755,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // For trainees, check batch assignment and process link
-      if (req.user.category === 'trainee') {
+      if (req.user.role === 'trainee') {
+        // Verify if user is actually a trainee (both role and category)
+        if (req.user.role !== 'trainee' || req.user.category !== 'trainee') {
+          return res.status(403).json({ 
+            message: "Only trainees can take quizzes" 
+          });
+        }
+
         // Check if trainee has already submitted this quiz
-        const previousAttempt = await storage.getQuizAttempt(quizId, req.user.id);
+        const previousAttempt = await storage.getQuizAttempt(quiz.id);
         if (previousAttempt) {
           return res.status(403).json({ 
             message: "You have already submitted this quiz" 
@@ -775,7 +782,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         if (!hasValidBatch) {
           return res.status(403).json({ 
-            message: "You are not assigned to a batch that can take this quiz" 
+            message: "You are not assigned to a batch that has access to this quiz" 
           });
         }
       }
@@ -785,7 +792,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       next();
     } catch (error: any) {
       console.error("Quiz access validation error:", error);
-      res.status(500).json({ message: error.message });
+      res.status(500).json({ 
+        message: "Failed to validate quiz access",
+        details: error.message 
+      });
     }
   }
 
