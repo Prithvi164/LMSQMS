@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import {
@@ -76,7 +76,7 @@ export function QuizTakingPage() {
       }
 
       const result = await response.json();
-      setLocation(`/quiz-results/${result.id}`);
+      window.location.href = `/quiz-results/${result.id}`;
     } catch (error) {
       toast({
         title: "Error",

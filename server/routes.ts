@@ -793,7 +793,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         completedAt: new Date()
       });
 
-      res.json(attempt);
+      res.json({
+        id: attempt.id,
+        score: attempt.score,
+        completedAt: attempt.completedAt,
+        answers: scoredAnswers
+      });
     } catch (error: any) {
       console.error("Error submitting quiz:", error);
       res.status(500).json({ message: error.message });
