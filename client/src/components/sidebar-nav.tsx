@@ -8,21 +8,26 @@ import {
   Users,
   ClipboardCheck,
   LogOut,
-  BookOpen 
+  BookOpen,
+  FileCheck 
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
 export function SidebarNav() {
   const [location] = useLocation();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth(); 
 
   const navItems = [
     { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/batch-management', label: 'Batch Management', icon: Users },
-    { href: '/trainee-management', label: 'Trainee Management', icon: ClipboardCheck },
-    { href: '/quiz-management', label: 'Quiz Management', icon: BookOpen },
-    { href: '/learning-paths', label: 'Learning Paths', icon: GraduationCap },
-    { href: '/performance', label: 'Performance', icon: BarChart2 },
+    ...(user?.role === 'trainee' ? [
+      { href: '/my-quizzes', label: 'My Quizzes', icon: FileCheck }
+    ] : [
+      { href: '/batch-management', label: 'Batch Management', icon: Users },
+      { href: '/trainee-management', label: 'Trainee Management', icon: ClipboardCheck },
+      { href: '/quiz-management', label: 'Quiz Management', icon: BookOpen },
+      { href: '/learning-paths', label: 'Learning Paths', icon: GraduationCap },
+      { href: '/performance', label: 'Performance', icon: BarChart2 },
+    ]),
   ];
 
   return (
