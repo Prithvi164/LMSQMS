@@ -17,9 +17,15 @@ export function SidebarNav() {
   const [location] = useLocation();
   const { logout, user } = useAuth(); 
 
+  // Debug log to check user role
+  console.log('Current user role:', user?.role);
+
+  const isTrainee = user?.role === 'trainee';
+
   const navItems = [
     { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-    ...(user?.role === 'trainee' ? [
+    // Show My Quizzes for trainees, other options for non-trainees
+    ...(isTrainee ? [
       { href: '/my-quizzes', label: 'My Quizzes', icon: FileCheck }
     ] : [
       { href: '/batch-management', label: 'Batch Management', icon: Users },
