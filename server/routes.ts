@@ -948,7 +948,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Process IDs for trainee:', processIds);
 
       if (processIds.length === 0) {
-        console.log('No process IDs found for trainee');
         return res.json([]);
       }
 
@@ -973,8 +972,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           eq(quizzes.processId, organizationProcesses.id)
         )
         .where(and(
-          // Properly handle enum comparison
-          sql`${quizzes.status}::text = 'in_progress'::text`,
+          // Use 'active' status instead of 'in_progress'
+          eq(quizzes.status, 'active'),
           sql`${quizzes.startTime} <= CURRENT_TIMESTAMP`,
           sql`${quizzes.endTime} >= CURRENT_TIMESTAMP`,
           sql`${quizzes.processId} = ANY(${sql.array(processIds, 'int4')})`
