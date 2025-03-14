@@ -11,9 +11,9 @@ export const questionTypeEnum = pgEnum('question_type', [
 ]);
 
 export const quizStatusEnum = pgEnum('quiz_status', [
-  'in_progress',
+  'active',
   'completed',
-  'abandoned'
+  'expired'
 ]);
 
 export const batchCategoryEnum = pgEnum('batch_category', [
@@ -251,7 +251,7 @@ export const insertQuizSchema = createInsertSchema(quizzes)
     organizationId: z.number().int().positive("Organization is required"),
     createdBy: z.number().int().positive("Creator is required"),
     processId: z.number().int().positive("Process is required"),
-    status: z.enum(['in_progress', 'completed', 'abandoned']).default('in_progress'),
+    status: z.enum(['active', 'completed', 'expired']).default('active'),
     startTime: z.date(),
     endTime: z.date(),
   });

@@ -913,16 +913,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([]);
       }
 
-      // Get all quizzes for these processes
-      const quizzes = await storage.getQuizzesByProcessIds(processIds);
+      // Get all quizzes for these processes with status 'active'
+      const quizzes = await storage.getQuizzesByProcessIds(processIds, 'active');
 
       // For each quiz, check if the trainee has attempted it
       const quizzesWithAttempts = await Promise.all(
         quizzes.map(async (quiz) => {
-          const attempts = await storage.getQuizAttempt(quiz.id);
+          const attempts = await storage.getQuizAttempts(quiz.id, req.user.id);
           return {
             ...quiz,
-            attempts: attempts ? [attempts] : []
+            attempts: attempts || []
           };
         })
       );
