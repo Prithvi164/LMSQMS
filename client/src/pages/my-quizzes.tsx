@@ -25,8 +25,15 @@ export function MyQuizzesPage() {
 
   // Changed role check to category check
   const { data: quizzes, isLoading } = useQuery({
-    queryKey: ["/api/trainee/quizzes"],
-    enabled: !!user && user.category === "trainee", // Changed from role to category
+    queryKey: ["trainee-quizzes"], // Simplified query key
+    queryFn: async () => {
+      const response = await fetch("/api/trainee/quizzes");
+      if (!response.ok) {
+        throw new Error("Failed to fetch quizzes");
+      }
+      return response.json();
+    },
+    enabled: !!user && user.category === "trainee", // Check category instead of role
   });
 
   console.log("Fetched quizzes:", quizzes); // Add logging
