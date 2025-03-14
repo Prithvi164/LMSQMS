@@ -8,6 +8,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -1158,38 +1160,6 @@ export function QuizManagement() {
                               )}
                             />
 
-                            <div className="flex flex-col gap-4">
-                              <FormField
-                                control={templateForm.control}
-                                name="shuffleQuestions"
-                                render={({ field }) => (
-                                  <div className="flex items-center justify-between">
-                                    <Label htmlFor="shuffle-questions">Shuffle Questions</Label>
-                                    <Switch
-                                      id="shuffle-questions"
-                                      checked={field.value}
-                                      onCheckedChange={field.onChange}
-                                    />
-                                  </div>
-                                )}
-                              />
-
-                              <FormField
-                                control={templateForm.control}
-                                name="shuffleOptions"
-                                render={({ field }) => (
-                                  <div className="flex items-center justify-between">
-                                    <Label htmlFor="shuffle-options">Shuffle Answer Options</Label>
-                                    <Switch
-                                      id="shuffle-options"
-                                      checked={field.value}
-                                      onCheckedChange={field.onChange}
-                                    />
-                                  </div>
-                                )}
-                              />
-                            </div>
-
                             <div className="space-y-4">
                               <h4 className="font-medium">Question Distribution</h4>
 
@@ -1199,23 +1169,19 @@ export function QuizManagement() {
                                 <div className="grid grid-cols-2 gap-2">
                                   {Array.from(categories).map((category) => (
                                     <div key={category} className="flex items-center gap-2">
-                                      <Label>{category}</Label>
+                                      <Label htmlFor={`category-${category}`}>{category}</Label>
                                       <Input
+                                        id={`category-${category}`}
                                         type="number"
-                                        min={0}
-                                        placeholder="Count"
+                                        min="0"
+                                        max="100"
                                         onChange={(e) => {
-                                          const value = parseInt(e.target.value);
-                                          const current = templateForm.getValues('categoryDistribution') || {};
-                                          if (value > 0) {
-                                            templateForm.setValue('categoryDistribution', {
-                                              ...current,
-                                              [category]: value
-                                            });
-                                          } else {
-                                            const { [category]: _, ...rest } = current;
-                                            templateForm.setValue('categoryDistribution', rest);
-                                          }
+                                          const value = parseInt(e.target.value) || 0;
+                                          const currentDistribution = templateForm.getValues("categoryDistribution") || {};
+                                          templateForm.setValue("categoryDistribution", {
+                                            ...currentDistribution,
+                                            [category]: value
+                                          });
                                         }}
                                       />
                                     </div>
@@ -1223,35 +1189,25 @@ export function QuizManagement() {
                                 </div>
                               </div>
 
-                              {/* Difficulty Distribution */}
-                              <div className="space-y-2">
-                                <Label>Difficulty Distribution</Label>
-                                <div className="grid grid-cols-2 gap-2">
-                                  {difficulties.map((level) => (
-                                    <div key={level} className="flex items-center gap-2">
-                                      <Label>Level {level}</Label>
-                                      <Input
-                                        type="number"
-                                        min={0}
-                                        placeholder="Count"
-                                        onChange={(e) => {
-                                          const value = parseInt(e.target.value);
-                                          const current = templateForm.getValues('difficultyDistribution') || {};
-                                          if (value > 0) {
-                                            templateForm.setValue('difficultyDistribution', {
-                                              ...current,
-                                              [level]: value
-                                            });
-                                          } else {
-                                            const { [level]: _, ...rest } = current;
-                                            templateForm.setValue('difficultyDistribution', rest);
-                                          }
-                                        }}
-                                      />
-                                    </div>
-                                  ))}
-                                </div>
+                              {/* Shuffle Options */}
+                              <div className="flex items-center space-x-2">
+                                <Switch
+                                  id="shuffle-questions"
+                                  checked={templateForm.watch("shuffleQuestions")}
+                                  onCheckedChange={(checked) => templateForm.setValue("shuffleQuestions", checked)}
+                                />
+                                <Label htmlFor="shuffle-questions">Shuffle Questions</Label>
                               </div>
+
+                              <div className="flex items-center space-x-2">
+                                <Switch
+                                  id="shuffle-options"
+                                  checked={templateForm.watch("shuffleOptions")}
+                                  onCheckedChange={(checked) => templateForm.setValue("shuffleOptions", checked)}
+                                />
+                                <Label htmlFor="shuffle-options">Shuffle Options</Label>
+                              </div>
+
                             </div>
 
                             <div className="flex justify-between gap-2">
