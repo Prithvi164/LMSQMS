@@ -29,6 +29,8 @@ export function MyQuizzesPage() {
     enabled: !!user && user.role === "trainee",
   });
 
+  console.log("Fetched quizzes:", quizzes); // Add logging
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -62,8 +64,8 @@ export function MyQuizzesPage() {
           const now = new Date();
 
           const isActive = quiz.status === "active" && 
-                          now >= startTime && 
-                          now <= endTime;
+                        now >= startTime && 
+                        now <= endTime;
 
           const hasAttempted = quiz.attempts && quiz.attempts.length > 0;
 

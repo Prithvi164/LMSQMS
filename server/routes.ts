@@ -933,19 +933,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(and(
           eq(userBatchProcesses.userId, req.user.id),
           // Include only batches in induction, training or certification phases
-          sql`${organizationBatches.status} IN ('induction', 'training', 'certification')`
+          sql`${organizationBatches.status}::text = ANY(ARRAY['induction', 'training', 'certification']::text[])`
         ));
 
       console.log('Found batch assignments:', batchAssignments);
 
-      // Get unique process IDs
+      // Get unique process IDs and filter out null values
       const processIds = Array.from(new Set(
-        batchAssignments.map(ba => ba.processId)
+        batchAssignments
+          .map(ba => ba.processId)
+          .filter((id): id is number => id !== null)
       ));
 
       console.log('Process IDs for trainee:', processIds);
 
       if (processIds.length === 0) {
+        console.log('No process IDs found for trainee');
         return res.json([]);
       }
 
@@ -970,10 +973,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           eq(quizzes.processId, organizationProcesses.id)
         )
         .where(and(
-          eq(quizzes.status, 'in_progress'),  // Changed from 'active' to 'in_progress'
+          // Properly handle enum comparison
+          sql`${quizzes.status}::text = 'in_progress'::text`,
           sql`${quizzes.startTime} <= CURRENT_TIMESTAMP`,
           sql`${quizzes.endTime} >= CURRENT_TIMESTAMP`,
-          inArray(quizzes.processId, processIds)
+          sql`${quizzes.processId} = ANY(${sql.array(processIds, 'int4')})`
         ));
 
       console.log('Found quizzes:', quizList);
@@ -981,6 +985,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get quiz attempts for each quiz
       const quizzesWithAttempts = await Promise.all(
         quizList.map(async (quiz) => {
+          // Type the quiz object to match schema
           const attempts = await db
             .select()
             .from(quizResponses)
@@ -988,6 +993,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               eq(quizResponses.quizId, quiz.id),
               eq(quizResponses.userId, req.user!.id)
             ));
+
+          console.log(`Quiz ${quiz.id} attempts:`, attempts);
 
           return {
             ...quiz,
