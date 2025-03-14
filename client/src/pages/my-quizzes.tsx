@@ -23,10 +23,10 @@ export function MyQuizzesPage() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Fetch quizzes for trainee
+  // Fetch available quizzes for the trainee
   const { data: quizzes, isLoading } = useQuery({
-    queryKey: ["/api/trainee/quizzes"], // Use the exact API endpoint as queryKey
-    enabled: !!user && user.category === "trainee", // Only enabled for users with trainee category
+    queryKey: ["/api/trainee/quizzes"],
+    enabled: !!user && user.role === "trainee",
   });
 
   if (isLoading) {
@@ -62,8 +62,8 @@ export function MyQuizzesPage() {
           const now = new Date();
 
           const isActive = quiz.status === "active" && 
-                        now >= startTime && 
-                        now <= endTime;
+                          now >= startTime && 
+                          now <= endTime;
 
           const hasAttempted = quiz.attempts && quiz.attempts.length > 0;
 

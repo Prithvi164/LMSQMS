@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { Router } from "express";
-import { insertUserSchema, users, userBatchProcesses, organizationProcesses, organizationBatches, quizzes, quizResponses, quizTemplates } from "@shared/schema";
+import { insertUserSchema, users, userBatchProcesses, organizationProcesses, organizationBatches, quizzes, quizResponses } from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
@@ -914,98 +914,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add route to get trainee quizzes
-  // Add route to fetch active quizzes, optionally filtered by template
-  app.get("/api/quizzes/active", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const templateId = req.query.templateId ? parseInt(req.query.templateId as string) : null;
-
-      const query = db
-        .select({
-          id: quizzes.id,
-          name: quizzes.name,
-          status: quizzes.status,
-          startTime: quizzes.startTime,
-          endTime: quizzes.endTime,
-          templateId: quizzes.templateId,
-          templateName: quizTemplates.name,
-          processId: quizzes.processId,
-          processName: organizationProcesses.name
-        })
-        .from(quizzes)
-        .leftJoin(quizTemplates, eq(quizzes.templateId, quizTemplates.id))
-        .leftJoin(organizationProcesses, eq(quizzes.processId, organizationProcesses.id))
-        .where(eq(quizzes.status, 'active'));
-
-      // Add template filter if provided
-      if (templateId) {
-        query.where(eq(quizzes.templateId, templateId));
-      }
-
-      const activeQuizzes = await query;
-      res.json(activeQuizzes);
-    } catch (error: any) {
-      console.error("Error fetching active quizzes:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Add route to delete a quiz
-  app.delete("/api/quizzes/:id", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const quizId = parseInt(req.params.id);
-      
-      // Delete the quiz
-      await db.delete(quizzes).where(eq(quizzes.id, quizId));
-      
-      res.json({ message: "Quiz deleted successfully" });
-    } catch (error: any) {
-      console.error("Error deleting quiz:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
   app.get("/api/trainee/quizzes", async (req, res) => {
+    if (!req.user?.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
     try {
-      if (!req.user || !req.user.id) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-
-      // Verify user is a trainee by category  
-      if (req.user.category !== 'trainee') {
-        console.log(`User ${req.user.id} attempted to access trainee quizzes but has category: ${req.user.category}`);
-        return res.status(403).json({ message: "Access denied. Only trainees can view quizzes." });
-      }
-
       console.log(`Fetching quizzes for trainee ${req.user.id}`);
 
-      // Get trainee's active batch assignments
+      // Get trainee's batch assignments for valid phases
       const batchAssignments = await db
         .select({
           processId: organizationBatches.processId,
           batchStatus: organizationBatches.status
         })
         .from(userBatchProcesses)
-        .leftJoin(
-          organizationBatches,
-          eq(userBatchProcesses.batchId, organizationBatches.id)
-        )
+        .leftJoin(organizationBatches, eq(userBatchProcesses.batchId, organizationBatches.id))
         .where(and(
           eq(userBatchProcesses.userId, req.user.id),
-          // Only get batches in valid phases
-          sql`${organizationBatches.status}::text = ANY(ARRAY['induction', 'training', 'certification'])`
+          // Include only batches in induction, training or certification phases
+          sql`${organizationBatches.status} IN ('induction', 'training', 'certification')`
         ));
 
       console.log('Found batch assignments:', batchAssignments);
 
-      // Get unique process IDs, filtering out nulls
-      const batchProcessIds = batchAssignments
-        .map(ba => ba.processId)
-        .filter((id): id is number => id !== null);
-      const processIds = Array.from(new Set(batchProcessIds));
+      // Get unique process IDs
+      const processIds = Array.from(new Set(
+        batchAssignments.map(ba => ba.processId)
+      ));
 
       console.log('Process IDs for trainee:', processIds);
 
@@ -1013,22 +949,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([]);
       }
 
-      // Get active quizzes for these processes
-      // Get active quizzes
+      // Get quizzes for these processes with time check
       const quizList = await db
         .select({
           id: quizzes.id,
           name: quizzes.name,
           description: quizzes.description,
-          status: quizzes.status,
+          status: quizzes.status, 
           startTime: quizzes.startTime,
           endTime: quizzes.endTime,
           processId: quizzes.processId,
           processName: organizationProcesses.name,
           timeLimit: quizzes.timeLimit,
           passingScore: quizzes.passingScore,
-          questions: quizzes.questionIds, // Using questionIds field
-          organizationId: quizzes.organizationId
+          questions: quizzes.questions
         })
         .from(quizzes)
         .leftJoin(
@@ -1036,34 +970,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
           eq(quizzes.processId, organizationProcesses.id)
         )
         .where(and(
-          sql`${quizzes.status}::text = 'active'`,
-          sql`${quizzes.startTime}::timestamptz <= NOW()`,
-          sql`${quizzes.endTime}::timestamptz >= NOW()`,
+          eq(quizzes.status, 'active'),
+          sql`${quizzes.startTime} <= CURRENT_TIMESTAMP`,
+          sql`${quizzes.endTime} >= CURRENT_TIMESTAMP`,
           inArray(quizzes.processId, processIds)
         ));
 
       console.log('Found quizzes:', quizList);
 
-      // Get attempts for these quizzes
-      const attempts = await db
-        .select({
-          id: quizResponses.id,
-          quizId: quizResponses.quizId,
-          userId: quizResponses.userId,
-          score: quizResponses.score,
-          completedAt: quizResponses.completedAt
-        })
-        .from(quizResponses)
-        .where(and(
-          inArray(quizResponses.quizId, quizList.map(q => q.id)),
-          eq(quizResponses.userId, req.user.id)
-        ));
+      // Get quiz attempts for each quiz  
+      const quizzesWithAttempts = await Promise.all(
+        quizList.map(async (quiz) => {
+          const attempts = await db
+            .select()
+            .from(quizResponses)
+            .where(and(
+              eq(quizResponses.quizId, quiz.id),
+              eq(quizResponses.userId, req.user!.id)
+            ));
 
-      // Combine quizzes with their attempts
-      const quizzesWithAttempts = quizList.map(quiz => ({
-        ...quiz,
-        attempts: attempts.filter(a => a.quizId === quiz.id) || []
-      }));
+          return {
+            ...quiz,
+            attempts: attempts || []
+          };
+        })
+      );
 
       console.log(`Returning ${quizzesWithAttempts.length} quizzes with attempts`);
       res.json(quizzesWithAttempts);
@@ -1273,61 +1204,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add update endpoint for quiz templates
-
-  // Add route to fetch active quizzes, optionally filtered by template
-  app.get("/api/quizzes/active", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const templateId = req.query.templateId ? parseInt(req.query.templateId as string) : null;
-
-      const query = db
-        .select({
-          id: quizzes.id,
-          name: quizzes.name,
-          status: quizzes.status,
-          startTime: quizzes.startTime,
-          endTime: quizzes.endTime,
-          templateId: quizzes.templateId,
-          templateName: quizTemplates.name,
-          processId: quizzes.processId,
-          processName: organizationProcesses.name
-        })
-        .from(quizzes)
-        .leftJoin(quizTemplates, eq(quizzes.templateId, quizTemplates.id))
-        .leftJoin(organizationProcesses, eq(quizzes.processId, organizationProcesses.id))
-        .where(eq(quizzes.status, 'active'));
-
-      // Add template filter if provided
-      if (templateId) {
-        query.where(eq(quizzes.templateId, templateId));
-      }
-
-      const activeQuizzes = await query;
-      res.json(activeQuizzes);
-    } catch (error: any) {
-      console.error("Error fetching active quizzes:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Add route to delete a quiz
-  app.delete("/api/quizzes/:id", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const quizId = parseInt(req.params.id);
-      
-      // Delete the quiz
-      await db.delete(quizzes).where(eq(quizzes.id, quizId));
-      
-      res.json({ message: "Quiz deleted successfully" });
-    } catch (error: any) {
-      console.error("Error deleting quiz:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
   // Add the new quiz attempt route handler
   app.get("/api/quiz-attempts/:id", async (req, res) => {
     if (!req.user) {
@@ -1486,28 +1362,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      // First check if there are any quizzes using this template
-      const existingQuizzes = await db
-        .select({ id: quizzes.id })
-        .from(quizzes)
-        .where(eq(quizzes.templateId, templateId));
-
-      if (existingQuizzes.length > 0) {
-        return res.status(400).json({
-          message: "Cannot delete this template as it is being used by active quizzes. Please delete the associated quizzes first.",
-          quizCount: existingQuizzes.length
-        });
-      }
-
-      // If no quizzes are using this template, proceed with deletion
+      // Delete the template
       await storage.deleteQuizTemplate(templateId);
       res.json({ message: "Quiz template deleted successfully" });
     } catch (error: any) {
       console.error("Error deleting quiz template:", error);
-      res.status(500).json({ 
-        message: "Failed to delete quiz template",
-        error: error.message
-      });
+      res.status(500).json({ message: error.message });
     }
   });
 
