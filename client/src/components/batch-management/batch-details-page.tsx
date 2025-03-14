@@ -119,7 +119,7 @@ export function BatchDetailsPage() {
   const [selectedTab, setSelectedTab] = useState("attendance");
   const currentDate = format(new Date(), "PPP");
 
-  // Initialize form at the top level
+  // Initialize form
   const form = useForm({
     resolver: zodResolver(phaseChangeFormSchema),
     defaultValues: {
@@ -133,17 +133,9 @@ export function BatchDetailsPage() {
   const { data: batch, isLoading: batchLoading, error: batchError } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}`],
     enabled: !!user?.organizationId && !!batchId,
-    onError: (error: any) => {
-      console.error('Error fetching batch:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to load batch details. Please try again.",
-      });
-    }
   });
 
-  const { data: trainees, isLoading: traineesLoading } = useQuery({
+  const { data: trainees = [], isLoading: traineesLoading } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`],
     enabled: !!user?.organizationId && !!batchId && !!batch,
   });
@@ -356,7 +348,8 @@ export function BatchDetailsPage() {
     );
   }
 
-  const enrolledCount = trainees?.length || 0;
+  // Use trainees length directly since we get the filtered list from the API
+  const enrolledCount = trainees.length;
   const remainingCapacity = batch.capacityLimit - enrolledCount;
 
   const canAccessPhaseRequests = user?.role === 'trainer' || user?.role === 'manager';
