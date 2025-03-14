@@ -738,20 +738,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const quizId = parseInt(req.params.quizId);
       
-      // Get quiz details with minimal validation
-      const quiz = await storage.getQuiz(quizId);
+      // Get quiz with questions using the correct function
+      const quiz = await storage.getQuizWithQuestions(quizId);
       if (!quiz) {
         return res.status(404).json({ message: "Quiz not found" });
       }
 
-      // Get questions for the quiz
-      const questions = await storage.getQuizQuestions(quiz.id);
-      
-      // Return quiz with questions
-      res.json({
-        ...quiz,
-        questions
-      });
+      res.json(quiz);
     } catch (error: any) {
       console.error("Error fetching quiz details:", error);
       res.status(500).json({ message: error.message });
@@ -767,18 +760,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const quizId = parseInt(req.params.quizId);
       const { answers } = req.body;
 
-      // Get quiz details
-      const quiz = await storage.getQuiz(quizId);
+      // Get quiz with questions using the correct function
+      const quiz = await storage.getQuizWithQuestions(quizId);
       if (!quiz) {
         return res.status(404).json({ message: "Quiz not found" });
       }
 
-      // Get questions to calculate score
-      const questions = await storage.getQuizQuestions(quiz.id);
-      
       // Calculate score
       let correctAnswers = 0;
-      const scoredAnswers = questions.map(question => {
+      const scoredAnswers = quiz.questions.map(question => {
         const userAnswer = answers[question.id];
         const isCorrect = userAnswer === question.correctAnswer;
         if (isCorrect) correctAnswers++;
@@ -791,7 +781,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
 
-      const score = (correctAnswers / questions.length) * 100;
+      const score = (correctAnswers / quiz.questions.length) * 100;
 
       // Create quiz attempt record
       const attempt = await storage.createQuizAttempt({
