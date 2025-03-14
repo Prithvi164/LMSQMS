@@ -14,20 +14,18 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
 import type { Question, QuizTemplate } from "@shared/schema";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Pencil, Trash2, Loader2, PlayCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 // Process filter form schema
 const filterFormSchema = z.object({
   processId: z.string().optional()
 });
 
-// Add templateFilterFormSchema
+// Add template filter form schema
 const templateFilterFormSchema = z.object({
-  processId: z.string().default("all")
+  templateId: z.string().default("all")
 });
 
 // Process type definitions
@@ -84,6 +82,7 @@ export function QuizManagement() {
   const [deletingQuestionId, setDeletingQuestionId] = useState<number | null>(null);
   const [deletingTemplateId, setDeletingTemplateId] = useState<number | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<QuizTemplate | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("all");
 
 
   // Create a form for the process filter
@@ -502,12 +501,12 @@ export function QuizManagement() {
   const templateFilterForm = useForm<TemplateFilterFormValues>({
     resolver: zodResolver(templateFilterFormSchema),
     defaultValues: {
-      processId: "all"
+      templateId: "all"
     }
   });
 
   // Add query for quiz templates
-  const { data: quizTemplates = [], isLoading: templatesLoading } = useQuery({
+  const { data: quizTemplatesData = [], isLoading: templatesLoading } = useQuery({
     queryKey: ['/api/quiz-templates', selectedTemplateProcessId !== 'all' ? parseInt(selectedTemplateProcessId) : null],
     enabled: !!user?.organizationId
   });
@@ -563,6 +562,45 @@ export function QuizManagement() {
     },
   });
 
+  // Add query for quizzes by template
+  const { data: templateQuizzes = [], isLoading: quizzesLoading } = useQuery({
+    queryKey: ['/api/quizzes/by-template', selectedTemplateId],
+    enabled: !!selectedTemplateId
+  });
+
+  // Add the active quizzes query and state
+  const { data: activeQuizzesData = [], isLoading: activeQuizzesLoading } = useQuery({
+    queryKey: ['/api/quizzes/active', selectedTemplateId],
+    enabled: !!user?.organizationId
+  });
+
+  // Add delete quiz mutation
+  const deleteQuizMutation = useMutation({
+    mutationFn: async (quizId: number) => {
+      const response = await fetch(`/api/quizzes/${quizId}`, {
+        method: 'DELETE'
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to delete quiz');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/quizzes/active', selectedTemplateId] });
+      toast({
+        title: "Success",
+        description: "Quiz deleted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
   return (
     <div className="container mx-auto py-6">
       <h1 className="text-2xl font-bold mb-6">Quiz Management</h1>
@@ -571,6 +609,7 @@ export function QuizManagement() {
         <TabsList>
           <TabsTrigger value="questions">Question Bank</TabsTrigger>
           <TabsTrigger value="templates">Quiz Templates</TabsTrigger>
+          <TabsTrigger value="active-quizzes">Active Quizzes</TabsTrigger>
         </TabsList>
 
         <TabsContent value="questions">
@@ -919,8 +958,7 @@ export function QuizManagement() {
                           <div className="ml-4 p-2 bg-green-100 dark:bg-green-900/20 rounded-md">
                             <span className="font-medium">Correct Answer: </span>
                             {question.correctAnswer}
-                          </div>
-                        )}
+                          </div>                        )}
 
                         {question.explanation && (
                           <div className="mt-2 p-3 bg-muted/50 rounded-md">
@@ -1264,11 +1302,11 @@ export function QuizManagement() {
               {/* Template List */}
               {templatesLoading ? (
                 <p>Loading templates...</p>
-              ) : quizTemplates.length === 0 ? (
+              ) : quizTemplatesData.length === 0 ? (
                 <p>No quiz templates found for the selected process.</p>
               ) : (
                 <div className="grid gap-4">
-                  {quizTemplates.map((template: any) => (
+                  {quizTemplatesData.map((template: any) => (
                     <Card key={template.id} className="p-4">
                       <div className="flex justify-between items-start mb-2">
                         <div className="space-y-1">
@@ -1323,6 +1361,162 @@ export function QuizManagement() {
                             Delete
                           </Button>
                         </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              {/* Add new section for managing quizzes by template */}
+              {selectedTemplateId && (
+                <div className="mt-6">
+                  <h3 className="text-lg font-semibold mb-4">Active Quizzes Using This Template</h3>
+                  {quizzesLoading ? (
+                    <p>Loading quizzes...</p>
+                  ) : templateQuizzes.length === 0 ? (
+                    <p>No active quizzes using this template.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {templateQuizzes.map((quiz) => (
+                        <Card key={quiz.id} className="p-4">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <h4 className="font-medium">{quiz.name}</h4>
+                              <p className="text-sm text-muted-foreground">
+                                Status: {quiz.status}
+                              </p>
+                            </div>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="destructive" size="sm">
+                                  Delete Quiz
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Quiz</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete this quiz? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => deleteQuizMutation.mutate(quiz.id)}>
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="active-quizzes">
+          <Card className="p-4">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-semibold">Active Quizzes</h2>
+
+                {/* Template Filter */}
+                <Form {...templateFilterForm}>
+                  <form className="w-72">
+                    <FormField
+                      control={templateFilterForm.control}
+                      name="templateId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <Select
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              setSelectedTemplateId(value);
+                            }}
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Filter by Template" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="all">All Templates</SelectItem>
+                              {quizTemplatesData.map((template: any) => (
+                                <SelectItem key={template.id} value={template.id.toString()}>
+                                  {template.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )}
+                    />
+                  </form>
+                </Form>
+              </div>
+
+              {activeQuizzesLoading ? (
+                <div className="flex items-center justify-center p-8">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              ) : activeQuizzesData.length === 0 ? (
+                <div className="text-center p-8 text-muted-foreground">
+                  No active quizzes found.
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {activeQuizzesData.map((quiz: any) => (
+                    <Card key={quiz.id} className="p-4">
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold">{quiz.name}</h3>
+                            <Badge>Active</Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            Template: {quiz.templateName || 'N/A'}
+                          </p>
+                          <div className="text-sm text-muted-foreground">
+                            <p>Start: {new Date(quiz.startTime).toLocaleString()}</p>
+                            <p>End: {new Date(quiz.endTime).toLocaleString()}</p>
+                          </div>
+                        </div>
+
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm">
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Delete Quiz
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Quiz</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete this quiz? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteQuizMutation.mutate(quiz.id)}
+                                disabled={deleteQuizMutation.isPending}
+                              >
+                                {deleteQuizMutation.isPending ? (
+                                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4 mr-1" />
+                                )}
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </Card>
                   ))}
