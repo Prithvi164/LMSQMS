@@ -953,15 +953,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const quizList = await db
         .select({
           id: quizzes.id,
-          title: quizzes.name,
+          name: quizzes.name,
           description: quizzes.description,
-          status: quizzes.status,
+          status: quizzes.status, 
           startTime: quizzes.startTime,
           endTime: quizzes.endTime,
           processId: quizzes.processId,
           processName: organizationProcesses.name,
           timeLimit: quizzes.timeLimit,
-          passingScore: quizzes.passingScore
+          passingScore: quizzes.passingScore,
+          questions: quizzes.questions
         })
         .from(quizzes)
         .leftJoin(
@@ -970,14 +971,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         )
         .where(and(
           eq(quizzes.status, 'active'),
-          sql`${quizzes.startTime} <= NOW()`,
-          sql`${quizzes.endTime} >= NOW()`,
+          sql`${quizzes.startTime} <= CURRENT_TIMESTAMP`,
+          sql`${quizzes.endTime} >= CURRENT_TIMESTAMP`,
           inArray(quizzes.processId, processIds)
         ));
 
       console.log('Found quizzes:', quizList);
 
-      // Get quiz attempts for each quiz
+      // Get quiz attempts for each quiz  
       const quizzesWithAttempts = await Promise.all(
         quizList.map(async (quiz) => {
           const attempts = await db
@@ -1003,6 +1004,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch quizzes" });
     }
   });
+
+  
 
   // Add route for getting random questions
   app.get("/api/random-questions", async (req, res) => {
