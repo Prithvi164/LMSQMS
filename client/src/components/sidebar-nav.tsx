@@ -8,21 +8,38 @@ import {
   Users,
   ClipboardCheck,
   LogOut,
-  BookOpen 
+  BookOpen,
+  FileQuestion // Added for My Quizzes icon
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
 export function SidebarNav() {
   const [location] = useLocation();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth(); // Added user to check role
 
-  const navItems = [
+  // Define nav items based on user role
+  const baseNavItems = [
     { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/learning-paths', label: 'Learning Paths', icon: GraduationCap },
+    { href: '/performance', label: 'Performance', icon: BarChart2 },
+  ];
+
+  // Add trainee-specific items
+  const traineeItems = [
+    { href: '/my-quizzes', label: 'My Quizzes', icon: FileQuestion },
+  ];
+
+  // Add admin/trainer items
+  const adminItems = [
     { href: '/batch-management', label: 'Batch Management', icon: Users },
     { href: '/trainee-management', label: 'Trainee Management', icon: ClipboardCheck },
     { href: '/quiz-management', label: 'Quiz Management', icon: BookOpen },
-    { href: '/learning-paths', label: 'Learning Paths', icon: GraduationCap },
-    { href: '/performance', label: 'Performance', icon: BarChart2 },
+  ];
+
+  // Combine nav items based on user role
+  const navItems = [
+    ...baseNavItems,
+    ...(user?.role === 'trainee' ? traineeItems : adminItems),
   ];
 
   return (
