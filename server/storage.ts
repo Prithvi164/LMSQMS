@@ -815,7 +815,6 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log('DEBUG: [getBatchAssignments] Input:', { userId });
 
-      // Get only active batch assignments for the user
       const assignments = await db
         .select({
           id: userBatchProcesses.id,
@@ -824,24 +823,9 @@ export class DatabaseStorage implements IStorage {
           processId: userBatchProcesses.processId,
           status: userBatchProcesses.status,
           joinedAt: userBatchProcesses.joinedAt,
-          completedAt: userBatchProcesses.completedAt,
-          createdAt: userBatchProcesses.createdAt,
-          updatedAt: userBatchProcesses.updatedAt,
-          organizationId: organizationBatches.organizationId,
-          batchName: organizationBatches.name,
-          processName: organizationProcesses.name,
-          locationId: organizationBatches.locationId,
-          lineOfBusinessId: organizationProcesses.lineOfBusinessId
+          completedAt: userBatchProcesses.completedAt
         })
         .from(userBatchProcesses)
-        .leftJoin(
-          organizationBatches,
-          eq(userBatchProcesses.batchId, organizationBatches.id)
-        )
-        .leftJoin(
-          organizationProcesses,
-          eq(userBatchProcesses.processId, organizationProcesses.id)
-        )
         .where(
           and(
             eq(userBatchProcesses.userId, userId),
@@ -856,19 +840,15 @@ export class DatabaseStorage implements IStorage {
         assignments: assignments.map(a => ({
           id: a.id,
           processId: a.processId,
-          processName: a.processName,
           batchId: a.batchId,
-          batchName: a.batchName,
-          status: a.status,
-          locationId: a.locationId,
-          lineOfBusinessId: a.lineOfBusinessId
+          status: a.status
         }))
       });
 
-      return assignments as UserBatchProcess[];
+      return assignments;
     } catch (error) {
       console.error('Error fetching batch assignments:', error);
-      throw error;
+      throw new Error('Failed to fetch trainee batch assignments');
     }
   }
 

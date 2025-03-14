@@ -885,37 +885,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Add trainee-specific quiz endpoint
   app.get("/api/trainee/quizzes", async (req, res) => {
-    if (!req.user || !req.user.organizationId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    // Verify if user has trainee category
-    if (req.user.category !== 'trainee') {
-      return res.status(403).json({ 
-        message: "Only users with trainee category can access this endpoint" 
-      });
-    }
-
     try {
-      // Get only active batch assignments with process info
-      const batchAssignments = await storage.getBatchAssignments(req.user.id);
+      if (!req.user || !req.user.organizationId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Verify if user has trainee category
+      if (req.user.category !== 'trainee') {
+        return res.status(403).json({ 
+          message: "Only users with trainee category can access this endpoint" 
+        });
+      }
+
+      // Get active batch assignments for this trainee
+      const assignments = await storage.getBatchAssignments(req.user.id);
       
       // Return empty array if no active assignments
-      if (!batchAssignments || batchAssignments.length === 0) {
+      if (!assignments || assignments.length === 0) {
         return res.json([]);
       }
 
-      // Get process IDs from active assignments
-      const processIds = batchAssignments.map(a => a.processId);
+      // Extract process IDs from assignments
+      const processIds = assignments.map(a => a.processId);
 
-      // Get active quizzes for these processes and organization
+      // Get active quizzes for these processes
       const quizzes = await storage.getQuizzesByProcessIds(
         processIds,
-        'active',  // Only active quizzes
-        req.user.organizationId  // Filter by organization
+        'active',
+        req.user.organizationId
       );
 
-      // Get quiz attempts for each quiz
+      // Get attempts for each quiz
       const quizzesWithAttempts = await Promise.all(
         quizzes.map(async (quiz) => {
           const attempts = await storage.getQuizAttempts(quiz.id, req.user.id);
@@ -928,8 +928,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(quizzesWithAttempts);
     } catch (error: any) {
-      console.error("Error fetching trainee quizzes:", error);
-      res.status(500).json({ message: error.message });
+      console.error("Error in /api/trainee/quizzes:", error);
+      res.status(500).json({ 
+        message: error.message || "Failed to fetch quizzes",
+        error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
     }
   });
 
