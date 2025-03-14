@@ -32,7 +32,7 @@ export function MyQuizzesPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Clock className="h-8 w-8 animate-spin" /> {/* Changed Loader2 to Clock */}
+        <Clock className="h-8 w-8 animate-spin" />
       </div>
     );
   }
@@ -56,7 +56,7 @@ export function MyQuizzesPage() {
       <h1 className="text-2xl font-bold mb-6">My Quizzes</h1>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {quizzes.map((quiz: any) => {
+        {quizzes.map((quiz) => {
           const startTime = new Date(quiz.startTime);
           const endTime = new Date(quiz.endTime);
           const now = new Date();
@@ -68,14 +68,13 @@ export function MyQuizzesPage() {
           const hasAttempted = quiz.attempts && quiz.attempts.length > 0;
 
           const timeLeft = isActive ? Math.max(0, endTime.getTime() - now.getTime()) : 0;
-          const formattedTimeLeft = isActive ?  Math.floor(timeLeft / (1000 * 60)) + " minutes" : "";
-
+          const formattedTimeLeft = isActive ? Math.floor(timeLeft / (1000 * 60)) + " minutes" : "";
 
           return (
             <Card key={quiz.id} className="relative">
               <CardHeader>
                 <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg">{quiz.title}</CardTitle>
+                  <CardTitle className="text-lg">{quiz.name}</CardTitle>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger>
@@ -102,8 +101,8 @@ export function MyQuizzesPage() {
                   <div className="flex items-center text-sm text-muted-foreground">
                     <Clock className="mr-2 h-4 w-4" />
                     <span>
-                      {format(startTime, "PPp")} - {format(endTime, "PPp")} {/* Added time remaining */}
-                      {isActive && <span> ({formattedTimeLeft} remaining)</span>}
+                      {format(startTime, "PPp")} - {format(endTime, "PPp")}
+                      {isActive && <span className="ml-1">({formattedTimeLeft} remaining)</span>}
                     </span>
                   </div>
 
