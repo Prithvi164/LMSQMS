@@ -2034,21 +2034,15 @@ export class DatabaseStorage implements IStorage {
 
   async getQuizWithQuestions(id: number): Promise<Quiz | undefined> {
     try {
-      // Get quiz without any status or time validation
-      const [quiz] = await db
-        .select()
-        .from(quizzes)
-        .where(eq(quizzes.id, id)) as Quiz[];
-
+      const quiz = await this.getQuiz(id);
       if (!quiz) {
         return undefined;
       }
 
-      // Get questions without filtering
       const questions = await db
         .select()
         .from(questions)
-        .where(eq(questions.quizId, id)) as Question[];
+        .where(inArray(questions.id, quiz.questions)) as Question[];
 
       return {
         ...quiz,
@@ -2157,6 +2151,18 @@ export class DatabaseStorage implements IStorage {
       return result;
     } catch (error) {
       console.error('Error getting enrolled count:', error);
+      throw error;
+    }
+  }
+  async getQuiz(id: number): Promise<Quiz | undefined> {
+    try {
+      const [quiz] = await db
+        .select()
+        .from(quizzes)
+        .where(eq(quizzes.id, id)) as Quiz[];
+      return quiz;
+    } catch (error) {
+      console.error('Error fetching quiz:', error);
       throw error;
     }
   }
