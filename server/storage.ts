@@ -939,10 +939,11 @@ export class DatabaseStorage implements IStorage {
           throw new Error('Location not found or deletion failed');
         }
 
-        console.log`Successfully deleted location with ID: ${id}`);
+        console.log(`Successfully deleted location with ID: ${id}`);
       });
     } catch (error) {
-      console.error('Error deleting location:', error);      throw error;
+      console.error('Error deleting location:', error);
+      throw error;
     }
   }
 
