@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { CountdownTimer } from "@/components/quiz/countdown-timer";
 
 export function QuizTakingPage() {
   const { quizId } = useParams();
@@ -29,6 +30,17 @@ export function QuizTakingPage() {
     queryKey: [`/api/quizzes/${quizId}`],
     enabled: !!quizId,
   });
+
+  const handleTimeExpired = async () => {
+    if (!isSubmitting) {
+      toast({
+        title: "Time's Up!",
+        description: "Your quiz is being submitted automatically.",
+        variant: "destructive",
+      });
+      await handleSubmit();
+    }
+  };
 
   if (isLoading) {
     return (
@@ -90,6 +102,14 @@ export function QuizTakingPage() {
 
   return (
     <div className="container mx-auto py-8 max-w-3xl">
+      {quiz.endTime && (
+        <CountdownTimer
+          endTime={new Date(quiz.endTime)}
+          onTimeExpired={handleTimeExpired}
+          warningThresholds={[300, 60]} // Warnings at 5 minutes and 1 minute
+        />
+      )}
+
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
