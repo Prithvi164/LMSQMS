@@ -885,79 +885,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Add trainee-specific quiz endpoint
   app.get("/api/trainee/quizzes", async (req, res) => {
-    if (!req.user) {
-      console.log('DEBUG: [/api/trainee/quizzes] No authenticated user');
+    if (!req.user || !req.user.organizationId) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    // Log user details
-    console.log('DEBUG: [/api/trainee/quizzes] User info:', {
-      id: req.user.id,
-      username: req.user.username,
-      organizationId: req.user.organizationId,
-      category: req.user.category
-    });
-
-    // Verify if user has trainee category (not role)
+    // Verify if user has trainee category
     if (req.user.category !== 'trainee') {
-      console.log('DEBUG: [/api/trainee/quizzes] User category mismatch:', req.user.category);
       return res.status(403).json({ 
         message: "Only users with trainee category can access this endpoint" 
       });
     }
 
     try {
-      // Get trainee's batch assignments
+      // Get only active batch assignments with process info
       const batchAssignments = await storage.getBatchAssignments(req.user.id);
       
+      // Return empty array if no active assignments
       if (!batchAssignments || batchAssignments.length === 0) {
-        console.log('DEBUG: [/api/trainee/quizzes] No batch assignments found');
         return res.json([]);
       }
 
-      console.log('DEBUG: [/api/trainee/quizzes] Batch assignments:', {
-        count: batchAssignments.length,
-        assignments: batchAssignments.map(a => ({
-          id: a.id,
-          batchId: a.batchId,
-          processId: a.processId,
-          status: a.status
-        }))
-      });
+      // Get process IDs from active assignments
+      const processIds = batchAssignments.map(a => a.processId);
 
-      // Get process IDs from active batch assignments
-      const processIds = batchAssignments
-        .filter(assignment => assignment.status === 'active')
-        .map(assignment => assignment.processId);
-
-      console.log('DEBUG: [/api/trainee/quizzes] Active process IDs:', processIds);
-
-      if (processIds.length === 0) {
-        console.log('DEBUG: [/api/trainee/quizzes] No active processes found');
-        return res.json([]);
-      }
-
-      // Get all quizzes for these processes with status 'active'
+      // Get active quizzes for these processes and organization
       const quizzes = await storage.getQuizzesByProcessIds(
         processIds,
-        'active',
-        req.user.organizationId
+        'active',  // Only active quizzes
+        req.user.organizationId  // Filter by organization
       );
 
-      console.log('DEBUG: [/api/trainee/quizzes] Retrieved quizzes:', {
-        count: quizzes.length,
-        quizzes: quizzes.map(q => ({
-          id: q.id,
-          name: q.name,
-          processId: q.processId,
-          organizationId: q.organizationId,
-          status: q.status,
-          startTime: q.startTime,
-          endTime: q.endTime
-        }))
-      });
-
-      // Get attempts for each quiz
+      // Get quiz attempts for each quiz
       const quizzesWithAttempts = await Promise.all(
         quizzes.map(async (quiz) => {
           const attempts = await storage.getQuizAttempts(quiz.id, req.user.id);
@@ -967,16 +925,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         })
       );
-
-      console.log('DEBUG: [/api/trainee/quizzes] Final response:', {
-        count: quizzesWithAttempts.length,
-        quizzes: quizzesWithAttempts.map(q => ({
-          id: q.id,
-          name: q.name,
-          processId: q.processId,
-          attemptsCount: q.attempts.length
-        }))
-      });
 
       res.json(quizzesWithAttempts);
     } catch (error: any) {
