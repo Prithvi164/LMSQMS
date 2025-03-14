@@ -825,7 +825,8 @@ export class DatabaseStorage implements IStorage {
           joinedAt: userBatchProcesses.joinedAt,
           completedAt: userBatchProcesses.completedAt,
           createdAt: userBatchProcesses.createdAt,
-          updatedAt: userBatchProcesses.updatedAt
+          updatedAt: userBatchProcesses.updatedAt,
+          organizationId: userBatchProcesses.organizationId 
         })
         .from(userBatchProcesses)
         .where(
@@ -836,16 +837,9 @@ export class DatabaseStorage implements IStorage {
         )
         .orderBy(desc(userBatchProcesses.joinedAt));
 
-      console.log('DEBUG: [getBatchAssignments] Results:', {
-        userId,
-        count: assignments.length,
-        assignments: assignments.map(a => ({
-          id: a.id,
-          processId: a.processId,
-          batchId: a.batchId,
-          status: a.status
-        }))
-      });
+      if (!assignments) {
+        return [];
+      }
 
       return assignments;
     } catch (error) {
