@@ -796,6 +796,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const startTime = new Date(quiz.startTime);
       const endTime = new Date(quiz.endTime);
       
+      // Only check if quiz is active and within time window
       if (quiz.status !== 'active') {
         return res.status(403).json({ 
           message: "Quiz is not currently active" 
@@ -806,33 +807,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ 
           message: "Quiz is not within its scheduled time window" 
         });
-      }
-
-      // For trainees, check batch assignment and process link
-      if (req.user.category === 'trainee') {
-        // Check if trainee has already submitted this quiz
-        const previousAttempt = await storage.getQuizAttempt(quiz.id, req.user.id);
-        if (previousAttempt) {
-          return res.status(403).json({ 
-            message: "You have already submitted this quiz" 
-          });
-        }
-
-        // Get trainee's batch assignments
-        const batchAssignments = await storage.getTraineeBatchAssignments(req.user.id);
-        
-        // Check if any of trainee's batches are linked to the quiz's process
-        // Allow quizzes for both 'active' and 'planned' batches
-        const hasValidBatch = batchAssignments.some(assignment => 
-          assignment.processId === quiz.processId && 
-          ['active', 'planned'].includes(assignment.status)
-        );
-
-        if (!hasValidBatch) {
-          return res.status(403).json({ 
-            message: "You are not assigned to a batch that has access to this quiz" 
-          });
-        }
       }
 
       // Add quiz to request for use in route handler
