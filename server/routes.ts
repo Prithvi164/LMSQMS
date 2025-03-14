@@ -164,53 +164,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(organization);
   });
 
-  // Route to get batch details with trainee count
-  app.get("/api/organizations/:organizationId/batches/:batchId", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-    
-    try {
-      const batchId = parseInt(req.params.batchId);
-      const batch = await storage.getBatch(batchId);
-      
-      if (!batch) {
-        return res.status(404).json({ message: "Batch not found" });
-      }
-
-      // Get trainees with category='trainee'
-      const trainees = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(userBatchProcesses)
-        .leftJoin(users, eq(userBatchProcesses.userId, users.id))
-        .where(and(
-          eq(userBatchProcesses.batchId, batchId),
-          eq(users.category, 'trainee')  // Count based on category
-        ))
-        .then(result => Number(result[0]?.count || 0));
-
-      console.log(`Batch ${batchId} trainee count:`, trainees);
-
-      // Get additional batch details
-      const [trainer, location, process, lineOfBusiness] = await Promise.all([
-        storage.getUser(batch.trainerId),
-        storage.getLocation(batch.locationId),
-        storage.getProcess(batch.processId),
-        storage.getLineOfBusiness(batch.lineOfBusinessId),
-      ]);
-
-      res.json({
-        ...batch,
-        traineeCount: trainees,
-        trainer,
-        location,
-        process,
-        lineOfBusiness
-      });
-    } catch (error: any) {
-      console.error("Error fetching batch details:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
   // Add route to get organization processes
   app.get("/api/processes", async (req, res) => {
     if (!req.user || !req.user.organizationId) {
@@ -791,14 +744,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Quiz not found" });
       }
 
-      // If user is the quiz creator, bypass time window and status checks
-      if (quiz.createdBy === req.user.id) {
-        console.log(`Quiz creator ${req.user.id} accessing quiz ${quizId}`);
-        req.quiz = quiz;
-        return next();
-      }
-
-      // Check if quiz is active and within timeframe for non-creators
+      // Check if quiz is active and within timeframe
       const now = new Date();
       if (quiz.status !== 'active' || 
           now < new Date(quiz.startTime) || 
@@ -809,9 +755,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // For trainees, check batch assignment and process link
-      if (req.user.category === 'trainee') {
-        // Verify if user is actually a trainee
-        if (req.user.role !== 'advisor' || req.user.category !== 'trainee') {
+      if (req.user.role === 'trainee') {
+        // Verify if user is actually a trainee (both role and category)
+        if (req.user.role !== 'trainee' || req.user.category !== 'trainee') {
           return res.status(403).json({ 
             message: "Only trainees can take quizzes" 
           });

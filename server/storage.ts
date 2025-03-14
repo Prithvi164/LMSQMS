@@ -1054,36 +1054,56 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching batches for organization ${organizationId}`);
 
-      // First get all batches
+      // Explicitly select and cast the batch_category field
       const batches = await db
-        .select()
-        .from(organizationBatches)
-        .where(eq(organizationBatches.organizationId, organizationId))
-        .orderBy(desc(organizationBatches.createdAt)) as OrganizationBatch[];
-
-      // Then get enrollment counts for each batch
-      const batchesWithCounts = await Promise.all(
-        batches.map(async (batch) => {
-          const enrolledCount = await db
-            .select({ count: sql<number>`count(*)` })
-            .from(userBatchProcesses)
-            .leftJoin(users, eq(userBatchProcesses.userId, users.id))
-            .where(and(
-              eq(userBatchProcesses.batchId, batch.id),
-              eq(users.category, 'trainee')  // Count only users with trainee category
-            ))
-            .then(result => Number(result[0]?.count || 0));
-
-          return {
-            ...batch,
-            enrolledCount,
-            capacityLimit: batch.capacityLimit || 0
-          };
+        .select({
+          id: organizationBatches.id,
+          name: organizationBatches.name,
+          batchCategory: sql<string>`${organizationBatches.batchCategory}::text`,
+          startDate: organizationBatches.startDate,
+          endDate: organizationBatches.endDate,
+          status: organizationBatches.status,
+          capacityLimit: organizationBatches.capacityLimit,
+          locationId: organizationBatches.locationId,
+          processId: organizationBatches.processId,
+          lineOfBusinessId: organizationBatches.lineOfBusinessId,
+          trainerId: organizationBatches.trainerId,
+          organizationId: organizationBatches.organizationId,
+          inductionStartDate: organizationBatches.inductionStartDate,
+          inductionEndDate: organizationBatches.inductionEndDate,
+          trainingStartDate: organizationBatches.trainingStartDate,
+          trainingEndDate: organizationBatches.trainingEndDate,
+          certificationStartDate: organizationBatches.certificationStartDate,
+          certificationEndDate: organizationBatches.certificationEndDate,
+          ojtStartDate: organizationBatches.ojtStartDate,
+          ojtEndDate: organizationBatches.ojtEndDate,
+          ojtCertificationStartDate: organizationBatches.ojtCertificationStartDate,
+          ojtCertificationEndDate: organizationBatches.ojtCertificationEndDate,
+          handoverToOpsDate: organizationBatches.handoverToOpsDate,
+          createdAt: organizationBatches.createdAt,
+          updatedAt: organizationBatches.updatedAt,
+          location: organizationLocations,
+          process: organizationProcesses,
+          line_of_business: organizationLineOfBusinesses,
         })
-      );
+        .from(organizationBatches)
+        .leftJoin(
+          organizationLocations,
+          eq(organizationBatches.locationId, organizationLocations.id)
+        )
+        .leftJoin(
+          organizationProcesses,
+          eq(organizationBatches.processId, organizationProcesses.id)
+        )
+        .leftJoin(
+          organizationLineOfBusinesses,
+          eq(organizationBatches.lineOfBusinessId, organizationLineOfBusinesses.id)
+        )
+        .where(eq(organizationBatches.organizationId, organizationId))
+        .orderBy(desc(organizationBatches.createdAt));
 
-      console.log('Found batches with enrollment counts:', batchesWithCounts);
-      return batchesWithCounts;
+
+      return batches as OrganizationBatch[];
     } catch (error) {
       console.error('Error fetching batches:', error);
       throw error;
@@ -1378,7 +1398,7 @@ export class DatabaseStorage implements IStorage {
         .leftJoin(users, eq(userBatchProcesses.userId, users.id))
         .where(and(
           eq(userBatchProcesses.batchId, batchId),
-          eq(users.category, 'trainee')  // Check category instead of role
+          eq(users.category, 'trainee')  // Only count users with category='trainee'
         )) as UserBatchProcess[];
 
       console.log(`Found ${trainees.length} trainees in batch ${batchId}`);
