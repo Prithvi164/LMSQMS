@@ -23,20 +23,11 @@ export function MyQuizzesPage() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Changed role check to category check
+  // Fetch quizzes for trainee
   const { data: quizzes, isLoading } = useQuery({
-    queryKey: ["trainee-quizzes"], // Simplified query key
-    queryFn: async () => {
-      const response = await fetch("/api/trainee/quizzes");
-      if (!response.ok) {
-        throw new Error("Failed to fetch quizzes");
-      }
-      return response.json();
-    },
-    enabled: !!user && user.category === "trainee", // Check category instead of role
+    queryKey: ["/api/trainee/quizzes"], // Use the exact API endpoint as queryKey
+    enabled: !!user && user.category === "trainee", // Only enabled for users with trainee category
   });
-
-  console.log("Fetched quizzes:", quizzes); // Add logging
 
   if (isLoading) {
     return (
