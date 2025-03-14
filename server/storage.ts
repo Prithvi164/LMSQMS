@@ -216,7 +216,7 @@ export interface IStorage {
   getEnrolledCount(batchId: number): Promise<number>;
   getQuiz(id: number): Promise<Quiz | undefined>;
   getBatchAssignments(userId: number): Promise<UserBatchProcess[]>;
-  getQuizzesByProcessIds(processIds: number[], status?: string): Promise<Quiz[]>;
+  getQuizzesByProcessIds(processIds: number[], status?: string, organizationId?: number): Promise<Quiz[]>;
   getQuizAttempts(quizId: number, userId: number): Promise<QuizAttempt[]>;
 }
 
@@ -939,7 +939,7 @@ export class DatabaseStorage implements IStorage {
           throw new Error('Location not found or deletion failed');
         }
 
-        console.log(`Successfully deleted location with ID: ${id}`);
+        console.log`Successfully deleted location with ID: ${id}`);
       });
     } catch (error) {
       console.error('Error deleting location:', error);      throw error;
@@ -1093,7 +1093,6 @@ export class DatabaseStorage implements IStorage {
         )
         .where(eq(organizationBatches.organizationId, organizationId))
         .orderBy(desc(organizationBatches.createdAt));
-
 
       return batches as OrganizationBatch[];
     } catch (error) {
@@ -2301,20 +2300,53 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getQuizzesByProcessIds(processIds: number[], status?: string): Promise<Quiz[]> {
+  async getQuizzesByProcessIds(processIds: number[], status?: string, organizationId?: number): Promise<Quiz[]> {
     try {
-      console.log(`Fetching quizzes for processes ${processIds} with status ${status}`);
+      console.log(`Fetching quizzes for processes ${processIds} with status ${status} in org ${organizationId}`);
+
+      // First verify the process IDs exist
+      if (!processIds.length) {
+        console.log('No process IDs provided');
+        return [];
+      }
+
+      // Build query to get active quizzes for specified processes
       let query = db
         .select()
         .from(quizzes)
-        .where(inArray(quizzes.processId, processIds));
+        .where(
+          and(
+            inArray(quizzes.processId, processIds),
+            // Only get quizzes that haven't expired (end time is in the future)
+            sql`${quizzes.endTime} > NOW()`,
+            // Filter by organization if provided
+            organizationId ? eq(quizzes.organizationId, organizationId) : undefined
+          )
+        );
 
+      // Add status filter if provided
       if (status) {
-        query = query.where(eq(quizzes.status, status as any));
+        query = query.where(eq(quizzes.status, status));
       }
 
       const foundQuizzes = await query as Quiz[];
-      console.log(`Found ${foundQuizzes.length} quizzes:`, foundQuizzes);
+      console.log('Quiz query results:', {
+        filters: {
+          processIds,
+          status,
+          organizationId
+        },
+        foundQuizzes: foundQuizzes.map(q => ({
+          id: q.id,
+          name: q.name,
+          processId: q.processId,
+          organizationId: q.organizationId,
+          status: q.status,
+          startTime: q.startTime,
+          endTime: q.endTime
+        }))
+      });
+
       return foundQuizzes;
     } catch (error) {
       console.error('Error fetching quizzes by process IDs:', error);

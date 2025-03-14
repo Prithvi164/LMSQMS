@@ -899,10 +899,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      console.log('Debug: Fetching batch assignments for user:', req.user.id);
+      console.log('Debug: Fetching batch assignments for user:', {
+        userId: req.user.id,
+        username: req.user.username,
+        organizationId: req.user.organizationId
+      });
+
       // Get trainee's active batch assignments
       const batchAssignments = await storage.getBatchAssignments(req.user.id);
-      console.log('Debug: Found batch assignments:', batchAssignments);
+      console.log('Debug: Found batch assignments:', {
+        count: batchAssignments.length,
+        assignments: batchAssignments.map(a => ({
+          id: a.id,
+          batchId: a.batchId,
+          processId: a.processId,
+          status: a.status
+        }))
+      });
       
       if (!batchAssignments || batchAssignments.length === 0) {
         console.log('Debug: No batch assignments found');
@@ -922,9 +935,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get all quizzes for these processes with status 'active'
-      console.log('Debug: Fetching active quizzes for processes:', processIds);
-      const quizzes = await storage.getQuizzesByProcessIds(processIds, 'active');
-      console.log('Debug: Found quizzes:', quizzes);
+      console.log('Debug: Fetching active quizzes for processes:', {
+        processIds,
+        organizationId: req.user.organizationId
+      });
+
+      const quizzes = await storage.getQuizzesByProcessIds(
+        processIds,
+        'active',
+        req.user.organizationId
+      );
+
+      console.log('Debug: Found quizzes:', {
+        count: quizzes.length,
+        quizzes: quizzes.map(q => ({
+          id: q.id,
+          name: q.name,
+          processId: q.processId,
+          organizationId: q.organizationId,
+          status: q.status,
+          startTime: q.startTime,
+          endTime: q.endTime
+        }))
+      });
 
       // For each quiz, check if the trainee has attempted it
       const quizzesWithAttempts = await Promise.all(
@@ -937,7 +970,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
 
-      console.log('Debug: Quizzes with attempts:', quizzesWithAttempts);
+      console.log('Debug: Final quizzes with attempts:', {
+        count: quizzesWithAttempts.length,
+        quizzes: quizzesWithAttempts.map(q => ({
+          id: q.id,
+          name: q.name,
+          processId: q.processId,
+          attemptsCount: q.attempts.length
+        }))
+      });
       res.json(quizzesWithAttempts);
     } catch (error: any) {
       console.error("Error fetching trainee quizzes:", error);
