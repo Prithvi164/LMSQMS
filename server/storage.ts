@@ -938,16 +938,17 @@ export class DatabaseStorage implements IStorage {
         if (!result.length) {
           throw new Error('Location not found or deletion failed');
         }
-
-        console.log(`Successfully deleted location with ID: ${id}`);
       });
+
+      console.log(`Successfully deleted location with ID: ${id}`);
     } catch (error) {
       console.error('Error deleting location:', error);
       throw error;
     }
   }
 
-  async createLocation(location: InsertOrganizationLocation): Promise<OrganizationLocation> {    try {
+  async createLocation(location: InsertOrganizationLocation): Promise<OrganizationLocation> {
+    try {
       console.log('Creating location with data:', location);
 
       // Check if location with same name exists in the organization
@@ -1937,7 +1938,8 @@ export class DatabaseStorage implements IStorage {
         .values(template)
         .returning();
       return newTemplate;
-    } catch (error) {      console.error('Error creating quiz template:', error);
+    } catch (error) {
+      console.error('Error creating quiz template:', error);
       throw error;
     }
   }
@@ -2274,7 +2276,7 @@ export class DatabaseStorage implements IStorage {
   // Add new storage methods for trainee quizzes
   async getBatchAssignments(userId: number): Promise<UserBatchProcess[]> {
     try {
-      console.log(`Fetching batch assignments for user ${userId}`);
+      console.log(`DEBUG: [getBatchAssignments] Fetching for user ${userId}`);
       const assignments = await db
         .select({
           id: userBatchProcesses.id,
@@ -2284,16 +2286,33 @@ export class DatabaseStorage implements IStorage {
           status: userBatchProcesses.status,
           joinedAt: userBatchProcesses.joinedAt,
           completedAt: userBatchProcesses.completedAt,
-          batchName: organizationBatches.name
+          batchName: organizationBatches.name,
+          processName: organizationProcesses.name
         })
         .from(userBatchProcesses)
         .leftJoin(
           organizationBatches,
           eq(userBatchProcesses.batchId, organizationBatches.id)
         )
+        .leftJoin(
+          organizationProcesses,
+          eq(userBatchProcesses.processId, organizationProcesses.id)
+        )
         .where(eq(userBatchProcesses.userId, userId));
 
-      console.log(`Found ${assignments.length} batch assignments:`, assignments);
+      console.log('DEBUG: [getBatchAssignments] Found:', {
+        userId,
+        count: assignments.length,
+        assignments: assignments.map(a => ({
+          id: a.id,
+          processId: a.processId,
+          processName: a.processName,
+          batchId: a.batchId,
+          batchName: a.batchName,
+          status: a.status
+        }))
+      });
+
       return assignments as UserBatchProcess[];
     } catch (error) {
       console.error('Error fetching batch assignments:', error);
@@ -2303,44 +2322,47 @@ export class DatabaseStorage implements IStorage {
 
   async getQuizzesByProcessIds(processIds: number[], status?: string, organizationId?: number): Promise<Quiz[]> {
     try {
-      console.log(`Fetching quizzes for processes ${processIds} with status ${status} in org ${organizationId}`);
+      console.log('DEBUG: [getQuizzesByProcessIds] Input:', {
+        processIds,
+        status,
+        organizationId
+      });
 
-      // First verify the process IDs exist
       if (!processIds.length) {
-        console.log('No process IDs provided');
+        console.log('DEBUG: [getQuizzesByProcessIds] No process IDs provided');
         return [];
       }
 
       // Build query to get active quizzes for specified processes
       let query = db
-        .select()
+        .select({
+          ...quizzes,
+          processName: organizationProcesses.name
+        })
         .from(quizzes)
+        .leftJoin(
+          organizationProcesses,
+          eq(quizzes.processId, organizationProcesses.id)
+        )
         .where(
           and(
             inArray(quizzes.processId, processIds),
-            // Only get quizzes that haven't expired (end time is in the future)
             sql`${quizzes.endTime} > NOW()`,
-            // Filter by organization if provided
-            organizationId ? eq(quizzes.organizationId, organizationId) : undefined
+            organizationId ? eq(quizzes.organizationId, organizationId) : undefined,
+            status ? eq(quizzes.status, status) : undefined
           )
         );
 
-      // Add status filter if provided
-      if (status) {
-        query = query.where(eq(quizzes.status, status));
-      }
+      const foundQuizzes = await query as (Quiz & { processName: string })[];
 
-      const foundQuizzes = await query as Quiz[];
-      console.log('Quiz query results:', {
-        filters: {
-          processIds,
-          status,
-          organizationId
-        },
-        foundQuizzes: foundQuizzes.map(q => ({
+      console.log('DEBUG: [getQuizzesByProcessIds] Results:', {
+        filters: { processIds, status, organizationId },
+        count: foundQuizzes.length,
+        quizzes: foundQuizzes.map(q => ({
           id: q.id,
           name: q.name,
           processId: q.processId,
+          processName: q.processName,
           organizationId: q.organizationId,
           status: q.status,
           startTime: q.startTime,
@@ -2357,14 +2379,35 @@ export class DatabaseStorage implements IStorage {
 
   async getQuizAttempts(quizId: number, userId: number): Promise<QuizAttempt[]> {
     try {
-      console.log(`Fetching quiz attempts for quiz ${quizId} and user ${userId}`);
+      console.log('DEBUG: [getQuizAttempts] Input:', {
+        quizId,
+        userId
+      });
+
       const attempts = await db
         .select()
         .from(quizAttempts)
-        .where(eq(quizAttempts.quizId, quizId))
-        .where(eq(quizAttempts.userId, userId)) as QuizAttempt[];
+        .where(
+          and(
+            eq(quizAttempts.quizId, quizId),
+            eq(quizAttempts.userId, userId)
+          )
+        )
+        .orderBy(desc(quizAttempts.startTime)) as QuizAttempt[];
 
-      console.log(`Found ${attempts.length} attempts:`, attempts);
+      console.log('DEBUG: [getQuizAttempts] Results:', {
+        quizId,
+        userId,
+        count: attempts.length,
+        attempts: attempts.map(a => ({
+          id: a.id,
+          status: a.status,
+          score: a.score,
+          startTime: a.startTime,
+          submittedAt: a.submittedAt
+        }))
+      });
+
       return attempts;
     } catch (error) {
       console.error('Error fetching quiz attempts:', error);
