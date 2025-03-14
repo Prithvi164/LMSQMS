@@ -744,49 +744,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Quiz not found" });
       }
 
-      // Check if quiz is active and within timeframe
-      const now = new Date();
-      if (quiz.status !== 'active' || 
-          now < new Date(quiz.startTime) || 
-          now > new Date(quiz.endTime)) {
-        return res.status(403).json({ 
-          message: "Quiz is not currently available" 
-        });
-      }
-
-      // For trainees, check batch assignment and process link
-      if (req.user.role === 'trainee') {
-        // Verify if user is actually a trainee (both role and category)
-        if (req.user.role !== 'trainee' || req.user.category !== 'trainee') {
-          return res.status(403).json({ 
-            message: "Only trainees can take quizzes" 
-          });
-        }
-
-        // Check if trainee has already submitted this quiz
-        const previousAttempt = await storage.getQuizAttempt(quiz.id);
-        if (previousAttempt) {
-          return res.status(403).json({ 
-            message: "You have already submitted this quiz" 
-          });
-        }
-
-        // Get trainee's active batch assignments
-        const batchAssignments = await storage.getTraineeBatchAssignments(req.user.id);
-        
-        // Check if any of trainee's batches are linked to the quiz's process
-        const hasValidBatch = batchAssignments.some(assignment => 
-          assignment.processId === quiz.processId && 
-          assignment.status === 'active'
-        );
-
-        if (!hasValidBatch) {
-          return res.status(403).json({ 
-            message: "You are not assigned to a batch that has access to this quiz" 
-          });
-        }
-      }
-
       // Add quiz to request for use in route handler
       req.quiz = quiz;
       next();
@@ -799,9 +756,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
 
-  // Add quiz routes with access validation
+  // Add quiz routes with minimal validation
   app.get("/api/quizzes/:quizId", validateQuizAccess, async (req, res) => {
-    // Quiz is already validated and attached to req by middleware
     const quiz = req.quiz;
     
     try {
@@ -824,14 +780,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const { answers } = req.body;
 
     try {
-      // Validate that all questions are answered
+      // Get questions to calculate score
       const questions = await storage.getQuizQuestions(quiz.id);
-      if (Object.keys(answers).length !== questions.length) {
-        return res.status(400).json({
-          message: "All questions must be answered"
-        });
-      }
-
+      
       // Calculate score
       let correctAnswers = 0;
       const scoredAnswers = questions.map(question => {
