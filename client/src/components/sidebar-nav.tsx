@@ -17,10 +17,11 @@ export function SidebarNav() {
   const [location] = useLocation();
   const { logout, user } = useAuth(); 
 
-  // Debug log to check user role
-  console.log('Current user role:', user?.role);
+  // Debug log to check user category
+  console.log('Current user category:', user?.category);
 
-  const isTrainee = user?.role === 'trainee';
+  // Check if user is a trainee based on category
+  const isTrainee = user?.category === 'trainee';
 
   const navItems = [
     { href: '/', label: 'Dashboard', icon: LayoutDashboard },
