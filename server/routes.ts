@@ -955,7 +955,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: quizzes.id,
           name: quizzes.name,
           description: quizzes.description,
-          status: quizzes.status, 
+          status: quizzes.status,
           startTime: quizzes.startTime,
           endTime: quizzes.endTime,
           processId: quizzes.processId,
@@ -970,7 +970,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           eq(quizzes.processId, organizationProcesses.id)
         )
         .where(and(
-          eq(quizzes.status, 'active'),
+          eq(quizzes.status, 'in_progress'),  // Changed from 'active' to 'in_progress'
           sql`${quizzes.startTime} <= CURRENT_TIMESTAMP`,
           sql`${quizzes.endTime} >= CURRENT_TIMESTAMP`,
           inArray(quizzes.processId, processIds)
@@ -978,7 +978,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('Found quizzes:', quizList);
 
-      // Get quiz attempts for each quiz  
+      // Get quiz attempts for each quiz
       const quizzesWithAttempts = await Promise.all(
         quizList.map(async (quiz) => {
           const attempts = await db
