@@ -818,15 +818,15 @@ export class DatabaseStorage implements IStorage {
       const assignments = await db
         .select({
           id: userBatchProcesses.id,
+          createdAt: userBatchProcesses.createdAt,
+          organizationId: userBatchProcesses.organizationId,
+          status: userBatchProcesses.status,
+          processId: userBatchProcesses.processId,
           userId: userBatchProcesses.userId,
           batchId: userBatchProcesses.batchId,
-          processId: userBatchProcesses.processId,
-          status: userBatchProcesses.status,
           joinedAt: userBatchProcesses.joinedAt,
           completedAt: userBatchProcesses.completedAt,
-          createdAt: userBatchProcesses.createdAt,
-          updatedAt: userBatchProcesses.updatedAt,
-          organizationId: userBatchProcesses.organizationId 
+          updatedAt: userBatchProcesses.updatedAt
         })
         .from(userBatchProcesses)
         .where(
@@ -835,13 +835,19 @@ export class DatabaseStorage implements IStorage {
             eq(userBatchProcesses.status, 'active')
           )
         )
-        .orderBy(desc(userBatchProcesses.joinedAt));
+        .orderBy(desc(userBatchProcesses.createdAt));
 
-      if (!assignments) {
-        return [];
-      }
+      console.log('DEBUG: [getBatchAssignments] Results:', {
+        userId,
+        count: assignments?.length || 0,
+        assignments: assignments?.map(a => ({
+          id: a.id,
+          processId: a.processId,
+          status: a.status
+        }))
+      });
 
-      return assignments;
+      return assignments || [];
     } catch (error) {
       console.error('Error fetching batch assignments:', error);
       throw new Error('Failed to fetch batch assignments');

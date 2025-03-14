@@ -897,13 +897,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      console.log('DEBUG: User details:', {
+        id: req.user.id,
+        organizationId: req.user.organizationId,
+        category: req.user.category
+      });
+
       // Get active batch assignments for this trainee
       const assignments = await storage.getBatchAssignments(req.user.id);
       
-      // Return empty array if no active assignments
+      // Handle case with no assignments
       if (!assignments || assignments.length === 0) {
+        console.log('DEBUG: No active assignments found for user', req.user.id);
         return res.json([]);
       }
+
+      console.log('DEBUG: Found assignments:', {
+        count: assignments.length,
+        assignments: assignments.map(a => ({
+          id: a.id,
+          processId: a.processId,
+          status: a.status
+        }))
+      });
 
       // Extract process IDs from assignments
       const processIds = assignments.map(a => a.processId);
@@ -930,7 +946,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error in /api/trainee/quizzes:", error);
       res.status(500).json({ 
-        message: error.message || "Failed to fetch quizzes",
+        message: "Failed to fetch quizzes",
         error: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
     }
