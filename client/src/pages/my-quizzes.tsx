@@ -19,15 +19,16 @@ import { Badge } from "@/components/ui/badge";
 import { Clock, CheckCircle, XCircle } from "lucide-react";
 import { format } from "date-fns";
 
-// This page shows available quizzes and their status
+// This page shows available quizzes for users in training (category: trainee)
+// Note: Users can have any role (advisor, manager, etc) but must have category: trainee
 export function MyQuizzesPage() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Fetch available quizzes for the trainee - updated to check category instead of role
+  // Fetch available quizzes for users in training (identified by category, not role)
   const { data: quizzes, isLoading } = useQuery({
     queryKey: ["/api/trainee/quizzes"],
-    enabled: !!user && user.category === "trainee", // Changed from role to category
+    enabled: !!user && user.category === "trainee", // Only check category, role can be any valid role
   });
 
   if (isLoading) {
