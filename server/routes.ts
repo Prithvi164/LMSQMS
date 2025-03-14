@@ -791,7 +791,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Quiz not found" });
       }
 
-      // Check if quiz is active and within timeframe
+      // If user is the quiz creator, bypass time window and status checks
+      if (quiz.createdBy === req.user.id) {
+        console.log(`Quiz creator ${req.user.id} accessing quiz ${quizId}`);
+        req.quiz = quiz;
+        return next();
+      }
+
+      // Check if quiz is active and within timeframe for non-creators
       const now = new Date();
       if (quiz.status !== 'active' || 
           now < new Date(quiz.startTime) || 
@@ -802,9 +809,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // For trainees, check batch assignment and process link
-      if (req.user.role === 'trainee') {
-        // Verify if user is actually a trainee (both role and category)
-        if (req.user.role !== 'trainee' || req.user.category !== 'trainee') {
+      if (req.user.category === 'trainee') {
+        // Verify if user is actually a trainee
+        if (req.user.role !== 'advisor' || req.user.category !== 'trainee') {
           return res.status(403).json({ 
             message: "Only trainees can take quizzes" 
           });
