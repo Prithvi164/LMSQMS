@@ -12,13 +12,51 @@ import { z } from "zod";
 const PostgresSessionStore = connectPg(session);
 const scryptAsync = promisify(scrypt);
 
-// Registration validation schema
+// Password validation regex patterns
+const PASSWORD_PATTERNS = {
+  uppercase: /[A-Z]/,
+  lowercase: /[a-z]/,
+  number: /[0-9]/,
+  special: /[!@#$%^&*(),.?":{}|<>]/
+};
+
+// Enhanced password validation schema for batch-enrolled users
+const batchUserPasswordSchema = z.string()
+  .min(8, "Password must be at least 8 characters")
+  .refine(
+    (password) => PASSWORD_PATTERNS.uppercase.test(password),
+    "Password must contain at least one uppercase letter"
+  )
+  .refine(
+    (password) => PASSWORD_PATTERNS.lowercase.test(password),
+    "Password must contain at least one lowercase letter"
+  )
+  .refine(
+    (password) => PASSWORD_PATTERNS.number.test(password),
+    "Password must contain at least one number"
+  )
+  .refine(
+    (password) => PASSWORD_PATTERNS.special.test(password),
+    "Password must contain at least one special character"
+  );
+
+// Updated registration schema with enhanced password validation
 const registrationSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   email: z.string().email("Invalid email format"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   organizationName: z.string().min(2, "Organization name must be at least 2 characters"),
+  isBatchUser: z.boolean().optional(),
 });
+
+// Enhanced password validation function
+async function validatePassword(password: string, isForBatch: boolean = false): Promise<z.SafeParseReturnType<string, string>> {
+  if (isForBatch) {
+    return batchUserPasswordSchema.safeParse(password);
+  }
+  return z.string().min(6, "Password must be at least 6 characters").safeParse(password);
+}
+
 
 declare global {
   namespace Express {
@@ -156,6 +194,15 @@ export function setupAuth(app: Express) {
         return res.status(400).json({ message: "Email already exists" });
       }
 
+      // Validate password based on user type
+      const passwordValidation = await validatePassword(data.password, data.isBatchUser);
+      if (!passwordValidation.success) {
+        return res.status(400).json({
+          message: "Password validation failed",
+          errors: passwordValidation.error.errors.map(e => e.message)
+        });
+      }
+
       // Create organization first
       const organization = await storage.createOrganization({
         name: data.organizationName,
@@ -191,7 +238,7 @@ export function setupAuth(app: Express) {
         }
         return res.status(201).json(user);
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Registration error:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors[0].message });
@@ -238,5 +285,35 @@ export function setupAuth(app: Express) {
       return res.status(401).json({ message: "Not authenticated" });
     }
     res.json(req.user);
+  });
+
+  // Add a new endpoint for updating password with batch enrollment requirements
+  app.post("/api/users/:userId/update-password", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const userId = parseInt(req.params.userId);
+      const { newPassword } = req.body;
+
+      // Always validate with batch requirements when updating password
+      const passwordValidation = await validatePassword(newPassword, true);
+      if (!passwordValidation.success) {
+        return res.status(400).json({
+          message: "Password validation failed",
+          errors: passwordValidation.error.errors.map(e => e.message)
+        });
+      }
+
+      // Hash and update the password
+      const hashedPassword = await hashPassword(newPassword);
+      await storage.updateUser(userId, { password: hashedPassword });
+
+      res.json({ message: "Password updated successfully" });
+    } catch (error: any) {
+      console.error("Password update error:", error);
+      res.status(400).json({ message: error.message });
+    }
   });
 }
