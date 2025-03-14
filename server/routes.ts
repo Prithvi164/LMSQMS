@@ -936,69 +936,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sql`${organizationBatches.status} IN ('induction', 'training', 'certification')`
         ));
 
-      console.log('Batch assignments:', batchAssignments);
+      console.log('Found batch assignments:', batchAssignments);
 
       // Get unique process IDs
       const processIds = Array.from(new Set(
         batchAssignments.map(ba => ba.processId)
       ));
 
-      console.log('Process IDs:', processIds);
+      console.log('Process IDs for trainee:', processIds);
 
       if (processIds.length === 0) {
         return res.json([]);
       }
 
-      // Get current time for quiz availability check
-      const now = new Date();
-
-      // Get quizzes for these processes with specific fields and time check 
+      // Get quizzes for these processes with time check
       const quizList = await db
         .select({
           id: quizzes.id,
-          name: quizzes.name,
+          title: quizzes.name,
           description: quizzes.description,
           status: quizzes.status,
           startTime: quizzes.startTime,
           endTime: quizzes.endTime,
-          createdAt: quizzes.createdAt,
           processId: quizzes.processId,
+          processName: organizationProcesses.name,
           timeLimit: quizzes.timeLimit,
-          passingScore: quizzes.passingScore,
-          organizationId: quizzes.organizationId,
-          questions: quizzes.questions,
-          templateId: quizzes.templateId,
-          createdBy: quizzes.createdBy
+          passingScore: quizzes.passingScore
         })
         .from(quizzes)
+        .leftJoin(
+          organizationProcesses,
+          eq(quizzes.processId, organizationProcesses.id)
+        )
         .where(and(
-          eq(quizzes.status, 'in_progress'), // Use in_progress status for available quizzes
-          sql`${quizzes.startTime} <= ${now}::timestamp`,
-          sql`${quizzes.endTime} >= ${now}::timestamp`,
-          // Use native Postgres array operator
-          sql`${quizzes.processId} = ANY(${processIds.filter(Boolean)})`
+          eq(quizzes.status, 'active'),
+          sql`${quizzes.startTime} <= NOW()`,
+          sql`${quizzes.endTime} >= NOW()`,
+          inArray(quizzes.processId, processIds)
         ));
 
-      console.log('Available quizzes:', quizList);
+      console.log('Found quizzes:', quizList);
 
       // Get quiz attempts for each quiz
       const quizzesWithAttempts = await Promise.all(
         quizList.map(async (quiz) => {
-          // Get all attempts for this quiz
           const attempts = await db
-            .select({
-              id: quizAttempts.id,
-              quizId: quizAttempts.quizId,
-              userId: quizAttempts.userId, 
-              score: quizAttempts.score,
-              answers: quizAttempts.answers,
-              completedAt: quizAttempts.completedAt,
-              createdAt: quizAttempts.createdAt
-            })
-            .from(quizAttempts)
+            .select()
+            .from(quizResponses)
             .where(and(
-              eq(quizAttempts.quizId, quiz.id),
-              eq(quizAttempts.userId, req.user?.id || 0)
+              eq(quizResponses.quizId, quiz.id),
+              eq(quizResponses.userId, req.user!.id)
             ));
 
           return {
@@ -1008,7 +995,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
 
-      console.log(`Found ${quizzesWithAttempts.length} quizzes for trainee`);
+      console.log(`Returning ${quizzesWithAttempts.length} quizzes with attempts`);
       res.json(quizzesWithAttempts);
 
     } catch (error) {
