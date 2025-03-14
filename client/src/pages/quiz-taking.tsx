@@ -13,9 +13,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, Timer, AlertTriangle } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export function QuizTakingPage() {
   const { quizId } = useParams();
@@ -24,78 +23,27 @@ export function QuizTakingPage() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
-  const [showWarning, setShowWarning] = useState(false);
 
   // Fetch quiz details and questions
-  const { data: quiz, isLoading, error } = useQuery({
+  const { data: quiz, isLoading } = useQuery({
     queryKey: [`/api/quizzes/${quizId}`],
     enabled: !!quizId,
-    retry: false, // Don't retry on error since it might be an access restriction
   });
-
-  // Initialize and handle timer
-  useEffect(() => {
-    if (quiz?.timeLimit && timeRemaining === null) {
-      setTimeRemaining(quiz.timeLimit * 60); // Convert minutes to seconds
-    }
-  }, [quiz]);
-
-  useEffect(() => {
-    if (timeRemaining === null) return;
-
-    const timer = setInterval(() => {
-      setTimeRemaining((prev) => {
-        if (prev === null) return null;
-        if (prev <= 0) {
-          clearInterval(timer);
-          handleSubmit();
-          return 0;
-        }
-        // Show warning when 1 minute remaining
-        if (prev === 60) {
-          setShowWarning(true);
-          toast({
-            title: "Time Running Out",
-            description: "Only 1 minute remaining!",
-            variant: "destructive",
-          });
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [timeRemaining]);
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Loading quiz...</span>
-      </div>
-    );
-  }
-
-  // Handle access errors
-  if (error) {
-    return (
-      <div className="container mx-auto py-8 max-w-3xl">
-        <Button
-          className="mt-4"
-          variant="outline"
-          onClick={() => setLocation("/dashboard")}
-        >
-          Return to Dashboard
-        </Button>
       </div>
     );
   }
 
   if (!quiz || !quiz.questions) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p>Quiz not found or no questions available.</p>
+      <div className="container mx-auto py-8 max-w-3xl">
+        <Button onClick={() => setLocation("/dashboard")}>
+          Return to Dashboard
+        </Button>
       </div>
     );
   }
@@ -103,29 +51,11 @@ export function QuizTakingPage() {
   const currentQuestion = quiz.questions[currentQuestionIndex];
   const progress = ((currentQuestionIndex + 1) / quiz.questions.length) * 100;
 
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
   const handleAnswer = (answer: string) => {
     setAnswers({
       ...answers,
       [currentQuestion.id]: answer,
     });
-  };
-
-  const handleNext = () => {
-    if (currentQuestionIndex < quiz.questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-    }
-  };
-
-  const handlePrevious = () => {
-    if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(currentQuestionIndex - 1);
-    }
   };
 
   const handleSubmit = async () => {
@@ -165,26 +95,9 @@ export function QuizTakingPage() {
                 Question {currentQuestionIndex + 1} of {quiz.questions.length}
               </CardDescription>
             </div>
-            {timeRemaining !== null && (
-              <div className="flex items-center gap-2 text-lg font-semibold">
-                <Timer className="h-5 w-5" />
-                <span className={timeRemaining <= 60 ? "text-red-500" : ""}>
-                  {formatTime(timeRemaining)}
-                </span>
-              </div>
-            )}
           </div>
           <Progress value={progress} className="mt-2" />
         </CardHeader>
-
-        {showWarning && (
-          <Alert variant="destructive" className="mx-6 mt-2">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              Time is running out! Please finish your quiz soon.
-            </AlertDescription>
-          </Alert>
-        )}
 
         <CardContent className="space-y-6">
           <div className="space-y-4">
@@ -195,7 +108,7 @@ export function QuizTakingPage() {
                 value={answers[currentQuestion.id] || ""}
                 onValueChange={handleAnswer}
               >
-                {currentQuestion.options.map((option: string, index: number) => (
+                {currentQuestion.options.map((option, index) => (
                   <div key={index} className="flex items-center space-x-2">
                     <RadioGroupItem value={option} id={`option-${index}`} />
                     <Label htmlFor={`option-${index}`}>{option}</Label>
@@ -232,7 +145,7 @@ export function QuizTakingPage() {
           <div className="flex justify-between pt-4">
             <Button
               variant="outline"
-              onClick={handlePrevious}
+              onClick={() => setCurrentQuestionIndex(i => i - 1)}
               disabled={currentQuestionIndex === 0}
             >
               Previous
@@ -254,7 +167,7 @@ export function QuizTakingPage() {
               </Button>
             ) : (
               <Button
-                onClick={handleNext}
+                onClick={() => setCurrentQuestionIndex(i => i + 1)}
                 disabled={!answers[currentQuestion.id]}
               >
                 Next

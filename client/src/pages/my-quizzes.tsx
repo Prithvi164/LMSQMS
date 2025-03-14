@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Clock, CheckCircle, XCircle } from "lucide-react";
 import { format } from "date-fns";
 
+// This page shows available quizzes and their status
 export function MyQuizzesPage() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
@@ -32,7 +33,7 @@ export function MyQuizzesPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Clock className="h-8 w-8 animate-spin" /> {/* Changed Loader2 to Clock */}
+        <Clock className="h-8 w-8 animate-spin" />
       </div>
     );
   }
@@ -54,87 +55,22 @@ export function MyQuizzesPage() {
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6">My Quizzes</h1>
-
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {quizzes.map((quiz: any) => {
-          const startTime = new Date(quiz.startTime);
-          const endTime = new Date(quiz.endTime);
-          const now = new Date();
-
-          const isActive = quiz.status === "active" && 
-                          now >= startTime && 
-                          now <= endTime;
-
-          const hasAttempted = quiz.attempts && quiz.attempts.length > 0;
-
-          const timeLeft = isActive ? Math.max(0, endTime.getTime() - now.getTime()) : 0;
-          const formattedTimeLeft = isActive ?  Math.floor(timeLeft / (1000 * 60)) + " minutes" : "";
-
-
-          return (
-            <Card key={quiz.id} className="relative">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg">{quiz.title}</CardTitle>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <Badge variant={isActive ? "default" : "secondary"}>
-                          {isActive ? "Active" : "Inactive"}
-                        </Badge>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {isActive 
-                          ? "Quiz is currently available"
-                          : now < startTime
-                            ? "Quiz hasn't started yet"
-                            : "Quiz has ended"}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <CardDescription>
-                  Process: {quiz.processName}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <Clock className="mr-2 h-4 w-4" />
-                    <span>
-                      {format(startTime, "PPp")} - {format(endTime, "PPp")} {/* Added time remaining */}
-                      {isActive && <span> ({formattedTimeLeft} remaining)</span>}
-                    </span>
-                  </div>
-
-                  {hasAttempted ? (
-                    <div className="flex items-center text-sm">
-                      <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-                      <span>Completed with score: {quiz.attempts[0].score}%</span>
-                    </div>
-                  ) : !isActive ? (
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <XCircle className="mr-2 h-4 w-4" />
-                      <span>Not available</span>
-                    </div>
-                  ) : null}
-
-                  <Button
-                    className="w-full mt-4"
-                    onClick={() => setLocation(`/quiz-taking/${quiz.id}`)}
-                    disabled={!isActive || hasAttempted}
-                  >
-                    {hasAttempted 
-                      ? "Already Completed" 
-                      : isActive 
-                        ? "Start Quiz" 
-                        : "Not Available"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+        {quizzes?.map((quiz) => (
+          <Card key={quiz.id}>
+            <CardHeader>
+              <CardTitle>{quiz.title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                className="w-full"
+                onClick={() => setLocation(`/quiz-taking/${quiz.id}`)}
+              >
+                Start Quiz
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </div>
   );
