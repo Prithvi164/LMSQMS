@@ -36,8 +36,6 @@ import {
   type InsertBatchPhaseChangeRequest,
   type BatchTemplate,
   type InsertBatchTemplate,
-  type UserBatchProcess,
-  type InsertUserBatchProcess,
   batchHistory,
   type BatchHistory,
   type InsertBatchHistory,
@@ -55,6 +53,7 @@ import {
   type InsertQuizAttempt
 } from "@shared/schema";
 
+// Fix the missing export declarations
 export interface IStorage {
   // User operations
   getUser(id: number): Promise<User | undefined>;
@@ -925,29 +924,19 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Attempting to delete location with ID: ${id}`);
 
-      // Use a transaction to ensure data consistency
       await db.transaction(async (tx) => {
-        // First update all users that reference this location
-        await tx
-          .update(users)
-          .set({ locationId: null })
-          .where(eq(users.locationId, id));
-
-        console.log(`Updated users' location references to null`);
-
-        // Then delete the location
         const result = await tx
           .delete(organizationLocations)
           .where(eq(organizationLocations.id, id))
           .returning();
 
         if (!result.length) {
-          throw new Error('Location not foundor deletion failed');
+          throw new Error('Location not found or deletion failed');
         }
 
         console.log(`Successfully deleted location with ID: ${id}`);
       });
-    }catch (error) {
+    } catch (error) {
       console.error('Error deleting location:', error);
       throw error;
     }
@@ -1376,8 +1365,8 @@ export class DatabaseStorage implements IStorage {
       const trainees = await db
         .select({
           id: userBatchProcesses.id,
-          userId: userBatchProcesses.userId,
           batchId: userBatchProcesses.batchId,
+          userId: userBatchProcesses.userId,
           processId: userBatchProcesses.processId,
           status: userBatchProcesses.status,
           joinedAt: userBatchProcesses.joinedAt,
@@ -1396,10 +1385,7 @@ export class DatabaseStorage implements IStorage {
         })
         .from(userBatchProcesses)
         .leftJoin(users, eq(userBatchProcesses.userId, users.id))
-        .where(and(
-          eq(userBatchProcesses.batchId, batchId),
-          eq(users.category, 'trainee')  // Only count users with category='trainee'
-        )) as UserBatchProcess[];
+        .where(eq(userBatchProcesses.batchId, batchId)) as UserBatchProcess[]; // Removed category filter
 
       console.log(`Found ${trainees.length} trainees in batch ${batchId}`);
       return trainees;
@@ -1965,10 +1951,10 @@ export class DatabaseStorage implements IStorage {
         baseQuery = baseQuery.where(eq(quizTemplates.processId, processId));
       }
 
-      return await baseQuery;
+      return await baseQuery as QuizTemplate[];
     } catch (error) {
       console.error('Error listing quiz templates:', error);
-      throw error;
+      throw new Error('Failed to list quiz templates');
     }
   }
 
