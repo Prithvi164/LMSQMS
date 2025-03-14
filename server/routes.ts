@@ -1377,12 +1377,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      // Delete the template
+      // First check if there are any quizzes using this template
+      const existingQuizzes = await db
+        .select({ id: quizzes.id })
+        .from(quizzes)
+        .where(eq(quizzes.templateId, templateId));
+
+      if (existingQuizzes.length > 0) {
+        return res.status(400).json({
+          message: "Cannot delete this template as it is being used by active quizzes. Please delete the associated quizzes first.",
+          quizCount: existingQuizzes.length
+        });
+      }
+
+      // If no quizzes are using this template, proceed with deletion
       await storage.deleteQuizTemplate(templateId);
       res.json({ message: "Quiz template deleted successfully" });
     } catch (error: any) {
       console.error("Error deleting quiz template:", error);
-      res.status(500).json({ message: error.message });
+      res.status(500).json({ 
+        message: "Failed to delete quiz template",
+        error: error.message
+      });
     }
   });
 
