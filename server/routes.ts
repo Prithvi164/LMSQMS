@@ -922,26 +922,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log(`Fetching quizzes for trainee ${req.user.id}`);
 
-      // Get trainee's process IDs from active batch assignments
-      const batchAssignments = await storage.getTraineeBatchAssignments(req.user.id);
-      const processIds = batchAssignments
-        .filter(assignment => assignment.status === 'active')
-        .map(assignment => assignment.processId);
+      // Get trainee's batch assignments for valid phases
+      const batchAssignments = await db
+        .select({
+          processId: organizationBatches.processId,
+          batchStatus: organizationBatches.status
+        })
+        .from(userBatchProcesses)
+        .leftJoin(organizationBatches, eq(userBatchProcesses.batchId, organizationBatches.id))
+        .where(and(
+          eq(userBatchProcesses.userId, req.user.id),
+          // Include only batches in induction, training or certification phases
+          sql`${organizationBatches.status} IN ('induction', 'training', 'certification')`
+        ));
 
-      console.log('Trainee process IDs:', processIds);
+      console.log('Batch assignments:', batchAssignments);
+
+      // Get unique process IDs
+      const processIds = Array.from(new Set(
+        batchAssignments.map(ba => ba.processId)
+      ));
+
+      console.log('Process IDs:', processIds);
 
       if (processIds.length === 0) {
         return res.json([]);
       }
 
-      // Get active quizzes for these processes
-      const foundQuizzes = await storage.getQuizzesByProcessIds(processIds);
-      const activeQuizzes = foundQuizzes.filter(quiz => quiz.status === 'active');
+            // Get quizzes for these processes with specific fields 
+      const quizList = await db
+        .select()
+        .from(quizzes)
+        .where(and(
+          inArray(quizzes.processId, processIds),
+          eq(quizzes.status, 'active')  // Use 'active' status for available quizzes
+        ));
 
       // Get quiz attempts for each quiz
       const quizzesWithAttempts = await Promise.all(
-        activeQuizzes.map(async (quiz) => {
-          const attempts = await storage.getQuizAttempts(quiz.id, req.user!.id);
+        quizList.map(async (quiz) => {
+          // Get all attempts for this quiz
+          const attempts = await db
+            .select()
+            .from(quizResponses)
+            .where(and(
+              eq(quizResponses.quizId, quiz.id),
+              eq(quizResponses.userId, req.user!.id)
+            ));
+
           return {
             ...quiz,
             attempts: attempts || []
@@ -951,6 +979,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Found ${quizzesWithAttempts.length} quizzes for trainee`);
       res.json(quizzesWithAttempts);
+
     } catch (error) {
       console.error("Error fetching trainee quizzes:", error);
       res.status(500).json({ message: "Failed to fetch quizzes" });
