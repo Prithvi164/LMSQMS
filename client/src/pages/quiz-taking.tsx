@@ -81,20 +81,6 @@ export function QuizTakingPage() {
   if (error) {
     return (
       <div className="container mx-auto py-8 max-w-3xl">
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Access Restricted</AlertTitle>
-          <AlertDescription>
-            {error instanceof Error ? error.message : 
-              "You don't have access to this quiz. This could be because:"}
-            <ul className="list-disc list-inside mt-2">
-              <li>The quiz is not currently active</li>
-              <li>You've already submitted this quiz</li>
-              <li>You're not assigned to the relevant batch</li>
-              <li>Your batch is not linked to this quiz's process</li>
-            </ul>
-          </AlertDescription>
-        </Alert>
         <Button
           className="mt-4"
           variant="outline"
@@ -143,15 +129,6 @@ export function QuizTakingPage() {
   };
 
   const handleSubmit = async () => {
-    if (Object.keys(answers).length < quiz.questions.length) {
-      toast({
-        title: "Incomplete Quiz",
-        description: "Please answer all questions before submitting.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsSubmitting(true);
     try {
       const response = await fetch(`/api/quizzes/${quizId}/submit`, {
@@ -161,8 +138,7 @@ export function QuizTakingPage() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to submit quiz");
+        throw new Error("Failed to submit quiz");
       }
 
       const result = await response.json();
@@ -170,7 +146,7 @@ export function QuizTakingPage() {
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to submit quiz. Please try again.",
+        description: "Failed to submit quiz. Please try again.",
         variant: "destructive",
       });
     } finally {
