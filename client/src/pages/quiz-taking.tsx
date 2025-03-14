@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "wouter";
+import { useParams, useLocation } from "wouter";
 import {
   Card,
   CardContent,
@@ -13,12 +13,13 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, Timer } from "lucide-react";
+import { Loader2, Timer, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export function QuizTakingPage() {
   const { quizId } = useParams();
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
@@ -27,9 +28,10 @@ export function QuizTakingPage() {
   const [showWarning, setShowWarning] = useState(false);
 
   // Fetch quiz details and questions
-  const { data: quiz, isLoading } = useQuery({
+  const { data: quiz, isLoading, error } = useQuery({
     queryKey: [`/api/quizzes/${quizId}`],
     enabled: !!quizId,
+    retry: false, // Don't retry on error since it might be an access restriction
   });
 
   // Initialize and handle timer
@@ -71,6 +73,35 @@ export function QuizTakingPage() {
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin" />
         <span className="ml-2">Loading quiz...</span>
+      </div>
+    );
+  }
+
+  // Handle access errors
+  if (error) {
+    return (
+      <div className="container mx-auto py-8 max-w-3xl">
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Access Restricted</AlertTitle>
+          <AlertDescription>
+            {error instanceof Error ? error.message : 
+              "You don't have access to this quiz. This could be because:"}
+            <ul className="list-disc list-inside mt-2">
+              <li>The quiz is not currently active</li>
+              <li>You've already submitted this quiz</li>
+              <li>You're not assigned to the relevant batch</li>
+              <li>Your batch is not linked to this quiz's process</li>
+            </ul>
+          </AlertDescription>
+        </Alert>
+        <Button
+          className="mt-4"
+          variant="outline"
+          onClick={() => setLocation("/dashboard")}
+        >
+          Return to Dashboard
+        </Button>
       </div>
     );
   }
@@ -130,17 +161,16 @@ export function QuizTakingPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to submit quiz");
+        const error = await response.json();
+        throw new Error(error.message || "Failed to submit quiz");
       }
 
       const result = await response.json();
-
-      // Redirect to results page
-      window.location.href = `/quiz-results/${result.id}`;
+      setLocation(`/quiz-results/${result.id}`);
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to submit quiz. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to submit quiz. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -173,6 +203,7 @@ export function QuizTakingPage() {
 
         {showWarning && (
           <Alert variant="destructive" className="mx-6 mt-2">
+            <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
               Time is running out! Please finish your quiz soon.
             </AlertDescription>
@@ -188,7 +219,7 @@ export function QuizTakingPage() {
                 value={answers[currentQuestion.id] || ""}
                 onValueChange={handleAnswer}
               >
-                {currentQuestion.options.map((option, index) => (
+                {currentQuestion.options.map((option: string, index: number) => (
                   <div key={index} className="flex items-center space-x-2">
                     <RadioGroupItem value={option} id={`option-${index}`} />
                     <Label htmlFor={`option-${index}`}>{option}</Label>

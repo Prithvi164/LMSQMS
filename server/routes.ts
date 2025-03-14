@@ -729,12 +729,138 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add new middleware for quiz access validation
+  async function validateQuizAccess(req: any, res: any, next: any) {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const quizId = parseInt(req.params.quizId);
+      
+      // Get quiz details
+      const quiz = await storage.getQuiz(quizId);
+      if (!quiz) {
+        return res.status(404).json({ message: "Quiz not found" });
+      }
+
+      // Check if quiz is active and within timeframe
+      const now = new Date();
+      if (quiz.status !== 'active' || 
+          now < new Date(quiz.startTime) || 
+          now > new Date(quiz.endTime)) {
+        return res.status(403).json({ 
+          message: "Quiz is not currently available" 
+        });
+      }
+
+      // For trainees, check batch assignment and process link
+      if (req.user.category === 'trainee') {
+        // Check if trainee has already submitted this quiz
+        const previousAttempt = await storage.getQuizAttempt(quizId, req.user.id);
+        if (previousAttempt) {
+          return res.status(403).json({ 
+            message: "You have already submitted this quiz" 
+          });
+        }
+
+        // Get trainee's active batch assignments
+        const batchAssignments = await storage.getTraineeBatchAssignments(req.user.id);
+        
+        // Check if any of trainee's batches are linked to the quiz's process
+        const hasValidBatch = batchAssignments.some(assignment => 
+          assignment.processId === quiz.processId && 
+          assignment.status === 'active'
+        );
+
+        if (!hasValidBatch) {
+          return res.status(403).json({ 
+            message: "You are not assigned to a batch that can take this quiz" 
+          });
+        }
+      }
+
+      // Add quiz to request for use in route handler
+      req.quiz = quiz;
+      next();
+    } catch (error: any) {
+      console.error("Quiz access validation error:", error);
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  // Add quiz routes with access validation
+  app.get("/api/quizzes/:quizId", validateQuizAccess, async (req, res) => {
+    // Quiz is already validated and attached to req by middleware
+    const quiz = req.quiz;
+    
+    try {
+      // Get questions for the quiz
+      const questions = await storage.getQuizQuestions(quiz.id);
+      
+      // Return quiz with questions
+      res.json({
+        ...quiz,
+        questions
+      });
+    } catch (error: any) {
+      console.error("Error fetching quiz details:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/quizzes/:quizId/submit", validateQuizAccess, async (req, res) => {
+    const quiz = req.quiz;
+    const { answers } = req.body;
+
+    try {
+      // Validate that all questions are answered
+      const questions = await storage.getQuizQuestions(quiz.id);
+      if (Object.keys(answers).length !== questions.length) {
+        return res.status(400).json({
+          message: "All questions must be answered"
+        });
+      }
+
+      // Calculate score
+      let correctAnswers = 0;
+      const scoredAnswers = questions.map(question => {
+        const userAnswer = answers[question.id];
+        const isCorrect = userAnswer === question.correctAnswer;
+        if (isCorrect) correctAnswers++;
+        
+        return {
+          questionId: question.id,
+          userAnswer,
+          correctAnswer: question.correctAnswer,
+          isCorrect
+        };
+      });
+
+      const score = (correctAnswers / questions.length) * 100;
+
+      // Create quiz attempt record
+      const attempt = await storage.createQuizAttempt({
+        quizId: quiz.id,
+        userId: req.user.id,
+        organizationId: req.user.organizationId,
+        score,
+        answers: scoredAnswers,
+        completedAt: new Date()
+      });
+
+      res.json(attempt);
+    } catch (error: any) {
+      console.error("Error submitting quiz:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Add route for getting random questions
   app.get("/api/random-questions", async (req, res) => {
     if (!req.user || !req.user.organizationId) {
       return res.status(401).json({ message: "Unauthorized" });
     }
-    
     try {
       console.log('Random questions request params:', req.query);
       
