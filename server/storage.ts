@@ -53,7 +53,7 @@ import {
   type InsertQuizAttempt
 } from "@shared/schema";
 
-// Fix the missing export declarations
+// Add to IStorage interface
 export interface IStorage {
   // User operations
   getUser(id: number): Promise<User | undefined>;
@@ -214,6 +214,7 @@ export interface IStorage {
   createQuizResponse(response: InsertQuizResponse): Promise<QuizResponse>;
   getQuizResponses(quizAttemptId: number): Promise<QuizResponse[]>;
   getEnrolledCount(batchId: number): Promise<number>;
+  getQuiz(id: number): Promise<Quiz | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {

@@ -729,8 +729,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add new middleware for quiz access validation
-  async function validateQuizAccess(req: any, res: any, next: any) {
+  // Add quiz routes with minimal validation
+  app.get("/api/quizzes/:quizId", async (req, res) => {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
     }
@@ -738,29 +738,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const quizId = parseInt(req.params.quizId);
       
-      // Get quiz details
+      // Get quiz details with minimal validation
       const quiz = await storage.getQuiz(quizId);
       if (!quiz) {
         return res.status(404).json({ message: "Quiz not found" });
       }
 
-      // Add quiz to request for use in route handler
-      req.quiz = quiz;
-      next();
-    } catch (error: any) {
-      console.error("Quiz access validation error:", error);
-      res.status(500).json({ 
-        message: "Failed to validate quiz access",
-        details: error.message 
-      });
-    }
-  }
-
-  // Add quiz routes with minimal validation
-  app.get("/api/quizzes/:quizId", validateQuizAccess, async (req, res) => {
-    const quiz = req.quiz;
-    
-    try {
       // Get questions for the quiz
       const questions = await storage.getQuizQuestions(quiz.id);
       
@@ -775,11 +758,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/quizzes/:quizId/submit", validateQuizAccess, async (req, res) => {
-    const quiz = req.quiz;
-    const { answers } = req.body;
+  app.post("/api/quizzes/:quizId/submit", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
     try {
+      const quizId = parseInt(req.params.quizId);
+      const { answers } = req.body;
+
+      // Get quiz details
+      const quiz = await storage.getQuiz(quizId);
+      if (!quiz) {
+        return res.status(404).json({ message: "Quiz not found" });
+      }
+
       // Get questions to calculate score
       const questions = await storage.getQuizQuestions(quiz.id);
       
