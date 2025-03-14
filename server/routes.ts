@@ -889,10 +889,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    // Verify if user is a trainee  
-    if (req.user.role !== 'trainee') {
+    // Verify if user has trainee category (not role)
+    if (req.user.category !== 'trainee') {
       return res.status(403).json({ 
-        message: "Only trainees can access this endpoint" 
+        message: "Only users with trainee category can access this endpoint" 
       });
     }
 
@@ -906,8 +906,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get the process IDs from active batch assignments
       const processIds = batchAssignments
-        .filter((assignment: {status: string}) => assignment.status === 'active')
-        .map((assignment: {processId: number}) => assignment.processId);
+        .filter(assignment => assignment.status === 'active')
+        .map(assignment => assignment.processId);
 
       if (processIds.length === 0) {
         return res.json([]);
@@ -918,7 +918,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // For each quiz, check if the trainee has attempted it
       const quizzesWithAttempts = await Promise.all(
-        quizzes.map(async (quiz: {id: number}) => {
+        quizzes.map(async (quiz) => {
           const attempts = await storage.getQuizAttempt(quiz.id);
           return {
             ...quiz,
