@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { Router } from "express";
-import { insertUserSchema, users, userBatchProcesses, organizationProcesses } from "@shared/schema";
+import { insertUserSchema, users, userBatchProcesses, organizationProcesses, organizationBatches, quizzes, quizResponses } from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
@@ -16,7 +16,7 @@ import * as XLSX from 'xlsx';
 import { db } from './db';
 import { join } from 'path';
 import express from 'express';
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, inArray } from "drizzle-orm";
 import { toIST, formatIST, toUTCStorage, formatISTDateOnly } from './utils/timezone';
 import { attendance } from "@shared/schema";
 import type { User } from "@shared/schema";
@@ -913,6 +913,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add route to get trainee quizzes
+  app.get("/api/trainee/quizzes", async (req, res) => {
+    if (!req.user?.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      console.log(`Fetching quizzes for trainee ${req.user.id}`);
+
+      // Get trainee's process IDs from active batch assignments
+      const batchAssignments = await storage.getTraineeBatchAssignments(req.user.id);
+      const processIds = batchAssignments
+        .filter(assignment => assignment.status === 'active')
+        .map(assignment => assignment.processId);
+
+      console.log('Trainee process IDs:', processIds);
+
+      if (processIds.length === 0) {
+        return res.json([]);
+      }
+
+      // Get active quizzes for these processes
+      const foundQuizzes = await storage.getQuizzesByProcessIds(processIds);
+      const activeQuizzes = foundQuizzes.filter(quiz => quiz.status === 'active');
+
+      // Get quiz attempts for each quiz
+      const quizzesWithAttempts = await Promise.all(
+        activeQuizzes.map(async (quiz) => {
+          const attempts = await storage.getQuizAttempts(quiz.id, req.user!.id);
+          return {
+            ...quiz,
+            attempts: attempts || []
+          };
+        })
+      );
+
+      console.log(`Found ${quizzesWithAttempts.length} quizzes for trainee`);
+      res.json(quizzesWithAttempts);
+    } catch (error) {
+      console.error("Error fetching trainee quizzes:", error);
+      res.status(500).json({ message: "Failed to fetch quizzes" });
+    }
+  });
+
   // Add route for getting random questions
   app.get("/api/random-questions", async (req, res) => {
     if (!req.user || !req.user.organizationId) {
@@ -991,59 +1035,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add trainee-specific quiz endpoint
-  app.get("/api/trainee/quizzes", async (req, res) => {
-    if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
 
-    // Verify if user is a trainee  
-    if (req.user.role !== 'trainee') {
-      return res.status(403).json({ 
-        message: "Only trainees can access this endpoint" 
-      });
-    }
-
-    try {
-      // Get trainee's active batch assignments
-      const batchAssignments = await storage.getTraineeBatchAssignments(req.user.id);
-      
-      if (!batchAssignments || batchAssignments.length === 0) {
-        return res.json([]);
-      }
-
-      // Get the process IDs from active batch assignments
-      const processIds = batchAssignments
-        .filter((assignment: {status: string}) => assignment.status === 'active')
-        .map((assignment: {processId: number}) => assignment.processId);
-
-      if (processIds.length === 0) {
-        return res.json([]);
-      }
-
-      // Get all quizzes for these processes
-      const quizzes = await storage.getQuizzesByProcessIds(processIds);
-
-      // For each quiz, check if the trainee has attempted it
-      const quizzesWithAttempts = await Promise.all(
-        quizzes.map(async (quiz: {id: number}) => {
-          const attempts = await storage.getQuizAttempt(quiz.id);
-          return {
-            ...quiz,
-            attempts: attempts ? [attempts] : []
-          };
-        })
-      );
-
-      res.json(quizzesWithAttempts);
-    } catch (error: any) {
-      console.error("Error fetching trainee quizzes:", error);
-      res.status(500).json({ 
-        message: "Failed to fetch quizzes",
-        details: error.message 
-      });
-    }
-  });
 
   // Update question endpoint
   app.put("/api/questions/:id", async (req, res) => {
