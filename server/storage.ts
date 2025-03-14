@@ -214,6 +214,8 @@ export interface IStorage {
   // Add new methods for quiz responses
   createQuizResponse(response: InsertQuizResponse): Promise<QuizResponse>;
   getQuizResponses(quizAttemptId: number): Promise<QuizResponse[]>;
+    getTraineeBatchAssignments(userId: number): Promise<any[]>;
+    getQuizAttempt(quizId: number, userId: number): Promise<QuizAttempt | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2199,6 +2201,62 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+  async getTraineeBatchAssignments(userId: number): Promise<any[]> {
+    try {
+      console.log(`Fetching batch assignments for trainee ${userId}`);
+
+      const assignments = await db
+        .select({
+          id: userBatchProcesses.id,
+          userId: userBatchProcesses.userId,
+          batchId: userBatchProcesses.batchId,
+          status: userBatchProcesses.status,
+          processId: organizationBatches.processId,
+          batchStatus: organizationBatches.status
+        })
+        .from(userBatchProcesses)
+        .leftJoin(
+          organizationBatches,
+          eq(userBatchProcesses.batchId, organizationBatches.id)
+        )
+        .where(
+          and(
+            eq(userBatchProcesses.userId, userId),
+            // Include both active and planned batches
+            inArray(organizationBatches.status, ['active', 'planned'])
+          )
+        );
+
+      console.log('Found batch assignments:', assignments);
+      return assignments;
+    } catch (error) {
+      console.error('Error fetching trainee batch assignments:', error);
+      throw new Error('Failed to fetch trainee batch assignments');
+    }
+  }
+
+  async getQuizAttempt(quizId: number, userId: number): Promise<QuizAttempt | undefined> {
+    try {
+      console.log(`Checking quiz attempt for quiz ${quizId} and user ${userId}`);
+
+      const [attempt] = await db
+        .select()
+        .from(quizAttempts)
+        .where(
+          and(
+            eq(quizAttempts.quizId, quizId),
+            eq(quizAttempts.userId, userId)
+          )
+        ) as QuizAttempt[];
+
+      console.log('Found quiz attempt:', attempt);
+      return attempt;
+    } catch (error) {
+      console.error('Error checking quiz attempt:', error);
+      throw new Error('Failed to check quiz attempt');
+    }
+  }
+
 }
 
 export const storage = new DatabaseStorage();

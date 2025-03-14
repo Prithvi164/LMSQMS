@@ -793,38 +793,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if quiz is active and within timeframe
       const now = new Date();
-      if (quiz.status !== 'active' || 
-          now < new Date(quiz.startTime) || 
-          now > new Date(quiz.endTime)) {
+      const startTime = new Date(quiz.startTime);
+      const endTime = new Date(quiz.endTime);
+      
+      if (quiz.status !== 'active') {
         return res.status(403).json({ 
-          message: "Quiz is not currently available" 
+          message: "Quiz is not currently active" 
+        });
+      }
+
+      if (now < startTime || now > endTime) {
+        return res.status(403).json({ 
+          message: "Quiz is not within its scheduled time window" 
         });
       }
 
       // For trainees, check batch assignment and process link
-      if (req.user.role === 'trainee') {
-        // Verify if user is actually a trainee (both role and category)
-        if (req.user.role !== 'trainee' || req.user.category !== 'trainee') {
-          return res.status(403).json({ 
-            message: "Only trainees can take quizzes" 
-          });
-        }
-
+      if (req.user.category === 'trainee') {
         // Check if trainee has already submitted this quiz
-        const previousAttempt = await storage.getQuizAttempt(quiz.id);
+        const previousAttempt = await storage.getQuizAttempt(quiz.id, req.user.id);
         if (previousAttempt) {
           return res.status(403).json({ 
             message: "You have already submitted this quiz" 
           });
         }
 
-        // Get trainee's active batch assignments
+        // Get trainee's batch assignments
         const batchAssignments = await storage.getTraineeBatchAssignments(req.user.id);
         
         // Check if any of trainee's batches are linked to the quiz's process
+        // Allow quizzes for both 'active' and 'planned' batches
         const hasValidBatch = batchAssignments.some(assignment => 
           assignment.processId === quiz.processId && 
-          assignment.status === 'active'
+          ['active', 'planned'].includes(assignment.status)
         );
 
         if (!hasValidBatch) {
