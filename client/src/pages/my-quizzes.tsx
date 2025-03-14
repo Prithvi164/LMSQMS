@@ -24,10 +24,10 @@ export function MyQuizzesPage() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Fetch available quizzes for the trainee
+  // Fetch available quizzes for the trainee - updated to check category instead of role
   const { data: quizzes, isLoading } = useQuery({
     queryKey: ["/api/trainee/quizzes"],
-    enabled: !!user && user.role === "trainee",
+    enabled: !!user && user.category === "trainee", // Changed from role to category
   });
 
   if (isLoading) {
