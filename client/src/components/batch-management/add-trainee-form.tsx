@@ -92,8 +92,8 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
         trainerId: batch.trainerId,
         organizationId: batch.organizationId,
         batchId: batch.id,
-        category: "trainee", // Always set category as trainee
-        role: values.role, // Use selected role
+        category: "trainee", 
+        role: values.role, 
       };
 
       const response = await fetch(`/api/organizations/${batch.organizationId}/batches/${batch.id}/trainees`, {
@@ -190,7 +190,7 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
             )}
           </div>
         ),
-        duration: data.failureCount > 0 ? 10000 : 5000, // Show longer for errors
+        duration: data.failureCount > 0 ? 10000 : 5000, 
       });
 
       // Only close dialog and refresh if at least one trainee was added successfully
