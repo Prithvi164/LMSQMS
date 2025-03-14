@@ -23,10 +23,10 @@ export function MyQuizzesPage() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Fetch available quizzes for the trainee
+  // Changed role check to category check
   const { data: quizzes, isLoading } = useQuery({
     queryKey: ["/api/trainee/quizzes"],
-    enabled: !!user && user.role === "trainee",
+    enabled: !!user && user.category === "trainee", // Changed from role to category
   });
 
   console.log("Fetched quizzes:", quizzes); // Add logging
