@@ -15,6 +15,7 @@ import QuizManagement from "@/pages/quiz-management";
 import { BatchMonitoringPage } from "@/pages/batch-monitoring";
 import { QuizTakingPage } from "@/pages/quiz-taking";
 import { QuizResultsPage } from "@/pages/quiz-results";
+import { MyQuizzesPage } from "@/pages/my-quizzes"; // Add import
 import { ProtectedRoute } from "./lib/protected-route";
 import { SidebarNav } from "./components/sidebar-nav";
 import { UserProfile } from "./components/user-profile";
@@ -61,6 +62,7 @@ function Router() {
           <ProtectedRoute path="/batch-monitoring" component={BatchMonitoringPage} />
           <ProtectedRoute path="/batch-details/:batchId" component={BatchDetailsPage} />
           <ProtectedRoute path="/quiz-management" component={QuizManagement} />
+          <ProtectedRoute path="/my-quizzes" component={MyQuizzesPage} /> {/* Add new route */}
           <ProtectedRoute path="/quiz/:quizId" component={QuizTakingPage} />
           <ProtectedRoute path="/quiz-results/:attemptId" component={QuizResultsPage} />
           <Route component={NotFound} />

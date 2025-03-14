@@ -944,6 +944,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add trainee-specific quiz endpoint
+  app.get("/api/trainee/quizzes", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    // Verify if user is a trainee  
+    if (req.user.role !== 'trainee') {
+      return res.status(403).json({ 
+        message: "Only trainees can access this endpoint" 
+      });
+    }
+
+    try {
+      // Get trainee's active batch assignments
+      const batchAssignments = await storage.getTraineeBatchAssignments(req.user.id);
+      
+      if (!batchAssignments || batchAssignments.length === 0) {
+        return res.json([]);
+      }
+
+      // Get the process IDs from active batch assignments
+      const processIds = batchAssignments
+        .filter((assignment: {status: string}) => assignment.status === 'active')
+        .map((assignment: {processId: number}) => assignment.processId);
+
+      if (processIds.length === 0) {
+        return res.json([]);
+      }
+
+      // Get all quizzes for these processes
+      const quizzes = await storage.getQuizzesByProcessIds(processIds);
+
+      // For each quiz, check if the trainee has attempted it
+      const quizzesWithAttempts = await Promise.all(
+        quizzes.map(async (quiz: {id: number}) => {
+          const attempts = await storage.getQuizAttempt(quiz.id);
+          return {
+            ...quiz,
+            attempts: attempts ? [attempts] : []
+          };
+        })
+      );
+
+      res.json(quizzesWithAttempts);
+    } catch (error: any) {
+      console.error("Error fetching trainee quizzes:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch quizzes",
+        details: error.message 
+      });
+    }
+  });
+
   // Update question endpoint
   app.put("/api/questions/:id", async (req, res) => {
     if (!req.user || !req.user.organizationId) {
