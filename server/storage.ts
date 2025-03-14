@@ -1398,10 +1398,10 @@ export class DatabaseStorage implements IStorage {
         .leftJoin(users, eq(userBatchProcesses.userId, users.id))
         .where(and(
           eq(userBatchProcesses.batchId, batchId),
-          eq(users.category, 'trainee')  // Only count users with category='trainee'
+          eq(users.category, 'trainee')  // Filter by category='trainee'
         )) as UserBatchProcess[];
 
-      console.log(`Found ${trainees.length} trainees in batch ${batchId}`);
+      console.log(`Found ${trainees.length} trainees with category='trainee' in batch ${batchId}`);
       return trainees;
     } catch (error) {
       console.error('Error fetching batch trainees:', error);
@@ -1952,7 +1952,7 @@ export class DatabaseStorage implements IStorage {
       console.error('Error creating quiz template:', error);
       throw error;
     }
-  }
+}
 
   async listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]> {
     try {
