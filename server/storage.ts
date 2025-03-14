@@ -2035,20 +2035,28 @@ export class DatabaseStorage implements IStorage {
 
   async getQuizWithQuestions(id: number): Promise<Quiz | undefined> {
     try {
-      const quiz = await this.getQuiz(id);
+      // First get the quiz
+      const [quiz] = await db
+        .select()
+        .from(quizzes)
+        .where(eq(quizzes.id, id)) as Quiz[];
+
       if (!quiz) {
         return undefined;
       }
 
-      const questions = await db
+      // Get all associated questions
+      const questionsList = await db
         .select()
         .from(questions)
-        .where(inArray(questions.id, quiz.questions)) as Question[];
+        .where(eq(questions.quizId, id)) as Question[];
 
+      // Return quiz with questions
       return {
         ...quiz,
-        questions
+        questions: questionsList
       };
+
     } catch (error) {
       console.error('Error fetching quiz with questions:', error);
       throw error;
