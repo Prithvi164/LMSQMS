@@ -215,6 +215,9 @@ export interface IStorage {
   getQuizResponses(quizAttemptId: number): Promise<QuizResponse[]>;
   getEnrolledCount(batchId: number): Promise<number>;
   getQuiz(id: number): Promise<Quiz | undefined>;
+  getBatchAssignments(userId: number): Promise<UserBatchProcess[]>;
+  getQuizzesByProcessIds(processIds: number[], status?: string): Promise<Quiz[]>;
+  getQuizAttempts(quizId: number, userId: number): Promise<QuizAttempt[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1934,8 +1937,7 @@ export class DatabaseStorage implements IStorage {
         .values(template)
         .returning();
       return newTemplate;
-    } catch (error) {
-      console.error('Error creating quiz template:', error);
+    } catch (error) {      console.error('Error creating quiz template:', error);
       throw error;
     }
   }
@@ -2269,6 +2271,74 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+  // Add new storage methods for trainee quizzes
+  async getBatchAssignments(userId: number): Promise<UserBatchProcess[]> {
+    try {
+      console.log(`Fetching batch assignments for user ${userId}`);
+      const assignments = await db
+        .select({
+          id: userBatchProcesses.id,
+          userId: userBatchProcesses.userId,
+          batchId: userBatchProcesses.batchId,
+          processId: userBatchProcesses.processId,
+          status: userBatchProcesses.status,
+          joinedAt: userBatchProcesses.joinedAt,
+          completedAt: userBatchProcesses.completedAt,
+          batchName: organizationBatches.name
+        })
+        .from(userBatchProcesses)
+        .leftJoin(
+          organizationBatches,
+          eq(userBatchProcesses.batchId, organizationBatches.id)
+        )
+        .where(eq(userBatchProcesses.userId, userId));
+
+      console.log(`Found ${assignments.length} batch assignments:`, assignments);
+      return assignments as UserBatchProcess[];
+    } catch (error) {
+      console.error('Error fetching batch assignments:', error);
+      throw new Error('Failed to fetch batch assignments');
+    }
+  }
+
+  async getQuizzesByProcessIds(processIds: number[], status?: string): Promise<Quiz[]> {
+    try {
+      console.log(`Fetching quizzes for processes ${processIds} with status ${status}`);
+      let query = db
+        .select()
+        .from(quizzes)
+        .where(inArray(quizzes.processId, processIds));
+
+      if (status) {
+        query = query.where(eq(quizzes.status, status as any));
+      }
+
+      const foundQuizzes = await query as Quiz[];
+      console.log(`Found ${foundQuizzes.length} quizzes:`, foundQuizzes);
+      return foundQuizzes;
+    } catch (error) {
+      console.error('Error fetching quizzes by process IDs:', error);
+      throw new Error('Failed to fetch quizzes');
+    }
+  }
+
+  async getQuizAttempts(quizId: number, userId: number): Promise<QuizAttempt[]> {
+    try {
+      console.log(`Fetching quiz attempts for quiz ${quizId} and user ${userId}`);
+      const attempts = await db
+        .select()
+        .from(quizAttempts)
+        .where(eq(quizAttempts.quizId, quizId))
+        .where(eq(quizAttempts.userId, userId)) as QuizAttempt[];
+
+      console.log(`Found ${attempts.length} attempts:`, attempts);
+      return attempts;
+    } catch (error) {
+      console.error('Error fetching quiz attempts:', error);
+      throw new Error('Failed to fetch quiz attempts');
+    }
+  }
+
 }
 
 export const storage = new DatabaseStorage();

@@ -886,21 +886,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Add trainee-specific quiz endpoint
   app.get("/api/trainee/quizzes", async (req, res) => {
     if (!req.user) {
+      console.log('Debug: User not authenticated');
       return res.status(401).json({ message: "Unauthorized" });
     }
 
     // Verify if user has trainee category (not role)
     if (req.user.category !== 'trainee') {
+      console.log('Debug: User category is not trainee:', req.user.category);
       return res.status(403).json({ 
         message: "Only users with trainee category can access this endpoint" 
       });
     }
 
     try {
+      console.log('Debug: Fetching batch assignments for user:', req.user.id);
       // Get trainee's active batch assignments
-      const batchAssignments = await storage.getTraineeBatchAssignments(req.user.id);
+      const batchAssignments = await storage.getBatchAssignments(req.user.id);
+      console.log('Debug: Found batch assignments:', batchAssignments);
       
       if (!batchAssignments || batchAssignments.length === 0) {
+        console.log('Debug: No batch assignments found');
         return res.json([]);
       }
 
@@ -909,12 +914,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .filter(assignment => assignment.status === 'active')
         .map(assignment => assignment.processId);
 
+      console.log('Debug: Active process IDs:', processIds);
+
       if (processIds.length === 0) {
+        console.log('Debug: No active processes found');
         return res.json([]);
       }
 
       // Get all quizzes for these processes with status 'active'
+      console.log('Debug: Fetching active quizzes for processes:', processIds);
       const quizzes = await storage.getQuizzesByProcessIds(processIds, 'active');
+      console.log('Debug: Found quizzes:', quizzes);
 
       // For each quiz, check if the trainee has attempted it
       const quizzesWithAttempts = await Promise.all(
@@ -927,6 +937,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
 
+      console.log('Debug: Quizzes with attempts:', quizzesWithAttempts);
       res.json(quizzesWithAttempts);
     } catch (error: any) {
       console.error("Error fetching trainee quizzes:", error);
