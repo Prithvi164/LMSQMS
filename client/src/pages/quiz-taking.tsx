@@ -38,11 +38,15 @@ export function QuizTakingPage() {
     );
   }
 
-  if (!quiz || !quiz.questions) {
+  if (!quiz || !quiz.questions || quiz.questions.length === 0) {
     return (
       <div className="container mx-auto py-8 max-w-3xl">
-        <Button onClick={() => setLocation("/dashboard")}>
-          Return to Dashboard
+        <p className="text-center mb-4">No questions available for this quiz.</p>
+        <Button 
+          className="mx-auto block"
+          onClick={() => setLocation("/my-quizzes")}
+        >
+          Return to My Quizzes
         </Button>
       </div>
     );
@@ -179,3 +183,5 @@ export function QuizTakingPage() {
     </div>
   );
 }
+
+export default QuizTakingPage;

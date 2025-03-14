@@ -2042,14 +2042,19 @@ export class DatabaseStorage implements IStorage {
         .where(eq(quizzes.id, id)) as Quiz[];
 
       if (!quiz) {
+        console.log(`No quiz found with ID: ${id}`);
         return undefined;
       }
 
-      // Get all associated questions
+      console.log('Found quiz:', quiz);
+
+      // Get all questions from the quiz's question array
       const questionsList = await db
         .select()
         .from(questions)
-        .where(eq(questions.quizId, id)) as Question[];
+        .where(inArray(questions.id, quiz.questions || [])) as Question[];
+
+      console.log(`Found ${questionsList.length} questions for quiz ${id}`);
 
       // Return quiz with questions
       return {
