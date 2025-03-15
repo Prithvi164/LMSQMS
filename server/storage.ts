@@ -815,26 +815,17 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log('DEBUG: [getBatchAssignments] Input:', { userId });
 
+      // First verify the user exists
+      const user = await this.getUser(userId);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
       const assignments = await db
-        .select({
-          id: userBatchProcesses.id,
-          createdAt: userBatchProcesses.createdAt,
-          organizationId: userBatchProcesses.organizationId,
-          status: userBatchProcesses.status,
-          processId: userBatchProcesses.processId,
-          userId: userBatchProcesses.userId,
-          batchId: userBatchProcesses.batchId,
-          joinedAt: userBatchProcesses.joinedAt,
-          completedAt: userBatchProcesses.completedAt,
-          updatedAt: userBatchProcesses.updatedAt
-        })
+        .select()
         .from(userBatchProcesses)
-        .where(
-          and(
-            eq(userBatchProcesses.userId, userId),
-            eq(userBatchProcesses.status, 'active')
-          )
-        )
+        .where(eq(userBatchProcesses.userId, userId))
+        .where(eq(userBatchProcesses.status, 'active'))
         .orderBy(desc(userBatchProcesses.createdAt));
 
       console.log('DEBUG: [getBatchAssignments] Results:', {
@@ -847,7 +838,7 @@ export class DatabaseStorage implements IStorage {
         }))
       });
 
-      return assignments || [];
+      return assignments;
     } catch (error) {
       console.error('Error fetching batch assignments:', error);
       throw new Error('Failed to fetch batch assignments');
