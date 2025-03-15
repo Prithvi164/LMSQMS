@@ -1528,12 +1528,6 @@ export class DatabaseStorage implements IStorage {
           .execute();
         console.log(`Deleted user_processes records for user ${userId}`);
 
-        // 3. Delete the user
-        await tx
-          .delete(users)
-          .where(eq(users.id, userId))
-          .execute();
-        console.log(`Deleted user record ${userId}`);
       });
 
       console.log(`Successfully removed trainee and related records`);
@@ -2002,10 +1996,8 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Attempting to delete quiz template with ID: ${id}`);
 
-      // Delete associated quizzes first
       await this.deleteQuizzesByTemplateId(id);
 
-      // Delete the template
       const result = await db
         .delete(quizTemplates)
         .where(eq(quizTemplates.id, id))
@@ -2284,70 +2276,71 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  // Add new method for deleting quizzes by template ID
   async deleteQuizzesByTemplateId(templateId: number): Promise<void> {
     try {
-      // Delete all quiz attempts first
-      await db.delete(quizAttempts)
-        .where(
-          inArray(
-            quizAttempts.quizId,
-            db.select({ id: quizzes.id })
-              .from(quizzes)
-              .where(eq(quizzes.templateId, templateId))
-          )
-        );
+      console.log(`Starting deletion of all data for quiz template ID: ${templateId}`);
 
-      // Delete all quiz responses
-      await db.delete(quizResponses)
-        .where(
-          inArray(
-            quizResponses.quizAttemptId,
-            db.select({ id: quizAttempts.id })
-              .from(quizAttempts)
-              .where(
-                inArray(
-                  quizAttempts.quizId,
-                  db.select({ id: quizzes.id })
-                    .from(quizzes)
-                    .where(eq(quizzes.templateId, templateId))
-                )
-              )
-          )
-        );
+      await db.transaction(async (tx) => {
+        // Step 1: Get all quiz IDs for this template
+        const quizIds = await tx
+          .select({ id: quizzes.id })
+          .from(quizzes)
+          .where(eq(quizzes.templateId, templateId))
+          .then(results => results.map(r => r.id));
 
-      // Finally delete all quizzes associated with this template
-      await db.delete(quizzes)
-        .where(eq(quizzes.templateId, templateId));
+        console.log(`Found ${quizIds.length} quizzes to delete for template ${templateId}`);
 
-      console.log(`Successfully deleted all quizzes and related data for template ID: ${templateId}`);
+        if (quizIds.length > 0) {
+          // Step 2: Get all quiz attempt IDs
+          const attemptIds = await tx
+            .select({ id: quizAttempts.id })
+            .from(quizAttempts)
+            .where(inArray(quizAttempts.quizId, quizIds))
+            .then(results => results.map(r => r.id));
+
+          console.log(`Found ${attemptIds.length} quiz attempts to delete`);
+
+          // Step 3: Delete quiz responses
+          if (attemptIds.length > 0) {
+            await tx
+              .delete(quizResponses)
+              .where(inArray(quizResponses.quizAttemptId, attemptIds));
+            console.log('Deleted quiz responses');
+          }
+
+          // Step 4: Delete quiz attempts
+          await tx
+            .delete(quizAttempts)
+            .where(inArray(quizAttempts.quizId, quizIds));
+          console.log('Deleted quiz attempts');
+
+          // Step 5: Delete quizzes
+          await tx
+            .delete(quizzes)
+            .where(eq(quizzes.templateId, templateId));
+          console.log('Deleted quizzes');
+        }
+
+        // Step 6: Finally delete the template
+        const result = await tx
+          .delete(quizTemplates)
+          .where(eq(quizTemplates.id, templateId))
+          .returning();
+
+        if (!result.length) {
+          throw new Error('Quiz template not found');
+        }
+
+        console.log(`Successfully deleted quiz template ${templateId} and all related data`);
+      });
     } catch (error) {
-      console.error('Error deleting quizzes by template ID:', error);
-      throw new Error('Failed to delete quizzes');
-    }
-  }
-
-  // Update the existing deleteQuizTemplate method
-  async deleteQuizTemplate(id: number): Promise<void> {
-    try {
-      console.log(`Attempting to delete quiz template with ID: ${id}`);
-
-      // Delete the template
-      const result = await db
-        .delete(quizTemplates)
-        .where(eq(quizTemplates.id, id))
-        .returning();
-
-      if (!result.length) {
-        throw new Error('Quiz template not found or deletion failed');
-      }
-
-      console.log(`Successfully deleted quiz template with ID: ${id}`);
-    } catch (error) {
-      console.error('Error deleting quiz template:', error);
+      console.error('Error in deleteQuizzesByTemplateId:', error);
       throw error;
     }
   }
+
+  // Add new method for deleting quizzes by template ID
+  
 }
 
 export const storage = new DatabaseStorage();
