@@ -883,7 +883,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update the trainee quizzes endpoint
+  // Get quizzes assigned to trainee through their processes
   app.get("/api/trainee/quizzes", async (req, res) => {
     if (!req.user || !req.user.organizationId) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -903,17 +903,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         organizationId: req.user.organizationId
       });
 
-      // Get all active quizzes for this trainee's active processes
-      type QuizResult = {
-        quiz_id: number;
-        quiz_name: string;
-        timeLimit: number;
-        passingScore: number;
-        processId: number;
-        processName: string;
-        status: string;
-      };
+      // Get user's assigned processes first
+      const userProcessesResult = await db
+        .select({
+          processId: userProcesses.processId
+        })
+        .from(userProcesses)
+        .where(eq(userProcesses.userId, req.user.id));
+
+      const assignedProcessIds = userProcessesResult.map(p => p.processId);
       
+      if (assignedProcessIds.length === 0) {
+        console.log('User has no assigned processes');
+        return res.json([]);
+      }
+
+      // Get quizzes for assigned processes
       const result = await db
         .select({
           quiz_id: quizzes.id,
@@ -921,27 +926,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           timeLimit: quizzes.timeLimit,
           passingScore: quizzes.passingScore,
           processId: quizzes.processId,
-          processName: organizationProcesses.name,
-          status: quizzes.status
+          processName: organizationProcesses.name
         })
         .from(quizzes)
         .innerJoin(
-          organizationProcesses,
-          eq(organizationProcesses.id, quizzes.processId)
-        )
-        .innerJoin(
-          userProcesses,
-          and(
-            eq(userProcesses.processId, quizzes.processId),
-            eq(userProcesses.userId, req.user.id),
-            eq(userProcesses.status, 'active')
-          )
+          organizationProcesses, 
+          eq(quizzes.processId, organizationProcesses.id)
         )
         .where(
-          eq(quizzes.status, 'active')
+          and(
+            eq(organizationProcesses.organizationId, req.user.organizationId),
+            eq(quizzes.status, 'active'),
+            inArray(quizzes.processId, assignedProcessIds)
+          )
         );
 
-      console.log('Found quizzes for trainee:', result);
+      console.log('Found quizzes:', result);
       res.json(result);
 
     } catch (error: any) {
