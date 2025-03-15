@@ -562,7 +562,7 @@ export function QuizManagement() {
     });
   };
 
-  // Add new mutation for generating quiz from template
+  // Update the generateQuizMutation to remove the redirect
   const generateQuizMutation = useMutation({
     mutationFn: async (templateId: number) => {
       const response = await fetch(`/api/quiz-templates/${templateId}/generate`, {
@@ -577,14 +577,12 @@ export function QuizManagement() {
       }
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/quizzes'] });
       toast({
         title: "Success",
-        description: "Quiz generated successfully",
+        description: "Quiz has been generated and is now available to trainees",
       });
-      // Navigate to the quiz link
-      window.location.href = `/quiz/${data.id}`;
     },
     onError: (error: Error) => {
       toast({
