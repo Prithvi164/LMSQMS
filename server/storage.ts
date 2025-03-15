@@ -818,15 +818,36 @@ export class DatabaseStorage implements IStorage {
       // First verify the user exists
       const user = await this.getUser(userId);
       if (!user) {
-        throw new Error('User not found');
+        console.log('DEBUG: [getBatchAssignments] User not found:', userId);
+        return [];
       }
 
       const assignments = await db
-        .select()
+        .select({
+          id: userBatchProcesses.id,
+          userId: userBatchProcesses.userId,
+          batchId: userBatchProcesses.batchId,
+          processId: userBatchProcesses.processId,
+          status: userBatchProcesses.status,
+          joinedAt: userBatchProcesses.joinedAt,
+          completedAt: userBatchProcesses.completedAt,
+          createdAt: userBatchProcesses.createdAt,
+          updatedAt: userBatchProcesses.updatedAt,
+          // Include batch and process information
+          batchName: organizationBatches.name,
+          processName: organizationProcesses.name
+        })
         .from(userBatchProcesses)
+        .leftJoin(
+          organizationBatches,
+          eq(userBatchProcesses.batchId, organizationBatches.id)
+        )
+        .leftJoin(
+          organizationProcesses,
+          eq(userBatchProcesses.processId, organizationProcesses.id)
+        )
         .where(eq(userBatchProcesses.userId, userId))
-        .where(eq(userBatchProcesses.status, 'active'))
-        .orderBy(desc(userBatchProcesses.createdAt));
+        .where(eq(userBatchProcesses.status, 'active'));
 
       console.log('DEBUG: [getBatchAssignments] Results:', {
         userId,
@@ -834,14 +855,16 @@ export class DatabaseStorage implements IStorage {
         assignments: assignments?.map(a => ({
           id: a.id,
           processId: a.processId,
+          processName: a.processName,
+          batchName: a.batchName,
           status: a.status
         }))
       });
 
-      return assignments;
+      return assignments || [];
     } catch (error) {
       console.error('Error fetching batch assignments:', error);
-      throw new Error('Failed to fetch batch assignments');
+      return []; // Return empty array instead of throwing to handle gracefully
     }
   }
 
