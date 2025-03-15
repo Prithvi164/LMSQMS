@@ -1996,15 +1996,20 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Attempting to delete quiz template with ID: ${id}`);
 
-      await this.deleteQuizzesByTemplateId(id);
+      // First verify the template exists
+      const template = await this.getQuizTemplate(id);
+      if (!template) {
+        throw new Error('Quiz template not found');
+      }
 
+      // Delete the template directly - we want to keep quiz responses
       const result = await db
         .delete(quizTemplates)
         .where(eq(quizTemplates.id, id))
         .returning();
 
       if (!result.length) {
-        throw new Error('Quiz template not found or deletion failed');
+        throw new Error('Quiz template deletion failed');
       }
 
       console.log(`Successfully deleted quiz template with ID: ${id}`);
@@ -2340,7 +2345,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Add new method for deleting quizzes by template ID
-  
+
 }
 
 export const storage = new DatabaseStorage();
