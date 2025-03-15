@@ -883,7 +883,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update the trainee quizzes endpoint with correct table joins
+  // Update the trainee quizzes endpoint with correct organization ID handling
   app.get("/api/trainee/quizzes", async (req, res) => {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -897,6 +897,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
+      console.log("Fetching quizzes for user:", {
+        userId: req.user.id,
+        username: req.user.username,
+        organizationId: req.user.organizationId
+      });
+
       // Query active quizzes for the trainee's assigned processes
       const result = await db
         .select({
@@ -912,22 +918,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(quizzes)
         .innerJoin(
           organizationProcesses,
-          eq(organizationProcesses.id, quizzes.processId)
+          and(
+            eq(organizationProcesses.id, quizzes.processId),
+            eq(organizationProcesses.organizationId, req.user.organizationId)
+          )
         )
         .innerJoin(
           userProcesses,
-          eq(userProcesses.processId, quizzes.processId)
+          and(
+            eq(userProcesses.processId, quizzes.processId),
+            eq(userProcesses.userId, req.user.id),
+            eq(userProcesses.status, 'active')
+          )
         )
         .innerJoin(
           users,
           eq(users.id, userProcesses.userId)
         )
         .where(
-          and(
-            eq(quizzes.processId, 13),
-            eq(quizzes.status, 'active'),
-            eq(users.username, req.user.username)
-          )
+          eq(quizzes.status, 'active')
         );
 
       console.log('Found quizzes for trainee:', result);
