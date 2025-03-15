@@ -926,6 +926,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get quizzes for those processes
       const processIds = activeProcesses.map(p => p.processId);
       
+      console.log('Getting quizzes for processes:', processIds);
+
       const result = await db
         .select({
           quiz_id: quizzes.id,
@@ -946,8 +948,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(
           and(
             inArray(quizzes.processId, processIds),
-            eq(quizzes.status, 'active'),
-            eq(quizzes.organizationId, req.user.organizationId)
+            eq(quizzes.status, 'active')
           )
         );
 
