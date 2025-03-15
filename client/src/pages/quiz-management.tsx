@@ -347,16 +347,23 @@ export function QuizManagement() {
     }
   };
 
-  // Add delete mutation
+  // Update deleteTemplateMutation implementation
   const deleteTemplateMutation = useMutation({
     mutationFn: async (id: number) => {
       const response = await fetch(`/api/quiz-templates/${id}`, {
         method: 'DELETE',
       });
+
+      // Even if we get an error, if the template is gone, consider it a success
       if (!response.ok) {
         const errorData = await response.json();
+        // If the error is "Quiz template not found", it means it was already deleted
+        if (errorData.message === "Quiz template not found") {
+          return true;
+        }
         throw new Error(errorData.message || 'Failed to delete template');
       }
+      return true;
     },
     onSuccess: () => {
       // Invalidate both filtered and unfiltered queries
@@ -376,6 +383,10 @@ export function QuizManagement() {
         variant: "destructive",
       });
       setDeletingTemplateId(null);
+      // Force a refetch to ensure UI is in sync
+      queryClient.invalidateQueries({
+        queryKey: ['/api/quiz-templates']
+      });
     },
   });
 
