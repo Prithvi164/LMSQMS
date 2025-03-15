@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { Router } from "express";
-import { insertUserSchema, users, userBatchProcesses, organizationProcesses } from "@shared/schema";
+import { insertUserSchema, users, userBatchProcesses, organizationProcesses, userProcesses, quizzes } from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
@@ -883,13 +883,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add trainee-specific quiz endpoint
+  // Update the trainee quizzes endpoint with correct table name
   app.get("/api/trainee/quizzes", async (req, res) => {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    // Verify if user has trainee category (not role)
+    // Verify if user has trainee category
     if (req.user.category !== 'trainee') {
       return res.status(403).json({ 
         message: "Only users with trainee category can access this endpoint" 
@@ -897,37 +897,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      // Get trainee's active batch assignments
-      const batchAssignments = await storage.getTraineeBatchAssignments(req.user.id);
-      
-      if (!batchAssignments || batchAssignments.length === 0) {
-        return res.json([]);
-      }
-
-      // Get the process IDs from active batch assignments
-      const processIds = batchAssignments
-        .filter(assignment => assignment.status === 'active')
-        .map(assignment => assignment.processId);
-
-      if (processIds.length === 0) {
-        return res.json([]);
-      }
-
-      // Get all quizzes for these processes with status 'active'
-      const quizzes = await storage.getQuizzesByProcessIds(processIds, 'active');
-
-      // For each quiz, check if the trainee has attempted it
-      const quizzesWithAttempts = await Promise.all(
-        quizzes.map(async (quiz) => {
-          const attempts = await storage.getQuizAttempts(quiz.id, req.user.id);
-          return {
-            ...quiz,
-            attempts: attempts || []
-          };
+      // Query active quizzes for the trainee's assigned processes
+      const result = await db
+        .select({
+          id: quizzes.id,
+          name: quizzes.name,
+          description: quizzes.description,
+          timeLimit: quizzes.timeLimit,
+          passingScore: quizzes.passingScore,
+          status: quizzes.status,
+          processId: quizzes.processId,
+          processName: organizationProcesses.name,
         })
-      );
+        .from(quizzes)
+        .innerJoin(
+          organizationProcesses, // Changed from processes to organizationProcesses
+          eq(quizzes.processId, organizationProcesses.id)
+        )
+        .innerJoin(
+          userProcesses,
+          and(
+            eq(userProcesses.processId, quizzes.processId),
+            eq(userProcesses.userId, req.user.id),
+            eq(userProcesses.status, 'active')
+          )
+        )
+        .where(
+          and(
+            eq(quizzes.status, 'active'),
+            eq(quizzes.organizationId, req.user.organizationId)
+          )
+        );
 
-      res.json(quizzesWithAttempts);
+      console.log('Found quizzes for trainee:', result);
+      res.json(result);
     } catch (error: any) {
       console.error("Error fetching trainee quizzes:", error);
       res.status(500).json({ 

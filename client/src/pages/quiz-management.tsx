@@ -569,7 +569,11 @@ export function QuizManagement() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-        }
+        },
+        body: JSON.stringify({
+          processId: 13, // Ensure process ID is explicitly set
+          status: 'active'
+        })
       });
       if (!response.ok) {
         const errorData = await response.json();
