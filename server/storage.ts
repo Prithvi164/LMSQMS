@@ -215,9 +215,6 @@ export interface IStorage {
   getQuizResponses(quizAttemptId: number): Promise<QuizResponse[]>;
   getEnrolledCount(batchId: number): Promise<number>;
   getQuiz(id: number): Promise<Quiz | undefined>;
-  getBatchAssignments(userId: number): Promise<UserBatchProcess[]>;
-  getQuizzesByProcessIds(processIds: number[], status?: string, organizationId?: number): Promise<Quiz[]>;
-  getQuizAttempts(quizId: number, userId: number): Promise<QuizAttempt[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -351,46 +348,19 @@ export class DatabaseStorage implements IStorage {
   // User Process operations
   async assignProcessesToUser(processes: InsertUserProcess[]): Promise<UserProcess[]> {
     try {
-      console.log('DEBUG: [assignProcessesToUser] Input:', {
-        count: processes.length,
-        processes: processes.map(p => ({
-          userId: p.userId,
-          processId: p.processId
-        }))
-      });
-
       const assignedProcesses = await db
         .insert(userProcesses)
-        .values(processes.map(p => ({
-          ...p,
-          status: 'active',
-          assignedAt: new Date(),
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })))
+        .values(processes)
         .returning() as UserProcess[];
-
-      console.log('DEBUG: [assignProcessesToUser] Results:', {
-        count: assignedProcesses.length,
-        processes: assignedProcesses.map(p => ({
-          id: p.id,
-          userId: p.userId,
-          processId: p.processId,
-          status: p.status
-        }))
-      });
-
       return assignedProcesses;
     } catch (error) {
       console.error('Error assigning processes to user:', error);
-      throw error;
+      throw new Error('Failed to assign processes to user');
     }
   }
 
   async getUserProcesses(userId: number): Promise<UserProcess[]> {
     try {
-      console.log('DEBUG: [getUserProcesses] Input:', { userId });
-
       const processes = await db
         .select({
           id: userProcesses.id,
@@ -400,54 +370,31 @@ export class DatabaseStorage implements IStorage {
           status: userProcesses.status,
           assignedAt: userProcesses.assignedAt,
           completedAt: userProcesses.completedAt,
-          createdAt: userProcesses.createdAt,
-          updatedAt: userProcesses.updatedAt,
           processName: organizationProcesses.name,
-          lineOfBusinessId: organizationProcesses.lineOfBusinessId
         })
         .from(userProcesses)
         .leftJoin(
           organizationProcesses,
           eq(userProcesses.processId, organizationProcesses.id)
         )
-        .where(eq(userProcesses.userId, userId));
+        .where(eq(userProcesses.userId, userId)) as UserProcess[];
 
-      console.log('DEBUG: [getUserProcesses] Results:', {
-        userId,
-        count: processes.length,
-        processes: processes.map(p => ({
-          id: p.id,
-          processId: p.processId,
-          processName: p.processName,
-          status: p.status
-        }))
-      });
-
-      return processes as UserProcess[];
+      return processes;
     } catch (error) {
       console.error('Error fetching user processes:', error);
-      throw error;
+      throw new Error('Failed to fetch user processes');
     }
   }
 
   async removeUserProcess(userId: number, processId: number): Promise<void> {
     try {
-      console.log('DEBUG: [removeUserProcess] Input:', { userId, processId });
-
-      const result = await db
+      await db
         .delete(userProcesses)
         .where(eq(userProcesses.userId, userId))
-        .where(eq(userProcesses.processId, processId))
-        .returning();
-
-      console.log('DEBUG: [removeUserProcess] Results:', {
-        userId,
-        processId,
-        removed: result.length > 0
-      });
+        .where(eq(userProcesses.processId, processId));
     } catch (error) {
       console.error('Error removing user process:', error);
-      throw error;
+      throw new Error('Failed to remove user process');
     }
   }
 
@@ -810,231 +757,56 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Add new storage methods for trainee quizzes
-  async getBatchAssignments(userId: number): Promise<UserBatchProcess[]> {
+  // Add new methods for user process management
+  async assignProcessesToUser(processes: InsertUserProcess[]): Promise<UserProcess[]> {
     try {
-      console.log('DEBUG: [getBatchAssignments] Input:', { userId });
-
-      // First verify the user exists
-      const user = await this.getUser(userId);
-      if (!user) {
-        console.log('DEBUG: [getBatchAssignments] User not found:', userId);
-        return [];
-      }
-
-      // Get the assignments with proper type casting and null handling
-      const assignments = await db
-        .select({
-          id: userBatchProcesses.id,
-          userId: userBatchProcesses.userId,
-          batchId: userBatchProcesses.batchId,
-          processId: userBatchProcesses.processId,
-          status: sql<'active' | 'completed' | 'dropped' | 'on_hold'>`${userBatchProcesses.status}::text`,
-          joinedAt: userBatchProcesses.joinedAt,
-          completedAt: userBatchProcesses.completedAt,
-          createdAt: userBatchProcesses.createdAt,
-          updatedAt: userBatchProcesses.updatedAt,
-          organizationId: userBatchProcesses.organizationId,
-          // Include batch and process information with null coalescing
-          batchName: sql<string>`COALESCE(${organizationBatches.name}, '')`,
-          processName: sql<string>`COALESCE(${organizationProcesses.name}, '')`
-        })
-        .from(userBatchProcesses)
-        .leftJoin(
-          organizationBatches,
-          eq(userBatchProcesses.batchId, organizationBatches.id)
-        )
-        .leftJoin(
-          organizationProcesses,
-          eq(userBatchProcesses.processId, organizationProcesses.id)
-        )
-        .where(
-          and(
-            eq(userBatchProcesses.userId, userId),
-            eq(userBatchProcesses.status, 'active')
-          )
-        )
-        .orderBy(desc(userBatchProcesses.createdAt));
-
-      console.log('DEBUG: [getBatchAssignments] Results:', {
-        userId,
-        count: assignments?.length || 0,
-        assignments: assignments?.map(a => ({
-          id: a.id,
-          processId: a.processId,
-          processName: a.processName,
-          batchName: a.batchName,
-          status: a.status
-        }))
-      });
-
-      return assignments || [];
+      const assignedProcesses = await db
+        .insert(userProcesses)
+        .values(processes)
+        .returning() as UserProcess[];
+      return assignedProcesses;
     } catch (error) {
-      console.error('Error fetching batch assignments:', error);
-      return []; // Return empty array instead of throwing to handle gracefully
+      console.error('Error assigning processes to user:', error);
+      throw new Error('Failed to assign processes to user');
     }
   }
 
-  async getQuizzesByProcessIds(
-    processIdList: number[],
-    queryStatus: string = 'active',
-    organizationId: number 
-  ): Promise<Quiz[]> {
+  async getUserProcesses(userId: number): Promise<UserProcess[]> {
     try {
-      const processIds = processIdList || [];
-
-      if (!processIds.length || !organizationId) {
-        console.log('DEBUG: [getQuizzesByProcessIds] Missing required params:', {
-          processIds,
-          organizationId
-        });
-        return [];
-      }
-
-      // Get process info first to validate them
       const processes = await db
-        .select()
-        .from(organizationProcesses)
-        .where(
-          and(
-            inArray(organizationProcesses.id, processIds),
-            eq(organizationProcesses.organizationId, organizationId)
-          )
-        ) as OrganizationProcess[];
-
-      if (!processes.length) {
-        console.log('DEBUG: [getQuizzesByProcessIds] No valid processes found');
-        return [];
-      }
-
-      const validProcessIds = processes.map(p => p.id);
-
-      // Build query to get active quizzes for specified processes
-      const foundQuizzes = await db
         .select({
-          id: quizzes.id,
-          name: quizzes.name,
-          description: quizzes.description,
-          processId: quizzes.processId,
-          organizationId: quizzes.organizationId,
-          questions: quizzes.questions,
-          timeLimit: quizzes.timeLimit,
-          passingScore: quizzes.passingScore,
-          status: sql<'active' | 'completed' | 'expired'>`${quizzes.status}::text`,
-          endTime: quizzes.endTime,
-          createdAt: quizzes.createdAt,
-          createdBy: quizzes.createdBy,
-          startTime: quizzes.startTime,
-          templateId: quizzes.templateId,
-          processName: organizationProcesses.name
+          id: userProcesses.id,
+          userId: userProcesses.userId,
+          processId: userProcesses.processId,
+          organizationId: userProcesses.organizationId,
+          status: userProcesses.status,
+          assignedAt: userProcesses.assignedAt,
+          completedAt: userProcesses.completedAt,
+          processName: organizationProcesses.name,
         })
-        .from(quizzes)
+        .from(userProcesses)
         .leftJoin(
           organizationProcesses,
-          eq(quizzes.processId, organizationProcesses.id)
+          eq(userProcesses.processId, organizationProcesses.id)
         )
-        .where(
-          and(
-            // Must match exact process IDs from active assignments
-            inArray(quizzes.processId, validProcessIds),
-            // Must be from user's organization
-            eq(quizzes.organizationId, organizationId),
-            // Must have active status
-            eq(quizzes.status, queryStatus as any),
-            // Must not be expired
-            sql`${quizzes.endTime} > NOW()`
-          )
-        )
-        .orderBy(desc(quizzes.createdAt));
+        .where(eq(userProcesses.userId, userId)) as UserProcess[];
 
-      const results = await foundQuizzes as Quiz[];
-
-      console.log('DEBUG: [getQuizzesByProcessIds] Results:', {
-        filters: { processIds, queryStatus, organizationId },
-        validProcessIds,
-        count: results.length,
-        quizzes: results.map(q => ({
-          id: q.id,
-          name: q.name,
-          processId: q.processId,
-          processName: q.processName,
-          status: q.status,
-          endTime: q.endTime
-        }))
-      });
-
-      return results;
+      return processes;
     } catch (error) {
-      console.error('Error fetching quizzes by process IDs:', error);
-      throw error;
+      console.error('Error fetching user processes:', error);
+      throw new Error('Failed to fetch user processes');
     }
   }
 
-  async getQuizAttempts(quizId: number, userId: number): Promise<QuizAttempt[]> {
+  async removeUserProcess(userId: number, processId: number): Promise<void> {
     try {
-      console.log('DEBUG: [getQuizAttempts] Input:', {
-        quizId,
-        userId  
-      });
-
-      // First get the quiz to verify it exists and get organization
-      const quiz = await db
-        .select({
-          id: quizzes.id,
-          organizationId: quizzes.organizationId,
-          processId: quizzes.processId,
-          createdBy: quizzes.createdBy,
-          endTime: quizzes.endTime
-        })
-        .from(quizzes)
-        .where(eq(quizzes.id, quizId))
-        .limit(1) as Quiz[];
-
-      if (!quiz.length) {
-        throw new Error('Quiz not found');
-      }
-
-      // Get quiz attempts with proper field selection
-      const attempts = await db
-        .select({
-          id: quizAttempts.id,
-          organizationId: quizzes.organizationId,
-          userId: quizAttempts.userId,
-          quizId: quizAttempts.quizId,
-          score: quizAttempts.score,
-          createdAt: quizAttempts.createdAt,
-          completedAt: quizAttempts.completedAt,
-          answers: quizAttempts.answers
-        })
-        .from(quizAttempts)
-        .leftJoin(
-          quizzes,
-          eq(quizAttempts.quizId, quizzes.id)
-        )
-        .where(
-          and(
-            eq(quizAttempts.quizId, quizId),
-            eq(quizAttempts.userId, userId)
-          )
-        )
-        .orderBy(desc(quizAttempts.createdAt)) as QuizAttempt[];
-
-      console.log('DEBUG: [getQuizAttempts] Results:', {
-        quizId,
-        userId,
-        count: attempts.length,
-        attempts: attempts.map(a => ({
-          id: a.id,
-          score: a.score,
-          completedAt: a.completedAt,
-          answersCount: a.answers?.length || 0
-        }))
-      });
-
-      return attempts;
+      await db
+        .delete(userProcesses)
+        .where(eq(userProcesses.userId, userId))
+        .where(eq(userProcesses.processId, processId));
     } catch (error) {
-      console.error('Error fetching quiz attempts:', error);
-      throw error;
+      console.error('Error removing user process:', error);
+      throw new Error('Failed to remove user process');
     }
   }
   async createUserWithProcesses(
@@ -1163,17 +935,15 @@ export class DatabaseStorage implements IStorage {
         if (!result.length) {
           throw new Error('Location not found or deletion failed');
         }
-      });
 
-      console.log(`Successfully deleted location with ID: ${id}`);
+        console.log(`Successfully deleted location with ID: ${id}`);
+      });
     } catch (error) {
-      console.error('Error deleting location:', error);
-      throw error;
+      console.error('Error deleting location:', error);      throw error;
     }
   }
 
-  async createLocation(location: InsertOrganizationLocation): Promise<OrganizationLocation> {
-    try {
+  async createLocation(location: InsertOrganizationLocation): Promise<OrganizationLocation> {    try {
       console.log('Creating location with data:', location);
 
       // Check if location with same name exists in the organization
@@ -1320,6 +1090,7 @@ export class DatabaseStorage implements IStorage {
         )
         .where(eq(organizationBatches.organizationId, organizationId))
         .orderBy(desc(organizationBatches.createdAt));
+
 
       return batches as OrganizationBatch[];
     } catch (error) {
@@ -2498,159 +2269,6 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  // Add new storage methods for trainee quizzes
-  async getBatchAssignments(userId: number): Promise<UserBatchProcess[]> {
-    try {
-      console.log('DEBUG: [getBatchAssignments] Input:', { userId });
-
-      // Get only active batch assignments for the user
-      const assignments = await db
-        .select({
-          id: userBatchProcesses.id,
-          userId: userBatchProcesses.userId,
-          batchId: userBatchProcesses.batchId,
-          processId: userBatchProcesses.processId,
-          status: userBatchProcesses.status,
-          joinedAt: userBatchProcesses.joinedAt,
-          completedAt: userBatchProcesses.completedAt,
-          organizationId: userBatchProcesses.organizationId,
-          batchName: organizationBatches.name,
-          processName: organizationProcesses.name
-        })
-        .from(userBatchProcesses)
-        .leftJoin(
-          organizationBatches,
-          eq(userBatchProcesses.batchId, organizationBatches.id)
-        )
-        .leftJoin(
-          organizationProcesses,
-          eq(userBatchProcesses.processId, organizationProcesses.id)
-        )
-        .where(
-          and(
-            eq(userBatchProcesses.userId, userId),
-            eq(userBatchProcesses.status, 'active')
-          )
-        )
-        .orderBy(desc(userBatchProcesses.joinedAt));
-
-      console.log('DEBUG: [getBatchAssignments] Results:', {
-        userId,
-        count: assignments.length,
-        assignments: assignments.map(a => ({
-          id: a.id,
-          processId: a.processId,
-          processName: a.processName,
-          batchId: a.batchId,
-          batchName: a.batchName,
-          status: a.status
-        }))
-      });
-
-      return assignments as UserBatchProcess[];
-    } catch (error) {
-      console.error('Error fetching batch assignments:', error);
-      throw new Error('Failed to fetch batch assignments');
-    }
-  }
-
-  async getQuizzesByProcessIds(
-    processIds: number[],
-    status?: string,
-    organizationId?: number
-  ): Promise<Quiz[]> {
-    try {
-      if (!processIds.length || !organizationId) {
-        console.log('DEBUG: [getQuizzesByProcessIds] Missing required params:', {
-          processIds,
-          organizationId
-        });
-        return [];
-      }
-
-      // Build query to get active quizzes for specified processes
-      const query = db
-        .select({
-          ...quizzes,
-          processName: organizationProcesses.name
-        })
-        .from(quizzes)
-        .leftJoin(
-          organizationProcesses,
-          eq(quizzes.processId, organizationProcesses.id)
-        )
-        .where(
-          and(
-            inArray(quizzes.processId, processIds),
-            eq(quizzes.organizationId, organizationId),
-            status ? eq(quizzes.status, status) : undefined,
-            sql`${quizzes.endTime} > NOW()` // Only get non-expired quizzes
-          )
-        )
-        .orderBy(desc(quizzes.createdAt));
-
-      const foundQuizzes = await query as (Quiz & { processName: string })[];
-
-      console.log('DEBUG: [getQuizzesByProcessIds] Results:', {
-        filters: { processIds, status, organizationId },
-        count: foundQuizzes.length,
-        quizzes: foundQuizzes.map(q => ({
-          id: q.id,
-          name: q.name,
-          processId: q.processId,
-          processName: q.processName,
-          organizationId: q.organizationId,
-          status: q.status,
-          startTime: q.startTime,
-          endTime: q.endTime
-        }))
-      });
-
-      return foundQuizzes;
-    } catch (error) {
-      console.error('Error fetching quizzes by process IDs:', error);
-      throw new Error('Failed to fetch quizzes');
-    }
-  }
-
-  async getQuizAttempts(quizId: number, userId: number): Promise<QuizAttempt[]> {
-    try {
-      console.log('DEBUG: [getQuizAttempts] Input:', {
-        quizId,
-        userId
-      });
-
-      const attempts = await db
-        .select()
-        .from(quizAttempts)
-        .where(
-          and(
-            eq(quizAttempts.quizId, quizId),
-            eq(quizAttempts.userId, userId)
-          )
-        )
-        .orderBy(desc(quizAttempts.startTime)) as QuizAttempt[];
-
-      console.log('DEBUG: [getQuizAttempts] Results:', {
-        quizId,
-        userId,
-        count: attempts.length,
-        attempts: attempts.map(a => ({
-          id: a.id,
-          status: a.status,
-          score: a.score,
-          startTime: a.startTime,
-          submittedAt: a.submittedAt
-        }))
-      });
-
-      return attempts;
-    } catch (error) {
-      console.error('Error fetching quiz attempts:', error);
-      throw new Error('Failed to fetch quiz attempts');
-    }
-  }
-
 }
 
 export const storage = new DatabaseStorage();
