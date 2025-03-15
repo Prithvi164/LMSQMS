@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import {
@@ -24,12 +24,22 @@ export function QuizTakingPage() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [endTime, setEndTime] = useState<Date | null>(null);
 
   // Fetch quiz details and questions
   const { data: quiz, isLoading } = useQuery({
     queryKey: [`/api/quizzes/${quizId}`],
     enabled: !!quizId,
   });
+
+  // Set end time when quiz data is loaded
+  useEffect(() => {
+    if (quiz?.timeLimit) {
+      const now = new Date();
+      const end = new Date(now.getTime() + quiz.timeLimit * 60 * 1000); // Convert minutes to milliseconds
+      setEndTime(end);
+    }
+  }, [quiz]);
 
   const handleTimeExpired = async () => {
     if (!isSubmitting) {
@@ -88,7 +98,7 @@ export function QuizTakingPage() {
       }
 
       const result = await response.json();
-      window.location.href = `/quiz-results/${result.id}`;
+      setLocation(`/quiz-results/${result.id}`);
     } catch (error) {
       toast({
         title: "Error",
@@ -111,11 +121,11 @@ export function QuizTakingPage() {
                 Question {currentQuestionIndex + 1} of {quiz.questions.length}
               </CardDescription>
             </div>
-            {quiz.endTime && (
+            {endTime && (
               <CountdownTimer
-                endTime={new Date(quiz.endTime)}
+                endTime={endTime}
                 onTimeExpired={handleTimeExpired}
-                warningThresholds={[300, 60]}
+                warningThresholds={[300, 60]} // Warnings at 5 minutes and 1 minute
               />
             )}
           </div>
