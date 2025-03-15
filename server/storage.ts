@@ -215,6 +215,7 @@ export interface IStorage {
   getQuizResponses(quizAttemptId: number): Promise<QuizResponse[]>;
   getEnrolledCount(batchId: number): Promise<number>;
   getQuiz(id: number): Promise<Quiz | undefined>;
+  getBatchAssignments(userId: number): Promise<UserBatchProcess[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -943,7 +944,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async createLocation(location: InsertOrganizationLocation): Promise<OrganizationLocation> {    try {
+  async createLocation(location:InsertOrganizationLocation): Promise<OrganizationLocation> {    try {
       console.log('Creating location with data:', location);
 
       // Check if location with same name exists in the organization
@@ -2267,6 +2268,47 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error fetching quiz:', error);
       throw error;
+    }
+  }
+  async getBatchAssignments(userId: number): Promise<UserBatchProcess[]> {
+    try {
+      console.log(`[getBatchAssignments] Input:`, { userId });
+
+      const assignments = await db
+        .select({
+          id: userBatchProcesses.id,
+          userId: userBatchProcesses.userId,
+          batchId: userBatchProcesses.batchId,
+          processId: userBatchProcesses.processId,
+          status: userBatchProcesses.status,
+          joinedAt: userBatchProcesses.joinedAt,
+          completedAt: userBatchProcesses.completedAt,
+          createdAt: userBatchProcesses.createdAt,
+          updatedAt: userBatchProcesses.updatedAt,
+          batchName: organizationBatches.name,
+          processName: organizationProcesses.name
+        })
+        .from(userBatchProcesses)
+        .leftJoin(
+          organizationBatches,
+          eq(userBatchProcesses.batchId, organizationBatches.id)
+        )
+        .leftJoin(
+          organizationProcesses,
+          eq(userBatchProcesses.processId, organizationProcesses.id)
+        )
+        .where(
+          and(
+            eq(userBatchProcesses.userId, userId),
+            eq(userBatchProcesses.status, 'active')
+          )
+        );
+
+      console.log(`Found ${assignments.length} active assignments for user ${userId}`);
+      return assignments;
+    } catch (error) {
+      console.error('Error fetching batch assignments:', error);
+      throw new Error('Failed to fetch batch assignments');
     }
   }
 }
