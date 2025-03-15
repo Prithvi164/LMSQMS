@@ -215,6 +215,10 @@ export interface IStorage {
   getQuizResponses(quizAttemptId: number): Promise<QuizResponse[]>;
   getEnrolledCount(batchId: number): Promise<number>;
   getQuiz(id: number): Promise<Quiz | undefined>;
+
+  // Add new quiz enrollment methods
+  getUserEnrollments(userId: number): Promise<UserProcess[]>;
+  getQuizzesByProcessIds(processIds: number[], status?: string): Promise<Quiz[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1936,7 +1940,7 @@ export class DatabaseStorage implements IStorage {
       return newTemplate;
     } catch (error) {
       console.error('Error creating quiz template:', error);
-      throw error;
+      throw error; error;
     }
   }
 
@@ -2269,6 +2273,70 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+  // Get user's process enrollments
+  async getUserEnrollments(userId: number): Promise<UserProcess[]> {
+    try {
+      console.log(`Fetching enrollments for user ${userId}`);
+
+      const enrollments = await db
+        .select({
+          id: userProcesses.id,
+          userId: userProcesses.userId,
+          processId: userProcesses.processId,
+          organizationId: userProcesses.organizationId,
+          status: userProcesses.status,
+          assignedAt: userProcesses.assignedAt,
+          completedAt: userProcesses.completedAt,
+          createdAt: userProcesses.createdAt,
+          updatedAt: userProcesses.updatedAt,
+          locationId: userProcesses.locationId,
+          lineOfBusinessId: userProcesses.lineOfBusinessId
+        })
+        .from(userProcesses)
+        .where(eq(userProcesses.userId, userId)) as UserProcess[];
+
+      console.log(`Found ${enrollments.length} enrollments`);
+      return enrollments;
+    } catch (error) {
+      console.error('Error fetching user enrollments:', error);
+      throw new Error('Failed to fetch user enrollments');
+    }
+  }
+
+  // Get quizzes by process IDs
+  async getQuizzesByProcessIds(processIds: number[], status?: string): Promise<Quiz[]> {
+    try {
+      console.log(`Fetching quizzes for processes: ${processIds.join(', ')}${status ? ` with status: ${status}` : ''}`);
+
+      let query = db
+        .select({
+          id: quizzes.id,
+          title: quizzes.title,
+          organizationId: quizzes.organizationId,
+          processId: quizzes.processId,
+          duration: quizzes.timeLimit,
+          totalQuestions: quizzes.numQuestions,
+          status: quizzes.status,
+          createdAt: quizzes.createdAt,
+          updatedAt: quizzes.updatedAt
+        })
+        .from(quizzes)
+        .where(inArray(quizzes.processId, processIds));
+
+      if (status) {
+        query = query.where(eq(quizzes.status, status));
+      }
+
+      const quizList = await query as Quiz[];
+      console.log(`Found ${quizList.length} quizzes`);
+      return quizList;
+    } catch (error) {
+      console.error('Error fetching quizzes by process IDs:', error);
+      throw new Error('Failed to fetch quizzes');
+    }
+  }
+
+  // ... rest of the class methods ...
 }
 
 export const storage = new DatabaseStorage();

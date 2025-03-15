@@ -39,19 +39,8 @@ async function comparePasswords(supplied: string, stored: string) {
       return false;
     }
     const [hashed, salt] = stored.split(".");
-    console.log("Password comparison details:");
-    console.log("- Salt:", salt);
-    console.log("- Stored hash length:", hashed.length);
-    console.log("- Stored hash:", hashed);
-
     const hashedBuf = Buffer.from(hashed, "hex");
     const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-    const suppliedHex = suppliedBuf.toString("hex");
-
-    console.log("- Supplied password length:", supplied.length);
-    console.log("- Generated hash:", suppliedHex);
-    console.log("- Generated hash length:", suppliedBuf.length);
-
     return timingSafeEqual(hashedBuf, suppliedBuf);
   } catch (error) {
     console.error("Password comparison error:", error);
@@ -60,7 +49,10 @@ async function comparePasswords(supplied: string, stored: string) {
 }
 
 export function setupAuth(app: Express) {
-  const sessionSecret = randomBytes(32).toString("hex");
+  // Generate a strong session secret
+  const sessionSecret = process.env.SESSION_SECRET || randomBytes(32).toString("hex");
+
+  // Configure session store
   const sessionStore = new PostgresSessionStore({
     conObject: {
       connectionString: process.env.DATABASE_URL,
@@ -68,6 +60,7 @@ export function setupAuth(app: Express) {
     createTableIfMissing: true,
   });
 
+  // Enhanced session configuration
   app.use(session({
     secret: sessionSecret,
     resave: false,
@@ -76,39 +69,50 @@ export function setupAuth(app: Express) {
     cookie: {
       secure: process.env.NODE_ENV === "production",
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      sameSite: 'lax',
+      path: '/',
     },
+    name: 'sessionId', // Custom session cookie name
   }));
 
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // Debug middleware to log authentication state
+  app.use((req, res, next) => {
+    console.log(`[Auth Debug] ${new Date().toISOString()} - Request path: ${req.path}`);
+    console.log(`[Auth Debug] User authenticated: ${req.isAuthenticated()}`);
+    if (req.user) {
+      console.log(`[Auth Debug] User details: ID=${req.user.id}, Role=${req.user.role}`);
+    }
+    next();
+  });
+
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
-        console.log("Attempting login for:", username);
+        console.log("[Auth Debug] Login attempt for:", username);
         let user = await storage.getUserByUsername(username);
 
         if (!user) {
-          console.log("User not found by username, trying email...");
+          console.log("[Auth Debug] User not found by username, trying email...");
           user = await storage.getUserByEmail(username);
         }
 
         if (!user) {
-          console.log("User not found");
+          console.log("[Auth Debug] User not found");
           return done(null, false, { message: "Invalid username or password" });
         }
 
-        // Check if user is active
         if (!user.active) {
-          console.log("User account is inactive");
+          console.log("[Auth Debug] User account is inactive");
           return done(null, false, { message: "Account is inactive. Please contact your administrator." });
         }
 
-        console.log("Found user:", user.username, "role:", user.role);
-        console.log("Stored password format:", user.password);
+        console.log("[Auth Debug] Found user:", user.username, "role:", user.role);
 
         const isValidPassword = await comparePasswords(password, user.password);
-        console.log("Password validation result:", isValidPassword);
+        console.log("[Auth Debug] Password validation result:", isValidPassword);
 
         if (!isValidPassword) {
           return done(null, false, { message: "Invalid username or password" });
@@ -116,24 +120,29 @@ export function setupAuth(app: Express) {
 
         return done(null, user);
       } catch (err) {
-        console.error("Login error:", err);
+        console.error("[Auth Debug] Login error:", err);
         return done(err);
       }
     })
   );
 
   passport.serializeUser((user, done) => {
+    console.log("[Auth Debug] Serializing user:", user.id);
     done(null, user.id);
   });
 
   passport.deserializeUser(async (id: number, done) => {
     try {
+      console.log("[Auth Debug] Deserializing user:", id);
       const user = await storage.getUser(id);
       if (!user) {
+        console.log("[Auth Debug] User not found during deserialization");
         return done(null, false);
       }
+      console.log("[Auth Debug] User deserialized successfully");
       done(null, user);
     } catch (err) {
+      console.error("[Auth Debug] Deserialization error:", err);
       done(err);
     }
   });
@@ -141,27 +150,22 @@ export function setupAuth(app: Express) {
   // Add registration endpoint
   app.post("/api/register", async (req, res) => {
     try {
-      // Validate registration data
       const data = registrationSchema.parse(req.body);
 
-      // Check if username already exists
       const existingUser = await storage.getUserByUsername(data.username);
       if (existingUser) {
         return res.status(400).json({ message: "Username already exists" });
       }
 
-      // Check if email already exists
       const existingEmail = await storage.getUserByEmail(data.email);
       if (existingEmail) {
         return res.status(400).json({ message: "Email already exists" });
       }
 
-      // Create organization first
       const organization = await storage.createOrganization({
         name: data.organizationName,
       });
 
-      // Create owner user
       const hashedPassword = await hashPassword(data.password);
       const user = await storage.createUser({
         username: data.username,
@@ -176,23 +180,21 @@ export function setupAuth(app: Express) {
         category: "active" as const
       });
 
-      // Set up initial permissions for owner
       await storage.updateRolePermissions(
         organization.id,
         'owner',
         permissionEnum.enumValues
       );
 
-      // Log the user in
       req.login(user, (err) => {
         if (err) {
-          console.error("Login error after registration:", err);
+          console.error("[Auth Debug] Login error after registration:", err);
           return res.status(500).json({ message: "Error logging in after registration" });
         }
         return res.status(201).json(user);
       });
     } catch (error) {
-      console.error("Registration error:", error);
+      console.error("[Auth Debug] Registration error:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors[0].message });
       }
@@ -201,39 +203,47 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", (req, res, next) => {
+    console.log("[Auth Debug] Login request received");
     passport.authenticate("local", (err: any, user: Express.User | false, info: any) => {
       if (err) {
-        console.error("Login error:", err);
+        console.error("[Auth Debug] Login error:", err);
         return res.status(500).json({ message: "Internal server error" });
       }
       if (!user) {
+        console.log("[Auth Debug] Authentication failed:", info?.message);
         return res.status(401).json({ message: info?.message || "Invalid credentials" });
       }
       req.login(user, (err) => {
         if (err) {
-          console.error("Login session error:", err);
+          console.error("[Auth Debug] Login session error:", err);
           return res.status(500).json({ message: "Session error" });
         }
+        console.log("[Auth Debug] User logged in successfully:", user.id);
         return res.json(user);
       });
     })(req, res, next);
   });
 
   app.post("/api/logout", (req, res) => {
+    console.log("[Auth Debug] Logout request received");
     if (!req.session) {
       return res.status(200).json({ message: "Already logged out" });
     }
     req.session.destroy((err) => {
       if (err) {
-        console.error("Logout error:", err);
+        console.error("[Auth Debug] Logout error:", err);
         return res.status(500).json({ message: "Logout failed" });
       }
-      res.clearCookie('connect.sid');
+      res.clearCookie('sessionId');
+      console.log("[Auth Debug] User logged out successfully");
       res.status(200).json({ message: "Logged out successfully" });
     });
   });
 
   app.get("/api/user", (req, res) => {
+    console.log("[Auth Debug] User info request");
+    console.log("[Auth Debug] Authentication state:", req.isAuthenticated());
+    console.log("[Auth Debug] Session:", req.session);
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Not authenticated" });
     }

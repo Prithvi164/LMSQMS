@@ -31,25 +31,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryKey: ["/api/user"],
     queryFn: async () => {
       try {
-        const res = await fetch("/api/user", { credentials: "include" });
-        if (res.status === 401) return null;
-        if (!res.ok) throw new Error("Failed to fetch user");
-        return res.json();
+        console.log("[Auth Hook] Fetching user data");
+        const res = await fetch("/api/user", { 
+          credentials: "include",
+          headers: {
+            "Accept": "application/json",
+          }
+        });
+
+        if (res.status === 401) {
+          console.log("[Auth Hook] User not authenticated");
+          return null;
+        }
+
+        if (!res.ok) {
+          throw new Error("Failed to fetch user");
+        }
+
+        const userData = await res.json();
+        console.log("[Auth Hook] User data fetched:", userData ? "User found" : "No user");
+        return userData;
       } catch (err) {
+        console.error("[Auth Hook] Error fetching user:", err);
         throw err;
       }
     },
+    retry: false
   });
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
+      console.log("[Auth Hook] Attempting login");
       const res = await apiRequest("POST", "/api/login", credentials);
       return res.json();
     },
     onSuccess: (user: User) => {
+      console.log("[Auth Hook] Login successful");
       queryClient.setQueryData(["/api/user"], user);
     },
     onError: (error: Error) => {
+      console.error("[Auth Hook] Login failed:", error);
       toast({
         title: "Login failed",
         description: error.message,
@@ -60,13 +81,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const registerMutation = useMutation({
     mutationFn: async (data: InsertUser) => {
+      console.log("[Auth Hook] Attempting registration");
       const res = await apiRequest("POST", "/api/register", data);
       return res.json();
     },
     onSuccess: (user: User) => {
+      console.log("[Auth Hook] Registration successful");
       queryClient.setQueryData(["/api/user"], user);
     },
     onError: (error: Error) => {
+      console.error("[Auth Hook] Registration failed:", error);
       toast({
         title: "Registration failed",
         description: error.message,
@@ -77,12 +101,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
+      console.log("[Auth Hook] Attempting logout");
       await apiRequest("POST", "/api/logout");
     },
     onSuccess: () => {
+      console.log("[Auth Hook] Logout successful");
       queryClient.setQueryData(["/api/user"], null);
     },
     onError: (error: Error) => {
+      console.error("[Auth Hook] Logout failed:", error);
       toast({
         title: "Logout failed",
         description: error.message,
