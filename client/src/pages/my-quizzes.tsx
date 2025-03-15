@@ -16,6 +16,9 @@ export function MyQuizzesPage() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
 
+  // Add console logs to debug
+  console.log("Current user category:", user?.category);
+
   // Fetch available quizzes for the trainee
   const { data: quizzes = [], isLoading } = useQuery({
     queryKey: ["/api/trainee/quizzes"],
@@ -24,10 +27,15 @@ export function MyQuizzesPage() {
       if (!response.ok) {
         throw new Error("Failed to fetch quizzes");
       }
-      return response.json();
+      const data = await response.json();
+      console.log("Fetched quizzes:", data); // Debug log
+      return data;
     },
     enabled: !!user && user.category === "trainee",
   });
+
+  // Debug log for render
+  console.log("Rendering quizzes:", quizzes);
 
   if (isLoading) {
     return (
