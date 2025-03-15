@@ -937,6 +937,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete quiz endpoint
+  app.delete("/api/quizzes/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const quizId = parseInt(req.params.id);
+      if (!quizId) {
+        return res.status(400).json({ message: "Invalid quiz ID" });
+      }
+
+      // Get the quiz to verify ownership
+      const quiz = await storage.getQuiz(quizId);
+      if (!quiz) {
+        return res.status(404).json({ message: "Quiz not found" });
+      }
+
+      // Verify organization ownership
+      if (quiz.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "You can only delete quizzes from your organization" });
+      }
+
+      // Delete the quiz and related records
+      await storage.deleteQuiz(quizId);
+
+      res.json({ message: "Quiz deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting quiz:", error);
+      res.status(500).json({ 
+        message: error.message || "Failed to delete quiz" 
+      });
+    }
+  });
+
   // Update question endpoint
   app.put("/api/questions/:id", async (req, res) => {
     if (!req.user || !req.user.organizationId) {

@@ -84,6 +84,7 @@ export function QuizManagement() {
   const [deletingQuestionId, setDeletingQuestionId] = useState<number | null>(null);
   const [deletingTemplateId, setDeletingTemplateId] = useState<number | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<QuizTemplate | null>(null);
+  const [deletingQuizId, setDeletingQuizId] = useState<number | null>(null);
 
 
   // Create a form for the process filter
@@ -415,6 +416,37 @@ export function QuizManagement() {
         description: error.message,
         variant: "destructive",
       });
+    },
+  });
+
+  // Add delete quiz mutation after the updateTemplateMutation
+  const deleteQuizMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/quizzes/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete quiz');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['/api/quizzes']
+      });
+      toast({
+        title: "Success",
+        description: "Quiz deleted successfully",
+      });
+      setDeletingQuizId(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+      setDeletingQuizId(null);
     },
   });
 
@@ -941,8 +973,7 @@ export function QuizManagement() {
           <Card className="p-4">
             <div className="flex flex-col gap-4">
               {/* Process Filter for Templates */}
-              <Form {...templateFilterForm}>
-                <form className="flex items-center gap-4">
+              <Form {...templateFilterForm}><form className="flex items-center gap-4">
                   <div className="flex-1">
                     <FormField
                       control={templateFilterForm.control}
@@ -1370,6 +1401,33 @@ export function QuizManagement() {
               className="bg-red-500 hover:bg-red-600"
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {/* Add delete confirmation dialog in the return statement after the quiz templates section */}
+      <AlertDialog open={!!deletingQuizId} onOpenChange={(open) => !open && setDeletingQuizId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Quiz</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this quiz? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingQuizId && deleteQuizMutation.mutateAsync(deletingQuizId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteQuizMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete Quiz'
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
