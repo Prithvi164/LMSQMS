@@ -904,7 +904,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // First get the user's assigned processes that are active
-      const userProcesses = await db
+      const activeProcesses = await db
         .select({
           processId: userProcesses.processId
         })
@@ -916,15 +916,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           )
         );
 
-      console.log('User active processes:', userProcesses);
+      console.log('User active processes:', activeProcesses);
 
-      if (!userProcesses.length) {
+      if (!activeProcesses.length) {
         console.log('No active processes found for user');
         return res.json([]);
       }
 
       // Get quizzes for those processes
-      const processIds = userProcesses.map(p => p.processId);
+      const processIds = activeProcesses.map(p => p.processId);
       
       const result = await db
         .select({
