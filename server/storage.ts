@@ -942,8 +942,7 @@ export class DatabaseStorage implements IStorage {
 
         console.log(`Successfully deleted location with ID: ${id}`);
       });
-    } catch (error) {
-      console.error('Error deleting location:', error);      throw error;
+    }catch (error) {      console.error('Error deleting location:', error);      throw error;
     }
   }
 
@@ -1094,7 +1093,6 @@ export class DatabaseStorage implements IStorage {
         )
         .where(eq(organizationBatches.organizationId, organizationId))
         .orderBy(desc(organizationBatches.createdAt));
-
 
       return batches as OrganizationBatch[];
     } catch (error) {
@@ -1944,7 +1942,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-async listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]> {
+  async listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]> {
     try {
       let baseQuery = db
         .select()
@@ -2281,9 +2279,14 @@ async listQuizTemplates(organizationId: number, processId?: number): Promise<Qui
       const enrollments = await db
         .select()
         .from(userProcesses)
-        .where(eq(userProcesses.userId, userId)) as UserProcess[];
+        .where(
+          and(
+            eq(userProcesses.userId, userId),
+            eq(userProcesses.status, 'active')
+          )
+        ) as UserProcess[];
 
-      console.log(`[Storage Debug] Found ${enrollments.length} enrollments for user:`,
+      console.log(`[Storage Debug] Found ${enrollments.length} active enrollments for user:`,
         enrollments.map(e => ({ id: e.id, processId: e.processId })));
 
       return enrollments;
@@ -2303,22 +2306,55 @@ async listQuizTemplates(organizationId: number, processId?: number): Promise<Qui
         return [];
       }
 
-      let query = db
-        .select()
-        .from(quizzes)
-        .where(inArray(quizzes.processId, processIds));
-
+      // Build conditions array
+      const conditions = [inArray(quizzes.processId, processIds)];
       if (status) {
-        query = query.where(eq(quizzes.status, status));
+        conditions.push(eq(quizzes.status, status));
       }
 
-      const quizList = await query as Quiz[];
-      console.log(`[Storage Debug] Found ${quizList.length} quizzes:`,
-        quizList.map(q => ({ id: q.id, title: q.name, processId: q.processId })));
+      console.log('[Storage Debug] Executing query with conditions:', conditions);
 
-      return quizList;
+      const query = db
+        .select({
+          id: quizzes.id,
+          name: quizzes.name,
+          timeLimit: quizzes.timeLimit,
+          numQuestions: quizzes.numQuestions,
+          status: quizzes.status,
+          processId: quizzes.processId,
+          organizationId: quizzes.organizationId
+        })
+        .from(quizzes)
+        .where(and(...conditions));
+
+      console.log('[Storage Debug] Query constructed:', query.toSQL());
+
+      const quizList = await query;
+
+      console.log(`[Storage Debug] Raw query result:`, quizList);
+
+      // Map the results to the expected format
+      const mappedQuizzes = quizList.map(quiz => ({
+        id: quiz.id,
+        title: quiz.name,
+        duration: quiz.timeLimit,
+        totalQuestions: quiz.numQuestions,
+        status: quiz.status,
+        processId: quiz.processId,
+        organizationId: quiz.organizationId
+      }));
+
+      console.log(`[Storage Debug] Final mapped quizzes:`, mappedQuizzes);
+
+      return mappedQuizzes;
     } catch (error) {
-      console.error('[Storage Debug] Error fetching quizzes by process IDs:', error);
+      console.error('[Storage Debug] Error in getQuizzesByProcessIds:', error);
+      if (error instanceof Error) {
+        console.error('[Storage Debug] Error details:', {
+          message: error.message,
+          stack: error.stack
+        });
+      }
       throw new Error('Failed to fetch quizzes');
     }
   }

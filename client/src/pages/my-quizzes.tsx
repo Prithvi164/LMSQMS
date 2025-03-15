@@ -12,13 +12,20 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Clock } from "lucide-react";
 
+interface Quiz {
+  id: number;
+  title: string;
+  duration: number;
+  totalQuestions: number;
+}
+
 // This page shows available quizzes for enrolled users
 export function MyQuizzesPage() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
 
   // Fetch available quizzes for the logged-in user
-  const { data: quizzes, isLoading } = useQuery({
+  const { data: quizzes, isLoading } = useQuery<Quiz[]>({
     queryKey: ["/api/enrolled/quizzes"],
     enabled: !!user,
   });
@@ -49,7 +56,7 @@ export function MyQuizzesPage() {
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6">My Quizzes</h1>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {quizzes.map((quiz: any) => (
+        {quizzes.map((quiz) => (
           <Card key={quiz.id}>
             <CardHeader>
               <CardTitle>{quiz.title}</CardTitle>
@@ -66,7 +73,7 @@ export function MyQuizzesPage() {
                 </div>
                 <Button 
                   className="w-full"
-                  onClick={() => setLocation(`/quiz-taking/${quiz.id}`)}
+                  onClick={() => setLocation(`/quiz/${quiz.id}`)}
                 >
                   Start Quiz
                 </Button>

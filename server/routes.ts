@@ -915,30 +915,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all active quizzes for these processes
       const quizzes = await storage.getQuizzesByProcessIds(processIds, 'active');
       console.log(`[Route Debug] Found ${quizzes.length} quizzes:`, 
-        quizzes.map(q => ({ id: q.id, name: q.name })));
+        quizzes.map(q => ({ id: q.id, title: q.name })));
 
-      // For each quiz, check if the user has attempted it
-      const quizzesWithAttempts = await Promise.all(
-        quizzes.map(async (quiz) => {
-          try {
-            // Get all attempts for this quiz and filter by current user
-            const attempt = await storage.getQuizAttempt(quiz.id);
-            return {
-              ...quiz,
-              attempts: attempt && attempt.userId === req.user!.id ? [attempt] : []
-            };
-          } catch (error) {
-            console.error(`[Route Debug] Error getting attempts for quiz ${quiz.id}:`, error);
-            return {
-              ...quiz,
-              attempts: []
-            };
-          }
-        })
-      );
+      // Map quizzes to return consistent field names
+      const mappedQuizzes = quizzes.map(quiz => ({
+        id: quiz.id,
+        title: quiz.name, // Map name to title for frontend consistency
+        duration: quiz.timeLimit, // Map timeLimit to duration 
+        totalQuestions: quiz.questions?.length || 0,
+        processId: quiz.processId
+      }));
 
-      console.log(`[Route Debug] Returning ${quizzesWithAttempts.length} quizzes with attempts`);
-      res.json(quizzesWithAttempts);
+      console.log(`[Route Debug] Returning ${mappedQuizzes.length} mapped quizzes`);
+      res.json(mappedQuizzes);
     } catch (error: any) {
       console.error("[Route Debug] Error in /api/enrolled/quizzes:", error);
       const errorMessage = error.message || "Failed to fetch quizzes";
