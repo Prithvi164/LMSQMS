@@ -13,6 +13,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Clock } from "lucide-react";
 
+// Define quiz type
+interface Quiz {
+  quiz_id: number;
+  quiz_name: string;
+  timeLimit: number;
+  passingScore: number;
+  processId: number;
+  processName: string;
+}
+
 export function MyQuizzesPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -23,7 +33,7 @@ export function MyQuizzesPage() {
   console.log("User category:", user?.category);
 
   // Fetch available quizzes for the trainee
-  const { data: quizzes = [], isLoading, error } = useQuery({
+  const { data: quizzes = [], isLoading, error } = useQuery<Quiz[]>({
     queryKey: ["/api/trainee/quizzes"],
     queryFn: async () => {
       try {
@@ -95,7 +105,7 @@ export function MyQuizzesPage() {
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6">My Quizzes</h1>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {quizzes.map((quiz: any) => (
+        {quizzes.map((quiz: Quiz) => (
           <Card key={quiz.quiz_id}>
             <CardHeader>
               <CardTitle>{quiz.quiz_name}</CardTitle>

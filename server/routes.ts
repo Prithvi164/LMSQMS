@@ -936,7 +936,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           eq(users.id, userProcesses.userId)
         )
         .where(
-          eq(quizzes.status, 'active')
+          and(
+            eq(quizzes.processId, 13), // Keep filter for process 13
+            eq(quizzes.status, 'active'),
+            eq(quizzes.organizationId, req.user.organizationId) // Ensure quiz belongs to user's org
+          )
         );
 
       console.log('Found quizzes for trainee:', result);
@@ -944,8 +948,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error fetching trainee quizzes:", error);
       res.status(500).json({ 
-        message: "Failed to fetch quizzes",
-        details: error.message 
+        message: error.message || "Failed to fetch trainee quizzes" 
       });
     }
   });
