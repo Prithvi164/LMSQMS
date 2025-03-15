@@ -16,7 +16,7 @@ import * as XLSX from 'xlsx';
 import { db } from './db';
 import { join } from 'path';
 import express from 'express';
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, inArray } from "drizzle-orm";
 import { toIST, formatIST, toUTCStorage, formatISTDateOnly } from './utils/timezone';
 import { attendance } from "@shared/schema";
 import type { User } from "@shared/schema";
@@ -883,7 +883,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update the trainee quizzes endpoint with correct organization ID handling
+  // Update the trainee quizzes endpoint with organization and process checks
   app.get("/api/trainee/quizzes", async (req, res) => {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -903,7 +903,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         organizationId: req.user.organizationId
       });
 
-      // Query active quizzes for the trainee's assigned processes
+      // First get the user's assigned processes that are active
+      const userProcesses = await db
+        .select({
+          processId: userProcesses.processId
+        })
+        .from(userProcesses)
+        .where(
+          and(
+            eq(userProcesses.userId, req.user.id),
+            eq(userProcesses.status, 'active')
+          )
+        );
+
+      console.log('User active processes:', userProcesses);
+
+      if (!userProcesses.length) {
+        console.log('No active processes found for user');
+        return res.json([]);
+      }
+
+      // Get quizzes for those processes
+      const processIds = userProcesses.map(p => p.processId);
+      
       const result = await db
         .select({
           quiz_id: quizzes.id,
@@ -911,9 +933,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           timeLimit: quizzes.timeLimit,
           passingScore: quizzes.passingScore,
           processId: quizzes.processId,
-          processName: organizationProcesses.name,
-          username: users.username,
-          userProcessStatus: userProcesses.status
+          processName: organizationProcesses.name
         })
         .from(quizzes)
         .innerJoin(
@@ -923,23 +943,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             eq(organizationProcesses.organizationId, req.user.organizationId)
           )
         )
-        .innerJoin(
-          userProcesses,
-          and(
-            eq(userProcesses.processId, quizzes.processId),
-            eq(userProcesses.userId, req.user.id),
-            eq(userProcesses.status, 'active')
-          )
-        )
-        .innerJoin(
-          users,
-          eq(users.id, userProcesses.userId)
-        )
         .where(
           and(
-            eq(quizzes.processId, 13), // Keep filter for process 13
+            inArray(quizzes.processId, processIds),
             eq(quizzes.status, 'active'),
-            eq(quizzes.organizationId, req.user.organizationId) // Ensure quiz belongs to user's org
+            eq(quizzes.organizationId, req.user.organizationId)
           )
         );
 
