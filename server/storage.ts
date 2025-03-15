@@ -1943,10 +1943,10 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-async listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]> {
+  async listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]> {
     try {
       let baseQuery = db
-        .select()
+        `.select()
         .from(quizTemplates)
         .where(eq(quizTemplates.organizationId, organizationId));
 
@@ -2317,29 +2317,31 @@ async listQuizTemplates(organizationId: number, processId?: number): Promise<Qui
     try {
       console.log(`[getQuizzesByProcessIds] Input:`, { processIds });
 
+      // First verify we have valid process IDs
+      if (!processIds?.length) {
+        console.log('[getQuizzesByProcessIds] No process IDs provided');
+        return [];
+      }
+
       const activeQuizzes = await db
         .select({
           id: quizzes.id,
-          name: quizzes.title, // Map title to name for consistency
+          title: quizzes.title,
           description: quizzes.description,
           timeLimit: quizzes.timeLimit,
           passingScore: quizzes.passingScore,
+          questions: quizzes.questions,
           processId: quizzes.processId,
           status: quizzes.status,
           startTime: quizzes.startTime,
           endTime: quizzes.endTime,
           createdAt: quizzes.createdAt,
-          processName: organizationProcesses.name,
-          attemptCount: sql`COUNT(DISTINCT ${quizAttempts.id})::int`, // Count distinct attempts
+          processName: organizationProcesses.name
         })
         .from(quizzes)
         .leftJoin(
           organizationProcesses,
           eq(quizzes.processId, organizationProcesses.id)
-        )
-        .leftJoin(
-          quizAttempts,
-          eq(quizzes.id, quizAttempts.quizId)
         )
         .where(
           and(
@@ -2348,37 +2350,23 @@ async listQuizTemplates(organizationId: number, processId?: number): Promise<Qui
             sql`${quizzes.startTime} <= NOW()`,
             sql`${quizzes.endTime} > NOW()`
           )
-        )
-        .groupBy(
-          quizzes.id,
-          quizzes.title,
-          quizzes.description,
-          quizzes.timeLimit,
-          quizzes.passingScore,
-          quizzes.processId,
-          quizzes.status,
-          quizzes.startTime,
-          quizzes.endTime,
-          quizzes.createdAt,
-          organizationProcesses.name
         );
 
       console.log(`[getQuizzesByProcessIds] Found ${activeQuizzes.length} active quizzes:`, 
         activeQuizzes.map(q => ({
           id: q.id,
-          name: q.name,
+          title: q.title,
           processId: q.processId,
           processName: q.processName,
           startTime: q.startTime,
-          endTime: q.endTime,
-          attemptCount: q.attemptCount
+          endTime: q.endTime
         }))
       );
 
       return activeQuizzes;
     } catch (error) {
       console.error('[getQuizzesByProcessIds] Error:', error);
-      throw new Error('Failed to fetch quizzes');
+      throw new Error(`Failed to fetch quizzes: ${error.message}`);
     }
   }
 
