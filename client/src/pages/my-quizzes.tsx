@@ -126,7 +126,7 @@ export function MyQuizzesPage() {
             <CardContent>
               <Button 
                 className="w-full"
-                onClick={() => setLocation(`/quiz-taking/${quiz.quiz_id}`)}
+                onClick={() => setLocation(`/quiz/${quiz.quiz_id}`)}
               >
                 Start Quiz
               </Button>
