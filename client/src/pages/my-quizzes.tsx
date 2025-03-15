@@ -11,13 +11,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Clock } from "lucide-react";
-import { format } from "date-fns";
 
 export function MyQuizzesPage() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Update the query to fetch quizzes based on user's process
+  // Fetch available quizzes for the trainee
   const { data: quizzes = [], isLoading } = useQuery({
     queryKey: ["/api/trainee/quizzes"],
     queryFn: async () => {
@@ -25,7 +24,6 @@ export function MyQuizzesPage() {
       if (!response.ok) {
         throw new Error("Failed to fetch quizzes");
       }
-      console.log("Fetched quizzes response:", await response.clone().json());
       return response.json();
     },
     enabled: !!user && user.category === "trainee",
@@ -58,9 +56,9 @@ export function MyQuizzesPage() {
       <h1 className="text-2xl font-bold mb-6">My Quizzes</h1>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {quizzes.map((quiz: any) => (
-          <Card key={quiz.id}>
+          <Card key={quiz.quiz_id}>
             <CardHeader>
-              <CardTitle>{quiz.name}</CardTitle>
+              <CardTitle>{quiz.quiz_name}</CardTitle>
               <CardDescription>
                 <div className="flex flex-wrap gap-2 mt-2">
                   <Badge variant="secondary">
@@ -70,12 +68,15 @@ export function MyQuizzesPage() {
                     Pass: {quiz.passingScore}%
                   </Badge>
                 </div>
+                <div className="mt-2 text-sm text-muted-foreground">
+                  Process: {quiz.processName}
+                </div>
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Button 
                 className="w-full"
-                onClick={() => setLocation(`/quiz-taking/${quiz.id}`)}
+                onClick={() => setLocation(`/quiz-taking/${quiz.quiz_id}`)}
               >
                 Start Quiz
               </Button>
