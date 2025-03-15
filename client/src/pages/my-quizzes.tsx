@@ -9,26 +9,26 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
-import { Clock, CheckCircle, XCircle } from "lucide-react";
+import { Clock } from "lucide-react";
 import { format } from "date-fns";
 
-// This page shows available quizzes for users in training (category: trainee)
-// Note: Users can have any role (advisor, manager, etc) but must have category: trainee
 export function MyQuizzesPage() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Fetch available quizzes for users in training (identified by category, not role)
-  const { data: quizzes, isLoading } = useQuery({
+  // Update the query to fetch quizzes based on user's process
+  const { data: quizzes = [], isLoading } = useQuery({
     queryKey: ["/api/trainee/quizzes"],
-    enabled: !!user && user.category === "trainee", // Only check category, role can be any valid role
+    queryFn: async () => {
+      const response = await fetch("/api/trainee/quizzes");
+      if (!response.ok) {
+        throw new Error("Failed to fetch quizzes");
+      }
+      console.log("Fetched quizzes response:", await response.clone().json());
+      return response.json();
+    },
+    enabled: !!user && user.category === "trainee",
   });
 
   if (isLoading) {
@@ -57,10 +57,20 @@ export function MyQuizzesPage() {
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6">My Quizzes</h1>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {quizzes?.map((quiz) => (
+        {quizzes.map((quiz: any) => (
           <Card key={quiz.id}>
             <CardHeader>
-              <CardTitle>{quiz.title}</CardTitle>
+              <CardTitle>{quiz.name}</CardTitle>
+              <CardDescription>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <Badge variant="secondary">
+                    Time: {quiz.timeLimit} min
+                  </Badge>
+                  <Badge variant="secondary">
+                    Pass: {quiz.passingScore}%
+                  </Badge>
+                </div>
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <Button 
