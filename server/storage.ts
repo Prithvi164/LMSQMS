@@ -822,20 +822,22 @@ export class DatabaseStorage implements IStorage {
         return [];
       }
 
+      // Get the assignments with proper type casting and null handling
       const assignments = await db
         .select({
           id: userBatchProcesses.id,
           userId: userBatchProcesses.userId,
           batchId: userBatchProcesses.batchId,
           processId: userBatchProcesses.processId,
-          status: userBatchProcesses.status,
+          status: sql<'active' | 'completed' | 'dropped' | 'on_hold'>`${userBatchProcesses.status}::text`,
           joinedAt: userBatchProcesses.joinedAt,
           completedAt: userBatchProcesses.completedAt,
           createdAt: userBatchProcesses.createdAt,
           updatedAt: userBatchProcesses.updatedAt,
-          // Include batch and process information
-          batchName: organizationBatches.name,
-          processName: organizationProcesses.name
+          organizationId: userBatchProcesses.organizationId,
+          // Include batch and process information with null coalescing
+          batchName: sql<string>`COALESCE(${organizationBatches.name}, '')`,
+          processName: sql<string>`COALESCE(${organizationProcesses.name}, '')`
         })
         .from(userBatchProcesses)
         .leftJoin(
@@ -846,8 +848,13 @@ export class DatabaseStorage implements IStorage {
           organizationProcesses,
           eq(userBatchProcesses.processId, organizationProcesses.id)
         )
-        .where(eq(userBatchProcesses.userId, userId))
-        .where(eq(userBatchProcesses.status, 'active'));
+        .where(
+          and(
+            eq(userBatchProcesses.userId, userId),
+            eq(userBatchProcesses.status, 'active')
+          )
+        )
+        .orderBy(desc(userBatchProcesses.createdAt));
 
       console.log('DEBUG: [getBatchAssignments] Results:', {
         userId,
