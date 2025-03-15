@@ -1943,10 +1943,10 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]> {
+async listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]> {
     try {
       let baseQuery = db
-        `.select()
+        .select()
         .from(quizTemplates)
         .where(eq(quizTemplates.organizationId, organizationId));
 
@@ -2317,31 +2317,29 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`[getQuizzesByProcessIds] Input:`, { processIds });
 
-      // First verify we have valid process IDs
-      if (!processIds?.length) {
-        console.log('[getQuizzesByProcessIds] No process IDs provided');
-        return [];
-      }
-
       const activeQuizzes = await db
         .select({
           id: quizzes.id,
-          title: quizzes.title,
+          name: quizzes.title, // Map title to name for consistency
           description: quizzes.description,
           timeLimit: quizzes.timeLimit,
           passingScore: quizzes.passingScore,
-          questions: quizzes.questions,
           processId: quizzes.processId,
           status: quizzes.status,
           startTime: quizzes.startTime,
           endTime: quizzes.endTime,
           createdAt: quizzes.createdAt,
-          processName: organizationProcesses.name
+          processName: organizationProcesses.name,
+          attemptCount: sql`COUNT(DISTINCT ${quizAttempts.id})::int`, // Count distinct attempts
         })
         .from(quizzes)
         .leftJoin(
           organizationProcesses,
           eq(quizzes.processId, organizationProcesses.id)
+        )
+        .leftJoin(
+          quizAttempts,
+          eq(quizzes.id, quizAttempts.quizId)
         )
         .where(
           and(
@@ -2350,23 +2348,37 @@ export class DatabaseStorage implements IStorage {
             sql`${quizzes.startTime} <= NOW()`,
             sql`${quizzes.endTime} > NOW()`
           )
+        )
+        .groupBy(
+          quizzes.id,
+          quizzes.title,
+          quizzes.description,
+          quizzes.timeLimit,
+          quizzes.passingScore,
+          quizzes.processId,
+          quizzes.status,
+          quizzes.startTime,
+          quizzes.endTime,
+          quizzes.createdAt,
+          organizationProcesses.name
         );
 
       console.log(`[getQuizzesByProcessIds] Found ${activeQuizzes.length} active quizzes:`, 
         activeQuizzes.map(q => ({
           id: q.id,
-          title: q.title,
+          name: q.name,
           processId: q.processId,
           processName: q.processName,
           startTime: q.startTime,
-          endTime: q.endTime
+          endTime: q.endTime,
+          attemptCount: q.attemptCount
         }))
       );
 
       return activeQuizzes;
     } catch (error) {
       console.error('[getQuizzesByProcessIds] Error:', error);
-      throw new Error(`Failed to fetch quizzes: ${error.message}`);
+      throw new Error('Failed to fetch quizzes');
     }
   }
 
