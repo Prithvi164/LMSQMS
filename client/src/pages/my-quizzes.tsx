@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 import {
   Card,
   CardContent,
@@ -14,33 +15,64 @@ import { Clock } from "lucide-react";
 
 export function MyQuizzesPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [, setLocation] = useLocation();
 
-  // Add console logs to debug
-  console.log("Current user category:", user?.category);
+  // Add debug logs
+  console.log("Current user:", user);
+  console.log("User category:", user?.category);
 
   // Fetch available quizzes for the trainee
-  const { data: quizzes = [], isLoading } = useQuery({
+  const { data: quizzes = [], isLoading, error } = useQuery({
     queryKey: ["/api/trainee/quizzes"],
     queryFn: async () => {
-      const response = await fetch("/api/trainee/quizzes");
-      if (!response.ok) {
-        throw new Error("Failed to fetch quizzes");
+      try {
+        console.log("Fetching quizzes...");
+        const response = await fetch("/api/trainee/quizzes");
+        console.log("Quiz response status:", response.status);
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Failed to fetch quizzes");
+        }
+
+        const data = await response.json();
+        console.log("Fetched quizzes data:", data);
+        return data;
+      } catch (err) {
+        console.error("Error fetching quizzes:", err);
+        toast({
+          title: "Error",
+          description: err instanceof Error ? err.message : "Failed to fetch quizzes",
+          variant: "destructive",
+        });
+        throw err;
       }
-      const data = await response.json();
-      console.log("Fetched quizzes:", data); // Debug log
-      return data;
     },
-    enabled: !!user && user.category === "trainee",
+    enabled: !!user && user.category === 'trainee',
   });
 
-  // Debug log for render
-  console.log("Rendering quizzes:", quizzes);
+  // Debug logs
+  console.log("Query state:", { isLoading, error, quizzes });
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Clock className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto p-4">
+        <Card>
+          <CardContent className="py-8">
+            <p className="text-center text-destructive">
+              {error instanceof Error ? error.message : "Failed to load quizzes"}
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
