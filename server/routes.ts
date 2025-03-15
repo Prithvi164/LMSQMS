@@ -885,41 +885,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Add enrolled users quiz endpoint
   app.get("/api/enrolled/quizzes", async (req, res) => {
+    console.log("[Route Debug] Received request to /api/enrolled/quizzes");
+    console.log("[Route Debug] Session:", req.session);
+    console.log("[Route Debug] Is Authenticated:", req.isAuthenticated());
+    console.log("[Route Debug] User:", req.user);
+
     if (!req.user) {
+      console.log("[Route Debug] Unauthorized request - no user found");
       return res.status(401).json({ message: "Unauthorized" });
     }
 
     try {
+      console.log(`[Route Debug] Getting enrolled quizzes for user ${req.user.id}`);
+      
       // Get user's enrolled processes
       const enrollments = await storage.getUserEnrollments(req.user.id);
+      console.log(`[Route Debug] Found ${enrollments?.length || 0} enrollments:`, 
+        enrollments?.map(e => ({ id: e.id, processId: e.processId })));
       
       if (!enrollments || enrollments.length === 0) {
+        console.log("[Route Debug] No enrollments found, returning empty array");
         return res.json([]);
       }
 
       // Get the process IDs from enrollments
       const processIds = enrollments.map(enrollment => enrollment.processId);
+      console.log(`[Route Debug] Process IDs: ${processIds.join(', ')}`);
 
       // Get all active quizzes for these processes
       const quizzes = await storage.getQuizzesByProcessIds(processIds, 'active');
+      console.log(`[Route Debug] Found ${quizzes.length} quizzes:`, 
+        quizzes.map(q => ({ id: q.id, name: q.name })));
 
       // For each quiz, check if the user has attempted it
       const quizzesWithAttempts = await Promise.all(
         quizzes.map(async (quiz) => {
-          const attempts = await storage.getQuizAttempts(quiz.id, req.user.id);
-          return {
-            ...quiz,
-            attempts: attempts || []
-          };
+          try {
+            // Get all attempts for this quiz and filter by current user
+            const attempt = await storage.getQuizAttempt(quiz.id);
+            return {
+              ...quiz,
+              attempts: attempt && attempt.userId === req.user!.id ? [attempt] : []
+            };
+          } catch (error) {
+            console.error(`[Route Debug] Error getting attempts for quiz ${quiz.id}:`, error);
+            return {
+              ...quiz,
+              attempts: []
+            };
+          }
         })
       );
 
+      console.log(`[Route Debug] Returning ${quizzesWithAttempts.length} quizzes with attempts`);
       res.json(quizzesWithAttempts);
     } catch (error: any) {
-      console.error("Error fetching enrolled quizzes:", error);
+      console.error("[Route Debug] Error in /api/enrolled/quizzes:", error);
+      const errorMessage = error.message || "Failed to fetch quizzes";
+      const errorDetails = process.env.NODE_ENV === 'development' ? 
+        error.stack : errorMessage;
+      
       res.status(500).json({ 
-        message: "Failed to fetch quizzes",
-        details: error.message 
+        message: errorMessage,
+        details: errorDetails
       });
     }
   });

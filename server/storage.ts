@@ -1944,7 +1944,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]> {
+async listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]> {
     try {
       let baseQuery = db
         .select()
@@ -2276,29 +2276,19 @@ export class DatabaseStorage implements IStorage {
   // Get user's process enrollments
   async getUserEnrollments(userId: number): Promise<UserProcess[]> {
     try {
-      console.log(`Fetching enrollments for user ${userId}`);
+      console.log(`[Storage Debug] Fetching enrollments for user ${userId}`);
 
       const enrollments = await db
-        .select({
-          id: userProcesses.id,
-          userId: userProcesses.userId,
-          processId: userProcesses.processId,
-          organizationId: userProcesses.organizationId,
-          status: userProcesses.status,
-          assignedAt: userProcesses.assignedAt,
-          completedAt: userProcesses.completedAt,
-          createdAt: userProcesses.createdAt,
-          updatedAt: userProcesses.updatedAt,
-          locationId: userProcesses.locationId,
-          lineOfBusinessId: userProcesses.lineOfBusinessId
-        })
+        .select()
         .from(userProcesses)
         .where(eq(userProcesses.userId, userId)) as UserProcess[];
 
-      console.log(`Found ${enrollments.length} enrollments`);
+      console.log(`[Storage Debug] Found ${enrollments.length} enrollments for user:`,
+        enrollments.map(e => ({ id: e.id, processId: e.processId })));
+
       return enrollments;
     } catch (error) {
-      console.error('Error fetching user enrollments:', error);
+      console.error('[Storage Debug] Error fetching user enrollments:', error);
       throw new Error('Failed to fetch user enrollments');
     }
   }
@@ -2306,20 +2296,15 @@ export class DatabaseStorage implements IStorage {
   // Get quizzes by process IDs
   async getQuizzesByProcessIds(processIds: number[], status?: string): Promise<Quiz[]> {
     try {
-      console.log(`Fetching quizzes for processes: ${processIds.join(', ')}${status ? ` with status: ${status}` : ''}`);
+      console.log(`[Storage Debug] Fetching quizzes for processes: ${processIds.join(', ')}${status ? ` with status: ${status}` : ''}`);
+
+      if (!processIds.length) {
+        console.log('[Storage Debug] No process IDs provided, returning empty array');
+        return [];
+      }
 
       let query = db
-        .select({
-          id: quizzes.id,
-          title: quizzes.title,
-          organizationId: quizzes.organizationId,
-          processId: quizzes.processId,
-          duration: quizzes.timeLimit,
-          totalQuestions: quizzes.numQuestions,
-          status: quizzes.status,
-          createdAt: quizzes.createdAt,
-          updatedAt: quizzes.updatedAt
-        })
+        .select()
         .from(quizzes)
         .where(inArray(quizzes.processId, processIds));
 
@@ -2328,10 +2313,12 @@ export class DatabaseStorage implements IStorage {
       }
 
       const quizList = await query as Quiz[];
-      console.log(`Found ${quizList.length} quizzes`);
+      console.log(`[Storage Debug] Found ${quizList.length} quizzes:`,
+        quizList.map(q => ({ id: q.id, title: q.name, processId: q.processId })));
+
       return quizList;
     } catch (error) {
-      console.error('Error fetching quizzes by process IDs:', error);
+      console.error('[Storage Debug] Error fetching quizzes by process IDs:', error);
       throw new Error('Failed to fetch quizzes');
     }
   }
