@@ -1224,35 +1224,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add delete endpoint for quiz templates with proper error handling
+  // Delete quiz template endpoint - update to handle cascade deletion
   app.delete("/api/quiz-templates/:id", async (req, res) => {
-    if (!req.user || !req.user.organizationId) {
+    if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
     try {
       const templateId = parseInt(req.params.id);
-      if (isNaN(templateId)) {
+      if (!templateId) {
         return res.status(400).json({ message: "Invalid template ID" });
       }
 
       // Get the template to verify ownership
       const template = await storage.getQuizTemplate(templateId);
       if (!template) {
-        return res.status(404).json({ message: "Quiz template not found" });
+        return res.status(404).json({ message: "Template not found" });
       }
 
       // Verify organization ownership
       if (template.organizationId !== req.user.organizationId) {
-        return res.status(403).json({ message: "Access denied" });
+        return res.status(403).json({ message: "You can only delete templates from your organization" });
       }
 
-      // Delete the template
+      // First delete all quizzes associated with this template
+      await storage.deleteQuizzesByTemplateId(templateId);
+
+      // Then delete the template
       await storage.deleteQuizTemplate(templateId);
-      res.json({ message: "Quiz template deleted successfully" });
+
+      res.json({ message: "Quiz template and associated quizzes deleted successfully" });
     } catch (error: any) {
       console.error("Error deleting quiz template:", error);
-      res.status(500).json({ message: error.message });
+      res.status(500).json({ message: error.message || "Failed to delete quiz template" });
     }
   });
 

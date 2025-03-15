@@ -215,6 +215,9 @@ export interface IStorage {
   getQuizResponses(quizAttemptId: number): Promise<QuizResponse[]>;
   getEnrolledCount(batchId: number): Promise<number>;
   getQuiz(id: number): Promise<Quiz | undefined>;
+
+  // Add new method for deleting quizzes by template ID
+  deleteQuizzesByTemplateId(templateId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1933,8 +1936,7 @@ export class DatabaseStorage implements IStorage {
         .insert(quizTemplates)
         .values(template)
         .returning();
-      return newTemplate;
-    } catch (error) {
+      return newTemplate;    } catch (error) {
       console.error('Error creating quiz template:', error);
       throw error;
     }
@@ -1998,9 +2000,22 @@ export class DatabaseStorage implements IStorage {
 
   async deleteQuizTemplate(id: number): Promise<void> {
     try {
-      await db
+      console.log(`Attempting to delete quiz template with ID: ${id}`);
+
+      // Delete associated quizzes first
+      await this.deleteQuizzesByTemplateId(id);
+
+      // Delete the template
+      const result = await db
         .delete(quizTemplates)
-        .where(eq(quizTemplates.id, id));
+        .where(eq(quizTemplates.id, id))
+        .returning();
+
+      if (!result.length) {
+        throw new Error('Quiz template not found or deletion failed');
+      }
+
+      console.log(`Successfully deleted quiz template with ID: ${id}`);
     } catch (error) {
       console.error('Error deleting quiz template:', error);
       throw error;
@@ -2266,6 +2281,70 @@ export class DatabaseStorage implements IStorage {
       return quiz;
     } catch (error) {
       console.error('Error fetching quiz:', error);
+      throw error;
+    }
+  }
+  // Add new method for deleting quizzes by template ID
+  async deleteQuizzesByTemplateId(templateId: number): Promise<void> {
+    try {
+      // Delete all quiz attempts first
+      await db.delete(quizAttempts)
+        .where(
+          inArray(
+            quizAttempts.quizId,
+            db.select({ id: quizzes.id })
+              .from(quizzes)
+              .where(eq(quizzes.templateId, templateId))
+          )
+        );
+
+      // Delete all quiz responses
+      await db.delete(quizResponses)
+        .where(
+          inArray(
+            quizResponses.quizAttemptId,
+            db.select({ id: quizAttempts.id })
+              .from(quizAttempts)
+              .where(
+                inArray(
+                  quizAttempts.quizId,
+                  db.select({ id: quizzes.id })
+                    .from(quizzes)
+                    .where(eq(quizzes.templateId, templateId))
+                )
+              )
+          )
+        );
+
+      // Finally delete all quizzes associated with this template
+      await db.delete(quizzes)
+        .where(eq(quizzes.templateId, templateId));
+
+      console.log(`Successfully deleted all quizzes and related data for template ID: ${templateId}`);
+    } catch (error) {
+      console.error('Error deleting quizzes by template ID:', error);
+      throw new Error('Failed to delete quizzes');
+    }
+  }
+
+  // Update the existing deleteQuizTemplate method
+  async deleteQuizTemplate(id: number): Promise<void> {
+    try {
+      console.log(`Attempting to delete quiz template with ID: ${id}`);
+
+      // Delete the template
+      const result = await db
+        .delete(quizTemplates)
+        .where(eq(quizTemplates.id, id))
+        .returning();
+
+      if (!result.length) {
+        throw new Error('Quiz template not found or deletion failed');
+      }
+
+      console.log(`Successfully deleted quiz template with ID: ${id}`);
+    } catch (error) {
+      console.error('Error deleting quiz template:', error);
       throw error;
     }
   }
