@@ -9,34 +9,27 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
-import { Clock } from "lucide-react";
+import { Clock, CheckCircle, XCircle } from "lucide-react";
 import { format } from "date-fns";
 
-interface Quiz {
-  id: number;
-  name: string;
-  description: string | null;
-  timeLimit: number;
-  passingScore: number;
-  startTime: string;
-  endTime: string;
-  status: string;
-  processName: string;
-  attempts: any[];
-}
-
+// This page shows available quizzes for users in training (category: trainee)
+// Note: Users can have any role (advisor, manager, etc) but must have category: trainee
 export function MyQuizzesPage() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
 
   // Fetch available quizzes for users in training (identified by category, not role)
-  const { data: quizzes, isLoading } = useQuery<Quiz[]>({
+  const { data: quizzes, isLoading } = useQuery({
     queryKey: ["/api/trainee/quizzes"],
-    enabled: !!user && user.category === "trainee",
+    enabled: !!user && user.category === "trainee", // Only check category, role can be any valid role
   });
-
-  console.log('MyQuizzesPage render:', { user, quizzes, isLoading });
 
   if (isLoading) {
     return (
@@ -64,40 +57,17 @@ export function MyQuizzesPage() {
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6">My Quizzes</h1>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {quizzes.map((quiz) => (
+        {quizzes?.map((quiz) => (
           <Card key={quiz.id}>
             <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle>{quiz.name}</CardTitle>
-                  <CardDescription>{quiz.description}</CardDescription>
-                </div>
-                <Badge variant="secondary">{quiz.processName}</Badge>
-              </div>
+              <CardTitle>{quiz.title}</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between text-sm">
-                <span>Time Limit:</span>
-                <span>{quiz.timeLimit} minutes</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span>Passing Score:</span>
-                <span>{quiz.passingScore}%</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span>Available Until:</span>
-                <span>{format(new Date(quiz.endTime), 'PPp')}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span>Previous Attempts:</span>
-                <span>{quiz.attempts?.length || 0}</span>
-              </div>
+            <CardContent>
               <Button 
                 className="w-full"
-                onClick={() => setLocation(`/quiz/${quiz.id}`)}
-                disabled={quiz.attempts?.length > 0}
+                onClick={() => setLocation(`/quiz-taking/${quiz.id}`)}
               >
-                {quiz.attempts?.length > 0 ? 'Already Attempted' : 'Start Quiz'}
+                Start Quiz
               </Button>
             </CardContent>
           </Card>
