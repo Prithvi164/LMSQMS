@@ -215,10 +215,6 @@ export interface IStorage {
   getQuizResponses(quizAttemptId: number): Promise<QuizResponse[]>;
   getEnrolledCount(batchId: number): Promise<number>;
   getQuiz(id: number): Promise<Quiz | undefined>;
-
-  // Add new quiz enrollment methods
-  getUserEnrollments(userId: number): Promise<UserProcess[]>;
-  getQuizzesByProcessIds(processIds: number[], status?: string): Promise<Quiz[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -942,7 +938,8 @@ export class DatabaseStorage implements IStorage {
 
         console.log(`Successfully deleted location with ID: ${id}`);
       });
-    }catch (error) {      console.error('Error deleting location:', error);      throw error;
+    } catch (error) {
+      console.error('Error deleting location:', error);      throw error;
     }
   }
 
@@ -1093,6 +1090,7 @@ export class DatabaseStorage implements IStorage {
         )
         .where(eq(organizationBatches.organizationId, organizationId))
         .orderBy(desc(organizationBatches.createdAt));
+
 
       return batches as OrganizationBatch[];
     } catch (error) {
@@ -1938,7 +1936,7 @@ export class DatabaseStorage implements IStorage {
       return newTemplate;
     } catch (error) {
       console.error('Error creating quiz template:', error);
-      throw error; error;
+      throw error;
     }
   }
 
@@ -2271,95 +2269,6 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  // Get user's process enrollments
-  async getUserEnrollments(userId: number): Promise<UserProcess[]> {
-    try {
-      console.log(`[Storage Debug] Fetching enrollments for user ${userId}`);
-
-      const enrollments = await db
-        .select()
-        .from(userProcesses)
-        .where(
-          and(
-            eq(userProcesses.userId, userId),
-            eq(userProcesses.status, 'active')
-          )
-        ) as UserProcess[];
-
-      console.log(`[Storage Debug] Found ${enrollments.length} active enrollments for user:`,
-        enrollments.map(e => ({ id: e.id, processId: e.processId })));
-
-      return enrollments;
-    } catch (error) {
-      console.error('[Storage Debug] Error fetching user enrollments:', error);
-      throw new Error('Failed to fetch user enrollments');
-    }
-  }
-
-  // Get quizzes by process IDs
-  async getQuizzesByProcessIds(processIds: number[], status?: string): Promise<Quiz[]> {
-    try {
-      console.log(`[Storage Debug] Fetching quizzes for processes: ${processIds.join(', ')}${status ? ` with status: ${status}` : ''}`);
-
-      if (!processIds.length) {
-        console.log('[Storage Debug] No process IDs provided, returning empty array');
-        return [];
-      }
-
-      // Build conditions array
-      const conditions = [inArray(quizzes.processId, processIds)];
-      if (status) {
-        conditions.push(eq(quizzes.status, status));
-      }
-
-      console.log('[Storage Debug] Executing query with conditions:', conditions);
-
-      const query = db
-        .select({
-          id: quizzes.id,
-          name: quizzes.name,
-          timeLimit: quizzes.timeLimit,
-          numQuestions: quizzes.numQuestions,
-          status: quizzes.status,
-          processId: quizzes.processId,
-          organizationId: quizzes.organizationId
-        })
-        .from(quizzes)
-        .where(and(...conditions));
-
-      console.log('[Storage Debug] Query constructed:', query.toSQL());
-
-      const quizList = await query;
-
-      console.log(`[Storage Debug] Raw query result:`, quizList);
-
-      // Map the results to the expected format
-      const mappedQuizzes = quizList.map(quiz => ({
-        id: quiz.id,
-        title: quiz.name,
-        duration: quiz.timeLimit,
-        totalQuestions: quiz.numQuestions,
-        status: quiz.status,
-        processId: quiz.processId,
-        organizationId: quiz.organizationId
-      }));
-
-      console.log(`[Storage Debug] Final mapped quizzes:`, mappedQuizzes);
-
-      return mappedQuizzes;
-    } catch (error) {
-      console.error('[Storage Debug] Error in getQuizzesByProcessIds:', error);
-      if (error instanceof Error) {
-        console.error('[Storage Debug] Error details:', {
-          message: error.message,
-          stack: error.stack
-        });
-      }
-      throw new Error('Failed to fetch quizzes');
-    }
-  }
-
-  // ... rest of the class methods ...
 }
 
 export const storage = new DatabaseStorage();

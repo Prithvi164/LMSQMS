@@ -883,60 +883,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add enrolled users quiz endpoint
-  app.get("/api/enrolled/quizzes", async (req, res) => {
-    console.log("[Route Debug] Received request to /api/enrolled/quizzes");
-    console.log("[Route Debug] Session:", req.session);
-    console.log("[Route Debug] Is Authenticated:", req.isAuthenticated());
-    console.log("[Route Debug] User:", req.user);
-
+  // Add trainee-specific quiz endpoint
+  app.get("/api/trainee/quizzes", async (req, res) => {
     if (!req.user) {
-      console.log("[Route Debug] Unauthorized request - no user found");
       return res.status(401).json({ message: "Unauthorized" });
     }
 
+    // Verify if user has trainee category (not role)
+    if (req.user.category !== 'trainee') {
+      return res.status(403).json({ 
+        message: "Only users with trainee category can access this endpoint" 
+      });
+    }
+
     try {
-      console.log(`[Route Debug] Getting enrolled quizzes for user ${req.user.id}`);
+      // Get trainee's active batch assignments
+      const batchAssignments = await storage.getTraineeBatchAssignments(req.user.id);
       
-      // Get user's enrolled processes
-      const enrollments = await storage.getUserEnrollments(req.user.id);
-      console.log(`[Route Debug] Found ${enrollments?.length || 0} enrollments:`, 
-        enrollments?.map(e => ({ id: e.id, processId: e.processId })));
-      
-      if (!enrollments || enrollments.length === 0) {
-        console.log("[Route Debug] No enrollments found, returning empty array");
+      if (!batchAssignments || batchAssignments.length === 0) {
         return res.json([]);
       }
 
-      // Get the process IDs from enrollments
-      const processIds = enrollments.map(enrollment => enrollment.processId);
-      console.log(`[Route Debug] Process IDs: ${processIds.join(', ')}`);
+      // Get the process IDs from active batch assignments
+      const processIds = batchAssignments
+        .filter(assignment => assignment.status === 'active')
+        .map(assignment => assignment.processId);
 
-      // Get all active quizzes for these processes
+      if (processIds.length === 0) {
+        return res.json([]);
+      }
+
+      // Get all quizzes for these processes with status 'active'
       const quizzes = await storage.getQuizzesByProcessIds(processIds, 'active');
-      console.log(`[Route Debug] Found ${quizzes.length} quizzes:`, 
-        quizzes.map(q => ({ id: q.id, title: q.name })));
 
-      // Map quizzes to return consistent field names
-      const mappedQuizzes = quizzes.map(quiz => ({
-        id: quiz.id,
-        title: quiz.name, // Map name to title for frontend consistency
-        duration: quiz.timeLimit, // Map timeLimit to duration 
-        totalQuestions: quiz.questions?.length || 0,
-        processId: quiz.processId
-      }));
+      // For each quiz, check if the trainee has attempted it
+      const quizzesWithAttempts = await Promise.all(
+        quizzes.map(async (quiz) => {
+          const attempts = await storage.getQuizAttempts(quiz.id, req.user.id);
+          return {
+            ...quiz,
+            attempts: attempts || []
+          };
+        })
+      );
 
-      console.log(`[Route Debug] Returning ${mappedQuizzes.length} mapped quizzes`);
-      res.json(mappedQuizzes);
+      res.json(quizzesWithAttempts);
     } catch (error: any) {
-      console.error("[Route Debug] Error in /api/enrolled/quizzes:", error);
-      const errorMessage = error.message || "Failed to fetch quizzes";
-      const errorDetails = process.env.NODE_ENV === 'development' ? 
-        error.stack : errorMessage;
-      
+      console.error("Error fetching trainee quizzes:", error);
       res.status(500).json({ 
-        message: errorMessage,
-        details: errorDetails
+        message: "Failed to fetch quizzes",
+        details: error.message 
       });
     }
   });

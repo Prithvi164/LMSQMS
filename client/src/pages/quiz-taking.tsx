@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import {
@@ -15,20 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-interface Question {
-  id: number;
-  question: string;
-  type: "multiple_choice" | "true_false" | "short_answer";
-  options?: string[];
-}
-
-interface Quiz {
-  id: number;
-  title: string;
-  duration: number; // in minutes
-  questions: Question[];
-}
+import { CountdownTimer } from "@/components/quiz/countdown-timer";
 
 export function QuizTakingPage() {
   const { quizId } = useParams();
@@ -37,45 +24,12 @@ export function QuizTakingPage() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
-  const [quizStarted, setQuizStarted] = useState(false);
 
   // Fetch quiz details and questions
-  const { data: quiz, isLoading } = useQuery<Quiz>({
+  const { data: quiz, isLoading } = useQuery({
     queryKey: [`/api/quizzes/${quizId}`],
     enabled: !!quizId,
   });
-
-  // Start timer when quiz begins
-  useEffect(() => {
-    if (quiz && quizStarted && timeRemaining === null) {
-      setTimeRemaining(quiz.duration * 60); // Convert minutes to seconds
-    }
-  }, [quiz, quizStarted]);
-
-  // Countdown timer
-  useEffect(() => {
-    if (!timeRemaining || timeRemaining <= 0) return;
-
-    const timer = setInterval(() => {
-      setTimeRemaining(prev => {
-        if (prev && prev <= 1) {
-          clearInterval(timer);
-          handleTimeExpired();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [timeRemaining]);
-
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
 
   const handleTimeExpired = async () => {
     if (!isSubmitting) {
@@ -88,7 +42,7 @@ export function QuizTakingPage() {
     }
   };
 
-  if (isLoading || !quiz) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -96,27 +50,16 @@ export function QuizTakingPage() {
     );
   }
 
-  if (!quizStarted) {
+  if (!quiz || !quiz.questions || quiz.questions.length === 0) {
     return (
       <div className="container mx-auto py-8 max-w-3xl">
-        <Card>
-          <CardHeader>
-            <CardTitle>{quiz.title}</CardTitle>
-            <CardDescription>
-              Duration: {quiz.duration} minutes
-              <br />
-              Total Questions: {quiz.questions.length}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button 
-              className="w-full"
-              onClick={() => setQuizStarted(true)}
-            >
-              Begin Quiz
-            </Button>
-          </CardContent>
-        </Card>
+        <p className="text-center mb-4">No questions available for this quiz.</p>
+        <Button 
+          className="mx-auto block"
+          onClick={() => setLocation("/my-quizzes")}
+        >
+          Return to My Quizzes
+        </Button>
       </div>
     );
   }
@@ -145,7 +88,7 @@ export function QuizTakingPage() {
       }
 
       const result = await response.json();
-      setLocation(`/quiz-results/${result.id}`);
+      window.location.href = `/quiz-results/${result.id}`;
     } catch (error) {
       toast({
         title: "Error",
@@ -168,10 +111,12 @@ export function QuizTakingPage() {
                 Question {currentQuestionIndex + 1} of {quiz.questions.length}
               </CardDescription>
             </div>
-            {timeRemaining !== null && (
-              <div className={`text-lg font-mono ${timeRemaining < 60 ? 'text-red-500' : ''}`}>
-                Time: {formatTime(timeRemaining)}
-              </div>
+            {quiz.endTime && (
+              <CountdownTimer
+                endTime={new Date(quiz.endTime)}
+                onTimeExpired={handleTimeExpired}
+                warningThresholds={[300, 60]}
+              />
             )}
           </div>
           <Progress value={progress} className="mt-2" />
@@ -181,7 +126,7 @@ export function QuizTakingPage() {
           <div className="space-y-4">
             <h3 className="text-lg font-medium">{currentQuestion.question}</h3>
 
-            {currentQuestion.type === "multiple_choice" && currentQuestion.options && (
+            {currentQuestion.type === "multiple_choice" && (
               <RadioGroup
                 value={answers[currentQuestion.id] || ""}
                 onValueChange={handleAnswer}

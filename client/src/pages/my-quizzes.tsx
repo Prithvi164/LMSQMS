@@ -9,25 +9,26 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
-import { Clock } from "lucide-react";
+import { Clock, CheckCircle, XCircle } from "lucide-react";
+import { format } from "date-fns";
 
-interface Quiz {
-  id: number;
-  title: string;
-  duration: number;
-  totalQuestions: number;
-}
-
-// This page shows available quizzes for enrolled users
+// This page shows available quizzes for users in training (category: trainee)
+// Note: Users can have any role (advisor, manager, etc) but must have category: trainee
 export function MyQuizzesPage() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Fetch available quizzes for the logged-in user
-  const { data: quizzes, isLoading } = useQuery<Quiz[]>({
-    queryKey: ["/api/enrolled/quizzes"],
-    enabled: !!user,
+  // Fetch available quizzes for users in training (identified by category, not role)
+  const { data: quizzes, isLoading } = useQuery({
+    queryKey: ["/api/trainee/quizzes"],
+    enabled: !!user && user.category === "trainee", // Only check category, role can be any valid role
   });
 
   if (isLoading) {
@@ -44,7 +45,7 @@ export function MyQuizzesPage() {
         <Card>
           <CardContent className="py-8">
             <p className="text-center text-muted-foreground">
-              No quizzes are currently available. Check back later.
+              No quizzes are currently available. Check back later or contact your trainer.
             </p>
           </CardContent>
         </Card>
@@ -56,28 +57,18 @@ export function MyQuizzesPage() {
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6">My Quizzes</h1>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {quizzes.map((quiz) => (
+        {quizzes?.map((quiz) => (
           <Card key={quiz.id}>
             <CardHeader>
               <CardTitle>{quiz.title}</CardTitle>
-              <CardDescription>
-                Duration: {quiz.duration} minutes
-              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary">
-                    {quiz.totalQuestions} Questions
-                  </Badge>
-                </div>
-                <Button 
-                  className="w-full"
-                  onClick={() => setLocation(`/quiz/${quiz.id}`)}
-                >
-                  Start Quiz
-                </Button>
-              </div>
+              <Button 
+                className="w-full"
+                onClick={() => setLocation(`/quiz-taking/${quiz.id}`)}
+              >
+                Start Quiz
+              </Button>
             </CardContent>
           </Card>
         ))}
