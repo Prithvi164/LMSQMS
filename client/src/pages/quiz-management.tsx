@@ -18,7 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, Loader2, PlayCircle } from "lucide-react";
+import { Pencil, Trash2, Loader2, PlayCircle, Edit } from "lucide-react";
 
 // Process filter form schema
 const filterFormSchema = z.object({
@@ -973,7 +973,8 @@ export function QuizManagement() {
           <Card className="p-4">
             <div className="flex flex-col gap-4">
               {/* Process Filter for Templates */}
-              <Form {...templateFilterForm}><form className="flex items-center gap-4">
+              <Form {...templateFilterForm}>
+                <form className="flex items-center gap-4">
                   <div className="flex-1">
                     <FormField
                       control={templateFilterForm.control}
@@ -983,8 +984,8 @@ export function QuizManagement() {
                           <FormLabel>Filter by Process</FormLabel>
                           <Select
                             onValueChange={(value) => {
-                              field.onChange(value);
                               setSelectedTemplateProcessId(value);
+                              field.onChange(value);
                             }}
                             value={field.value}
                           >
@@ -1300,62 +1301,51 @@ export function QuizManagement() {
               ) : (
                 <div className="grid gap-4">
                   {quizTemplates.map((template: any) => (
-                    <Card key={template.id} className="p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="space-y-1">
-                          <h3 className="font-medium text-lg">{template.name}</h3>
+                    <div key={template.id} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-lg font-semibold">{template.name}</h3>
                           <p className="text-sm text-muted-foreground">{template.description}</p>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline">
-                              Time: {template.timeLimit} min
-                            </Badge>
-                            <Badge variant="outline">
-                              Questions: {template.questionCount}
-                            </Badge>
-                            <Badge variant="outline">
-                              Pass: {template.passingScore}%
-                            </Badge>
+                          <div className="flex gap-2 mt-2">
+                            <Badge variant="secondary">Time: {template.timeLimit} min</Badge>
+                            <Badge variant="secondary">Questions: {template.questionCount}</Badge>
+                            <Badge variant="secondary">Pass: {template.passingScore}%</Badge>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
-                            onClick={() => handleEditTemplate(template)}
-                          >
-                            <Pencil className="h-4 w-4 mr-1" />
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => generateQuizMutation.mutate(template.id)}
+                            onClick={() => {
+                              if (generateQuizMutation.isPending) return;
+                              generateQuizMutation.mutate(template.id);
+                            }}
                             disabled={generateQuizMutation.isPending}
                           >
                             {generateQuizMutation.isPending ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                Generating...
-                              </>
+                              <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
-                              <>
-                                <PlayCircle className="h-4 w-4 mr-1" />
-                                Take Quiz
-                              </>
+                              <PlayCircle className="h-4 w-4" />
                             )}
+                            <span className="ml-2">Generate Quiz</span>
                           </Button>
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
-                            className="text-red-500 hover:text-red-600"
+                            onClick={() => handleEditTemplate(template)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => setDeletingTemplateId(template.id)}
                           >
-                            <Trash2 className="h-4 w-4 mr-1" />
-                            Delete
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
-                    </Card>
+                    </div>
                   ))}
                 </div>
               )}
