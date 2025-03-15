@@ -122,14 +122,18 @@ debugLog("Health check route added");
 
     // Always use port 5000 as required
     const port = 5000;
-    debugLog(`Attempting to start server on port ${port}`);
+    debugLog(`Starting server on port ${port}...`);
 
     server.listen(port, '0.0.0.0', () => {
-      log(`Server running in ${app.get("env")} mode`);
-      log(`API and client being served on port ${port}`);
+      log(`Server running in ${app.get("env")} mode on port ${port}`);
+      log(`Server URL: http://0.0.0.0:${port}`);
       debugLog("Server started successfully");
     }).on('error', (error: any) => {
-      console.error('Failed to start server:', error);
+      if (error.code === 'EADDRINUSE') {
+        console.error(`Port ${port} is already in use. Please ensure no other server is running.`);
+      } else {
+        console.error('Failed to start server:', error);
+      }
       process.exit(1);
     });
 
