@@ -14,19 +14,40 @@ interface PreviewFormProps {
 export function PreviewForm({ template }: PreviewFormProps) {
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [comments, setComments] = useState<Record<string, string>>({});
-  const [hasErrors, setHasErrors] = useState(false);
+  const [selectedReasons, setSelectedReasons] = useState<Record<string, string>>({});
 
   const handleRatingChange = (parameterId: number, value: string) => {
+    const numericValue = parseInt(value);
     setRatings((prev) => ({
       ...prev,
-      [parameterId]: parseInt(value),
+      [parameterId]: numericValue,
     }));
+    // Clear selected reason when rating changes from 0
+    if (numericValue !== 0) {
+      setSelectedReasons((prev) => {
+        const newReasons = { ...prev };
+        delete newReasons[parameterId];
+        return newReasons;
+      });
+    }
   };
 
   const handleCommentChange = (parameterId: number, value: string) => {
     setComments((prev) => ({
       ...prev,
       [parameterId]: value,
+    }));
+  };
+
+  const handleReasonChange = (parameterId: number, reason: string) => {
+    setSelectedReasons((prev) => ({
+      ...prev,
+      [parameterId]: reason,
+    }));
+    // Also update comments with the selected reason
+    setComments((prev) => ({
+      ...prev,
+      [parameterId]: reason,
     }));
   };
 
@@ -137,6 +158,26 @@ export function PreviewForm({ template }: PreviewFormProps) {
                   </div>
                 </RadioGroup>
 
+                {/* Show reason selection when "No" is selected and noReasons exist */}
+                {ratings[param.id] === 0 && param.noReasons && param.noReasons.length > 0 && (
+                  <div className="space-y-2 border rounded-lg p-4 bg-muted/50">
+                    <Label className="font-medium">Select Reason for No</Label>
+                    <RadioGroup
+                      value={selectedReasons[param.id]}
+                      onValueChange={(value) => handleReasonChange(param.id, value)}
+                    >
+                      <div className="space-y-2">
+                        {param.noReasons.map((reason: string, index: number) => (
+                          <div key={index} className="flex items-center space-x-2">
+                            <RadioGroupItem value={reason} id={`${param.id}-reason-${index}`} />
+                            <Label htmlFor={`${param.id}-reason-${index}`}>{reason}</Label>
+                          </div>
+                        ))}
+                      </div>
+                    </RadioGroup>
+                  </div>
+                )}
+
                 {(param.requiresComment || ratings[param.id] === 0) && (
                   <div className="space-y-2">
                     <Label>
@@ -152,23 +193,6 @@ export function PreviewForm({ template }: PreviewFormProps) {
                       }
                       placeholder="Enter your comments here..."
                     />
-                  </div>
-                )}
-
-                {param.noReasons && param.noReasons.length > 0 && ratings[param.id] === 0 && (
-                  <div className="space-y-2">
-                    <Label>Reason for No</Label>
-                    <RadioGroup
-                      value={comments[param.id]}
-                      onValueChange={(value) => handleCommentChange(param.id, value)}
-                    >
-                      {param.noReasons.map((reason: string, index: number) => (
-                        <div key={index} className="flex items-center space-x-2">
-                          <RadioGroupItem value={reason} id={`${param.id}-reason-${index}`} />
-                          <Label htmlFor={`${param.id}-reason-${index}`}>{reason}</Label>
-                        </div>
-                      ))}
-                    </RadioGroup>
                   </div>
                 )}
               </div>
