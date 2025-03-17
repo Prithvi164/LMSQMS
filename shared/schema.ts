@@ -287,6 +287,78 @@ export const insertQuizResponseSchema = createInsertSchema(quizResponses)
     isCorrect: z.boolean(),
   });
 
+// Add evaluation schema and types
+// Evaluation Results schema - simplified version
+export const evaluationResults = pgTable("evaluation_results", {
+  id: serial("id").primaryKey(),
+  templateId: integer("template_id")
+    .references(() => evaluationTemplates.id)
+    .notNull(),
+  traineeId: integer("trainee_id")
+    .references(() => users.id)
+    .notNull(),
+  evaluatorId: integer("evaluator_id")
+    .references(() => users.id)
+    .notNull(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  totalScore: integer("total_score").default(0).notNull(),
+  status: text("status").notNull(),
+  evaluatedAt: timestamp("evaluated_at").defaultNow().notNull(),
+  comments: text("comments"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Evaluation Result schema validation
+export const insertEvaluationResultSchema = createInsertSchema(evaluationResults)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    templateId: z.number().int().positive("Template is required"),
+    traineeId: z.number().int().positive("Trainee is required"),
+    evaluatorId: z.number().int().positive("Evaluator is required"),
+    batchId: z.number().int().positive("Batch is required"),
+    organizationId: z.number().int().positive("Organization is required"),
+    totalScore: z.number().int().min(0).max(100).default(0),
+    status: z.string().min(1, "Status is required").default("pending"),
+    evaluatedAt: z.coerce.date().default(() => new Date()),
+    comments: z.string().optional().nullable(),
+  });
+
+export type EvaluationResult = InferSelectModel<typeof evaluationResults>;
+export type InsertEvaluationResult = z.infer<typeof insertEvaluationResultSchema>;
+
+export const evaluationResultsRelations = relations(evaluationResults, ({ one }) => ({
+  template: one(evaluationTemplates, {
+    fields: [evaluationResults.templateId],
+    references: [evaluationTemplates.id],
+  }),
+  trainee: one(users, {
+    fields: [evaluationResults.traineeId],
+    references: [users.id],
+  }),
+  evaluator: one(users, {
+    fields: [evaluationResults.evaluatorId],
+    references: [users.id],
+  }),
+  batch: one(organizationBatches, {
+    fields: [evaluationResults.batchId],
+    references: [organizationBatches.id],
+  }),
+  organization: one(organizations, {
+    fields: [evaluationResults.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
 export type InsertQuestion = z.infer<typeof insertQuestionSchema>;
 export type InsertQuizTemplate = z.infer<typeof insertQuizTemplateSchema>;
 export type InsertQuiz = z.infer<typeof insertQuizSchema>;
@@ -1411,6 +1483,7 @@ export const evaluationSubReasons = pgTable("evaluation_sub_reasons", {
 });
 
 // Add evaluation result tables and schemas
+// Evaluation Results schema - simplified version
 export const evaluationResults = pgTable("evaluation_results", {
   id: serial("id").primaryKey(),
   templateId: integer("template_id")
@@ -1428,13 +1501,58 @@ export const evaluationResults = pgTable("evaluation_results", {
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
-  totalScore: integer("total_score").notNull(),
+  totalScore: integer("total_score").default(0).notNull(),
   status: text("status").notNull(),
   evaluatedAt: timestamp("evaluated_at").defaultNow().notNull(),
   comments: text("comments"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+// Evaluation Result schema validation
+export const insertEvaluationResultSchema = createInsertSchema(evaluationResults)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    templateId: z.number().int().positive("Template is required"),
+    traineeId: z.number().int().positive("Trainee is required"),
+    evaluatorId: z.number().int().positive("Evaluator is required"),
+    batchId: z.number().int().positive("Batch is required"),
+    organizationId: z.number().int().positive("Organization is required"),
+    totalScore: z.number().int().min(0).max(100).default(0),
+    status: z.string().min(1, "Status is required").default("pending"),
+    evaluatedAt: z.coerce.date().default(() => new Date()),
+    comments: z.string().optional().nullable(),
+  });
+
+export type EvaluationResult = InferSelectModel<typeof evaluationResults>;
+export type InsertEvaluationResult = z.infer<typeof insertEvaluationResultSchema>;
+
+export const evaluationResultsRelations = relations(evaluationResults, ({ one }) => ({
+  template: one(evaluationTemplates, {
+    fields: [evaluationResults.templateId],
+    references: [evaluationTemplates.id],
+  }),
+  trainee: one(users, {
+    fields: [evaluationResults.traineeId],
+    references: [users.id],
+  }),
+  evaluator: one(users, {
+    fields: [evaluationResults.evaluatorId],
+    references: [users.id],
+  }),
+  batch: one(organizationBatches, {
+    fields: [evaluationResults.batchId],
+    references: [organizationBatches.id],
+  }),
+  organization: one(organizations, {
+    fields: [evaluationResults.organizationId],
+    references: [organizations.id],
+  }),
+}));
 
 export const evaluationParameterResults = pgTable("evaluation_parameter_results", {
   id: serial("id").primaryKey(),
@@ -1445,7 +1563,6 @@ export const evaluationParameterResults = pgTable("evaluation_parameter_results"
     .references(() => evaluationParameters.id)
     .notNull(),
   score: integer("score").notNull(),
-  weightedScore: integer("weighted_score").notNull(),
   rating: text("rating").notNull(),
   comment: text("comment"),
   noReasons: jsonb("no_reasons").$type<string[]>(),
@@ -1453,7 +1570,6 @@ export const evaluationParameterResults = pgTable("evaluation_parameter_results"
 });
 
 // Add types
-export type EvaluationResult = InferSelectModel<typeof evaluationResults>;
 export type EvaluationParameterResult = InferSelectModel<typeof evaluationParameterResults>;
 
 // Add insert schemas
@@ -1516,7 +1632,7 @@ export const insertEvaluationSubReasonSchema = createInsertSchema(evaluationSubR
     orderIndex: z.number().int().min(0),
   });
 
-// Update the evaluation result schema to handle date strings
+// Update the evaluation result schema to handle validation properly
 export const insertEvaluationResultSchema = createInsertSchema(evaluationResults)
   .omit({
     id: true,
@@ -1529,10 +1645,10 @@ export const insertEvaluationResultSchema = createInsertSchema(evaluationResults
     evaluatorId: z.number().int().positive("Evaluator is required"),
     batchId: z.number().int().positive("Batch is required"),
     organizationId: z.number().int().positive("Organization is required"),
-    totalScore: z.number().int().min(0).max(100),
-    status: z.string().min(1, "Status is required"),
-    evaluatedAt: z.coerce.date(),  // This will coerce string dates into Date objects
-    comments: z.string().optional(),
+    totalScore: z.number().int().min(0).max(100).default(0),
+    status: z.string().min(1, "Status is required").default("pending"),
+    evaluatedAt: z.coerce.date().default(() => new Date()),
+    comments: z.string().optional().nullable(),
   });
 
 export const insertEvaluationParameterResultSchema = createInsertSchema(evaluationParameterResults)
@@ -1544,7 +1660,6 @@ export const insertEvaluationParameterResultSchema = createInsertSchema(evaluati
     evaluationId: z.number().int().positive("Evaluation is required"),
     parameterId: z.number().int().positive("Parameter is required"),
     score: z.number().int().min(0).max(100),
-    weightedScore: z.number().int().min(0).max(100),
     rating: z.string().min(1, "Rating is required"),
     comment: z.string().optional(),
     noReasons: z.array(z.string()).optional(),
