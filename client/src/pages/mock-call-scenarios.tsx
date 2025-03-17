@@ -73,6 +73,8 @@ export default function MockCallScenariosPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [activeScenario, setActiveScenario] = useState<any>(null);
+  const [isCallActive, setIsCallActive] = useState(false);
 
   // Fetch available processes
   const { data: processes = [] } = useQuery({
@@ -146,6 +148,44 @@ export default function MockCallScenariosPage() {
       });
     },
   });
+
+  const startCallMutation = useMutation({
+    mutationFn: async (scenarioId: number) => {
+      const response = await fetch(`/api/mock-call-scenarios/${scenarioId}/attempts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scenarioId,
+          evaluatorId: user?.id, // For now, self-evaluation
+          organizationId: user?.organizationId,
+        }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to start mock call");
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Mock Call Started",
+        description: "Your mock call session has begun. Good luck!",
+      });
+      setIsCallActive(true);
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
+  const handleStartCall = (scenario: any) => {
+    setActiveScenario(scenario);
+    startCallMutation.mutate(scenario.id);
+  };
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     if (!user?.organizationId) {
@@ -574,13 +614,59 @@ export default function MockCallScenariosPage() {
                       )}
                     </ul>
                   </div>
-                  <Button className="w-full mt-4">Start Mock Call</Button>
+                  <Button
+                    className="w-full mt-4"
+                    onClick={() => handleStartCall(scenario)}
+                    disabled={isCallActive || startCallMutation.isPending}
+                  >
+                    {startCallMutation.isPending && scenario.id === activeScenario?.id
+                      ? "Starting..."
+                      : "Start Mock Call"}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
           ))
         )}
       </div>
+
+      {isCallActive && activeScenario && (
+        <Dialog open={isCallActive} onOpenChange={() => setIsCallActive(false)}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Mock Call Session</DialogTitle>
+              <DialogDescription>
+                Customer Profile: {activeScenario.customerProfile.name}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-medium">Scenario Background</h3>
+                <p className="text-sm text-muted-foreground">
+                  {activeScenario.customerProfile.background}
+                </p>
+              </div>
+              <div>
+                <h3 className="font-medium">Expected Key Points</h3>
+                <ul className="list-disc list-inside text-sm text-muted-foreground">
+                  {activeScenario.expectedDialogue.keyPoints.map(
+                    (point: string, index: number) => (
+                      <li key={index}>{point}</li>
+                    )
+                  )}
+                </ul>
+              </div>
+              <Button
+                variant="destructive"
+                onClick={() => setIsCallActive(false)}
+                className="w-full"
+              >
+                End Call
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
