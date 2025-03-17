@@ -16,6 +16,17 @@ export function PreviewForm({ template }: PreviewFormProps) {
   const [comments, setComments] = useState<Record<string, string>>({});
   const [selectedReasons, setSelectedReasons] = useState<Record<string, string>>({});
 
+  if (!template || !template.pillars) {
+    return (
+      <Alert>
+        <AlertTriangle className="h-4 w-4" />
+        <AlertDescription>
+          No template data available to preview.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
   const handleRatingChange = (parameterId: number, value: string) => {
     const numericValue = parseInt(value);
     setRatings((prev) => ({
@@ -56,8 +67,8 @@ export function PreviewForm({ template }: PreviewFormProps) {
     let totalWeight = 0;
     let hasFatal = false;
 
-    template.pillars.forEach((pillar: any) => {
-      pillar.parameters.forEach((param: any) => {
+    (template.pillars || []).forEach((pillar: any) => {
+      (pillar.parameters || []).forEach((param: any) => {
         const rating = ratings[param.id];
         if (rating !== undefined) {
           if (param.isFatal && rating === 0) {
@@ -104,7 +115,7 @@ export function PreviewForm({ template }: PreviewFormProps) {
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
-            {pillar.parameters.map((param: any) => (
+            {(pillar.parameters || []).map((param: any) => (
               <div key={param.id} className="space-y-3">
                 <div className="flex justify-between items-start">
                   <div>
