@@ -50,7 +50,13 @@ import {
   type InsertQuiz,
   quizAttempts,
   type QuizAttempt,
-  type InsertQuizAttempt
+  type InsertQuizAttempt,
+  mockCallScenarios,
+  type MockCallScenario,
+  type InsertMockCallScenario,
+  mockCallAttempts,
+  type MockCallAttempt,
+  type InsertMockCallAttempt
 } from "@shared/schema";
 
 // Add to IStorage interface
@@ -218,6 +224,13 @@ export interface IStorage {
 
   // Add new method for deleting quizzes by template ID
   deleteQuizzesByTemplateId(templateId: number): Promise<void>;
+
+  // Mock Call Scenario operations
+  createMockCallScenario(scenario: InsertMockCallScenario): Promise<MockCallScenario>;
+  getMockCallScenario(id: number): Promise<MockCallScenario | undefined>;
+  listMockCallScenarios(organizationId: number): Promise<MockCallScenario[]>;
+  createMockCallAttempt(attempt: InsertMockCallAttempt): Promise<MockCallAttempt>;
+  getMockCallAttempt(id: number): Promise<MockCallAttempt | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1093,7 +1106,6 @@ export class DatabaseStorage implements IStorage {
         )
         .where(eq(organizationBatches.organizationId, organizationId))
         .orderBy(desc(organizationBatches.createdAt));
-
 
       return batches as OrganizationBatch[];
     } catch (error) {
