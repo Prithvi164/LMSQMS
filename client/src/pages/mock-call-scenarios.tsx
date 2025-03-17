@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation } from "wouter";
 import {
   Card,
   CardContent,
@@ -69,39 +68,14 @@ const formSchema = z.object({
   }),
 });
 
-interface Process {
-  id: number;
-  name: string;
-}
-
-interface Scenario {
-  id: number;
-  title: string;
-  description: string;
-  difficulty: string;
-  customerProfile: {
-    name: string;
-    background: string;
-    personality: string;
-    concerns: string[];
-  };
-  expectedDialogue: {
-    greeting: string;
-    keyPoints: string[];
-    resolutions: string[];
-    closingStatements: string[];
-  };
-}
-
 export default function MockCallScenariosPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [_, navigate] = useLocation();
 
   // Fetch available processes
-  const { data: processes = [] } = useQuery<Process[]>({
+  const { data: processes = [] } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/processes`],
     enabled: !!user?.organizationId,
   });
@@ -133,7 +107,7 @@ export default function MockCallScenariosPage() {
     },
   });
 
-  const { data: scenarios = [], isLoading } = useQuery<Scenario[]>({
+  const { data: scenarios = [], isLoading } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/mock-call-scenarios`],
     enabled: !!user?.organizationId,
   });
@@ -204,112 +178,6 @@ export default function MockCallScenariosPage() {
     }
   };
 
-  const startMockCallMutation = useMutation({
-    mutationFn: async (scenarioId: number) => {
-      console.log('Starting mock call attempt for scenario:', scenarioId);
-      const now = new Date();
-      const isoDate = now.toISOString();
-      console.log('Start time:', isoDate);
-
-      const attemptData = {
-        scenarioId,
-        evaluatorId: user?.managerId || user?.id,
-        startedAt: isoDate,
-        status: "pending"
-      };
-
-      console.log('Attempt data:', attemptData);
-
-      const response = await fetch(`/api/mock-call-scenarios/${scenarioId}/attempts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(attemptData),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to start mock call");
-      }
-      return response.json();
-    },
-    onSuccess: (data) => {
-      console.log('Mock call attempt created successfully:', data);
-      navigate(`/mock-call/${data.id}`);
-      toast({
-        title: "Success",
-        description: "Mock call session started",
-      });
-    },
-    onError: (error: Error) => {
-      console.error("Error starting mock call:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
-    },
-  });
-
-  const handleStartMockCall = (scenarioId: number) => {
-    console.log('Starting mock call for scenario:', scenarioId);
-    if (!user?.id) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "You must be logged in to start a mock call",
-      });
-      return;
-    }
-
-    const sampleData = {
-      title: "Product Return Request",
-      description: "Handle a customer's request to return a damaged product while maintaining professional service standards",
-      difficulty: "basic",
-      customerProfile: {
-        name: "Sarah Johnson",
-        background: "Regular customer who has made several purchases in the past 6 months. Recently bought a coffee maker that arrived with a cracked carafe.",
-        personality: "Generally patient but frustrated about receiving a damaged item",
-        concerns: [
-          "Received damaged product",
-          "Needs quick resolution",
-          "Concerned about return shipping costs"
-        ]
-      },
-      expectedDialogue: {
-        greeting: "Thank you for calling [Company Name], my name is [Agent Name]. How may I assist you today?",
-        keyPoints: [
-          "Acknowledge customer's frustration",
-          "Apologize for the inconvenience",
-          "Verify purchase details",
-          "Explain return process",
-          "Offer free return shipping"
-        ],
-        resolutions: [
-          "Process return authorization",
-          "Send prepaid return label",
-          "Expedite replacement shipping",
-          "Offer 10% discount on next purchase"
-        ],
-        closingStatements: [
-          "Thank you for bringing this to our attention",
-          "Your replacement will arrive within 2-3 business days",
-          "Is there anything else I can help you with today?"
-        ]
-      },
-      evaluationRubric: {
-        greetingScore: 20,
-        problemIdentificationScore: 20,
-        solutionScore: 25,
-        communicationScore: 20,
-        closingScore: 15
-      }
-    };
-
-    // Use this data to pre-fill the form
-    form.reset(sampleData);
-    startMockCallMutation.mutate(scenarioId);
-  };
-
   return (
     <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
@@ -344,7 +212,7 @@ export default function MockCallScenariosPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {processes.map((process) => (
+                            {processes.map((process: any) => (
                               <SelectItem key={process.id} value={process.id.toString()}>
                                 {process.name}
                               </SelectItem>
@@ -675,7 +543,7 @@ export default function MockCallScenariosPage() {
         ) : scenarios.length === 0 ? (
           <p>No scenarios available. Create your first scenario to get started.</p>
         ) : (
-          scenarios.map((scenario) => (
+          scenarios.map((scenario: any) => (
             <Card key={scenario.id}>
               <CardHeader>
                 <CardTitle>{scenario.title}</CardTitle>
@@ -706,13 +574,7 @@ export default function MockCallScenariosPage() {
                       )}
                     </ul>
                   </div>
-                  <Button
-                    className="w-full mt-4"
-                    onClick={() => handleStartMockCall(scenario.id)}
-                    disabled={startMockCallMutation.isPending}
-                  >
-                    {startMockCallMutation.isPending ? "Starting..." : "Start Mock Call"}
-                  </Button>
+                  <Button className="w-full mt-4">Start Mock Call</Button>
                 </div>
               </CardContent>
             </Card>
