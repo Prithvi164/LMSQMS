@@ -79,7 +79,7 @@ type FormBuilderProps = {
 };
 
 // Sortable item component for pillars
-function SortablePillar({ pillar, children }: { pillar: any; children: React.ReactNode }) {
+function SortablePillar({ pillar, children, onEdit, onDelete }: { pillar: any; children: React.ReactNode; onEdit: () => void; onDelete: () => void }) {
   const {
     attributes,
     listeners,
@@ -111,6 +111,28 @@ function SortablePillar({ pillar, children }: { pillar: any; children: React.Rea
             <CardDescription>{pillar.description}</CardDescription>
           </div>
           <Badge>{pillar.weightage}%</Badge>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+            >
+              <Edit2 className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>{children}</CardContent>
       </Card>
@@ -119,7 +141,7 @@ function SortablePillar({ pillar, children }: { pillar: any; children: React.Rea
 }
 
 // Sortable item component for parameters
-function SortableParameter({ parameter }: { parameter: any }) {
+function SortableParameter({ parameter, onEdit, onDelete }: { parameter: any; onEdit: () => void; onDelete: () => void }) {
   const {
     attributes,
     listeners,
@@ -152,6 +174,31 @@ function SortableParameter({ parameter }: { parameter: any }) {
           )}
         </div>
         <Badge variant="outline">{parameter.weightage}%</Badge>
+        {parameter.isFatal && (
+          <Badge variant="destructive" className="text-xs">Fatal</Badge>
+        )}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit();
+            }}
+          >
+            <Edit2 className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -621,7 +668,15 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                 <CardContent>
                   <div className="space-y-4">
                     {orderedPillars.map((pillar) => (
-                      <SortablePillar key={pillar.id} pillar={pillar}>
+                      <SortablePillar
+                        key={pillar.id}
+                        pillar={pillar}
+                        onEdit={() => {
+                          setIsEditingPillar(true);
+                          setActivePillarId(pillar.id);
+                        }}
+                        onDelete={() => deletePillarMutation.mutate(pillar.id)}
+                      >
                         <DndContext
                           sensors={sensors}
                           collisionDetection={closestCenter}
@@ -636,6 +691,12 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                                 <SortableParameter
                                   key={parameter.id}
                                   parameter={parameter}
+                                  onEdit={() => {
+                                    setIsEditingParameter(true);
+                                    setSelectedParameter(parameter.id);
+                                    setActivePillarId(pillar.id);
+                                  }}
+                                  onDelete={() => deleteParameterMutation.mutate(parameter.id)}
                                 />
                               ))}
                             </div>
