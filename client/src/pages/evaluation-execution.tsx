@@ -95,16 +95,14 @@ export default function EvaluationExecutionPage() {
   // Create evaluation mutation
   const createEvaluationMutation = useMutation({
     mutationFn: async (values: z.infer<typeof formSchema>) => {
-      const evaluationData = {
-        ...values,
-        evaluatorId: user?.id,
-        organizationId: user?.organizationId,
-      };
-
       const response = await fetch(`/api/organizations/${user?.organizationId}/evaluations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(evaluationData),
+        body: JSON.stringify({
+          ...values,
+          evaluatorId: user?.id,
+          organizationId: user?.organizationId,
+        }),
       });
 
       if (!response.ok) {
