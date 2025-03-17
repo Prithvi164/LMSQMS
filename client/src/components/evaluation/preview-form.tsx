@@ -143,7 +143,7 @@ export function PreviewForm({ template }: PreviewFormProps) {
                           <Label htmlFor={`${param.id}-${i}`}>{i}</Label>
                         </div>
                       ))
-                    ) : (
+                    ) : param.ratingType === "yes_no_na" ? (
                       <>
                         <div className="flex items-center space-x-2">
                           <RadioGroupItem value="0" id={`${param.id}-no`} />
@@ -154,12 +154,16 @@ export function PreviewForm({ template }: PreviewFormProps) {
                           <Label htmlFor={`${param.id}-yes`}>Yes</Label>
                         </div>
                       </>
+                    ) : (
+                      <div className="w-full">
+                        <p className="text-sm text-muted-foreground">Unsupported rating type</p>
+                      </div>
                     )}
                   </div>
                 </RadioGroup>
 
                 {/* Show reason selection when "No" is selected and noReasons exist */}
-                {ratings[param.id] === 0 && param.noReasons && param.noReasons.length > 0 && (
+                {param.ratingType === "yes_no_na" && ratings[param.id] === 0 && param.noReasons && param.noReasons.length > 0 && (
                   <div className="space-y-2 border rounded-lg p-4 bg-muted/50">
                     <Label className="font-medium">Select Reason for No</Label>
                     <RadioGroup

@@ -1388,12 +1388,12 @@ export const evaluationParameters = pgTable("evaluation_parameters", {
   name: text("name").notNull(),
   description: text("description"),
   guidelines: text("guidelines"), // Detailed instructions for evaluation
-  ratingType: evaluationRatingTypeEnum("rating_type").notNull(),
-  customRatingOptions: jsonb("custom_rating_options").$type<string[]>(), // For custom rating types
   weightage: integer("weightage").notNull(), // Percentage weightage within the pillar
+  ratingType: text("rating_type").notNull(),
+  orderIndex: integer("order_index").notNull(),
   isFatal: boolean("is_fatal").default(false).notNull(), // Whether this parameter can cause automatic failure
   requiresComment: boolean("requires_comment").default(false).notNull(),
-  orderIndex: integer("order_index").notNull(),
+  noReasons: jsonb("no_reasons").$type<string[]>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -1497,12 +1497,15 @@ export const insertEvaluationParameterSchema = createInsertSchema(evaluationPara
   .extend({
     pillarId: z.number().int().positive("Pillar is required"),
     name: z.string().min(1, "Parameter name is required"),
-    ratingType: z.enum(['yes_no_na', 'numeric', 'custom']),
-    customRatingOptions: z.array(z.string()).optional(),
+    description: z.string().optional(),
+    guidelines: z.string().optional(),
     weightage: z.number().int().min(0).max(100),
+    ratingType: z.string(),
+    orderIndex: z.number().int(),
     isFatal: z.boolean().default(false),
     requiresComment: z.boolean().default(false),
-    orderIndex: z.number().int().min(0),
+    noReasons: z.array(z.string()).optional(),
+    pillarId: z.number().int().positive("Pillar is required"),
   });
 
 export const insertEvaluationSubReasonSchema = createInsertSchema(evaluationSubReasons)

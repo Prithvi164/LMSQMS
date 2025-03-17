@@ -250,7 +250,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data.parameter,
-          noReasons,
+          noReasons: noReasons,
         }),
       });
       if (!response.ok) {
@@ -290,7 +290,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
         body: JSON.stringify({
           ...data,
           pillarId: activePillarId,
-          noReasons,
+          noReasons: noReasons,
         }),
       });
       if (!response.ok) {
