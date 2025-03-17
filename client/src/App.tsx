@@ -16,7 +16,8 @@ import { BatchMonitoringPage } from "@/pages/batch-monitoring";
 import { QuizTakingPage } from "@/pages/quiz-taking";
 import { QuizResultsPage } from "@/pages/quiz-results";
 import { MyQuizzesPage } from "@/pages/my-quizzes";
-import MockCallScenarios from "@/pages/mock-call-scenarios"; 
+import MockCallScenarios from "@/pages/mock-call-scenarios";
+import EvaluationFormBuilder from "@/pages/evaluation-form-builder"; // Add import
 import { ProtectedRoute } from "./lib/protected-route";
 import { SidebarNav } from "./components/sidebar-nav";
 import { UserProfile } from "./components/user-profile";
@@ -62,7 +63,8 @@ function Router() {
           <ProtectedRoute path="/my-quizzes" component={MyQuizzesPage} />
           <ProtectedRoute path="/quiz/:quizId" component={QuizTakingPage} />
           <ProtectedRoute path="/quiz-results/:attemptId" component={QuizResultsPage} />
-          <ProtectedRoute path="/mock-call-scenarios" component={MockCallScenarios} /> 
+          <ProtectedRoute path="/mock-call-scenarios" component={MockCallScenarios} />
+          <ProtectedRoute path="/evaluation-form-builder" component={EvaluationFormBuilder} /> {/* Add new route */}
           <Route component={NotFound} />
         </Switch>
       </main>
