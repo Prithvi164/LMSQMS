@@ -37,6 +37,7 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { Switch } from "@/components/ui/switch";
 
 // Form schemas
 const pillarSchema = z.object({
@@ -51,6 +52,7 @@ const parameterSchema = z.object({
   guidelines: z.string().optional(),
   ratingType: z.enum(["yes_no_na", "numeric", "custom"]),
   weightage: z.number().min(0).max(100),
+  weightageEnabled: z.boolean().default(true),
   isFatal: z.boolean().default(false),
   requiresComment: z.boolean().default(false),
   noReasons: z.array(z.string()).optional(),
@@ -94,6 +96,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
       isFatal: false,
       requiresComment: false,
       noReasons: [],
+      weightageEnabled: true,
     },
   });
 
@@ -125,6 +128,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
           guidelines: parameter.guidelines,
           ratingType: parameter.ratingType,
           weightage: parameter.weightage,
+          weightageEnabled: parameter.weightageEnabled ?? true,
           isFatal: parameter.isFatal,
           requiresComment: parameter.requiresComment,
           noReasons: parameter.noReasons || [],
@@ -134,7 +138,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
     }
   }, [isEditingParameter, selectedParameter, template]);
 
-  // Mutations
+  // Mutations (rest of the mutations remain unchanged)
   const createPillarMutation = useMutation({
     mutationFn: async (data: z.infer<typeof pillarSchema>) => {
       const response = await fetch(`/api/evaluation-templates/${templateId}/pillars`, {
@@ -492,9 +496,11 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-2">
                                     <span className="text-sm">{param.name}</span>
-                                    <Badge variant="outline" className="text-xs">
-                                      {param.weightage}%
-                                    </Badge>
+                                    {param.weightageEnabled && (
+                                      <Badge variant="outline" className="text-xs">
+                                        {param.weightage}%
+                                      </Badge>
+                                    )}
                                     {param.isFatal && (
                                       <Badge variant="destructive" className="text-xs">Fatal</Badge>
                                     )}
@@ -785,27 +791,51 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                           </div>
                         )}
 
-                        <FormField
-                          control={parameterForm.control}
-                          name="weightage"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Weightage (%)</FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  type="number"
-                                  min="0"
-                                  max="100"
-                                  onChange={(e) =>
-                                    field.onChange(parseInt(e.target.value))
-                                  }
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <FormLabel>Enable Weightage</FormLabel>
+                            <FormField
+                              control={parameterForm.control}
+                              name="weightageEnabled"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormControl>
+                                    <Switch
+                                      checked={field.value}
+                                      onCheckedChange={field.onChange}
+                                    />
+                                  </FormControl>
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+
+                          {parameterForm.watch("weightageEnabled") && (
+                            <FormField
+                              control={parameterForm.control}
+                              name="weightage"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Weightage (%)</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      {...field}
+                                      type="number"
+                                      min="0"
+                                      max="100"
+                                      onChange={(e) =>
+                                        field.onChange(parseInt(e.target.value))
+                                      }
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
                           )}
-                        />
+                        </div>
+
+
                         <div className="flex gap-4">
                           <FormField
                             control={parameterForm.control}
@@ -904,7 +934,9 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                                 <div className="flex justify-between items-center">
                                   <CardTitle className="text-lg">{param.name}</CardTitle>
                                   <div className="flex items-center gap-2">
-                                    <Badge variant="outline">{param.weightage}%</Badge>
+                                    {param.weightageEnabled && (
+                                      <Badge variant="outline">{param.weightage}%</Badge>
+                                    )}
                                     {param.isFatal && (
                                       <Badge variant="destructive">Fatal</Badge>
                                     )}

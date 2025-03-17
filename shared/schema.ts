@@ -844,7 +844,7 @@ export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organiz
     createdAt: true
   })
   .extend({
-    name: z.string().min(1, "LOBname is required"),
+name: z.string().min(1, "LOBname is required"),
     description: z.string().min(1, "Description is required"),
     organizationId: z.number().int().positive("Organization is required"),
   });
@@ -1390,6 +1390,7 @@ export const evaluationParameters = pgTable("evaluation_parameters", {
   guidelines: text("guidelines"), // Detailed instructions for evaluation
   ratingType: text("rating_type").notNull(),
   weightage: integer("weightage").notNull(), // Percentage weightage within the pillar
+  weightageEnabled: boolean("weightage_enabled").default(true).notNull(), // New field
   isFatal: boolean("is_fatal").default(false).notNull(), // Whether this parameter can cause automatic failure
   requiresComment: boolean("requires_comment").default(false).notNull(),
   noReasons: jsonb("no_reasons").$type<string[]>(),
@@ -1501,6 +1502,7 @@ export const insertEvaluationParameterSchema = createInsertSchema(evaluationPara
     guidelines: z.string().optional(),
     ratingType: z.string().min(1, "Rating type is required"),
     weightage: z.number().min(0).max(100),
+    weightageEnabled: z.boolean().default(true),
     isFatal: z.boolean().default(false),
     requiresComment: z.boolean().default(false),
     noReasons: z.array(z.string()).optional(),
