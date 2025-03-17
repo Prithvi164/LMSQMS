@@ -96,6 +96,7 @@ export default function EvaluationFormBuilder() {
 
   const createFormMutation = useMutation({
     mutationFn: async (data: InsertEvaluationForm) => {
+      console.log("Submitting form data:", data);
       const response = await fetch("/api/evaluation-forms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -117,6 +118,8 @@ export default function EvaluationFormBuilder() {
       });
       form.reset();
       setCurrentStep(0);
+      setSegments([]);
+      setReasons([]);
     },
     onError: (error: Error) => {
       toast({
@@ -126,6 +129,29 @@ export default function EvaluationFormBuilder() {
       });
     },
   });
+
+  const onSubmit = (values: z.infer<typeof formSchema>) => {
+    if (!user?.organizationId) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Organization ID is required",
+      });
+      return;
+    }
+
+    console.log("Form values:", values);
+    console.log("Segments:", segments);
+    console.log("Reasons:", reasons);
+
+    createFormMutation.mutate({
+      ...values,
+      organizationId: user.organizationId,
+      createdBy: user.id,
+      segments: segments,
+      predefinedReasons: reasons,
+    });
+  };
 
   const steps = [
     {
@@ -298,25 +324,6 @@ export default function EvaluationFormBuilder() {
     },
   ];
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    if (!user?.organizationId) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Organization ID is required",
-      });
-      return;
-    }
-
-    createFormMutation.mutate({
-      ...values,
-      organizationId: user.organizationId,
-      createdBy: user.id,
-      segments: segments,
-      predefinedReasons: reasons,
-    });
-  };
-
   return (
     <div className="container mx-auto p-6">
       <div className="mb-6">
@@ -407,6 +414,12 @@ function SegmentBuilder({
   onUpdate: (segments: z.infer<typeof segmentSchema>[]) => void;
 }) {
   const [currentSegment, setCurrentSegment] = useState<z.infer<typeof segmentSchema> | null>(null);
+  const [currentParameter, setCurrentParameter] = useState<{
+    name: string;
+    description?: string;
+    weight: number;
+    isFatal: boolean;
+  } | null>(null);
 
   const segmentForm = useForm<z.infer<typeof segmentSchema>>({
     resolver: zodResolver(segmentSchema),
@@ -417,10 +430,40 @@ function SegmentBuilder({
     },
   });
 
+  const parameterForm = useForm({
+    defaultValues: {
+      name: "",
+      description: "",
+      weight: 0,
+      isFatal: false,
+    },
+  });
+
+  const addParameter = (data: any) => {
+    if (!currentSegment) return;
+
+    const updatedSegment = {
+      ...currentSegment,
+      parameters: [...(currentSegment.parameters || []), data],
+    };
+    setCurrentSegment(updatedSegment);
+    parameterForm.reset();
+    setCurrentParameter(null);
+  };
+
   const addSegment = (data: z.infer<typeof segmentSchema>) => {
-    onUpdate([...segments, data]);
-    segmentForm.reset();
-    setCurrentSegment(null);
+    if (currentSegment?.parameters && currentSegment.parameters.length > 0) {
+      onUpdate([...segments, { ...currentSegment, ...data }]);
+      segmentForm.reset();
+      setCurrentSegment(null);
+      setCurrentParameter(null);
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Add at least one parameter before saving the segment",
+      });
+    }
   };
 
   return (
@@ -455,7 +498,7 @@ function SegmentBuilder({
         type="button"
         variant="outline"
         className="w-full"
-        onClick={() => setCurrentSegment({})}
+        onClick={() => setCurrentSegment({ name: "", weight: 0, parameters: [] })}
       >
         Add Segment
       </Button>
@@ -497,7 +540,113 @@ function SegmentBuilder({
                   </FormItem>
                 )}
               />
-              {/* Add parameter fields dynamically */}
+
+              <div className="border-t pt-4 mt-4">
+                <h4 className="font-medium mb-2">Parameters</h4>
+                {currentSegment.parameters.map((param, index) => (
+                  <div key={index} className="flex items-center justify-between mb-2">
+                    <span>{param.name}</span>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">{param.weight}%</Badge>
+                      {param.isFatal && <Badge variant="destructive">Fatal</Badge>}
+                    </div>
+                  </div>
+                ))}
+
+                {!currentParameter && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full mt-2"
+                    onClick={() => setCurrentParameter({
+                      name: "",
+                      weight: 0,
+                      isFatal: false,
+                    })}
+                  >
+                    Add Parameter
+                  </Button>
+                )}
+
+                {currentParameter && (
+                  <div className="space-y-4 mt-4">
+                    <FormField
+                      control={parameterForm.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Parameter Name</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="Enter parameter name" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={parameterForm.control}
+                      name="weight"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Weight (%)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={parameterForm.control}
+                      name="isFatal"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center gap-2">
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <FormLabel className="!mt-0">Fatal Error</FormLabel>
+                        </FormItem>
+                      )}
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => {
+                          const values = parameterForm.getValues();
+                          addParameter(values);
+                        }}
+                      >
+                        Add Parameter
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentParameter(null)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full mt-4"
+                disabled={!currentSegment.parameters.length}
+              >
+                Save Segment
+              </Button>
             </form>
           </CardContent>
         </Card>
