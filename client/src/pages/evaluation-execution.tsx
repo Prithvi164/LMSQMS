@@ -110,7 +110,7 @@ export default function EvaluationExecutionPage() {
 
       const payload = {
         batchId: values.batchId,
-        traineeId: selectedTrainee.traineeId, // Corrected to use trainee.traineeId
+        traineeId: values.traineeId,
         templateId: values.templateId,
         evaluatorId: user?.id,
       };
