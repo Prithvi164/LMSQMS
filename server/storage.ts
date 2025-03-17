@@ -261,6 +261,55 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  async createEvaluationParameter(parameter: InsertEvaluationParameter): Promise<EvaluationParameter> {
+    try {
+      console.log('Creating evaluation parameter with data:', parameter);
+      
+      // Ensure noReasons is an array before inserting
+      const parameterData = {
+        ...parameter,
+        noReasons: Array.isArray(parameter.noReasons) ? parameter.noReasons : [],
+      };
+
+      const [newParameter] = await db
+        .insert(evaluationParameters)
+        .values(parameterData)
+        .returning() as EvaluationParameter[];
+
+      console.log('Created parameter:', newParameter);
+      return newParameter;
+    } catch (error) {
+      console.error('Error creating evaluation parameter:', error);
+      throw error;
+    }
+  }
+
+  async updateEvaluationParameter(id: number, parameter: Partial<InsertEvaluationParameter>): Promise<EvaluationParameter> {
+    try {
+      console.log('Updating evaluation parameter:', id, parameter);
+
+      // Ensure noReasons is an array if provided
+      const updateData = {
+        ...parameter,
+        noReasons: parameter.noReasons ? 
+          (Array.isArray(parameter.noReasons) ? parameter.noReasons : []) : 
+          undefined,
+      };
+
+      const [updatedParameter] = await db
+        .update(evaluationParameters)
+        .set(updateData)
+        .where(eq(evaluationParameters.id, id))
+        .returning() as EvaluationParameter[];
+
+      console.log('Updated parameter:', updatedParameter);
+      return updatedParameter;
+    } catch (error) {
+      console.error('Error updating evaluation parameter:', error);
+      throw error;
+    }
+  }
+
   async deleteEvaluationTemplate(id: number): Promise<void> {
     try {
       await db.transaction(async (tx) => {
@@ -292,6 +341,7 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+
   // User operations
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id)) as User[];

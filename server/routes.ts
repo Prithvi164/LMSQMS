@@ -469,7 +469,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Forbidden" });
       }
 
-      const updatedParameter = await storage.updateEvaluationParameter(parameterId, req.body);
+      // Ensure noReasons is handled properly in updates
+      const updateData = {
+        ...req.body,
+        noReasons: Array.isArray(req.body.noReasons) ? req.body.noReasons : parameter.noReasons || [],
+      };
+
+      console.log('Updating evaluation parameter:', updateData);
+      const updatedParameter = await storage.updateEvaluationParameter(parameterId, updateData);
       res.json(updatedParameter);
     } catch (error: any) {
       console.error("Error updating evaluation parameter:", error);
