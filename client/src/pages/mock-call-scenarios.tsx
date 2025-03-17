@@ -175,83 +175,24 @@ export default function MockCallScenariosPage() {
           <DialogTrigger asChild>
             <Button>Create New Scenario</Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="sm:max-w-[600px] max-h-[80vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>Create New Mock Call Scenario</DialogTitle>
               <DialogDescription>
                 Define a new scenario for call center training and certification.
               </DialogDescription>
             </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Title</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter scenario title" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          {...field}
-                          placeholder="Describe the scenario"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="difficulty"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Difficulty Level</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select difficulty" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="basic">Basic</SelectItem>
-                          <SelectItem value="intermediate">
-                            Intermediate
-                          </SelectItem>
-                          <SelectItem value="advanced">Advanced</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Customer Profile Fields */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Customer Profile</h3>
+            <div className="flex-1 overflow-y-auto pr-4">
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   <FormField
                     control={form.control}
-                    name="customerProfile.name"
+                    name="title"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Customer Name</FormLabel>
+                        <FormLabel>Title</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="Enter customer name" />
+                          <Input {...field} placeholder="Enter scenario title" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -259,14 +200,14 @@ export default function MockCallScenariosPage() {
                   />
                   <FormField
                     control={form.control}
-                    name="customerProfile.background"
+                    name="description"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Background Information</FormLabel>
+                        <FormLabel>Description</FormLabel>
                         <FormControl>
                           <Textarea
                             {...field}
-                            placeholder="Enter customer background"
+                            placeholder="Describe the scenario"
                           />
                         </FormControl>
                         <FormMessage />
@@ -275,129 +216,58 @@ export default function MockCallScenariosPage() {
                   />
                   <FormField
                     control={form.control}
-                    name="customerProfile.personality"
+                    name="difficulty"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Personality Traits</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="Enter personality traits" />
-                        </FormControl>
+                        <FormLabel>Difficulty Level</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select difficulty" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="basic">Basic</SelectItem>
+                            <SelectItem value="intermediate">
+                              Intermediate
+                            </SelectItem>
+                            <SelectItem value="advanced">Advanced</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={form.control}
-                    name="customerProfile.concerns"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Customer Concerns</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Enter concerns (comma-separated)"
-                            onChange={(e) =>
-                              field.onChange(e.target.value.split(",").map((s) => s.trim()))
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
 
-                {/* Expected Dialogue Fields */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Expected Dialogue</h3>
-                  <FormField
-                    control={form.control}
-                    name="expectedDialogue.greeting"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Greeting Script</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            {...field}
-                            placeholder="Enter expected greeting"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="expectedDialogue.keyPoints"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Key Points</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Enter key points (comma-separated)"
-                            onChange={(e) =>
-                              field.onChange(e.target.value.split(",").map((s) => s.trim()))
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="expectedDialogue.resolutions"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Expected Resolutions</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Enter resolutions (comma-separated)"
-                            onChange={(e) =>
-                              field.onChange(e.target.value.split(",").map((s) => s.trim()))
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="expectedDialogue.closingStatements"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Closing Statements</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Enter closing statements (comma-separated)"
-                            onChange={(e) =>
-                              field.onChange(e.target.value.split(",").map((s) => s.trim()))
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                {/* Evaluation Rubric Fields */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Evaluation Rubric</h3>
-                  <div className="grid grid-cols-2 gap-4">
+                  {/* Customer Profile Fields */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Customer Profile</h3>
                     <FormField
                       control={form.control}
-                      name="evaluationRubric.greetingScore"
+                      name="customerProfile.name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Greeting Score (max 100)</FormLabel>
+                          <FormLabel>Customer Name</FormLabel>
                           <FormControl>
-                            <Input
-                              type="number"
+                            <Input {...field} placeholder="Enter customer name" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="customerProfile.background"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Background Information</FormLabel>
+                          <FormControl>
+                            <Textarea
                               {...field}
-                              onChange={(e) =>
-                                field.onChange(parseInt(e.target.value))
-                              }
+                              placeholder="Enter customer background"
                             />
                           </FormControl>
                           <FormMessage />
@@ -406,18 +276,12 @@ export default function MockCallScenariosPage() {
                     />
                     <FormField
                       control={form.control}
-                      name="evaluationRubric.problemIdentificationScore"
+                      name="customerProfile.personality"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Problem ID Score (max 100)</FormLabel>
+                          <FormLabel>Personality Traits</FormLabel>
                           <FormControl>
-                            <Input
-                              type="number"
-                              {...field}
-                              onChange={(e) =>
-                                field.onChange(parseInt(e.target.value))
-                              }
-                            />
+                            <Input {...field} placeholder="Enter personality traits" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -425,54 +289,15 @@ export default function MockCallScenariosPage() {
                     />
                     <FormField
                       control={form.control}
-                      name="evaluationRubric.solutionScore"
+                      name="customerProfile.concerns"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Solution Score (max 100)</FormLabel>
+                          <FormLabel>Customer Concerns</FormLabel>
                           <FormControl>
                             <Input
-                              type="number"
-                              {...field}
+                              placeholder="Enter concerns (comma-separated)"
                               onChange={(e) =>
-                                field.onChange(parseInt(e.target.value))
-                              }
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="evaluationRubric.communicationScore"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Communication Score (max 100)</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              {...field}
-                              onChange={(e) =>
-                                field.onChange(parseInt(e.target.value))
-                              }
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="evaluationRubric.closingScore"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Closing Score (max 100)</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              {...field}
-                              onChange={(e) =>
-                                field.onChange(parseInt(e.target.value))
+                                field.onChange(e.target.value.split(",").map((s) => s.trim()))
                               }
                             />
                           </FormControl>
@@ -481,17 +306,195 @@ export default function MockCallScenariosPage() {
                       )}
                     />
                   </div>
-                </div>
 
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={createScenarioMutation.isPending}
-                >
-                  {createScenarioMutation.isPending ? "Creating..." : "Create Scenario"}
-                </Button>
-              </form>
-            </Form>
+                  {/* Expected Dialogue Fields */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Expected Dialogue</h3>
+                    <FormField
+                      control={form.control}
+                      name="expectedDialogue.greeting"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Greeting Script</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              {...field}
+                              placeholder="Enter expected greeting"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="expectedDialogue.keyPoints"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Key Points</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Enter key points (comma-separated)"
+                              onChange={(e) =>
+                                field.onChange(e.target.value.split(",").map((s) => s.trim()))
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="expectedDialogue.resolutions"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Expected Resolutions</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Enter resolutions (comma-separated)"
+                              onChange={(e) =>
+                                field.onChange(e.target.value.split(",").map((s) => s.trim()))
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="expectedDialogue.closingStatements"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Closing Statements</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Enter closing statements (comma-separated)"
+                              onChange={(e) =>
+                                field.onChange(e.target.value.split(",").map((s) => s.trim()))
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Evaluation Rubric Fields */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Evaluation Rubric</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="evaluationRubric.greetingScore"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Greeting Score (max 100)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                {...field}
+                                onChange={(e) =>
+                                  field.onChange(parseInt(e.target.value))
+                                }
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="evaluationRubric.problemIdentificationScore"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Problem ID Score (max 100)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                {...field}
+                                onChange={(e) =>
+                                  field.onChange(parseInt(e.target.value))
+                                }
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="evaluationRubric.solutionScore"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Solution Score (max 100)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                {...field}
+                                onChange={(e) =>
+                                  field.onChange(parseInt(e.target.value))
+                                }
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="evaluationRubric.communicationScore"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Communication Score (max 100)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                {...field}
+                                onChange={(e) =>
+                                  field.onChange(parseInt(e.target.value))
+                                }
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="evaluationRubric.closingScore"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Closing Score (max 100)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                {...field}
+                                onChange={(e) =>
+                                  field.onChange(parseInt(e.target.value))
+                                }
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                </form>
+              </Form>
+            </div>
+            <div className="flex justify-end pt-4 border-t mt-4">
+              <Button
+                type="submit"
+                onClick={form.handleSubmit(onSubmit)}
+                disabled={createScenarioMutation.isPending}
+              >
+                {createScenarioMutation.isPending ? "Creating..." : "Create Scenario"}
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
