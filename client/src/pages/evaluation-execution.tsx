@@ -36,16 +36,14 @@ interface Batch {
 }
 
 interface Trainee {
-  id: number;  // This is the user_batch_process.id
   userId: number;
+  status: string;
   user: {
     id: number;
-    username: string;
     fullName: string;
     email: string;
-    employeeId: string;
-    phoneNumber: string;
-    dateOfJoining: string;
+    role: string;
+    category: string;
   };
 }
 
@@ -78,6 +76,12 @@ export default function EvaluationExecutionPage() {
   const { data: trainees = [], isLoading: isTraineesLoading } = useQuery<Trainee[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${selectedBatchId}/trainees`],
     enabled: !!selectedBatchId && !!user?.organizationId,
+    onSuccess: (data) => {
+      console.log('Fetched trainees:', data);
+    },
+    onError: (error) => {
+      console.error('Error fetching trainees:', error);
+    }
   });
 
   // Fetch evaluation templates
@@ -126,15 +130,12 @@ export default function EvaluationExecutionPage() {
       // Make sure we get valid JSON
       try {
         const data = await response.json();
-        console.log('Evaluation created successfully:', data);
         return data;
       } catch (e) {
-        console.error('Error parsing response:', e);
         throw new Error('Invalid response from server');
       }
     },
     onSuccess: (data) => {
-      console.log('Evaluation creation succeeded:', data);
       toast({
         title: "Success",
         description: "Evaluation started successfully",
@@ -236,8 +237,8 @@ export default function EvaluationExecutionPage() {
                         ) : (
                           trainees.map((trainee) => (
                             <SelectItem
-                              key={trainee.id}
-                              value={trainee.id.toString()}
+                              key={trainee.userId}
+                              value={trainee.user.id.toString()}
                             >
                               {trainee.user.fullName}
                             </SelectItem>
