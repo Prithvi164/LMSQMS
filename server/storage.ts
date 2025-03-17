@@ -58,8 +58,14 @@ import {
   mockCallScenarios,
   mockCallAttempts,
   evaluationTemplates,
+  evaluationPillars,
+  evaluationParameters,
   type EvaluationTemplate,
-  type InsertEvaluationTemplate
+  type InsertEvaluationTemplate,
+  type EvaluationPillar,
+  type InsertEvaluationPillar,
+  type EvaluationParameter,
+  type InsertEvaluationParameter
 } from "@shared/schema";
 
 // Add to IStorage interface
@@ -236,7 +242,17 @@ export interface IStorage {
 
   // Evaluation Template operations
   createEvaluationTemplate(template: InsertEvaluationTemplate): Promise<EvaluationTemplate>;
+  getEvaluationTemplate(id: number): Promise<EvaluationTemplate | undefined>;
+  getEvaluationTemplateWithDetails(id: number): Promise<EvaluationTemplate & {
+    pillars: (EvaluationPillar & {
+      parameters: EvaluationParameter[];
+    })[];
+  } | undefined>;
   listEvaluationTemplates(organizationId: number): Promise<EvaluationTemplate[]>;
+  createEvaluationPillar(pillar: InsertEvaluationPillar): Promise<EvaluationPillar>;
+  getEvaluationPillar(id: number): Promise<EvaluationPillar | undefined>;
+  createEvaluationParameter(parameter: InsertEvaluationParameter): Promise<EvaluationParameter>;
+  getEvaluationParameter(id: number): Promise<EvaluationParameter | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2437,6 +2453,60 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getEvaluationTemplate(id: number): Promise<EvaluationTemplate | undefined> {
+    try {
+      const [template] = await db
+        .select()
+        .from(evaluationTemplates)
+        .where(eq(evaluationTemplates.id, id)) as EvaluationTemplate[];
+
+      return template;
+    } catch (error) {
+      console.error('Error fetching evaluation template:', error);
+      throw error;
+    }
+  }
+
+  async getEvaluationTemplateWithDetails(id: number): Promise<EvaluationTemplate & {
+    pillars: (EvaluationPillar & {
+      parameters: EvaluationParameter[];
+    })[];
+  } | undefined> {
+    try {
+      // First get the template
+      const template = await this.getEvaluationTemplate(id);
+      if (!template) return undefined;
+
+      // Get pillars for this template
+      const pillars = await db
+        .select()
+        .from(evaluationPillars)
+        .where(eq(evaluationPillars.templateId, id))
+        .orderBy(evaluationPillars.orderIndex) as EvaluationPillar[];
+
+      // Get parameters for all pillars
+      const parameters = await db
+        .select()
+        .from(evaluationParameters)
+        .where(inArray(evaluationParameters.pillarId, pillars.map(p => p.id)))
+        .orderBy(evaluationParameters.orderIndex) as EvaluationParameter[];
+
+      // Group parameters by pillar
+      const pillarsWithParams = pillars.map(pillar => ({
+        ...pillar,
+        parameters: parameters.filter(param => param.pillarId === pillar.id)
+      }));
+
+      return {
+        ...template,
+        pillars: pillarsWithParams
+      };
+    } catch (error) {
+      console.error('Error fetching evaluation template with details:', error);
+      throw error;
+    }
+  }
+
   async listEvaluationTemplates(organizationId: number): Promise<EvaluationTemplate[]> {
     try {
       const templates = await db
@@ -2451,6 +2521,85 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+
+  async createEvaluationPillar(pillar: InsertEvaluationPillar): Promise<EvaluationPillar> {
+    try {
+      // Get current max order index
+      const existingPillars = await db
+        .select()
+        .from(evaluationPillars)
+        .where(eq(evaluationPillars.templateId, pillar.templateId));
+
+      const orderIndex = existingPillars.length;
+
+      const [newPillar] = await db
+        .insert(evaluationPillars)
+        .values({
+          ...pillar,
+          orderIndex
+        })
+        .returning() as EvaluationPillar[];
+
+      return newPillar;
+    } catch (error) {
+      console.error('Error creating evaluation pillar:', error);
+      throw error;
+    }
+  }
+
+  async getEvaluationPillar(id: number): Promise<EvaluationPillar | undefined> {
+    try {
+      const [pillar] = await db
+        .select()
+        .from(evaluationPillars)
+        .where(eq(evaluationPillars.id, id)) as EvaluationPillar[];
+
+      return pillar;
+    } catch (error) {
+      console.error('Error fetching evaluation pillar:', error);
+      throw error;
+    }
+  }
+
+  async createEvaluationParameter(parameter: InsertEvaluationParameter): Promise<EvaluationParameter> {
+    try {
+      // Get current max order index
+      const existingParameters = await db
+        .select()
+        .from(evaluationParameters)
+        .where(eq(evaluationParameters.pillarId, parameter.pillarId));
+
+      const orderIndex = existingParameters.length;
+
+      const [newParameter] = await db
+        .insert(evaluationParameters)
+        .values({
+          ...parameter,
+          orderIndex
+        })
+        .returning() as EvaluationParameter[];
+
+      return newParameter;
+    } catch (error) {
+      console.error('Error creating evaluation parameter:', error);
+      throw error;
+    }
+  }
+
+  async getEvaluationParameter(id: number): Promise<EvaluationParameter | undefined> {
+    try {
+      const [parameter] = await db
+        .select()
+        .from(evaluationParameters)
+        .where(eq(evaluationParameters.id, id)) as EvaluationParameter[];
+
+      return parameter;
+    } catch (error) {
+      console.error('Error fetching evaluation parameter:', error);
+      throw error;
+    }
+  }
+
 }
 
 export const storage = new DatabaseStorage();

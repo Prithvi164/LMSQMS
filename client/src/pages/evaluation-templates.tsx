@@ -36,6 +36,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FormBuilder } from "@/components/evaluation/form-builder";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -54,10 +56,11 @@ export default function EvaluationTemplatesPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
 
   // Fetch available processes
   const { data: processes = [] } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/processes`],
+    queryKey: [`/api/processes`],
     enabled: !!user?.organizationId,
   });
 
@@ -87,7 +90,7 @@ export default function EvaluationTemplatesPage() {
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({
         queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
       });
@@ -96,6 +99,7 @@ export default function EvaluationTemplatesPage() {
         description: "Evaluation template created successfully",
       });
       setIsCreateDialogOpen(false);
+      setSelectedTemplateId(data.id);
       form.reset();
     },
     onError: (error: Error) => {
@@ -187,7 +191,10 @@ export default function EvaluationTemplatesPage() {
                         </FormControl>
                         <SelectContent>
                           {processes.map((process: any) => (
-                            <SelectItem key={process.id} value={process.id.toString()}>
+                            <SelectItem
+                              key={process.id}
+                              value={process.id.toString()}
+                            >
                               {process.name}
                             </SelectItem>
                           ))}
@@ -237,37 +244,67 @@ export default function EvaluationTemplatesPage() {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {isLoading ? (
-          <p>Loading templates...</p>
-        ) : templates.length === 0 ? (
-          <p>No templates available. Create your first template to get started.</p>
-        ) : (
-          templates.map((template: any) => (
-            <Card key={template.id}>
-              <CardHeader>
-                <CardTitle>{template.name}</CardTitle>
-                <CardDescription>{template.description}</CardDescription>
-                <Badge
-                  variant={
-                    template.status === "active"
-                      ? "default"
-                      : template.status === "draft"
-                      ? "secondary"
-                      : "destructive"
-                  }
-                  className="mt-2"
+      <Tabs defaultValue="templates">
+        <TabsList>
+          <TabsTrigger value="templates">Templates</TabsTrigger>
+          {selectedTemplateId && (
+            <TabsTrigger value="builder">Form Builder</TabsTrigger>
+          )}
+        </TabsList>
+
+        <TabsContent value="templates">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {isLoading ? (
+              <p>Loading templates...</p>
+            ) : templates.length === 0 ? (
+              <p>No templates available. Create your first template to get started.</p>
+            ) : (
+              templates.map((template: any) => (
+                <Card 
+                  key={template.id} 
+                  className={`cursor-pointer transition-all ${
+                    selectedTemplateId === template.id ? 'ring-2 ring-primary' : ''
+                  }`}
+                  onClick={() => setSelectedTemplateId(template.id)}
                 >
-                  {template.status}
-                </Badge>
-              </CardHeader>
-              <CardContent>
-                <Button className="w-full">Edit Template</Button>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
+                  <CardHeader>
+                    <CardTitle>{template.name}</CardTitle>
+                    <CardDescription>{template.description}</CardDescription>
+                    <Badge
+                      variant={
+                        template.status === "active"
+                          ? "default"
+                          : template.status === "draft"
+                          ? "secondary"
+                          : "destructive"
+                      }
+                      className="mt-2"
+                    >
+                      {template.status}
+                    </Badge>
+                  </CardHeader>
+                  <CardContent>
+                    <Button 
+                      className="w-full"
+                      onClick={() => setSelectedTemplateId(template.id)}
+                    >
+                      {selectedTemplateId === template.id ? 'Currently Selected' : 'Select Template'}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="builder">
+          {selectedTemplateId ? (
+            <FormBuilder templateId={selectedTemplateId} />
+          ) : (
+            <p>Please select a template to start building the evaluation form.</p>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

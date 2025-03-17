@@ -213,6 +213,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add route to get template with all its components
+  app.get("/api/evaluation-templates/:templateId", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const templateId = parseInt(req.params.templateId);
+      if (!templateId) {
+        return res.status(400).json({ message: "Invalid template ID" });
+      }
+
+      const template = await storage.getEvaluationTemplateWithDetails(templateId);
+      if (!template) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+
+      if (template.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      res.json(template);
+    } catch (error: any) {
+      console.error("Error fetching evaluation template:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Add routes for pillars and parameters
+  app.post("/api/evaluation-templates/:templateId/pillars", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const templateId = parseInt(req.params.templateId);
+      if (!templateId) {
+        return res.status(400).json({ message: "Invalid template ID" });
+      }
+
+      // Get the template to verify ownership
+      const template = await storage.getEvaluationTemplate(templateId);
+      if (!template) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+
+      if (template.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const pillarData = {
+        ...req.body,
+        templateId,
+      };
+
+      console.log('Creating evaluation pillar:', pillarData);
+      const pillar = await storage.createEvaluationPillar(pillarData);
+      
+      res.status(201).json(pillar);
+    } catch (error: any) {
+      console.error("Error creating evaluation pillar:", error);
+      res.status(400).json({ message: error.message || "Failed to create pillar" });
+    }
+  });
+
+  app.post("/api/evaluation-pillars/:pillarId/parameters", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const pillarId = parseInt(req.params.pillarId);
+      if (!pillarId) {
+        return res.status(400).json({ message: "Invalid pillar ID" });
+      }
+
+      // Get the pillar to verify ownership through template
+      const pillar = await storage.getEvaluationPillar(pillarId);
+      if (!pillar) {
+        return res.status(404).json({ message: "Pillar not found" });
+      }
+
+      const template = await storage.getEvaluationTemplate(pillar.templateId);
+      if (!template || template.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const parameterData = {
+        ...req.body,
+        pillarId,
+      };
+
+      console.log('Creating evaluation parameter:', parameterData);
+      const parameter = await storage.createEvaluationParameter(parameterData);
+      
+      res.status(201).json(parameter);
+    } catch (error: any) {
+      console.error("Error creating evaluation parameter:", error);
+      res.status(400).json({ message: error.message || "Failed to create parameter" });
+    }
+  });
+
   // Add route to get organization processes 
   app.get("/api/processes", async (req, res) => {
     if (!req.user || !req.user.organizationId) {
