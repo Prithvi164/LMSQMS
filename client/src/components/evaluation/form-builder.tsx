@@ -323,7 +323,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                   <CardDescription>
                     {activePillarId
                       ? "Modify the selected pillar"
-                      : "Create a new category for evaluation"}
+                      : "Create a new category for evaluation (add multiple pillars by clicking Add Pillar multiple times)"}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -388,6 +388,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                         className="w-full"
                         disabled={createPillarMutation.isPending}
                       >
+                        <Plus className="w-4 h-4 mr-2" />
                         {createPillarMutation.isPending ? "Creating..." : "Add Pillar"}
                       </Button>
                     </form>
