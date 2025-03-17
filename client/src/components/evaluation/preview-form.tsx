@@ -23,23 +23,17 @@ export function PreviewForm({ template }: PreviewFormProps) {
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [isValid, setIsValid] = useState(false);
 
-  if (!template || !template.pillars) {
-    return (
-      <Alert>
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>
-          No template data available to preview.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
   const validateForm = () => {
+    if (!template?.pillars) {
+      setIsValid(false);
+      return false;
+    }
+
     const newErrors: ValidationErrors = {};
     let isFormValid = true;
 
     template.pillars.forEach((pillar: any) => {
-      pillar.parameters.forEach((param: any) => {
+      pillar.parameters?.forEach((param: any) => {
         // Check if rating is provided
         if (ratings[param.id] === undefined) {
           newErrors[`rating-${param.id}`] = "Rating is required";
@@ -120,12 +114,16 @@ export function PreviewForm({ template }: PreviewFormProps) {
   };
 
   const calculateScore = () => {
+    if (!template?.pillars) {
+      return { score: 0, hasFatal: false };
+    }
+
     let totalScore = 0;
     let totalWeight = 0;
     let hasFatal = false;
 
-    (template.pillars || []).forEach((pillar: any) => {
-      (pillar.parameters || []).forEach((param: any) => {
+    template.pillars.forEach((pillar: any) => {
+      pillar.parameters?.forEach((param: any) => {
         const rating = ratings[param.id];
         if (rating !== undefined) {
           if (param.isFatal && rating === 0) {
@@ -144,6 +142,17 @@ export function PreviewForm({ template }: PreviewFormProps) {
   };
 
   const { score, hasFatal } = calculateScore();
+
+  if (!template || !template.pillars) {
+    return (
+      <Alert>
+        <AlertTriangle className="h-4 w-4" />
+        <AlertDescription>
+          No template data available to preview.
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   return (
     <div className="space-y-6">
