@@ -10,7 +10,8 @@ import {
   LogOut,
   BookOpen,
   FileCheck,
-  PhoneCall 
+  PhoneCall,
+  CheckSquare 
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -21,6 +22,7 @@ export function SidebarNav() {
   console.log('Current user category:', user?.category);
 
   const isTrainee = user?.category === 'trainee';
+  const isQualityAnalyst = user?.role === 'quality_analyst';
 
   const navItems = [
     { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -30,7 +32,8 @@ export function SidebarNav() {
       { href: '/batch-management', label: 'Batch Management', icon: Users },
       { href: '/trainee-management', label: 'Trainee Management', icon: ClipboardCheck },
       { href: '/quiz-management', label: 'Quiz Management', icon: BookOpen },
-      { href: '/mock-call-scenarios', label: 'Mock Calls', icon: PhoneCall }, // Add new nav item
+      { href: '/mock-call-scenarios', label: 'Mock Calls', icon: PhoneCall },
+      { href: '/evaluation-templates', label: 'Evaluation Forms', icon: CheckSquare },
       { href: '/learning-paths', label: 'Learning Paths', icon: GraduationCap },
       { href: '/performance', label: 'Performance', icon: BarChart2 },
     ]),
