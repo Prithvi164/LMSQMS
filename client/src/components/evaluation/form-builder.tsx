@@ -906,18 +906,21 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                                       <Button variant="outline">N/A</Button>
                                     </div>
                                     {param.noReasons && param.noReasons.length > 0 && (
-                                      <Select disabled>
-                                        <SelectTrigger>
-                                          <SelectValue placeholder="Select reason for No" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {param.noReasons.map((reason: string, index: number) => (
-                                            <SelectItem key={index} value={reason}>
-                                              {reason}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
+                                      <div className="space-y-2">
+                                        <p className="text-sm font-medium">If No, select reason:</p>
+                                        <Select disabled>
+                                          <SelectTrigger>
+                                            <SelectValue placeholder="Select reason for No" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {param.noReasons.map((reason: string, index: number) => (
+                                              <SelectItem key={index} value={reason}>
+                                                {reason}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
                                     )}
                                   </div>
                                 )}
@@ -931,10 +934,13 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                                   </div>
                                 )}
                                 {param.requiresComment && (
-                                  <Textarea
-                                    placeholder="Add your comments here"
-                                    disabled
-                                  />
+                                  <div className="space-y-2">
+                                    <p className="text-sm font-medium">Additional Comments:</p>
+                                    <Textarea
+                                      placeholder="Add your comments here"
+                                      disabled
+                                    />
+                                  </div>
                                 )}
                               </div>
                             </CardContent>
