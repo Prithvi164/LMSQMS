@@ -844,7 +844,7 @@ export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organiz
     createdAt: true
   })
   .extend({
-    name: z.string().min(1, "LOB name is required"),
+    name: z.string().min(1, "LOBname is required"),
     description: z.string().min(1, "Description is required"),
     organizationId: z.number().int().positive("Organization is required"),
   });
@@ -1373,12 +1373,13 @@ export const evaluationPillars = pgTable("evaluation_pillars", {
     .notNull(),
   name: text("name").notNull(),
   description: text("description"),
-  weightage: integer("weightage").notNull(),
-  orderIndex: integer("order_index").notNull(),
+  weightage: integer("weightage").notNull(), // Percentage weightage of this pillar
+  orderIndex: integer("order_index").notNull(), // For maintaining display order
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Evaluation Parameters
 export const evaluationParameters = pgTable("evaluation_parameters", {
   id: serial("id").primaryKey(),
   pillarId: integer("pillar_id")
@@ -1386,11 +1387,10 @@ export const evaluationParameters = pgTable("evaluation_parameters", {
     .notNull(),
   name: text("name").notNull(),
   description: text("description"),
-  guidelines: text("guidelines"),
+  guidelines: text("guidelines"), // Detailed instructions for evaluation
   ratingType: text("rating_type").notNull(),
-  weightage: integer("weightage").notNull(),
-  weightageEnabled: boolean("weightage_enabled").default(true).notNull(),
-  isFatal: boolean("is_fatal").default(false).notNull(),
+  weightage: integer("weightage").notNull(), // Percentage weightage within the pillar
+  isFatal: boolean("is_fatal").default(false).notNull(), // Whether this parameter can cause automatic failure
   requiresComment: boolean("requires_comment").default(false).notNull(),
   noReasons: jsonb("no_reasons").$type<string[]>(),
   orderIndex: integer("order_index").notNull(),
@@ -1398,14 +1398,14 @@ export const evaluationParameters = pgTable("evaluation_parameters", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Evaluation Sub-reasons for parameter ratings
+// Sub-reasons for parameter ratings
 export const evaluationSubReasons = pgTable("evaluation_sub_reasons", {
   id: serial("id").primaryKey(),
   parameterId: integer("parameter_id")
     .references(() => evaluationParameters.id)
     .notNull(),
   reason: text("reason").notNull(),
-  appliesTo: text("applies_to").notNull(),
+  appliesTo: text("applies_to").notNull(), // e.g., "no" for Yes/No/NA, or specific rating value
   orderIndex: integer("order_index").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -1443,11 +1443,11 @@ export const evaluationParameterResults = pgTable("evaluation_parameter_results"
   parameterId: integer("parameter_id")
     .references(() => evaluationParameters.id)
     .notNull(),
-  rating: text("rating").notNull(),
+  rating: text("rating").notNull(), // The actual rating given (yes/no/na or numeric value)
   subReasonId: integer("sub_reason_id")
     .references(() => evaluationSubReasons.id),
   comment: text("comment"),
-  score: integer("score").notNull(),
+  score: integer("score").notNull(), // Calculated score based on weightage
   isFatal: boolean("is_fatal").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -1501,7 +1501,6 @@ export const insertEvaluationParameterSchema = createInsertSchema(evaluationPara
     guidelines: z.string().optional(),
     ratingType: z.string().min(1, "Rating type is required"),
     weightage: z.number().min(0).max(100),
-    weightageEnabled: z.boolean().default(true),
     isFatal: z.boolean().default(false),
     requiresComment: z.boolean().default(false),
     noReasons: z.array(z.string()).optional(),

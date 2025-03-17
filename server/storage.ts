@@ -265,11 +265,10 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log('Creating evaluation parameter with data:', parameter);
       
-      // Ensure noReasons is an array and weightageEnabled has a default value
+      // Ensure noReasons is an array before inserting
       const parameterData = {
         ...parameter,
         noReasons: Array.isArray(parameter.noReasons) ? parameter.noReasons : [],
-        weightageEnabled: parameter.weightageEnabled ?? true,
       };
 
       const [newParameter] = await db
@@ -295,7 +294,6 @@ export class DatabaseStorage implements IStorage {
         noReasons: parameter.noReasons ? 
           (Array.isArray(parameter.noReasons) ? parameter.noReasons : []) : 
           undefined,
-        weightageEnabled: parameter.weightageEnabled ?? undefined,
       };
 
       const [updatedParameter] = await db
