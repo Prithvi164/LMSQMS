@@ -107,7 +107,7 @@ export default function EvaluationExecutionPage() {
 
       console.log('Sending payload:', payload);
 
-      const response = await fetch(`/api/organizations/${user?.organizationId}/evaluations`, {
+      const response = await fetch(`/api/organizations/${user?.organizationId}/evaluations/start`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
