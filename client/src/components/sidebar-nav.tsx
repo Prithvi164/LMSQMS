@@ -9,7 +9,8 @@ import {
   ClipboardCheck,
   LogOut,
   BookOpen,
-  FileCheck 
+  FileCheck,
+  PhoneCall 
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -17,21 +18,19 @@ export function SidebarNav() {
   const [location] = useLocation();
   const { logout, user } = useAuth(); 
 
-  // Debug log to check user category
   console.log('Current user category:', user?.category);
 
-  // Check if user is a trainee based on category
   const isTrainee = user?.category === 'trainee';
 
   const navItems = [
     { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-    // Show My Quizzes for trainees, other options for non-trainees
     ...(isTrainee ? [
       { href: '/my-quizzes', label: 'My Quizzes', icon: FileCheck }
     ] : [
       { href: '/batch-management', label: 'Batch Management', icon: Users },
       { href: '/trainee-management', label: 'Trainee Management', icon: ClipboardCheck },
       { href: '/quiz-management', label: 'Quiz Management', icon: BookOpen },
+      { href: '/mock-call-scenarios', label: 'Mock Calls', icon: PhoneCall }, // Add new nav item
       { href: '/learning-paths', label: 'Learning Paths', icon: GraduationCap },
       { href: '/performance', label: 'Performance', icon: BarChart2 },
     ]),

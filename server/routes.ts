@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { Router } from "express";
-import { insertUserSchema, users, userBatchProcesses, organizationProcesses, userProcesses, quizzes } from "@shared/schema";
+import { insertUserSchema, users, userBatchProcesses, organizationProcesses, userProcesses, quizzes, insertMockCallScenarioSchema, insertMockCallAttemptSchema, mockCallScenarios, mockCallAttempts } from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
@@ -4207,6 +4207,142 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error fetching trainees with attendance:", error);
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Mock Call Scenario Routes
+  app.post("/api/mock-call-scenarios", async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      console.log('Creating mock call scenario:', req.body);
+      const validatedData = insertMockCallScenarioSchema.parse({
+        ...req.body,
+        organizationId: req.user.organizationId,
+        createdBy: req.user.id
+      });
+
+      const newScenario = await storage.createMockCallScenario(validatedData);
+      console.log('Created mock call scenario:', newScenario);
+      res.status(201).json(newScenario);
+    } catch (error: any) {
+      console.error("Error creating mock call scenario:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/organizations/:organizationId/mock-call-scenarios", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const orgId = parseInt(req.params.organizationId);
+      if (!orgId || req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const scenarios = await db
+        .select()
+        .from(mockCallScenarios)
+        .where(eq(mockCallScenarios.organizationId, orgId));
+
+      res.json(scenarios);
+    } catch (error: any) {
+      console.error("Error fetching mock call scenarios:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/mock-call-scenarios/:id", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const scenarioId = parseInt(req.params.id);
+      const scenario = await db
+        .select()
+        .from(mockCallScenarios)
+        .where(eq(mockCallScenarios.id, scenarioId))
+        .limit(1);
+
+      if (!scenario.length) {
+        return res.status(404).json({ message: "Scenario not found" });
+      }
+
+      // Verify organization access
+      if (scenario[0].organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      res.json(scenario[0]);
+    } catch (error: any) {
+      console.error("Error fetching mock call scenario:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/mock-call-scenarios/:id/attempts", async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const scenarioId = parseInt(req.params.id);
+      const validatedData = insertMockCallAttemptSchema.parse({
+        ...req.body,
+        scenarioId,
+        userId: req.user.id,
+        organizationId: req.user.organizationId,
+        startedAt: new Date().toISOString()
+      });
+
+      const newAttempt = await storage.createMockCallAttempt(validatedData);
+      res.status(201).json(newAttempt);
+    } catch (error: any) {
+      console.error("Error creating mock call attempt:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/mock-call-attempts/:id/evaluate", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const attemptId = parseInt(req.params.id);
+      const { scores, feedback } = req.body;
+
+      // Verify the attempt exists and user has permission to evaluate
+      const attempt = await db
+        .select()
+        .from(mockCallAttempts)
+        .where(eq(mockCallAttempts.id, attemptId))
+        .limit(1);
+
+      if (!attempt.length) {
+        return res.status(404).json({ message: "Attempt not found" });
+      }
+
+      if (attempt[0].evaluatorId !== req.user.id) {
+        return res.status(403).json({ message: "Not authorized to evaluate this attempt" });
+      }
+
+      // Update the attempt with evaluation
+      const updatedAttempt = await db
+        .update(mockCallAttempts)
+        .set({
+          scores,
+          feedback,
+          status: 'completed',
+          completedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        })
+        .where(eq(mockCallAttempts.id, attemptId))
+        .returning();
+
+      res.json(updatedAttempt[0]);
+    } catch (error: any) {
+      console.error("Error evaluating mock call attempt:", error);
+      res.status(400).json({ message: error.message });
     }
   });
 
