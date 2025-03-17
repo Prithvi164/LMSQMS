@@ -150,15 +150,19 @@ export default function EvaluationExecutionPage() {
                       </FormControl>
                       <SelectContent>
                         {isBatchesLoading ? (
-                          <SelectItem value="" disabled>Loading batches...</SelectItem>
-                        ) : batches.map((batch) => (
-                          <SelectItem
-                            key={batch.id}
-                            value={batch.id.toString()}
-                          >
-                            {batch.name}
-                          </SelectItem>
-                        ))}
+                          <SelectItem value="_loading">Loading batches...</SelectItem>
+                        ) : batches.length === 0 ? (
+                          <SelectItem value="_empty">No batches available</SelectItem>
+                        ) : (
+                          batches.map((batch) => (
+                            <SelectItem
+                              key={batch.id}
+                              value={batch.id.toString()}
+                            >
+                              {batch.name}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -184,17 +188,19 @@ export default function EvaluationExecutionPage() {
                       </FormControl>
                       <SelectContent>
                         {isTraineesLoading ? (
-                          <SelectItem value="" disabled>Loading trainees...</SelectItem>
+                          <SelectItem value="_loading">Loading trainees...</SelectItem>
                         ) : trainees.length === 0 ? (
-                          <SelectItem value="" disabled>No trainees in this batch</SelectItem>
-                        ) : trainees.map((trainee) => (
-                          <SelectItem
-                            key={trainee.id}
-                            value={trainee.id.toString()}
-                          >
-                            {trainee.name}
-                          </SelectItem>
-                        ))}
+                          <SelectItem value="_empty">No trainees in this batch</SelectItem>
+                        ) : (
+                          trainees.map((trainee) => (
+                            <SelectItem
+                              key={trainee.id}
+                              value={trainee.id.toString()}
+                            >
+                              {trainee.name}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -219,15 +225,19 @@ export default function EvaluationExecutionPage() {
                       </FormControl>
                       <SelectContent>
                         {isTemplatesLoading ? (
-                          <SelectItem value="" disabled>Loading templates...</SelectItem>
-                        ) : templates.map((template) => (
-                          <SelectItem
-                            key={template.id}
-                            value={template.id.toString()}
-                          >
-                            {template.name}
-                          </SelectItem>
-                        ))}
+                          <SelectItem value="_loading">Loading templates...</SelectItem>
+                        ) : templates.length === 0 ? (
+                          <SelectItem value="_empty">No templates available</SelectItem>
+                        ) : (
+                          templates.map((template) => (
+                            <SelectItem
+                              key={template.id}
+                              value={template.id.toString()}
+                            >
+                              {template.name}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />
