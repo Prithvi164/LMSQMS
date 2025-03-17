@@ -156,6 +156,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add new endpoint for duplicating templates
+  app.post("/api/evaluation-templates/:templateId/duplicate", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const templateId = parseInt(req.params.templateId);
+      const { name } = req.body;
+
+      if (!templateId || !name) {
+        return res.status(400).json({ message: "Template ID and new name are required" });
+      }
+
+      // Get the original template with all its details
+      const originalTemplate = await storage.getEvaluationTemplateWithDetails(templateId);
+      if (!originalTemplate) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+
+      // Check if user has access to this template
+      if (originalTemplate.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Create new template with the new name
+      const newTemplate = await storage.createEvaluationTemplate({
+        name,
+        description: originalTemplate.description,
+        processId: originalTemplate.processId,
+        status: 'draft', // Always start as draft
+        organizationId: req.user.organizationId,
+        createdBy: req.user.id,
+      });
+
+      // Copy pillars and their parameters
+      if (originalTemplate.pillars) {
+        for (const pillar of originalTemplate.pillars) {
+          // Create new pillar
+          const newPillar = await storage.createEvaluationPillar({
+            templateId: newTemplate.id,
+            name: pillar.name,
+            description: pillar.description,
+            weightage: pillar.weightage,
+            orderIndex: pillar.orderIndex,
+          });
+
+          // Copy parameters if they exist
+          if (pillar.parameters) {
+            for (const param of pillar.parameters) {
+              await storage.createEvaluationParameter({
+                pillarId: newPillar.id,
+                name: param.name,
+                description: param.description,
+                guidelines: param.guidelines,
+                ratingType: param.ratingType,
+                weightage: param.weightage,
+                isFatal: param.isFatal,
+                requiresComment: param.requiresComment,
+                noReasons: param.noReasons || [], // Ensure noReasons are copied
+                orderIndex: param.orderIndex,
+              });
+            }
+          }
+        }
+      }
+
+      // Get the complete new template with all its details
+      const completedTemplate = await storage.getEvaluationTemplateWithDetails(newTemplate.id);
+      res.status(201).json(completedTemplate);
+
+    } catch (error: any) {
+      console.error("Error duplicating template:", error);
+      res.status(500).json({ message: error.message || "Failed to duplicate template" });
+    }
+  });
+
   // Organization routes
   app.get("/api/organization", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });

@@ -53,7 +53,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { InsertEvaluationTemplate } from "@shared/schema";
-import { Trash2 } from "lucide-react";
+import { Trash2, Copy } from "lucide-react";
+import { Label } from "@/components/ui/label";
+
 
 // Form schema for creating a template
 const formSchema = z.object({
@@ -70,6 +72,9 @@ export default function EvaluationTemplatesPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [templateToDelete, setTemplateToDelete] = useState<number | null>(null);
+  const [templateToDuplicate, setTemplateToDuplicate] = useState<number | null>(null);
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
+  const [newTemplateName, setNewTemplateName] = useState("");
 
   // Fetch available processes
   const { data: processes = [] } = useQuery({
@@ -156,6 +161,40 @@ export default function EvaluationTemplatesPage() {
     },
   });
 
+  const duplicateTemplateMutation = useMutation({
+    mutationFn: async ({ templateId, newName }: { templateId: number; newName: string }) => {
+      const response = await fetch(`/api/evaluation-templates/${templateId}/duplicate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to duplicate template");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
+      });
+      toast({
+        title: "Success",
+        description: "Template duplicated successfully",
+      });
+      setDuplicateDialogOpen(false);
+      setNewTemplateName("");
+      setTemplateToDuplicate(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     if (!user?.organizationId) {
       toast({
@@ -170,6 +209,22 @@ export default function EvaluationTemplatesPage() {
       ...values,
       organizationId: user.organizationId,
       createdBy: user.id,
+    });
+  };
+
+  const handleDuplicate = () => {
+    if (!templateToDuplicate || !newTemplateName.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Template name is required",
+      });
+      return;
+    }
+
+    duplicateTemplateMutation.mutate({
+      templateId: templateToDuplicate,
+      newName: newTemplateName.trim(),
     });
   };
 
@@ -289,6 +344,43 @@ export default function EvaluationTemplatesPage() {
         </Dialog>
       </div>
 
+      <Dialog open={duplicateDialogOpen} onOpenChange={setDuplicateDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Duplicate Template</DialogTitle>
+            <DialogDescription>
+              Enter a new name for the duplicated template.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Template Name</Label>
+              <Input
+                id="name"
+                value={newTemplateName}
+                onChange={(e) => setNewTemplateName(e.target.value)}
+                placeholder="Enter new template name"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDuplicateDialogOpen(false);
+                setNewTemplateName("");
+                setTemplateToDuplicate(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleDuplicate} disabled={duplicateTemplateMutation.isPending}>
+              {duplicateTemplateMutation.isPending ? "Duplicating..." : "Duplicate"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Tabs defaultValue="templates">
         <TabsList>
           <TabsTrigger value="templates">Templates</TabsTrigger>
@@ -305,10 +397,10 @@ export default function EvaluationTemplatesPage() {
               <p>No templates available. Create your first template to get started.</p>
             ) : (
               templates.map((template: any) => (
-                <Card 
-                  key={template.id} 
+                <Card
+                  key={template.id}
                   className={`cursor-pointer transition-all ${
-                    selectedTemplateId === template.id ? 'ring-2 ring-primary' : ''
+                    selectedTemplateId === template.id ? "ring-2 ring-primary" : ""
                   }`}
                   onClick={() => setSelectedTemplateId(template.id)}
                 >
@@ -318,42 +410,56 @@ export default function EvaluationTemplatesPage() {
                         <CardTitle>{template.name}</CardTitle>
                         <CardDescription>{template.description}</CardDescription>
                       </div>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setTemplateToDelete(template.id);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Template?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This will permanently delete this evaluation template and all its associated pillars and parameters. This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel onClick={() => setTemplateToDelete(null)}>
-                              Cancel
-                            </AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => {
-                                if (templateToDelete) {
-                                  deleteTemplateMutation.mutate(templateToDelete);
-                                }
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setTemplateToDuplicate(template.id);
+                            setDuplicateDialogOpen(true);
+                          }}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setTemplateToDelete(template.id);
                               }}
                             >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Template?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently delete this evaluation template and all its
+                                associated pillars and parameters. This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel onClick={() => setTemplateToDelete(null)}>
+                                Cancel
+                              </AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => {
+                                  if (templateToDelete) {
+                                    deleteTemplateMutation.mutate(templateToDelete);
+                                  }
+                                }}
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </div>
                     <Badge
                       variant={
@@ -369,11 +475,10 @@ export default function EvaluationTemplatesPage() {
                     </Badge>
                   </CardHeader>
                   <CardContent>
-                    <Button 
-                      className="w-full"
-                      onClick={() => setSelectedTemplateId(template.id)}
-                    >
-                      {selectedTemplateId === template.id ? 'Currently Selected' : 'Select Template'}
+                    <Button className="w-full" onClick={() => setSelectedTemplateId(template.id)}>
+                      {selectedTemplateId === template.id
+                        ? "Currently Selected"
+                        : "Select Template"}
                     </Button>
                   </CardContent>
                 </Card>
