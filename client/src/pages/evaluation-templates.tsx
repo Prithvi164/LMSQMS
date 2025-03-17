@@ -20,6 +20,17 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Form,
   FormControl,
   FormField,
@@ -42,6 +53,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { InsertEvaluationTemplate } from "@shared/schema";
+import { Trash2 } from "lucide-react";
 
 // Form schema for creating a template
 const formSchema = z.object({
@@ -57,6 +69,7 @@ export default function EvaluationTemplatesPage() {
   const queryClient = useQueryClient();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
+  const [templateToDelete, setTemplateToDelete] = useState<number | null>(null);
 
   // Fetch available processes
   const { data: processes = [] } = useQuery({
@@ -101,6 +114,38 @@ export default function EvaluationTemplatesPage() {
       setIsCreateDialogOpen(false);
       setSelectedTemplateId(data.id);
       form.reset();
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
+  const deleteTemplateMutation = useMutation({
+    mutationFn: async (templateId: number) => {
+      const response = await fetch(`/api/evaluation-templates/${templateId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to delete template");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
+      });
+      toast({
+        title: "Success",
+        description: "Template deleted successfully",
+      });
+      if (selectedTemplateId === templateToDelete) {
+        setSelectedTemplateId(null);
+      }
+      setTemplateToDelete(null);
     },
     onError: (error: Error) => {
       toast({
@@ -268,8 +313,48 @@ export default function EvaluationTemplatesPage() {
                   onClick={() => setSelectedTemplateId(template.id)}
                 >
                   <CardHeader>
-                    <CardTitle>{template.name}</CardTitle>
-                    <CardDescription>{template.description}</CardDescription>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle>{template.name}</CardTitle>
+                        <CardDescription>{template.description}</CardDescription>
+                      </div>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setTemplateToDelete(template.id);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Template?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete this evaluation template and all its associated pillars and parameters. This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setTemplateToDelete(null)}>
+                              Cancel
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => {
+                                if (templateToDelete) {
+                                  deleteTemplateMutation.mutate(templateToDelete);
+                                }
+                              }}
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                     <Badge
                       variant={
                         template.status === "active"

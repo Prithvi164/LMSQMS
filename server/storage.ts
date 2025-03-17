@@ -257,9 +257,41 @@ export interface IStorage {
   deleteEvaluationPillar(id: number): Promise<void>;
   updateEvaluationParameter(id: number, parameter: Partial<InsertEvaluationParameter>): Promise<EvaluationParameter>;
   deleteEvaluationParameter(id: number): Promise<void>;
+  deleteEvaluationTemplate(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
+  async deleteEvaluationTemplate(id: number): Promise<void> {
+    try {
+      await db.transaction(async (tx) => {
+        // First get all pillars for this template
+        const pillars = await tx
+          .select()
+          .from(evaluationPillars)
+          .where(eq(evaluationPillars.templateId, id));
+
+        // Delete all parameters for each pillar 
+        for (const pillar of pillars) {
+          await tx
+            .delete(evaluationParameters)
+            .where(eq(evaluationParameters.pillarId, pillar.id));
+        }
+
+        // Delete all pillars
+        await tx
+          .delete(evaluationPillars)
+          .where(eq(evaluationPillars.templateId, id));
+
+        // Finally delete the template
+        await tx 
+          .delete(evaluationTemplates)
+          .where(eq(evaluationTemplates.id, id));
+      });
+    } catch (error) {
+      console.error('Error deleting evaluation template:', error);
+      throw error;
+    }
+  }
   // User operations
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id)) as User[];
