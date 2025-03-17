@@ -185,7 +185,7 @@ export default function EvaluationExecutionPage() {
                         field.onChange(batchId);
                         setSelectedBatchId(batchId);
                         // Reset trainee selection when batch changes
-                        form.setValue('traineeId', undefined);
+                        form.setValue('traineeId', 0);
                       }}
                       value={field.value?.toString()}
                     >
