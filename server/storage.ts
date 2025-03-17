@@ -13,18 +13,6 @@ import {
   batchPhaseChangeRequests,
   quizResponses,
   userBatchProcesses,
-  evaluationTemplates,
-  evaluationPillars,
-  evaluationParameters,
-  evaluations,
-  evaluationScores,
-  batchHistory,
-  questions,
-  quizTemplates,
-  quizzes,
-  quizAttempts,
-  mockCallScenarios,
-  mockCallAttempts,
   type QuizResponse,
   type InsertQuizResponse,
   type User,
@@ -48,30 +36,36 @@ import {
   type InsertBatchPhaseChangeRequest,
   type BatchTemplate,
   type InsertBatchTemplate,
+  batchHistory,
   type BatchHistory,
   type InsertBatchHistory,
+  questions,
   type Question,
   type InsertQuestion,
+  quizTemplates,
   type QuizTemplate,
   type InsertQuizTemplate,
+  quizzes,
   type Quiz,
   type InsertQuiz,
+  quizAttempts,
   type QuizAttempt,
   type InsertQuizAttempt,
   type MockCallScenario,
   type InsertMockCallScenario,
   type MockCallAttempt,
   type InsertMockCallAttempt,
+  mockCallScenarios,
+  mockCallAttempts,
+  evaluationTemplates,
+  evaluationPillars,
+  evaluationParameters,
   type EvaluationTemplate,
   type InsertEvaluationTemplate,
   type EvaluationPillar,
   type InsertEvaluationPillar,
   type EvaluationParameter,
-  type InsertEvaluationParameter,
-  type Evaluation,
-  type InsertEvaluation,
-  type EvaluationScore,
-  type InsertEvaluationScore
+  type InsertEvaluationParameter
 } from "@shared/schema";
 
 // Add to IStorage interface
@@ -246,13 +240,6 @@ export interface IStorage {
   listMockCallScenarios(organizationId: number): Promise<MockCallScenario[]>;
   createMockCallAttempt(attempt: InsertMockCallAttempt): Promise<MockCallAttempt>;
 
-  // Evaluation operations 
-  createEvaluation(evaluation: InsertEvaluation): Promise<Evaluation>;
-  createEvaluationScore(score: InsertEvaluationScore): Promise<EvaluationScore>; 
-  getEvaluation(id: number): Promise<Evaluation | undefined>;
-  listEvaluations(organizationId: number): Promise<Evaluation[]>;
-  updateEvaluation(id: number, evaluation: Partial<InsertEvaluation>): Promise<Evaluation>;
-
   // Evaluation Template operations
   createEvaluationTemplate(template: InsertEvaluationTemplate): Promise<EvaluationTemplate>;
   getEvaluationTemplate(id: number): Promise<EvaluationTemplate | undefined>;
@@ -273,14 +260,12 @@ export interface IStorage {
   deleteEvaluationTemplate(id: number): Promise<void>;
 }
 
-// DatabaseStorage implementation goes here...
-
 export class DatabaseStorage implements IStorage {
   async createEvaluationParameter(parameter: InsertEvaluationParameter): Promise<EvaluationParameter> {
     try {
       console.log('Creating evaluation parameter with data:', parameter);
       
-      // Ensure noReasons is an array before inserting  
+      // Ensure noReasons is an array before inserting
       const parameterData = {
         ...parameter,
         noReasons: Array.isArray(parameter.noReasons) ? parameter.noReasons : [],
@@ -295,92 +280,6 @@ export class DatabaseStorage implements IStorage {
       return newParameter;
     } catch (error) {
       console.error('Error creating evaluation parameter:', error);
-      throw error;
-    }
-  }
-
-  async createEvaluation(evaluation: InsertEvaluation): Promise<Evaluation> {
-    try {
-      console.log('Creating evaluation:', evaluation);
-      const [newEvaluation] = await db
-        .insert(evaluations)
-        .values({
-          ...evaluation,
-          updatedAt: new Date(),
-        })
-        .returning() as Evaluation[];
-
-      console.log('Created evaluation:', newEvaluation);
-      return newEvaluation;
-    } catch (error) {
-      console.error('Error creating evaluation:', error);
-      throw error;
-    }
-  }
-
-  async createEvaluationScore(score: InsertEvaluationScore): Promise<EvaluationScore> {
-    try {
-      console.log('Creating evaluation score:', score);
-      const [newScore] = await db
-        .insert(evaluationScores)
-        .values({
-          ...score,
-          updatedAt: new Date(),
-        })
-        .returning() as EvaluationScore[];
-
-      console.log('Created evaluation score:', newScore);
-      return newScore;
-    } catch (error) {
-      console.error('Error creating evaluation score:', error);
-      throw error;
-    }
-  }
-
-  async getEvaluation(id: number): Promise<Evaluation | undefined> {
-    try {
-      const [evaluation] = await db
-        .select()
-        .from(evaluations)
-        .where(eq(evaluations.id, id)) as Evaluation[];
-      return evaluation;
-    } catch (error) {
-      console.error('Error getting evaluation:', error);
-      throw error;
-    }
-  }
-
-  async listEvaluations(organizationId: number): Promise<Evaluation[]> {
-    try {
-      return await db
-        .select()
-        .from(evaluations)
-        .where(eq(evaluations.organizationId, organizationId))
-        .orderBy(desc(evaluations.createdAt)) as Evaluation[];
-    } catch (error) {
-      console.error('Error listing evaluations:', error);
-      throw error;
-    }
-  }
-
-  async updateEvaluation(id: number, evaluation: Partial<InsertEvaluation>): Promise<Evaluation> {
-    try {
-      const [updatedEvaluation] = await db
-        .update(evaluations)
-        .set({
-          ...evaluation,
-          updatedAt: new Date(),
-        })
-        .where(eq(evaluations.id, id))
-        .returning() as Evaluation[];
-
-      if (!updatedEvaluation) {
-        throw new Error('Evaluation not found');
-      }
-
-      return updatedEvaluation;
-    } catch (error) {
-      console.error('Error updating evaluation:', error);
       throw error;
     }
   }

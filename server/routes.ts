@@ -233,65 +233,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add new route for creating evaluations
-  app.post("/api/organizations/:organizationId/evaluations", async (req, res) => {
-    if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const organizationId = parseInt(req.params.organizationId);
-      if (organizationId !== req.user.organizationId) {
-        return res.status(403).json({ message: "Forbidden" });
-      }
-
-      const { traineeId, templateId } = req.body;
-
-      // Validate required fields
-      if (!traineeId || !templateId) {
-        return res.status(400).json({
-          message: "Trainee ID and template ID are required"
-        });
-      }
-
-      // Create the evaluation
-      const evaluation = await storage.createEvaluation({
-        traineeId,
-        templateId,
-        evaluatorId: req.user.id,
-        organizationId,
-        status: 'in_progress',
-        totalScore: 0, // Initial score
-        createdAt: new Date(),
-      });
-
-      // Get the template details to create parameter scores
-      const template = await storage.getEvaluationTemplateWithDetails(templateId);
-      if (!template) {
-        return res.status(404).json({ message: "Template not found" });
-      }
-
-      // Create parameter scores for each parameter in the template
-      for (const pillar of template.pillars || []) {
-        for (const parameter of pillar.parameters || []) {
-          await storage.createEvaluationScore({
-            evaluationId: evaluation.id,
-            parameterId: parameter.id,
-            score: null, // Initial score is null until rated
-            comment: null,
-            noReason: null,
-          });
-        }
-      }
-
-      console.log('Created evaluation:', evaluation);
-      res.status(201).json(evaluation);
-    } catch (error: any) {
-      console.error("Error creating evaluation:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
   // Organization routes
   app.get("/api/organization", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });

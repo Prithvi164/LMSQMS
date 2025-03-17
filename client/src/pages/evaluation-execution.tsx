@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -98,10 +98,9 @@ export default function EvaluationExecutionPage() {
     },
   });
 
-  // Create evaluation mutation
-  const createEvaluationMutation = useMutation({
-    mutationFn: async (values: z.infer<typeof formSchema>) => {
-      const response = await fetch(`/api/organizations/${user?.organizationId}/evaluations`, {
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    try {
+      const response = await fetch("/api/evaluations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -111,31 +110,21 @@ export default function EvaluationExecutionPage() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to start evaluation");
+        throw new Error("Failed to start evaluation");
       }
 
-      return await response.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Success",
-        description: "Evaluation started successfully",
-      });
+      const evaluation = await response.json();
+
       // Navigate to evaluation form
-      window.location.href = `/evaluations/${data.id}`;
-    },
-    onError: (error: Error) => {
+      window.location.href = `/evaluations/${evaluation.id}`;
+
+    } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Error",
         description: error.message,
       });
-    },
-  });
-
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    createEvaluationMutation.mutate(values);
+    }
   };
 
   return (
@@ -268,12 +257,8 @@ export default function EvaluationExecutionPage() {
                 )}
               />
 
-              <Button 
-                type="submit" 
-                className="w-full"
-                disabled={createEvaluationMutation.isPending}
-              >
-                {createEvaluationMutation.isPending ? "Starting..." : "Start Evaluation"}
+              <Button type="submit" className="w-full">
+                Start Evaluation
               </Button>
             </form>
           </Form>
