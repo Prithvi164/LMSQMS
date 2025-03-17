@@ -31,28 +31,6 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
 
-// Type definitions for API responses
-interface Batch {
-  id: number;
-  name: string;
-}
-
-interface Trainee {
-  id: number;
-  status: string | null;
-  user: {
-    id: number;
-    fullName: string;
-    email: string;
-  };
-}
-
-interface Template {
-  id: number;
-  name: string;
-  description?: string;
-}
-
 // Form schema for starting an evaluation
 const formSchema = z.object({
   batchId: z.number().min(1, "Batch is required"),
@@ -68,19 +46,19 @@ export default function EvaluationExecutionPage() {
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
 
   // Fetch active batches
-  const { data: batches = [], isLoading: isBatchesLoading } = useQuery<Batch[]>({
+  const { data: batches = [], isLoading: isBatchesLoading } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/batches`],
     enabled: !!user?.organizationId,
   });
 
   // Fetch trainees for selected batch
-  const { data: trainees = [], isLoading: isTraineesLoading } = useQuery<Trainee[]>({
+  const { data: trainees = [], isLoading: isTraineesLoading } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${selectedBatchId}/trainees`],
     enabled: !!selectedBatchId && !!user?.organizationId,
   });
 
   // Fetch evaluation templates
-  const { data: templates = [], isLoading: isTemplatesLoading } = useQuery<Template[]>({
+  const { data: templates = [], isLoading: isTemplatesLoading } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
     enabled: !!user?.organizationId,
   });
@@ -110,16 +88,10 @@ export default function EvaluationExecutionPage() {
 
       console.log('Making request with payload:', payload);
 
-      const data = await apiRequest('evaluations/start', {
+      return await apiRequest(`organizations/${user.organizationId}/evaluations/start`, {
         method: 'POST',
         body: JSON.stringify(payload),
       });
-
-      if (!data || typeof data.id !== 'number') {
-        throw new Error('Invalid response format');
-      }
-
-      return data;
     },
     onSuccess: (data) => {
       toast({
