@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 import {
   Card,
   CardContent,
@@ -105,28 +106,28 @@ export default function EvaluationExecutionPage() {
 
       console.log('Sending payload:', payload);
 
-      try {
-        const response = await fetch(`/api/organizations/${user?.organizationId}/evaluations/start`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        });
+      const response = await queryClient.fetchQuery({
+        queryKey: [`/api/organizations/${user?.organizationId}/evaluations/start`],
+        queryFn: async () => {
+          const result = await fetch(`/api/organizations/${user?.organizationId}/evaluations/start`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Cache-Control': 'no-cache',
+            },
+            body: JSON.stringify(payload),
+          });
 
-        console.log('Response status:', response.status);
+          if (!result.ok) {
+            throw new Error(`Failed to start evaluation (${result.status})`);
+          }
 
-        if (!response.ok) {
-          throw new Error(`Failed to start evaluation (${response.status})`);
-        }
+          return result.json();
+        },
+      });
 
-        const data = await response.json();
-        console.log('Response data:', data);
-        return data;
-      } catch (error) {
-        console.error('API request error:', error);
-        throw error;
-      }
+      return response;
     },
     onSuccess: (data) => {
       toast({
@@ -150,7 +151,7 @@ export default function EvaluationExecutionPage() {
     createEvaluationMutation.mutate(values);
   };
 
-  if (isBatchesLoading) {
+  if (isBatchesLoading || isTraineesLoading || isTemplatesLoading) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -247,7 +248,7 @@ export default function EvaluationExecutionPage() {
                     <FormLabel>Select Evaluation Template</FormLabel>
                     <Select
                       onValueChange={(value) => field.onChange(parseInt(value))}
-                      value={field.value?.toString()}
+                      value={field.value?.toString() || ""}
                     >
                       <FormControl>
                         <SelectTrigger>
