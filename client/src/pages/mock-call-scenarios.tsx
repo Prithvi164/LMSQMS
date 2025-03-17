@@ -69,6 +69,30 @@ const formSchema = z.object({
   }),
 });
 
+interface Process {
+  id: number;
+  name: string;
+}
+
+interface Scenario {
+  id: number;
+  title: string;
+  description: string;
+  difficulty: string;
+  customerProfile: {
+    name: string;
+    background: string;
+    personality: string;
+    concerns: string[];
+  };
+  expectedDialogue: {
+    greeting: string;
+    keyPoints: string[];
+    resolutions: string[];
+    closingStatements: string[];
+  };
+}
+
 export default function MockCallScenariosPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -77,7 +101,7 @@ export default function MockCallScenariosPage() {
   const [_, navigate] = useLocation();
 
   // Fetch available processes
-  const { data: processes = [] } = useQuery({
+  const { data: processes = [] } = useQuery<Process[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/processes`],
     enabled: !!user?.organizationId,
   });
@@ -109,7 +133,7 @@ export default function MockCallScenariosPage() {
     },
   });
 
-  const { data: scenarios = [], isLoading } = useQuery({
+  const { data: scenarios = [], isLoading } = useQuery<Scenario[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/mock-call-scenarios`],
     enabled: !!user?.organizationId,
   });
@@ -182,12 +206,13 @@ export default function MockCallScenariosPage() {
 
   const startMockCallMutation = useMutation({
     mutationFn: async (scenarioId: number) => {
+      const startTime = new Date().toISOString(); // Ensure proper date format
       const response = await fetch(`/api/mock-call-scenarios/${scenarioId}/attempts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           evaluatorId: user?.managerId || user?.id,
-          startedAt: new Date().toISOString()
+          startedAt: startTime
         }),
       });
       if (!response.ok) {
@@ -259,7 +284,7 @@ export default function MockCallScenariosPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {processes.map((process: any) => (
+                            {processes.map((process) => (
                               <SelectItem key={process.id} value={process.id.toString()}>
                                 {process.name}
                               </SelectItem>
@@ -590,7 +615,7 @@ export default function MockCallScenariosPage() {
         ) : scenarios.length === 0 ? (
           <p>No scenarios available. Create your first scenario to get started.</p>
         ) : (
-          scenarios.map((scenario: any) => (
+          scenarios.map((scenario) => (
             <Card key={scenario.id}>
               <CardHeader>
                 <CardTitle>{scenario.title}</CardTitle>
