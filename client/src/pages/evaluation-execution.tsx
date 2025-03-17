@@ -31,9 +31,9 @@ import { z } from "zod";
 
 // Form schema for starting an evaluation
 const formSchema = z.object({
-  batchId: z.coerce.number().min(1, "Batch is required"),
-  traineeId: z.coerce.number().min(1, "Trainee is required"),
-  templateId: z.coerce.number().min(1, "Evaluation template is required"),
+  batchId: z.coerce.number().positive("Batch is required"),
+  traineeId: z.coerce.number().positive("Trainee is required"),
+  templateId: z.coerce.number().positive("Evaluation template is required"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -85,9 +85,6 @@ export default function EvaluationExecutionPage() {
           ...values,
           evaluatorId: user.id,
           organizationId: user.organizationId,
-          status: "pending",
-          totalScore: 0,
-          evaluatedAt: new Date().toISOString(),
         }),
       });
 
@@ -151,11 +148,11 @@ export default function EvaluationExecutionPage() {
                       </FormControl>
                       <SelectContent>
                         {isBatchesLoading ? (
-                          <SelectItem value="_loading">Loading batches...</SelectItem>
+                          <SelectItem value="loading">Loading batches...</SelectItem>
                         ) : batches.length === 0 ? (
-                          <SelectItem value="_empty">No batches available</SelectItem>
+                          <SelectItem value="empty">No batches available</SelectItem>
                         ) : (
-                          batches.map((batch) => (
+                          batches.map((batch: any) => (
                             <SelectItem
                               key={batch.id}
                               value={batch.id.toString()}
@@ -189,11 +186,11 @@ export default function EvaluationExecutionPage() {
                       </FormControl>
                       <SelectContent>
                         {isTraineesLoading ? (
-                          <SelectItem value="_loading">Loading trainees...</SelectItem>
+                          <SelectItem value="loading">Loading trainees...</SelectItem>
                         ) : trainees.length === 0 ? (
-                          <SelectItem value="_empty">No trainees in this batch</SelectItem>
+                          <SelectItem value="empty">No trainees in this batch</SelectItem>
                         ) : (
-                          trainees.map((trainee) => (
+                          trainees.map((trainee: any) => (
                             <SelectItem
                               key={trainee.userId}
                               value={trainee.user.id.toString()}
@@ -226,11 +223,11 @@ export default function EvaluationExecutionPage() {
                       </FormControl>
                       <SelectContent>
                         {isTemplatesLoading ? (
-                          <SelectItem value="_loading">Loading templates...</SelectItem>
+                          <SelectItem value="loading">Loading templates...</SelectItem>
                         ) : templates.length === 0 ? (
-                          <SelectItem value="_empty">No templates available</SelectItem>
+                          <SelectItem value="empty">No templates available</SelectItem>
                         ) : (
-                          templates.map((template) => (
+                          templates.map((template: any) => (
                             <SelectItem
                               key={template.id}
                               value={template.id.toString()}
