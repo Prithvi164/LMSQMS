@@ -843,7 +843,7 @@ export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organiz
     id: true,
     createdAt: true})
   .extend({
-    name: z.string().min(1, "LOBname is required"),
+    name: z.string().min(11, "LOBname is required"),
     description: z.string().min(11, "Description is required"),
     organizationId: z.number().int().positive("Organization is required"),
   });
@@ -1429,8 +1429,6 @@ export const evaluationResults = pgTable("evaluation_results", {
     .references(() => organizations.id)
     .notNull(),
   totalScore: integer("total_score").notNull(),
-  weightedScore: integer("weighted_score").notNull(),
-  fatalTriggered: boolean("fatal_triggered").default(false).notNull(),
   status: text("status").notNull(),
   evaluatedAt: timestamp("evaluated_at").defaultNow().notNull(),
   comments: text("comments"),
@@ -1532,8 +1530,6 @@ export const insertEvaluationResultSchema = createInsertSchema(evaluationResults
     batchId: z.number().int().positive("Batch is required"),
     organizationId: z.number().int().positive("Organization is required"),
     totalScore: z.number().int().min(0).max(100),
-    weightedScore: z.number().int().min(0).max(100),
-    fatalTriggered: z.boolean().default(false),
     status: z.string().min(1, "Status is required"),
     evaluatedAt: z.coerce.date(),  // This will coerce string dates into Date objects
     comments: z.string().optional(),
