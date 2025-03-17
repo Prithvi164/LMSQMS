@@ -76,7 +76,7 @@ export default function EvaluationExecutionPage() {
   const createEvaluationMutation = useMutation({
     mutationFn: async (values: FormValues) => {
       if (!user?.organizationId) {
-        throw new Error('Organization ID is required');
+        throw new Error("Organization ID is required");
       }
 
       const payload = {
@@ -86,12 +86,27 @@ export default function EvaluationExecutionPage() {
         evaluatorId: user.id,
       };
 
-      console.log('Making request with payload:', payload);
+      console.log("Starting evaluation with values:", values);
 
-      return await apiRequest(`organizations/${user.organizationId}/evaluations/start`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
+      try {
+        // Using apiRequest utility without leading slash
+        const response = await apiRequest(`organizations/${user.organizationId}/evaluations/start`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response || typeof response.id !== "number") {
+          throw new Error("Invalid response format");
+        }
+
+        return response;
+      } catch (error) {
+        console.error("Evaluation creation error:", error);
+        throw new Error(error instanceof Error ? error.message : "Failed to create evaluation");
+      }
     },
     onSuccess: (data) => {
       toast({
@@ -101,7 +116,6 @@ export default function EvaluationExecutionPage() {
       window.location.href = `/evaluations/${data.id}`;
     },
     onError: (error: Error) => {
-      console.error('Evaluation creation error:', error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -111,7 +125,6 @@ export default function EvaluationExecutionPage() {
   });
 
   const onSubmit = (values: FormValues) => {
-    console.log('Form submitted with values:', values);
     createEvaluationMutation.mutate(values);
   };
 
@@ -147,7 +160,7 @@ export default function EvaluationExecutionPage() {
                         const batchId = parseInt(value);
                         field.onChange(batchId);
                         setSelectedBatchId(batchId);
-                        form.setValue('traineeId', undefined);
+                        form.setValue("traineeId", undefined);
                       }}
                       value={field.value?.toString() || ""}
                     >
