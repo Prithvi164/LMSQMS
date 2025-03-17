@@ -28,6 +28,7 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { Loader2 } from "lucide-react";
 
 // Type definitions for API responses
 interface Batch {
@@ -36,13 +37,15 @@ interface Batch {
 }
 
 interface Trainee {
+  id: number;  // This is the user_batch_process.id
   userId: number;
   user: {
     id: number;
     fullName: string;
     email: string;
-    role: string;
-    category: string;
+    employeeId: string;
+    phoneNumber: string;
+    dateOfJoining: string;
   };
 }
 
@@ -161,6 +164,15 @@ export default function EvaluationExecutionPage() {
     createEvaluationMutation.mutate(values);
   };
 
+  if (isTemplatesLoading || isBatchesLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto p-6">
       <Card>
@@ -185,7 +197,7 @@ export default function EvaluationExecutionPage() {
                         field.onChange(batchId);
                         setSelectedBatchId(batchId);
                         // Reset trainee selection when batch changes
-                        form.setValue('traineeId', 0);
+                        form.setValue('traineeId', undefined);
                       }}
                       value={field.value?.toString()}
                     >
@@ -240,7 +252,7 @@ export default function EvaluationExecutionPage() {
                         ) : (
                           trainees.map((trainee) => (
                             <SelectItem
-                              key={trainee.userId}
+                              key={trainee.id}
                               value={trainee.user.id.toString()}
                             >
                               {trainee.user.fullName}
