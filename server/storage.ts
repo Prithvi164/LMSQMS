@@ -76,13 +76,6 @@ import {
 
 // Add to IStorage interface
 export interface IStorage {
-  // Evaluation operations
-  createEvaluation(evaluation: InsertEvaluation): Promise<Evaluation>;
-  createEvaluationScore(score: InsertEvaluationScore): Promise<EvaluationScore>; 
-  getEvaluation(id: number): Promise<Evaluation | undefined>;
-  listEvaluations(organizationId: number): Promise<Evaluation[]>;
-  updateEvaluation(id: number, evaluation: Partial<InsertEvaluation>): Promise<Evaluation>;
-
   // User operations
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -253,9 +246,9 @@ export interface IStorage {
   listMockCallScenarios(organizationId: number): Promise<MockCallScenario[]>;
   createMockCallAttempt(attempt: InsertMockCallAttempt): Promise<MockCallAttempt>;
 
-  // Evaluation operations  
+  // Evaluation operations 
   createEvaluation(evaluation: InsertEvaluation): Promise<Evaluation>;
-  createEvaluationScore(score: InsertEvaluationScore): Promise<EvaluationScore>;
+  createEvaluationScore(score: InsertEvaluationScore): Promise<EvaluationScore>; 
   getEvaluation(id: number): Promise<Evaluation | undefined>;
   listEvaluations(organizationId: number): Promise<Evaluation[]>;
   updateEvaluation(id: number, evaluation: Partial<InsertEvaluation>): Promise<Evaluation>;

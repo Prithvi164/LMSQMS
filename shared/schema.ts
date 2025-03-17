@@ -1672,11 +1672,11 @@ export const evaluationScores = pgTable("evaluation_scores", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Types for the evaluations
-export type Evaluation = typeof evaluations.$inferSelect;
-export type EvaluationScore = typeof evaluationScores.$inferSelect;
+// Keep only one set of type definitions
+export type Evaluation = InferSelectModel<typeof evaluations>;
+export type EvaluationScore = InferSelectModel<typeof evaluationScores>;
 
-// Insert schemas
+// Keep only one set of insert schemas
 export const insertEvaluationSchema = createInsertSchema(evaluations)
   .omit({
     id: true,
@@ -1710,7 +1710,7 @@ export const insertEvaluationScoreSchema = createInsertSchema(evaluationScores)
 export type InsertEvaluation = z.infer<typeof insertEvaluationSchema>;
 export type InsertEvaluationScore = z.infer<typeof insertEvaluationScoreSchema>;
 
-// Add relations
+// Keep only one set of relations
 export const evaluationsRelations = relations(evaluations, ({ one }) => ({
   trainee: one(users, {
     fields: [evaluations.traineeId],
@@ -1723,7 +1723,7 @@ export const evaluationsRelations = relations(evaluations, ({ one }) => ({
   template: one(evaluationTemplates, {
     fields: [evaluations.templateId],
     references: [evaluationTemplates.id],
-  }),
+}),
   organization: one(organizations, {
     fields: [evaluations.organizationId],
     references: [organizations.id],
@@ -1740,12 +1740,6 @@ export const evaluationScoresRelations = relations(evaluationScores, ({ one }) =
     references: [evaluationParameters.id],
   }),
 }));
-
-export type InsertEvaluation = z.infer<typeof insertEvaluationSchema>;
-export type InsertEvaluationScore = z.infer<typeof insertEvaluationScoreSchema>;
-
-export type Evaluation = InferSelectModel<typeof evaluations>;
-export type EvaluationScore = InferSelectModel<typeof evaluationScores>;
 
 export const insertEvaluationTemplateSchema = createInsertSchema(evaluationTemplates)
   .omit({ id: true, createdAt: true, updatedAt: true })
