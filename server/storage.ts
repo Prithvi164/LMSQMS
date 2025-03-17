@@ -1934,7 +1934,6 @@ export class DatabaseStorage implements IStorage {
       console.error('Error fetching question:', error);
       throw error;
     }
-  }
   // Quiz template operations
   async createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate> {
     try {
@@ -2358,6 +2357,73 @@ export class DatabaseStorage implements IStorage {
 
   // Add new method for deleting quizzes by template ID
 
+  async createMockCallScenario(scenario: InsertMockCallScenario): Promise<MockCallScenario> {
+    try {
+      console.log('Creating mock call scenario:', scenario);
+      const [newScenario] = await db
+        .insert(mockCallScenarios)
+        .values(scenario)
+        .returning() as MockCallScenario[];
+
+      console.log('Successfully created mock call scenario:', newScenario);
+      return newScenario;
+    } catch (error: any) {
+      console.error('Error creating mock call scenario:', error);
+      throw new Error(`Failed to create mock call scenario: ${error.message}`);
+    }
+  }
+
+  async getMockCallScenario(id: number): Promise<MockCallScenario | undefined> {
+    try {
+      const [scenario] = await db
+        .select()
+        .from(mockCallScenarios)
+        .where(eq(mockCallScenarios.id, id)) as MockCallScenario[];
+      return scenario;
+    } catch (error: any) {
+      console.error('Error fetching mock call scenario:', error);
+      throw new Error(`Failed to fetch mock call scenario: ${error.message}`);
+    }
+  }
+
+  async listMockCallScenarios(organizationId: number): Promise<MockCallScenario[]> {
+    try {
+      const scenarios = await db
+        .select()
+        .from(mockCallScenarios)
+        .where(eq(mockCallScenarios.organizationId, organizationId)) as MockCallScenario[];
+      return scenarios;
+    } catch (error: any) {
+      console.error('Error listing mock call scenarios:', error);
+      throw new Error(`Failed to list mock call scenarios: ${error.message}`);
+    }
+  }
+
+  async createMockCallAttempt(attempt: InsertMockCallAttempt): Promise<MockCallAttempt> {
+    try {
+      const [newAttempt] = await db
+        .insert(mockCallAttempts)
+        .values(attempt)
+        .returning() as MockCallAttempt[];
+      return newAttempt;
+    } catch (error: any) {
+      console.error('Error creating mock call attempt:', error);
+      throw new Error(`Failed to create mock call attempt: ${error.message}`);
+    }
+  }
+
+  async getMockCallAttempt(id: number): Promise<MockCallAttempt | undefined> {
+    try {
+      const [attempt] = await db
+        .select()
+        .from(mockCallAttempts)
+        .where(eq(mockCallAttempts.id, id)) as MockCallAttempt[];
+      return attempt;
+    } catch (error: any) {
+      console.error('Error fetching mock call attempt:', error);
+      throw new Error(`Failed to fetch mock call attempt: ${error.message}`);
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();
