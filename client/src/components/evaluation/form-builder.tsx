@@ -238,6 +238,45 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
     },
   });
 
+  const createParameterMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof parameterSchema>) => {
+      if (!activePillarId) throw new Error("No pillar selected");
+
+      const response = await fetch(`/api/evaluation-pillars/${activePillarId}/parameters`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...data,
+          pillarId: activePillarId,
+          noReasons,
+        }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to create parameter");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/evaluation-templates/${templateId}`],
+      });
+      toast({
+        title: "Success",
+        description: "Parameter created successfully",
+      });
+      parameterForm.reset();
+      setNoReasons([]);
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
   const deletePillarMutation = useMutation({
     mutationFn: async (pillarId: number) => {
       const response = await fetch(`/api/evaluation-pillars/${pillarId}`, {
