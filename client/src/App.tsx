@@ -16,13 +16,14 @@ import { BatchMonitoringPage } from "@/pages/batch-monitoring";
 import { QuizTakingPage } from "@/pages/quiz-taking";
 import { QuizResultsPage } from "@/pages/quiz-results";
 import { MyQuizzesPage } from "@/pages/my-quizzes";
-import MockCallScenarios from "@/pages/mock-call-scenarios"; 
+import MockCallScenarios from "@/pages/mock-call-scenarios";
 import { ProtectedRoute } from "./lib/protected-route";
 import { SidebarNav } from "./components/sidebar-nav";
 import { UserProfile } from "./components/user-profile";
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
 import { BatchDetailsPage } from "@/components/batch-management/batch-details-page";
 import { BatchDetail } from "@/components/batch-management/batch-detail";
+import MockCallSession from "@/pages/mock-call-session";
 
 interface BatchDetailProps {
   onCreateBatch?: () => void;
@@ -62,7 +63,8 @@ function Router() {
           <ProtectedRoute path="/my-quizzes" component={MyQuizzesPage} />
           <ProtectedRoute path="/quiz/:quizId" component={QuizTakingPage} />
           <ProtectedRoute path="/quiz-results/:attemptId" component={QuizResultsPage} />
-          <ProtectedRoute path="/mock-call-scenarios" component={MockCallScenarios} /> 
+          <ProtectedRoute path="/mock-call-scenarios" component={MockCallScenarios} />
+          <ProtectedRoute path="/mock-call/:id" component={MockCallSession} />
           <Route component={NotFound} />
         </Switch>
       </main>

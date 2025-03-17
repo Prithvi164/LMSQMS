@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import {
   Card,
   CardContent,
@@ -73,6 +74,7 @@ export default function MockCallScenariosPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [_, navigate] = useLocation();
 
   // Fetch available processes
   const { data: processes = [] } = useQuery({
@@ -176,6 +178,51 @@ export default function MockCallScenariosPage() {
       default:
         return "";
     }
+  };
+
+  const startMockCallMutation = useMutation({
+    mutationFn: async (scenarioId: number) => {
+      const response = await fetch(`/api/mock-call-scenarios/${scenarioId}/attempts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          evaluatorId: user?.managerId || user?.id,
+          startedAt: new Date().toISOString()
+        }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to start mock call");
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      navigate(`/mock-call/${data.id}`);
+      toast({
+        title: "Success",
+        description: "Mock call session started",
+      });
+    },
+    onError: (error: Error) => {
+      console.error("Error starting mock call:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
+  const handleStartMockCall = (scenarioId: number) => {
+    if (!user?.id) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "You must be logged in to start a mock call",
+      });
+      return;
+    }
+    startMockCallMutation.mutate(scenarioId);
   };
 
   return (
@@ -574,7 +621,13 @@ export default function MockCallScenariosPage() {
                       )}
                     </ul>
                   </div>
-                  <Button className="w-full mt-4">Start Mock Call</Button>
+                  <Button
+                    className="w-full mt-4"
+                    onClick={() => handleStartMockCall(scenario.id)}
+                    disabled={startMockCallMutation.isPending}
+                  >
+                    {startMockCallMutation.isPending ? "Starting..." : "Start Mock Call"}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
