@@ -253,6 +253,10 @@ export interface IStorage {
   getEvaluationPillar(id: number): Promise<EvaluationPillar | undefined>;
   createEvaluationParameter(parameter: InsertEvaluationParameter): Promise<EvaluationParameter>;
   getEvaluationParameter(id: number): Promise<EvaluationParameter | undefined>;
+  updateEvaluationPillar(id: number, pillar: Partial<InsertEvaluationPillar>): Promise<EvaluationPillar>;
+  deleteEvaluationPillar(id: number): Promise<void>;
+  updateEvaluationParameter(id: number, parameter: Partial<InsertEvaluationParameter>): Promise<EvaluationParameter>;
+  deleteEvaluationParameter(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2596,6 +2600,70 @@ export class DatabaseStorage implements IStorage {
       return parameter;
     } catch (error) {
       console.error('Error fetching evaluation parameter:', error);
+      throw error;
+    }
+  }
+
+  async updateEvaluationPillar(id: number, pillar: Partial<InsertEvaluationPillar>): Promise<EvaluationPillar> {
+    try {
+      const [updatedPillar] = await db
+        .update(evaluationPillars)
+        .set({
+          ...pillar,
+          updatedAt: new Date()
+        })
+        .where(eq(evaluationPillars.id, id))
+        .returning() as EvaluationPillar[];
+
+      return updatedPillar;
+    } catch (error) {
+      console.error('Error updating evaluation pillar:', error);
+      throw error;
+    }
+  }
+
+  async deleteEvaluationPillar(id: number): Promise<void> {
+    try {
+      // Delete all parameters associated with this pillar first
+      await db
+        .delete(evaluationParameters)
+        .where(eq(evaluationParameters.pillarId, id));
+
+      // Then delete the pillar
+      await db
+        .delete(evaluationPillars)
+        .where(eq(evaluationPillars.id, id));
+    } catch (error) {
+      console.error('Error deleting evaluation pillar:', error);
+      throw error;
+    }
+  }
+
+  async updateEvaluationParameter(id: number, parameter: Partial<InsertEvaluationParameter>): Promise<EvaluationParameter> {
+    try {
+      const [updatedParameter] = await db
+        .update(evaluationParameters)
+        .set({
+          ...parameter,
+          updatedAt: new Date()
+        })
+        .where(eq(evaluationParameters.id, id))
+        .returning() as EvaluationParameter[];
+
+      return updatedParameter;
+    } catch (error) {
+      console.error('Error updating evaluation parameter:', error);
+      throw error;
+    }
+  }
+
+  async deleteEvaluationParameter(id: number): Promise<void> {
+    try {
+      await db
+        .delete(evaluationParameters)
+        .where(eq(evaluationParameters.id, id));
+    } catch (error) {
+      console.error('Error deleting evaluation parameter:', error);
       throw error;
     }
   }

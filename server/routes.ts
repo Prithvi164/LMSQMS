@@ -348,6 +348,140 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add edit pillar endpoint
+  app.patch("/api/evaluation-pillars/:pillarId", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const pillarId = parseInt(req.params.pillarId);
+      if (!pillarId) {
+        return res.status(400).json({ message: "Invalid pillar ID" });
+      }
+
+      // Get the pillar to verify ownership through template
+      const pillar = await storage.getEvaluationPillar(pillarId);
+      if (!pillar) {
+        return res.status(404).json({ message: "Pillar not found" });
+      }
+
+      const template = await storage.getEvaluationTemplate(pillar.templateId);
+      if (!template || template.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const updatedPillar = await storage.updateEvaluationPillar(pillarId, req.body);
+      res.json(updatedPillar);
+    } catch (error: any) {
+      console.error("Error updating evaluation pillar:", error);
+      res.status(400).json({ message: error.message || "Failed to update pillar" });
+    }
+  });
+
+  // Add delete pillar endpoint
+  app.delete("/api/evaluation-pillars/:pillarId", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const pillarId = parseInt(req.params.pillarId);
+      if (!pillarId) {
+        return res.status(400).json({ message: "Invalid pillar ID" });
+      }
+
+      // Get the pillar to verify ownership through template
+      const pillar = await storage.getEvaluationPillar(pillarId);
+      if (!pillar) {
+        return res.status(404).json({ message: "Pillar not found" });
+      }
+
+      const template = await storage.getEvaluationTemplate(pillar.templateId);
+      if (!template || template.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      await storage.deleteEvaluationPillar(pillarId);
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting evaluation pillar:", error);
+      res.status(400).json({ message: error.message || "Failed to delete pillar" });
+    }
+  });
+
+  // Add edit parameter endpoint
+  app.patch("/api/evaluation-parameters/:parameterId", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const parameterId = parseInt(req.params.parameterId);
+      if (!parameterId) {
+        return res.status(400).json({ message: "Invalid parameter ID" });
+      }
+
+      // Get the parameter and verify ownership through pillar and template
+      const parameter = await storage.getEvaluationParameter(parameterId);
+      if (!parameter) {
+        return res.status(404).json({ message: "Parameter not found" });
+      }
+
+      const pillar = await storage.getEvaluationPillar(parameter.pillarId);
+      if (!pillar) {
+        return res.status(404).json({ message: "Pillar not found" });
+      }
+
+      const template = await storage.getEvaluationTemplate(pillar.templateId);
+      if (!template || template.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const updatedParameter = await storage.updateEvaluationParameter(parameterId, req.body);
+      res.json(updatedParameter);
+    } catch (error: any) {
+      console.error("Error updating evaluation parameter:", error);
+      res.status(400).json({ message: error.message || "Failed to update parameter" });
+    }
+  });
+
+  // Add delete parameter endpoint
+  app.delete("/api/evaluation-parameters/:parameterId", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const parameterId = parseInt(req.params.parameterId);
+      if (!parameterId) {
+        return res.status(400).json({ message: "Invalid parameter ID" });
+      }
+
+      // Get the parameter and verify ownership through pillar and template
+      const parameter = await storage.getEvaluationParameter(parameterId);
+      if (!parameter) {
+        return res.status(404).json({ message: "Parameter not found" });
+      }
+
+      const pillar = await storage.getEvaluationPillar(parameter.pillarId);
+      if (!pillar) {
+        return res.status(404).json({ message: "Pillar not found" });
+      }
+
+      const template = await storage.getEvaluationTemplate(pillar.templateId);
+      if (!template || template.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      await storage.deleteEvaluationParameter(parameterId);
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting evaluation parameter:", error);
+      res.status(400).json({ message: error.message || "Failed to delete parameter" });
+    }
+  });
+
   // Add route to get organization processes 
   app.get("/api/processes", async (req, res) => {
     if (!req.user || !req.user.organizationId) {

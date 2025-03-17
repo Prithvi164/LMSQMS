@@ -95,7 +95,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
     },
   });
 
-  // Mutations remain the same
+  // Mutations
   const createPillarMutation = useMutation({
     mutationFn: async (data: z.infer<typeof pillarSchema>) => {
       const response = await fetch(`/api/evaluation-templates/${templateId}/pillars`, {
@@ -171,6 +171,64 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
     },
   });
 
+  const deletePillarMutation = useMutation({
+    mutationFn: async (pillarId: number) => {
+      const response = await fetch(`/api/evaluation-pillars/${pillarId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to delete pillar");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/evaluation-templates/${templateId}`],
+      });
+      toast({
+        title: "Success",
+        description: "Pillar deleted successfully",
+      });
+      setActivePillarId(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
+  const deleteParameterMutation = useMutation({
+    mutationFn: async (parameterId: number) => {
+      const response = await fetch(`/api/evaluation-parameters/${parameterId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to delete parameter");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/evaluation-templates/${templateId}`],
+      });
+      toast({
+        title: "Success",
+        description: "Parameter deleted successfully",
+      });
+      setSelectedParameter(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
   const onPillarSubmit = (values: z.infer<typeof pillarSchema>) => {
     createPillarMutation.mutate(values);
   };
@@ -232,10 +290,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
             {previewMode ? "Exit Preview" : "Preview Form"}
           </Button>
           {previewMode && (
-            <Button 
-              onClick={finalizeForm}
-              className="flex items-center gap-2"
-            >
+            <Button onClick={finalizeForm} className="flex items-center gap-2">
               <Check className="w-4 h-4" />
               Create Form
             </Button>
@@ -265,8 +320,22 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                         onClick={() => setActivePillarId(pillar.id)}
                       >
                         <div className="flex items-center justify-between">
-                          <span className="font-medium">{pillar.name}</span>
-                          <Badge variant="outline">{pillar.weightage}%</Badge>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{pillar.name}</span>
+                            <Badge variant="outline">{pillar.weightage}%</Badge>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deletePillarMutation.mutate(pillar.id);
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
 
@@ -287,10 +356,22 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                               }}
                             >
                               <div className="flex items-center justify-between">
-                                <span className="text-sm">{param.name}</span>
-                                <Badge variant="outline" className="text-xs">
-                                  {param.weightage}%
-                                </Badge>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm">{param.name}</span>
+                                  <Badge variant="outline" className="text-xs">
+                                    {param.weightage}%
+                                  </Badge>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteParameterMutation.mutate(param.id);
+                                  }}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
                               </div>
                             </div>
                           ))}
@@ -376,7 +457,9 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                                 type="number"
                                 min="0"
                                 max="100"
-                                onChange={(e) => field.onChange(parseInt(e.target.value))}
+                                onChange={(e) =>
+                                  field.onChange(parseInt(e.target.value))
+                                }
                               />
                             </FormControl>
                             <FormMessage />
