@@ -89,8 +89,8 @@ export default function EvaluationExecutionPage() {
       console.log("Starting evaluation with values:", values);
 
       try {
-        // Using apiRequest utility without leading slash
-        const response = await apiRequest(`organizations/${user.organizationId}/evaluations/start`, {
+        // Add the /api/ prefix to the URL
+        const response = await apiRequest(`/api/organizations/${user.organizationId}/evaluations/start`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
