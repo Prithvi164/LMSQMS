@@ -126,12 +126,15 @@ export default function EvaluationExecutionPage() {
       // Make sure we get valid JSON
       try {
         const data = await response.json();
+        console.log('Evaluation created successfully:', data);
         return data;
       } catch (e) {
+        console.error('Error parsing response:', e);
         throw new Error('Invalid response from server');
       }
     },
     onSuccess: (data) => {
+      console.log('Evaluation creation succeeded:', data);
       toast({
         title: "Success",
         description: "Evaluation started successfully",
@@ -233,8 +236,8 @@ export default function EvaluationExecutionPage() {
                         ) : (
                           trainees.map((trainee) => (
                             <SelectItem
-                              key={trainee.id} //Using trainee.id instead of trainee.userId
-                              value={trainee.id.toString()} //Using trainee.id instead of trainee.user.id
+                              key={trainee.id}
+                              value={trainee.id.toString()}
                             >
                               {trainee.user.fullName}
                             </SelectItem>
