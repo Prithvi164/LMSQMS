@@ -1942,7 +1942,7 @@ export class DatabaseStorage implements IStorage {
         .insert(quizTemplates)
         .values(template)
         .returning();
-      return newTemplate;    } catch (error) {
+      returnnewTemplate;    } catch (error) {
       console.error('Error creating quiz template:', error);
       throw error;
     }
@@ -2391,11 +2391,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createMockCallAttempt(attempt: InsertMockCallAttempt): Promise<MockCallAttempt> {
-    const [newAttempt] = await db
-      .insert(mockCallAttempts)
-      .values(attempt)
-      .returning() as MockCallAttempt[];
-    return newAttempt;
+    try {
+      // Convert the string date to a proper Date object
+      const formattedAttempt = {
+        ...attempt,
+        startedAt: new Date(attempt.startedAt),
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      const [newAttempt] = await db
+        .insert(mockCallAttempts)
+        .values(formattedAttempt)
+        .returning() as MockCallAttempt[];
+
+      console.log('Created mock call attempt:', newAttempt);
+      return newAttempt;
+    } catch (error) {
+      console.error('Error creating mock call attempt:', error);
+      throw error;
+    }
   }
 }
 

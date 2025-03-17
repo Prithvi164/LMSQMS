@@ -151,22 +151,28 @@ export default function MockCallScenariosPage() {
 
   const startCallMutation = useMutation({
     mutationFn: async (scenarioId: number) => {
-      const response = await fetch(`/api/mock-call-scenarios/${scenarioId}/attempts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          scenarioId,
-          evaluatorId: user?.id,
-          organizationId: user?.organizationId,
-          startedAt: new Date().toISOString(), // Properly format the date
-          status: 'pending'
-        }),
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to start mock call");
+      try {
+        const response = await fetch(`/api/mock-call-scenarios/${scenarioId}/attempts`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            scenarioId,
+            evaluatorId: user?.id,
+            organizationId: user?.organizationId,
+            startedAt: new Date().toISOString(),
+            status: 'pending'
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || "Failed to start mock call");
+        }
+        return response.json();
+      } catch (error: any) {
+        console.error("Error in startCallMutation:", error);
+        throw error;
       }
-      return response.json();
     },
     onSuccess: (data) => {
       toast({
