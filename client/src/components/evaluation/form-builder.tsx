@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -32,7 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, ChevronDown, ChevronUp, Eye, Check } from "lucide-react";
+import { Trash2, Plus, ChevronDown, ChevronUp, Eye, Check, Edit2 } from "lucide-react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -70,6 +70,8 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
   const [previewMode, setPreviewMode] = useState(false);
   const [noReasons, setNoReasons] = useState<string[]>([]);
   const [newReason, setNewReason] = useState("");
+  const [isEditingPillar, setIsEditingPillar] = useState(false);
+  const [isEditingParameter, setIsEditingParameter] = useState(false);
 
   // Fetch template details
   const { data: template } = useQuery({
@@ -94,6 +96,40 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
       noReasons: [],
     },
   });
+
+  // Effect to populate form when editing
+  useEffect(() => {
+    if (isEditingPillar && activePillarId && template?.pillars) {
+      const pillar = template.pillars.find((p: any) => p.id === activePillarId);
+      if (pillar) {
+        pillarForm.reset({
+          name: pillar.name,
+          description: pillar.description,
+          weightage: pillar.weightage,
+        });
+      }
+    }
+  }, [isEditingPillar, activePillarId, template]);
+
+  useEffect(() => {
+    if (isEditingParameter && selectedParameter && template?.pillars) {
+      const parameter = template.pillars
+        .flatMap((p: any) => p.parameters)
+        .find((param: any) => param.id === selectedParameter);
+      if (parameter) {
+        parameterForm.reset({
+          name: parameter.name,
+          description: parameter.description,
+          guidelines: parameter.guidelines,
+          ratingType: parameter.ratingType,
+          weightage: parameter.weightage,
+          isFatal: parameter.isFatal,
+          requiresComment: parameter.requiresComment,
+        });
+        setNoReasons(parameter.noReasons || []);
+      }
+    }
+  }, [isEditingParameter, selectedParameter, template]);
 
   // Mutations
   const createPillarMutation = useMutation({
@@ -132,22 +168,16 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
     },
   });
 
-  const createParameterMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof parameterSchema>) => {
-      if (!activePillarId) throw new Error("No pillar selected");
-
-      const response = await fetch(`/api/evaluation-pillars/${activePillarId}/parameters`, {
-        method: "POST",
+  const updatePillarMutation = useMutation({
+    mutationFn: async (data: { id: number; pillar: z.infer<typeof pillarSchema> }) => {
+      const response = await fetch(`/api/evaluation-pillars/${data.id}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...data,
-          pillarId: activePillarId,
-          noReasons: noReasons,
-        }),
+        body: JSON.stringify(data.pillar),
       });
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || "Failed to create parameter");
+        throw new Error(error.message || "Failed to update pillar");
       }
       return response.json();
     },
@@ -157,8 +187,45 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
       });
       toast({
         title: "Success",
-        description: "Parameter created successfully",
+        description: "Pillar updated successfully",
       });
+      setIsEditingPillar(false);
+      pillarForm.reset();
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
+  const updateParameterMutation = useMutation({
+    mutationFn: async (data: { id: number; parameter: z.infer<typeof parameterSchema> }) => {
+      const response = await fetch(`/api/evaluation-parameters/${data.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...data.parameter,
+          noReasons,
+        }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to update parameter");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/evaluation-templates/${templateId}`],
+      });
+      toast({
+        title: "Success",
+        description: "Parameter updated successfully",
+      });
+      setIsEditingParameter(false);
       parameterForm.reset();
       setNoReasons([]);
     },
@@ -230,14 +297,25 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
   });
 
   const onPillarSubmit = (values: z.infer<typeof pillarSchema>) => {
-    createPillarMutation.mutate(values);
+    if (isEditingPillar && activePillarId) {
+      updatePillarMutation.mutate({ id: activePillarId, pillar: values });
+    } else {
+      createPillarMutation.mutate(values);
+    }
   };
 
   const onParameterSubmit = (values: z.infer<typeof parameterSchema>) => {
-    createParameterMutation.mutate({
-      ...values,
-      noReasons,
-    });
+    if (isEditingParameter && selectedParameter) {
+      updateParameterMutation.mutate({
+        id: selectedParameter,
+        parameter: { ...values, noReasons },
+      });
+    } else {
+      createParameterMutation.mutate({
+        ...values,
+        noReasons,
+      });
+    }
   };
 
   const addReason = () => {
@@ -330,6 +408,17 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                setIsEditingPillar(true);
+                                setActivePillarId(pillar.id);
+                              }}
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 deletePillarMutation.mutate(pillar.id);
                               }}
                             >
@@ -362,16 +451,29 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                                     {param.weightage}%
                                   </Badge>
                                 </div>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    deleteParameterMutation.mutate(param.id);
-                                  }}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setIsEditingParameter(true);
+                                      setSelectedParameter(param.id);
+                                    }}
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      deleteParameterMutation.mutate(param.id);
+                                    }}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
                               </div>
                             </div>
                           ))}
@@ -395,16 +497,16 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
         <ResizablePanel defaultSize={75}>
           {!previewMode ? (
             <div className="space-y-6">
-              {/* Add Pillar Form */}
+              {/* Add/Edit Pillar Form */}
               <Card>
                 <CardHeader>
                   <CardTitle>
-                    {activePillarId ? "Edit Pillar" : "Add Evaluation Pillar"}
+                    {isEditingPillar ? "Edit Pillar" : "Add Evaluation Pillar"}
                   </CardTitle>
                   <CardDescription>
-                    {activePillarId
+                    {isEditingPillar
                       ? "Modify the selected pillar"
-                      : "Create a new category for evaluation (add multiple pillars by clicking Add Pillar multiple times)"}
+                      : "Create a new category for evaluation"}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -472,19 +574,44 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                         disabled={createPillarMutation.isPending}
                       >
                         <Plus className="w-4 h-4 mr-2" />
-                        {createPillarMutation.isPending ? "Creating..." : "Add Pillar"}
+                        {isEditingPillar
+                          ? updatePillarMutation.isPending
+                            ? "Updating..."
+                            : "Update Pillar"
+                          : createPillarMutation.isPending
+                          ? "Creating..."
+                          : "Add Pillar"}
                       </Button>
+                      {isEditingPillar && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full"
+                          onClick={() => {
+                            setIsEditingPillar(false);
+                            pillarForm.reset();
+                          }}
+                        >
+                          Cancel Edit
+                        </Button>
+                      )}
                     </form>
                   </Form>
                 </CardContent>
               </Card>
 
-              {/* Add Parameter Form */}
+              {/* Add/Edit Parameter Form */}
               {activePillarId && (
                 <Card>
                   <CardHeader>
-                    <CardTitle>Add Evaluation Parameter</CardTitle>
-                    <CardDescription>Add specific criteria to evaluate</CardDescription>
+                    <CardTitle>
+                      {isEditingParameter ? "Edit Parameter" : "Add Evaluation Parameter"}
+                    </CardTitle>
+                    <CardDescription>
+                      {isEditingParameter
+                        ? "Modify the selected parameter"
+                        : "Add specific criteria to evaluate"}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <Form {...parameterForm}>
@@ -661,10 +788,28 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                           className="w-full"
                           disabled={createParameterMutation.isPending}
                         >
-                          {createParameterMutation.isPending
+                          {isEditingParameter
+                            ? updateParameterMutation.isPending
+                              ? "Updating..."
+                              : "Update Parameter"
+                            : createParameterMutation.isPending
                             ? "Creating..."
                             : "Add Parameter"}
                         </Button>
+                        {isEditingParameter && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full"
+                            onClick={() => {
+                              setIsEditingParameter(false);
+                              parameterForm.reset();
+                              setNoReasons([]);
+                            }}
+                          >
+                            Cancel Edit
+                          </Button>
+                        )}
                       </form>
                     </Form>
                   </CardContent>
