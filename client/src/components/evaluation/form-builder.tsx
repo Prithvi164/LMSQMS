@@ -6,6 +6,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -60,6 +61,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activePillarId, setActivePillarId] = useState<number | null>(null);
+  const [selectedParameter, setSelectedParameter] = useState<number | null>(null);
 
   // Fetch template details
   const { data: template } = useQuery({
@@ -100,7 +102,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({
         queryKey: [`/api/evaluation-templates/${templateId}`],
       });
@@ -109,6 +111,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
         description: "Pillar created successfully",
       });
       pillarForm.reset();
+      setActivePillarId(data.id);
     },
     onError: (error: Error) => {
       toast({
@@ -166,215 +169,225 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Add Evaluation Pillar</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Form {...pillarForm}>
-            <form onSubmit={pillarForm.handleSubmit(onPillarSubmit)} className="space-y-4">
-              <FormField
-                control={pillarForm.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Pillar Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="e.g., Quality of Interaction" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={pillarForm.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} placeholder="Describe this evaluation pillar" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={pillarForm.control}
-                name="weightage"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Weightage (%)</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        type="number"
-                        min="0"
-                        max="100"
-                        onChange={(e) => field.onChange(parseInt(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={createPillarMutation.isPending}
-              >
-                {createPillarMutation.isPending ? "Creating..." : "Add Pillar"}
-              </Button>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Add Evaluation Parameter</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Form {...parameterForm}>
-            <form onSubmit={parameterForm.handleSubmit(onParameterSubmit)} className="space-y-4">
-              <FormField
-                control={parameterForm.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Parameter Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="e.g., Opening Guidelines" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={parameterForm.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} placeholder="Describe this parameter" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={parameterForm.control}
-                name="guidelines"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Evaluation Guidelines</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} placeholder="Detailed instructions for evaluation" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={parameterForm.control}
-                name="ratingType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Rating Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Add Pillar Form */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Add Evaluation Pillar</CardTitle>
+            <CardDescription>Create a new category for evaluation</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...pillarForm}>
+              <form onSubmit={pillarForm.handleSubmit(onPillarSubmit)} className="space-y-4">
+                <FormField
+                  control={pillarForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Pillar Name</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select rating type" />
-                        </SelectTrigger>
+                        <Input {...field} placeholder="e.g., Customer Service Skills" />
                       </FormControl>
-                      <SelectContent>
-                        <SelectItem value="yes_no_na">Yes/No/NA</SelectItem>
-                        <SelectItem value="numeric">Numeric (1-5)</SelectItem>
-                        <SelectItem value="custom">Custom Options</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={parameterForm.control}
-                name="weightage"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Weightage (%)</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        type="number"
-                        min="0"
-                        max="100"
-                        onChange={(e) => field.onChange(parseInt(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={parameterForm.control}
-                name="isFatal"
-                render={({ field }) => (
-                  <FormItem className="flex items-center gap-2">
-                    <FormControl>
-                      <input
-                        type="checkbox"
-                        checked={field.value}
-                        onChange={field.onChange}
-                      />
-                    </FormControl>
-                    <FormLabel>Fatal Error (Auto-fail if not met)</FormLabel>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={parameterForm.control}
-                name="requiresComment"
-                render={({ field }) => (
-                  <FormItem className="flex items-center gap-2">
-                    <FormControl>
-                      <input
-                        type="checkbox"
-                        checked={field.value}
-                        onChange={field.onChange}
-                      />
-                    </FormControl>
-                    <FormLabel>Requires Comment</FormLabel>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={createParameterMutation.isPending || !activePillarId}
-              >
-                {createParameterMutation.isPending
-                  ? "Creating..."
-                  : !activePillarId
-                  ? "Select a Pillar First"
-                  : "Add Parameter"}
-              </Button>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={pillarForm.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea {...field} placeholder="Describe this evaluation pillar" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={pillarForm.control}
+                  name="weightage"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Weightage (%)</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="number"
+                          min="0"
+                          max="100"
+                          onChange={(e) => field.onChange(parseInt(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={createPillarMutation.isPending}
+                >
+                  {createPillarMutation.isPending ? "Creating..." : "Add Pillar"}
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+
+        {/* Add Parameter Form */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Add Evaluation Parameter</CardTitle>
+            <CardDescription>Add specific criteria to evaluate</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...parameterForm}>
+              <form onSubmit={parameterForm.handleSubmit(onParameterSubmit)} className="space-y-4">
+                <FormField
+                  control={parameterForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Parameter Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="e.g., Greeting Standard" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={parameterForm.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea {...field} placeholder="Describe this parameter" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={parameterForm.control}
+                  name="guidelines"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Evaluation Guidelines</FormLabel>
+                      <FormControl>
+                        <Textarea {...field} placeholder="Instructions for evaluators" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={parameterForm.control}
+                  name="ratingType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Rating Type</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select rating type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="yes_no_na">Yes/No/NA</SelectItem>
+                          <SelectItem value="numeric">Numeric (1-5)</SelectItem>
+                          <SelectItem value="custom">Custom Options</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={parameterForm.control}
+                  name="weightage"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Weightage (%)</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="number"
+                          min="0"
+                          max="100"
+                          onChange={(e) => field.onChange(parseInt(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="flex gap-4">
+                  <FormField
+                    control={parameterForm.control}
+                    name="isFatal"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center gap-2">
+                        <FormControl>
+                          <input
+                            type="checkbox"
+                            checked={field.value}
+                            onChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormLabel>Fatal Error</FormLabel>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={parameterForm.control}
+                    name="requiresComment"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center gap-2">
+                        <FormControl>
+                          <input
+                            type="checkbox"
+                            checked={field.value}
+                            onChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormLabel>Requires Comment</FormLabel>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={createParameterMutation.isPending || !activePillarId}
+                >
+                  {createParameterMutation.isPending
+                    ? "Creating..."
+                    : !activePillarId
+                    ? "Select a Pillar First"
+                    : "Add Parameter"}
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Display existing pillars and parameters */}
       {template?.pillars && template.pillars.length > 0 && (
         <div className="space-y-4">
           <h2 className="text-2xl font-bold">Current Form Structure</h2>
-          {template.pillars.map((pillar) => (
+          {template.pillars.map((pillar: any) => (
             <Card
               key={pillar.id}
-              className={`${activePillarId === pillar.id ? 'ring-2 ring-primary' : ''}`}
+              className={`${
+                activePillarId === pillar.id ? "ring-2 ring-primary" : ""
+              } cursor-pointer hover:bg-accent/5 transition-colors`}
               onClick={() => setActivePillarId(pillar.id)}
             >
               <CardHeader>
@@ -389,27 +402,42 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
               <CardContent>
                 {pillar.parameters && pillar.parameters.length > 0 ? (
                   <div className="space-y-2">
-                    {pillar.parameters.map((param) => (
+                    {pillar.parameters.map((param: any) => (
                       <div
                         key={param.id}
-                        className="p-3 bg-muted rounded-lg flex items-center justify-between"
+                        className={`p-3 bg-muted rounded-lg flex items-center justify-between ${
+                          selectedParameter === param.id ? "ring-2 ring-primary" : ""
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedParameter(param.id);
+                        }}
                       >
                         <div>
                           <p className="font-medium">{param.name}</p>
                           {param.description && (
-                            <p className="text-sm text-muted-foreground">{param.description}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {param.description}
+                            </p>
                           )}
                           <div className="flex gap-2 mt-1">
                             <Badge variant="outline">{param.ratingType}</Badge>
                             <Badge variant="outline">{param.weightage}%</Badge>
-                            {param.isFatal && <Badge variant="destructive">Fatal</Badge>}
+                            {param.isFatal && (
+                              <Badge variant="destructive">Fatal</Badge>
+                            )}
+                            {param.requiresComment && (
+                              <Badge variant="secondary">Requires Comment</Badge>
+                            )}
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No parameters added yet</p>
+                  <p className="text-sm text-muted-foreground">
+                    No parameters added yet. Click "Add Parameter" to get started.
+                  </p>
                 )}
               </CardContent>
             </Card>
