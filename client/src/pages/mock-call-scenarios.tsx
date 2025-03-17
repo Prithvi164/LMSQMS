@@ -77,6 +77,18 @@ export default function MockCallScenariosPage() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       difficulty: "basic",
+      customerProfile: {
+        name: "",
+        background: "",
+        personality: "",
+        concerns: [],
+      },
+      expectedDialogue: {
+        greeting: "",
+        keyPoints: [],
+        resolutions: [],
+        closingStatements: [],
+      },
       evaluationRubric: {
         greetingScore: 20,
         problemIdentificationScore: 20,
@@ -228,9 +240,255 @@ export default function MockCallScenariosPage() {
                     </FormItem>
                   )}
                 />
-                {/* Add more form fields for customer profile, expected dialogue, etc. */}
-                <Button type="submit" className="w-full">
-                  Create Scenario
+
+                {/* Customer Profile Fields */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Customer Profile</h3>
+                  <FormField
+                    control={form.control}
+                    name="customerProfile.name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Customer Name</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Enter customer name" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="customerProfile.background"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Background Information</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            {...field}
+                            placeholder="Enter customer background"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="customerProfile.personality"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Personality Traits</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Enter personality traits" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="customerProfile.concerns"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Customer Concerns</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter concerns (comma-separated)"
+                            onChange={(e) =>
+                              field.onChange(e.target.value.split(",").map((s) => s.trim()))
+                            }
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Expected Dialogue Fields */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Expected Dialogue</h3>
+                  <FormField
+                    control={form.control}
+                    name="expectedDialogue.greeting"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Greeting Script</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            {...field}
+                            placeholder="Enter expected greeting"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="expectedDialogue.keyPoints"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Key Points</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter key points (comma-separated)"
+                            onChange={(e) =>
+                              field.onChange(e.target.value.split(",").map((s) => s.trim()))
+                            }
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="expectedDialogue.resolutions"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Expected Resolutions</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter resolutions (comma-separated)"
+                            onChange={(e) =>
+                              field.onChange(e.target.value.split(",").map((s) => s.trim()))
+                            }
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="expectedDialogue.closingStatements"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Closing Statements</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter closing statements (comma-separated)"
+                            onChange={(e) =>
+                              field.onChange(e.target.value.split(",").map((s) => s.trim()))
+                            }
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Evaluation Rubric Fields */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Evaluation Rubric</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="evaluationRubric.greetingScore"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Greeting Score (max 100)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseInt(e.target.value))
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="evaluationRubric.problemIdentificationScore"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Problem ID Score (max 100)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseInt(e.target.value))
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="evaluationRubric.solutionScore"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Solution Score (max 100)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseInt(e.target.value))
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="evaluationRubric.communicationScore"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Communication Score (max 100)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseInt(e.target.value))
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="evaluationRubric.closingScore"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Closing Score (max 100)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseInt(e.target.value))
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={createScenarioMutation.isPending}
+                >
+                  {createScenarioMutation.isPending ? "Creating..." : "Create Scenario"}
                 </Button>
               </form>
             </Form>
@@ -239,42 +497,48 @@ export default function MockCallScenariosPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {scenarios.map((scenario: any) => (
-          <Card key={scenario.id}>
-            <CardHeader>
-              <CardTitle>{scenario.title}</CardTitle>
-              <CardDescription>{scenario.description}</CardDescription>
-              <Badge
-                className={`${getDifficultyColor(
-                  scenario.difficulty
-                )} capitalize mt-2`}
-              >
-                {scenario.difficulty}
-              </Badge>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div>
-                  <strong>Customer Profile:</strong>
-                  <p className="text-sm text-muted-foreground">
-                    {scenario.customerProfile.name}
-                  </p>
+        {isLoading ? (
+          <p>Loading scenarios...</p>
+        ) : scenarios.length === 0 ? (
+          <p>No scenarios available. Create your first scenario to get started.</p>
+        ) : (
+          scenarios.map((scenario: any) => (
+            <Card key={scenario.id}>
+              <CardHeader>
+                <CardTitle>{scenario.title}</CardTitle>
+                <CardDescription>{scenario.description}</CardDescription>
+                <Badge
+                  className={`${getDifficultyColor(
+                    scenario.difficulty
+                  )} capitalize mt-2`}
+                >
+                  {scenario.difficulty}
+                </Badge>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div>
+                    <strong>Customer Profile:</strong>
+                    <p className="text-sm text-muted-foreground">
+                      {scenario.customerProfile.name}
+                    </p>
+                  </div>
+                  <div>
+                    <strong>Key Points:</strong>
+                    <ul className="list-disc list-inside text-sm text-muted-foreground">
+                      {scenario.expectedDialogue.keyPoints.map(
+                        (point: string, index: number) => (
+                          <li key={index}>{point}</li>
+                        )
+                      )}
+                    </ul>
+                  </div>
+                  <Button className="w-full mt-4">Start Mock Call</Button>
                 </div>
-                <div>
-                  <strong>Key Points:</strong>
-                  <ul className="list-disc list-inside text-sm text-muted-foreground">
-                    {scenario.expectedDialogue.keyPoints.map(
-                      (point: string, index: number) => (
-                        <li key={index}>{point}</li>
-                      )
-                    )}
-                  </ul>
-                </div>
-                <Button className="w-full mt-4">Start Mock Call</Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
     </div>
   );
