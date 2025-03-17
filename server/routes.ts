@@ -477,15 +477,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Forbidden" });
       }
 
-      // Set current date 
-      const now = new Date();
-
-      // Prepare evaluation data with proper date
+      // Prepare evaluation data with all required fields
       const evaluationData = {
         ...req.body,
-        status: 'pending',
-        totalScore: 0,
-        evaluatedAt: now,
+        totalScore: 0, // Initial score
+        status: 'pending', // Initial status
+        evaluatedAt: new Date(), // Current date
         organizationId,
       };
 

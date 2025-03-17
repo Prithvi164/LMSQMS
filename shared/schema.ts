@@ -843,8 +843,8 @@ export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organiz
     id: true,
     createdAt: true})
   .extend({
-    name: z.string().min(11, "LOBname is required"),
-    description: z.string().min(11, "Description is required"),
+    name: z.string().min(1, "LOB name is required"),
+    description: z.string().min(1, "Description is required"),
     organizationId: z.number().int().positive("Organization is required"),
   });
 
@@ -883,6 +883,7 @@ export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
 export type InsertOrganizationProcess = z.infer<typeof insertOrganizationProcessSchema>;
 export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
 export type InsertBatchTemplate = z.infer<typeof insertBatchTemplateSchema>;
+
 
 
 export const batchHistoryEventTypeEnum = pgEnum('batch_history_event_type', [
@@ -1418,7 +1419,7 @@ export const evaluationResults = pgTable("evaluation_results", {
     .notNull(),
   traineeId: integer("trainee_id")
     .references(() => users.id)
-    .notNull(),
+    .notNull(),  
   evaluatorId: integer("evaluator_id")
     .references(() => users.id)
     .notNull(),
@@ -1430,7 +1431,7 @@ export const evaluationResults = pgTable("evaluation_results", {
     .notNull(),
   totalScore: integer("total_score").notNull(),
   status: text("status").notNull(),
-  evaluatedAt: timestamp("evaluated_at").defaultNow().notNull(),
+  evaluatedAt: timestamp("evaluated_at").notNull(),
   comments: text("comments"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -1531,7 +1532,7 @@ export const insertEvaluationResultSchema = createInsertSchema(evaluationResults
     organizationId: z.number().int().positive("Organization is required"),
     totalScore: z.number().int().min(0).max(100),
     status: z.string().min(1, "Status is required"),
-    evaluatedAt: z.coerce.date(),  // This will coerce string dates into Date objects
+    evaluatedAt: z.date(),
     comments: z.string().optional(),
   });
 
