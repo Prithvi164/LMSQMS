@@ -213,8 +213,8 @@ export default function MockCallScenariosPage() {
         body: JSON.stringify({
           scenarioId,
           evaluatorId: user?.managerId || user?.id,
-          startedAt: new Date(), 
-          status: "in_progress"
+          startedAt: new Date(),
+          status: "pending", // Changed from "in_progress" to "pending"
         }),
       });
       if (!response.ok) {
