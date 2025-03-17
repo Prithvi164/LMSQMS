@@ -2,6 +2,23 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   Card,
   CardContent,
   CardHeader,
@@ -32,7 +49,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, ChevronDown, ChevronUp, Eye, Check, Edit2 } from "lucide-react";
+import { Trash2, Plus, ChevronDown, ChevronUp, Eye, Check, Edit2, GripVertical } from "lucide-react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -61,6 +78,29 @@ type FormBuilderProps = {
   templateId: number;
 };
 
+function SortableItem({ id, children, className }: { id: number; children: React.ReactNode; className?: string }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className={className}>
+      <div {...attributes} {...listeners} className="cursor-grab">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function FormBuilder({ templateId }: FormBuilderProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -72,6 +112,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
   const [newReason, setNewReason] = useState("");
   const [isEditingPillar, setIsEditingPillar] = useState(false);
   const [isEditingParameter, setIsEditingParameter] = useState(false);
+  const [pillars, setPillars] = useState<any[]>([]);
 
   // Fetch template details
   const { data: template } = useQuery({
@@ -393,6 +434,48 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
     }
   };
 
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  useEffect(() => {
+    if (template?.pillars) {
+      setPillars(template.pillars);
+    }
+  }, [template]);
+
+  // Add handleDragEnd function
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = pillars.findIndex((pillar) => pillar.id === active.id);
+    const newIndex = pillars.findIndex((pillar) => pillar.id === over.id);
+
+    const newPillars = arrayMove(pillars, oldIndex, newIndex);
+    setPillars(newPillars);
+
+    try {
+      await fetch(`/api/evaluation-templates/${templateId}/reorder-pillars`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pillarIds: newPillars.map((p) => p.id),
+        }),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: [`/api/evaluation-templates/${templateId}`],
+      });
+    } catch (error) {
+      console.error("Failed to reorder pillars:", error);
+      setPillars(template?.pillars || []);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center mb-4">
@@ -421,117 +504,128 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
           <Card className="h-full">
             <CardHeader>
               <CardTitle>Form Structure</CardTitle>
-              <CardDescription>Click a pillar or parameter to edit</CardDescription>
+              <CardDescription>Drag to reorder pillars and parameters</CardDescription>
             </CardHeader>
             <CardContent>
-              {template?.pillars && template.pillars.length > 0 ? (
-                <div className="space-y-4">
-                  {template.pillars.map((pillar: any) => (
-                    <div key={pillar.id} className="space-y-2">
-                      <div
-                        className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                          activePillarId === pillar.id
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted hover:bg-muted/80"
-                        }`}
-                        onClick={() => setActivePillarId(pillar.id)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{pillar.name}</span>
-                            <Badge variant="outline">{pillar.weightage}%</Badge>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setIsEditingPillar(true);
-                                setActivePillarId(pillar.id);
-                              }}
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deletePillarMutation.mutate(pillar.id);
-                              }}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={pillars.map((p) => p.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-4">
+                    {pillars.map((pillar) => (
+                      <SortableItem key={pillar.id} id={pillar.id}>
+                        <div
+                          className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                            activePillarId === pillar.id
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted hover:bg-muted/80"
+                          }`}
+                          onClick={() => setActivePillarId(pillar.id)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <GripVertical className="h-4 w-4 cursor-grab" />
+                              <span className="font-medium">{pillar.name}</span>
+                              <Badge variant="outline">{pillar.weightage}%</Badge>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setIsEditingPillar(true);
+                                  setActivePillarId(pillar.id);
+                                }}
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deletePillarMutation.mutate(pillar.id);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      {/* Parameters under this pillar */}
-                      {pillar.parameters && pillar.parameters.length > 0 && (
-                        <div className="ml-4 space-y-2">
-                          {pillar.parameters.map((param: any) => (
-                            <div
-                              key={param.id}
-                              className={`p-2 rounded cursor-pointer transition-colors ${
-                                selectedParameter === param.id
-                                  ? "bg-accent text-accent-foreground"
-                                  : "hover:bg-accent/50"
-                              }`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedParameter(param.id);
-                              }}
+                        {/* Parameters under this pillar */}
+                        {pillar.parameters && pillar.parameters.length > 0 && (
+                          <div className="ml-4 space-y-2 mt-2">
+                            <SortableContext
+                              items={pillar.parameters.map((p: any) => p.id)}
+                              strategy={verticalListSortingStrategy}
                             >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm">{param.name}</span>
-                                  <Badge variant="outline" className="text-xs">
-                                    {param.weightage}%
-                                  </Badge>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
+                              {pillar.parameters.map((param: any) => (
+                                <SortableItem key={param.id} id={param.id}>
+                                  <div
+                                    className={`p-2 rounded cursor-pointer transition-colors ${
+                                      selectedParameter === param.id
+                                        ? "bg-accent text-accent-foreground"
+                                        : "hover:bg-accent/50"
+                                    }`}
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      setIsEditingParameter(true);
                                       setSelectedParameter(param.id);
                                     }}
                                   >
-                                    <Edit2 className="w-4 h-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      deleteParameterMutation.mutate(param.id);
-                                    }}
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center text-muted-foreground p-4">
-                  No pillars added yet. Start by adding a pillar.
-                </div>
-              )}
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-2">
+                                        <GripVertical className="h-4 w-4 cursor-grab" />
+                                        <span className="text-sm">{param.name}</span>
+                                        <Badge variant="outline" className="text-xs">
+                                          {param.weightage}%
+                                        </Badge>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setIsEditingParameter(true);
+                                            setSelectedParameter(param.id);
+                                          }}
+                                        >
+                                          <Edit2 className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            deleteParameterMutation.mutate(param.id);
+                                          }}
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </SortableItem>
+                              ))}
+                            </SortableContext>
+                          </div>
+                        )}
+                      </SortableItem>
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
             </CardContent>
           </Card>
         </ResizablePanel>
-
         <ResizableHandle />
-
         {/* Form Builder Panel */}
         <ResizablePanel defaultSize={75}>
           {!previewMode ? (

@@ -248,6 +248,10 @@ export interface IStorage {
       parameters: EvaluationParameter[];
     })[];
   } | undefined>;
+
+  // Pillar and parameter reordering operations
+  reorderPillars(templateId: number, pillarIds: number[]): Promise<void>;
+  reorderParameters(pillarId: number, parameterIds: number[]): Promise<void>;
   listEvaluationTemplates(organizationId: number): Promise<EvaluationTemplate[]>;
   createEvaluationPillar(pillar: InsertEvaluationPillar): Promise<EvaluationPillar>;
   getEvaluationPillar(id: number): Promise<EvaluationPillar | undefined>;
@@ -258,6 +262,10 @@ export interface IStorage {
   updateEvaluationParameter(id: number, parameter: Partial<InsertEvaluationParameter>): Promise<EvaluationParameter>;
   deleteEvaluationParameter(id: number): Promise<void>;
   deleteEvaluationTemplate(id: number): Promise<void>;
+  
+  // Pillar and parameter reordering
+  reorderPillars(templateId: number, pillarIds: number[]): Promise<void>;
+  reorderParameters(pillarId: number, parameterIds: number[]): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -292,6 +300,42 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+
+  // Pillar and parameter reordering operations
+  async reorderPillars(templateId: number, pillarIds: number[]): Promise<void> {
+    try {
+      await db.transaction(async (tx) => {
+        // Update each pillar's order
+        for (let i = 0; i < pillarIds.length; i++) {
+          await tx
+            .update(evaluationPillars)
+            .set({ order: i })
+            .where(eq(evaluationPillars.id, pillarIds[i]));
+        }
+      });
+    } catch (error) {
+      console.error('Error reordering pillars:', error);
+      throw error;
+    }
+  }
+
+  async reorderParameters(pillarId: number, parameterIds: number[]): Promise<void> {
+    try {
+      await db.transaction(async (tx) => {
+        // Update each parameter's order
+        for (let i = 0; i < parameterIds.length; i++) {
+          await tx
+            .update(evaluationParameters)
+            .set({ order: i })
+            .where(eq(evaluationParameters.id, parameterIds[i]));
+        }
+      });
+    } catch (error) {
+      console.error('Error reordering parameters:', error);
+      throw error;
+    }
+  }
+
   // User operations
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id)) as User[];

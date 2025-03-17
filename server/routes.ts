@@ -511,6 +511,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add reorder pillars endpoint
+  app.patch("/api/evaluation-templates/:templateId/reorder-pillars", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const templateId = parseInt(req.params.templateId);
+      const { pillarIds } = req.body;
+
+      if (!templateId || !Array.isArray(pillarIds)) {
+        return res.status(400).json({ message: "Invalid request data" });
+      }
+
+      const template = await storage.getEvaluationTemplate(templateId);
+      if (!template) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+
+      if (template.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Update pillar order
+      await storage.reorderPillars(templateId, pillarIds);
+
+      res.json({ message: "Pillars reordered successfully" });
+    } catch (error: any) {
+      console.error("Error reordering pillars:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Add reorder parameters endpoint
+  app.patch("/api/evaluation-pillars/:pillarId/reorder-parameters", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const pillarId = parseInt(req.params.pillarId);
+      const { parameterIds } = req.body;
+
+      if (!pillarId || !Array.isArray(parameterIds)) {
+        return res.status(400).json({ message: "Invalid request data" });
+      }
+
+      // Get the pillar to verify ownership through template
+      const pillar = await storage.getEvaluationPillar(pillarId);
+      if (!pillar) {
+        return res.status(404).json({ message: "Pillar not found" });
+      }
+
+      const template = await storage.getEvaluationTemplate(pillar.templateId);
+      if (!template || template.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Update parameter order
+      await storage.reorderParameters(pillarId, parameterIds);
+
+      res.json({ message: "Parameters reordered successfully" });
+    } catch (error: any) {
+      console.error("Error reordering parameters:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Add route to get organization processes 
   app.get("/api/processes", async (req, res) => {
     if (!req.user || !req.user.organizationId) {
