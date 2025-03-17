@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import {
   Card,
   CardContent,
@@ -106,25 +106,9 @@ export default function EvaluationExecutionPage() {
 
       console.log('Sending payload:', payload);
 
-      const response = await queryClient.fetchQuery({
-        queryKey: [`/api/organizations/${user?.organizationId}/evaluations/start`],
-        queryFn: async () => {
-          const result = await fetch(`/api/organizations/${user?.organizationId}/evaluations/start`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-              'Cache-Control': 'no-cache',
-            },
-            body: JSON.stringify(payload),
-          });
-
-          if (!result.ok) {
-            throw new Error(`Failed to start evaluation (${result.status})`);
-          }
-
-          return result.json();
-        },
+      const response = await apiRequest(`/api/organizations/${user?.organizationId}/evaluations/start`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
       });
 
       return response;
@@ -185,7 +169,7 @@ export default function EvaluationExecutionPage() {
                         setSelectedBatchId(batchId);
                         form.setValue('traineeId', undefined);
                       }}
-                      value={field.value?.toString()}
+                      value={field.value?.toString() || ""}
                     >
                       <FormControl>
                         <SelectTrigger>
