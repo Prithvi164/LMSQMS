@@ -489,6 +489,9 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                                   <Badge variant="outline" className="text-xs">
                                     {param.weightage}%
                                   </Badge>
+                                  {param.isFatal && (
+                                    <Badge variant="destructive" className="text-xs">Fatal</Badge>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <Button
@@ -514,6 +517,16 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                                   </Button>
                                 </div>
                               </div>
+                              {param.ratingType === "yes_no_na" && param.noReasons && param.noReasons.length > 0 && (
+                                <div className="mt-2 ml-4 text-sm text-muted-foreground">
+                                  <p className="font-medium text-xs">No Reasons:</p>
+                                  <ul className="list-disc list-inside">
+                                    {param.noReasons.map((reason: string, idx: number) => (
+                                      <li key={idx} className="text-xs">{reason}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -908,18 +921,11 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                                     {param.noReasons && param.noReasons.length > 0 && (
                                       <div className="space-y-2">
                                         <p className="text-sm font-medium">If No, select reason:</p>
-                                        <Select disabled>
-                                          <SelectTrigger>
-                                            <SelectValue placeholder="Select reason for No" />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            {param.noReasons.map((reason: string, index: number) => (
-                                              <SelectItem key={index} value={reason}>
-                                                {reason}
-                                              </SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
+                                        <ul className="list-disc list-inside">
+                                          {param.noReasons.map((reason: string, idx: number) => (
+                                            <li key={idx} className="text-xs">{reason}</li>
+                                          ))}
+                                        </ul>
                                       </div>
                                     )}
                                   </div>
