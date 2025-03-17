@@ -2,23 +2,6 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import {
   Card,
   CardContent,
   CardHeader,
@@ -49,23 +32,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, ChevronDown, ChevronUp, Eye, Check, Edit2, GripVertical } from "lucide-react";
+import { Trash2, Plus, ChevronDown, ChevronUp, Eye, Check, Edit2 } from "lucide-react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { PreviewForm } from "./preview-form";
-import {
-  AlertDialog,
-  AlertDialogTrigger,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogCancel,
-  AlertDialogAction,
-} from "@/components/ui/alert-dialog";
 
 // Form schemas
 const pillarSchema = z.object({
@@ -90,29 +61,6 @@ type FormBuilderProps = {
   templateId: number;
 };
 
-function SortableItem({ id, children, className }: { id: number; children: React.ReactNode; className?: string }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-  } = useSortable({ id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
-  return (
-    <div ref={setNodeRef} style={style} className={className}>
-      <div {...attributes} {...listeners} className="cursor-grab">
-        {children}
-      </div>
-    </div>
-  );
-}
-
 export function FormBuilder({ templateId }: FormBuilderProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -124,7 +72,6 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
   const [newReason, setNewReason] = useState("");
   const [isEditingPillar, setIsEditingPillar] = useState(false);
   const [isEditingParameter, setIsEditingParameter] = useState(false);
-  const [pillars, setPillars] = useState<any[]>([]);
 
   // Fetch template details
   const { data: template } = useQuery({
@@ -261,7 +208,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data.parameter,
-          noReasons: noReasons,
+          noReasons,
         }),
       });
       if (!response.ok) {
@@ -301,7 +248,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
         body: JSON.stringify({
           ...data,
           pillarId: activePillarId,
-          noReasons: noReasons,
+          noReasons,
         }),
       });
       if (!response.ok) {
@@ -446,48 +393,6 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
     }
   };
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  useEffect(() => {
-    if (template?.pillars) {
-      setPillars(template.pillars);
-    }
-  }, [template]);
-
-  // Add handleDragEnd function
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const oldIndex = pillars.findIndex((pillar) => pillar.id === active.id);
-    const newIndex = pillars.findIndex((pillar) => pillar.id === over.id);
-
-    const newPillars = arrayMove(pillars, oldIndex, newIndex);
-    setPillars(newPillars);
-
-    try {
-      await fetch(`/api/evaluation-templates/${templateId}/reorder-pillars`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pillarIds: newPillars.map((p) => p.id),
-        }),
-      });
-
-      queryClient.invalidateQueries({
-        queryKey: [`/api/evaluation-templates/${templateId}`],
-      });
-    } catch (error) {
-      console.error("Failed to reorder pillars:", error);
-      setPillars(template?.pillars || []);
-    }
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center mb-4">
@@ -510,198 +415,259 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
         </div>
       </div>
 
-      {previewMode ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Form Preview</CardTitle>
-            <CardDescription>Preview how the form will appear to evaluators</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <PreviewForm template={template} />
-          </CardContent>
-        </Card>
-      ) : (
-        <ResizablePanelGroup direction="horizontal">
-          {/* Form Structure Panel */}
-          <ResizablePanel defaultSize={25} minSize={20}>
-            <Card className="h-full">
-              <CardHeader>
-                <CardTitle>Form Structure</CardTitle>
-                <CardDescription>Drag to reorder pillars and parameters</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext
-                    items={pillars.map((p) => p.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    <div className="space-y-4">
-                      {pillars.map((pillar) => (
-                        <SortableItem key={pillar.id} id={pillar.id}>
-                          <div
-                            className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                              activePillarId === pillar.id
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-muted hover:bg-muted/80"
-                            }`}
-                            onClick={() => setActivePillarId(pillar.id)}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <GripVertical className="h-4 w-4 cursor-grab" />
-                                <span className="font-medium">{pillar.name}</span>
-                                <Badge variant="outline">{pillar.weightage}%</Badge>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setIsEditingPillar(true);
-                                    setActivePillarId(pillar.id);
-                                  }}
-                                >
-                                  <Edit2 className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    deletePillarMutation.mutate(pillar.id);
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
+      <ResizablePanelGroup direction="horizontal">
+        {/* Form Structure Panel */}
+        <ResizablePanel defaultSize={25} minSize={20}>
+          <Card className="h-full">
+            <CardHeader>
+              <CardTitle>Form Structure</CardTitle>
+              <CardDescription>Click a pillar or parameter to edit</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {template?.pillars && template.pillars.length > 0 ? (
+                <div className="space-y-4">
+                  {template.pillars.map((pillar: any) => (
+                    <div key={pillar.id} className="space-y-2">
+                      <div
+                        className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                          activePillarId === pillar.id
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted hover:bg-muted/80"
+                        }`}
+                        onClick={() => setActivePillarId(pillar.id)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{pillar.name}</span>
+                            <Badge variant="outline">{pillar.weightage}%</Badge>
                           </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIsEditingPillar(true);
+                                setActivePillarId(pillar.id);
+                              }}
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deletePillarMutation.mutate(pillar.id);
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
 
-                          {/* Parameters under this pillar */}
-                          {pillar.parameters && pillar.parameters.length > 0 && (
-                            <div className="ml-4 space-y-2 mt-2">
-                              <SortableContext
-                                items={pillar.parameters.map((p: any) => p.id)}
-                                strategy={verticalListSortingStrategy}
-                              >
-                                {pillar.parameters.map((param: any) => (
-                                  <SortableItem key={param.id} id={param.id}>
-                                    <div
-                                      className={`p-2 rounded cursor-pointer transition-colors ${
-                                        selectedParameter === param.id
-                                          ? "bg-accent text-accent-foreground"
-                                          : "hover:bg-accent/50"
-                                      }`}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedParameter(param.id);
-                                      }}
-                                    >
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                          <GripVertical className="h-4 w-4 cursor-grab" />
-                                          <span className="text-sm">{param.name}</span>
-                                          <Badge variant="outline" className="text-xs">
-                                            {param.weightage}%
-                                          </Badge>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setIsEditingParameter(true);
-                                              setSelectedParameter(param.id);
-                                            }}
-                                          >
-                                            <Edit2 className="h-4 w-4" />
-                                          </Button>
-                                          <AlertDialog>
-                                            <AlertDialogTrigger asChild>
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                }}
-                                              >
-                                                <Trash2 className="h-4 w-4" />
-                                              </Button>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent>
-                                              <AlertDialogHeader>
-                                                <AlertDialogTitle>Delete Parameter?</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                  This will permanently delete this parameter and its data. This action cannot be undone.
-                                                </AlertDialogDescription>
-                                              </AlertDialogHeader>
-                                              <AlertDialogFooter>
-                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                <AlertDialogAction
-                                                  onClick={() => {
-                                                    deleteParameterMutation.mutate(param.id);
-                                                  }}
-                                                >
-                                                  Delete
-                                                </AlertDialogAction>
-                                              </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                          </AlertDialog>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </SortableItem>
-                                ))}
-                              </SortableContext>
+                      {/* Parameters under this pillar */}
+                      {pillar.parameters && pillar.parameters.length > 0 && (
+                        <div className="ml-4 space-y-2">
+                          {pillar.parameters.map((param: any) => (
+                            <div
+                              key={param.id}
+                              className={`p-2 rounded cursor-pointer transition-colors ${
+                                selectedParameter === param.id
+                                  ? "bg-accent text-accent-foreground"
+                                  : "hover:bg-accent/50"
+                              }`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedParameter(param.id);
+                              }}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm">{param.name}</span>
+                                  <Badge variant="outline" className="text-xs">
+                                    {param.weightage}%
+                                  </Badge>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setIsEditingParameter(true);
+                                      setSelectedParameter(param.id);
+                                    }}
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      deleteParameterMutation.mutate(param.id);
+                                    }}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
                             </div>
-                          )}
-                        </SortableItem>
-                      ))}
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  </SortableContext>
-                </DndContext>
-              </CardContent>
-            </Card>
-          </ResizablePanel>
-          <ResizableHandle />
-          {/* Form Builder Panel */}
-          <ResizablePanel defaultSize={75}>
-            {!previewMode ? (
-              <div className="space-y-6">
-                {/* Add/Edit Pillar Form */}
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center text-muted-foreground p-4">
+                  No pillars added yet. Start by adding a pillar.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </ResizablePanel>
+
+        <ResizableHandle />
+
+        {/* Form Builder Panel */}
+        <ResizablePanel defaultSize={75}>
+          {!previewMode ? (
+            <div className="space-y-6">
+              {/* Add/Edit Pillar Form */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>
+                    {isEditingPillar ? "Edit Pillar" : "Add Evaluation Pillar"}
+                  </CardTitle>
+                  <CardDescription>
+                    {isEditingPillar
+                      ? "Modify the selected pillar"
+                      : "Create a new category for evaluation"}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Form {...pillarForm}>
+                    <form
+                      onSubmit={pillarForm.handleSubmit(onPillarSubmit)}
+                      className="space-y-4"
+                    >
+                      <FormField
+                        control={pillarForm.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Pillar Name</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                placeholder="e.g., Customer Service Skills"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={pillarForm.control}
+                        name="description"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Description</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                {...field}
+                                placeholder="Describe this evaluation pillar"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={pillarForm.control}
+                        name="weightage"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Weightage (%)</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type="number"
+                                min="0"
+                                max="100"
+                                onChange={(e) =>
+                                  field.onChange(parseInt(e.target.value))
+                                }
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <Button
+                        type="submit"
+                        className="w-full"
+                        disabled={createPillarMutation.isPending}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        {isEditingPillar
+                          ? updatePillarMutation.isPending
+                            ? "Updating..."
+                            : "Update Pillar"
+                          : createPillarMutation.isPending
+                          ? "Creating..."
+                          : "Add Pillar"}
+                      </Button>
+                      {isEditingPillar && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full"
+                          onClick={() => {
+                            setIsEditingPillar(false);
+                            pillarForm.reset();
+                          }}
+                        >
+                          Cancel Edit
+                        </Button>
+                      )}
+                    </form>
+                  </Form>
+                </CardContent>
+              </Card>
+
+              {/* Add/Edit Parameter Form */}
+              {activePillarId && (
                 <Card>
                   <CardHeader>
                     <CardTitle>
-                      {isEditingPillar ? "Edit Pillar" : "Add Evaluation Pillar"}
+                      {isEditingParameter ? "Edit Parameter" : "Add Evaluation Parameter"}
                     </CardTitle>
                     <CardDescription>
-                      {isEditingPillar
-                        ? "Modify the selected pillar"
-                        : "Create a new category for evaluation"}
+                      {isEditingParameter
+                        ? "Modify the selected parameter"
+                        : "Add specific criteria to evaluate"}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <Form {...pillarForm}>
+                    <Form {...parameterForm}>
                       <form
-                        onSubmit={pillarForm.handleSubmit(onPillarSubmit)}
+                        onSubmit={parameterForm.handleSubmit(onParameterSubmit)}
                         className="space-y-4"
                       >
                         <FormField
-                          control={pillarForm.control}
+                          control={parameterForm.control}
                           name="name"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Pillar Name</FormLabel>
+                              <FormLabel>Parameter Name</FormLabel>
                               <FormControl>
                                 <Input
                                   {...field}
-                                  placeholder="e.g., Customer Service Skills"
+                                  placeholder="e.g., Greeting Standard"
                                 />
                               </FormControl>
                               <FormMessage />
@@ -709,7 +675,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                           )}
                         />
                         <FormField
-                          control={pillarForm.control}
+                          control={parameterForm.control}
                           name="description"
                           render={({ field }) => (
                             <FormItem>
@@ -717,7 +683,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                               <FormControl>
                                 <Textarea
                                   {...field}
-                                  placeholder="Describe this evaluation pillar"
+                                  placeholder="Describe this parameter"
                                 />
                               </FormControl>
                               <FormMessage />
@@ -725,7 +691,82 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                           )}
                         />
                         <FormField
-                          control={pillarForm.control}
+                          control={parameterForm.control}
+                          name="guidelines"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Evaluation Guidelines</FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  {...field}
+                                  placeholder="Instructions for evaluators"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={parameterForm.control}
+                          name="ratingType"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Rating Type</FormLabel>
+                              <Select
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select rating type" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="yes_no_na">Yes/No/NA</SelectItem>
+                                  <SelectItem value="numeric">Numeric (1-5)</SelectItem>
+                                  <SelectItem value="custom">Custom Options</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        {/* No Reasons Section */}
+                        {parameterForm.watch("ratingType") === "yes_no_na" && (
+                          <div className="space-y-4 border rounded-lg p-4">
+                            <h4 className="font-medium">Reasons for "No" Response</h4>
+                            <div className="flex gap-2">
+                              <Input
+                                value={newReason}
+                                onChange={(e) => setNewReason(e.target.value)}
+                                placeholder="Enter a reason"
+                              />
+                              <Button type="button" onClick={addReason}>
+                                Add
+                              </Button>
+                            </div>
+                            {noReasons.length > 0 && (
+                              <div className="space-y-2">
+                                {noReasons.map((reason, index) => (
+                                  <div key={index} className="flex items-center justify-between bg-muted p-2 rounded">
+                                    <span>{reason}</span>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => removeReason(index)}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <FormField
+                          control={parameterForm.control}
                           name="weightage"
                           render={({ field }) => (
                             <FormItem>
@@ -745,28 +786,64 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                             </FormItem>
                           )}
                         />
+                        <div className="flex gap-4">
+                          <FormField
+                            control={parameterForm.control}
+                            name="isFatal"
+                            render={({ field }) => (
+                              <FormItem className="flex items-center gap-2">
+                                <FormControl>
+                                  <input
+                                    type="checkbox"
+                                    checked={field.value}
+                                    onChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <FormLabel>Fatal Error</FormLabel>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={parameterForm.control}
+                            name="requiresComment"
+                            render={({ field }) => (
+                              <FormItem className="flex items-center gap-2">
+                                <FormControl>
+                                  <input
+                                    type="checkbox"
+                                    checked={field.value}
+                                    onChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <FormLabel>Requires Comment</FormLabel>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
                         <Button
                           type="submit"
                           className="w-full"
-                          disabled={createPillarMutation.isPending}
+                          disabled={createParameterMutation.isPending}
                         >
-                          <Plus className="w-4 h-4 mr-2" />
-                          {isEditingPillar
-                            ? updatePillarMutation.isPending
+                          {isEditingParameter
+                            ? updateParameterMutation.isPending
                               ? "Updating..."
-                              : "Update Pillar"
-                            : createPillarMutation.isPending
+                              : "Update Parameter"
+                            : createParameterMutation.isPending
                             ? "Creating..."
-                            : "Add Pillar"}
+                            : "Add Parameter"}
                         </Button>
-                        {isEditingPillar && (
+                        {isEditingParameter && (
                           <Button
                             type="button"
                             variant="outline"
                             className="w-full"
                             onClick={() => {
-                              setIsEditingPillar(false);
-                              pillarForm.reset();
+                              setIsEditingParameter(false);
+                              parameterForm.reset();
+                              setNoReasons([]);
                             }}
                           >
                             Cancel Edit
@@ -776,239 +853,102 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                     </Form>
                   </CardContent>
                 </Card>
-
-                {/* Add/Edit Parameter Form */}
-                {activePillarId && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>
-                        {isEditingParameter ? "Edit Parameter" : "Add Evaluation Parameter"}
-                      </CardTitle>
-                      <CardDescription>
-                        {isEditingParameter
-                          ? "Modify the selected parameter"
-                          : "Add specific criteria to evaluate"}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Form {...parameterForm}>
-                        <form
-                          onSubmit={parameterForm.handleSubmit(onParameterSubmit)}
-                          className="space-y-4"
-                        >
-                          <FormField
-                            control={parameterForm.control}
-                            name="name"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Parameter Name</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    {...field}
-                                    placeholder="e.g., Greeting Standard"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={parameterForm.control}
-                            name="description"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Description</FormLabel>
-                                <FormControl>
-                                  <Textarea
-                                    {...field}
-                                    placeholder="Describe this parameter"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={parameterForm.control}
-                            name="guidelines"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Evaluation Guidelines</FormLabel>
-                                <FormControl>
-                                  <Textarea
-                                    {...field}
-                                    placeholder="Instructions for evaluators"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={parameterForm.control}
-                            name="ratingType"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Rating Type</FormLabel>
-                                <Select
-                                  onValueChange={field.onChange}
-                                  defaultValue={field.value}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select rating type" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    <SelectItem value="yes_no_na">Yes/No/NA</SelectItem>
-                                    <SelectItem value="numeric">Numeric (1-5)</SelectItem>
-                                    <SelectItem value="custom">Custom Options</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          {/* No Reasons Section */}
-                          {parameterForm.watch("ratingType") === "yes_no_na" && (
-                            <div className="space-y-4 border rounded-lg p-4">
-                              <h4 className="font-medium">Reasons for "No" Response</h4>
-                              <div className="flex gap-2">
-                                <Input
-                                  value={newReason}
-                                  onChange={(e) => setNewReason(e.target.value)}
-                                  placeholder="Enter a reason"
-                                />
-                                <Button type="button" onClick={addReason}>
-                                  Add
-                                </Button>
+              )}
+            </div>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Form Preview</CardTitle>
+                <CardDescription>
+                  Preview how evaluators will see this form
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-8">
+                  {template?.pillars?.map((pillar: any) => (
+                    <div key={pillar.id} className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold">{pillar.name}</h3>
+                        <Badge>{pillar.weightage}%</Badge>
+                      </div>
+                      {pillar.description && (
+                        <p className="text-muted-foreground">{pillar.description}</p>
+                      )}
+                      <div className="space-y-4">
+                        {pillar.parameters?.map((param: any) => (
+                          <Card key={param.id}>
+                            <CardHeader>
+                              <div className="flex items-center justify-between">
+                                <CardTitle className="text-base">{param.name}</CardTitle>
+                                <div className="flex gap-2">
+                                  <Badge variant="outline">{param.weightage}%</Badge>
+                                  {param.isFatal && (
+                                    <Badge variant="destructive">Fatal</Badge>
+                                  )}
+                                </div>
                               </div>
-                              {noReasons.length > 0 && (
-                                <div className="space-y-2">
-                                  {noReasons.map((reason, index) => (
-                                    <div key={index} className="flex items-center justify-between bg-muted p-2 rounded">
-                                      <span>{reason}</span>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => removeReason(index)}
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </Button>
-                                    </div>
-                                  ))}
+                              {param.description && (
+                                <CardDescription>{param.description}</CardDescription>
+                              )}
+                            </CardHeader>
+                            <CardContent>
+                              {param.guidelines && (
+                                <div className="mb-4 text-sm text-muted-foreground">
+                                  <strong>Guidelines:</strong> {param.guidelines}
                                 </div>
                               )}
-                            </div>
-                          )}
-
-                          <FormField
-                            control={parameterForm.control}
-                            name="weightage"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Weightage (%)</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    {...field}
-                                    type="number"
-                                    min="0"
-                                    max="100"
-                                    onChange={(e) =>
-                                      field.onChange(parseInt(e.target.value))
-                                    }
+                              <div className="space-y-4">
+                                {param.ratingType === "yes_no_na" && (
+                                  <div className="space-y-4">
+                                    <div className="flex gap-4">
+                                      <Button variant="outline">Yes</Button>
+                                      <Button variant="outline">No</Button>
+                                      <Button variant="outline">N/A</Button>
+                                    </div>
+                                    {param.noReasons && param.noReasons.length > 0 && (
+                                      <Select disabled>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Select reason for No" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {param.noReasons.map((reason: string, index: number) => (
+                                            <SelectItem key={index} value={reason}>
+                                              {reason}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    )}
+                                  </div>
+                                )}
+                                {param.ratingType === "numeric" && (
+                                  <div className="flex gap-2">
+                                    {[1, 2, 3, 4, 5].map((n) => (
+                                      <Button key={n} variant="outline">
+                                        {n}
+                                      </Button>
+                                    ))}
+                                  </div>
+                                )}
+                                {param.requiresComment && (
+                                  <Textarea
+                                    placeholder="Add your comments here"
+                                    disabled
                                   />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <div className="flex gap-4">
-                            <FormField
-                              control={parameterForm.control}
-                              name="isFatal"
-                              render={({ field }) => (
-                                <FormItem className="flex items-center gap-2">
-                                  <FormControl>
-                                    <input
-                                      type="checkbox"
-                                      checked={field.value}
-                                      onChange={field.onChange}
-                                    />
-                                  </FormControl>
-                                  <FormLabel>Fatal Error</FormLabel>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={parameterForm.control}
-                              name="requiresComment"
-                              render={({ field }) => (
-                                <FormItem className="flex items-center gap-2">
-                                  <FormControl>
-                                    <input
-                                      type="checkbox"
-                                      checked={field.value}
-                                      onChange={field.onChange}
-                                    />
-                                  </FormControl>
-                                  <FormLabel>Requires Comment</FormLabel>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                          <Button
-                            type="submit"
-                            className="w-full"
-                            disabled={createParameterMutation.isPending}
-                          >
-                            {isEditingParameter
-                              ? updateParameterMutation.isPending
-                                ? "Updating..."
-                                : "Update Parameter"
-                              : createParameterMutation.isPending
-                              ? "Creating..."
-                              : "Add Parameter"}
-                          </Button>
-                          {isEditingParameter && (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="w-full"
-                              onClick={() => {
-                                setIsEditingParameter(false);
-                                parameterForm.reset();
-                                setNoReasons([]);
-                              }}
-                            >
-                              Cancel Edit
-                            </Button>
-                          )}
-                        </form>
-                      </Form>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Form Preview</CardTitle>
-                  <CardDescription>
-                    Preview how the form will appear to evaluators
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <PreviewForm template={template} />
-                </CardContent>
-              </Card>
-            )}
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      )}
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 }

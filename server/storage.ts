@@ -70,9 +70,6 @@ import {
 
 // Add to IStorage interface
 export interface IStorage {
-  // Evaluation template duplication
-  duplicateEvaluationTemplate(templateId: number, userId: number, name: string): Promise<EvaluationTemplate>;
-
   // User operations
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -251,10 +248,6 @@ export interface IStorage {
       parameters: EvaluationParameter[];
     })[];
   } | undefined>;
-
-  // Pillar and parameter reordering operations
-  reorderPillars(templateId: number, pillarIds: number[]): Promise<void>;
-  reorderParameters(pillarId: number, parameterIds: number[]): Promise<void>;
   listEvaluationTemplates(organizationId: number): Promise<EvaluationTemplate[]>;
   createEvaluationPillar(pillar: InsertEvaluationPillar): Promise<EvaluationPillar>;
   getEvaluationPillar(id: number): Promise<EvaluationPillar | undefined>;
@@ -265,10 +258,6 @@ export interface IStorage {
   updateEvaluationParameter(id: number, parameter: Partial<InsertEvaluationParameter>): Promise<EvaluationParameter>;
   deleteEvaluationParameter(id: number): Promise<void>;
   deleteEvaluationTemplate(id: number): Promise<void>;
-  
-  // Pillar and parameter reordering
-  reorderPillars(templateId: number, pillarIds: number[]): Promise<void>;
-  reorderParameters(pillarId: number, parameterIds: number[]): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -303,108 +292,6 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-
-  async duplicateEvaluationTemplate(templateId: number, userId: number, name: string): Promise<EvaluationTemplate> {
-    try {
-      return await db.transaction(async (tx) => {
-        // Get the original template with all details 
-        const originalTemplate = await this.getEvaluationTemplateWithDetails(templateId);
-        if (!originalTemplate) {
-          throw new Error('Template not found');
-        }
-
-        // Create a new template with the provided name
-        const [newTemplate] = await tx
-          .insert(evaluationTemplates)
-          .values({
-            name, // Use the provided name instead of appending (Copy)
-            description: originalTemplate.description,
-            processId: originalTemplate.processId,
-            organizationId: originalTemplate.organizationId,
-            status: 'draft', // Always start as draft
-            createdBy: userId,
-          })
-          .returning() as EvaluationTemplate[];
-
-        // Create new pillars and store the mapping of old to new IDs
-        const pillarIdMap = new Map<number, number>();
-        
-        for (const pillar of originalTemplate.pillars) {
-          const [newPillar] = await tx
-            .insert(evaluationPillars)
-            .values({
-              name: pillar.name,
-              description: pillar.description,
-              weightage: pillar.weightage,
-              orderIndex: pillar.orderIndex,
-              templateId: newTemplate.id,
-            })
-            .returning() as EvaluationPillar[];
-
-          pillarIdMap.set(pillar.id, newPillar.id);
-
-          // Create new parameters for this pillar
-          for (const param of pillar.parameters) {
-            await tx
-              .insert(evaluationParameters)
-              .values({
-                name: param.name,
-                description: param.description,
-                guidelines: param.guidelines,
-                weightage: param.weightage,
-                ratingType: param.ratingType,
-                orderIndex: param.orderIndex,
-                isFatal: param.isFatal,
-                requiresComment: param.requiresComment,
-                noReasons: param.noReasons,
-                pillarId: newPillar.id,
-              });
-          }
-        }
-
-        return newTemplate;
-      });
-    } catch (error) {
-      console.error('Error duplicating evaluation template:', error);
-      throw error;
-    }
-  }
-
-  // Pillar and parameter reordering operations
-  async reorderPillars(templateId: number, pillarIds: number[]): Promise<void> {
-    try {
-      await db.transaction(async (tx) => {
-        // Update each pillar's order
-        for (let i = 0; i < pillarIds.length; i++) {
-          await tx
-            .update(evaluationPillars)
-            .set({ orderIndex: i })
-            .where(eq(evaluationPillars.id, pillarIds[i]));
-        }
-      });
-    } catch (error) {
-      console.error('Error reordering pillars:', error);
-      throw error;
-    }
-  }
-
-  async reorderParameters(pillarId: number, parameterIds: number[]): Promise<void> {
-    try {
-      await db.transaction(async (tx) => {
-        // Update each parameter's order
-        for (let i = 0; i < parameterIds.length; i++) {
-          await tx
-            .update(evaluationParameters)
-            .set({ orderIndex: i })
-            .where(eq(evaluationParameters.id, parameterIds[i]));
-        }
-      });
-    } catch (error) {
-      console.error('Error reordering parameters:', error);
-      throw error;
-    }
-  }
-
   // User operations
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id)) as User[];
