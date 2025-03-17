@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -225,6 +225,37 @@ export default function MockCallScenariosPage() {
       default:
         return "";
     }
+  };
+
+  // Add timer state
+  const [callDuration, setCallDuration] = useState(0);
+
+  // Timer effect
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isCallActive) {
+      timer = setInterval(() => {
+        setCallDuration(prev => prev + 1);
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [isCallActive]);
+
+  // Format time for display
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // ... (keep existing mutations and handlers)
+
+  const handleEndCall = () => {
+    setIsCallActive(false);
+    setCallDuration(0);
+    // Add any cleanup or submission logic here
   };
 
   return (
@@ -640,24 +671,38 @@ export default function MockCallScenariosPage() {
       </div>
 
       {isCallActive && activeScenario && (
-        <Dialog open={isCallActive} onOpenChange={() => setIsCallActive(false)}>
+        <Dialog open={isCallActive} onOpenChange={handleEndCall}>
           <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
-              <DialogTitle>Mock Call Session</DialogTitle>
+              <DialogTitle className="flex justify-between items-center">
+                <span>Mock Call Session</span>
+                <Badge variant="outline">{formatTime(callDuration)}</Badge>
+              </DialogTitle>
               <DialogDescription>
                 Customer Profile: {activeScenario.customerProfile.name}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
+              <div className="bg-muted p-4 rounded-lg">
+                <h3 className="font-medium mb-2">Call Guidelines</h3>
+                <ul className="list-disc list-inside space-y-2 text-sm">
+                  <li>Maintain a professional and friendly tone</li>
+                  <li>Listen actively to customer concerns</li>
+                  <li>Follow the script guidelines</li>
+                  <li>Take notes during the call</li>
+                </ul>
+              </div>
+
               <div>
-                <h3 className="font-medium">Scenario Background</h3>
-                <p className="text-sm text-muted-foreground">
+                <h3 className="font-medium mb-2">Scenario Background</h3>
+                <p className="text-sm text-muted-foreground bg-muted p-3 rounded">
                   {activeScenario.customerProfile.background}
                 </p>
               </div>
-              <div>
-                <h3 className="font-medium">Expected Key Points</h3>
-                <ul className="list-disc list-inside text-sm text-muted-foreground">
+
+              <div className="border rounded-lg p-4">
+                <h3 className="font-medium mb-2">Expected Key Points</h3>
+                <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
                   {activeScenario.expectedDialogue.keyPoints.map(
                     (point: string, index: number) => (
                       <li key={index}>{point}</li>
@@ -665,13 +710,25 @@ export default function MockCallScenariosPage() {
                   )}
                 </ul>
               </div>
-              <Button
-                variant="destructive"
-                onClick={() => setIsCallActive(false)}
-                className="w-full"
-              >
-                End Call
-              </Button>
+
+              <div className="border-t pt-4 mt-4">
+                <div className="flex gap-4">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={handleEndCall}
+                  >
+                    End Call
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    className="flex-1"
+                    onClick={handleEndCall}
+                  >
+                    End & Submit
+                  </Button>
+                </div>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
