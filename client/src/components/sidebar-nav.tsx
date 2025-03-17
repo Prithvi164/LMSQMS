@@ -20,7 +20,7 @@ export function SidebarNav() {
   const { logout, user } = useAuth(); 
 
   const isTrainee = user?.category === 'trainee';
-  const isQA = user?.role === 'qa';
+  const canAccessEvaluation = user?.role === 'quality_analyst' || user?.role === 'owner';
 
   const navItems = [
     { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -31,7 +31,7 @@ export function SidebarNav() {
       { href: '/trainee-management', label: 'Trainee Management', icon: ClipboardCheck },
       { href: '/quiz-management', label: 'Quiz Management', icon: BookOpen },
       { href: '/mock-call-scenarios', label: 'Mock Calls', icon: PhoneCall },
-      ...(isQA ? [
+      ...(canAccessEvaluation ? [
         { href: '/evaluation-form-builder', label: 'Evaluation Forms', icon: FileSpreadsheet },
       ] : []),
       { href: '/learning-paths', label: 'Learning Paths', icon: GraduationCap },
