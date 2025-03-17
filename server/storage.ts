@@ -1,6 +1,13 @@
 import { eq, inArray, sql, desc, and, or } from "drizzle-orm";
 import { db } from "./db";
 import { batchStatusEnum } from "@shared/schema";
+
+// Utility function for array reordering
+function arrayMove<T>(array: T[], from: number, to: number): T[] {
+  const newArray = array.slice();
+  newArray.splice(to, 0, newArray.splice(from, 1)[0]);
+  return newArray;
+}
 import {
   users,
   organizations,
@@ -258,6 +265,10 @@ export interface IStorage {
   updateEvaluationParameter(id: number, parameter: Partial<InsertEvaluationParameter>): Promise<EvaluationParameter>;
   deleteEvaluationParameter(id: number): Promise<void>;
   deleteEvaluationTemplate(id: number): Promise<void>;
+
+  // Add new methods for reordering
+  updatePillarOrder(templateId: number, pillarId: number, newIndex: number): Promise<void>;
+  updateParameterOrder(pillarId: number, parameterId: number, newIndex: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -306,6 +317,80 @@ export class DatabaseStorage implements IStorage {
       return updatedParameter;
     } catch (error) {
       console.error('Error updating evaluation parameter:', error);
+      throw error;
+    }
+  }
+
+  async updatePillarOrder(templateId: number, pillarId: number, newIndex: number): Promise<void> {
+    try {
+      console.log(`Updating pillar order: templateId=${templateId}, pillarId=${pillarId}, newIndex=${newIndex}`);
+
+      // Get all pillars for this template ordered by their current order
+      const pillars = await db
+        .select()
+        .from(evaluationPillars)
+        .where(eq(evaluationPillars.templateId, templateId))
+        .orderBy(evaluationPillars.orderIndex) as any[];
+
+      // Find the current index of the pillar
+      const currentIndex = pillars.findIndex(p => p.id === pillarId);
+      if (currentIndex === -1) {
+        throw new Error('Pillar not found');
+      }
+
+      // Calculate new order indices
+      const updatedPillars = arrayMove(pillars, currentIndex, newIndex);
+      
+      // Update order indices in transaction
+      await db.transaction(async (tx) => {
+        for (let i = 0; i < updatedPillars.length; i++) {
+          await tx
+            .update(evaluationPillars)
+            .set({ orderIndex: i })
+            .where(eq(evaluationPillars.id, updatedPillars[i].id));
+        }
+      });
+
+      console.log('Successfully updated pillar order');
+    } catch (error) {
+      console.error('Error updating pillar order:', error);
+      throw error;
+    }
+  }
+
+  async updateParameterOrder(pillarId: number, parameterId: number, newIndex: number): Promise<void> {
+    try {
+      console.log(`Updating parameter order: pillarId=${pillarId}, parameterId=${parameterId}, newIndex=${newIndex}`);
+
+      // Get all parameters for this pillar ordered by their current order
+      const parameters = await db
+        .select()
+        .from(evaluationParameters)
+        .where(eq(evaluationParameters.pillarId, pillarId))
+        .orderBy(evaluationParameters.orderIndex) as any[];
+
+      // Find the current index of the parameter
+      const currentIndex = parameters.findIndex(p => p.id === parameterId);
+      if (currentIndex === -1) {
+        throw new Error('Parameter not found');
+      }
+
+      // Calculate new order indices
+      const updatedParameters = arrayMove(parameters, currentIndex, newIndex);
+      
+      // Update order indices in transaction
+      await db.transaction(async (tx) => {
+        for (let i = 0; i < updatedParameters.length; i++) {
+          await tx
+            .update(evaluationParameters)
+            .set({ orderIndex: i })
+            .where(eq(evaluationParameters.id, updatedParameters[i].id));
+        }
+      });
+
+      console.log('Successfully updated parameter order');
+    } catch (error) {
+      console.error('Error updating parameter order:', error);
       throw error;
     }
   }
