@@ -37,7 +37,6 @@ interface Batch {
 
 interface Trainee {
   userId: number;
-  status: string;
   user: {
     id: number;
     fullName: string;
@@ -76,12 +75,6 @@ export default function EvaluationExecutionPage() {
   const { data: trainees = [], isLoading: isTraineesLoading } = useQuery<Trainee[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${selectedBatchId}/trainees`],
     enabled: !!selectedBatchId && !!user?.organizationId,
-    onSuccess: (data) => {
-      console.log('Fetched trainees:', data);
-    },
-    onError: (error) => {
-      console.error('Error fetching trainees:', error);
-    }
   });
 
   // Fetch evaluation templates
@@ -104,35 +97,45 @@ export default function EvaluationExecutionPage() {
     mutationFn: async (values: z.infer<typeof formSchema>) => {
       console.log('Starting evaluation with values:', values);
 
+      const payload = {
+        ...values,
+        evaluatorId: user?.id,
+      };
+
+      console.log('Sending payload:', payload);
+
       const response = await fetch(`/api/organizations/${user?.organizationId}/evaluations`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
           "Accept": "application/json"
         },
-        body: JSON.stringify({
-          ...values,
-          evaluatorId: user?.id,
-        }),
+        body: JSON.stringify(payload),
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+
       if (!response.ok) {
-        // Try to parse error message from response
+        const text = await response.text();
+        console.error('Error response text:', text);
+
         try {
-          const errorData = await response.json();
+          const errorData = JSON.parse(text);
           throw new Error(errorData.message || 'Failed to start evaluation');
         } catch (e) {
-          // If parsing fails, throw generic error with status
-          throw new Error(`Failed to start evaluation (${response.status})`);
+          throw new Error(`Failed to start evaluation (Status: ${response.status}, Response: ${text})`);
         }
       }
 
-      // Make sure we get valid JSON
+      const text = await response.text();
+      console.log('Success response text:', text);
+
       try {
-        const data = await response.json();
-        return data;
+        return JSON.parse(text);
       } catch (e) {
-        throw new Error('Invalid response from server');
+        console.error('JSON parse error:', e);
+        throw new Error(`Invalid JSON response: ${text}`);
       }
     },
     onSuccess: (data) => {
