@@ -287,77 +287,90 @@ export const insertQuizResponseSchema = createInsertSchema(quizResponses)
     isCorrect: z.boolean(),
   });
 
-// Remove duplicate evaluation schemas and keep only one clean definition
-export const evaluationResults = pgTable("evaluation_results", {
-  id: serial("id").primaryKey(),
-  templateId: integer("template_id")
-    .references(() => evaluationTemplates.id)
-    .notNull(),
-  traineeId: integer("trainee_id")
-    .references(() => users.id)
-    .notNull(),
-  evaluatorId: integer("evaluator_id")
-    .references(() => users.id)
-    .notNull(),
-  batchId: integer("batch_id")
-    .references(() => organizationBatches.id)
-    .notNull(),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
-  totalScore: integer("total_score").default(0).notNull(),
-  status: text("status").notNull(),
-  evaluatedAt: timestamp("evaluated_at").defaultNow().notNull(),
-  comments: text("comments"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export type InsertQuestion = z.infer<typeof insertQuestionSchema>;
+export type InsertQuizTemplate = z.infer<typeof insertQuizTemplateSchema>;
+export type InsertQuiz = z.infer<typeof insertQuizSchema>;
+export type InsertQuizAttempt = z.infer<typeof insertQuizAttemptSchema>;
+export type InsertQuizResponse = z.infer<typeof insertQuizResponseSchema>;
 
-// Single schema validation definition
-export const insertEvaluationResultSchema = createInsertSchema(evaluationResults)
-  .omit({
-    id: true,
-    createdAt: true,
-    updatedAt: true,
-  })
-  .extend({
-    templateId: z.number().int().positive("Template is required"),
-    traineeId: z.number().int().positive("Trainee is required"),
-    evaluatorId: z.number().int().positive("Evaluator is required"),
-    batchId: z.number().int().positive("Batch is required"),
-    organizationId: z.number().int().positive("Organization is required"),
-    totalScore: z.number().int().min(0).max(100).default(0),
-    status: z.string().min(1, "Status is required").default("pending"),
-    evaluatedAt: z.coerce.date().default(() => new Date()),
-    comments: z.string().optional().nullable(),
-  });
-
-export type EvaluationResult = InferSelectModel<typeof evaluationResults>;
-export type InsertEvaluationResult = z.infer<typeof insertEvaluationResultSchema>;
-
-// Relations definition
-export const evaluationResultsRelations = relations(evaluationResults, ({ one }) => ({
-  template: one(evaluationTemplates, {
-    fields: [evaluationResults.templateId],
-    references: [evaluationTemplates.id],
-  }),
-  trainee: one(users, {
-    fields: [evaluationResults.traineeId],
-    references: [users.id],
-  }),
-  evaluator: one(users, {
-    fields: [evaluationResults.evaluatorId],
-    references: [users.id],
-  }),
-  batch: one(organizationBatches, {
-    fields: [evaluationResults.batchId],
-    references: [organizationBatches.id],
+// Quiz-related relations
+export const questionsRelations = relations(questions, ({ one }) => ({
+  process: one(organizationProcesses, {
+    fields: [questions.processId],
+    references: [organizationProcesses.id],
   }),
   organization: one(organizations, {
-    fields: [evaluationResults.organizationId],
+    fields: [questions.organizationId],
     references: [organizations.id],
   }),
+  creator: one(users, {
+    fields: [questions.createdBy],
+    references: [users.id],
+  }),
 }));
+
+export const quizTemplatesRelations = relations(quizTemplates, ({ one }) => ({
+  process: one(organizationProcesses, {
+    fields: [quizTemplates.processId],
+    references: [organizationProcesses.id],
+  }),
+  organization: one(organizations, {
+    fields: [quizTemplates.organizationId],
+    references: [organizations.id],
+  }),
+  creator: one(users, {
+    fields: [quizTemplates.createdBy],
+    references: [users.id],
+  }),
+}));
+
+export const quizzesRelations = relations(quizzes, ({ one, many }) => ({
+  template: one(quizTemplates, {
+    fields: [quizzes.templateId],
+    references: [quizTemplates.id],
+  }),
+  organization: one(organizations, {
+    fields: [quizzes.organizationId],
+    references: [organizations.id],
+  }),
+  creator: one(users, {
+    fields: [quizzes.createdBy],
+    references: [users.id],
+  }),
+  process: one(organizationProcesses, {
+    fields: [quizzes.processId],
+    references: [organizationProcesses.id],
+  }),
+  attempts: many(quizAttempts),
+}));
+
+export const quizAttemptsRelations = relations(quizAttempts, ({ one, many }) => ({
+  quiz: one(quizzes, {
+    fields: [quizAttempts.quizId],
+    references: [quizzes.id],
+  }),
+  user: one(users, {
+    fields: [quizAttempts.userId],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [quizAttempts.organizationId],
+    references: [organizations.id],
+  }),
+  responses: many(quizResponses)
+}));
+
+export const quizResponsesRelations = relations(quizResponses, ({ one }) => ({
+  attempt: one(quizAttempts, {
+    fields: [quizResponses.quizAttemptId],
+    references: [quizAttempts.id],
+  }),
+  question: one(questions, {
+    fields: [quizResponses.questionId],
+    references: [questions.id],
+  }),
+}));
+
 
 export const batchTemplates = pgTable("batch_templates", {
   id: serial("id").primaryKey(),
@@ -376,7 +389,7 @@ export const batchTemplates = pgTable("batch_templates", {
     .references(() => organizationLineOfBusinesses.id)
     .notNull(),
   trainerId: integer("trainer_id")
-    .references(() => users.id, { onDelete: 'set null' }),
+    .references(() => users.id, { onDelete: 'set null' }),  
   batchCategory: batchCategoryEnum("batch_category").notNull(),
   capacityLimit: integer("capacity_limit").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -445,7 +458,7 @@ export const organizationBatches = pgTable("organization_batches", {
     .references(() => organizationLocations.id)
     .notNull(),
   trainerId: integer("trainer_id")
-    .references(() => users.id, { onDelete: 'set null' }),
+    .references(() => users.id, { onDelete: 'set null' }),  
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
@@ -503,19 +516,19 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
   .extend({
     batchCategory: z.enum(['new_training', 'upskill']),
     name: z.string().min(1, "Batch name is required"),
-    startDate: z.date(),
-    endDate: z.date(),
-    inductionStartDate: z.date(),
-    inductionEndDate: z.date().optional(),
-    trainingStartDate: z.date().optional(),
-    trainingEndDate: z.date().optional(),
-    certificationStartDate: z.date().optional(),
-    certificationEndDate: z.date().optional(),
-    ojtStartDate: z.date().optional(),
-    ojtEndDate: z.date().optional(),
-    ojtCertificationStartDate: z.date().optional(),
-    ojtCertificationEndDate: z.date().optional(),
-    handoverToOpsDate: z.date().optional(),
+    startDate: z.string().min(1, "Start date is required"),
+    endDate: z.string().min(1, "End date is required"),
+    inductionStartDate: z.string().min(1, "Induction Start date is required"),
+    inductionEndDate: z.string().optional(),
+    trainingStartDate: z.string().optional(),
+    trainingEndDate: z.string().optional(),
+    certificationStartDate: z.string().optional(),
+    certificationEndDate: z.string().optional(),
+    ojtStartDate: z.string().optional(),
+    ojtEndDate: z.string().optional(),
+    ojtCertificationStartDate: z.string().optional(),
+    ojtCertificationEndDate: z.string().optional(),
+    handoverToOpsDate: z.string().optional(),
     capacityLimit: z.number().int().min(1, "Capacity must be at least 1"),
     status: z.enum(['planned', 'induction', 'training', 'certification', 'ojt', 'ojt_certification', 'completed']).default('planned'),
     processId: z.number().int().positive("Process is required"),
@@ -623,9 +636,9 @@ export const userProcesses = pgTable("user_processes", {
     .references(() => organizations.id)
     .notNull(),
   lineOfBusinessId: integer("line_of_business_id")
-    .references(() => organizationLineOfBusinesses.id),
+    .references(() => organizationLineOfBusinesses.id),  
   locationId: integer("location_id")
-    .references(() => organizationLocations.id),
+    .references(() => organizationLocations.id),  
   status: text("status").default('assigned').notNull(),
   assignedAt: timestamp("assigned_at").defaultNow().notNull(),
   completedAt: timestamp("completed_at"),
@@ -723,8 +736,8 @@ export const insertUserBatchProcessSchema = createInsertSchema(userBatchProcesse
     batchId: z.number().int().positive("Batch ID is required"),
     processId: z.number().int().positive("Process ID is required"),
     status: z.enum(['active', 'completed', 'dropped', 'on_hold']).default('active'),
-    joinedAt: z.date(),
-    completedAt: z.date().optional(),
+    joinedAt: z.string().min(1, "Joined date is required"),
+    completedAt: z.string().optional(),
   });
 
 export type InsertUserBatchProcess = z.infer<typeof insertUserBatchProcessSchema>;
@@ -828,11 +841,10 @@ export const insertOrganizationLocationSchema = createInsertSchema(organizationL
 export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organizationLineOfBusinesses)
   .omit({
     id: true,
-    createdAt: true
-  })
+    createdAt: true})
   .extend({
-    name: z.string().min(1, "LOB name is required"),
-    description: z.string().min(1, "Description is required"),
+    name: z.string().min(11, "LOBname is required"),
+    description: z.string().min(11, "Description is required"),
     organizationId: z.number().int().positive("Organization is required"),
   });
 
@@ -845,9 +857,9 @@ export const insertUserSchema = createInsertSchema(users)
     employeeId: z.string().min(1, "Employee ID is required"),
     email: z.string().email("Invalid email format"),
     phoneNumber: z.string().regex(/^\d{10}$/, "Phone number must be 10 digits"),
-    dateOfJoining: z.date().optional(),
-    dateOfBirth: z.date().optional(),
-    lastWorkingDay: z.date().optional().nullable(),
+    dateOfJoining: z.string().optional(),
+    dateOfBirth: z.string().optional(),
+    lastWorkingDay: z.string().optional().nullable(),
     education: z.string().optional(),
     certified: z.boolean().default(false),
     active: z.boolean().default(true),
@@ -880,7 +892,7 @@ export const batchHistoryEventTypeEnum = pgEnum('batch_history_event_type', [
   'note'
 ]);
 
-export const batchHistory = pgTable("batch_history", { id: serial("id").primaryKey(),
+export const batchHistory = pgTable("batch_history", {  id: serial("id").primaryKey(),
   batchId: integer("batch_id")
     .references(() => organizationBatches.id)
     .notNull(),
@@ -907,11 +919,10 @@ export const insertBatchHistorySchema = createInsertSchema(batchHistory)
   })
   .extend({
     batchId: z.number().int().positive("Batch ID is required"),
-    eventType: z.enum(['phase_change', 'status_update', 'milestone', 'note']),
-    description: z.string().min(1, "Description is required"),
+    eventType:z.enum(['phase_change', 'status_update', 'milestone', 'note']),    description: z.string().min(1, "Description is required"),
     previousValue: z.string().optional(),
     newValue: z.string().optional(),
-    date: z.date(),
+    date: z.string().min(1, "Date is required"),
     userId: z.number().int().positive("User ID is required"),
     organizationId: z.number().int().positive("Organization ID is required"),
   });
@@ -1005,7 +1016,7 @@ export const insertAttendanceSchema = createInsertSchema(attendance)
     batchId: z.number().int().positive("Batch ID is required"),
     phase: z.enum(['induction', 'training', 'certification', 'ojt', 'ojt_certification']),
     status: z.enum(['present', 'absent', 'late', 'leave']),
-    date: z.date(),
+    date: z.string().min(1, "Date is required"),
     markedById: z.number().int().positive("Marker ID is required"),
     organizationId: z.number().int().positive("Organization ID is required"),
   });
@@ -1278,8 +1289,8 @@ export const insertMockCallAttemptSchema = createInsertSchema(mockCallAttempts)
       total: z.number().min(0).max(100),
     }).optional(),
     feedback: z.string().optional(),
-    startedAt: z.date(),
-    completedAt: z.date().optional(),
+    startedAt: z.string().min(1, "Start time is required"),
+    completedAt: z.string().optional(),
   });
 
 export type InsertMockCallScenario = z.infer<typeof insertMockCallScenarioSchema>;
@@ -1376,7 +1387,7 @@ export const evaluationParameters = pgTable("evaluation_parameters", {
   name: text("name").notNull(),
   description: text("description"),
   guidelines: text("guidelines"), // Detailed instructions for evaluation
-  ratingType: evaluationRatingTypeEnum("rating_type").notNull(),
+  ratingType: text("rating_type").notNull(),
   weightage: integer("weightage").notNull(), // Percentage weightage within the pillar
   weightageEnabled: boolean("weightage_enabled").default(true).notNull(), // New field
   isFatal: boolean("is_fatal").default(false).notNull(), // Whether this parameter can cause automatic failure
@@ -1399,7 +1410,7 @@ export const evaluationSubReasons = pgTable("evaluation_sub_reasons", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Evaluation Results schema - simplified version
+// Add evaluation result tables and schemas
 export const evaluationResults = pgTable("evaluation_results", {
   id: serial("id").primaryKey(),
   templateId: integer("template_id")
@@ -1417,59 +1428,13 @@ export const evaluationResults = pgTable("evaluation_results", {
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
-  totalScore: integer("total_score").default(0).notNull(),
+  totalScore: integer("total_score").notNull(),
   status: text("status").notNull(),
   evaluatedAt: timestamp("evaluated_at").defaultNow().notNull(),
   comments: text("comments"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
-
-// Evaluation Result schema validation
-export const insertEvaluationResultSchema = createInsertSchema(evaluationResults)
-  .omit({
-    id: true,
-    createdAt: true,
-    updatedAt: true,
-  })
-  .extend({
-    templateId: z.number().int().positive("Template is required"),
-    traineeId: z.number().int().positive("Trainee is required"),
-    evaluatorId: z.number().int().positive("Evaluator is required"),
-    batchId: z.number().int().positive("Batch is required"),
-    organizationId: z.number().int().positive("Organization is required"),
-    totalScore: z.number().int().min(0).max(100).default(0),
-    status: z.string().min(1, "Status is required").default("pending"),
-    evaluatedAt: z.coerce.date().default(() => new Date()),
-    comments: z.string().optional().nullable(),
-  });
-
-export type EvaluationResult = InferSelectModel<typeof evaluationResults>;
-export type InsertEvaluationResult = z.infer<typeof insertEvaluationResultSchema>;
-
-export const evaluationResultsRelations = relations(evaluationResults, ({ one, many }) => ({
-  template: one(evaluationTemplates, {
-    fields: [evaluationResults.templateId],
-    references: [evaluationTemplates.id],
-  }),
-  trainee: one(users, {
-    fields: [evaluationResults.traineeId],
-    references: [users.id],
-  }),
-  evaluator: one(users, {
-    fields: [evaluationResults.evaluatorId],
-    references: [users.id],
-  }),
-  batch: one(organizationBatches, {
-    fields: [evaluationResults.batchId],
-    references: [organizationBatches.id],
-  }),
-  organization: one(organizations, {
-    fields: [evaluationResults.organizationId],
-    references: [organizations.id],
-  }),
-  parameterResults: many(evaluationParameterResults),
-}));
 
 export const evaluationParameterResults = pgTable("evaluation_parameter_results", {
   id: serial("id").primaryKey(),
@@ -1480,6 +1445,7 @@ export const evaluationParameterResults = pgTable("evaluation_parameter_results"
     .references(() => evaluationParameters.id)
     .notNull(),
   score: integer("score").notNull(),
+  weightedScore: integer("weighted_score").notNull(),
   rating: text("rating").notNull(),
   comment: text("comment"),
   noReasons: jsonb("no_reasons").$type<string[]>(),
@@ -1487,6 +1453,7 @@ export const evaluationParameterResults = pgTable("evaluation_parameter_results"
 });
 
 // Add types
+export type EvaluationResult = InferSelectModel<typeof evaluationResults>;
 export type EvaluationParameterResult = InferSelectModel<typeof evaluationParameterResults>;
 
 // Add insert schemas
@@ -1528,7 +1495,7 @@ export const insertEvaluationParameterSchema = createInsertSchema(evaluationPara
     name: z.string().min(1, "Parameter name is required"),
     description: z.string().optional(),
     guidelines: z.string().optional(),
-    ratingType: z.enum(['yes_no_na', 'numeric', 'custom']),
+    ratingType: z.string().min(1, "Rating type is required"),
     weightage: z.number().min(0).max(100),
     weightageEnabled: z.boolean().default(true),
     isFatal: z.boolean().default(false),
@@ -1549,7 +1516,7 @@ export const insertEvaluationSubReasonSchema = createInsertSchema(evaluationSubR
     orderIndex: z.number().int().min(0),
   });
 
-// Update the evaluation result schema to handle validation properly
+// Update the evaluation result schema to handle date strings
 export const insertEvaluationResultSchema = createInsertSchema(evaluationResults)
   .omit({
     id: true,
@@ -1562,10 +1529,10 @@ export const insertEvaluationResultSchema = createInsertSchema(evaluationResults
     evaluatorId: z.number().int().positive("Evaluator is required"),
     batchId: z.number().int().positive("Batch is required"),
     organizationId: z.number().int().positive("Organization is required"),
-    totalScore: z.number().int().min(0).max(100).default(0),
-    status: z.string().min(1, "Status is required").default("pending"),
-    evaluatedAt: z.coerce.date().default(() => new Date()),
-    comments: z.string().optional().nullable(),
+    totalScore: z.number().int().min(0).max(100),
+    status: z.string().min(1, "Status is required"),
+    evaluatedAt: z.coerce.date(),  // This will coerce string dates into Date objects
+    comments: z.string().optional(),
   });
 
 export const insertEvaluationParameterResultSchema = createInsertSchema(evaluationParameterResults)
@@ -1577,6 +1544,7 @@ export const insertEvaluationParameterResultSchema = createInsertSchema(evaluati
     evaluationId: z.number().int().positive("Evaluation is required"),
     parameterId: z.number().int().positive("Parameter is required"),
     score: z.number().int().min(0).max(100),
+    weightedScore: z.number().int().min(0).max(100),
     rating: z.string().min(1, "Rating is required"),
     comment: z.string().optional(),
     noReasons: z.array(z.string()).optional(),

@@ -29,22 +29,61 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
+// Type definitions for API responses
+interface Batch {
+  id: number;
+  name: string;
+}
+
+interface Trainee {
+  userId: number;
+  status: string;
+  user: {
+    id: number;
+    fullName: string;
+    email: string;
+    role: string;
+    category: string;
+  };
+}
+
+interface Template {
+  id: number;
+  name: string;
+  description?: string;
+}
+
 // Form schema for starting an evaluation
 const formSchema = z.object({
-  batchId: z.coerce.number().positive("Batch is required"),
-  traineeId: z.coerce.number().positive("Trainee is required"),
-  templateId: z.coerce.number().positive("Evaluation template is required"),
+  batchId: z.number().min(1, "Batch is required"),
+  traineeId: z.number().min(1, "Trainee is required"),
+  templateId: z.number().min(1, "Evaluation template is required"),
 });
-
-type FormValues = z.infer<typeof formSchema>;
 
 export default function EvaluationExecutionPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
 
-  // Form initialization with resolver
-  const form = useForm<FormValues>({
+  // Fetch active batches
+  const { data: batches = [], isLoading: isBatchesLoading } = useQuery<Batch[]>({
+    queryKey: [`/api/organizations/${user?.organizationId}/batches`],
+    enabled: !!user?.organizationId,
+  });
+
+  // Fetch trainees for selected batch
+  const { data: trainees = [], isLoading: isTraineesLoading } = useQuery<Trainee[]>({
+    queryKey: [`/api/organizations/${user?.organizationId}/batches/${selectedBatchId}/trainees`],
+    enabled: !!selectedBatchId && !!user?.organizationId,
+  });
+
+  // Fetch evaluation templates
+  const { data: templates = [], isLoading: isTemplatesLoading } = useQuery<Template[]>({
+    queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
+    enabled: !!user?.organizationId,
+  });
+
+  const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       batchId: undefined,
@@ -53,38 +92,16 @@ export default function EvaluationExecutionPage() {
     },
   });
 
-  // Fetch active batches
-  const { data: batches = [], isLoading: isBatchesLoading } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/batches`],
-    enabled: !!user?.organizationId,
-  });
-
-  // Fetch trainees for selected batch
-  const { data: trainees = [], isLoading: isTraineesLoading } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/batches/${selectedBatchId}/trainees`],
-    enabled: !!selectedBatchId && !!user?.organizationId,
-  });
-
-  // Fetch evaluation templates
-  const { data: templates = [], isLoading: isTemplatesLoading } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
-    enabled: !!user?.organizationId,
-  });
-
   // Create evaluation mutation
   const createEvaluationMutation = useMutation({
-    mutationFn: async (values: FormValues) => {
-      if (!user?.id || !user?.organizationId) {
-        throw new Error("User information not available");
-      }
-
-      const response = await fetch(`/api/organizations/${user.organizationId}/evaluations`, {
+    mutationFn: async (values: z.infer<typeof formSchema>) => {
+      const response = await fetch(`/api/organizations/${user?.organizationId}/evaluations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...values,
-          evaluatorId: user.id,
-          organizationId: user.organizationId,
+          evaluatorId: user?.id,
+          organizationId: user?.organizationId,
         }),
       });
 
@@ -107,12 +124,12 @@ export default function EvaluationExecutionPage() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "An unexpected error occurred",
+        description: error.message,
       });
     },
   });
 
-  const onSubmit = (values: FormValues) => {
+  const onSubmit = (values: z.infer<typeof formSchema>) => {
     createEvaluationMutation.mutate(values);
   };
 
@@ -121,7 +138,9 @@ export default function EvaluationExecutionPage() {
       <Card>
         <CardHeader>
           <CardTitle>Start New Evaluation</CardTitle>
-          <CardDescription>Select a trainee and evaluation template to begin</CardDescription>
+          <CardDescription>
+            Select a trainee and evaluation template to begin
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -137,6 +156,7 @@ export default function EvaluationExecutionPage() {
                         const batchId = parseInt(value);
                         field.onChange(batchId);
                         setSelectedBatchId(batchId);
+                        // Reset trainee selection when batch changes
                         form.setValue('traineeId', undefined);
                       }}
                       value={field.value?.toString()}
@@ -148,11 +168,11 @@ export default function EvaluationExecutionPage() {
                       </FormControl>
                       <SelectContent>
                         {isBatchesLoading ? (
-                          <SelectItem value="loading">Loading batches...</SelectItem>
+                          <SelectItem value="_loading">Loading batches...</SelectItem>
                         ) : batches.length === 0 ? (
-                          <SelectItem value="empty">No batches available</SelectItem>
+                          <SelectItem value="_empty">No batches available</SelectItem>
                         ) : (
-                          batches.map((batch: any) => (
+                          batches.map((batch) => (
                             <SelectItem
                               key={batch.id}
                               value={batch.id.toString()}
@@ -186,11 +206,11 @@ export default function EvaluationExecutionPage() {
                       </FormControl>
                       <SelectContent>
                         {isTraineesLoading ? (
-                          <SelectItem value="loading">Loading trainees...</SelectItem>
+                          <SelectItem value="_loading">Loading trainees...</SelectItem>
                         ) : trainees.length === 0 ? (
-                          <SelectItem value="empty">No trainees in this batch</SelectItem>
+                          <SelectItem value="_empty">No trainees in this batch</SelectItem>
                         ) : (
-                          trainees.map((trainee: any) => (
+                          trainees.map((trainee) => (
                             <SelectItem
                               key={trainee.userId}
                               value={trainee.user.id.toString()}
@@ -223,11 +243,11 @@ export default function EvaluationExecutionPage() {
                       </FormControl>
                       <SelectContent>
                         {isTemplatesLoading ? (
-                          <SelectItem value="loading">Loading templates...</SelectItem>
+                          <SelectItem value="_loading">Loading templates...</SelectItem>
                         ) : templates.length === 0 ? (
-                          <SelectItem value="empty">No templates available</SelectItem>
+                          <SelectItem value="_empty">No templates available</SelectItem>
                         ) : (
-                          templates.map((template: any) => (
+                          templates.map((template) => (
                             <SelectItem
                               key={template.id}
                               value={template.id.toString()}

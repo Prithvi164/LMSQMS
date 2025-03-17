@@ -480,26 +480,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Set current date 
       const now = new Date();
 
-      // Prepare evaluation data
+      // Prepare evaluation data with proper date
       const evaluationData = {
         ...req.body,
-        organizationId,
+        status: 'pending',
+        totalScore: 0,
         evaluatedAt: now,
-        // Set evaluator ID to current user
-        evaluatorId: req.user.id
+        organizationId,
       };
 
+      console.log('Creating evaluation with data:', evaluationData);
+
       try {
-        // Parse and validate input data
+        // Parse and validate the data
         const validatedData = insertEvaluationResultSchema.parse(evaluationData);
         
-        // Create evaluation record
+        // Create evaluation
         const [evaluation] = await db
           .insert(evaluationResults)
           .values(validatedData)
           .returning();
 
-        res.status(201).json(evaluation);
+        console.log('Created evaluation:', evaluation);
+        
+        // Set proper content type and return JSON
+        res.setHeader('Content-Type', 'application/json');
+        return res.status(201).json(evaluation);
       } catch (validationError: any) {
         console.error("Validation error:", validationError);
         return res.status(400).json({ 
@@ -509,7 +515,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error: any) {
       console.error("Error creating evaluation:", error);
-      res.status(400).json({ 
+      return res.status(500).json({ 
         message: error.message || "Failed to create evaluation" 
       });
     }
