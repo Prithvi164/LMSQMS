@@ -54,6 +54,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { InsertEvaluationTemplate } from "@shared/schema";
 import { Trash2, Copy } from "lucide-react";
+import { useParams } from "wouter";
 
 // Form schema for creating a template
 const formSchema = z.object({
@@ -414,6 +415,17 @@ export default function EvaluationTemplatesPage() {
                         <CardDescription>{template.description}</CardDescription>
                       </div>
                       <div className="flex gap-2">
+                        {template.status === 'active' && (
+                          <Button
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.location.href = `/conduct-evaluation/${template.id}`;
+                            }}
+                          >
+                            Conduct Evaluation
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
