@@ -844,7 +844,7 @@ export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organiz
     createdAt: true
   })
   .extend({
-name: z.string().min(1, "LOBname is required"),
+    name: z.string().min(1, "LOB name is required"),
     description: z.string().min(1, "Description is required"),
     organizationId: z.number().int().positive("Organization is required"),
   });
@@ -1340,12 +1340,6 @@ export const evaluationRatingTypeEnum = pgEnum('evaluation_rating_type', [
   'custom'
 ]);
 
-export const evaluationStatusEnum = pgEnum('evaluation_status', [
-  'draft',
-  'active',
-  'archived'
-]);
-
 // Evaluation Templates
 export const evaluationTemplates = pgTable("evaluation_templates", {
   id: serial("id").primaryKey(),
@@ -1633,7 +1627,197 @@ export const evaluationParameterResultsRelations = relations(evaluationParameter
   }),
 }));
 
-// Export types for insertion
+// Add evaluation status enum
+export const evaluationStatusEnum = pgEnum('evaluation_status', [
+  'in_progress',
+  'completed',
+  'cancelled'
+]);
+
+// Evaluations table
+export const evaluations = pgTable("evaluations", {
+  id: serial("id").primaryKey(),
+  traineeId: integer("trainee_id")
+    .references(() => users.id)
+    .notNull(),
+  evaluatorId: integer("evaluator_id")
+    .references(() => users.id)
+    .notNull(),
+  templateId: integer("template_id")
+    .references(() => evaluationTemplates.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  status: evaluationStatusEnum("status").default('in_progress').notNull(),
+  totalScore: integer("total_score"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Evaluation scores table for individual parameters
+export const evaluationScores = pgTable("evaluation_scores", {
+  id: serial("id").primaryKey(),
+  evaluationId: integer("evaluation_id")
+    .references(() => evaluations.id)
+    .notNull(),
+  parameterId: integer("parameter_id")
+    .references(() => evaluationParameters.id)
+    .notNull(),
+  score: integer("score"),
+  comment: text("comment"),
+  noReason: jsonb("no_reason").$type<string[]>(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Types for the evaluations
+export type Evaluation = typeof evaluations.$inferSelect;
+export type EvaluationScore = typeof evaluationScores.$inferSelect;
+
+// Insert schemas
+export const insertEvaluationSchema = createInsertSchema(evaluations)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+    completedAt: true,
+  })
+  .extend({
+    traineeId: z.number().int().positive("Trainee is required"),
+    evaluatorId: z.number().int().positive("Evaluator is required"),
+    templateId: z.number().int().positive("Template is required"),
+    organizationId: z.number().int().positive("Organization is required"),
+    status: z.enum(['in_progress', 'completed', 'cancelled']).default('in_progress'),
+    totalScore: z.number().optional(),
+  });
+
+export const insertEvaluationScoreSchema = createInsertSchema(evaluationScores)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    evaluationId: z.number().int().positive("Evaluation is required"),
+    parameterId: z.number().int().positive("Parameter is required"),
+    score: z.number().optional(),
+    comment: z.string().optional(),
+    noReason: z.array(z.string()).optional(),
+  });
+
+export type InsertEvaluation = z.infer<typeof insertEvaluationSchema>;
+export type InsertEvaluationScore = z.infer<typeof insertEvaluationScoreSchema>;
+
+// Add relations
+export const evaluationsRelations = relations(evaluations, ({ one }) => ({
+  trainee: one(users, {
+    fields: [evaluations.traineeId],
+    references: [users.id],
+  }),
+  evaluator: one(users, {
+    fields: [evaluations.evaluatorId],
+    references: [users.id],
+  }),
+  template: one(evaluationTemplates, {
+    fields: [evaluations.templateId],
+    references: [evaluationTemplates.id],
+  }),
+  organization: one(organizations, {
+    fields: [evaluations.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
+export const evaluationScoresRelations = relations(evaluationScores, ({ one }) => ({
+  evaluation: one(evaluations, {
+    fields: [evaluationScores.evaluationId],
+    references: [evaluations.id],
+  }),
+  parameter: one(evaluationParameters, {
+    fields: [evaluationScores.parameterId],
+    references: [evaluationParameters.id],
+  }),
+}));
+
+export type InsertEvaluation = z.infer<typeof insertEvaluationSchema>;
+export type InsertEvaluationScore = z.infer<typeof insertEvaluationScoreSchema>;
+
+export type Evaluation = InferSelectModel<typeof evaluations>;
+export type EvaluationScore = InferSelectModel<typeof evaluationScores>;
+
+export const insertEvaluationTemplateSchema = createInsertSchema(evaluationTemplates)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    name: z.string().min(1, "Name is required"),
+    description: z.string().optional(),
+    processId: z.number().int().positive("Process ID is required"),
+    organizationId: z.number().int().positive("Organization ID is required"),
+    createdBy: z.number().int().positive("Created by is required"),
+    status: z.enum(["draft", "active", "archived"]).default("draft"),
+  });
+
+export const insertEvaluationPillarSchema = createInsertSchema(evaluationPillars)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    templateId: z.number().int().positive("Template ID is required"),
+    name: z.string().min(1, "Name is required"),
+    description: z.string().optional(),
+    weightage: z.number().int().min(0).max(100, "Weightage must be between 0 and 100"),
+    orderIndex: z.number().int().min(0, "Order index cannot be negative"),
+  });
+
+export const insertEvaluationParameterSchema = createInsertSchema(evaluationParameters)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    pillarId: z.number().int().positive("Pillar ID is required"),
+    name: z.string().min(1, "Name is required"),
+    description: z.string().optional(),
+    guidelines: z.string().optional(),
+    ratingType: z.enum(["yes_no_na", "numeric", "custom"]),
+    weightage: z.number().int().min(0).max(100, "Weightage must be between 0 and 100"),
+    weightageEnabled: z.boolean().default(true),
+    isFatal: z.boolean().default(false),
+    requiresComment: z.boolean().default(false),
+    noReasons: z.array(z.string()).optional(),
+    orderIndex: z.number().int().min(0, "Order index cannot be negative"),
+  });
+
+export const insertEvaluationSubReasonSchema = createInsertSchema(evaluationSubReasons)
+  .omit({ id: true, createdAt: true })
+  .extend({
+    parameterId: z.number().int().positive("Parameter ID is required"),
+    reason: z.string().min(1, "Reason is required"),
+    appliesTo: z.string().min(1, "Applies to is required"),
+    orderIndex: z.number().int().min(0, "Order index cannot be negative"),
+  });
+
+export const insertEvaluationResultSchema = createInsertSchema(evaluationResults)
+  .omit({ id: true, createdAt: true })
+  .extend({
+    templateId: z.number().int().positive("Template ID is required"),
+    batchId: z.number().int().positive("Batch ID is required"),
+    traineeId: z.number().int().positive("Trainee ID is required"),
+    evaluatorId: z.number().int().positive("Evaluator ID is required"),
+    organizationId: z.number().int().positive("Organization ID is required"),
+    totalScore: z.number().int().min(0).max(100, "Total score must be between 0 and 100"),
+    hasFatalError: z.boolean().default(false),
+    evaluatedAt: z.string().min(1, "Evaluated at is required"),
+  });
+
+export const insertEvaluationParameterResultSchema = createInsertSchema(evaluationParameterResults)
+  .omit({ id: true, createdAt: true })
+  .extend({
+    evaluationResultId: z.number().int().positive("Evaluation result ID is required"),
+    parameterId: z.number().int().positive("Parameter ID is required"),
+    rating: z.string().min(1, "Rating is required"),
+    subReasonId: z.number().int().optional(),
+    comment: z.string().optional(),
+    score: z.number().int().min(0).max(100, "Score must be between 0 and 100"),
+    isFatal: z.boolean().default(false),
+  });
+
 export type InsertEvaluationTemplate = z.infer<typeof insertEvaluationTemplateSchema>;
 export type InsertEvaluationPillar = z.infer<typeof insertEvaluationPillarSchema>;
 export type InsertEvaluationParameter = z.infer<typeof insertEvaluationParameterSchema>;
