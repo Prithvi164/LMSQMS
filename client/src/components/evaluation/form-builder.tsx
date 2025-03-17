@@ -95,8 +95,10 @@ function SortableItem({ id, children, className }: { id: number; children: React
 
   return (
     <div ref={setNodeRef} style={style} className={className}>
-      <div {...attributes} {...listeners} className="cursor-grab">
-        {children}
+      <div className="flex items-center justify-between">
+        <div {...attributes} {...listeners} className="flex-grow cursor-grab">
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -532,7 +534,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                       {pillars.map((pillar) => (
                         <SortableItem key={pillar.id} id={pillar.id}>
                           <div
-                            className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                            className={`p-3 rounded-lg transition-colors ${
                               activePillarId === pillar.id
                                 ? "bg-primary text-primary-foreground"
                                 : "bg-muted hover:bg-muted/80"
@@ -541,7 +543,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
-                                <GripVertical className="h-4 w-4 cursor-grab" />
+                                <GripVertical className="h-4 w-4" />
                                 <span className="font-medium">{pillar.name}</span>
                                 <Badge variant="outline">{pillar.weightage}%</Badge>
                               </div>
@@ -581,7 +583,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                                 {pillar.parameters.map((param: any) => (
                                   <SortableItem key={param.id} id={param.id}>
                                     <div
-                                      className={`p-2 rounded cursor-pointer transition-colors ${
+                                      className={`p-2 rounded transition-colors ${
                                         selectedParameter === param.id
                                           ? "bg-accent text-accent-foreground"
                                           : "hover:bg-accent/50"
@@ -593,7 +595,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                                     >
                                       <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
-                                          <GripVertical className="h-4 w-4 cursor-grab" />
+                                          <GripVertical className="h-4 w-4" />
                                           <span className="text-sm">{param.name}</span>
                                           <Badge variant="outline" className="text-xs">
                                             {param.weightage}%
