@@ -70,6 +70,9 @@ import {
 
 // Add to IStorage interface
 export interface IStorage {
+  // Evaluation template duplication
+  duplicateEvaluationTemplate(templateId: number, userId: number): Promise<EvaluationTemplate>;
+
   // User operations
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -297,6 +300,72 @@ export class DatabaseStorage implements IStorage {
       });
     } catch (error) {
       console.error('Error deleting evaluation template:', error);
+      throw error;
+    }
+  }
+
+  async duplicateEvaluationTemplate(templateId: number, userId: number): Promise<EvaluationTemplate> {
+    try {
+      return await db.transaction(async (tx) => {
+        // Get the original template with all details 
+        const originalTemplate = await this.getEvaluationTemplateWithDetails(templateId);
+        if (!originalTemplate) {
+          throw new Error('Template not found');
+        }
+
+        // Create a new template with "(Copy)" suffix
+        const [newTemplate] = await tx
+          .insert(evaluationTemplates)
+          .values({
+            name: `${originalTemplate.name} (Copy)`,
+            description: originalTemplate.description,
+            processId: originalTemplate.processId,
+            organizationId: originalTemplate.organizationId,
+            status: 'draft', // Always start as draft
+            createdBy: userId,
+          })
+          .returning() as EvaluationTemplate[];
+
+        // Create new pillars and store the mapping of old to new IDs
+        const pillarIdMap = new Map<number, number>();
+        
+        for (const pillar of originalTemplate.pillars) {
+          const [newPillar] = await tx
+            .insert(evaluationPillars)
+            .values({
+              name: pillar.name,
+              description: pillar.description,
+              weightage: pillar.weightage,
+              order: pillar.order,
+              templateId: newTemplate.id,
+            })
+            .returning() as EvaluationPillar[];
+
+          pillarIdMap.set(pillar.id, newPillar.id);
+
+          // Create new parameters for this pillar
+          for (const param of pillar.parameters) {
+            await tx
+              .insert(evaluationParameters)
+              .values({
+                name: param.name,
+                description: param.description,
+                guidelines: param.guidelines,
+                weightage: param.weightage,
+                ratingType: param.ratingType,
+                order: param.order,
+                isFatal: param.isFatal,
+                requiresComment: param.requiresComment,
+                noReasons: param.noReasons,
+                pillarId: newPillar.id,
+              });
+          }
+        }
+
+        return newTemplate;
+      });
+    } catch (error) {
+      console.error('Error duplicating evaluation template:', error);
       throw error;
     }
   }

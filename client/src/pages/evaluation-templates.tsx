@@ -53,7 +53,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { InsertEvaluationTemplate } from "@shared/schema";
-import { Trash2 } from "lucide-react";
+import { Trash2, Copy } from "lucide-react";
 
 // Form schema for creating a template
 const formSchema = z.object({
@@ -155,6 +155,37 @@ export default function EvaluationTemplatesPage() {
       });
     },
   });
+
+  const duplicateTemplateMutation = useMutation({
+    mutationFn: async (templateId: number) => {
+      const response = await fetch(`/api/evaluation-templates/${templateId}/duplicate`, {
+        method: "POST",
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to duplicate template");
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
+      });
+      toast({
+        title: "Success",
+        description: "Template duplicated successfully",
+      });
+      setSelectedTemplateId(data.id);
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     if (!user?.organizationId) {
@@ -305,10 +336,10 @@ export default function EvaluationTemplatesPage() {
               <p>No templates available. Create your first template to get started.</p>
             ) : (
               templates.map((template: any) => (
-                <Card 
-                  key={template.id} 
+                <Card
+                  key={template.id}
                   className={`cursor-pointer transition-all ${
-                    selectedTemplateId === template.id ? 'ring-2 ring-primary' : ''
+                    selectedTemplateId === template.id ? "ring-2 ring-primary" : ""
                   }`}
                   onClick={() => setSelectedTemplateId(template.id)}
                 >
@@ -318,42 +349,55 @@ export default function EvaluationTemplatesPage() {
                         <CardTitle>{template.name}</CardTitle>
                         <CardDescription>{template.description}</CardDescription>
                       </div>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setTemplateToDelete(template.id);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Template?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This will permanently delete this evaluation template and all its associated pillars and parameters. This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel onClick={() => setTemplateToDelete(null)}>
-                              Cancel
-                            </AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => {
-                                if (templateToDelete) {
-                                  deleteTemplateMutation.mutate(templateToDelete);
-                                }
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            duplicateTemplateMutation.mutate(template.id);
+                          }}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setTemplateToDelete(template.id);
                               }}
                             >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Template?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently delete this evaluation template and all its
+                                associated pillars and parameters. This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel onClick={() => setTemplateToDelete(null)}>
+                                Cancel
+                              </AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => {
+                                  if (templateToDelete) {
+                                    deleteTemplateMutation.mutate(templateToDelete);
+                                  }
+                                }}
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </div>
                     <Badge
                       variant={
@@ -369,11 +413,13 @@ export default function EvaluationTemplatesPage() {
                     </Badge>
                   </CardHeader>
                   <CardContent>
-                    <Button 
+                    <Button
                       className="w-full"
                       onClick={() => setSelectedTemplateId(template.id)}
                     >
-                      {selectedTemplateId === template.id ? 'Currently Selected' : 'Select Template'}
+                      {selectedTemplateId === template.id
+                        ? "Currently Selected"
+                        : "Select Template"}
                     </Button>
                   </CardContent>
                 </Card>

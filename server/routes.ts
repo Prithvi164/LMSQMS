@@ -303,6 +303,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add duplicate template endpoint
+  app.post("/api/evaluation-templates/:templateId/duplicate", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const templateId = parseInt(req.params.templateId);
+      if (!templateId) {
+        return res.status(400).json({ message: "Invalid template ID" });
+      }
+
+      const template = await storage.getEvaluationTemplate(templateId);
+      if (!template) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+
+      if (template.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const duplicatedTemplate = await storage.duplicateEvaluationTemplate(templateId, req.user.id);
+      res.status(201).json(duplicatedTemplate);
+    } catch (error: any) {
+      console.error("Error duplicating template:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Add routes for pillars and parameters
   app.post("/api/evaluation-templates/:templateId/pillars", async (req, res) => {
     if (!req.user) {
