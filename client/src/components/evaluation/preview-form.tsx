@@ -7,21 +7,59 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
 interface PreviewFormProps {
   template: any;
+  batchId: string;
+  traineeId: string;
 }
 
 interface ValidationErrors {
   [key: string]: string;
 }
 
-export function PreviewForm({ template }: PreviewFormProps) {
+export function PreviewForm({ template, batchId, traineeId }: PreviewFormProps) {
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [comments, setComments] = useState<Record<string, string>>({});
   const [selectedReasons, setSelectedReasons] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [isValid, setIsValid] = useState(false);
+  const { toast } = useToast();
+
+  const submitEvaluationMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest('/api/evaluations', {
+        method: 'POST',
+        body: JSON.stringify({
+          templateId: template.id,
+          batchId,
+          traineeId,
+          ratings,
+          comments,
+          selectedReasons,
+          score: calculateScore().score,
+          hasFatal: calculateScore().hasFatal,
+        }),
+      });
+      return response;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Evaluation Submitted",
+        description: "The evaluation has been successfully saved.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: "Failed to submit evaluation. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const validateForm = () => {
     if (!template?.pillars) {
@@ -104,12 +142,7 @@ export function PreviewForm({ template }: PreviewFormProps) {
 
   const handleSubmit = () => {
     if (validateForm()) {
-      // Will implement submission logic later
-      console.log("Form is valid, ready to submit", {
-        ratings,
-        comments,
-        selectedReasons,
-      });
+      submitEvaluationMutation.mutate({});
     }
   };
 
@@ -294,10 +327,10 @@ export function PreviewForm({ template }: PreviewFormProps) {
       <div className="flex justify-end pt-6">
         <Button
           onClick={handleSubmit}
-          disabled={!isValid}
+          disabled={!isValid || submitEvaluationMutation.isPending}
           className="w-[200px]"
         >
-          Submit Evaluation
+          {submitEvaluationMutation.isPending ? "Submitting..." : "Submit Evaluation"}
         </Button>
       </div>
     </div>
