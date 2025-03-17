@@ -156,8 +156,10 @@ export default function MockCallScenariosPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           scenarioId,
-          evaluatorId: user?.id, // For now, self-evaluation
+          evaluatorId: user?.id,
           organizationId: user?.organizationId,
+          startedAt: new Date().toISOString(), // Properly format the date
+          status: 'pending'
         }),
       });
       if (!response.ok) {
@@ -174,6 +176,7 @@ export default function MockCallScenariosPage() {
       setIsCallActive(true);
     },
     onError: (error: Error) => {
+      console.error("Error starting mock call:", error);
       toast({
         variant: "destructive",
         title: "Error",
