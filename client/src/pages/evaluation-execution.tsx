@@ -134,7 +134,16 @@ export default function EvaluationExecutionPage() {
         throw new Error(`Failed to start evaluation (${response.status})`);
       }
 
-      return await response.json();
+      try {
+        const data = await response.json();
+        if (!data || !data.id) {
+          throw new Error('Invalid response format');
+        }
+        return data;
+      } catch (error) {
+        console.error('Response parsing error:', error);
+        throw new Error('Failed to parse server response');
+      }
     },
     onSuccess: (data) => {
       toast({
