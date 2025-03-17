@@ -453,32 +453,63 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
 
   // Updated event handlers with proper event prevention
   const handleEditPillar = (e: React.MouseEvent, pillarId: number) => {
+    e.preventDefault();
     e.stopPropagation();
-    setIsEditingPillar(true);
-    setActivePillarId(pillarId);
+    const pillar = template?.pillars.find((p: any) => p.id === pillarId);
+    if (pillar) {
+      pillarForm.reset({
+        name: pillar.name,
+        description: pillar.description,
+        weightage: pillar.weightage,
+      });
+      setIsEditingPillar(true);
+      setActivePillarId(pillarId);
+    }
   };
 
   const handleDeletePillar = async (e: React.MouseEvent, pillarId: number) => {
+    e.preventDefault();
     e.stopPropagation();
     try {
       await deletePillarMutation.mutateAsync(pillarId);
+      setActivePillarId(null);
+      setIsEditingPillar(false);
     } catch (error) {
-      console.error("Error in handleDeletePillar:", error);
+      console.error("Error deleting pillar:", error);
     }
   };
 
   const handleEditParameter = (e: React.MouseEvent, parameterId: number) => {
+    e.preventDefault();
     e.stopPropagation();
-    setIsEditingParameter(true);
-    setSelectedParameter(parameterId);
+    const parameter = template?.pillars
+      .flatMap((p: any) => p.parameters)
+      .find((param: any) => param.id === parameterId);
+    if (parameter) {
+      parameterForm.reset({
+        name: parameter.name,
+        description: parameter.description,
+        guidelines: parameter.guidelines,
+        ratingType: parameter.ratingType,
+        weightage: parameter.weightage,
+        isFatal: parameter.isFatal,
+        requiresComment: parameter.requiresComment,
+      });
+      setNoReasons(parameter.noReasons || []);
+      setIsEditingParameter(true);
+      setSelectedParameter(parameterId);
+    }
   };
 
   const handleDeleteParameter = async (e: React.MouseEvent, parameterId: number) => {
+    e.preventDefault();
     e.stopPropagation();
     try {
       await deleteParameterMutation.mutateAsync(parameterId);
+      setSelectedParameter(null);
+      setIsEditingParameter(false);
     } catch (error) {
-      console.error("Error in handleDeleteParameter:", error);
+      console.error("Error deleting parameter:", error);
     }
   };
 
