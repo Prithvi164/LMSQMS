@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -64,7 +64,6 @@ type FormValues = z.infer<typeof formSchema>;
 export default function EvaluationExecutionPage() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
 
   // Fetch active batches
@@ -97,51 +96,36 @@ export default function EvaluationExecutionPage() {
   // Create evaluation mutation
   const createEvaluationMutation = useMutation({
     mutationFn: async (values: FormValues) => {
-      console.log('Starting evaluation with values:', values);
-
-      // Find the trainee object for the selected traineeId
-      const selectedTrainee = trainees.find(trainee => trainee.id === values.traineeId);
-      console.log('Selected trainee:', selectedTrainee);
-
-      if (!selectedTrainee) {
-        throw new Error('Selected trainee not found');
-      }
-
       const payload = {
         batchId: values.batchId,
-        traineeId: selectedTrainee.id,
+        traineeId: values.traineeId,
         templateId: values.templateId,
         evaluatorId: user?.id,
       };
 
       console.log('Sending payload:', payload);
 
-      const response = await fetch(`/api/organizations/${user?.organizationId}/evaluations/start`, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-        body: JSON.stringify(payload),
-      });
-
-      console.log('Response status:', response.status);
-
-      if (!response.ok) {
-        const text = await response.text();
-        console.error('Error response text:', text);
-        throw new Error(`Failed to start evaluation (${response.status})`);
-      }
-
       try {
-        const data = await response.json();
-        if (!data || !data.id) {
-          throw new Error('Invalid response format');
+        const response = await fetch(`/api/organizations/${user?.organizationId}/evaluations/start`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+
+        console.log('Response status:', response.status);
+
+        if (!response.ok) {
+          throw new Error(`Failed to start evaluation (${response.status})`);
         }
+
+        const data = await response.json();
+        console.log('Response data:', data);
         return data;
       } catch (error) {
-        console.error('Response parsing error:', error);
-        throw new Error('Failed to parse server response');
+        console.error('API request error:', error);
+        throw error;
       }
     },
     onSuccess: (data) => {
@@ -149,7 +133,6 @@ export default function EvaluationExecutionPage() {
         title: "Success",
         description: "Evaluation started successfully",
       });
-      // Navigate to evaluation form
       window.location.href = `/evaluations/${data.id}`;
     },
     onError: (error: Error) => {
@@ -167,7 +150,7 @@ export default function EvaluationExecutionPage() {
     createEvaluationMutation.mutate(values);
   };
 
-  if (isTemplatesLoading || isBatchesLoading) {
+  if (isBatchesLoading) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -199,7 +182,6 @@ export default function EvaluationExecutionPage() {
                         const batchId = parseInt(value);
                         field.onChange(batchId);
                         setSelectedBatchId(batchId);
-                        // Reset trainee selection when batch changes
                         form.setValue('traineeId', undefined);
                       }}
                       value={field.value?.toString()}
@@ -242,20 +224,14 @@ export default function EvaluationExecutionPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {isTraineesLoading ? (
-                          <SelectItem value="_loading">Loading trainees...</SelectItem>
-                        ) : trainees.length === 0 ? (
-                          <SelectItem value="_empty">No trainees in this batch</SelectItem>
-                        ) : (
-                          trainees.map((trainee) => (
-                            <SelectItem
-                              key={trainee.id}
-                              value={trainee.id.toString()}
-                            >
-                              {trainee.user.fullName}
-                            </SelectItem>
-                          ))
-                        )}
+                        {trainees.map((trainee) => (
+                          <SelectItem
+                            key={trainee.id}
+                            value={trainee.id.toString()}
+                          >
+                            {trainee.user.fullName}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
