@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 import {
   Card,
   CardContent,
@@ -97,21 +97,39 @@ export default function EvaluationExecutionPage() {
   // Create evaluation mutation
   const createEvaluationMutation = useMutation({
     mutationFn: async (values: FormValues) => {
+      if (!user?.organizationId) {
+        throw new Error('Organization ID is required');
+      }
+
+      const endpoint = `/api/organizations/${user.organizationId}/evaluations/start`;
       const payload = {
         batchId: values.batchId,
         traineeId: values.traineeId,
         templateId: values.templateId,
-        evaluatorId: user?.id,
+        evaluatorId: user.id,
       };
 
-      console.log('Sending payload:', payload);
+      console.log('Making request to:', endpoint);
+      console.log('With payload:', payload);
 
-      const response = await apiRequest(`/api/organizations/${user?.organizationId}/evaluations/start`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
+      try {
+        const response = await apiRequest(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
 
-      return response;
+        if (!response || typeof response.id !== 'number') {
+          throw new Error('Invalid response format');
+        }
+
+        return response;
+      } catch (error) {
+        console.error('API Error:', error);
+        throw error;
+      }
     },
     onSuccess: (data) => {
       toast({
@@ -125,7 +143,7 @@ export default function EvaluationExecutionPage() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to start evaluation",
       });
     },
   });
@@ -201,11 +219,11 @@ export default function EvaluationExecutionPage() {
                     <Select
                       onValueChange={(value) => field.onChange(parseInt(value))}
                       value={field.value?.toString() || ""}
-                      disabled={!selectedBatchId || isTraineesLoading}
+                      disabled={!selectedBatchId}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder={isTraineesLoading ? "Loading trainees..." : "Select a trainee"} />
+                          <SelectValue placeholder={!selectedBatchId ? "Select a batch first" : "Select a trainee"} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
