@@ -38,7 +38,7 @@ interface Batch {
 
 interface Trainee {
   id: number;  // This is the user_batch_process.id
-  userId: number;
+  traineeId: number; // Added traineeId field
   user: {
     id: number;
     fullName: string;
@@ -110,7 +110,7 @@ export default function EvaluationExecutionPage() {
 
       const payload = {
         batchId: values.batchId,
-        traineeId: selectedTrainee.id, // Using the user_batch_process.id
+        traineeId: selectedTrainee.traineeId, // Corrected to use trainee.traineeId
         templateId: values.templateId,
         evaluatorId: user?.id,
       };
@@ -211,20 +211,14 @@ export default function EvaluationExecutionPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {isBatchesLoading ? (
-                          <SelectItem value="_loading">Loading batches...</SelectItem>
-                        ) : batches.length === 0 ? (
-                          <SelectItem value="_empty">No batches available</SelectItem>
-                        ) : (
-                          batches.map((batch) => (
-                            <SelectItem
-                              key={batch.id}
-                              value={batch.id.toString()}
-                            >
-                              {batch.name}
-                            </SelectItem>
-                          ))
-                        )}
+                        {batches.map((batch) => (
+                          <SelectItem
+                            key={batch.id}
+                            value={batch.id.toString()}
+                          >
+                            {batch.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -282,24 +276,18 @@ export default function EvaluationExecutionPage() {
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder={isTemplatesLoading ? "Loading templates..." : "Select a template"} />
+                          <SelectValue placeholder="Select a template" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {isTemplatesLoading ? (
-                          <SelectItem value="_loading">Loading templates...</SelectItem>
-                        ) : templates.length === 0 ? (
-                          <SelectItem value="_empty">No templates available</SelectItem>
-                        ) : (
-                          templates.map((template) => (
-                            <SelectItem
-                              key={template.id}
-                              value={template.id.toString()}
-                            >
-                              {template.name}
-                            </SelectItem>
-                          ))
-                        )}
+                        {templates.map((template) => (
+                          <SelectItem
+                            key={template.id}
+                            value={template.id.toString()}
+                          >
+                            {template.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
