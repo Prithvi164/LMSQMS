@@ -55,6 +55,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { PreviewForm } from "./preview-form";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 // Form schemas
 const pillarSchema = z.object({
@@ -176,17 +177,9 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
   // Mutations
   const createPillarMutation = useMutation({
     mutationFn: async (data: z.infer<typeof pillarSchema>) => {
-      const response = await fetch(`/api/evaluation-templates/${templateId}/pillars`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...data,
-          templateId,
-        }),
-      });
+      const response = await apiRequest("POST", `/api/evaluation-templates/${templateId}/pillars`, data);
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to create pillar");
+        throw new Error("Failed to create pillar");
       }
       return response.json();
     },
@@ -212,14 +205,9 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
 
   const updatePillarMutation = useMutation({
     mutationFn: async (data: { id: number; pillar: z.infer<typeof pillarSchema> }) => {
-      const response = await fetch(`/api/evaluation-pillars/${data.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data.pillar),
-      });
+      const response = await apiRequest("PATCH", `/api/evaluation-pillars/${data.id}`, data.pillar);
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to update pillar");
+        throw new Error("Failed to update pillar");
       }
       return response.json();
     },
@@ -245,17 +233,12 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
 
   const updateParameterMutation = useMutation({
     mutationFn: async (data: { id: number; parameter: z.infer<typeof parameterSchema> }) => {
-      const response = await fetch(`/api/evaluation-parameters/${data.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...data.parameter,
-          noReasons: noReasons,
-        }),
+      const response = await apiRequest("PATCH", `/api/evaluation-parameters/${data.id}`, {
+        ...data.parameter,
+        noReasons: noReasons,
       });
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to update parameter");
+        throw new Error("Failed to update parameter");
       }
       return response.json();
     },
@@ -284,18 +267,13 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
     mutationFn: async (data: z.infer<typeof parameterSchema>) => {
       if (!activePillarId) throw new Error("No pillar selected");
 
-      const response = await fetch(`/api/evaluation-pillars/${activePillarId}/parameters`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...data,
-          pillarId: activePillarId,
-          noReasons: noReasons,
-        }),
+      const response = await apiRequest("POST", `/api/evaluation-pillars/${activePillarId}/parameters`, {
+        ...data,
+        pillarId: activePillarId,
+        noReasons: noReasons,
       });
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to create parameter");
+        throw new Error("Failed to create parameter");
       }
       return response.json();
     },
@@ -321,12 +299,9 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
 
   const deletePillarMutation = useMutation({
     mutationFn: async (pillarId: number) => {
-      const response = await fetch(`/api/evaluation-pillars/${pillarId}`, {
-        method: "DELETE",
-      });
+      const response = await apiRequest("DELETE", `/api/evaluation-pillars/${pillarId}`);
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to delete pillar");
+        throw new Error("Failed to delete pillar");
       }
     },
     onSuccess: () => {
@@ -350,12 +325,9 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
 
   const deleteParameterMutation = useMutation({
     mutationFn: async (parameterId: number) => {
-      const response = await fetch(`/api/evaluation-parameters/${parameterId}`, {
-        method: "DELETE",
-      });
+      const response = await apiRequest("DELETE", `/api/evaluation-parameters/${parameterId}`);
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to delete parameter");
+        throw new Error("Failed to delete parameter");
       }
     },
     onSuccess: () => {
