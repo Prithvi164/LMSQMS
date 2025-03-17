@@ -13,6 +13,21 @@ import {
   batchPhaseChangeRequests,
   quizResponses,
   userBatchProcesses,
+  evaluationForms,
+  evaluationSegments,
+  evaluationParameters,
+  predefinedReasons,
+  evaluationSubmissions,
+  type EvaluationForm,
+  type EvaluationSegment,
+  type EvaluationParameter,
+  type PredefinedReason,
+  type EvaluationSubmission,
+  type InsertEvaluationForm,
+  type InsertEvaluationSegment,
+  type InsertEvaluationParameter,
+  type InsertPredefinedReason,
+  type InsertEvaluationSubmission,
   type QuizResponse,
   type InsertQuizResponse,
   type User,
@@ -230,6 +245,32 @@ export interface IStorage {
   getMockCallScenario(id: number): Promise<MockCallScenario | undefined>;
   listMockCallScenarios(organizationId: number): Promise<MockCallScenario[]>;
   createMockCallAttempt(attempt: InsertMockCallAttempt): Promise<MockCallAttempt>;
+
+  // Evaluation Form operations
+  createEvaluationForm(form: InsertEvaluationForm): Promise<EvaluationForm>;
+  getEvaluationForm(id: number): Promise<EvaluationForm | undefined>;
+  listEvaluationForms(organizationId: number): Promise<EvaluationForm[]>;
+  listEvaluationFormTemplates(organizationId: number): Promise<EvaluationForm[]>;
+  updateEvaluationForm(id: number, form: Partial<InsertEvaluationForm>): Promise<EvaluationForm>;
+
+  // Evaluation Segment operations
+  createEvaluationSegment(segment: InsertEvaluationSegment): Promise<EvaluationSegment>;
+  listEvaluationSegments(formId: number): Promise<EvaluationSegment[]>;
+  updateEvaluationSegment(id: number, segment: Partial<InsertEvaluationSegment>): Promise<EvaluationSegment>;
+
+  // Evaluation Parameter operations
+  createEvaluationParameter(parameter: InsertEvaluationParameter): Promise<EvaluationParameter>;
+  listEvaluationParameters(segmentId: number): Promise<EvaluationParameter[]>;
+  updateEvaluationParameter(id: number, parameter: Partial<InsertEvaluationParameter>): Promise<EvaluationParameter>;
+
+  // Predefined Reason operations
+  createPredefinedReason(reason: InsertPredefinedReason): Promise<PredefinedReason>;
+  listPredefinedReasons(formId: number): Promise<PredefinedReason[]>;
+
+  // Evaluation Submission operations
+  createEvaluationSubmission(submission: InsertEvaluationSubmission): Promise<EvaluationSubmission>;
+  getEvaluationSubmission(id: number): Promise<EvaluationSubmission | undefined>;
+  listEvaluationSubmissions(formId: number): Promise<EvaluationSubmission[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2373,6 +2414,152 @@ export class DatabaseStorage implements IStorage {
       console.error('Error creating mock call scenario:', error);
       throw error;
     }
+  }
+
+  // Evaluation Form operations
+  async createEvaluationForm(form: InsertEvaluationForm): Promise<EvaluationForm> {
+    try {
+      const [newForm] = await db
+        .insert(evaluationForms)
+        .values(form)
+        .returning() as EvaluationForm[];
+
+      return newForm;
+    } catch (error) {
+      console.error('Error creating evaluation form:', error);
+      throw error;
+    }
+  }
+
+  async getEvaluationForm(id: number): Promise<EvaluationForm | undefined> {
+    const [form] = await db
+      .select()
+      .from(evaluationForms)
+      .where(eq(evaluationForms.id, id)) as EvaluationForm[];
+    return form;
+  }
+
+  async listEvaluationForms(organizationId: number): Promise<EvaluationForm[]> {
+    return await db
+      .select()
+      .from(evaluationForms)
+      .where(eq(evaluationForms.organizationId, organizationId))
+      .where(eq(evaluationForms.isTemplate, false)) as EvaluationForm[];
+  }
+
+  async listEvaluationFormTemplates(organizationId: number): Promise<EvaluationForm[]> {
+    return await db
+      .select()
+      .from(evaluationForms)
+      .where(eq(evaluationForms.organizationId, organizationId))
+      .where(eq(evaluationForms.isTemplate, true)) as EvaluationForm[];
+  }
+
+  async updateEvaluationForm(id: number, form: Partial<InsertEvaluationForm>): Promise<EvaluationForm> {
+    const [updatedForm] = await db
+      .update(evaluationForms)
+      .set({
+        ...form,
+        updatedAt: new Date(),
+      })
+      .where(eq(evaluationForms.id, id))
+      .returning() as EvaluationForm[];
+    return updatedForm;
+  }
+
+  // Evaluation Segment operations
+  async createEvaluationSegment(segment: InsertEvaluationSegment): Promise<EvaluationSegment> {
+    const [newSegment] = await db
+      .insert(evaluationSegments)
+      .values(segment)
+      .returning() as EvaluationSegment[];
+    return newSegment;
+  }
+
+  async listEvaluationSegments(formId: number): Promise<EvaluationSegment[]> {
+    return await db
+      .select()
+      .from(evaluationSegments)
+      .where(eq(evaluationSegments.formId, formId))
+      .orderBy(evaluationSegments.order) as EvaluationSegment[];
+  }
+
+  async updateEvaluationSegment(id: number, segment: Partial<InsertEvaluationSegment>): Promise<EvaluationSegment> {
+    const [updatedSegment] = await db
+      .update(evaluationSegments)
+      .set({
+        ...segment,
+        updatedAt: new Date(),
+      })
+      .where(eq(evaluationSegments.id, id))
+      .returning() as EvaluationSegment[];
+    return updatedSegment;
+  }
+
+  // Evaluation Parameter operations
+  async createEvaluationParameter(parameter: InsertEvaluationParameter): Promise<EvaluationParameter> {
+    const [newParameter] = await db
+      .insert(evaluationParameters)
+      .values(parameter)
+      .returning() as EvaluationParameter[];
+    return newParameter;
+  }
+
+  async listEvaluationParameters(segmentId: number): Promise<EvaluationParameter[]> {
+    return await db
+      .select()
+      .from(evaluationParameters)
+      .where(eq(evaluationParameters.segmentId, segmentId))
+      .orderBy(evaluationParameters.order) as EvaluationParameter[];
+  }
+
+  async updateEvaluationParameter(id: number, parameter: Partial<InsertEvaluationParameter>): Promise<EvaluationParameter> {
+    const [updatedParameter] = await db
+      .update(evaluationParameters)
+      .set(parameter)
+      .where(eq(evaluationParameters.id, id))
+      .returning() as EvaluationParameter[];
+    return updatedParameter;
+  }
+
+  // Predefined Reason operations
+  async createPredefinedReason(reason: InsertPredefinedReason): Promise<PredefinedReason> {
+    const [newReason] = await db
+      .insert(predefinedReasons)
+      .values(reason)
+      .returning() as PredefinedReason[];
+    return newReason;
+  }
+
+  async listPredefinedReasons(formId: number): Promise<PredefinedReason[]> {
+    return await db
+      .select()
+      .from(predefinedReasons)
+      .where(eq(predefinedReasons.formId, formId)) as PredefinedReason[];
+  }
+
+  // Evaluation Submission operations
+  async createEvaluationSubmission(submission: InsertEvaluationSubmission): Promise<EvaluationSubmission> {
+    const [newSubmission] = await db
+      .insert(evaluationSubmissions)
+      .values(submission)
+      .returning() as EvaluationSubmission[];
+    return newSubmission;
+  }
+
+  async getEvaluationSubmission(id: number): Promise<EvaluationSubmission | undefined> {
+    const [submission] = await db
+      .select()
+      .from(evaluationSubmissions)
+      .where(eq(evaluationSubmissions.id, id)) as EvaluationSubmission[];
+    return submission;
+  }
+
+  async listEvaluationSubmissions(formId: number): Promise<EvaluationSubmission[]> {
+    return await db
+      .select()
+      .from(evaluationSubmissions)
+      .where(eq(evaluationSubmissions.formId, formId)) as EvaluationSubmission[];
   }
 
   async getMockCallScenario(id: number): Promise<MockCallScenario | undefined> {

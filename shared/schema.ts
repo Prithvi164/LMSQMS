@@ -1131,7 +1131,17 @@ export type {
   MockCallScenario,
   MockCallAttempt,
   InsertMockCallScenario,
-  InsertMockCallAttempt
+  InsertMockCallAttempt,
+  EvaluationForm,
+  EvaluationSegment,
+  EvaluationParameter,
+  PredefinedReason,
+  EvaluationSubmission,
+  InsertEvaluationForm,
+  InsertEvaluationSegment,
+  InsertEvaluationParameter,
+  InsertPredefinedReason,
+  InsertEvaluationSubmission
 };
 
 // Add new enums for mock calls
@@ -1320,3 +1330,227 @@ export const mockCallAttemptsRelations = relations(mockCallAttempts, ({ one }) =
     references: [organizations.id],
   }),
 }));
+
+// Add new types for evaluation forms
+export const evaluationFormStatusEnum = pgEnum('evaluation_form_status', [
+  'draft',
+  'active',
+  'archived'
+]);
+
+export const evaluationForms = pgTable("evaluation_forms", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  processId: integer("process_id")
+    .references(() => organizationProcesses.id)
+    .notNull(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdBy: integer("created_by")
+    .references(() => users.id)
+    .notNull(),
+  status: evaluationFormStatusEnum("status").default('draft').notNull(),
+  isTemplate: boolean("is_template").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const evaluationSegments = pgTable("evaluation_segments", {
+  id: serial("id").primaryKey(),
+  formId: integer("form_id")
+    .references(() => evaluationForms.id)
+    .notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  weight: integer("weight").notNull(),
+  order: integer("order").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const evaluationParameters = pgTable("evaluation_parameters", {
+  id: serial("id").primaryKey(),
+  segmentId: integer("segment_id")
+    .references(() => evaluationSegments.id)
+    .notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  weight: integer("weight").notNull(),
+  isFatal: boolean("is_fatal").default(false).notNull(),
+  order: integer("order").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const predefinedReasons = pgTable("predefined_reasons", {
+  id: serial("id").primaryKey(),
+  formId: integer("form_id")
+    .references(() => evaluationForms.id)
+    .notNull(),
+  reason: text("reason").notNull(),
+  category: text("category").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const evaluationSubmissions = pgTable("evaluation_submissions", {
+  id: serial("id").primaryKey(),
+  formId: integer("form_id")
+    .references(() => evaluationForms.id)
+    .notNull(),
+  evaluatorId: integer("evaluator_id")
+    .references(() => users.id)
+    .notNull(),
+  traineeId: integer("trainee_id")
+    .references(() => users.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  totalScore: integer("total_score").notNull(),
+  hasFatalError: boolean("has_fatal_error").default(false).notNull(),
+  comments: text("comments"),
+  customReason: text("custom_reason"),
+  selectedReasons: jsonb("selected_reasons").$type<number[]>(),
+  scores: jsonb("scores").$type<{
+    parameterId: number;
+    score: number;
+    comment?: string;
+    isFatal?: boolean;
+  }[]>().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Add types
+export type EvaluationForm = typeof evaluationForms.$inferSelect;
+export type EvaluationSegment = typeof evaluationSegments.$inferSelect;
+export type EvaluationParameter = typeof evaluationParameters.$inferSelect;
+export type PredefinedReason = typeof predefinedReasons.$inferSelect;
+export type EvaluationSubmission = typeof evaluationSubmissions.$inferSelect;
+
+// Add relations
+export const evaluationFormsRelations = relations(evaluationForms, ({ one, many }) => ({
+  process: one(organizationProcesses, {
+    fields: [evaluationForms.processId],
+    references: [organizationProcesses.id],
+  }),
+  batch: one(organizationBatches, {
+    fields: [evaluationForms.batchId],
+    references: [organizationBatches.id],
+  }),
+  organization: one(organizations, {
+    fields: [evaluationForms.organizationId],
+    references: [organizations.id],
+  }),
+  creator: one(users, {
+    fields: [evaluationForms.createdBy],
+    references: [users.id],
+  }),
+  segments: many(evaluationSegments),
+  predefinedReasons: many(predefinedReasons),
+  submissions: many(evaluationSubmissions),
+}));
+
+export const evaluationSegmentsRelations = relations(evaluationSegments, ({ one, many }) => ({
+  form: one(evaluationForms, {
+    fields: [evaluationSegments.formId],
+    references: [evaluationForms.id],
+  }),
+  parameters: many(evaluationParameters),
+}));
+
+export const evaluationParametersRelations = relations(evaluationParameters, ({ one }) => ({
+  segment: one(evaluationSegments, {
+    fields: [evaluationParameters.segmentId],
+    references: [evaluationSegments.id],
+  }),
+}));
+
+// Add insert schemas
+export const insertEvaluationFormSchema = createInsertSchema(evaluationForms)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    name: z.string().min(1, "Form name is required"),
+    description: z.string().optional(),
+    processId: z.number().int().positive("Process is required"),
+    batchId: z.number().int().positive("Batch is required"),
+    organizationId: z.number().int().positive("Organization is required"),
+    createdBy: z.number().int().positive("Creator is required"),
+    status: z.enum(['draft', 'active', 'archived']).default('draft'),
+    isTemplate: z.boolean().default(false),
+  });
+
+export const insertEvaluationSegmentSchema = createInsertSchema(evaluationSegments)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    formId: z.number().int().positive("Form is required"),
+    name: z.string().min(1, "Segment name is required"),
+    description: z.string().optional(),
+    weight: z.number().int().min(0).max(100),
+    order: z.number().int().min(0),
+  });
+
+export const insertEvaluationParameterSchema = createInsertSchema(evaluationParameters)
+  .omit({
+    id: true,
+    createdAt: true,
+  })
+  .extend({
+    segmentId: z.number().int().positive("Segment is required"),
+    name: z.string().min(1, "Parameter name is required"),
+    description: z.string().optional(),
+    weight: z.number().int().min(0).max(100),
+    isFatal: z.boolean().default(false),
+    order: z.number().int().min(0),
+  });
+
+export const insertPredefinedReasonSchema = createInsertSchema(predefinedReasons)
+  .omit({
+    id: true,
+    createdAt: true,
+  })
+  .extend({
+    formId: z.number().int().positive("Form is required"),
+    reason: z.string().min(1, "Reason is required"),
+    category: z.string().min(1, "Category is required"),
+  });
+
+export const insertEvaluationSubmissionSchema = createInsertSchema(evaluationSubmissions)
+  .omit({
+    id: true,
+    createdAt: true,
+  })
+  .extend({
+    formId: z.number().int().positive("Form is required"),
+    evaluatorId: z.number().int().positive("Evaluator is required"),
+    traineeId: z.number().int().positive("Trainee is required"),
+    organizationId: z.number().int().positive("Organization is required"),
+    totalScore: z.number().int().min(0).max(100),
+    hasFatalError: z.boolean().default(false),
+    comments: z.string().optional(),
+    customReason: z.string().optional(),
+    selectedReasons: z.array(z.number()).optional(),
+    scores: z.array(z.object({
+      parameterId: z.number(),
+      score: z.number(),
+      comment: z.string().optional(),
+      isFatal: z.boolean().optional(),
+    })).min(1, "At least one score is required"),
+  });
+
+export type InsertEvaluationForm = z.infer<typeof insertEvaluationFormSchema>;
+export type InsertEvaluationSegment = z.infer<typeof insertEvaluationSegmentSchema>;
+export type InsertEvaluationParameter = z.infer<typeof insertEvaluationParameterSchema>;
+export type InsertPredefinedReason = z.infer<typeof insertPredefinedReasonSchema>;
+export type InsertEvaluationSubmission = z.infer<typeof insertEvaluationSubmissionSchema>;
