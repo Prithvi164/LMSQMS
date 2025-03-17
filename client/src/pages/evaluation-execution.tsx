@@ -36,14 +36,16 @@ interface Batch {
 }
 
 interface Trainee {
+  id: number;  // This is the user_batch_process.id
   userId: number;
-  status: string;
   user: {
     id: number;
+    username: string;
     fullName: string;
     email: string;
-    role: string;
-    category: string;
+    employeeId: string;
+    phoneNumber: string;
+    dateOfJoining: string;
   };
 }
 
@@ -76,12 +78,6 @@ export default function EvaluationExecutionPage() {
   const { data: trainees = [], isLoading: isTraineesLoading } = useQuery<Trainee[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${selectedBatchId}/trainees`],
     enabled: !!selectedBatchId && !!user?.organizationId,
-    onSuccess: (data) => {
-      console.log('Fetched trainees:', data);
-    },
-    onError: (error) => {
-      console.error('Error fetching trainees:', error);
-    }
   });
 
   // Fetch evaluation templates
@@ -237,8 +233,8 @@ export default function EvaluationExecutionPage() {
                         ) : (
                           trainees.map((trainee) => (
                             <SelectItem
-                              key={trainee.userId}
-                              value={trainee.user.id.toString()}
+                              key={trainee.id} //Using trainee.id instead of trainee.userId
+                              value={trainee.id.toString()} //Using trainee.id instead of trainee.user.id
                             >
                               {trainee.user.fullName}
                             </SelectItem>
