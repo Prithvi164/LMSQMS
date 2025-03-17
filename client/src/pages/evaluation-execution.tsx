@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -63,6 +63,7 @@ const formSchema = z.object({
 export default function EvaluationExecutionPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
 
   // Fetch active batches
@@ -101,9 +102,14 @@ export default function EvaluationExecutionPage() {
   // Create evaluation mutation
   const createEvaluationMutation = useMutation({
     mutationFn: async (values: z.infer<typeof formSchema>) => {
+      console.log('Starting evaluation with values:', values);
+
       const response = await fetch(`/api/organizations/${user?.organizationId}/evaluations`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
         body: JSON.stringify({
           ...values,
           evaluatorId: user?.id,
@@ -111,11 +117,23 @@ export default function EvaluationExecutionPage() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to start evaluation");
+        // Try to parse error message from response
+        try {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to start evaluation');
+        } catch (e) {
+          // If parsing fails, throw generic error with status
+          throw new Error(`Failed to start evaluation (${response.status})`);
+        }
       }
 
-      return await response.json();
+      // Make sure we get valid JSON
+      try {
+        const data = await response.json();
+        return data;
+      } catch (e) {
+        throw new Error('Invalid response from server');
+      }
     },
     onSuccess: (data) => {
       toast({
@@ -126,6 +144,7 @@ export default function EvaluationExecutionPage() {
       window.location.href = `/evaluations/${data.id}`;
     },
     onError: (error: Error) => {
+      console.error('Evaluation creation error:', error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -135,6 +154,7 @@ export default function EvaluationExecutionPage() {
   });
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
+    console.log('Form submitted with values:', values);
     createEvaluationMutation.mutate(values);
   };
 
