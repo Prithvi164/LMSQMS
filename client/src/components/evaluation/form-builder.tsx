@@ -930,15 +930,20 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                                         <Button variant="outline">N/A</Button>
                                       </div>
                                       {param.noReasons && param.noReasons.length > 0 && (
-                                        <div className="space-y-2 border rounded-md p-4 bg-muted/50">
-                                          <p className="font-medium text-sm">Reasons for "No" response:</p>
-                                          <ul className="list-disc list-inside space-y-1">
-                                            {param.noReasons.map((reason: string, idx: number) => (
-                                              <li key={idx} className="text-sm text-muted-foreground">
-                                                {reason}
-                                              </li>
-                                            ))}
-                                          </ul>
+                                        <div className="space-y-2">
+                                          <p className="text-sm font-medium">Reasons for "No" response:</p>
+                                          <Select disabled>
+                                            <SelectTrigger>
+                                              <SelectValue placeholder="Select a reason" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {param.noReasons.map((reason: string, idx: number) => (
+                                                <SelectItem key={idx} value={reason}>
+                                                  {reason}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
                                         </div>
                                       )}
                                     </div>
