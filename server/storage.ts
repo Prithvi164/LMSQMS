@@ -71,7 +71,7 @@ import {
 // Add to IStorage interface
 export interface IStorage {
   // Evaluation template duplication
-  duplicateEvaluationTemplate(templateId: number, userId: number): Promise<EvaluationTemplate>;
+  duplicateEvaluationTemplate(templateId: number, userId: number, name: string): Promise<EvaluationTemplate>;
 
   // User operations
   getUser(id: number): Promise<User | undefined>;
@@ -304,7 +304,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async duplicateEvaluationTemplate(templateId: number, userId: number): Promise<EvaluationTemplate> {
+  async duplicateEvaluationTemplate(templateId: number, userId: number, name: string): Promise<EvaluationTemplate> {
     try {
       return await db.transaction(async (tx) => {
         // Get the original template with all details 
@@ -313,11 +313,11 @@ export class DatabaseStorage implements IStorage {
           throw new Error('Template not found');
         }
 
-        // Create a new template with "(Copy)" suffix
+        // Create a new template with the provided name
         const [newTemplate] = await tx
           .insert(evaluationTemplates)
           .values({
-            name: `${originalTemplate.name} (Copy)`,
+            name, // Use the provided name instead of appending (Copy)
             description: originalTemplate.description,
             processId: originalTemplate.processId,
             organizationId: originalTemplate.organizationId,

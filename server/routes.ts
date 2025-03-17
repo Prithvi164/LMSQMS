@@ -311,8 +311,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const templateId = parseInt(req.params.templateId);
+      const { name } = req.body;
+
       if (!templateId) {
         return res.status(400).json({ message: "Invalid template ID" });
+      }
+
+      if (!name) {
+        return res.status(400).json({ message: "Template name is required" });
       }
 
       const template = await storage.getEvaluationTemplate(templateId);
@@ -324,7 +330,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Forbidden" });
       }
 
-      const duplicatedTemplate = await storage.duplicateEvaluationTemplate(templateId, req.user.id);
+      const duplicatedTemplate = await storage.duplicateEvaluationTemplate(templateId, req.user.id, name);
       res.status(201).json(duplicatedTemplate);
     } catch (error: any) {
       console.error("Error duplicating template:", error);

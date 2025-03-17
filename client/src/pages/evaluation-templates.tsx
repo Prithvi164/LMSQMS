@@ -63,11 +63,18 @@ const formSchema = z.object({
   status: z.enum(["draft", "active", "archived"]).default("draft"),
 });
 
+// Form schema for duplicating a template
+const duplicateFormSchema = z.object({
+  name: z.string().min(1, "Template name is required"),
+});
+
 export default function EvaluationTemplatesPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
+  const [templateToDuplicate, setTemplateToDuplicate] = useState<number | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [templateToDelete, setTemplateToDelete] = useState<number | null>(null);
 
@@ -87,6 +94,13 @@ export default function EvaluationTemplatesPage() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       status: "draft",
+    },
+  });
+
+  const duplicateForm = useForm<z.infer<typeof duplicateFormSchema>>({
+    resolver: zodResolver(duplicateFormSchema),
+    defaultValues: {
+      name: "",
     },
   });
 
@@ -157,9 +171,11 @@ export default function EvaluationTemplatesPage() {
   });
 
   const duplicateTemplateMutation = useMutation({
-    mutationFn: async (templateId: number) => {
+    mutationFn: async ({ templateId, name }: { templateId: number; name: string }) => {
       const response = await fetch(`/api/evaluation-templates/${templateId}/duplicate`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
       });
       if (!response.ok) {
         const error = await response.json();
@@ -176,6 +192,9 @@ export default function EvaluationTemplatesPage() {
         description: "Template duplicated successfully",
       });
       setSelectedTemplateId(data.id);
+      setIsDuplicateDialogOpen(false);
+      setTemplateToDuplicate(null);
+      duplicateForm.reset();
     },
     onError: (error: Error) => {
       toast({
@@ -185,7 +204,6 @@ export default function EvaluationTemplatesPage() {
       });
     },
   });
-
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     if (!user?.organizationId) {
@@ -202,6 +220,15 @@ export default function EvaluationTemplatesPage() {
       organizationId: user.organizationId,
       createdBy: user.id,
     });
+  };
+
+  const onDuplicateSubmit = (values: z.infer<typeof duplicateFormSchema>) => {
+    if (templateToDuplicate) {
+      duplicateTemplateMutation.mutate({
+        templateId: templateToDuplicate,
+        name: values.name,
+      });
+    }
   };
 
   return (
@@ -320,6 +347,43 @@ export default function EvaluationTemplatesPage() {
         </Dialog>
       </div>
 
+      <Dialog open={isDuplicateDialogOpen} onOpenChange={setIsDuplicateDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Duplicate Template</DialogTitle>
+            <DialogDescription>
+              Enter a name for the duplicate template.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...duplicateForm}>
+            <form onSubmit={duplicateForm.handleSubmit(onDuplicateSubmit)} className="space-y-4">
+              <FormField
+                control={duplicateForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Template Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Enter template name" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={duplicateTemplateMutation.isPending}
+              >
+                {duplicateTemplateMutation.isPending
+                  ? "Duplicating..."
+                  : "Duplicate Template"}
+              </Button>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
       <Tabs defaultValue="templates">
         <TabsList>
           <TabsTrigger value="templates">Templates</TabsTrigger>
@@ -355,7 +419,9 @@ export default function EvaluationTemplatesPage() {
                           size="icon"
                           onClick={(e) => {
                             e.stopPropagation();
-                            duplicateTemplateMutation.mutate(template.id);
+                            setTemplateToDuplicate(template.id);
+                            duplicateForm.setValue('name', `${template.name} (Copy)`);
+                            setIsDuplicateDialogOpen(true);
                           }}
                         >
                           <Copy className="h-4 w-4" />
