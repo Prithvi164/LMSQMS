@@ -117,6 +117,8 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
         .flatMap((p: any) => p.parameters)
         .find((param: any) => param.id === selectedParameter);
       if (parameter) {
+        console.log('Editing parameter:', parameter);
+        console.log('No reasons:', parameter.noReasons);
         parameterForm.reset({
           name: parameter.name,
           description: parameter.description,
@@ -345,6 +347,9 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
   };
 
   const onParameterSubmit = (values: z.infer<typeof parameterSchema>) => {
+    console.log('Submitting parameter with values:', values);
+    console.log('No reasons to submit:', noReasons);
+
     if (isEditingParameter && selectedParameter) {
       updateParameterMutation.mutate({
         id: selectedParameter,
@@ -879,83 +884,90 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-8">
+                <div className="space-y-6">
                   {template?.pillars?.map((pillar: any) => (
-                    <div key={pillar.id} className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-semibold">{pillar.name}</h3>
-                        <Badge>{pillar.weightage}%</Badge>
-                      </div>
-                      {pillar.description && (
-                        <p className="text-muted-foreground">{pillar.description}</p>
-                      )}
-                      <div className="space-y-4">
-                        {pillar.parameters?.map((param: any) => (
-                          <Card key={param.id}>
-                            <CardHeader>
-                              <div className="flex items-center justify-between">
-                                <CardTitle className="text-base">{param.name}</CardTitle>
-                                <div className="flex gap-2">
-                                  <Badge variant="outline">{param.weightage}%</Badge>
-                                  {param.isFatal && (
-                                    <Badge variant="destructive">Fatal</Badge>
-                                  )}
-                                </div>
-                              </div>
-                              {param.description && (
-                                <CardDescription>{param.description}</CardDescription>
-                              )}
-                            </CardHeader>
-                            <CardContent>
-                              {param.guidelines && (
-                                <div className="mb-4 text-sm text-muted-foreground">
-                                  <strong>Guidelines:</strong> {param.guidelines}
-                                </div>
-                              )}
-                              <div className="space-y-4">
-                                {param.ratingType === "yes_no_na" && (
-                                  <div className="space-y-4">
-                                    <div className="flex gap-4">
-                                      <Button variant="outline">Yes</Button>
-                                      <Button variant="outline">No</Button>
-                                      <Button variant="outline">N/A</Button>
-                                    </div>
-                                    {param.noReasons && param.noReasons.length > 0 && (
-                                      <div className="space-y-2">
-                                        <p className="text-sm font-medium">If No, select reason:</p>
-                                        <ul className="list-disc list-inside">
-                                          {param.noReasons.map((reason: string, idx: number) => (
-                                            <li key={idx} className="text-xs">{reason}</li>
-                                          ))}
-                                        </ul>
-                                      </div>
+                    <Card key={pillar.id}>
+                      <CardHeader>
+                        <CardTitle className="flex justify-between items-center">
+                          <span>{pillar.name}</span>
+                          <Badge variant="outline">{pillar.weightage}%</Badge>
+                        </CardTitle>
+                        {pillar.description && (
+                          <CardDescription>{pillar.description}</CardDescription>
+                        )}
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-6">
+                          {pillar.parameters?.map((param: any) => (
+                            <Card key={param.id}>
+                              <CardHeader>
+                                <div className="flex justify-between items-center">
+                                  <CardTitle className="text-lg">{param.name}</CardTitle>
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="outline">{param.weightage}%</Badge>
+                                    {param.isFatal && (
+                                      <Badge variant="destructive">Fatal</Badge>
                                     )}
                                   </div>
+                                </div>
+                                {param.description && (
+                                  <CardDescription>{param.description}</CardDescription>
                                 )}
-                                {param.ratingType === "numeric" && (
-                                  <div className="flex gap-2">
-                                    {[1, 2, 3, 4, 5].map((n) => (
-                                      <Button key={n} variant="outline">
-                                        {n}
-                                      </Button>
-                                    ))}
+                                {param.guidelines && (
+                                  <div className="mt-2 text-sm">
+                                    <p className="font-medium">Guidelines:</p>
+                                    <p className="text-muted-foreground">{param.guidelines}</p>
                                   </div>
                                 )}
-                                {param.requiresComment && (
-                                  <div className="space-y-2">
-                                    <p className="text-sm font-medium">Additional Comments:</p>
-                                    <Textarea
-                                      placeholder="Add your comments here"
-                                      disabled
-                                    />
-                                  </div>
-                                )}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    </div>
+                              </CardHeader>
+                              <CardContent>
+                                <div className="space-y-4">
+                                  {param.ratingType === "yes_no_na" && (
+                                    <div className="space-y-4">
+                                      <div className="flex gap-2">
+                                        <Button variant="outline">Yes</Button>
+                                        <Button variant="outline">No</Button>
+                                        <Button variant="outline">N/A</Button>
+                                      </div>
+                                      {param.noReasons && param.noReasons.length > 0 && (
+                                        <div className="space-y-2 border rounded-md p-4 bg-muted/50">
+                                          <p className="font-medium text-sm">Reasons for "No" response:</p>
+                                          <ul className="list-disc list-inside space-y-1">
+                                            {param.noReasons.map((reason: string, idx: number) => (
+                                              <li key={idx} className="text-sm text-muted-foreground">
+                                                {reason}
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                  {param.ratingType === "numeric" && (
+                                    <div className="flex gap-2">
+                                      {[1, 2, 3, 4, 5].map((value) => (
+                                        <Button key={value} variant="outline">
+                                          {value}
+                                        </Button>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {param.requiresComment && (
+                                    <div className="space-y-2">
+                                      <p className="text-sm font-medium">Additional Comments:</p>
+                                      <Textarea
+                                        placeholder="Add your comments here"
+                                        disabled
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               </CardContent>
