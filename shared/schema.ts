@@ -841,11 +841,10 @@ export const insertOrganizationLocationSchema = createInsertSchema(organizationL
 export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organizationLineOfBusinesses)
   .omit({
     id: true,
-    createdAt: true
-  })
+    createdAt: true})
   .extend({
-name: z.string().min(1, "LOBname is required"),
-    description: z.string().min(1, "Description is required"),
+    name: z.string().min(1, "LOBname is required"),
+    description: z.string().min(11, "Description is required"),
     organizationId: z.number().int().positive("Organization is required"),
   });
 
@@ -1411,14 +1410,11 @@ export const evaluationSubReasons = pgTable("evaluation_sub_reasons", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Evaluation Results
+// Add evaluation result tables and schemas
 export const evaluationResults = pgTable("evaluation_results", {
   id: serial("id").primaryKey(),
   templateId: integer("template_id")
     .references(() => evaluationTemplates.id)
-    .notNull(),
-  batchId: integer("batch_id")
-    .references(() => organizationBatches.id)
     .notNull(),
   traineeId: integer("trainee_id")
     .references(() => users.id)
@@ -1426,38 +1422,39 @@ export const evaluationResults = pgTable("evaluation_results", {
   evaluatorId: integer("evaluator_id")
     .references(() => users.id)
     .notNull(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id)
+    .notNull(),
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
   totalScore: integer("total_score").notNull(),
-  hasFatalError: boolean("has_fatal_error").default(false).notNull(),
+  weightedScore: integer("weighted_score").notNull(),
+  fatalTriggered: boolean("fatal_triggered").default(false).notNull(),
+  status: text("status").notNull(),
   evaluatedAt: timestamp("evaluated_at").defaultNow().notNull(),
+  comments: text("comments"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Parameter-level evaluation results
 export const evaluationParameterResults = pgTable("evaluation_parameter_results", {
   id: serial("id").primaryKey(),
-  evaluationResultId: integer("evaluation_result_id")
+  evaluationId: integer("evaluation_id")
     .references(() => evaluationResults.id)
     .notNull(),
   parameterId: integer("parameter_id")
     .references(() => evaluationParameters.id)
     .notNull(),
-  rating: text("rating").notNull(), // The actual rating given (yes/no/na or numeric value)
-  subReasonId: integer("sub_reason_id")
-    .references(() => evaluationSubReasons.id),
+  score: integer("score").notNull(),
+  weightedScore: integer("weighted_score").notNull(),
+  rating: text("rating").notNull(),
   comment: text("comment"),
-  score: integer("score").notNull(), // Calculated score based on weightage
-  isFatal: boolean("is_fatal").default(false).notNull(),
+  noReasons: jsonb("no_reasons").$type<string[]>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 // Add types
-export type EvaluationTemplate = InferSelectModel<typeof evaluationTemplates>;
-export type EvaluationPillar = InferSelectModel<typeof evaluationPillars>;
-export type EvaluationParameter = InferSelectModel<typeof evaluationParameters>;
-export type EvaluationSubReason = InferSelectModel<typeof evaluationSubReasons>;
 export type EvaluationResult = InferSelectModel<typeof evaluationResults>;
 export type EvaluationParameterResult = InferSelectModel<typeof evaluationParameterResults>;
 
@@ -1525,16 +1522,19 @@ export const insertEvaluationResultSchema = createInsertSchema(evaluationResults
   .omit({
     id: true,
     createdAt: true,
+    updatedAt: true,
   })
   .extend({
     templateId: z.number().int().positive("Template is required"),
-    batchId: z.number().int().positive("Batch is required"),
     traineeId: z.number().int().positive("Trainee is required"),
     evaluatorId: z.number().int().positive("Evaluator is required"),
+    batchId: z.number().int().positive("Batch is required"),
     organizationId: z.number().int().positive("Organization is required"),
     totalScore: z.number().int().min(0).max(100),
-    hasFatalError: z.boolean().default(false),
-    evaluatedAt: z.string().min(1, "Evaluation date is required"),
+    weightedScore: z.number().int().min(0).max(100),
+    fatalTriggered: z.boolean().default(false),
+    status: z.string().min(1, "Status is required"),
+    comments: z.string().optional(),
   });
 
 export const insertEvaluationParameterResultSchema = createInsertSchema(evaluationParameterResults)
@@ -1543,16 +1543,55 @@ export const insertEvaluationParameterResultSchema = createInsertSchema(evaluati
     createdAt: true,
   })
   .extend({
-    evaluationResultId: z.number().int().positive("Evaluation result is required"),
+    evaluationId: z.number().int().positive("Evaluation is required"),
     parameterId: z.number().int().positive("Parameter is required"),
-    rating: z.string().min(1, "Rating is required"),
-    subReasonId: z.number().int().positive("Sub-reason is required").optional(),
-    comment: z.string().optional(),
     score: z.number().int().min(0).max(100),
-    isFatal: z.boolean().default(false),
+    weightedScore: z.number().int().min(0).max(100),
+    rating: z.string().min(1, "Rating is required"),
+    comment: z.string().optional(),
+    noReasons: z.array(z.string()).optional(),
   });
 
+// Add types for the insert schemas
+export type InsertEvaluationResult = z.infer<typeof insertEvaluationResultSchema>;
+export type InsertEvaluationParameterResult = z.infer<typeof insertEvaluationParameterResultSchema>;
+
 // Add relations
+export const evaluationResultsRelations = relations(evaluationResults, ({ one, many }) => ({
+  template: one(evaluationTemplates, {
+    fields: [evaluationResults.templateId],
+    references: [evaluationTemplates.id],
+  }),
+  trainee: one(users, {
+    fields: [evaluationResults.traineeId],
+    references: [users.id],
+  }),
+  evaluator: one(users, {
+    fields: [evaluationResults.evaluatorId],
+    references: [users.id],
+  }),
+  batch: one(organizationBatches, {
+    fields: [evaluationResults.batchId],
+    references: [organizationBatches.id],
+  }),
+  organization: one(organizations, {
+    fields: [evaluationResults.organizationId],
+    references: [organizations.id],
+  }),
+  parameterResults: many(evaluationParameterResults),
+}));
+
+export const evaluationParameterResultsRelations = relations(evaluationParameterResults, ({ one }) => ({
+  evaluation: one(evaluationResults, {
+    fields: [evaluationParameterResults.evaluationId],
+    references: [evaluationResults.id],
+  }),
+  parameter: one(evaluationParameters, {
+    fields: [evaluationParameterResults.parameterId],
+    references: [evaluationParameters.id],
+  }),
+}));
+
 export const evaluationTemplatesRelations = relations(evaluationTemplates, ({ one, many }) => ({
   process: one(organizationProcesses, {
     fields: [evaluationTemplates.processId],
@@ -1593,50 +1632,3 @@ export const evaluationSubReasonsRelations = relations(evaluationSubReasons, ({ 
     references: [evaluationParameters.id],
   }),
 }));
-
-export const evaluationResultsRelations = relations(evaluationResults, ({ one, many }) => ({
-  template: one(evaluationTemplates, {
-    fields: [evaluationResults.templateId],
-    references: [evaluationTemplates.id],
-  }),
-  batch: one(organizationBatches, {
-    fields: [evaluationResults.batchId],
-    references: [organizationBatches.id],
-  }),
-  trainee: one(users, {
-    fields: [evaluationResults.traineeId],
-    references: [users.id],
-  }),
-  evaluator: one(users, {
-    fields: [evaluationResults.evaluatorId],
-    references: [users.id],
-  }),
-  organization: one(organizations, {
-    fields: [evaluationResults.organizationId],
-    references: [organizations.id],
-  }),
-  parameterResults: many(evaluationParameterResults),
-}));
-
-export const evaluationParameterResultsRelations = relations(evaluationParameterResults, ({ one }) => ({
-  evaluationResult: one(evaluationResults, {
-    fields: [evaluationParameterResults.evaluationResultId],
-    references: [evaluationResults.id],
-  }),
-  parameter: one(evaluationParameters, {
-    fields: [evaluationParameterResults.parameterId],
-    references: [evaluationParameters.id],
-  }),
-  subReason: one(evaluationSubReasons, {
-    fields: [evaluationParameterResults.subReasonId],
-    references: [evaluationSubReasons.id],
-  }),
-}));
-
-// Export types for insertion
-export type InsertEvaluationTemplate = z.infer<typeof insertEvaluationTemplateSchema>;
-export type InsertEvaluationPillar = z.infer<typeof insertEvaluationPillarSchema>;
-export type InsertEvaluationParameter = z.infer<typeof insertEvaluationParameterSchema>;
-export type InsertEvaluationSubReason = z.infer<typeof insertEvaluationSubReasonSchema>;
-export type InsertEvaluationResult = z.infer<typeof insertEvaluationResultSchema>;
-export type InsertEvaluationParameterResult = z.infer<typeof insertEvaluationParameterResultSchema>;

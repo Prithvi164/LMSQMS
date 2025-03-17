@@ -20,6 +20,13 @@ import { eq, and, sql, inArray } from "drizzle-orm";
 import { toIST, formatIST, toUTCStorage, formatISTDateOnly } from './utils/timezone';
 import { attendance } from "@shared/schema";
 import type { User } from "@shared/schema";
+import { 
+  insertEvaluationResultSchema, 
+  evaluationResults, 
+  evaluationParameterResults,
+  evaluationTemplates,
+  insertEvaluationParameterResultSchema 
+} from "@shared/schema";
 
 // Type definitions for user updates
 type AllowedSelfUpdateFields = Pick<User, "fullName" | "email" | "phoneNumber" | "locationId" | "dateOfBirth" | "education">;
@@ -456,6 +463,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add evaluation routes
+  app.post("/api/organizations/:organizationId/evaluations", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      
+      // Validate organization access
+      if (req.user.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Validate request body
+      const evaluationData = {
+        ...req.body,
+        status: 'pending',
+        totalScore: 0,
+        weightedScore: 0,
+        evaluatedAt: new Date().toISOString(),
+      };
+
+      console.log('Creating evaluation with data:', evaluationData);
+
+      // Parse and validate the data
+      const validatedData = insertEvaluationResultSchema.parse(evaluationData);
+
+      // Create evaluation
+      const [evaluation] = await db
+        .insert(evaluationResults)
+        .values(validatedData)
+        .returning();
+
+      console.log('Created evaluation:', evaluation);
+
+      res.status(201).json(evaluation);
+    } catch (error: any) {
+      console.error("Error creating evaluation:", error);
+      res.status(400).json({ 
+        message: error.message || "Failed to create evaluation" 
+      });
+    }
+  });
+
   // Add edit pillar endpoint
   app.patch("/api/evaluation-pillars/:pillarId", async (req, res) => {
     if (!req.user) {
@@ -594,6 +646,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error deleting evaluation parameter:", error);
       res.status(400).json({ message: error.message || "Failed to delete parameter" });
+    }
+  });
+
+  // Add evaluation routes
+  app.post("/api/organizations/:organizationId/evaluations", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      
+      // Validate organization access
+      if (req.user.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Validate request body
+      const evaluationData = {
+        ...req.body,
+        status: 'pending',
+        totalScore: 0,
+        weightedScore: 0,
+        evaluatedAt: new Date().toISOString(),
+      };
+
+      console.log('Creating evaluation with data:', evaluationData);
+
+      // Parse and validate the data  
+      try {
+        const validatedData = insertEvaluationResultSchema.parse(evaluationData);
+        
+        // Create evaluation
+        const [evaluation] = await db
+          .insert(evaluationResults)
+          .values(validatedData)
+          .returning();
+
+        console.log('Created evaluation:', evaluation);
+        
+        // Set proper content type and return JSON
+        res.setHeader('Content-Type', 'application/json');
+        return res.status(201).json(evaluation);
+      } catch (validationError: any) {
+        console.error("Validation error:", validationError);
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: validationError.errors 
+        });
+      }
+    } catch (error: any) {
+      console.error("Error creating evaluation:", error);
+      return res.status(500).json({ 
+        message: error.message || "Failed to create evaluation" 
+      });
     }
   });
 

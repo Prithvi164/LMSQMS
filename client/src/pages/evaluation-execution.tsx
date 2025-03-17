@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -71,16 +71,10 @@ export default function EvaluationExecutionPage() {
     enabled: !!user?.organizationId,
   });
 
-  // Fetch trainees for selected batch with console logging
+  // Fetch trainees for selected batch
   const { data: trainees = [], isLoading: isTraineesLoading } = useQuery<Trainee[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${selectedBatchId}/trainees`],
     enabled: !!selectedBatchId && !!user?.organizationId,
-    onSuccess: (data) => {
-      console.log('Fetched trainees:', data);
-    },
-    onError: (error) => {
-      console.error('Error fetching trainees:', error);
-    }
   });
 
   // Fetch evaluation templates
@@ -98,33 +92,45 @@ export default function EvaluationExecutionPage() {
     },
   });
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    try {
-      const response = await fetch("/api/evaluations", {
+  // Create evaluation mutation
+  const createEvaluationMutation = useMutation({
+    mutationFn: async (values: z.infer<typeof formSchema>) => {
+      const response = await fetch(`/api/organizations/${user?.organizationId}/evaluations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...values,
           evaluatorId: user?.id,
+          organizationId: user?.organizationId,
         }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to start evaluation");
+        const error = await response.json();
+        throw new Error(error.message || "Failed to create evaluation");
       }
 
-      const evaluation = await response.json();
-
+      return response.json();
+    },
+    onSuccess: (evaluation) => {
+      toast({
+        title: "Success",
+        description: "Evaluation created successfully",
+      });
       // Navigate to evaluation form
       window.location.href = `/evaluations/${evaluation.id}`;
-
-    } catch (error: any) {
+    },
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Error",
         description: error.message,
       });
-    }
+    },
+  });
+
+  const onSubmit = (values: z.infer<typeof formSchema>) => {
+    createEvaluationMutation.mutate(values);
   };
 
   return (
@@ -157,7 +163,7 @@ export default function EvaluationExecutionPage() {
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select a batch" />
+                          <SelectValue placeholder={isBatchesLoading ? "Loading batches..." : "Select a batch"} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -257,8 +263,12 @@ export default function EvaluationExecutionPage() {
                 )}
               />
 
-              <Button type="submit" className="w-full">
-                Start Evaluation
+              <Button 
+                type="submit" 
+                className="w-full"
+                disabled={createEvaluationMutation.isPending}
+              >
+                {createEvaluationMutation.isPending ? "Creating..." : "Start Evaluation"}
               </Button>
             </form>
           </Form>
