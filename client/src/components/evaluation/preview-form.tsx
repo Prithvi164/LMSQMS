@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -6,15 +6,22 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface PreviewFormProps {
   template: any;
+}
+
+interface ValidationErrors {
+  [key: string]: string;
 }
 
 export function PreviewForm({ template }: PreviewFormProps) {
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [comments, setComments] = useState<Record<string, string>>({});
   const [selectedReasons, setSelectedReasons] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<ValidationErrors>({});
+  const [isValid, setIsValid] = useState(false);
 
   if (!template || !template.pillars) {
     return (
@@ -26,6 +33,45 @@ export function PreviewForm({ template }: PreviewFormProps) {
       </Alert>
     );
   }
+
+  const validateForm = () => {
+    const newErrors: ValidationErrors = {};
+    let isFormValid = true;
+
+    template.pillars.forEach((pillar: any) => {
+      pillar.parameters.forEach((param: any) => {
+        // Check if rating is provided
+        if (ratings[param.id] === undefined) {
+          newErrors[`rating-${param.id}`] = "Rating is required";
+          isFormValid = false;
+        }
+
+        // Check if reason is selected when "No" is chosen
+        if (param.ratingType === "yes_no_na" && 
+            ratings[param.id] === 0 && 
+            param.noReasons?.length > 0 && 
+            !selectedReasons[param.id]) {
+          newErrors[`reason-${param.id}`] = "Please select a reason for No";
+          isFormValid = false;
+        }
+
+        // Check if comment is provided when required
+        if ((param.requiresComment || ratings[param.id] === 0) && 
+            (!comments[param.id] || comments[param.id].trim() === "")) {
+          newErrors[`comment-${param.id}`] = "Comment is required";
+          isFormValid = false;
+        }
+      });
+    });
+
+    setErrors(newErrors);
+    setIsValid(isFormValid);
+    return isFormValid;
+  };
+
+  useEffect(() => {
+    validateForm();
+  }, [ratings, comments, selectedReasons]);
 
   const handleRatingChange = (parameterId: number, value: string) => {
     const numericValue = parseInt(value);
@@ -60,6 +106,17 @@ export function PreviewForm({ template }: PreviewFormProps) {
       ...prev,
       [parameterId]: reason,
     }));
+  };
+
+  const handleSubmit = () => {
+    if (validateForm()) {
+      // Will implement submission logic later
+      console.log("Form is valid, ready to submit", {
+        ratings,
+        comments,
+        selectedReasons,
+      });
+    }
   };
 
   const calculateScore = () => {
@@ -172,6 +229,9 @@ export function PreviewForm({ template }: PreviewFormProps) {
                     )}
                   </div>
                 </RadioGroup>
+                {errors[`rating-${param.id}`] && (
+                  <p className="text-sm text-destructive">{errors[`rating-${param.id}`]}</p>
+                )}
 
                 {/* Show reason selection when "No" is selected and noReasons exist */}
                 {param.ratingType === "yes_no_na" && ratings[param.id] === 0 && param.noReasons && param.noReasons.length > 0 && (
@@ -190,6 +250,9 @@ export function PreviewForm({ template }: PreviewFormProps) {
                         ))}
                       </div>
                     </RadioGroup>
+                    {errors[`reason-${param.id}`] && (
+                      <p className="text-sm text-destructive">{errors[`reason-${param.id}`]}</p>
+                    )}
                   </div>
                 )}
 
@@ -208,6 +271,9 @@ export function PreviewForm({ template }: PreviewFormProps) {
                       }
                       placeholder="Enter your comments here..."
                     />
+                    {errors[`comment-${param.id}`] && (
+                      <p className="text-sm text-destructive">{errors[`comment-${param.id}`]}</p>
+                    )}
                   </div>
                 )}
               </div>
@@ -215,6 +281,16 @@ export function PreviewForm({ template }: PreviewFormProps) {
           </CardContent>
         </Card>
       ))}
+
+      <div className="flex justify-end pt-6">
+        <Button
+          onClick={handleSubmit}
+          disabled={!isValid}
+          className="w-[200px]"
+        >
+          Submit Evaluation
+        </Button>
+      </div>
     </div>
   );
 }
