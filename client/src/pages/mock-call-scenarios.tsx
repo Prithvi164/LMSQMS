@@ -43,6 +43,7 @@ import { z } from "zod";
 import { InsertMockCallScenario } from "@shared/schema";
 
 const formSchema = z.object({
+  processId: z.number().min(1, "Process is required"),
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
   difficulty: z.enum(["basic", "intermediate", "advanced"]),
@@ -73,9 +74,16 @@ export default function MockCallScenariosPage() {
   const queryClient = useQueryClient();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
+  // Fetch available processes
+  const { data: processes = [] } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/processes`],
+    enabled: !!user?.organizationId,
+  });
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      processId: processes[0]?.id || 0,
       difficulty: "basic",
       customerProfile: {
         name: "",
@@ -106,13 +114,15 @@ export default function MockCallScenariosPage() {
 
   const createScenarioMutation = useMutation({
     mutationFn: async (data: InsertMockCallScenario) => {
+      console.log("Submitting data:", data);
       const response = await fetch("/api/mock-call-scenarios", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
       if (!response.ok) {
-        throw new Error("Failed to create scenario");
+        const error = await response.json();
+        throw new Error(error.message || "Failed to create scenario");
       }
       return response.json();
     },
@@ -128,6 +138,7 @@ export default function MockCallScenariosPage() {
       form.reset();
     },
     onError: (error: Error) => {
+      console.error("Error creating scenario:", error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -146,10 +157,10 @@ export default function MockCallScenariosPage() {
       return;
     }
 
+    console.log("Form values:", values);
     createScenarioMutation.mutate({
       ...values,
       organizationId: user.organizationId,
-      processId: 1, // TODO: Add process selection
       createdBy: user.id,
     });
   };
@@ -185,6 +196,33 @@ export default function MockCallScenariosPage() {
             <div className="flex-1 overflow-y-auto pr-4">
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="processId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Process</FormLabel>
+                        <Select
+                          onValueChange={(value) => field.onChange(parseInt(value))}
+                          defaultValue={field.value?.toString()}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select process" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {processes.map((process: any) => (
+                              <SelectItem key={process.id} value={process.id.toString()}>
+                                {process.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   <FormField
                     control={form.control}
                     name="title"

@@ -50,7 +50,13 @@ import {
   type InsertQuiz,
   quizAttempts,
   type QuizAttempt,
-  type InsertQuizAttempt
+  type InsertQuizAttempt,
+  type MockCallScenario,
+  type InsertMockCallScenario,
+  type MockCallAttempt,
+  type InsertMockCallAttempt,
+  mockCallScenarios,
+  mockCallAttempts
 } from "@shared/schema";
 
 // Add to IStorage interface
@@ -218,6 +224,12 @@ export interface IStorage {
 
   // Add new method for deleting quizzes by template ID
   deleteQuizzesByTemplateId(templateId: number): Promise<void>;
+
+  // Mock Call Scenario operations
+  createMockCallScenario(scenario: InsertMockCallScenario): Promise<MockCallScenario>;
+  getMockCallScenario(id: number): Promise<MockCallScenario | undefined>;
+  listMockCallScenarios(organizationId: number): Promise<MockCallScenario[]>;
+  createMockCallAttempt(attempt: InsertMockCallAttempt): Promise<MockCallAttempt>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2346,6 +2358,45 @@ export class DatabaseStorage implements IStorage {
 
   // Add new method for deleting quizzes by template ID
 
+  // Mock Call Scenario operations
+  async createMockCallScenario(scenario: InsertMockCallScenario): Promise<MockCallScenario> {
+    try {
+      console.log('Creating mock call scenario:', scenario);
+      const [newScenario] = await db
+        .insert(mockCallScenarios)
+        .values(scenario)
+        .returning() as MockCallScenario[];
+
+      console.log('Created mock call scenario:', newScenario);
+      return newScenario;
+    } catch (error) {
+      console.error('Error creating mock call scenario:', error);
+      throw error;
+    }
+  }
+
+  async getMockCallScenario(id: number): Promise<MockCallScenario | undefined> {
+    const [scenario] = await db
+      .select()
+      .from(mockCallScenarios)
+      .where(eq(mockCallScenarios.id, id)) as MockCallScenario[];
+    return scenario;
+  }
+
+  async listMockCallScenarios(organizationId: number): Promise<MockCallScenario[]> {
+    return await db
+      .select()
+      .from(mockCallScenarios)
+      .where(eq(mockCallScenarios.organizationId, organizationId)) as MockCallScenario[];
+  }
+
+  async createMockCallAttempt(attempt: InsertMockCallAttempt): Promise<MockCallAttempt> {
+    const [newAttempt] = await db
+      .insert(mockCallAttempts)
+      .values(attempt)
+      .returning() as MockCallAttempt[];
+    return newAttempt;
+  }
 }
 
 export const storage = new DatabaseStorage();
