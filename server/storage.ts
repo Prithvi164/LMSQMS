@@ -56,7 +56,10 @@ import {
   type MockCallAttempt,
   type InsertMockCallAttempt,
   mockCallScenarios,
-  mockCallAttempts
+  mockCallAttempts,
+  evaluationTemplates,
+  type EvaluationTemplate,
+  type InsertEvaluationTemplate
 } from "@shared/schema";
 
 // Add to IStorage interface
@@ -230,6 +233,10 @@ export interface IStorage {
   getMockCallScenario(id: number): Promise<MockCallScenario | undefined>;
   listMockCallScenarios(organizationId: number): Promise<MockCallScenario[]>;
   createMockCallAttempt(attempt: InsertMockCallAttempt): Promise<MockCallAttempt>;
+
+  // Evaluation Template operations
+  createEvaluationTemplate(template: InsertEvaluationTemplate): Promise<EvaluationTemplate>;
+  listEvaluationTemplates(organizationId: number): Promise<EvaluationTemplate[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2409,6 +2416,38 @@ export class DatabaseStorage implements IStorage {
       return newAttempt;
     } catch (error) {
       console.error('Error creating mock call attempt:', error);
+      throw error;
+    }
+  }
+
+  // Evaluation Template operations
+  async createEvaluationTemplate(template: InsertEvaluationTemplate): Promise<EvaluationTemplate> {
+    try {
+      console.log('Creating evaluation template:', template);
+      const [newTemplate] = await db
+        .insert(evaluationTemplates)
+        .values(template)
+        .returning() as EvaluationTemplate[];
+
+      console.log('Created evaluation template:', newTemplate);
+      return newTemplate;
+    } catch (error) {
+      console.error('Error creating evaluation template:', error);
+      throw error;
+    }
+  }
+
+  async listEvaluationTemplates(organizationId: number): Promise<EvaluationTemplate[]> {
+    try {
+      const templates = await db
+        .select()
+        .from(evaluationTemplates)
+        .where(eq(evaluationTemplates.organizationId, organizationId)) as EvaluationTemplate[];
+
+      console.log(`Found ${templates.length} evaluation templates`);
+      return templates;
+    } catch (error) {
+      console.error('Error listing evaluation templates:', error);
       throw error;
     }
   }

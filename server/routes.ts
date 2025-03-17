@@ -164,7 +164,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(organization);
   });
 
-  // Add route to get organization processes
+  // Add evaluation template routes
+  app.post("/api/evaluation-templates", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const templateData = {
+        ...req.body,
+        organizationId: req.user.organizationId,
+        createdBy: req.user.id,
+      };
+
+      // Validate required fields
+      if (!templateData.name || !templateData.processId) {
+        return res.status(400).json({
+          message: "Name and process ID are required"
+        });
+      }
+
+      console.log('Creating evaluation template:', templateData);
+      const template = await storage.createEvaluationTemplate(templateData);
+      
+      res.status(201).json(template);
+    } catch (error: any) {
+      console.error("Error creating evaluation template:", error);
+      res.status(400).json({ message: error.message || "Failed to create template" });
+    }
+  });
+
+  app.get("/api/organizations/:organizationId/evaluation-templates", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      if (organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const templates = await storage.listEvaluationTemplates(organizationId);
+      res.json(templates);
+    } catch (error: any) {
+      console.error("Error listing evaluation templates:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Add route to get organization processes 
   app.get("/api/processes", async (req, res) => {
     if (!req.user || !req.user.organizationId) {
       return res.status(401).json({ message: "Unauthorized" });
