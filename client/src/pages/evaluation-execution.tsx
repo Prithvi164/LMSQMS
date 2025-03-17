@@ -100,8 +100,16 @@ export default function EvaluationExecutionPage() {
     mutationFn: async (values: z.infer<typeof formSchema>) => {
       console.log('Starting evaluation with values:', values);
 
+      // Find the trainee object for the selected traineeId
+      const selectedTrainee = trainees.find(trainee => trainee.id === values.traineeId);
+      if (!selectedTrainee) {
+        throw new Error('Selected trainee not found');
+      }
+
       const payload = {
-        ...values,
+        batchId: values.batchId,
+        traineeId: selectedTrainee.id, // Using the user_batch_process.id
+        templateId: values.templateId,
         evaluatorId: user?.id,
       };
 
@@ -117,29 +125,14 @@ export default function EvaluationExecutionPage() {
       });
 
       console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
 
       if (!response.ok) {
         const text = await response.text();
         console.error('Error response text:', text);
-
-        try {
-          const errorData = JSON.parse(text);
-          throw new Error(errorData.message || 'Failed to start evaluation');
-        } catch (e) {
-          throw new Error(`Failed to start evaluation (Status: ${response.status}, Response: ${text})`);
-        }
+        throw new Error(`Failed to start evaluation (Status: ${response.status})`);
       }
 
-      const text = await response.text();
-      console.log('Success response text:', text);
-
-      try {
-        return JSON.parse(text);
-      } catch (e) {
-        console.error('JSON parse error:', e);
-        throw new Error(`Invalid JSON response: ${text}`);
-      }
+      return await response.json();
     },
     onSuccess: (data) => {
       toast({
@@ -253,7 +246,7 @@ export default function EvaluationExecutionPage() {
                           trainees.map((trainee) => (
                             <SelectItem
                               key={trainee.id}
-                              value={trainee.user.id.toString()}
+                              value={trainee.id.toString()}
                             >
                               {trainee.user.fullName}
                             </SelectItem>
