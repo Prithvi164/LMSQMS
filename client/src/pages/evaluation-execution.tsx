@@ -29,6 +29,24 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
+// Type definitions for API responses
+interface Batch {
+  id: number;
+  name: string;
+}
+
+interface Trainee {
+  id: number;
+  name: string;
+  email: string;
+}
+
+interface Template {
+  id: number;
+  name: string;
+  description?: string;
+}
+
 // Form schema for starting an evaluation
 const formSchema = z.object({
   batchId: z.number().min(1, "Batch is required"),
@@ -42,25 +60,30 @@ export default function EvaluationExecutionPage() {
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
 
   // Fetch active batches
-  const { data: batches = [] } = useQuery({
+  const { data: batches = [], isLoading: isBatchesLoading } = useQuery<Batch[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches`],
     enabled: !!user?.organizationId,
   });
 
   // Fetch trainees for selected batch
-  const { data: trainees = [] } = useQuery({
+  const { data: trainees = [], isLoading: isTraineesLoading } = useQuery<Trainee[]>({
     queryKey: [`/api/batches/${selectedBatchId}/trainees`],
     enabled: !!selectedBatchId,
   });
 
   // Fetch evaluation templates
-  const { data: templates = [] } = useQuery({
+  const { data: templates = [], isLoading: isTemplatesLoading } = useQuery<Template[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
     enabled: !!user?.organizationId,
   });
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
+    defaultValues: {
+      batchId: undefined,
+      traineeId: undefined,
+      templateId: undefined,
+    },
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -79,7 +102,7 @@ export default function EvaluationExecutionPage() {
       }
 
       const evaluation = await response.json();
-      
+
       // Navigate to evaluation form
       window.location.href = `/evaluations/${evaluation.id}`;
 
@@ -112,10 +135,13 @@ export default function EvaluationExecutionPage() {
                     <FormLabel>Select Batch</FormLabel>
                     <Select
                       onValueChange={(value) => {
-                        field.onChange(parseInt(value));
-                        setSelectedBatchId(parseInt(value));
+                        const batchId = parseInt(value);
+                        field.onChange(batchId);
+                        setSelectedBatchId(batchId);
+                        // Reset trainee selection when batch changes
+                        form.setValue('traineeId', undefined);
                       }}
-                      defaultValue={field.value?.toString()}
+                      value={field.value?.toString()}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -123,7 +149,9 @@ export default function EvaluationExecutionPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {batches.map((batch: any) => (
+                        {isBatchesLoading ? (
+                          <SelectItem value="" disabled>Loading batches...</SelectItem>
+                        ) : batches.map((batch) => (
                           <SelectItem
                             key={batch.id}
                             value={batch.id.toString()}
@@ -146,16 +174,20 @@ export default function EvaluationExecutionPage() {
                     <FormLabel>Select Trainee</FormLabel>
                     <Select
                       onValueChange={(value) => field.onChange(parseInt(value))}
-                      defaultValue={field.value?.toString()}
-                      disabled={!selectedBatchId}
+                      value={field.value?.toString()}
+                      disabled={!selectedBatchId || isTraineesLoading}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select a trainee" />
+                          <SelectValue placeholder={isTraineesLoading ? "Loading trainees..." : "Select a trainee"} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {trainees.map((trainee: any) => (
+                        {isTraineesLoading ? (
+                          <SelectItem value="" disabled>Loading trainees...</SelectItem>
+                        ) : trainees.length === 0 ? (
+                          <SelectItem value="" disabled>No trainees in this batch</SelectItem>
+                        ) : trainees.map((trainee) => (
                           <SelectItem
                             key={trainee.id}
                             value={trainee.id.toString()}
@@ -178,15 +210,17 @@ export default function EvaluationExecutionPage() {
                     <FormLabel>Select Evaluation Template</FormLabel>
                     <Select
                       onValueChange={(value) => field.onChange(parseInt(value))}
-                      defaultValue={field.value?.toString()}
+                      value={field.value?.toString()}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select a template" />
+                          <SelectValue placeholder={isTemplatesLoading ? "Loading templates..." : "Select a template"} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {templates.map((template: any) => (
+                        {isTemplatesLoading ? (
+                          <SelectItem value="" disabled>Loading templates...</SelectItem>
+                        ) : templates.map((template) => (
                           <SelectItem
                             key={template.id}
                             value={template.id.toString()}
