@@ -36,9 +36,15 @@ interface Batch {
 }
 
 interface Trainee {
-  id: number;
-  name: string;
-  email: string;
+  userId: number;
+  status: string;
+  user: {
+    id: number;
+    fullName: string;
+    email: string;
+    role: string;
+    category: string;
+  };
 }
 
 interface Template {
@@ -194,10 +200,10 @@ export default function EvaluationExecutionPage() {
                         ) : (
                           trainees.map((trainee) => (
                             <SelectItem
-                              key={trainee.id}
-                              value={trainee.id.toString()}
+                              key={trainee.userId}
+                              value={trainee.user.id.toString()}
                             >
-                              {trainee.name}
+                              {trainee.user.fullName}
                             </SelectItem>
                           ))
                         )}
