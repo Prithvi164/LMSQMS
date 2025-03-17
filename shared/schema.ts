@@ -79,6 +79,25 @@ export const processStatusEnum = pgEnum('process_status', [
   'archived'
 ]);
 
+export const mockCallDifficultyEnum = pgEnum('mock_call_difficulty', [
+  'basic',
+  'intermediate',
+  'advanced'
+]);
+
+export const callEvaluationStatusEnum = pgEnum('call_evaluation_status', [
+  'pending',
+  'completed',
+  'failed'
+]);
+
+export const mockCallAttemptStatusEnum = pgEnum('mock_call_attempt_status', [
+  'pending',
+  'completed',
+  'failed'
+]);
+
+
 // Quiz-related tables
 export const questions = pgTable("questions", {
   id: serial("id").primaryKey(),
@@ -186,6 +205,77 @@ export const quizResponses = pgTable("quiz_responses", {
   isCorrect: boolean("is_correct").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// Mock call scenarios table
+export const mockCallScenarios = pgTable("mock_call_scenarios", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  difficulty: text("difficulty").notNull(),
+  customerProfile: jsonb("customer_profile").$type<{
+    name: string;
+    background: string;
+    personality: string;
+    concerns: string[];
+  }>().notNull(),
+  expectedDialogue: jsonb("expected_dialogue").$type<{
+    greeting: string;
+    keyPoints: string[];
+    resolutions: string[];
+    closingStatements: string[];
+  }>().notNull(),
+  evaluationRubric: jsonb("evaluation_rubric").$type<{
+    greetingScore: number;
+    problemIdentificationScore: number;
+    solutionScore: number;
+    communicationScore: number;
+    closingScore: number;
+  }>().notNull(),
+  processId: integer("process_id")
+    .references(() => organizationProcesses.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdBy: integer("created_by")
+    .references(() => users.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Mock call attempts table
+export const mockCallAttempts = pgTable("mock_call_attempts", {
+  id: serial("id").primaryKey(),
+  scenarioId: integer("scenario_id")
+    .references(() => mockCallScenarios.id)
+    .notNull(),
+  userId: integer("user_id")
+    .references(() => users.id)
+    .notNull(),
+  evaluatorId: integer("evaluator_id")
+    .references(() => users.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  status: mockCallAttemptStatusEnum("status").default('pending').notNull(),
+  recordingUrl: text("recording_url"),
+  scores: jsonb("scores").$type<{
+    greeting: number;
+    problemIdentification: number;
+    solution: number;
+    communication: number;
+    closing: number;
+    total: number;
+  }>(),
+  feedback: text("feedback"),
+  startedAt: timestamp("started_at").notNull(),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 
 // Quiz-related types
 export type Question = InferSelectModel<typeof questions>;
@@ -1134,94 +1224,47 @@ export type {
   InsertMockCallAttempt
 };
 
-// Add new enums for mock calls
-export const mockCallDifficultyEnum = pgEnum('mock_call_difficulty', [
-  'basic',
-  'intermediate',
-  'advanced'
-]);
+// Add relations for the new tables
+export const mockCallScenariosRelations = relations(mockCallScenarios, ({ one, many }) => ({
+  process: one(organizationProcesses, {
+    fields: [mockCallScenarios.processId],
+    references: [organizationProcesses.id],
+  }),
+  organization: one(organizations, {
+    fields: [mockCallScenarios.organizationId],
+    references: [organizations.id],
+  }),
+  creator: one(users, {
+    fields: [mockCallScenarios.createdBy],
+    references: [users.id],
+  }),
+  attempts: many(mockCallAttempts),
+}));
 
-export const callEvaluationStatusEnum = pgEnum('call_evaluation_status', [
-  'pending',
-  'completed',
-  'failed'
-]);
+export const mockCallAttemptsRelations = relations(mockCallAttempts, ({ one }) => ({
+  scenario: one(mockCallScenarios, {
+    fields: [mockCallAttempts.scenarioId],
+    references: [mockCallScenarios.id],
+  }),
+  user: one(users, {
+    fields: [mockCallAttempts.userId],
+    references: [users.id],
+  }),
+  evaluator: one(users, {
+    fields: [mockCallAttempts.evaluatorId],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [mockCallAttempts.organizationId],
+    references: [organizations.id],
+  }),
+}));
 
-// Mock call scenarios table
-export const mockCallScenarios = pgTable("mock_call_scenarios", {
-  id: serial("id").primaryKey(),
-  title: text("title").notNull(),
-  description: text("description").notNull(),
-  difficulty: mockCallDifficultyEnum("difficulty").notNull(),
-  customerProfile: jsonb("customer_profile").$type<{
-    name: string;
-    background: string;
-    personality: string;
-    concerns: string[];
-  }>().notNull(),
-  expectedDialogue: jsonb("expected_dialogue").$type<{
-    greeting: string;
-    keyPoints: string[];
-    resolutions: string[];
-    closingStatements: string[];
-  }>().notNull(),
-  evaluationRubric: jsonb("evaluation_rubric").$type<{
-    greetingScore: number;
-    problemIdentificationScore: number;
-    solutionScore: number;
-    communicationScore: number;
-    closingScore: number;
-  }>().notNull(),
-  processId: integer("process_id")
-    .references(() => organizationProcesses.id)
-    .notNull(),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
-  createdBy: integer("created_by")
-    .references(() => users.id)
-    .notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-// Mock call attempts table
-export const mockCallAttempts = pgTable("mock_call_attempts", {
-  id: serial("id").primaryKey(),
-  scenarioId: integer("scenario_id")
-    .references(() => mockCallScenarios.id)
-    .notNull(),
-  userId: integer("user_id")
-    .references(() => users.id)
-    .notNull(),
-  evaluatorId: integer("evaluator_id")
-    .references(() => users.id)
-    .notNull(),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
-  status: callEvaluationStatusEnum("status").default('pending').notNull(),
-  recordingUrl: text("recording_url"),
-  scores: jsonb("scores").$type<{
-    greeting: number;
-    problemIdentification: number;
-    solution: number;
-    communication: number;
-    closing: number;
-    total: number;
-  }>(),
-  feedback: text("feedback"),
-  startedAt: timestamp("started_at").notNull(),
-  completedAt: timestamp("completed_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-// Types for the new tables
+// Add type definitions
 export type MockCallScenario = typeof mockCallScenarios.$inferSelect;
 export type MockCallAttempt = typeof mockCallAttempts.$inferSelect;
 
-// Insert schemas for validation
+// Add insert schemas
 export const insertMockCallScenarioSchema = createInsertSchema(mockCallScenarios)
   .omit({
     id: true,
@@ -1231,18 +1274,18 @@ export const insertMockCallScenarioSchema = createInsertSchema(mockCallScenarios
   .extend({
     title: z.string().min(1, "Title is required"),
     description: z.string().min(1, "Description is required"),
-    difficulty: z.enum(['basic', 'intermediate', 'advanced']),
+    difficulty: z.string().min(1, "Difficulty is required"),
     customerProfile: z.object({
-      name: z.string(),
-      background: z.string(),
-      personality: z.string(),
-      concerns: z.array(z.string()),
+      name: z.string().min(1, "Customer name is required"),
+      background: z.string().min(1, "Customer background is required"),
+      personality: z.string().min(1, "Customer personality is required"),
+      concerns: z.array(z.string()).min(1, "At least one concern is required"),
     }),
     expectedDialogue: z.object({
-      greeting: z.string(),
-      keyPoints: z.array(z.string()),
-      resolutions: z.array(z.string()),
-      closingStatements: z.array(z.string()),
+      greeting: z.string().min(1, "Greeting is required"),
+      keyPoints: z.array(z.string()).min(1, "At least one key point is required"),
+      resolutions: z.array(z.string()).min(1, "At least one resolution is required"),
+      closingStatements: z.array(z.string()).min(1, "At least one closing statement is required"),
     }),
     evaluationRubric: z.object({
       greetingScore: z.number().min(0).max(100),
@@ -1284,39 +1327,3 @@ export const insertMockCallAttemptSchema = createInsertSchema(mockCallAttempts)
 
 export type InsertMockCallScenario = z.infer<typeof insertMockCallScenarioSchema>;
 export type InsertMockCallAttempt = z.infer<typeof insertMockCallAttemptSchema>;
-
-// Add relations for the new tables
-export const mockCallScenariosRelations = relations(mockCallScenarios, ({ one, many }) => ({
-  process: one(organizationProcesses, {
-    fields: [mockCallScenarios.processId],
-    references: [organizationProcesses.id],
-  }),
-  organization: one(organizations, {
-    fields: [mockCallScenarios.organizationId],
-    references: [organizations.id],
-  }),
-  creator: one(users, {
-    fields: [mockCallScenarios.createdBy],
-    references: [users.id],
-  }),
-  attempts: many(mockCallAttempts),
-}));
-
-export const mockCallAttemptsRelations = relations(mockCallAttempts, ({ one }) => ({
-  scenario: one(mockCallScenarios, {
-    fields: [mockCallAttempts.scenarioId],
-    references: [mockCallScenarios.id],
-  }),
-  user: one(users, {
-    fields: [mockCallAttempts.userId],
-    references: [users.id],
-  }),
-  evaluator: one(users, {
-    fields: [mockCallAttempts.evaluatorId],
-    references: [users.id],
-  }),
-  organization: one(organizations, {
-    fields: [mockCallAttempts.organizationId],
-    references: [organizations.id],
-  }),
-}));
