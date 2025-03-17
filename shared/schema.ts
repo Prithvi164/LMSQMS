@@ -1518,6 +1518,7 @@ export const insertEvaluationSubReasonSchema = createInsertSchema(evaluationSubR
     orderIndex: z.number().int().min(0),
   });
 
+// Update the evaluation result schema to handle date strings
 export const insertEvaluationResultSchema = createInsertSchema(evaluationResults)
   .omit({
     id: true,
@@ -1534,6 +1535,7 @@ export const insertEvaluationResultSchema = createInsertSchema(evaluationResults
     weightedScore: z.number().int().min(0).max(100),
     fatalTriggered: z.boolean().default(false),
     status: z.string().min(1, "Status is required"),
+    evaluatedAt: z.coerce.date(),  // This will coerce string dates into Date objects
     comments: z.string().optional(),
   });
 

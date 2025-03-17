@@ -663,19 +663,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Forbidden" });
       }
 
-      // Validate request body
+      // Set current date 
+      const now = new Date();
+
+      // Prepare evaluation data with proper date
       const evaluationData = {
         ...req.body,
         status: 'pending',
         totalScore: 0,
         weightedScore: 0,
-        evaluatedAt: new Date().toISOString(),
+        evaluatedAt: now,
+        organizationId,
       };
 
       console.log('Creating evaluation with data:', evaluationData);
 
-      // Parse and validate the data  
       try {
+        // Parse and validate the data
         const validatedData = insertEvaluationResultSchema.parse(evaluationData);
         
         // Create evaluation
