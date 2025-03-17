@@ -71,7 +71,7 @@ export function PreviewForm({ template }: PreviewFormProps) {
 
   useEffect(() => {
     validateForm();
-  }, [ratings, comments, selectedReasons]);
+  }, [ratings, comments, selectedReasons, template]);
 
   const handleRatingChange = (parameterId: number, value: string) => {
     const numericValue = parseInt(value);
