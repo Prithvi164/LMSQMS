@@ -101,7 +101,6 @@ export default function EvaluationExecutionPage() {
         throw new Error('Organization ID is required');
       }
 
-      const endpoint = `/api/organizations/${user.organizationId}/evaluations/start`;
       const payload = {
         batchId: values.batchId,
         traineeId: values.traineeId,
@@ -109,27 +108,18 @@ export default function EvaluationExecutionPage() {
         evaluatorId: user.id,
       };
 
-      console.log('Making request to:', endpoint);
-      console.log('With payload:', payload);
+      console.log('Making request with payload:', payload);
 
-      try {
-        const response = await apiRequest(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        });
+      const data = await apiRequest('evaluations/start', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
 
-        if (!response || typeof response.id !== 'number') {
-          throw new Error('Invalid response format');
-        }
-
-        return response;
-      } catch (error) {
-        console.error('API Error:', error);
-        throw error;
+      if (!data || typeof data.id !== 'number') {
+        throw new Error('Invalid response format');
       }
+
+      return data;
     },
     onSuccess: (data) => {
       toast({
@@ -273,8 +263,8 @@ export default function EvaluationExecutionPage() {
                 )}
               />
 
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="w-full"
                 disabled={createEvaluationMutation.isPending}
               >
