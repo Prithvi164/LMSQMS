@@ -131,7 +131,7 @@ export default function EvaluationExecutionPage() {
       if (!response.ok) {
         const text = await response.text();
         console.error('Error response text:', text);
-        throw new Error(`Failed to start evaluation (Status: ${response.status})`);
+        throw new Error(`Failed to start evaluation (${response.status})`);
       }
 
       return await response.json();
