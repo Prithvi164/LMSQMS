@@ -37,8 +37,8 @@ interface Batch {
 }
 
 interface Trainee {
-  id: number;  // This is the user_batch_process.id
-  traineeId: number; // Added traineeId field
+  id: number;
+  status: string | null;
   user: {
     id: number;
     fullName: string;
@@ -102,17 +102,9 @@ export default function EvaluationExecutionPage() {
     mutationFn: async (values: FormValues) => {
       console.log('Starting evaluation with values:', values);
 
-      // Find the trainee object for the selected traineeId
-      const selectedTrainee = trainees.find(trainee => trainee.id === values.traineeId);
-      console.log('Found trainee:', selectedTrainee);
-
-      if (!selectedTrainee) {
-        throw new Error('Selected trainee not found');
-      }
-
       const payload = {
         batchId: values.batchId,
-        traineeId: selectedTrainee.id,  // Using the trainee.id which is user_batch_process.id
+        traineeId: values.traineeId,
         templateId: values.templateId,
         evaluatorId: user?.id,
       };
