@@ -177,16 +177,18 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
   // Mutations
   const createPillarMutation = useMutation({
     mutationFn: async (data: z.infer<typeof pillarSchema>) => {
-      const response = await apiRequest("POST", `/api/evaluation-templates/${templateId}/pillars`, data);
+      const response = await apiRequest("POST", `/api/evaluation-templates/${templateId}/pillars`, {
+        ...data,
+        templateId,
+      });
       if (!response.ok) {
-        throw new Error("Failed to create pillar");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to create pillar");
       }
       return response.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({
-        queryKey: [`/api/evaluation-templates/${templateId}`],
-      });
+      queryClient.invalidateQueries({ queryKey: [`/api/evaluation-templates/${templateId}`] });
       toast({
         title: "Success",
         description: "Pillar created successfully",
@@ -195,10 +197,11 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
       setActivePillarId(data.id);
     },
     onError: (error: Error) => {
+      console.error("Error creating pillar:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to create pillar",
       });
     },
   });
@@ -207,14 +210,13 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
     mutationFn: async (data: { id: number; pillar: z.infer<typeof pillarSchema> }) => {
       const response = await apiRequest("PATCH", `/api/evaluation-pillars/${data.id}`, data.pillar);
       if (!response.ok) {
-        throw new Error("Failed to update pillar");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update pillar");
       }
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: [`/api/evaluation-templates/${templateId}`],
-      });
+      queryClient.invalidateQueries({ queryKey: [`/api/evaluation-templates/${templateId}`] });
       toast({
         title: "Success",
         description: "Pillar updated successfully",
@@ -223,10 +225,11 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
       pillarForm.reset();
     },
     onError: (error: Error) => {
+      console.error("Error updating pillar:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to update pillar",
       });
     },
   });
@@ -238,14 +241,13 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
         noReasons: noReasons,
       });
       if (!response.ok) {
-        throw new Error("Failed to update parameter");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update parameter");
       }
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: [`/api/evaluation-templates/${templateId}`],
-      });
+      queryClient.invalidateQueries({ queryKey: [`/api/evaluation-templates/${templateId}`] });
       toast({
         title: "Success",
         description: "Parameter updated successfully",
@@ -258,7 +260,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to update parameter",
       });
     },
   });
@@ -273,14 +275,13 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
         noReasons: noReasons,
       });
       if (!response.ok) {
-        throw new Error("Failed to create parameter");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to create parameter");
       }
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: [`/api/evaluation-templates/${templateId}`],
-      });
+      queryClient.invalidateQueries({ queryKey: [`/api/evaluation-templates/${templateId}`] });
       toast({
         title: "Success",
         description: "Parameter created successfully",
@@ -289,10 +290,11 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
       setNoReasons([]);
     },
     onError: (error: Error) => {
+      console.error("Error creating parameter:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to create parameter",
       });
     },
   });
@@ -301,13 +303,12 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
     mutationFn: async (pillarId: number) => {
       const response = await apiRequest("DELETE", `/api/evaluation-pillars/${pillarId}`);
       if (!response.ok) {
-        throw new Error("Failed to delete pillar");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to delete pillar");
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: [`/api/evaluation-templates/${templateId}`],
-      });
+      queryClient.invalidateQueries({ queryKey: [`/api/evaluation-templates/${templateId}`] });
       toast({
         title: "Success",
         description: "Pillar deleted successfully",
@@ -315,10 +316,11 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
       setActivePillarId(null);
     },
     onError: (error: Error) => {
+      console.error("Error deleting pillar:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to delete pillar",
       });
     },
   });
@@ -327,13 +329,12 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
     mutationFn: async (parameterId: number) => {
       const response = await apiRequest("DELETE", `/api/evaluation-parameters/${parameterId}`);
       if (!response.ok) {
-        throw new Error("Failed to delete parameter");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to delete parameter");
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: [`/api/evaluation-templates/${templateId}`],
-      });
+      queryClient.invalidateQueries({ queryKey: [`/api/evaluation-templates/${templateId}`] });
       toast({
         title: "Success",
         description: "Parameter deleted successfully",
@@ -341,10 +342,11 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
       setSelectedParameter(null);
     },
     onError: (error: Error) => {
+      console.error("Error deleting parameter:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to delete parameter",
       });
     },
   });
@@ -449,6 +451,37 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
     }
   };
 
+  // Updated event handlers with proper event prevention
+  const handleEditPillar = (e: React.MouseEvent, pillarId: number) => {
+    e.stopPropagation();
+    setIsEditingPillar(true);
+    setActivePillarId(pillarId);
+  };
+
+  const handleDeletePillar = async (e: React.MouseEvent, pillarId: number) => {
+    e.stopPropagation();
+    try {
+      await deletePillarMutation.mutateAsync(pillarId);
+    } catch (error) {
+      console.error("Error in handleDeletePillar:", error);
+    }
+  };
+
+  const handleEditParameter = (e: React.MouseEvent, parameterId: number) => {
+    e.stopPropagation();
+    setIsEditingParameter(true);
+    setSelectedParameter(parameterId);
+  };
+
+  const handleDeleteParameter = async (e: React.MouseEvent, parameterId: number) => {
+    e.stopPropagation();
+    try {
+      await deleteParameterMutation.mutateAsync(parameterId);
+    } catch (error) {
+      console.error("Error in handleDeleteParameter:", error);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center mb-4">
@@ -521,21 +554,14 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setIsEditingPillar(true);
-                                    setActivePillarId(pillar.id);
-                                  }}
+                                  onClick={(e) => handleEditPillar(e, pillar.id)}
                                 >
                                   <Edit2 className="h-4 w-4" />
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    deletePillarMutation.mutate(pillar.id);
-                                  }}
+                                  onClick={(e) => handleDeletePillar(e, pillar.id)}
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -575,21 +601,14 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                                           <Button
                                             variant="ghost"
                                             size="sm"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setIsEditingParameter(true);
-                                              setSelectedParameter(param.id);
-                                            }}
+                                            onClick={(e) => handleEditParameter(e, param.id)}
                                           >
                                             <Edit2 className="h-4 w-4" />
                                           </Button>
                                           <Button
                                             variant="ghost"
                                             size="sm"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              deleteParameterMutation.mutate(param.id);
-                                            }}
+                                            onClick={(e) => handleDeleteParameter(e, param.id)}
                                           >
                                             <Trash2 className="h-4 w-4" />
                                           </Button>
