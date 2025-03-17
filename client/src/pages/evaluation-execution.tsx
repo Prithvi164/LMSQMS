@@ -71,10 +71,16 @@ export default function EvaluationExecutionPage() {
     enabled: !!user?.organizationId,
   });
 
-  // Fetch trainees for selected batch
+  // Fetch trainees for selected batch with console logging
   const { data: trainees = [], isLoading: isTraineesLoading } = useQuery<Trainee[]>({
-    queryKey: [`/api/batches/${selectedBatchId}/trainees`],
-    enabled: !!selectedBatchId,
+    queryKey: [`/api/organizations/${user?.organizationId}/batches/${selectedBatchId}/trainees`],
+    enabled: !!selectedBatchId && !!user?.organizationId,
+    onSuccess: (data) => {
+      console.log('Fetched trainees:', data);
+    },
+    onError: (error) => {
+      console.error('Error fetching trainees:', error);
+    }
   });
 
   // Fetch evaluation templates
