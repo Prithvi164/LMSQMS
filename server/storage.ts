@@ -336,7 +336,7 @@ export class DatabaseStorage implements IStorage {
               name: pillar.name,
               description: pillar.description,
               weightage: pillar.weightage,
-              order: pillar.order,
+              orderIndex: pillar.orderIndex,
               templateId: newTemplate.id,
             })
             .returning() as EvaluationPillar[];
@@ -353,7 +353,7 @@ export class DatabaseStorage implements IStorage {
                 guidelines: param.guidelines,
                 weightage: param.weightage,
                 ratingType: param.ratingType,
-                order: param.order,
+                orderIndex: param.orderIndex,
                 isFatal: param.isFatal,
                 requiresComment: param.requiresComment,
                 noReasons: param.noReasons,
@@ -378,7 +378,7 @@ export class DatabaseStorage implements IStorage {
         for (let i = 0; i < pillarIds.length; i++) {
           await tx
             .update(evaluationPillars)
-            .set({ order: i })
+            .set({ orderIndex: i })
             .where(eq(evaluationPillars.id, pillarIds[i]));
         }
       });
@@ -395,7 +395,7 @@ export class DatabaseStorage implements IStorage {
         for (let i = 0; i < parameterIds.length; i++) {
           await tx
             .update(evaluationParameters)
-            .set({ order: i })
+            .set({ orderIndex: i })
             .where(eq(evaluationParameters.id, parameterIds[i]));
         }
       });
