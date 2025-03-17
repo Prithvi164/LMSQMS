@@ -239,6 +239,7 @@ export default function MockCallScenariosPage() {
   });
 
   const handleStartMockCall = (scenarioId: number) => {
+    console.log('Starting mock call for scenario:', scenarioId);
     if (!user?.id) {
       toast({
         variant: "destructive",
@@ -247,6 +248,53 @@ export default function MockCallScenariosPage() {
       });
       return;
     }
+
+    const sampleData = {
+      title: "Product Return Request",
+      description: "Handle a customer's request to return a damaged product while maintaining professional service standards",
+      difficulty: "basic",
+      customerProfile: {
+        name: "Sarah Johnson",
+        background: "Regular customer who has made several purchases in the past 6 months. Recently bought a coffee maker that arrived with a cracked carafe.",
+        personality: "Generally patient but frustrated about receiving a damaged item",
+        concerns: [
+          "Received damaged product",
+          "Needs quick resolution",
+          "Concerned about return shipping costs"
+        ]
+      },
+      expectedDialogue: {
+        greeting: "Thank you for calling [Company Name], my name is [Agent Name]. How may I assist you today?",
+        keyPoints: [
+          "Acknowledge customer's frustration",
+          "Apologize for the inconvenience",
+          "Verify purchase details",
+          "Explain return process",
+          "Offer free return shipping"
+        ],
+        resolutions: [
+          "Process return authorization",
+          "Send prepaid return label",
+          "Expedite replacement shipping",
+          "Offer 10% discount on next purchase"
+        ],
+        closingStatements: [
+          "Thank you for bringing this to our attention",
+          "Your replacement will arrive within 2-3 business days",
+          "Is there anything else I can help you with today?"
+        ]
+      },
+      evaluationRubric: {
+        greetingScore: 20,
+        problemIdentificationScore: 20,
+        solutionScore: 25,
+        communicationScore: 20,
+        closingScore: 15
+      }
+    };
+
+    // Use this data to pre-fill the form
+    form.reset(sampleData);
     startMockCallMutation.mutate(scenarioId);
   };
 
