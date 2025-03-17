@@ -100,15 +100,9 @@ export default function EvaluationExecutionPage() {
     mutationFn: async (values: z.infer<typeof formSchema>) => {
       console.log('Starting evaluation with values:', values);
 
-      // Find the trainee object for the selected traineeId
-      const selectedTrainee = trainees.find(trainee => trainee.id === values.traineeId);
-      if (!selectedTrainee) {
-        throw new Error('Selected trainee not found');
-      }
-
       const payload = {
         batchId: values.batchId,
-        traineeId: selectedTrainee.id, // Using the user_batch_process.id
+        traineeId: values.traineeId, // Using the user_batch_process.id directly
         templateId: values.templateId,
         evaluatorId: user?.id,
       };
