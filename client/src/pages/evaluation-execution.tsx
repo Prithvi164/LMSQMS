@@ -43,9 +43,6 @@ interface Trainee {
     id: number;
     fullName: string;
     email: string;
-    employeeId: string;
-    phoneNumber: string;
-    dateOfJoining: string;
   };
 }
 
@@ -58,7 +55,7 @@ interface Template {
 // Form schema for starting an evaluation
 const formSchema = z.object({
   batchId: z.number().min(1, "Batch is required"),
-  traineeId: z.number().min(1, "Trainee is required").nullable(),
+  traineeId: z.number().min(1, "Trainee is required"),
   templateId: z.number().min(1, "Evaluation template is required"),
 });
 
@@ -92,7 +89,7 @@ export default function EvaluationExecutionPage() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       batchId: undefined,
-      traineeId: null,
+      traineeId: undefined,
       templateId: undefined,
     },
   });
@@ -102,9 +99,17 @@ export default function EvaluationExecutionPage() {
     mutationFn: async (values: FormValues) => {
       console.log('Starting evaluation with values:', values);
 
+      // Find the trainee object for the selected traineeId
+      const selectedTrainee = trainees.find(trainee => trainee.id === values.traineeId);
+      console.log('Selected trainee:', selectedTrainee);
+
+      if (!selectedTrainee) {
+        throw new Error('Selected trainee not found');
+      }
+
       const payload = {
         batchId: values.batchId,
-        traineeId: values.traineeId,
+        traineeId: selectedTrainee.id,
         templateId: values.templateId,
         evaluatorId: user?.id,
       };
@@ -195,7 +200,7 @@ export default function EvaluationExecutionPage() {
                         field.onChange(batchId);
                         setSelectedBatchId(batchId);
                         // Reset trainee selection when batch changes
-                        form.setValue('traineeId', null);
+                        form.setValue('traineeId', undefined);
                       }}
                       value={field.value?.toString()}
                     >
