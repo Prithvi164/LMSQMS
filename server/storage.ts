@@ -50,13 +50,7 @@ import {
   type InsertQuiz,
   quizAttempts,
   type QuizAttempt,
-  type InsertQuizAttempt,
-  mockCallScenarios,
-  type MockCallScenario,
-  type InsertMockCallScenario,
-  mockCallAttempts,
-  type MockCallAttempt,
-  type InsertMockCallAttempt
+  type InsertQuizAttempt
 } from "@shared/schema";
 
 // Add to IStorage interface
@@ -224,13 +218,6 @@ export interface IStorage {
 
   // Add new method for deleting quizzes by template ID
   deleteQuizzesByTemplateId(templateId: number): Promise<void>;
-
-  // Mock Call Scenario operations
-  createMockCallScenario(scenario: InsertMockCallScenario): Promise<MockCallScenario>;
-  getMockCallScenario(id: number): Promise<MockCallScenario | undefined>;
-  listMockCallScenarios(organizationId: number): Promise<MockCallScenario[]>;
-  createMockCallAttempt(attempt: InsertMockCallAttempt): Promise<MockCallAttempt>;
-  getMockCallAttempt(id: number): Promise<MockCallAttempt | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -773,7 +760,58 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // Add new methods for user process management
+  async assignProcessesToUser(processes: InsertUserProcess[]): Promise<UserProcess[]> {
+    try {
+      const assignedProcesses = await db
+        .insert(userProcesses)
+        .values(processes)
+        .returning() as UserProcess[];
+      return assignedProcesses;
+    } catch (error) {
+      console.error('Error assigning processes to user:', error);
+      throw new Error('Failed to assign processes to user');
+    }
+  }
 
+  async getUserProcesses(userId: number): Promise<UserProcess[]> {
+    try {
+      const processes = await db
+        .select({
+          id: userProcesses.id,
+          userId: userProcesses.userId,
+          processId: userProcesses.processId,
+          organizationId: userProcesses.organizationId,
+          status: userProcesses.status,
+          assignedAt: userProcesses.assignedAt,
+          completedAt: userProcesses.completedAt,
+          processName: organizationProcesses.name,
+        })
+        .from(userProcesses)
+        .leftJoin(
+          organizationProcesses,
+          eq(userProcesses.processId, organizationProcesses.id)
+        )
+        .where(eq(userProcesses.userId, userId)) as UserProcess[];
+
+      return processes;
+    } catch (error) {
+      console.error('Error fetching user processes:', error);
+      throw new Error('Failed to fetch user processes');
+    }
+  }
+
+  async removeUserProcess(userId: number, processId: number): Promise<void> {
+    try {
+      await db
+        .delete(userProcesses)
+        .where(eq(userProcesses.userId, userId))
+        .where(eq(userProcesses.processId, processId));
+    } catch (error) {
+      console.error('Error removing user process:', error);
+      throw new Error('Failed to remove user process');
+    }
+  }
   async createUserWithProcesses(
     user: InsertUser,
     processIds: number[],
@@ -887,437 +925,26 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getQuestion(id: number): Promise<Question | undefined> {
+  async deleteLocation(id: number): Promise<void> {
     try {
-      const [question] = await db
-        .select()
-        .from(questions)
-        .where(eq(questions.id, id)) as Question[];
-      return question;
-    } catch (error) {
-      console.error('Error fetching question:', error); 
-      throw error;
-    }
-  }
-
-  // Quiz template operations
-  async createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate> {
-    try {
-      const [newTemplate] = await db
-        .insert(quizTemplates)
-        .values(template)
-        .returning() as QuizTemplate[];
-
-      return newTemplate;
-    } catch (error) {
-      console.error('Error creating quiz template:', error);
-      throw error;
-    }
-  }
-
-  async listQuizTemplates(organizationId: number, processId?: number): Promise<QuizTemplate[]> {
-    try {
-      let baseQuery = db
-        .select()
-        .from(quizTemplates)
-        .where(eq(quizTemplates.organizationId, organizationId));
-
-      if (processId) {
-        baseQuery = baseQuery.where(eq(quizTemplates.processId, processId));
-      }
-
-      return await baseQuery as QuizTemplate[];
-    } catch (error) {
-      console.error('Error listing quiz templates:', error);
-      throw error;
-    }
-  }
-
-  async getQuizTemplate(id: number): Promise<QuizTemplate | undefined> {
-    try {
-      const [template] = await db
-        .select()
-        .from(quizTemplates)
-        .where(eq(quizTemplates.id, id)) as QuizTemplate[];
-      return template;
-    } catch (error) {
-      console.error('Error fetching quiz template:', error);
-      throw error;
-    }
-  }
-
-  async updateQuizTemplate(id: number, template: Partial<InsertQuizTemplate>): Promise<QuizTemplate> {
-    try {
-      console.log(`Updating quiz template with ID: ${id}`, template);
-      const [updatedTemplate] = await db
-        .update(quizTemplates)
-        .set(template)
-        .where(eq(quizTemplates.id, id))
-        .returning() as QuizTemplate[];
-
-      if (!updatedTemplate) {
-        throw new Error('Quiz template not found');
-      }
-      return updatedTemplate;
-    } catch (error) {
-      console.error('Error updating quiz template:', error);
-      throw error;
-    }
-  }
-
-  async deleteQuizTemplate(id: number): Promise<void> {
-    try {
-      console.log(`Deleting quiz template with ID: ${id}`);
-      const result = await db
-        .delete(quizTemplates)
-        .where(eq(quizTemplates.id, id))
-        .returning();
-
-      if (!result.length) {
-        throw new Error('Quiz template not found or deletion failed');
-      }
-    } catch (error) {
-      console.error('Error deleting quiz template:', error);
-      throw error;
-    }
-  }
-
-  async deleteQuizzesByTemplateId(templateId: number): Promise<void> {
-    try {
-      console.log(`Deleting quizzes for template ID: ${templateId}`);
+      console.log(`Attempting to delete location with ID: ${id}`);
 
       await db.transaction(async (tx) => {
-        // First get all quiz IDs for this template
-        const quizResults = await tx
-          .select({ id: quizzes.id })
-          .from(quizzes)
-          .where(eq(quizzes.templateId, templateId));
+        const result = await tx
+          .delete(organizationLocations)
+          .where(eq(organizationLocations.id, id))
+          .returning();
 
-        const quizIds = quizResults.map(r => r.id);
-
-        if (quizIds.length > 0) {
-          // Delete all quiz attempts for these quizzes
-          const attemptResults = await tx
-            .select({ id: quizAttempts.id })
-            .from(quizAttempts)
-            .where(inArray(quizAttempts.quizId, quizIds));
-
-          const attemptIds = attemptResults.map(r => r.id);
-
-          if (attemptIds.length > 0) {
-            // Delete quiz responses for all attempts
-            await tx
-              .delete(quizResponses)
-              .where(inArray(quizResponses.quizAttemptId, attemptIds));
-
-            // Delete the attempts
-            await tx
-              .delete(quizAttempts)
-              .where(inArray(quizAttempts.id, attemptIds));
-          }
-
-          // Finally delete the quizzes
-          await tx
-            .delete(quizzes)
-            .where(eq(quizzes.templateId, templateId));
-        }
-      });
-
-      console.log(`Successfully deleted all quizzes and related data for template ID: ${templateId}`);
-    } catch (error) {
-      console.error('Error deleting quizzes by template ID:', error);
-      throw error;
-    }
-  }
-
-  // Quiz operations
-  async createQuiz(quiz: InsertQuiz): Promise<Quiz> {
-    try {
-      const [newQuiz] = await db
-        .insert(quizzes)
-        .values(quiz)
-        .returning() as Quiz[];
-      return newQuiz;
-    } catch (error) {
-      console.error('Error creating quiz:', error);
-      throw error;
-    }
-  }
-
-  async getQuiz(id: number): Promise<Quiz | undefined> {
-    try {
-      const [quiz] = await db
-        .select()
-        .from(quizzes)
-        .where(eq(quizzes.id, id)) as Quiz[];
-      return quiz;
-    } catch (error) {
-      console.error('Error fetching quiz:', error);
-      throw error;
-    }
-  }
-
-  async getQuizWithQuestions(id: number): Promise<Quiz | undefined> {
-    try {
-      const [quiz] = await db
-        .select({
-          ...quizzes,
-          questions: sql`array_agg(${questions.id})`
-        })
-        .from(quizzes)
-        .leftJoin(questions, sql`${questions.id} = ANY(${quizzes.questionIds})`)
-        .where(eq(quizzes.id, id))
-        .groupBy(Object.keys(quizzes).map(k => quizzes[k])) as Quiz[];
-      return quiz;
-    } catch (error) {
-      console.error('Error fetching quiz with questions:', error);
-      throw error;
-    }
-  }
-
-  // Quiz attempt operations  
-  async createQuizAttempt(attempt: InsertQuizAttempt): Promise<QuizAttempt> {
-    try {
-      const [newAttempt] = await db
-        .insert(quizAttempts)
-        .values(attempt)
-        .returning() as QuizAttempt[];
-      return newAttempt;
-    } catch (error) {
-      console.error('Error creating quiz attempt:', error);
-      throw error;
-    }
-  }
-
-  async getQuizAttempt(id: number): Promise<QuizAttempt | undefined> {
-    try {
-      const [attempt] = await db
-        .select()
-        .from(quizAttempts)
-        .where(eq(quizAttempts.id, id)) as QuizAttempt[];
-      return attempt;
-    } catch (error) {
-      console.error('Error getting quiz attempt:', error);
-      throw error;
-    }
-  }
-
-  // Quiz response operations
-  async createQuizResponse(response: InsertQuizResponse): Promise<QuizResponse> {
-    try {
-      const [newResponse] = await db
-        .insert(quizResponses)
-        .values(response)
-        .returning() as QuizResponse[];
-      return newResponse;
-    } catch (error) {
-      console.error('Error creating quiz response:', error);
-      throw error;
-    }
-  }
-
-  async getQuizResponses(quizAttemptId: number): Promise<QuizResponse[]> {
-    try {
-      const responses = await db
-        .select()
-        .from(quizResponses)
-        .where(eq(quizResponses.quizAttemptId, quizAttemptId)) as QuizResponse[];
-      return responses;
-    } catch (error) {
-      console.error('Error getting quiz responses:', error);
-      throw error;
-    }
-  }
-
-  // Mock Call Scenario operations
-  async createMockCallScenario(scenario: InsertMockCallScenario): Promise<MockCallScenario> {
-    try {
-      console.log('Creating mock call scenario:', scenario);
-      const [newScenario] = await db
-        .insert(mockCallScenarios)
-        .values(scenario)
-        .returning() as MockCallScenario[];
-
-      console.log('Successfully created mock call scenario:', newScenario);
-      return newScenario;
-    } catch (error: any) {
-      console.error('Error creating mock call scenario:', error);
-      throw new Error(`Failed to create mock call scenario: ${error.message}`);
-    }
-  }
-
-  async getMockCallScenario(id: number): Promise<MockCallScenario | undefined> {
-    try {
-      const [scenario] = await db
-        .select()
-        .from(mockCallScenarios)
-        .where(eq(mockCallScenarios.id, id)) as MockCallScenario[];
-      return scenario;
-    } catch (error: any) {
-      console.error('Error fetching mock call scenario:', error);
-      throw new Error(`Failed to fetch mock call scenario: ${error.message}`);
-    }
-  }
-
-  async listMockCallScenarios(organizationId: number): Promise<MockCallScenario[]> {
-    try {
-      const scenarios = await db
-        .select()
-        .from(mockCallScenarios)
-        .where(eq(mockCallScenarios.organizationId, organizationId)) as MockCallScenario[];
-      return scenarios;
-    } catch (error: any) {
-      console.error('Error listing mock call scenarios:', error);
-      throw new Error(`Failed to list mock call scenarios: ${error.message}`);
-    }
-  }
-
-  async createMockCallAttempt(attempt: InsertMockCallAttempt): Promise<MockCallAttempt> {
-    try {
-      const [newAttempt] = await db
-        .insert(mockCallAttempts)
-        .values(attempt)
-        .returning() as MockCallAttempt[];
-      return newAttempt;
-    } catch (error: any) {
-      console.error('Error creating mock call attempt:', error);
-      throw new Error(`Failed to create mock call attempt: ${error.message}`);
-    }
-  }
-
-  async getMockCallAttempt(id: number): Promise<MockCallAttempt | undefined> {
-    try {
-      const [attempt] = await db
-        .select()
-        .from(mockCallAttempts)
-        .where(eq(mockCallAttempts.id, id)) as MockCallAttempt[];
-      return attempt;
-    } catch (error: any) {
-      console.error('Error fetching mock call attempt:', error);
-      throw new Error(`Failed to fetch mock call attempt: ${error.message}`);
-    }
-  }
-
-
-  async deleteQuizzesByTemplateId(templateId: number): Promise<void> {
-    try {
-      console.log(`Deleting quizzes for template ID: ${templateId}`);
-
-      await db.transaction(async (tx) => {
-        // First get all quiz IDs for this template
-        const quizResults = await tx
-          .select({ id: quizzes.id })
-          .from(quizzes)
-          .where(eq(quizzes.templateId, templateId));
-
-        const quizIds = quizResults.map(r => r.id);
-
-        if (quizIds.length > 0) {
-          // Delete all quiz attempts for these quizzes
-          const attemptResults = await tx
-            .select({ id: quizAttempts.id })
-            .from(quizAttempts)
-            .where(inArray(quizAttempts.quizId, quizIds));
-
-          const attemptIds = attemptResults.map(r => r.id);
-
-          if (attemptIds.length > 0) {
-            // Delete quiz responses for all attempts
-            await tx
-              .delete(quizResponses)
-              .where(inArray(quizResponses.quizAttemptId, attemptIds));
-
-            // Delete the attempts
-            await tx
-              .delete(quizAttempts)
-              .where(inArray(quizAttempts.id, attemptIds));
-          }
-
-          // Finally delete the quizzes
-          await tx
-            .delete(quizzes)
-            .where(eq(quizzes.templateId, templateId));
+        if (!result.length) {
+          throw new Error('Location not found or deletion failed');
         }
 
-        console.log(`Successfully deleted all quizzes and related data for template ID: ${templateId}`);
+        console.log(`Successfully deleted location with ID: ${id}`);
       });
     } catch (error) {
-      console.error('Error deleting quizzes by template ID:', error);
-      throw error;
+      console.error('Error deleting location:', error);      throw error;
     }
   }
-
-  // Mock Call Scenario operations
-  async createMockCallScenario(scenario: InsertMockCallScenario): Promise<MockCallScenario> {
-    try {
-      console.log('Creating mock call scenario:', scenario);
-      const [newScenario] = await db
-        .insert(mockCallScenarios)
-        .values(scenario)
-        .returning() as MockCallScenario[];
-
-      console.log('Successfully created mock call scenario:', newScenario);
-      return newScenario;
-    } catch (error: any) {
-      console.error('Error creating mock call scenario:', error);
-      throw new Error(`Failed to create mock call scenario: ${error.message}`);
-    }
-  }
-
-  async getMockCallScenario(id: number): Promise<MockCallScenario | undefined> {
-    try {
-      const [scenario] = await db
-        .select()
-        .from(mockCallScenarios)
-        .where(eq(mockCallScenarios.id, id)) as MockCallScenario[];
-      return scenario;
-    } catch (error: any) {
-      console.error('Error fetching mock call scenario:', error);
-      throw new Error(`Failed to fetch mock call scenario: ${error.message}`);
-    }
-  }
-
-  async listMockCallScenarios(organizationId: number): Promise<MockCallScenario[]> {
-    try {
-      const scenarios = await db
-        .select()
-        .from(mockCallScenarios)
-        .where(eq(mockCallScenarios.organizationId, organizationId)) as MockCallScenario[];
-      return scenarios;
-    } catch (error: any) {
-      console.error('Error listing mock call scenarios:', error);
-      throw new Error(`Failed to list mock call scenarios: ${error.message}`);
-    }
-  }
-
-  async createMockCallAttempt(attempt: InsertMockCallAttempt): Promise<MockCallAttempt> {
-    try {
-      const [newAttempt] = await db
-        .insert(mockCallAttempts)
-        .values(attempt)
-        .returning() as MockCallAttempt[];
-      return newAttempt;
-    } catch (error: any) {
-      console.error('Error creating mock call attempt:', error);
-      throw new Error(`Failed to create mock call attempt: ${error.message}`);
-    }
-  }
-
-  async getMockCallAttempt(id: number): Promise<MockCallAttempt | undefined> {
-    try {
-      const [attempt] = await db
-        .select()
-        .from(mockCallAttempts)
-        .where(eq(mockCallAttempts.id, id)) as MockCallAttempt[];
-      return attempt;
-    } catch (error: any) {
-      console.error('Error fetching mock call attempt:', error);
-      throw new Error(`Failed to fetch mock call attempt: ${error.message}`);
-    }
-  }
-}
-
-export const storage = new DatabaseStorage();
 
   async createLocation(location: InsertOrganizationLocation): Promise<OrganizationLocation> {    try {
       console.log('Creating location with data:', location);
@@ -1466,6 +1093,7 @@ export const storage = new DatabaseStorage();
         )
         .where(eq(organizationBatches.organizationId, organizationId))
         .orderBy(desc(organizationBatches.createdAt));
+
 
       return batches as OrganizationBatch[];
     } catch (error) {
@@ -2294,6 +1922,7 @@ export const storage = new DatabaseStorage();
       console.error('Error fetching question:', error);
       throw error;
     }
+  }
   // Quiz template operations
   async createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate> {
     try {
@@ -2717,73 +2346,6 @@ export const storage = new DatabaseStorage();
 
   // Add new method for deleting quizzes by template ID
 
-  async createMockCallScenario(scenario: InsertMockCallScenario): Promise<MockCallScenario> {
-    try {
-      console.log('Creating mock call scenario:', scenario);
-      const [newScenario] = await db
-        .insert(mockCallScenarios)
-        .values(scenario)
-        .returning() as MockCallScenario[];
-
-      console.log('Successfully created mock call scenario:', newScenario);
-      return newScenario;
-    } catch (error: any) {
-      console.error('Error creating mock call scenario:', error);
-      throw new Error(`Failed to create mock call scenario: ${error.message}`);
-    }
-  }
-
-  async getMockCallScenario(id: number): Promise<MockCallScenario | undefined> {
-    try {
-      const [scenario] = await db
-        .select()
-        .from(mockCallScenarios)
-        .where(eq(mockCallScenarios.id, id)) as MockCallScenario[];
-      return scenario;
-    } catch (error: any) {
-      console.error('Error fetching mock call scenario:', error);
-      throw new Error(`Failed to fetch mock call scenario: ${error.message}`);
-    }
-  }
-
-  async listMockCallScenarios(organizationId: number): Promise<MockCallScenario[]> {
-    try {
-      const scenarios = await db
-        .select()
-        .from(mockCallScenarios)
-        .where(eq(mockCallScenarios.organizationId, organizationId)) as MockCallScenario[];
-      return scenarios;
-    } catch (error: any) {
-      console.error('Error listing mock call scenarios:', error);
-      throw new Error(`Failed to list mock call scenarios: ${error.message}`);
-    }
-  }
-
-  async createMockCallAttempt(attempt: InsertMockCallAttempt): Promise<MockCallAttempt> {
-    try {
-      const [newAttempt] = await db
-        .insert(mockCallAttempts)
-        .values(attempt)
-        .returning() as MockCallAttempt[];
-      return newAttempt;
-    } catch (error: any) {
-      console.error('Error creating mock call attempt:', error);
-      throw new Error(`Failed to create mock call attempt: ${error.message}`);
-    }
-  }
-
-  async getMockCallAttempt(id: number): Promise<MockCallAttempt | undefined> {
-    try {
-      const [attempt] = await db
-        .select()
-        .from(mockCallAttempts)
-        .where(eq(mockCallAttempts.id, id)) as MockCallAttempt[];
-      return attempt;
-    } catch (error: any) {
-      console.error('Error fetching mock call attempt:', error);
-      throw new Error(`Failed to fetch mock call attempt: ${error.message}`);
-    }
-  }
 }
 
 export const storage = new DatabaseStorage();

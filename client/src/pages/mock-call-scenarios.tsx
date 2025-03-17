@@ -109,15 +109,10 @@ export default function MockCallScenariosPage() {
       const response = await fetch("/api/mock-call-scenarios", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...data,
-          // Add default process ID - this should be replaced with actual process selection
-          processId: 1,
-        }),
+        body: JSON.stringify(data),
       });
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to create scenario");
+        throw new Error("Failed to create scenario");
       }
       return response.json();
     },
@@ -154,7 +149,7 @@ export default function MockCallScenariosPage() {
     createScenarioMutation.mutate({
       ...values,
       organizationId: user.organizationId,
-      processId: 1, // Default process ID
+      processId: 1, // TODO: Add process selection
       createdBy: user.id,
     });
   };
@@ -300,10 +295,9 @@ export default function MockCallScenariosPage() {
                           <FormLabel>Customer Concerns</FormLabel>
                           <FormControl>
                             <Input
-                              value={field.value?.join(", ") || ""}
                               placeholder="Enter concerns (comma-separated)"
                               onChange={(e) =>
-                                field.onChange(e.target.value.split(",").map((s) => s.trim()).filter(Boolean))
+                                field.onChange(e.target.value.split(",").map((s) => s.trim()))
                               }
                             />
                           </FormControl>
@@ -340,10 +334,9 @@ export default function MockCallScenariosPage() {
                           <FormLabel>Key Points</FormLabel>
                           <FormControl>
                             <Input
-                              value={field.value?.join(", ") || ""}
                               placeholder="Enter key points (comma-separated)"
                               onChange={(e) =>
-                                field.onChange(e.target.value.split(",").map((s) => s.trim()).filter(Boolean))
+                                field.onChange(e.target.value.split(",").map((s) => s.trim()))
                               }
                             />
                           </FormControl>
@@ -359,10 +352,9 @@ export default function MockCallScenariosPage() {
                           <FormLabel>Expected Resolutions</FormLabel>
                           <FormControl>
                             <Input
-                              value={field.value?.join(", ") || ""}
                               placeholder="Enter resolutions (comma-separated)"
                               onChange={(e) =>
-                                field.onChange(e.target.value.split(",").map((s) => s.trim()).filter(Boolean))
+                                field.onChange(e.target.value.split(",").map((s) => s.trim()))
                               }
                             />
                           </FormControl>
@@ -378,10 +370,9 @@ export default function MockCallScenariosPage() {
                           <FormLabel>Closing Statements</FormLabel>
                           <FormControl>
                             <Input
-                              value={field.value?.join(", ") || ""}
                               placeholder="Enter closing statements (comma-separated)"
                               onChange={(e) =>
-                                field.onChange(e.target.value.split(",").map((s) => s.trim()).filter(Boolean))
+                                field.onChange(e.target.value.split(",").map((s) => s.trim()))
                               }
                             />
                           </FormControl>
@@ -406,7 +397,7 @@ export default function MockCallScenariosPage() {
                                 type="number"
                                 {...field}
                                 onChange={(e) =>
-                                  field.onChange(parseInt(e.target.value, 10))
+                                  field.onChange(parseInt(e.target.value))
                                 }
                               />
                             </FormControl>
@@ -425,7 +416,7 @@ export default function MockCallScenariosPage() {
                                 type="number"
                                 {...field}
                                 onChange={(e) =>
-                                  field.onChange(parseInt(e.target.value, 10))
+                                  field.onChange(parseInt(e.target.value))
                                 }
                               />
                             </FormControl>
@@ -444,7 +435,7 @@ export default function MockCallScenariosPage() {
                                 type="number"
                                 {...field}
                                 onChange={(e) =>
-                                  field.onChange(parseInt(e.target.value, 10))
+                                  field.onChange(parseInt(e.target.value))
                                 }
                               />
                             </FormControl>
@@ -463,7 +454,7 @@ export default function MockCallScenariosPage() {
                                 type="number"
                                 {...field}
                                 onChange={(e) =>
-                                  field.onChange(parseInt(e.target.value, 10))
+                                  field.onChange(parseInt(e.target.value))
                                 }
                               />
                             </FormControl>
@@ -482,7 +473,7 @@ export default function MockCallScenariosPage() {
                                 type="number"
                                 {...field}
                                 onChange={(e) =>
-                                  field.onChange(parseInt(e.target.value, 10))
+                                  field.onChange(parseInt(e.target.value))
                                 }
                               />
                             </FormControl>
