@@ -104,13 +104,15 @@ export default function EvaluationExecutionPage() {
 
       // Find the trainee object for the selected traineeId
       const selectedTrainee = trainees.find(trainee => trainee.id === values.traineeId);
+      console.log('Found trainee:', selectedTrainee);
+
       if (!selectedTrainee) {
         throw new Error('Selected trainee not found');
       }
 
       const payload = {
         batchId: values.batchId,
-        traineeId: selectedTrainee.traineeId,
+        traineeId: selectedTrainee.id,  // Using the trainee.id which is user_batch_process.id
         templateId: values.templateId,
         evaluatorId: user?.id,
       };
