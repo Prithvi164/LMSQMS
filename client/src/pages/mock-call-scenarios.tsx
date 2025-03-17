@@ -206,13 +206,15 @@ export default function MockCallScenariosPage() {
 
   const startMockCallMutation = useMutation({
     mutationFn: async (scenarioId: number) => {
-      const startTime = new Date().toISOString(); // Ensure proper date format
+      console.log('Starting mock call attempt for scenario:', scenarioId);
       const response = await fetch(`/api/mock-call-scenarios/${scenarioId}/attempts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          scenarioId,
           evaluatorId: user?.managerId || user?.id,
-          startedAt: startTime
+          startedAt: new Date(), 
+          status: "in_progress"
         }),
       });
       if (!response.ok) {
@@ -222,6 +224,7 @@ export default function MockCallScenariosPage() {
       return response.json();
     },
     onSuccess: (data) => {
+      console.log('Mock call attempt created successfully:', data);
       navigate(`/mock-call/${data.id}`);
       toast({
         title: "Success",
