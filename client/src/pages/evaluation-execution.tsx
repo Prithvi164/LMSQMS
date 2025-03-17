@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 import {
   Card,
   CardContent,
@@ -29,7 +28,30 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Loader2 } from "lucide-react";
+
+// Type definitions for API responses
+interface Batch {
+  id: number;
+  name: string;
+}
+
+interface Trainee {
+  userId: number;
+  status: string;
+  user: {
+    id: number;
+    fullName: string;
+    email: string;
+    role: string;
+    category: string;
+  };
+}
+
+interface Template {
+  id: number;
+  name: string;
+  description?: string;
+}
 
 // Form schema for starting an evaluation
 const formSchema = z.object({
@@ -38,32 +60,36 @@ const formSchema = z.object({
   templateId: z.number().min(1, "Evaluation template is required"),
 });
 
-type FormValues = z.infer<typeof formSchema>;
-
 export default function EvaluationExecutionPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
 
   // Fetch active batches
-  const { data: batches = [], isLoading: isBatchesLoading } = useQuery({
+  const { data: batches = [], isLoading: isBatchesLoading } = useQuery<Batch[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches`],
     enabled: !!user?.organizationId,
   });
 
-  // Fetch trainees for selected batch
-  const { data: trainees = [], isLoading: isTraineesLoading } = useQuery({
+  // Fetch trainees for selected batch with console logging
+  const { data: trainees = [], isLoading: isTraineesLoading } = useQuery<Trainee[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${selectedBatchId}/trainees`],
     enabled: !!selectedBatchId && !!user?.organizationId,
+    onSuccess: (data) => {
+      console.log('Fetched trainees:', data);
+    },
+    onError: (error) => {
+      console.error('Error fetching trainees:', error);
+    }
   });
 
   // Fetch evaluation templates
-  const { data: templates = [], isLoading: isTemplatesLoading } = useQuery({
+  const { data: templates = [], isLoading: isTemplatesLoading } = useQuery<Template[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
     enabled: !!user?.organizationId,
   });
 
-  const form = useForm<FormValues>({
+  const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       batchId: undefined,
@@ -72,70 +98,34 @@ export default function EvaluationExecutionPage() {
     },
   });
 
-  // Create evaluation mutation
-  const createEvaluationMutation = useMutation({
-    mutationFn: async (values: FormValues) => {
-      if (!user?.organizationId) {
-        throw new Error("Organization ID is required");
-      }
-
-      const payload = {
-        batchId: values.batchId,
-        traineeId: values.traineeId,
-        templateId: values.templateId,
-        evaluatorId: user.id,
-      };
-
-      console.log("Starting evaluation with values:", values);
-
-      try {
-        // Add the /api/ prefix to the URL
-        const response = await apiRequest(`/api/organizations/${user.organizationId}/evaluations/start`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        });
-
-        if (!response || typeof response.id !== "number") {
-          throw new Error("Invalid response format");
-        }
-
-        return response;
-      } catch (error) {
-        console.error("Evaluation creation error:", error);
-        throw new Error(error instanceof Error ? error.message : "Failed to create evaluation");
-      }
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Success",
-        description: "Evaluation started successfully",
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    try {
+      const response = await fetch("/api/evaluations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...values,
+          evaluatorId: user?.id,
+        }),
       });
-      window.location.href = `/evaluations/${data.id}`;
-    },
-    onError: (error: Error) => {
+
+      if (!response.ok) {
+        throw new Error("Failed to start evaluation");
+      }
+
+      const evaluation = await response.json();
+
+      // Navigate to evaluation form
+      window.location.href = `/evaluations/${evaluation.id}`;
+
+    } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Failed to start evaluation",
+        description: error.message,
       });
-    },
-  });
-
-  const onSubmit = (values: FormValues) => {
-    createEvaluationMutation.mutate(values);
+    }
   };
-
-  if (isBatchesLoading || isTraineesLoading || isTemplatesLoading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2">Loading...</span>
-      </div>
-    );
-  }
 
   return (
     <div className="container mx-auto p-6">
@@ -160,9 +150,10 @@ export default function EvaluationExecutionPage() {
                         const batchId = parseInt(value);
                         field.onChange(batchId);
                         setSelectedBatchId(batchId);
-                        form.setValue("traineeId", undefined);
+                        // Reset trainee selection when batch changes
+                        form.setValue('traineeId', undefined);
                       }}
-                      value={field.value?.toString() || ""}
+                      value={field.value?.toString()}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -170,14 +161,20 @@ export default function EvaluationExecutionPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {batches.map((batch) => (
-                          <SelectItem
-                            key={batch.id}
-                            value={batch.id.toString()}
-                          >
-                            {batch.name}
-                          </SelectItem>
-                        ))}
+                        {isBatchesLoading ? (
+                          <SelectItem value="_loading">Loading batches...</SelectItem>
+                        ) : batches.length === 0 ? (
+                          <SelectItem value="_empty">No batches available</SelectItem>
+                        ) : (
+                          batches.map((batch) => (
+                            <SelectItem
+                              key={batch.id}
+                              value={batch.id.toString()}
+                            >
+                              {batch.name}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -193,23 +190,29 @@ export default function EvaluationExecutionPage() {
                     <FormLabel>Select Trainee</FormLabel>
                     <Select
                       onValueChange={(value) => field.onChange(parseInt(value))}
-                      value={field.value?.toString() || ""}
-                      disabled={!selectedBatchId}
+                      value={field.value?.toString()}
+                      disabled={!selectedBatchId || isTraineesLoading}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder={!selectedBatchId ? "Select a batch first" : "Select a trainee"} />
+                          <SelectValue placeholder={isTraineesLoading ? "Loading trainees..." : "Select a trainee"} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {trainees.map((trainee) => (
-                          <SelectItem
-                            key={trainee.id}
-                            value={trainee.id.toString()}
-                          >
-                            {trainee.user.fullName}
-                          </SelectItem>
-                        ))}
+                        {isTraineesLoading ? (
+                          <SelectItem value="_loading">Loading trainees...</SelectItem>
+                        ) : trainees.length === 0 ? (
+                          <SelectItem value="_empty">No trainees in this batch</SelectItem>
+                        ) : (
+                          trainees.map((trainee) => (
+                            <SelectItem
+                              key={trainee.userId}
+                              value={trainee.user.id.toString()}
+                            >
+                              {trainee.user.fullName}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -225,22 +228,28 @@ export default function EvaluationExecutionPage() {
                     <FormLabel>Select Evaluation Template</FormLabel>
                     <Select
                       onValueChange={(value) => field.onChange(parseInt(value))}
-                      value={field.value?.toString() || ""}
+                      value={field.value?.toString()}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select a template" />
+                          <SelectValue placeholder={isTemplatesLoading ? "Loading templates..." : "Select a template"} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {templates.map((template) => (
-                          <SelectItem
-                            key={template.id}
-                            value={template.id.toString()}
-                          >
-                            {template.name}
-                          </SelectItem>
-                        ))}
+                        {isTemplatesLoading ? (
+                          <SelectItem value="_loading">Loading templates...</SelectItem>
+                        ) : templates.length === 0 ? (
+                          <SelectItem value="_empty">No templates available</SelectItem>
+                        ) : (
+                          templates.map((template) => (
+                            <SelectItem
+                              key={template.id}
+                              value={template.id.toString()}
+                            >
+                              {template.name}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -248,12 +257,8 @@ export default function EvaluationExecutionPage() {
                 )}
               />
 
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={createEvaluationMutation.isPending}
-              >
-                {createEvaluationMutation.isPending ? "Starting..." : "Start Evaluation"}
+              <Button type="submit" className="w-full">
+                Start Evaluation
               </Button>
             </form>
           </Form>
