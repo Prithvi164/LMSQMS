@@ -58,9 +58,11 @@ interface Template {
 // Form schema for starting an evaluation
 const formSchema = z.object({
   batchId: z.number().min(1, "Batch is required"),
-  traineeId: z.number().min(1, "Trainee is required"),
+  traineeId: z.number().min(1, "Trainee is required").nullable(),
   templateId: z.number().min(1, "Evaluation template is required"),
 });
+
+type FormValues = z.infer<typeof formSchema>;
 
 export default function EvaluationExecutionPage() {
   const { user } = useAuth();
@@ -74,7 +76,7 @@ export default function EvaluationExecutionPage() {
     enabled: !!user?.organizationId,
   });
 
-  // Fetch trainees for selected batch with console logging
+  // Fetch trainees for selected batch
   const { data: trainees = [], isLoading: isTraineesLoading } = useQuery<Trainee[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${selectedBatchId}/trainees`],
     enabled: !!selectedBatchId && !!user?.organizationId,
@@ -86,18 +88,18 @@ export default function EvaluationExecutionPage() {
     enabled: !!user?.organizationId,
   });
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       batchId: undefined,
-      traineeId: undefined,
+      traineeId: null,
       templateId: undefined,
     },
   });
 
   // Create evaluation mutation
   const createEvaluationMutation = useMutation({
-    mutationFn: async (values: z.infer<typeof formSchema>) => {
+    mutationFn: async (values: FormValues) => {
       console.log('Starting evaluation with values:', values);
 
       // Find the trainee object for the selected traineeId
@@ -152,7 +154,7 @@ export default function EvaluationExecutionPage() {
     },
   });
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
+  const onSubmit = (values: FormValues) => {
     console.log('Form submitted with values:', values);
     createEvaluationMutation.mutate(values);
   };
@@ -190,7 +192,7 @@ export default function EvaluationExecutionPage() {
                         field.onChange(batchId);
                         setSelectedBatchId(batchId);
                         // Reset trainee selection when batch changes
-                        form.setValue('traineeId', undefined);
+                        form.setValue('traineeId', null);
                       }}
                       value={field.value?.toString()}
                     >
@@ -229,7 +231,7 @@ export default function EvaluationExecutionPage() {
                     <FormLabel>Select Trainee</FormLabel>
                     <Select
                       onValueChange={(value) => field.onChange(parseInt(value))}
-                      value={field.value?.toString()}
+                      value={field.value?.toString() || ""}
                       disabled={!selectedBatchId || isTraineesLoading}
                     >
                       <FormControl>
