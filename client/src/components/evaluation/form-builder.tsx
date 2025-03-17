@@ -32,13 +32,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, ChevronDown, ChevronUp, Eye } from "lucide-react";
+import { Trash2, Plus, ChevronDown, ChevronUp, Eye, Check } from "lucide-react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-// Form schemas remain the same
+// Form schemas
 const pillarSchema = z.object({
   name: z.string().min(1, "Pillar name is required"),
   description: z.string().optional(),
@@ -53,6 +53,7 @@ const parameterSchema = z.object({
   weightage: z.number().min(0).max(100),
   isFatal: z.boolean().default(false),
   requiresComment: z.boolean().default(false),
+  noReasons: z.array(z.string()).optional(),
   customRatingOptions: z.array(z.string()).optional(),
 });
 
@@ -67,6 +68,8 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
   const [activePillarId, setActivePillarId] = useState<number | null>(null);
   const [selectedParameter, setSelectedParameter] = useState<number | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
+  const [noReasons, setNoReasons] = useState<string[]>([]);
+  const [newReason, setNewReason] = useState("");
 
   // Fetch template details
   const { data: template } = useQuery({
@@ -88,6 +91,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
       weightage: 0,
       isFatal: false,
       requiresComment: false,
+      noReasons: [],
     },
   });
 
@@ -138,6 +142,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
         body: JSON.stringify({
           ...data,
           pillarId: activePillarId,
+          noReasons: noReasons,
         }),
       });
       if (!response.ok) {
@@ -155,6 +160,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
         description: "Parameter created successfully",
       });
       parameterForm.reset();
+      setNoReasons([]);
     },
     onError: (error: Error) => {
       toast({
@@ -170,21 +176,71 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
   };
 
   const onParameterSubmit = (values: z.infer<typeof parameterSchema>) => {
-    createParameterMutation.mutate(values);
+    createParameterMutation.mutate({
+      ...values,
+      noReasons,
+    });
+  };
+
+  const addReason = () => {
+    if (newReason.trim()) {
+      setNoReasons([...noReasons, newReason.trim()]);
+      setNewReason("");
+    }
+  };
+
+  const removeReason = (index: number) => {
+    setNoReasons(noReasons.filter((_, i) => i !== index));
+  };
+
+  const finalizeForm = async () => {
+    try {
+      await fetch(`/api/evaluation-templates/${templateId}/finalize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      toast({
+        title: "Success",
+        description: "Form finalized successfully",
+      });
+
+      // Refresh the template data
+      queryClient.invalidateQueries({
+        queryKey: [`/api/evaluation-templates/${templateId}`],
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to finalize form",
+      });
+    }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Form Builder</h1>
-        <Button
-          variant="outline"
-          onClick={() => setPreviewMode(!previewMode)}
-          className="flex items-center gap-2"
-        >
-          <Eye className="w-4 h-4" />
-          {previewMode ? "Exit Preview" : "Preview Form"}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setPreviewMode(!previewMode)}
+            className="flex items-center gap-2"
+          >
+            <Eye className="w-4 h-4" />
+            {previewMode ? "Exit Preview" : "Preview Form"}
+          </Button>
+          {previewMode && (
+            <Button 
+              onClick={finalizeForm}
+              className="flex items-center gap-2"
+            >
+              <Check className="w-4 h-4" />
+              Create Form
+            </Button>
+          )}
+        </div>
       </div>
 
       <ResizablePanelGroup direction="horizontal">
@@ -425,6 +481,40 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                             </FormItem>
                           )}
                         />
+
+                        {/* No Reasons Section */}
+                        {parameterForm.watch("ratingType") === "yes_no_na" && (
+                          <div className="space-y-4 border rounded-lg p-4">
+                            <h4 className="font-medium">Reasons for "No" Response</h4>
+                            <div className="flex gap-2">
+                              <Input
+                                value={newReason}
+                                onChange={(e) => setNewReason(e.target.value)}
+                                placeholder="Enter a reason"
+                              />
+                              <Button type="button" onClick={addReason}>
+                                Add
+                              </Button>
+                            </div>
+                            {noReasons.length > 0 && (
+                              <div className="space-y-2">
+                                {noReasons.map((reason, index) => (
+                                  <div key={index} className="flex items-center justify-between bg-muted p-2 rounded">
+                                    <span>{reason}</span>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => removeReason(index)}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         <FormField
                           control={parameterForm.control}
                           name="weightage"
@@ -541,10 +631,26 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                               )}
                               <div className="space-y-4">
                                 {param.ratingType === "yes_no_na" && (
-                                  <div className="flex gap-4">
-                                    <Button variant="outline">Yes</Button>
-                                    <Button variant="outline">No</Button>
-                                    <Button variant="outline">N/A</Button>
+                                  <div className="space-y-4">
+                                    <div className="flex gap-4">
+                                      <Button variant="outline">Yes</Button>
+                                      <Button variant="outline">No</Button>
+                                      <Button variant="outline">N/A</Button>
+                                    </div>
+                                    {param.noReasons && param.noReasons.length > 0 && (
+                                      <Select disabled>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Select reason for No" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {param.noReasons.map((reason: string, index: number) => (
+                                            <SelectItem key={index} value={reason}>
+                                              {reason}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    )}
                                   </div>
                                 )}
                                 {param.ratingType === "numeric" && (

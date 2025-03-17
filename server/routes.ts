@@ -213,6 +213,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add finalize endpoint
+  app.post("/api/evaluation-templates/:templateId/finalize", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const templateId = parseInt(req.params.templateId);
+      if (!templateId) {
+        return res.status(400).json({ message: "Invalid template ID" });
+      }
+
+      const template = await storage.getEvaluationTemplate(templateId);
+      if (!template) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+
+      if (template.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Update template status to active
+      const updatedTemplate = await storage.updateEvaluationTemplate(templateId, {
+        status: 'active'
+      });
+
+      res.json(updatedTemplate);
+    } catch (error: any) {
+      console.error("Error finalizing template:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Add route to get template with all its components
   app.get("/api/evaluation-templates/:templateId", async (req, res) => {
     if (!req.user) {
