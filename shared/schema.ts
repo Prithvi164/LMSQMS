@@ -844,7 +844,7 @@ export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organiz
     createdAt: true
   })
   .extend({
-    name: z.string().min(1, "LOB name is required"),
+    name: z.string().min(11, "LOB name is required"),
     description: z.string().min(1, "Description is required"),
     organizationId: z.number().int().positive("Organization is required"),
   });
@@ -1387,11 +1387,11 @@ export const evaluationParameters = pgTable("evaluation_parameters", {
     .notNull(),
   name: text("name").notNull(),
   description: text("description"),
-  guidelines: text("guidelines"), // Detailed instructions for evaluation
-  weightage: integer("weightage").notNull(), // Percentage weightage within the pillar
+  guidelines: text("guidelines"),
+  weightage: integer("weightage").notNull(),
   ratingType: text("rating_type").notNull(),
   orderIndex: integer("order_index").notNull(),
-  isFatal: boolean("is_fatal").default(false).notNull(), // Whether this parameter can cause automatic failure
+  isFatal: boolean("is_fatal").default(false).notNull(),
   requiresComment: boolean("requires_comment").default(false).notNull(),
   noReasons: jsonb("no_reasons").$type<string[]>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -1500,12 +1500,11 @@ export const insertEvaluationParameterSchema = createInsertSchema(evaluationPara
     description: z.string().optional(),
     guidelines: z.string().optional(),
     weightage: z.number().int().min(0).max(100),
-    ratingType: z.string(),
+    ratingType: z.enum(['yes_no_na', 'numeric', 'custom']),
     orderIndex: z.number().int(),
     isFatal: z.boolean().default(false),
     requiresComment: z.boolean().default(false),
     noReasons: z.array(z.string()).optional(),
-    pillarId: z.number().int().positive("Pillar is required"),
   });
 
 export const insertEvaluationSubReasonSchema = createInsertSchema(evaluationSubReasons)
@@ -1631,11 +1630,3 @@ export const evaluationParameterResultsRelations = relations(evaluationParameter
     references: [evaluationSubReasons.id],
   }),
 }));
-
-// Export types for insertion
-export type InsertEvaluationTemplate = z.infer<typeof insertEvaluationTemplateSchema>;
-export type InsertEvaluationPillar = z.infer<typeof insertEvaluationPillarSchema>;
-export type InsertEvaluationParameter = z.infer<typeof insertEvaluationParameterSchema>;
-export type InsertEvaluationSubReason = z.infer<typeof insertEvaluationSubReasonSchema>;
-export type InsertEvaluationResult = z.infer<typeof insertEvaluationResultSchema>;
-export type InsertEvaluationParameterResult = z.infer<typeof insertEvaluationParameterResultSchema>;
