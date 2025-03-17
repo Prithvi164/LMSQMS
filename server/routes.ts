@@ -365,6 +365,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const parameterData = {
         ...req.body,
         pillarId,
+        // Ensure noReasons is properly passed as an array
+        noReasons: Array.isArray(req.body.noReasons) ? req.body.noReasons : [],
       };
 
       console.log('Creating evaluation parameter:', parameterData);

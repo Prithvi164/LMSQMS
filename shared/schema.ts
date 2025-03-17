@@ -844,7 +844,7 @@ export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organiz
     createdAt: true
   })
   .extend({
-    name: z.string().min(1, "LOB name is required"),
+    name: z.string().min(1, "LOBname is required"),
     description: z.string().min(1, "Description is required"),
     organizationId: z.number().int().positive("Organization is required"),
   });
@@ -1388,11 +1388,11 @@ export const evaluationParameters = pgTable("evaluation_parameters", {
   name: text("name").notNull(),
   description: text("description"),
   guidelines: text("guidelines"), // Detailed instructions for evaluation
-  ratingType: evaluationRatingTypeEnum("rating_type").notNull(),
-  customRatingOptions: jsonb("custom_rating_options").$type<string[]>(), // For custom rating types
+  ratingType: text("rating_type").notNull(),
   weightage: integer("weightage").notNull(), // Percentage weightage within the pillar
   isFatal: boolean("is_fatal").default(false).notNull(), // Whether this parameter can cause automatic failure
   requiresComment: boolean("requires_comment").default(false).notNull(),
+  noReasons: jsonb("no_reasons").$type<string[]>(),
   orderIndex: integer("order_index").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -1497,11 +1497,13 @@ export const insertEvaluationParameterSchema = createInsertSchema(evaluationPara
   .extend({
     pillarId: z.number().int().positive("Pillar is required"),
     name: z.string().min(1, "Parameter name is required"),
-    ratingType: z.enum(['yes_no_na', 'numeric', 'custom']),
-    customRatingOptions: z.array(z.string()).optional(),
-    weightage: z.number().int().min(0).max(100),
+    description: z.string().optional(),
+    guidelines: z.string().optional(),
+    ratingType: z.string().min(1, "Rating type is required"),
+    weightage: z.number().min(0).max(100),
     isFatal: z.boolean().default(false),
     requiresComment: z.boolean().default(false),
+    noReasons: z.array(z.string()).optional(),
     orderIndex: z.number().int().min(0),
   });
 

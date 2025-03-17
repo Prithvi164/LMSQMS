@@ -125,6 +125,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
           weightage: parameter.weightage,
           isFatal: parameter.isFatal,
           requiresComment: parameter.requiresComment,
+          noReasons: parameter.noReasons || [],
         });
         setNoReasons(parameter.noReasons || []);
       }
@@ -471,62 +472,63 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                       {pillar.parameters && pillar.parameters.length > 0 && (
                         <div className="ml-4 space-y-2">
                           {pillar.parameters.map((param: any) => (
-                            <div
-                              key={param.id}
-                              className={`p-2 rounded cursor-pointer transition-colors ${
-                                selectedParameter === param.id
-                                  ? "bg-accent text-accent-foreground"
-                                  : "hover:bg-accent/50"
-                              }`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedParameter(param.id);
-                              }}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm">{param.name}</span>
-                                  <Badge variant="outline" className="text-xs">
-                                    {param.weightage}%
-                                  </Badge>
-                                  {param.isFatal && (
-                                    <Badge variant="destructive" className="text-xs">Fatal</Badge>
-                                  )}
+                            <div key={param.id}>
+                              <div
+                                className={`p-2 rounded cursor-pointer transition-colors ${
+                                  selectedParameter === param.id
+                                    ? "bg-accent text-accent-foreground"
+                                    : "hover:bg-accent/50"
+                                }`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedParameter(param.id);
+                                }}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm">{param.name}</span>
+                                    <Badge variant="outline" className="text-xs">
+                                      {param.weightage}%
+                                    </Badge>
+                                    {param.isFatal && (
+                                      <Badge variant="destructive" className="text-xs">Fatal</Badge>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsEditingParameter(true);
+                                        setSelectedParameter(param.id);
+                                      }}
+                                    >
+                                      <Edit2 className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        deleteParameterMutation.mutate(param.id);
+                                      }}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setIsEditingParameter(true);
-                                      setSelectedParameter(param.id);
-                                    }}
-                                  >
-                                    <Edit2 className="w-4 h-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      deleteParameterMutation.mutate(param.id);
-                                    }}
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                </div>
+                                {param.ratingType === "yes_no_na" && param.noReasons && param.noReasons.length > 0 && (
+                                  <div className="mt-2 ml-4 text-sm text-muted-foreground">
+                                    <p className="font-medium text-xs">No Reasons:</p>
+                                    <ul className="list-disc list-inside">
+                                      {param.noReasons.map((reason: string, idx: number) => (
+                                        <li key={idx} className="text-xs">{reason}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
                               </div>
-                              {param.ratingType === "yes_no_na" && param.noReasons && param.noReasons.length > 0 && (
-                                <div className="mt-2 ml-4 text-sm text-muted-foreground">
-                                  <p className="font-medium text-xs">No Reasons:</p>
-                                  <ul className="list-disc list-inside">
-                                    {param.noReasons.map((reason: string, idx: number) => (
-                                      <li key={idx} className="text-xs">{reason}</li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
                             </div>
                           ))}
                         </div>
