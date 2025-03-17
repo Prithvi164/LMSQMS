@@ -931,10 +931,10 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                                       </div>
                                       {param.noReasons && param.noReasons.length > 0 && (
                                         <div className="space-y-2">
-                                          <p className="text-sm font-medium">Reasons for "No" response:</p>
-                                          <Select disabled>
-                                            <SelectTrigger>
-                                              <SelectValue placeholder="Select a reason" />
+                                          <p className="text-sm font-medium">Select reason for "No" response:</p>
+                                          <Select>
+                                            <SelectTrigger className="bg-muted">
+                                              <SelectValue placeholder="Choose a reason" />
                                             </SelectTrigger>
                                             <SelectContent>
                                               {param.noReasons.map((reason: string, idx: number) => (
