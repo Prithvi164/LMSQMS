@@ -24,6 +24,11 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { GripVertical } from "lucide-react";
 import {
@@ -1024,7 +1029,8 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                                             <Button variant="outline">Yes</Button>
                                             <Button variant="outline">No</Button>
                                             <Button variant="outline">N/A</Button>
-                                          </div>                                          {param.noReasons && param.noReasons.length > 0 && (
+                                          </div>
+                                          {param.noReasons && param.noReasons.length > 0 && (
                                             <div className="space-y-2">
                                               <p className="text-sm font-medium">Select reason for "No" response:</p>
                                               <Select>
