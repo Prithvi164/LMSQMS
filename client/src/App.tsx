@@ -19,6 +19,7 @@ import { MyQuizzesPage } from "@/pages/my-quizzes";
 import MockCallScenarios from "@/pages/mock-call-scenarios";
 import EvaluationTemplates from "@/pages/evaluation-templates";
 import EvaluationExecution from "@/pages/evaluation-execution";
+import EvaluationForm from "@/pages/evaluation-form";
 import { ProtectedRoute } from "./lib/protected-route";
 import { SidebarNav } from "./components/sidebar-nav";
 import { UserProfile } from "./components/user-profile";
@@ -67,6 +68,7 @@ function Router() {
           <ProtectedRoute path="/mock-call-scenarios" component={MockCallScenarios} />
           <ProtectedRoute path="/evaluation-templates" component={EvaluationTemplates} />
           <ProtectedRoute path="/evaluation-execution" component={EvaluationExecution} />
+          <ProtectedRoute path="/evaluations/:evaluationId" component={EvaluationForm} />
           <Route component={NotFound} />
         </Switch>
       </main>
