@@ -13,6 +13,7 @@ import {
   batchPhaseChangeRequests,
   quizResponses,
   userBatchProcesses,
+  batchTemplates,
   type QuizResponse,
   type InsertQuizResponse,
   type User,
@@ -65,7 +66,13 @@ import {
   type EvaluationPillar,
   type InsertEvaluationPillar,
   type EvaluationParameter,
-  type InsertEvaluationParameter
+  type InsertEvaluationParameter,
+  type EvaluationResult,
+  type InsertEvaluationResult,
+  type EvaluationParameterResult, 
+  type InsertEvaluationParameterResult,
+  evaluationResults,
+  evaluationParameterResults
 } from "@shared/schema";
 
 // Add to IStorage interface
@@ -259,6 +266,10 @@ export interface IStorage {
   deleteEvaluationParameter(id: number): Promise<void>;
   deleteEvaluationTemplate(id: number): Promise<void>;
   updateEvaluationTemplate(id: number, template: Partial<InsertEvaluationTemplate>): Promise<EvaluationTemplate>;
+
+  // Add evaluation submission methods
+  createEvaluation(evaluation: InsertEvaluationResult): Promise<EvaluationResult>;
+  createEvaluationParameterResults(results: InsertEvaluationParameterResult[]): Promise<EvaluationParameterResult[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -364,6 +375,58 @@ export class DatabaseStorage implements IStorage {
       return updatedTemplate;
     } catch (error) {
       console.error('Error updating evaluation template:', error);
+      throw error;
+    }
+  }
+
+  // Evaluation submission methods
+  async createEvaluation(evaluation: InsertEvaluationResult): Promise<EvaluationResult> {
+    try {
+      console.log('Creating evaluation with data:', evaluation);
+      
+      const [newEvaluation] = await db
+        .insert(evaluationResults)
+        .values(evaluation)
+        .returning() as EvaluationResult[];
+
+      if (!newEvaluation) {
+        throw new Error('Failed to create evaluation');
+      }
+
+      // Create parameter results
+      if (evaluation.scores && evaluation.scores.length > 0) {
+        const parameterResults = evaluation.scores.map(score => ({
+          evaluationId: newEvaluation.id,
+          parameterId: score.parameterId,
+          score: score.score,
+          comment: score.comment,
+          noReason: score.noReason,
+        }));
+
+        await this.createEvaluationParameterResults(parameterResults);
+      }
+
+      console.log('Successfully created evaluation:', newEvaluation);
+      return newEvaluation;
+    } catch (error) {
+      console.error('Error creating evaluation:', error);
+      throw error;
+    }
+  }
+
+  async createEvaluationParameterResults(results: InsertEvaluationParameterResult[]): Promise<EvaluationParameterResult[]> {
+    try {
+      console.log('Creating evaluation parameter results:', results);
+      
+      const parameterResults = await db
+        .insert(evaluationParameterResults)
+        .values(results)
+        .returning() as EvaluationParameterResult[];
+
+      console.log('Successfully created parameter results:', parameterResults);
+      return parameterResults;
+    } catch (error) {
+      console.error('Error creating evaluation parameter results:', error);
       throw error;
     }
   }
@@ -496,18 +559,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // User Process operations
-  async assignProcessesToUser(processes: InsertUserProcess[]): Promise<UserProcess[]> {
-    try {
-      const assignedProcesses = await db
-        .insert(userProcesses)
-        .values(processes)
-        .returning() as UserProcess[];
-      return assignedProcesses;
-    } catch (error) {
-      console.error('Error assigning processes to user:', error);
-      throw new Error('Failed to assign processes to user');
-    }
-  }
+
 
   async getUserProcesses(userId: number): Promise<UserProcess[]> {
     try {
@@ -907,19 +959,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Add new methods for user process management
-  async assignProcessesToUser(processes: InsertUserProcess[]): Promise<UserProcess[]> {
-    try {
-      const assignedProcesses = await db
-        .insert(userProcesses)
-        .values(processes)
-        .returning() as UserProcess[];
-      return assignedProcesses;
-    } catch (error) {
-      console.error('Error assigning processes to user:', error);
-      throw new Error('Failed to assign processes to user');
-    }
-  }
+
 
   async getUserProcesses(userId: number): Promise<UserProcess[]> {
     try {
