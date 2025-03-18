@@ -65,13 +65,7 @@ import {
   type EvaluationPillar,
   type InsertEvaluationPillar,
   type EvaluationParameter,
-  type InsertEvaluationParameter,
-  type EvaluationSession,
-  type InsertEvaluationSession,
-  type EvaluationResult,
-  type InsertEvaluationResult,
-  evaluationSessions,
-  evaluationResults
+  type InsertEvaluationParameter
 } from "@shared/schema";
 
 // Add to IStorage interface
@@ -265,12 +259,6 @@ export interface IStorage {
   deleteEvaluationParameter(id: number): Promise<void>;
   deleteEvaluationTemplate(id: number): Promise<void>;
   updateEvaluationTemplate(id: number, template: Partial<InsertEvaluationTemplate>): Promise<EvaluationTemplate>;
-
-  // Evaluation Session operations 
-  createEvaluationSession(session: InsertEvaluationSession): Promise<EvaluationSession>;
-  getEvaluationSession(id: number): Promise<EvaluationSession | undefined>;
-  submitEvaluationSession(sessionId: number, results: InsertEvaluationResult[]): Promise<void>;
-  listActiveTemplates(organizationId: number): Promise<EvaluationTemplate[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -376,87 +364,6 @@ export class DatabaseStorage implements IStorage {
       return updatedTemplate;
     } catch (error) {
       console.error('Error updating evaluation template:', error);
-      throw error;
-    }
-  }
-
-  // Evaluation Session operations
-  async createEvaluationSession(session: InsertEvaluationSession): Promise<EvaluationSession> {
-    try {
-      console.log('Creating evaluation session:', session);
-      
-      const [newSession] = await db
-        .insert(evaluationSessions)
-        .values(session)
-        .returning() as EvaluationSession[];
-
-      console.log('Created session:', newSession);
-      return newSession;
-    } catch (error) {
-      console.error('Error creating evaluation session:', error);
-      throw error;
-    }
-  }
-
-  async getEvaluationSession(id: number): Promise<EvaluationSession | undefined> {
-    try {
-      const [session] = await db
-        .select()
-        .from(evaluationSessions)
-        .where(eq(evaluationSessions.id, id)) as EvaluationSession[];
-
-      return session;
-    } catch (error) {
-      console.error('Error getting evaluation session:', error);
-      throw error;
-    }
-  }
-
-  async submitEvaluationSession(sessionId: number, results: InsertEvaluationResult[]): Promise<void> {
-    try {
-      await db.transaction(async (tx) => {
-        // Insert all evaluation results
-        await tx
-          .insert(evaluationResults)
-          .values(results.map(result => ({
-            ...result,
-            sessionId
-          })));
-
-        // Calculate overall score (average of all parameter scores)
-        const overallScore = Math.round(
-          results.reduce((sum, result) => sum + result.score, 0) / results.length
-        );
-
-        // Update session status and score
-        await tx
-          .update(evaluationSessions)
-          .set({
-            status: 'completed',
-            completedAt: new Date(),
-            overallScore,
-          })
-          .where(eq(evaluationSessions.id, sessionId));
-      });
-    } catch (error) {
-      console.error('Error submitting evaluation session:', error);
-      throw error;
-    }
-  }
-
-  async listActiveTemplates(organizationId: number): Promise<EvaluationTemplate[]> {
-    try {
-      return await db
-        .select()
-        .from(evaluationTemplates)
-        .where(
-          and(
-            eq(evaluationTemplates.organizationId, organizationId),
-            eq(evaluationTemplates.status, 'active')
-          )
-        ) as EvaluationTemplate[];
-    } catch (error) {
-      console.error('Error listing active templates:', error);
       throw error;
     }
   }
