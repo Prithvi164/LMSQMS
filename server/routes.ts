@@ -290,6 +290,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add new endpoint to get trainees for evaluation
+  app.get("/api/trainees-for-evaluation", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      // Get trainees from the user's organization
+      const trainees = await db.query.users.findMany({
+        where: and(
+          eq(users.organizationId, req.user.organizationId),
+          eq(users.role, 'trainee'),
+          eq(users.active, true)
+        ),
+        columns: {
+          id: true,
+          fullName: true,
+          employeeId: true,
+          email: true
+        }
+      });
+
+      res.json(trainees);
+    } catch (error: any) {
+      console.error("Error fetching trainees:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Add finalize endpoint
   app.post("/api/evaluation-templates/:templateId/finalize", async (req, res) => {
     if (!req.user) {
@@ -925,6 +954,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Only owners and admins can delete users
       if (req.user.role !== 'owner' && req.user.role !== 'admin') {
         console.log(`Delete request rejected: Insufficient permissions for user ${req.user.id}`);
+
+        // Add new endpoint to get trainees for evaluation
+        app.get("/api/trainees-for-evaluation", async (req, res) => {
+          if (!req.user) {
+            return res.status(401).json({ message: "Unauthorized" });
+          }
+
+          try {
+            // Get trainees from the user's organization
+            const trainees = await db.query.users.findMany({
+              where: and(
+                eq(users.organizationId, req.user.organizationId),
+                eq(users.role, 'trainee'),
+                eq(users.active, true)
+              ),
+              columns: {
+                id: true,
+                fullName: true,
+                employeeId: true,
+                email: true
+              }
+            });
+
+            res.json(trainees);
+          } catch (error: any) {
+            console.error("Error fetching trainees:", error);
+            res.status(500).json({ message: error.message });
+          }
+        });
         return res.status(403).json({ message: "Insufficient permissions to delete users" });
       }
 

@@ -35,9 +35,10 @@ export default function ConductEvaluation() {
     select: (data) => data.filter((t: any) => t.status === "active"),
   });
 
-  // Fetch trainees
+  // Updated query to use the correct endpoint
   const { data: trainees } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/trainees`],
+    queryKey: ['/api/trainees-for-evaluation'],
+    enabled: !!user,
   });
 
   // Submit evaluation
@@ -118,12 +119,14 @@ export default function ConductEvaluation() {
     selectedTemplateDetails.pillars.forEach((pillar: any) => {
       pillar.parameters.forEach((param: any) => {
         if (param.weightageEnabled && scores[param.id]?.score) {
-          const paramScore = 
-            param.ratingType === "yes_no_na" 
-              ? scores[param.id].score === "yes" ? 100 : 0
+          const paramScore =
+            param.ratingType === "yes_no_na"
+              ? scores[param.id].score === "yes"
+                ? 100
+                : 0
               : parseFloat(scores[param.id].score);
-          
-          totalScore += (paramScore * param.weightage);
+
+          totalScore += param.weightage * paramScore;
           totalWeight += param.weightage;
         }
       });
