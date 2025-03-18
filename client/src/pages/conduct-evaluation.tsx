@@ -31,9 +31,11 @@ type Batch = {
 
 type Trainee = {
   id: number;
-  fullName: string;
-  employeeId: string;
-  email: string;
+  user: {
+    fullName: string;
+    employeeId: string;
+    email: string;
+  };
 };
 
 export default function ConductEvaluation() {
@@ -53,7 +55,7 @@ export default function ConductEvaluation() {
 
   // Fetch trainees for selected batch
   const { data: trainees, isLoading: isTraineesLoading } = useQuery<Trainee[]>({
-    queryKey: ['/api/batches', selectedBatch, 'trainees'],
+    queryKey: [`/api/batches/${selectedBatch}/trainees`],
     enabled: !!selectedBatch && !!user,
   });
 
@@ -209,7 +211,7 @@ export default function ConductEvaluation() {
               <SelectContent>
                 {trainees?.map((trainee) => (
                   <SelectItem key={trainee.id} value={trainee.id.toString()}>
-                    {trainee.fullName}
+                    {trainee.user.fullName} ({trainee.user.employeeId})
                   </SelectItem>
                 ))}
                 {isTraineesLoading && (
@@ -269,7 +271,7 @@ export default function ConductEvaluation() {
 
       {selectedTemplateDetails && (
         <div className="space-y-6">
-          {selectedTemplateDetails.pillars.map((pillar: any) => (
+          {selectedTemplateDetails.pillars?.map((pillar: any) => (
             <Card key={pillar.id}>
               <CardHeader>
                 <CardTitle className="flex justify-between items-center">
