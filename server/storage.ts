@@ -13,8 +13,6 @@ import {
   batchPhaseChangeRequests,
   quizResponses,
   userBatchProcesses,
-  evaluationResults,
-  evaluationParameterResults,
   type QuizResponse,
   type InsertQuizResponse,
   type User,
@@ -67,12 +65,7 @@ import {
   type EvaluationPillar,
   type InsertEvaluationPillar,
   type EvaluationParameter,
-  type InsertEvaluationParameter,
-  evaluationResults,
-  evaluationParameterResults,
-  type InsertEvaluationResult,
-  type InsertEvaluationParameterResult, 
-  type EvaluationResult
+  type InsertEvaluationParameter
 } from "@shared/schema";
 
 // Add to IStorage interface
@@ -266,71 +259,9 @@ export interface IStorage {
   deleteEvaluationParameter(id: number): Promise<void>;
   deleteEvaluationTemplate(id: number): Promise<void>;
   updateEvaluationTemplate(id: number, template: Partial<InsertEvaluationTemplate>): Promise<EvaluationTemplate>;
-
-  // Evaluation Result operations
-  createEvaluation(evaluation: {
-    templateId: number;
-    traineeId: number;
-    evaluatorId: number;
-    organizationId: number;
-    finalScore: number;
-    scores: Array<{
-      parameterId: number;
-      score: string;
-      comment?: string;
-      noReason?: string;
-    }>;
-  }): Promise<EvaluationResult>;
 }
 
 export class DatabaseStorage implements IStorage {
-  async createEvaluation(evaluation: {
-    templateId: number;
-    traineeId: number;
-    evaluatorId: number;
-    organizationId: number;
-    finalScore: number;
-    scores: Array<{
-      parameterId: number;
-      score: string;
-      comment?: string;
-      noReason?: string;
-    }>;
-  }): Promise<EvaluationResult> {
-    try {
-      return await db.transaction(async (tx) => {
-        // First create the evaluation result
-        const [evaluationResult] = await tx
-          .insert(evaluationResults)
-          .values({
-            templateId: evaluation.templateId,
-            traineeId: evaluation.traineeId,
-            evaluatorId: evaluation.evaluatorId,
-            organizationId: evaluation.organizationId,
-            finalScore: evaluation.finalScore,
-          })
-          .returning() as EvaluationResult[];
-
-        // Then create parameter results
-        await Promise.all(
-          evaluation.scores.map(async (score) => {
-            await tx.insert(evaluationParameterResults).values({
-              evaluationId: evaluationResult.id,
-              parameterId: score.parameterId,
-              score: score.score,
-              comment: score.comment,
-              noReason: score.noReason,
-            });
-          })
-        );
-
-        return evaluationResult;
-      });
-    } catch (error) {
-      console.error('Error creating evaluation:', error);
-      throw error;
-    }
-  }
   async createEvaluationParameter(parameter: InsertEvaluationParameter): Promise<EvaluationParameter> {
     try {
       console.log('Creating evaluation parameter with data:', parameter);

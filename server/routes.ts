@@ -319,44 +319,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add evaluation submission endpoint
-  app.post("/api/evaluations", async (req, res) => {
-    if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const { templateId, traineeId, scores, finalScore } = req.body;
-
-      // Validate required fields
-      if (!templateId || !traineeId || !scores || !Array.isArray(scores)) {
-        return res.status(400).json({ message: "Missing required fields" });
-      }
-
-      // Create evaluation record
-      const evaluation = await storage.createEvaluation({
-        templateId,
-        traineeId,
-        evaluatorId: req.user.id,
-        organizationId: req.user.organizationId,
-        finalScore,
-        scores: scores.map(score => ({
-          parameterId: score.parameterId,
-          score: score.score,
-          comment: score.comment,
-          noReason: score.noReason
-        })),
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
-
-      res.status(200).json(evaluation);
-    } catch (error: any) {
-      console.error("Error submitting evaluation:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
   // Add finalize endpoint
   app.post("/api/evaluation-templates/:templateId/finalize", async (req, res) => {
     if (!req.user) {
