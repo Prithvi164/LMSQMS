@@ -247,7 +247,8 @@ export interface IStorage {
   listMockCallScenarios(organizationId: number): Promise<MockCallScenario[]>;
   createMockCallAttempt(attempt: InsertMockCallAttempt): Promise<MockCallAttempt>;
 
-  // Evaluation Template operations
+  // Evaluation operations
+  // Template management
   createEvaluationTemplate(template: InsertEvaluationTemplate): Promise<EvaluationTemplate>;
   getEvaluationTemplate(id: number): Promise<EvaluationTemplate | undefined>;
   getEvaluationTemplateWithDetails(id: number): Promise<EvaluationTemplate & {
@@ -256,18 +257,20 @@ export interface IStorage {
     })[];
   } | undefined>;
   listEvaluationTemplates(organizationId: number): Promise<EvaluationTemplate[]>;
+  updateEvaluationTemplate(id: number, template: Partial<InsertEvaluationTemplate>): Promise<EvaluationTemplate>;
+  deleteEvaluationTemplate(id: number): Promise<void>;
+
+  // Pillar and parameter management
   createEvaluationPillar(pillar: InsertEvaluationPillar): Promise<EvaluationPillar>;
   getEvaluationPillar(id: number): Promise<EvaluationPillar | undefined>;
-  createEvaluationParameter(parameter: InsertEvaluationParameter): Promise<EvaluationParameter>;
-  getEvaluationParameter(id: number): Promise<EvaluationParameter | undefined>;
   updateEvaluationPillar(id: number, pillar: Partial<InsertEvaluationPillar>): Promise<EvaluationPillar>;
   deleteEvaluationPillar(id: number): Promise<void>;
+  createEvaluationParameter(parameter: InsertEvaluationParameter): Promise<EvaluationParameter>;
+  getEvaluationParameter(id: number): Promise<EvaluationParameter | undefined>;
   updateEvaluationParameter(id: number, parameter: Partial<InsertEvaluationParameter>): Promise<EvaluationParameter>;
   deleteEvaluationParameter(id: number): Promise<void>;
-  deleteEvaluationTemplate(id: number): Promise<void>;
-  updateEvaluationTemplate(id: number, template: Partial<InsertEvaluationTemplate>): Promise<EvaluationTemplate>;
 
-  // Add evaluation submission methods
+  // Evaluation results 
   createEvaluation(evaluation: InsertEvaluationResult): Promise<EvaluationResult>;
   createEvaluationParameterResults(results: InsertEvaluationParameterResult[]): Promise<EvaluationParameterResult[]>;
 }
@@ -278,6 +281,7 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log('Creating evaluation with data:', evaluation);
       
+      // First create the evaluation record
       const [newEvaluation] = await db
         .insert(evaluationResults)
         .values({
@@ -295,7 +299,7 @@ export class DatabaseStorage implements IStorage {
         throw new Error('Failed to create evaluation');
       }
 
-      // Create parameter results
+      // Then create parameter results if provided
       if (evaluation.parameterResults && evaluation.parameterResults.length > 0) {
         await this.createEvaluationParameterResults(evaluation.parameterResults.map(result => ({
           evaluationId: newEvaluation.id,
@@ -330,6 +334,8 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+
+  // Parameters and pillars related methods
   async createEvaluationParameter(parameter: InsertEvaluationParameter): Promise<EvaluationParameter> {
     try {
       console.log('Creating evaluation parameter with data:', parameter);
@@ -375,6 +381,17 @@ export class DatabaseStorage implements IStorage {
       return updatedParameter;
     } catch (error) {
       console.error('Error updating evaluation parameter:', error);
+      throw error;
+    }
+  }
+
+  async deleteEvaluationParameter(id: number): Promise<void> {
+    try {
+      await db
+        .delete(evaluationParameters)
+        .where(eq(evaluationParameters.id, id));
+    } catch (error) {
+      console.error('Error deleting evaluation parameter:', error);
       throw error;
     }
   }

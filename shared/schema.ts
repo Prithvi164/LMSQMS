@@ -847,7 +847,7 @@ export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organiz
     createdAt: true
   })
   .extend({
-    name: z.string().min(1, "LOBname is required"),
+    name:z.string().min(1, "LOBname is required"),
     description: z.string().min(1, "Description is required"),
     organizationId: z.number().int().positive("Organization is required"),
   });
@@ -1160,7 +1160,7 @@ export const callEvaluationStatusEnum = pgEnum('call_evaluation_status', [
   'failed'
 ]);
 
-// Evaluation Results tables
+// Evaluation-related database tables and types
 export const evaluationResults = pgTable("evaluation_results", {
   id: serial("id").primaryKey(),
   templateId: integer("template_id")
@@ -1197,11 +1197,11 @@ export const evaluationParameterResults = pgTable("evaluation_parameter_results"
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Types for evaluation results
+// Types
 export type EvaluationResult = InferSelectModel<typeof evaluationResults>;
 export type EvaluationParameterResult = InferSelectModel<typeof evaluationParameterResults>;
 
-// Insert schemas for evaluation results
+// Insert schemas with validation
 export const insertEvaluationResultSchema = createInsertSchema(evaluationResults)
   .omit({
     id: true,
@@ -1239,7 +1239,7 @@ export const insertEvaluationParameterResultSchema = createInsertSchema(evaluati
 export type InsertEvaluationResult = z.infer<typeof insertEvaluationResultSchema>;
 export type InsertEvaluationParameterResult = z.infer<typeof insertEvaluationParameterResultSchema>;
 
-// Relations for evaluation results
+// Relations
 export const evaluationResultsRelations = relations(evaluationResults, ({ one, many }) => ({
   template: one(evaluationTemplates, {
     fields: [evaluationResults.templateId],
