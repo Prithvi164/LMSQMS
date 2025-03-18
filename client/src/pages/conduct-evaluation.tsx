@@ -60,13 +60,17 @@ export default function ConductEvaluation() {
     mutationFn: async (evaluation: any) => {
       const response = await fetch("/api/evaluations", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify(evaluation),
       });
+
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || "Failed to submit evaluation");
       }
+
       return response.json();
     },
     onSuccess: () => {

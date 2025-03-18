@@ -456,7 +456,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add route to get template with all its components
+  // Add evaluations endpoint
+  app.post("/api/evaluations", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const evaluation = req.body;
+      
+      // Validate required fields
+      if (!evaluation.templateId || !evaluation.traineeId || !evaluation.batchId) {
+        return res.status(400).json({
+          message: "Missing required fields: templateId, traineeId, and batchId are required"
+        });
+      }
+
+      // Create evaluation record
+      const result = await storage.createEvaluation({
+        templateId: evaluation.templateId,
+        traineeId: evaluation.traineeId,
+        batchId: evaluation.batchId,
+        evaluatorId: req.user.id,
+        organizationId: req.user.organizationId,
+        finalScore: evaluation.finalScore,
+        scores: evaluation.scores,
+        createdAt: new Date(),
+        status: 'completed'
+      });
+
+      res.status(201).json(result);
+    } catch (error: any) {
+      console.error("Error creating evaluation:", error);
+      res.status(500).json({ 
+        message: error.message || "Failed to create evaluation" 
+      });
+    }
+  });
+
+  // Add route to get template with all its components 
   app.get("/api/evaluation-templates/:templateId", async (req, res) => {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
