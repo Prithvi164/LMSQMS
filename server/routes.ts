@@ -466,9 +466,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const evaluation = req.body;
       
       // Validate required fields
-      if (!evaluation.templateId || !evaluation.traineeId || !evaluation.batchId) {
+      if (!evaluation.templateId || !evaluation.traineeId || !evaluation.batchId || !evaluation.scores) {
         return res.status(400).json({
-          message: "Missing required fields: templateId, traineeId, and batchId are required"
+          message: "Missing required fields: templateId, traineeId, batchId, and scores are required"
         });
       }
 
@@ -480,9 +480,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         evaluatorId: req.user.id,
         organizationId: req.user.organizationId,
         finalScore: evaluation.finalScore,
-        scores: evaluation.scores,
-        createdAt: new Date(),
-        status: 'completed'
+        status: 'completed',
+        scores: evaluation.scores.map((score: any) => ({
+          parameterId: score.parameterId,
+          score: score.score,
+          comment: score.comment,
+          noReason: score.noReason
+        }))
       });
 
       res.status(201).json(result);

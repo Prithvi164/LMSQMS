@@ -844,7 +844,7 @@ export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organiz
     createdAt: true
   })
   .extend({
-name: z.string().min(1, "LOBname is required"),
+    name: z.string().min(1, "LOBname is required"),
     description: z.string().min(1, "Description is required"),
     organizationId: z.number().int().positive("Organization is required"),
   });
@@ -1640,3 +1640,113 @@ export type InsertEvaluationParameter = z.infer<typeof insertEvaluationParameter
 export type InsertEvaluationSubReason = z.infer<typeof insertEvaluationSubReasonSchema>;
 export type InsertEvaluationResult = z.infer<typeof insertEvaluationResultSchema>;
 export type InsertEvaluationParameterResult = z.infer<typeof insertEvaluationParameterResultSchema>;
+
+// Evaluation-related tables
+export const evaluations = pgTable("evaluations", {
+  id: serial("id").primaryKey(),
+  templateId: integer("template_id")
+    .references(() => evaluationTemplates.id)
+    .notNull(),
+  traineeId: integer("trainee_id")
+    .references(() => users.id)
+    .notNull(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id)
+    .notNull(),
+  evaluatorId: integer("evaluator_id")
+    .references(() => users.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  finalScore: integer("final_score").notNull(),
+  status: text("status").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const evaluationScores = pgTable("evaluation_scores", {
+  id: serial("id").primaryKey(),
+  evaluationId: integer("evaluation_id")
+    .references(() => evaluations.id)
+    .notNull(),
+  parameterId: integer("parameter_id")
+    .references(() => evaluationParameters.id)
+    .notNull(),
+  score: text("score").notNull(),
+  comment: text("comment"),
+  noReason: text("no_reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Types
+export type Evaluation = InferSelectModel<typeof evaluations>;
+export type EvaluationScore = InferSelectModel<typeof evaluationScores>;
+
+// Insert schemas
+export const insertEvaluationSchema = createInsertSchema(evaluations)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    templateId: z.number().int().positive("Template ID is required"),
+    traineeId: z.number().int().positive("Trainee ID is required"),
+    batchId: z.number().int().positive("Batch ID is required"),
+    evaluatorId: z.number().int().positive("Evaluator ID is required"),
+    organizationId: z.number().int().positive("Organization ID is required"),
+    finalScore: z.number().int().min(0).max(100),
+    status: z.string().min(1, "Status is required"),
+  });
+
+export const insertEvaluationScoreSchema = createInsertSchema(evaluationScores)
+  .omit({
+    id: true,
+    createdAt: true,
+  })
+  .extend({
+    evaluationId: z.number().int().positive("Evaluation ID is required"),
+    parameterId: z.number().int().positive("Parameter ID is required"),
+    score: z.string().min(1, "Score is required"),
+    comment: z.string().optional(),
+    noReason: z.string().optional(),
+  });
+
+export type InsertEvaluation = z.infer<typeof insertEvaluationSchema>;
+export type InsertEvaluationScore = z.infer<typeof insertEvaluationScoreSchema>;
+
+// Relations
+export const evaluationsRelations = relations(evaluations, ({ one}) => ({
+  template: one(evaluationTemplates, {
+    fields: [evaluations.templateId],
+    references: [evaluationTemplates.id],
+  }),
+  trainee: one(users, {
+    fields: [evaluations.traineeId],
+    references: [users.id],
+  }),
+  batch: one(organizationBatches, {
+    fields: [evaluations.batchId],
+    references: [organizationBatches.id],
+  }),
+  evaluator: one(users, {
+    fields: [evaluations.evaluatorId],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [evaluations.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
+export const evaluationScoresRelations = relations(evaluationScores, ({ one }) => ({
+  evaluation: one(evaluations, {
+    fields: [evaluationScores.evaluationId],
+    references: [evaluations.id],
+  }),
+  parameter: one(evaluationParameters, {
+    fields: [evaluationScores.parameterId],
+    references: [evaluationParameters.id],
+  }),
+}));
