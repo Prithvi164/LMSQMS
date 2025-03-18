@@ -64,6 +64,7 @@ export default function EvaluationExecutionPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch active batches
   const { data: batches = [], isLoading: isBatchesLoading } = useQuery<Batch[]>({
@@ -86,9 +87,9 @@ export default function EvaluationExecutionPage() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      batchId: undefined,
-      traineeId: undefined,
-      templateId: undefined,
+      batchId: 0,
+      traineeId: 0,
+      templateId: 0,
     },
   });
 
@@ -117,10 +118,13 @@ export default function EvaluationExecutionPage() {
         title: "Success",
         description: "Evaluation created successfully",
       });
-      // Navigate to evaluation form
-      window.location.href = `/evaluations/${evaluation.id}`;
+      // Use window.location.href for navigation after toast is shown
+      setTimeout(() => {
+        window.location.href = `/evaluations/${evaluation.id}`;
+      }, 1500);
     },
     onError: (error: Error) => {
+      setIsSubmitting(false);
       toast({
         variant: "destructive",
         title: "Error",
@@ -129,8 +133,24 @@ export default function EvaluationExecutionPage() {
     },
   });
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    createEvaluationMutation.mutate(values);
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (!user?.organizationId) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Organization ID is required",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await createEvaluationMutation.mutateAsync(values);
+    } catch (error) {
+      console.error("Error in form submission:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -157,7 +177,7 @@ export default function EvaluationExecutionPage() {
                         field.onChange(batchId);
                         setSelectedBatchId(batchId);
                         // Reset trainee selection when batch changes
-                        form.setValue('traineeId', undefined);
+                        form.setValue('traineeId', 0, { shouldValidate: true });
                       }}
                       value={field.value?.toString()}
                     >
@@ -168,9 +188,9 @@ export default function EvaluationExecutionPage() {
                       </FormControl>
                       <SelectContent>
                         {isBatchesLoading ? (
-                          <SelectItem value="_loading">Loading batches...</SelectItem>
+                          <SelectItem value="_loading" disabled>Loading batches...</SelectItem>
                         ) : batches.length === 0 ? (
-                          <SelectItem value="_empty">No batches available</SelectItem>
+                          <SelectItem value="_empty" disabled>No batches available</SelectItem>
                         ) : (
                           batches.map((batch) => (
                             <SelectItem
@@ -206,9 +226,9 @@ export default function EvaluationExecutionPage() {
                       </FormControl>
                       <SelectContent>
                         {isTraineesLoading ? (
-                          <SelectItem value="_loading">Loading trainees...</SelectItem>
+                          <SelectItem value="_loading" disabled>Loading trainees...</SelectItem>
                         ) : trainees.length === 0 ? (
-                          <SelectItem value="_empty">No trainees in this batch</SelectItem>
+                          <SelectItem value="_empty" disabled>No trainees in this batch</SelectItem>
                         ) : (
                           trainees.map((trainee) => (
                             <SelectItem
@@ -243,9 +263,9 @@ export default function EvaluationExecutionPage() {
                       </FormControl>
                       <SelectContent>
                         {isTemplatesLoading ? (
-                          <SelectItem value="_loading">Loading templates...</SelectItem>
+                          <SelectItem value="_loading" disabled>Loading templates...</SelectItem>
                         ) : templates.length === 0 ? (
-                          <SelectItem value="_empty">No templates available</SelectItem>
+                          <SelectItem value="_empty" disabled>No templates available</SelectItem>
                         ) : (
                           templates.map((template) => (
                             <SelectItem
@@ -266,9 +286,9 @@ export default function EvaluationExecutionPage() {
               <Button 
                 type="submit" 
                 className="w-full"
-                disabled={createEvaluationMutation.isPending}
+                disabled={isSubmitting || createEvaluationMutation.isPending}
               >
-                {createEvaluationMutation.isPending ? "Creating..." : "Start Evaluation"}
+                {isSubmitting ? "Creating..." : "Start Evaluation"}
               </Button>
             </form>
           </Form>
