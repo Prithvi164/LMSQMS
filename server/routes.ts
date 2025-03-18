@@ -502,6 +502,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add route to get a single evaluation
+  app.get("/api/organizations/:organizationId/evaluations/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      const evaluationId = parseInt(req.params.id);
+      
+      // Validate organization access
+      if (req.user.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Raw SQL query to fetch evaluation data without any type conversion
+      const result = await db.query(`
+        SELECT 
+          id,
+          trainee_id as "traineeId",
+          evaluator_id as "evaluatorId",
+          template_id as "templateId",
+          batch_id as "batchId",
+          organization_id as "organizationId",
+          total_score as "totalScore",
+          status,
+          to_char(evaluated_at, 'YYYY-MM-DD') as "evaluatedAt",
+          comments,
+          created_at as "createdAt",
+          updated_at as "updatedAt"
+        FROM evaluation_results 
+        WHERE id = $1 AND organization_id = $2 
+        LIMIT 1
+      `, [evaluationId, organizationId]);
+
+      const evaluation = result.rows[0];
+
+      if (!evaluation) {
+        return res.status(404).json({ message: "Evaluation not found" });
+      }
+
+      // Return the raw evaluation data
+      res.json(evaluation);
+    } catch (error: any) {
+      console.error("Error fetching evaluation:", error);
+      res.status(500).json({ 
+        message: error.message || "Failed to fetch evaluation" 
+      });
+    }
+  });
+
   // Add evaluation routes for creating evaluations
   app.post("/api/organizations/:organizationId/evaluations", async (req, res) => {
     if (!req.user) {
