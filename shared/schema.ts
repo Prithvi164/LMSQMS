@@ -146,7 +146,7 @@ export const quizzes = pgTable("quizzes", {
   processId: integer("process_id")
     .references(() => organizationProcesses.id)
     .notNull(),
-  status: quizStatusEnum("status").default('in_progress').notNull(),
+  status: quizStatusEnum("status").default('active').notNull(),
   startTime: timestamp("start_time").notNull(),
   endTime: timestamp("end_time").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -389,7 +389,7 @@ export const batchTemplates = pgTable("batch_templates", {
     .references(() => organizationLineOfBusinesses.id)
     .notNull(),
   trainerId: integer("trainer_id")
-    .references(() => users.id, { onDelete: 'set null' }),  
+    .references(() => users.id, { onDelete: 'set null' }),
   batchCategory: batchCategoryEnum("batch_category").notNull(),
   capacityLimit: integer("capacity_limit").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -458,7 +458,7 @@ export const organizationBatches = pgTable("organization_batches", {
     .references(() => organizationLocations.id)
     .notNull(),
   trainerId: integer("trainer_id")
-    .references(() => users.id, { onDelete: 'set null' }),  
+    .references(() => users.id, { onDelete: 'set null' }),
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
@@ -620,7 +620,7 @@ export const users = pgTable("users", {
   certified: boolean("certified").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
-});
+} as const);
 
 export type User = InferSelectModel<typeof users>;
 
@@ -636,9 +636,9 @@ export const userProcesses = pgTable("user_processes", {
     .references(() => organizations.id)
     .notNull(),
   lineOfBusinessId: integer("line_of_business_id")
-    .references(() => organizationLineOfBusinesses.id),  
+    .references(() => organizationLineOfBusinesses.id),
   locationId: integer("location_id")
-    .references(() => organizationLocations.id),  
+    .references(() => organizationLocations.id),
   status: text("status").default('assigned').notNull(),
   assignedAt: timestamp("assigned_at").defaultNow().notNull(),
   completedAt: timestamp("completed_at"),
@@ -1110,13 +1110,10 @@ export type {
   InsertOrganizationBatch,
   InsertBatchTemplate,
   InsertUserBatchProcess,
-  RolePermission,
-  Attendance,
-  BatchPhaseChangeRequest,
-  InsertBatchPhaseChangeRequest,
-  InsertAttendance,
-  BatchHistory,
-  InsertBatchHistory,
+  EvaluationTemplate,
+  EvaluationPillar,
+  EvaluationParameter,
+  EvaluationSubReason,
   Question,
   QuizTemplate,
   QuizAttempt,
@@ -1126,23 +1123,7 @@ export type {
   InsertQuizAttempt,
   InsertQuizResponse,
   Quiz,
-  InsertQuiz,
-  MockCallScenario,
-  MockCallAttempt,
-  InsertMockCallScenario,
-  InsertMockCallAttempt,
-  EvaluationTemplate,
-  EvaluationPillar,
-  EvaluationParameter,
-  EvaluationSubReason,
-  EvaluationResult,
-  EvaluationParameterResult,
-  InsertEvaluationTemplate,
-  InsertEvaluationPillar,
-  InsertEvaluationParameter,
-  InsertEvaluationSubReason,
-  InsertEvaluationResult,
-  InsertEvaluationParameterResult
+  InsertQuiz
 };
 
 // Add new enums for mock calls
@@ -1630,3 +1611,41 @@ export const evaluationSubReasonsRelations = relations(evaluationSubReasons, ({ 
     references: [evaluationParameters.id],
   }),
 }));
+
+export type EvaluationTemplate = {
+  id: number;
+  name: string;
+  description?: string;
+  organizationId: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type EvaluationPillar = {
+  id: number;
+  name: string;
+  weight: number;
+  templateId: number;
+  organizationId: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type EvaluationParameter = {
+  id: number;
+  name: string;
+  weight: number;
+  pillarId: number;
+  organizationId: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type EvaluationSubReason = {
+  id: number;
+  name: string;
+  parameterId: number;
+  organizationId: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
