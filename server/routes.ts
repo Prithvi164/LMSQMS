@@ -662,66 +662,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add evaluation submission endpoint
-  app.post("/api/evaluations/:evaluationId/submit", async (req, res) => {
-    if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const evaluationId = parseInt(req.params.evaluationId);
-      const { parameters } = req.body;
-
-      // Get the evaluation to verify ownership
-      const evaluation = await db
-        .select()
-        .from(evaluationResults)
-        .where(eq(evaluationResults.id, evaluationId))
-        .limit(1);
-
-      if (!evaluation || evaluation.length === 0) {
-        return res.status(404).json({ message: "Evaluation not found" });
-      }
-
-      if (evaluation[0].organizationId !== req.user.organizationId) {
-        return res.status(403).json({ message: "Forbidden" });
-      }
-
-      // Calculate total score based on parameter ratings
-      let totalScore = 0;
-      
-      // Insert parameter results
-      for (const param of parameters) {
-        const score = param.rating === 'yes' ? 100 : param.rating === 'no' ? 0 : 50;
-        totalScore += score;
-
-        await db.insert(evaluationParameterResults).values({
-          evaluationId,
-          parameterId: param.parameterId,
-          score,
-          rating: param.rating,
-          comment: param.comment,
-        });
-      }
-
-      // Update evaluation with final score
-      const finalScore = Math.round(totalScore / parameters.length);
-      await db
-        .update(evaluationResults)
-        .set({ 
-          totalScore: finalScore,
-          status: 'completed',
-        })
-        .where(eq(evaluationResults.id, evaluationId));
-
-      res.json({ success: true, score: finalScore });
-    } catch (error: any) {
-      console.error("Error submitting evaluation:", error);
-      res.status(500).json({ 
-        message: error.message || "Failed to submit evaluation" 
-      });
-    }
-  });
 
 
   // Add route to get organization processes 
