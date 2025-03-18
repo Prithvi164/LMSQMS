@@ -273,6 +273,63 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // Evaluation submission methods
+  async createEvaluation(evaluation: InsertEvaluationResult): Promise<EvaluationResult> {
+    try {
+      console.log('Creating evaluation with data:', evaluation);
+      
+      const [newEvaluation] = await db
+        .insert(evaluationResults)
+        .values({
+          templateId: evaluation.templateId,
+          traineeId: evaluation.traineeId,
+          batchId: evaluation.batchId,
+          evaluatorId: evaluation.evaluatorId,
+          organizationId: evaluation.organizationId,
+          finalScore: evaluation.finalScore,
+          status: evaluation.status
+        })
+        .returning() as EvaluationResult[];
+
+      if (!newEvaluation) {
+        throw new Error('Failed to create evaluation');
+      }
+
+      // Create parameter results
+      if (evaluation.parameterResults && evaluation.parameterResults.length > 0) {
+        await this.createEvaluationParameterResults(evaluation.parameterResults.map(result => ({
+          evaluationId: newEvaluation.id,
+          parameterId: result.parameterId,
+          score: result.score,
+          comment: result.comment || null,
+          noReason: result.noReason || null
+        })));
+      }
+
+      console.log('Successfully created evaluation:', newEvaluation);
+      return newEvaluation;
+    } catch (error) {
+      console.error('Error creating evaluation:', error);
+      throw error;
+    }
+  }
+
+  async createEvaluationParameterResults(results: InsertEvaluationParameterResult[]): Promise<EvaluationParameterResult[]> {
+    try {
+      console.log('Creating evaluation parameter results:', results);
+      
+      const parameterResults = await db
+        .insert(evaluationParameterResults)
+        .values(results)
+        .returning() as EvaluationParameterResult[];
+
+      console.log('Successfully created parameter results:', parameterResults);
+      return parameterResults;
+    } catch (error) {
+      console.error('Error creating evaluation parameter results:', error);
+      throw error;
+    }
+  }
   async createEvaluationParameter(parameter: InsertEvaluationParameter): Promise<EvaluationParameter> {
     try {
       console.log('Creating evaluation parameter with data:', parameter);
@@ -379,57 +436,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Evaluation submission methods
-  async createEvaluation(evaluation: InsertEvaluationResult): Promise<EvaluationResult> {
-    try {
-      console.log('Creating evaluation with data:', evaluation);
-      
-      const [newEvaluation] = await db
-        .insert(evaluationResults)
-        .values(evaluation)
-        .returning() as EvaluationResult[];
 
-      if (!newEvaluation) {
-        throw new Error('Failed to create evaluation');
-      }
-
-      // Create parameter results
-      if (evaluation.scores && evaluation.scores.length > 0) {
-        const parameterResults = evaluation.scores.map(score => ({
-          evaluationId: newEvaluation.id,
-          parameterId: score.parameterId,
-          score: score.score,
-          comment: score.comment,
-          noReason: score.noReason,
-        }));
-
-        await this.createEvaluationParameterResults(parameterResults);
-      }
-
-      console.log('Successfully created evaluation:', newEvaluation);
-      return newEvaluation;
-    } catch (error) {
-      console.error('Error creating evaluation:', error);
-      throw error;
-    }
-  }
-
-  async createEvaluationParameterResults(results: InsertEvaluationParameterResult[]): Promise<EvaluationParameterResult[]> {
-    try {
-      console.log('Creating evaluation parameter results:', results);
-      
-      const parameterResults = await db
-        .insert(evaluationParameterResults)
-        .values(results)
-        .returning() as EvaluationParameterResult[];
-
-      console.log('Successfully created parameter results:', parameterResults);
-      return parameterResults;
-    } catch (error) {
-      console.error('Error creating evaluation parameter results:', error);
-      throw error;
-    }
-  }
 
   // User operations
   async getUser(id: number): Promise<User | undefined> {
