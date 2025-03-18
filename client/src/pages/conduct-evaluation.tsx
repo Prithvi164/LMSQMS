@@ -51,12 +51,6 @@ export default function ConductEvaluation() {
     enabled: !!user,
   });
 
-  // Fetch active templates
-  const { data: templates, isLoading: isTemplatesLoading } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
-    select: (data) => data.filter((t: any) => t.status === "active"),
-  });
-
   // Fetch trainees for selected batch
   const { data: trainees, isLoading: isTraineesLoading } = useQuery<Trainee[]>({
     queryKey: ['/api/batches', selectedBatch, 'trainees'],
@@ -64,9 +58,15 @@ export default function ConductEvaluation() {
   });
 
   // Get selected template details
-  const { data: selectedTemplateDetails } = useQuery({
+  const { data: selectedTemplateDetails, isLoading: isTemplateDetailsLoading } = useQuery({
     queryKey: [`/api/evaluation-templates/${selectedTemplate}`],
     enabled: !!selectedTemplate,
+  });
+
+  // Fetch active templates
+  const { data: templates, isLoading: isTemplatesLoading } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
+    select: (data) => data.filter((t: any) => t.status === "active"),
   });
 
   // Submit evaluation mutation
@@ -101,27 +101,6 @@ export default function ConductEvaluation() {
       });
     },
   });
-
-  // Handle scoring and submission
-  const handleScoreChange = (parameterId: number, value: any) => {
-    setScores((prev) => ({
-      ...prev,
-      [parameterId]: {
-        ...prev[parameterId],
-        score: value,
-      },
-    }));
-  };
-
-  const handleCommentChange = (parameterId: number, comment: string) => {
-    setScores((prev) => ({
-      ...prev,
-      [parameterId]: {
-        ...prev[parameterId],
-        comment,
-      },
-    }));
-  };
 
   const calculateScore = () => {
     if (!selectedTemplateDetails) return 0;
@@ -301,7 +280,7 @@ export default function ConductEvaluation() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  {pillar.parameters.map((param: any) => (
+                  {pillar.parameters?.map((param: any) => (
                     <Card key={param.id}>
                       <CardHeader>
                         <div className="flex justify-between items-center">
@@ -326,48 +305,25 @@ export default function ConductEvaluation() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-4">
+                          {/* Rating input based on type */}
                           {param.ratingType === "yes_no_na" ? (
-                            <div className="space-y-4">
-                              <Select
-                                onValueChange={(value) =>
-                                  handleScoreChange(param.id, value)
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select Rating" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="yes">Yes</SelectItem>
-                                  <SelectItem value="no">No</SelectItem>
-                                  <SelectItem value="na">N/A</SelectItem>
-                                </SelectContent>
-                              </Select>
-
-                              {scores[param.id]?.score === "no" &&
-                                param.noReasons && (
-                                  <Select
-                                    onValueChange={(value) =>
-                                      handleNoReasonSelect(param.id, value)
-                                    }
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select Reason" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {param.noReasons.map(
-                                        (reason: string, idx: number) => (
-                                          <SelectItem
-                                            key={idx}
-                                            value={reason}
-                                          >
-                                            {reason}
-                                          </SelectItem>
-                                        )
-                                      )}
-                                    </SelectContent>
-                                  </Select>
-                                )}
-                            </div>
+                            <Select
+                              onValueChange={(value) =>
+                                setScores((prev) => ({
+                                  ...prev,
+                                  [param.id]: { ...prev[param.id], score: value },
+                                }))
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select Rating" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="yes">Yes</SelectItem>
+                                <SelectItem value="no">No</SelectItem>
+                                <SelectItem value="na">N/A</SelectItem>
+                              </SelectContent>
+                            </Select>
                           ) : param.ratingType === "numeric" ? (
                             <Input
                               type="number"
@@ -375,13 +331,19 @@ export default function ConductEvaluation() {
                               max="5"
                               placeholder="Score (1-5)"
                               onChange={(e) =>
-                                handleScoreChange(param.id, e.target.value)
+                                setScores((prev) => ({
+                                  ...prev,
+                                  [param.id]: { ...prev[param.id], score: e.target.value },
+                                }))
                               }
                             />
                           ) : (
                             <Select
                               onValueChange={(value) =>
-                                handleScoreChange(param.id, value)
+                                setScores((prev) => ({
+                                  ...prev,
+                                  [param.id]: { ...prev[param.id], score: value },
+                                }))
                               }
                             >
                               <SelectTrigger>
@@ -399,12 +361,16 @@ export default function ConductEvaluation() {
                             </Select>
                           )}
 
+                          {/* Comments section */}
                           {(param.requiresComment ||
                             scores[param.id]?.score === "no") && (
                             <Textarea
                               placeholder="Add comments..."
                               onChange={(e) =>
-                                handleCommentChange(param.id, e.target.value)
+                                setScores((prev) => ({
+                                  ...prev,
+                                  [param.id]: { ...prev[param.id], comment: e.target.value },
+                                }))
                               }
                             />
                           )}
