@@ -32,32 +32,43 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, ChevronDown, ChevronUp, Eye, Check, Edit2 } from "lucide-react";
+import { Trash2, Plus, Eye, Check, Edit2 } from "lucide-react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Switch } from "@/components/ui/switch";
 
-// Form schemas
-const pillarSchema = z.object({
-  name: z.string().min(1, "Pillar name is required"),
-  description: z.string().optional(),
-  weightage: z.number().min(0).max(100, "Weightage must be between 0 and 100"),
-});
+// Define template types
+type Parameter = {
+  id: number;
+  name: string;
+  description?: string;
+  guidelines?: string;
+  ratingType: "yes_no_na" | "numeric" | "custom";
+  weightage: number;
+  weightageEnabled: boolean;
+  isFatal: boolean;
+  requiresComment: boolean;
+  noReasons?: string[];
+  customRatingOptions?: string[];
+};
 
-const parameterSchema = z.object({
-  name: z.string().min(1, "Parameter name is required"),
-  description: z.string().optional(),
-  guidelines: z.string().optional(),
-  ratingType: z.enum(["yes_no_na", "numeric", "custom"]),
-  weightage: z.number().min(0).max(100),
-  weightageEnabled: z.boolean().default(true),
-  isFatal: z.boolean().default(false),
-  requiresComment: z.boolean().default(false),
-  noReasons: z.array(z.string()).optional(),
-  customRatingOptions: z.array(z.string()).optional(),
-});
+type Pillar = {
+  id: number;
+  name: string;
+  description?: string;
+  weightage: number;
+  parameters: Parameter[];
+};
+
+type Template = {
+  id: number;
+  name: string;
+  description?: string;
+  status: "draft" | "active" | "archived";
+  pillars: Pillar[];
+};
 
 type FormBuilderProps = {
   templateId: number;
@@ -76,7 +87,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
   const [isEditingParameter, setIsEditingParameter] = useState(false);
 
   // Fetch template details
-  const { data: template } = useQuery({
+  const { data: template } = useQuery<Template>({
     queryKey: [`/api/evaluation-templates/${templateId}`],
     enabled: !!templateId,
   });
@@ -103,7 +114,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
   // Effect to populate form when editing
   useEffect(() => {
     if (isEditingPillar && activePillarId && template?.pillars) {
-      const pillar = template.pillars.find((p: any) => p.id === activePillarId);
+      const pillar = template.pillars.find((p: Pillar) => p.id === activePillarId);
       if (pillar) {
         pillarForm.reset({
           name: pillar.name,
@@ -117,8 +128,8 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
   useEffect(() => {
     if (isEditingParameter && selectedParameter && template?.pillars) {
       const parameter = template.pillars
-        .flatMap((p: any) => p.parameters)
-        .find((param: any) => param.id === selectedParameter);
+        .flatMap((p: Pillar) => p.parameters)
+        .find((param: Parameter) => param.id === selectedParameter);
       if (parameter) {
         console.log('Editing parameter:', parameter);
         console.log('No reasons:', parameter.noReasons);
@@ -436,7 +447,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
             <CardContent>
               {template?.pillars && template.pillars.length > 0 ? (
                 <div className="space-y-4">
-                  {template.pillars.map((pillar: any) => (
+                  {template.pillars.map((pillar: Pillar) => (
                     <div key={pillar.id} className="space-y-2">
                       <div
                         className={`p-3 rounded-lg cursor-pointer transition-colors ${
@@ -480,7 +491,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                       {/* Parameters under this pillar */}
                       {pillar.parameters && pillar.parameters.length > 0 && (
                         <div className="ml-4 space-y-2">
-                          {pillar.parameters.map((param: any) => (
+                          {pillar.parameters.map((param: Parameter) => (
                             <div key={param.id}>
                               <div
                                 className={`p-2 rounded cursor-pointer transition-colors ${
@@ -915,7 +926,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  {template?.pillars?.map((pillar: any) => (
+                  {template?.pillars?.map((pillar: Pillar) => (
                     <Card key={pillar.id}>
                       <CardHeader>
                         <CardTitle className="flex justify-between items-center">
@@ -928,7 +939,7 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-6">
-                          {pillar.parameters?.map((param: any) => (
+                          {pillar.parameters?.map((param: Parameter) => (
                             <Card key={param.id}>
                               <CardHeader>
                                 <div className="flex justify-between items-center">
@@ -1015,3 +1026,21 @@ export function FormBuilder({ templateId }: FormBuilderProps) {
     </div>
   );
 }
+
+const pillarSchema = z.object({
+  name: z.string().min(1, "Pillar name is required"),
+  description: z.string().optional(),
+  weightage: z.number().min(0).max(100, "Weightage must be between 0 and 100"),
+});
+
+const parameterSchema = z.object({
+  name: z.string().min(1, "Parameter name is required"),
+  description: z.string().optional(),
+  guidelines: z.string().optional(),
+  ratingType: z.enum(["yes_no_na", "numeric", "custom"]),
+  weightage: z.number().min(0).max(100),
+  weightageEnabled: z.boolean().default(true),
+  isFatal: z.boolean().default(false),
+  requiresComment: z.boolean().default(false),
+  customRatingOptions: z.array(z.string()).optional(),
+});
