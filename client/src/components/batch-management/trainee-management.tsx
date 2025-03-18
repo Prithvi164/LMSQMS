@@ -75,35 +75,18 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
     return isValid(date) ? format(date, 'PP') : 'N/A';
   };
 
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2">Loading trainees...</span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-8 text-destructive">
-        Error loading trainees. Please try again.
-      </div>
-    );
-  }
-
-  if (!trainees || trainees.length === 0) {
-    return (
-      <div className="text-center py-8 text-muted-foreground">
-        No trainees found in this batch.
-      </div>
-    );
-  }
+  console.log('Debug - Trainees:', { 
+    trainees, 
+    isLoading, 
+    error,
+    sampleTrainee: trainees[0],
+    traineeCount: trainees.length 
+  });
 
   // Delete trainee mutation - using user_batch_process.id
   const deleteTraineeMutation = useMutation({
     mutationFn: async (userBatchProcessId: number) => {
+      console.log('Deleting trainee batch process:', userBatchProcessId);
       const response = await fetch(
         `/api/organizations/${organizationId}/batches/${batchId}/trainees/${userBatchProcessId}`,
         { method: "DELETE" }
@@ -133,6 +116,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
       setSelectedTrainee(null);
     },
     onError: (error: Error) => {
+      console.error('Delete error:', error);
       toast({
         title: "Error",
         description: error.message,
@@ -144,6 +128,8 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
   // Transfer trainee mutation
   const transferTraineeMutation = useMutation({
     mutationFn: async ({ traineeId, newBatchId }: { traineeId: number; newBatchId: number }) => {
+      console.log('Starting transfer:', { traineeId, newBatchId, currentBatchId: batchId });
+
       const response = await fetch(
         `/api/organizations/${organizationId}/batches/${batchId}/trainees/${traineeId}/transfer`,
         {
@@ -158,7 +144,9 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
         throw new Error(error.message || "Failed to transfer trainee");
       }
 
-      return response.json();
+      const result = await response.json();
+      console.log('Transfer response:', result);
+      return result;
     },
     onSuccess: () => {
       // Invalidate queries for both the source and destination batch
@@ -181,6 +169,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
       });
     },
     onError: (error: Error) => {
+      console.error('Transfer error:', error);
       toast({
         title: "Error",
         description: error.message,
@@ -188,6 +177,31 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
       });
     },
   });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading trainees...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-8 text-destructive">
+        Error loading trainees. Please try again.
+      </div>
+    );
+  }
+
+  if (!trainees || trainees.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        No trainees found in this batch.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -270,6 +284,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
             <AlertDialogAction
               onClick={() => {
                 if (selectedTrainee) {
+                  // Pass the user_batch_process.id directly
                   deleteTraineeMutation.mutate(selectedTrainee.id);
                 }
               }}
@@ -300,6 +315,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                     className="w-full justify-start"
                     onClick={() => {
                       if (selectedTrainee) {
+                        // Pass the correct IDs for transfer
                         transferTraineeMutation.mutate({
                           traineeId: selectedTrainee.id,
                           newBatchId: batch.id,

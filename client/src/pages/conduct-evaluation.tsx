@@ -20,56 +20,28 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
-import { Loader2 } from "lucide-react";
-
-// Define types
-type Batch = {
-  id: number;
-  name: string;
-  status: string;
-};
-
-type Trainee = {
-  id: number;
-  fullName: string;
-  employeeId: string;
-  email: string;
-};
 
 export default function ConductEvaluation() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<number | null>(null);
   const [selectedTrainee, setSelectedTrainee] = useState<number | null>(null);
   const [scores, setScores] = useState<Record<number, any>>({});
 
-  // Fetch active batches
-  const { data: batches, isLoading: isBatchesLoading } = useQuery<Batch[]>({
-    queryKey: ['/api/batches'],
+  // Fetch active templates
+  const { data: templates } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
+    select: (data) => data.filter((t: any) => t.status === "active"),
+  });
+
+  // Updated query to use the correct endpoint
+  const { data: trainees } = useQuery({
+    queryKey: ['/api/trainees-for-evaluation'],
     enabled: !!user,
   });
 
-  // Fetch trainees for selected batch
-  const { data: trainees, isLoading: isTraineesLoading } = useQuery<Trainee[]>({
-    queryKey: [`/api/batches/${selectedBatch}/trainees`],
-    enabled: !!selectedBatch && !!user,
-  });
-
-  // Get selected template details
-  const { data: selectedTemplateDetails, isLoading: isTemplateDetailsLoading } = useQuery({
-    queryKey: [`/api/evaluation-templates/${selectedTemplate}`],
-    enabled: !!selectedTemplate,
-  });
-
-  // Fetch active templates
-  const { data: templates, isLoading: isTemplatesLoading } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
-    select: (data) => data?.filter((t: any) => t.status === "active"),
-  });
-
-  // Submit evaluation mutation
+  // Submit evaluation
   const submitEvaluationMutation = useMutation({
     mutationFn: async (evaluation: any) => {
       const response = await fetch("/api/evaluations", {
@@ -102,14 +74,50 @@ export default function ConductEvaluation() {
     },
   });
 
+  // Get selected template details
+  const { data: selectedTemplateDetails } = useQuery({
+    queryKey: [`/api/evaluation-templates/${selectedTemplate}`],
+    enabled: !!selectedTemplate,
+  });
+
+  const handleScoreChange = (parameterId: number, value: any) => {
+    setScores((prev) => ({
+      ...prev,
+      [parameterId]: {
+        ...prev[parameterId],
+        score: value,
+      },
+    }));
+  };
+
+  const handleCommentChange = (parameterId: number, comment: string) => {
+    setScores((prev) => ({
+      ...prev,
+      [parameterId]: {
+        ...prev[parameterId],
+        comment,
+      },
+    }));
+  };
+
+  const handleNoReasonSelect = (parameterId: number, reason: string) => {
+    setScores((prev) => ({
+      ...prev,
+      [parameterId]: {
+        ...prev[parameterId],
+        noReason: reason,
+      },
+    }));
+  };
+
   const calculateScore = () => {
     if (!selectedTemplateDetails) return 0;
 
     let totalScore = 0;
     let totalWeight = 0;
 
-    selectedTemplateDetails.pillars?.forEach((pillar: any) => {
-      pillar.parameters?.forEach((param: any) => {
+    selectedTemplateDetails.pillars.forEach((pillar: any) => {
+      pillar.parameters.forEach((param: any) => {
         if (param.weightageEnabled && scores[param.id]?.score) {
           const paramScore =
             param.ratingType === "yes_no_na"
@@ -128,11 +136,11 @@ export default function ConductEvaluation() {
   };
 
   const handleSubmit = () => {
-    if (!selectedTemplate || !selectedTrainee || !selectedBatch) {
+    if (!selectedTemplate || !selectedTrainee) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Please select batch, template and trainee",
+        description: "Please select both template and trainee",
       });
       return;
     }
@@ -140,7 +148,6 @@ export default function ConductEvaluation() {
     const evaluation = {
       templateId: selectedTemplate,
       traineeId: selectedTrainee,
-      batchId: selectedBatch,
       evaluatorId: user?.id,
       scores: Object.entries(scores).map(([parameterId, value]) => ({
         parameterId: parseInt(parameterId),
@@ -157,92 +164,24 @@ export default function ConductEvaluation() {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Conduct Evaluation</h1>
         <div className="flex gap-4">
-          {/* Batch Selection */}
           <div className="w-[200px]">
-            <Select 
-              onValueChange={(value) => {
-                setSelectedBatch(parseInt(value));
-                setSelectedTrainee(null); // Reset trainee when batch changes
-              }}
-            >
+            <Select onValueChange={(value) => setSelectedTrainee(parseInt(value))}>
               <SelectTrigger>
-                <SelectValue placeholder={isBatchesLoading ? "Loading batches..." : "Select Batch"} />
+                <SelectValue placeholder="Select Trainee" />
               </SelectTrigger>
               <SelectContent>
-                {batches?.map((batch) => (
-                  <SelectItem key={batch.id} value={batch.id.toString()}>
-                    {batch.name}
-                  </SelectItem>
-                ))}
-                {isBatchesLoading && (
-                  <SelectItem value="loading" disabled>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Loading...
-                  </SelectItem>
-                )}
-                {!isBatchesLoading && (!batches || batches.length === 0) && (
-                  <SelectItem value="none" disabled>
-                    No active batches found
-                  </SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Trainee Selection */}
-          <div className="w-[200px]">
-            <Select 
-              onValueChange={(value) => setSelectedTrainee(parseInt(value))}
-              disabled={!selectedBatch}
-            >
-              <SelectTrigger>
-                <SelectValue 
-                  placeholder={
-                    !selectedBatch 
-                      ? "Select Batch First" 
-                      : isTraineesLoading 
-                        ? "Loading trainees..." 
-                        : "Select Trainee"
-                  } 
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {trainees?.map((trainee) => (
+                {trainees?.map((trainee: any) => (
                   <SelectItem key={trainee.id} value={trainee.id.toString()}>
-                    {trainee.fullName} ({trainee.employeeId})
+                    {trainee.fullName}
                   </SelectItem>
                 ))}
-                {isTraineesLoading && (
-                  <SelectItem value="loading" disabled>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Loading...
-                  </SelectItem>
-                )}
-                {!isTraineesLoading && (!trainees || trainees.length === 0) && (
-                  <SelectItem value="none" disabled>
-                    No trainees found in this batch
-                  </SelectItem>
-                )}
               </SelectContent>
             </Select>
           </div>
-
-          {/* Template Selection */}
           <div className="w-[200px]">
-            <Select 
-              onValueChange={(value) => setSelectedTemplate(parseInt(value))}
-              disabled={!selectedTrainee}
-            >
+            <Select onValueChange={(value) => setSelectedTemplate(parseInt(value))}>
               <SelectTrigger>
-                <SelectValue 
-                  placeholder={
-                    !selectedTrainee 
-                      ? "Select Trainee First" 
-                      : isTemplatesLoading 
-                        ? "Loading templates..." 
-                        : "Select Template"
-                  } 
-                />
+                <SelectValue placeholder="Select Template" />
               </SelectTrigger>
               <SelectContent>
                 {templates?.map((template: any) => (
@@ -250,17 +189,6 @@ export default function ConductEvaluation() {
                     {template.name}
                   </SelectItem>
                 ))}
-                {isTemplatesLoading && (
-                  <SelectItem value="loading" disabled>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Loading...
-                  </SelectItem>
-                )}
-                {!isTemplatesLoading && (!templates || templates.length === 0) && (
-                  <SelectItem value="none" disabled>
-                    No active templates found
-                  </SelectItem>
-                )}
               </SelectContent>
             </Select>
           </div>
@@ -269,7 +197,7 @@ export default function ConductEvaluation() {
 
       {selectedTemplateDetails && (
         <div className="space-y-6">
-          {selectedTemplateDetails.pillars?.map((pillar: any) => (
+          {selectedTemplateDetails.pillars.map((pillar: any) => (
             <Card key={pillar.id}>
               <CardHeader>
                 <CardTitle className="flex justify-between items-center">
@@ -280,7 +208,7 @@ export default function ConductEvaluation() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  {pillar.parameters?.map((param: any) => (
+                  {pillar.parameters.map((param: any) => (
                     <Card key={param.id}>
                       <CardHeader>
                         <div className="flex justify-between items-center">
@@ -305,25 +233,48 @@ export default function ConductEvaluation() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-4">
-                          {/* Rating input based on type */}
                           {param.ratingType === "yes_no_na" ? (
-                            <Select
-                              onValueChange={(value) =>
-                                setScores((prev) => ({
-                                  ...prev,
-                                  [param.id]: { ...prev[param.id], score: value },
-                                }))
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select Rating" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="yes">Yes</SelectItem>
-                                <SelectItem value="no">No</SelectItem>
-                                <SelectItem value="na">N/A</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <div className="space-y-4">
+                              <Select
+                                onValueChange={(value) =>
+                                  handleScoreChange(param.id, value)
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select Rating" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="yes">Yes</SelectItem>
+                                  <SelectItem value="no">No</SelectItem>
+                                  <SelectItem value="na">N/A</SelectItem>
+                                </SelectContent>
+                              </Select>
+
+                              {scores[param.id]?.score === "no" &&
+                                param.noReasons && (
+                                  <Select
+                                    onValueChange={(value) =>
+                                      handleNoReasonSelect(param.id, value)
+                                    }
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select Reason" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {param.noReasons.map(
+                                        (reason: string, idx: number) => (
+                                          <SelectItem
+                                            key={idx}
+                                            value={reason}
+                                          >
+                                            {reason}
+                                          </SelectItem>
+                                        )
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                            </div>
                           ) : param.ratingType === "numeric" ? (
                             <Input
                               type="number"
@@ -331,19 +282,13 @@ export default function ConductEvaluation() {
                               max="5"
                               placeholder="Score (1-5)"
                               onChange={(e) =>
-                                setScores((prev) => ({
-                                  ...prev,
-                                  [param.id]: { ...prev[param.id], score: e.target.value },
-                                }))
+                                handleScoreChange(param.id, e.target.value)
                               }
                             />
                           ) : (
                             <Select
                               onValueChange={(value) =>
-                                setScores((prev) => ({
-                                  ...prev,
-                                  [param.id]: { ...prev[param.id], score: value },
-                                }))
+                                handleScoreChange(param.id, value)
                               }
                             >
                               <SelectTrigger>
@@ -361,16 +306,12 @@ export default function ConductEvaluation() {
                             </Select>
                           )}
 
-                          {/* Comments section */}
                           {(param.requiresComment ||
                             scores[param.id]?.score === "no") && (
                             <Textarea
                               placeholder="Add comments..."
                               onChange={(e) =>
-                                setScores((prev) => ({
-                                  ...prev,
-                                  [param.id]: { ...prev[param.id], comment: e.target.value },
-                                }))
+                                handleCommentChange(param.id, e.target.value)
                               }
                             />
                           )}
