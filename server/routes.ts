@@ -478,21 +478,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Forbidden" });
       }
 
-      // Fetch evaluation from database using provided ID
-      const [evaluation] = await db
-        .select()
-        .from(evaluationResults)
-        .where(and(
-          eq(evaluationResults.id, evaluationId),
-          eq(evaluationResults.organizationId, organizationId)
-        ))
-        .limit(1);
+      // Raw SQL query to fetch evaluation data
+      const result = await db.query(
+        `SELECT * FROM evaluation_results 
+         WHERE id = $1 AND organization_id = $2 
+         LIMIT 1`,
+        [evaluationId, organizationId]
+      );
+
+      const evaluation = result.rows[0];
 
       if (!evaluation) {
         return res.status(404).json({ message: "Evaluation not found" });
       }
 
-      // Return the evaluation data
+      // Return the raw evaluation data
       res.json(evaluation);
     } catch (error: any) {
       console.error("Error fetching evaluation:", error);
