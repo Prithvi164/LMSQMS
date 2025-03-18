@@ -103,6 +103,8 @@ export default function EvaluationExecutionPage() {
           ...values,
           evaluatorId: user?.id,
           organizationId: user?.organizationId,
+          evaluatedAt: new Date().toISOString(),
+          totalScore: 0
         }),
       });
 
