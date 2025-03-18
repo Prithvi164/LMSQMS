@@ -477,18 +477,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Forbidden" });
       }
 
-      // Prepare evaluation data
+      // Set current date 
+      const now = new Date();
+
+      // Prepare evaluation data with proper date
       const evaluationData = {
         ...req.body,
-        score: 0, // Initial score
         status: 'pending',
-        evaluatedAt: new Date(),
+        totalScore: 0,
+        evaluatedAt: now,
         organizationId,
       };
 
       console.log('Creating evaluation with data:', evaluationData);
 
       try {
+        // Parse and validate the data
         const validatedData = insertEvaluationResultSchema.parse(evaluationData);
         
         // Create evaluation
@@ -499,7 +503,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         console.log('Created evaluation:', evaluation);
         
-        res.status(201).json(evaluation);
+        // Set proper content type and return JSON
+        res.setHeader('Content-Type', 'application/json');
+        return res.status(201).json(evaluation);
       } catch (validationError: any) {
         console.error("Validation error:", validationError);
         return res.status(400).json({ 
