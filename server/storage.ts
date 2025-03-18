@@ -13,7 +13,6 @@ import {
   batchPhaseChangeRequests,
   quizResponses,
   userBatchProcesses,
-  batchTemplates,
   type QuizResponse,
   type InsertQuizResponse,
   type User,
@@ -66,13 +65,7 @@ import {
   type EvaluationPillar,
   type InsertEvaluationPillar,
   type EvaluationParameter,
-  type InsertEvaluationParameter,
-  type EvaluationResult,
-  type InsertEvaluationResult,
-  type EvaluationParameterResult, 
-  type InsertEvaluationParameterResult,
-  evaluationResults,
-  evaluationParameterResults
+  type InsertEvaluationParameter
 } from "@shared/schema";
 
 // Add to IStorage interface
@@ -247,8 +240,7 @@ export interface IStorage {
   listMockCallScenarios(organizationId: number): Promise<MockCallScenario[]>;
   createMockCallAttempt(attempt: InsertMockCallAttempt): Promise<MockCallAttempt>;
 
-  // Evaluation operations
-  // Template management
+  // Evaluation Template operations
   createEvaluationTemplate(template: InsertEvaluationTemplate): Promise<EvaluationTemplate>;
   getEvaluationTemplate(id: number): Promise<EvaluationTemplate | undefined>;
   getEvaluationTemplateWithDetails(id: number): Promise<EvaluationTemplate & {
@@ -257,85 +249,19 @@ export interface IStorage {
     })[];
   } | undefined>;
   listEvaluationTemplates(organizationId: number): Promise<EvaluationTemplate[]>;
-  updateEvaluationTemplate(id: number, template: Partial<InsertEvaluationTemplate>): Promise<EvaluationTemplate>;
-  deleteEvaluationTemplate(id: number): Promise<void>;
-
-  // Pillar and parameter management
   createEvaluationPillar(pillar: InsertEvaluationPillar): Promise<EvaluationPillar>;
   getEvaluationPillar(id: number): Promise<EvaluationPillar | undefined>;
-  updateEvaluationPillar(id: number, pillar: Partial<InsertEvaluationPillar>): Promise<EvaluationPillar>;
-  deleteEvaluationPillar(id: number): Promise<void>;
   createEvaluationParameter(parameter: InsertEvaluationParameter): Promise<EvaluationParameter>;
   getEvaluationParameter(id: number): Promise<EvaluationParameter | undefined>;
+  updateEvaluationPillar(id: number, pillar: Partial<InsertEvaluationPillar>): Promise<EvaluationPillar>;
+  deleteEvaluationPillar(id: number): Promise<void>;
   updateEvaluationParameter(id: number, parameter: Partial<InsertEvaluationParameter>): Promise<EvaluationParameter>;
   deleteEvaluationParameter(id: number): Promise<void>;
-
-  // Evaluation results 
-  createEvaluation(evaluation: InsertEvaluationResult): Promise<EvaluationResult>;
-  createEvaluationParameterResults(results: InsertEvaluationParameterResult[]): Promise<EvaluationParameterResult[]>;
+  deleteEvaluationTemplate(id: number): Promise<void>;
+  updateEvaluationTemplate(id: number, template: Partial<InsertEvaluationTemplate>): Promise<EvaluationTemplate>;
 }
 
 export class DatabaseStorage implements IStorage {
-  // Evaluation submission methods
-  async createEvaluation(evaluation: InsertEvaluationResult): Promise<EvaluationResult> {
-    try {
-      console.log('Creating evaluation with data:', evaluation);
-      
-      // First create the evaluation record
-      const [newEvaluation] = await db
-        .insert(evaluationResults)
-        .values({
-          templateId: evaluation.templateId,
-          traineeId: evaluation.traineeId,
-          batchId: evaluation.batchId,
-          evaluatorId: evaluation.evaluatorId,
-          organizationId: evaluation.organizationId,
-          finalScore: evaluation.finalScore,
-          status: evaluation.status
-        })
-        .returning() as EvaluationResult[];
-
-      if (!newEvaluation) {
-        throw new Error('Failed to create evaluation');
-      }
-
-      // Then create parameter results if provided
-      if (evaluation.parameterResults && evaluation.parameterResults.length > 0) {
-        await this.createEvaluationParameterResults(evaluation.parameterResults.map(result => ({
-          evaluationId: newEvaluation.id,
-          parameterId: result.parameterId,
-          score: result.score,
-          comment: result.comment || null,
-          noReason: result.noReason || null
-        })));
-      }
-
-      console.log('Successfully created evaluation:', newEvaluation);
-      return newEvaluation;
-    } catch (error) {
-      console.error('Error creating evaluation:', error);
-      throw error;
-    }
-  }
-
-  async createEvaluationParameterResults(results: InsertEvaluationParameterResult[]): Promise<EvaluationParameterResult[]> {
-    try {
-      console.log('Creating evaluation parameter results:', results);
-      
-      const parameterResults = await db
-        .insert(evaluationParameterResults)
-        .values(results)
-        .returning() as EvaluationParameterResult[];
-
-      console.log('Successfully created parameter results:', parameterResults);
-      return parameterResults;
-    } catch (error) {
-      console.error('Error creating evaluation parameter results:', error);
-      throw error;
-    }
-  }
-
-  // Parameters and pillars related methods
   async createEvaluationParameter(parameter: InsertEvaluationParameter): Promise<EvaluationParameter> {
     try {
       console.log('Creating evaluation parameter with data:', parameter);
@@ -381,17 +307,6 @@ export class DatabaseStorage implements IStorage {
       return updatedParameter;
     } catch (error) {
       console.error('Error updating evaluation parameter:', error);
-      throw error;
-    }
-  }
-
-  async deleteEvaluationParameter(id: number): Promise<void> {
-    try {
-      await db
-        .delete(evaluationParameters)
-        .where(eq(evaluationParameters.id, id));
-    } catch (error) {
-      console.error('Error deleting evaluation parameter:', error);
       throw error;
     }
   }
@@ -452,8 +367,6 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-
-
 
   // User operations
   async getUser(id: number): Promise<User | undefined> {
@@ -583,7 +496,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   // User Process operations
-
+  async assignProcessesToUser(processes: InsertUserProcess[]): Promise<UserProcess[]> {
+    try {
+      const assignedProcesses = await db
+        .insert(userProcesses)
+        .values(processes)
+        .returning() as UserProcess[];
+      return assignedProcesses;
+    } catch (error) {
+      console.error('Error assigning processes to user:', error);
+      throw new Error('Failed to assign processes to user');
+    }
+  }
 
   async getUserProcesses(userId: number): Promise<UserProcess[]> {
     try {
@@ -983,7 +907,19 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-
+  // Add new methods for user process management
+  async assignProcessesToUser(processes: InsertUserProcess[]): Promise<UserProcess[]> {
+    try {
+      const assignedProcesses = await db
+        .insert(userProcesses)
+        .values(processes)
+        .returning() as UserProcess[];
+      return assignedProcesses;
+    } catch (error) {
+      console.error('Error assigning processes to user:', error);
+      throw new Error('Failed to assign processes to user');
+    }
+  }
 
   async getUserProcesses(userId: number): Promise<UserProcess[]> {
     try {
