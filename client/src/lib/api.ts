@@ -5,18 +5,21 @@ export const evaluationApi = {
     batchId, 
     traineeId, 
     templateId, 
-    organizationId 
+    organizationId,
+    evaluatorId 
   }: {
     batchId: number;
     traineeId: number;
     templateId: number;
     organizationId: number;
+    evaluatorId: number;
   }) => {
     console.log('Initiating evaluation with data:', {
       batchId,
       traineeId,
       templateId,
-      organizationId
+      organizationId,
+      evaluatorId
     });
 
     try {
@@ -28,7 +31,8 @@ export const evaluationApi = {
         body: JSON.stringify({
           batchId,
           traineeId,
-          templateId
+          templateId,
+          evaluatorId
         })
       });
 

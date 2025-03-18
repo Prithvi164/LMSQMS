@@ -72,12 +72,13 @@ export default function EvaluationExecutionPage() {
   // Create evaluation mutation
   const createEvaluationMutation = useMutation({
     mutationFn: async (values: z.infer<typeof formSchema>) => {
-      if (!user?.organizationId) {
-        throw new Error('Organization ID is required');
+      if (!user?.organizationId || !user?.id) {
+        throw new Error('User or organization information is missing');
       }
       return evaluationApi.initiateEvaluation({
         ...values,
-        organizationId: user.organizationId
+        organizationId: user.organizationId,
+        evaluatorId: user.id
       });
     },
     onSuccess: (evaluation) => {
@@ -140,7 +141,7 @@ export default function EvaluationExecutionPage() {
                         ) : batches.length === 0 ? (
                           <SelectItem value="_empty">No batches available</SelectItem>
                         ) : (
-                          batches.map((batch) => (
+                          batches.map((batch: any) => (
                             <SelectItem
                               key={batch.id}
                               value={batch.id.toString()}
@@ -178,7 +179,7 @@ export default function EvaluationExecutionPage() {
                         ) : trainees.length === 0 ? (
                           <SelectItem value="_empty">No trainees in this batch</SelectItem>
                         ) : (
-                          trainees.map((trainee) => (
+                          trainees.map((trainee: any) => (
                             <SelectItem
                               key={trainee.userId}
                               value={trainee.user.id.toString()}
@@ -215,7 +216,7 @@ export default function EvaluationExecutionPage() {
                         ) : templates.length === 0 ? (
                           <SelectItem value="_empty">No templates available</SelectItem>
                         ) : (
-                          templates.map((template) => (
+                          templates.map((template: any) => (
                             <SelectItem
                               key={template.id}
                               value={template.id.toString()}
