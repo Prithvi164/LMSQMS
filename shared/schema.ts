@@ -372,7 +372,7 @@ export const quizResponsesRelations = relations(quizResponses, ({ one }) => ({
 }));
 
 
-// Keep only one version of evaluation tables
+// Keep the first version of evaluation tables and remove all duplicates
 export const evaluationResults = pgTable("evaluation_results", {
   id: serial("id").primaryKey(),
   templateId: integer("template_id")
@@ -409,11 +409,11 @@ export const evaluationParameterResults = pgTable("evaluation_parameter_results"
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Add types
+// Types
 export type EvaluationResult = InferSelectModel<typeof evaluationResults>;
 export type EvaluationParameterResult = InferSelectModel<typeof evaluationParameterResults>;
 
-// Add insert schemas
+// Insert schemas
 export const insertEvaluationResultSchema = createInsertSchema(evaluationResults)
   .omit({
     id: true,
@@ -445,7 +445,7 @@ export const insertEvaluationParameterResultSchema = createInsertSchema(evaluati
 export type InsertEvaluationResult = z.infer<typeof insertEvaluationResultSchema>;
 export type InsertEvaluationParameterResult = z.infer<typeof insertEvaluationParameterResultSchema>;
 
-// Add relations
+// Relations
 export const evaluationResultsRelations = relations(evaluationResults, ({ one }) => ({
   template: one(evaluationTemplates, {
     fields: [evaluationResults.templateId],
@@ -992,7 +992,6 @@ export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
 export type InsertOrganizationProcess = z.infer<typeof insertOrganizationProcessSchema>;
 export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
 export type InsertBatchTemplate = z.infer<typeof insertBatchTemplateSchema>;
-
 
 
 export const batchHistoryEventTypeEnum = pgEnum('batch_history_event_type', [
@@ -1735,6 +1734,6 @@ export const evaluationParameterResultsRelations = relations(evaluationParameter
 export type InsertEvaluationTemplate = z.infer<typeof insertEvaluationTemplateSchema>;
 export type InsertEvaluationPillar = z.infer<typeof insertEvaluationPillarSchema>;
 export type InsertEvaluationParameter = z.infer<typeof insertEvaluationParameterSchema>;
-export type InsertEvaluationSubReason = z.infer<typeof insertEvaluationSubReasonSchema>;
+export type InsertEvaluationSubReason = z.infer<typeof insertinsertEvaluationSubReasonSchema>;
 export type InsertEvaluationResult = z.infer<typeof insertEvaluationResultSchema>;
 export type InsertEvaluationParameterResult = z.infer<typeof insertEvaluationParameterResultSchema>;
