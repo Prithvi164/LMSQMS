@@ -472,6 +472,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Parse and validate the final score
+      const finalScore = Number(parseFloat(evaluation.finalScore.toString()).toFixed(2));
+      if (isNaN(finalScore) || finalScore < 0 || finalScore > 100) {
+        return res.status(400).json({
+          message: "Final score must be a number between 0 and 100"
+        });
+      }
+
       // Create evaluation record
       const result = await storage.createEvaluation({
         templateId: evaluation.templateId,
@@ -479,7 +487,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         batchId: evaluation.batchId,
         evaluatorId: req.user.id,
         organizationId: req.user.organizationId,
-        finalScore: evaluation.finalScore,
+        finalScore,
         status: 'completed',
         scores: evaluation.scores.map((score: any) => ({
           parameterId: score.parameterId,

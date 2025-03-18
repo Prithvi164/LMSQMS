@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, pgEnum, date, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, pgEnum, date, unique, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { relations, type InferSelectModel } from "drizzle-orm";
 import { z } from "zod";
@@ -1659,7 +1659,7 @@ export const evaluations = pgTable("evaluations", {
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
-  finalScore: integer("final_score").notNull(),
+  finalScore: numeric("final_score", { precision: 5, scale: 2 }).notNull(),
   status: text("status").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -1696,7 +1696,7 @@ export const insertEvaluationSchema = createInsertSchema(evaluations)
     batchId: z.number().int().positive("Batch ID is required"),
     evaluatorId: z.number().int().positive("Evaluator ID is required"),
     organizationId: z.number().int().positive("Organization ID is required"),
-    finalScore: z.number().int().min(0).max(100),
+    finalScore: z.number().min(0).max(100).transform(score => Number(score.toFixed(2))),
     status: z.string().min(1, "Status is required"),
   });
 

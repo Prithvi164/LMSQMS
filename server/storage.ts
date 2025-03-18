@@ -421,6 +421,53 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async createEvaluation(evaluation: InsertEvaluation & { scores: Array<{ parameterId: number; score: string; comment?: string; noReason?: string; }> }): Promise<Evaluation> {
+    try {
+      console.log('Creating evaluation:', evaluation);
+
+      return await db.transaction(async (tx) => {
+        // Format the final score to ensure it's a valid decimal
+        const finalScore = Number(parseFloat(evaluation.finalScore.toString()).toFixed(2));
+        
+        // First create the evaluation record
+        const [newEvaluation] = await tx
+          .insert(evaluations)
+          .values({
+            templateId: evaluation.templateId,
+            traineeId: evaluation.traineeId,
+            batchId: evaluation.batchId,
+            evaluatorId: evaluation.evaluatorId, 
+            organizationId: evaluation.organizationId,
+            finalScore,
+            status: evaluation.status,
+          })
+          .returning() as Evaluation[];
+
+        console.log('Created evaluation:', newEvaluation);
+
+        // Then create all the parameter scores
+        const scoresToInsert = evaluation.scores.map(score => ({
+          evaluationId: newEvaluation.id,
+          parameterId: score.parameterId,
+          score: score.score,
+          comment: score.comment,
+          noReason: score.noReason,
+        }));
+
+        await tx
+          .insert(evaluationScores)
+          .values(scoresToInsert);
+
+        console.log('Created evaluation scores');
+
+        return newEvaluation;
+      });
+    } catch (error) {
+      console.error('Error creating evaluation:', error);
+      throw error;
+    }
+  }
+
   // User operations
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id)) as User[];
