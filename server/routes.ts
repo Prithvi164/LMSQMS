@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { Router } from "express";
-import { insertUserSchema, users, userBatchProcesses, organizationProcesses, userProcesses, quizzes, insertMockCallScenarioSchema, insertMockCallAttemptSchema, mockCallScenarios, mockCallAttempts } from "@shared/schema";
+import { insertUserSchema, users, userBatchProcesses, organizationProcesses, userProcesses, quizzes, insertMockCallScenarioSchema, insertMockCallAttemptSchema, mockCallScenarios, mockCallAttempts, batches } from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
@@ -315,6 +315,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(trainees);
     } catch (error: any) {
       console.error("Error fetching trainees:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get organization's batches
+  app.get("/api/organizations/:organizationId/batches", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      
+      if (organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const batches = await storage.listBatches(organizationId);
+
+      res.json(batches);
+    } catch (error: any) {
+      console.error("Error fetching batches:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get trainees for a specific batch
+  app.get("/api/organizations/:organizationId/batches/:batchId/trainees", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      const batchId = parseInt(req.params.batchId);
+      
+      if (organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Get batch enrollments and join with users table to get trainee details
+      const trainees = await db.query.userBatchProcesses.findMany({
+        where: and(
+          eq(userBatchProcesses.batchId, batchId),
+          eq(userBatchProcesses.status, 'active')
+        ),
+        with: {
+          user: {
+            columns: {
+              id: true,
+              fullName: true,
+              employeeId: true,
+              email: true
+            }
+          }
+        }
+      });
+
+      // Format the response to match the expected structure  
+      const formattedTrainees = trainees.map(enrollment => ({
+        id: enrollment.userId,
+        fullName: enrollment.user.fullName,
+        employeeId: enrollment.user.employeeId,
+        email: enrollment.user.email
+      }));
+
+      res.json(formattedTrainees);
+    } catch (error: any) {
+      console.error("Error fetching batch trainees:", error);
       res.status(500).json({ message: error.message });
     }
   });
@@ -880,122 +949,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
           'education'
         ];
 
-        const filteredUpdateData = Object.keys(updateData)
-          .filter(key => allowedSelfUpdateFields.includes(key))
-          .reduce<Partial<AllowedSelfUpdateFields>>((obj, key) => {
-            obj[key as keyof AllowedSelfUpdateFields] = updateData[key];
-            return obj;
-          }, {});
-
-        const updatedUser = await storage.updateUser(userId, filteredUpdateData);
-        return res.json(updatedUser);
-      }
-
-      // For owner role, allow all updates except role changes to/from owner
-      if (req.user.role === 'owner') {
-        const updatedUser = await storage.updateUser(userId, updateData);
-        return res.json(updatedUser);
-      }
-
-      // Admin users can only be modified by owners
-      if (userToUpdate.role === 'admin' && req.user.role !== 'owner') {
-        return res.status(403).json({ message: "Only owners can modify admin users" });
-      }
-
-      // Allow admins to change active status for non-owner users
-      if (req.user.role === 'admin' && 'active' in updateData) {
-        if (userToUpdate.role === 'owner') {
-          return res.status(403).json({ message: "Cannot change owner's active status" });
-        }
-        const updatedUser = await storage.updateUser(userId, { active: updateData.active });
-        return res.json(updatedUser);
-      }
-
-      // For other roles, restrict certain fields
-      const allowedFields = ['fullName', 'phoneNumber', 'locationId', 'dateOfBirth', 'education'];
-      const filteredUpdateData = Object.keys(updateData)
-        .filter(key => allowedFields.includes(key))
-        .reduce<Partial<AllowedUpdateFields>>((obj, key) => {
-          obj[key as keyof AllowedUpdateFields] = updateData[key] as any;
-          return obj;
-        }, {});
-
-      const updatedUser = await storage.updateUser(userId, filteredUpdateData);
-      res.json(updatedUser);
-    } catch (error: any) {
-      console.error("User update error:", error);
-      res.status(400).json({ message: error.message || "Failed to update user" });
-    }
-  });
-
-  // Delete user route
+  // Delete user endpoint
   app.delete("/api/users/:id", async (req, res) => {
-    if (!req.user) {
-      console.log('Delete user request rejected: No authenticated user');
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     try {
       const userId = parseInt(req.params.id);
-      console.log(`Processing delete request for user ID: ${userId} by user: ${req.user.id}`);
-
       const userToDelete = await storage.getUser(userId);
+
       if (!userToDelete) {
-        console.log(`Delete request failed: User ${userId} not found`);
         return res.status(404).json({ message: "User not found" });
       }
 
-      // Prevent deleting owner
-      if (userToDelete.role === 'owner') {
-        console.log(`Delete request rejected: Cannot delete owner account`);
-        return res.status(403).json({ message: "Cannot delete owner account" });
+      // Check if user belongs to the same organization
+      if (userToDelete.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Cannot delete users from other organizations" });
       }
 
       // Only owners and admins can delete users
       if (req.user.role !== 'owner' && req.user.role !== 'admin') {
         console.log(`Delete request rejected: Insufficient permissions for user ${req.user.id}`);
-
-        // Add new endpoint to get trainees for evaluation
-        app.get("/api/trainees-for-evaluation", async (req, res) => {
-          if (!req.user) {
-            return res.status(401).json({ message: "Unauthorized" });
-          }
-
-          try {
-            // Get trainees from the user's organization
-            const trainees = await db.query.users.findMany({
-              where: and(
-                eq(users.organizationId, req.user.organizationId),
-                eq(users.role, 'trainee'),
-                eq(users.active, true)
-              ),
-              columns: {
-                id: true,
-                fullName: true,
-                employeeId: true,
-                email: true
-              }
-            });
-
-            res.json(trainees);
-          } catch (error: any) {
-            console.error("Error fetching trainees:", error);
-            res.status(500).json({ message: error.message });
-          }
-        });
         return res.status(403).json({ message: "Insufficient permissions to delete users" });
       }
 
-      console.log(`Proceeding with deletion of user ${userId}`);
-      await storage.deleteUser(userId);
+      // Cannot delete owners
+      if (userToDelete.role === 'owner') {
+        return res.status(403).json({ message: "Cannot delete organization owner" });
+      }
 
-      console.log(`User ${userId} deleted successfully`);
-      res.status(200).json({ message: "User deleted successfully" });
+      await storage.deleteUser(userId);
+      res.status(204).send();
     } catch (error: any) {
-      console.error("Error in delete user route:", error);
-      res.status(500).json({ message: error.message || "Failed to delete user" });
+      console.error("Error deleting user:", error);
+      res.status(500).json({ message: error.message });
     }
   });
+
+      const filteredUpdateData = Object.keys(updateData)
+        .filter(key => allowedSelfUpdateFields.includes(key))
+        .reduce<Partial<AllowedSelfUpdateFields>>((obj, key) => {
+          obj[key as keyof AllowedSelfUpdateFields] = updateData[key];
+          return obj;
+        }, {});
+
+      const updatedUser = await storage.updateUser(userId, filteredUpdateData);
+      return res.json(updatedUser);
+    }
+
+    // For owner role, allow all updates except role changes to/from owner
+    if (req.user.role === 'owner') {
+      const updatedUser = await storage.updateUser(userId, updateData);
+      return res.json(updatedUser);
+    }
+
+    // Admin users can only be modified by owners
+    if (userToUpdate.role === 'admin' && req.user.role !== 'owner') {
+      return res.status(403).json({ message: "Only owners can modify admin users" });
+    }
+
+    // Allow admins to change active status for non-owner users
+    if (req.user.role === 'admin' && 'active' in updateData) {
+      if (userToUpdate.role === 'owner') {
+        return res.status(403).json({ message: "Cannot change owner's active status" });
+      }
+      const updatedUser = await storage.updateUser(userId, { active: updateData.active });
+      return res.json(updatedUser);
+    }
+
+    // For other roles, restrict certain fields
+    const allowedFields = ['fullName', 'phoneNumber', 'locationId', 'dateOfBirth', 'education'];
+    const filteredUpdateData = Object.keys(updateData)
+      .filter(key => allowedFields.includes(key))
+      .reduce<Partial<AllowedUpdateFields>>((obj, key) => {
+        obj[key as keyof AllowedUpdateFields] = updateData[key] as any;
+        return obj;
+      }, {});
+
+    const updatedUser = await storage.updateUser(userId, filteredUpdateData);
+    res.json(updatedUser);
+  } catch (error: any) {
+    console.error("User update error:", error);
+    res.status(400).json({ message: error.message || "Failed to update user" });
+  }
+});
+
+
 
   // Add new route for starting a batch after existing batch routes
   app.post("/api/batches/:batchId/start", async (req, res) => {
