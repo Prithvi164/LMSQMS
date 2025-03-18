@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import {
   Card,
   CardContent,
@@ -19,7 +20,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/hooks/use-auth";
 
 export default function ConductEvaluation() {
   const { user } = useAuth();
@@ -35,24 +35,35 @@ export default function ConductEvaluation() {
     select: (data) => data.filter((t: any) => t.status === "active"),
   });
 
-  // Updated query to use the correct endpoint
+  // Fetch trainees from correct endpoint
   const { data: trainees } = useQuery({
     queryKey: ['/api/trainees-for-evaluation'],
     enabled: !!user,
   });
 
-  // Submit evaluation
+  // Get selected template details
+  const { data: selectedTemplateDetails } = useQuery({
+    queryKey: [`/api/evaluation-templates/${selectedTemplate}`],
+    enabled: !!selectedTemplate,
+  });
+
+  // Submit evaluation mutation
   const submitEvaluationMutation = useMutation({
     mutationFn: async (evaluation: any) => {
       const response = await fetch("/api/evaluations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(evaluation),
+        body: JSON.stringify({
+          ...evaluation,
+          organizationId: user?.organizationId,
+        }),
       });
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to submit evaluation");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to submit evaluation");
       }
+
       return response.json();
     },
     onSuccess: () => {
@@ -64,6 +75,8 @@ export default function ConductEvaluation() {
         description: "Evaluation submitted successfully",
       });
       setScores({});
+      setSelectedTemplate(null);
+      setSelectedTrainee(null);
     },
     onError: (error: Error) => {
       toast({
@@ -72,12 +85,6 @@ export default function ConductEvaluation() {
         description: error.message,
       });
     },
-  });
-
-  // Get selected template details
-  const { data: selectedTemplateDetails } = useQuery({
-    queryKey: [`/api/evaluation-templates/${selectedTemplate}`],
-    enabled: !!selectedTemplate,
   });
 
   const handleScoreChange = (parameterId: number, value: any) => {
@@ -145,17 +152,24 @@ export default function ConductEvaluation() {
       return;
     }
 
+    // Format scores for submission
+    const formattedScores = Object.entries(scores).map(([parameterId, value]) => ({
+      parameterId: parseInt(parameterId),
+      score: value.score,
+      comment: value.comment,
+      noReason: value.noReason,
+    }));
+
+    // Create evaluation object
     const evaluation = {
       templateId: selectedTemplate,
       traineeId: selectedTrainee,
       evaluatorId: user?.id,
-      scores: Object.entries(scores).map(([parameterId, value]) => ({
-        parameterId: parseInt(parameterId),
-        ...value,
-      })),
-      finalScore: calculateScore(),
+      scores: formattedScores,
+      finalScore: parseFloat(calculateScore()),
     };
 
+    console.log('Submitting evaluation:', evaluation);
     submitEvaluationMutation.mutate(evaluation);
   };
 
