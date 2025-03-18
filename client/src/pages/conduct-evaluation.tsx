@@ -20,6 +20,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { 
+  EvaluationTemplate, 
+  EvaluationResult,
+  InsertEvaluationResult 
+} from "@shared/schema";
+
+interface User {
+  id: number;
+  fullName: string;
+  employeeId: string;
+  email: string;
+}
+
+interface ScoreEntry {
+  score: string;
+  comment?: string;
+  noReason?: string;
+}
 
 export default function ConductEvaluation() {
   const { user } = useAuth();
@@ -27,29 +45,29 @@ export default function ConductEvaluation() {
   const queryClient = useQueryClient();
   const [selectedTemplate, setSelectedTemplate] = useState<number | null>(null);
   const [selectedTrainee, setSelectedTrainee] = useState<number | null>(null);
-  const [scores, setScores] = useState<Record<number, any>>({});
+  const [scores, setScores] = useState<Record<number, ScoreEntry>>({});
 
   // Fetch active templates
-  const { data: templates } = useQuery({
+  const { data: templates } = useQuery<EvaluationTemplate[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
-    select: (data) => data.filter((t: any) => t.status === "active"),
+    select: (data) => data.filter((t) => t.status === "active"),
   });
 
-  // Fetch trainees from correct endpoint
-  const { data: trainees } = useQuery({
+  // Fetch trainees
+  const { data: trainees } = useQuery<User[]>({
     queryKey: ['/api/trainees-for-evaluation'],
     enabled: !!user,
   });
 
   // Get selected template details
-  const { data: selectedTemplateDetails } = useQuery({
+  const { data: selectedTemplateDetails } = useQuery<EvaluationTemplate>({
     queryKey: [`/api/evaluation-templates/${selectedTemplate}`],
     enabled: !!selectedTemplate,
   });
 
   // Submit evaluation mutation
   const submitEvaluationMutation = useMutation({
-    mutationFn: async (evaluation: any) => {
+    mutationFn: async (evaluation: InsertEvaluationResult) => {
       const response = await fetch("/api/evaluations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -87,7 +105,7 @@ export default function ConductEvaluation() {
     },
   });
 
-  const handleScoreChange = (parameterId: number, value: any) => {
+  const handleScoreChange = (parameterId: number, value: string) => {
     setScores((prev) => ({
       ...prev,
       [parameterId]: {
@@ -118,13 +136,13 @@ export default function ConductEvaluation() {
   };
 
   const calculateScore = () => {
-    if (!selectedTemplateDetails) return 0;
+    if (!selectedTemplateDetails?.pillars) return 0;
 
     let totalScore = 0;
     let totalWeight = 0;
 
-    selectedTemplateDetails.pillars.forEach((pillar: any) => {
-      pillar.parameters.forEach((param: any) => {
+    selectedTemplateDetails.pillars.forEach((pillar) => {
+      pillar.parameters.forEach((param) => {
         if (param.weightageEnabled && scores[param.id]?.score) {
           const paramScore =
             param.ratingType === "yes_no_na"
@@ -139,7 +157,7 @@ export default function ConductEvaluation() {
       });
     });
 
-    return totalWeight > 0 ? (totalScore / totalWeight).toFixed(2) : 0;
+    return totalWeight > 0 ? Math.round(totalScore / totalWeight) : 0;
   };
 
   const handleSubmit = () => {
@@ -166,10 +184,9 @@ export default function ConductEvaluation() {
       traineeId: selectedTrainee,
       evaluatorId: user?.id,
       scores: formattedScores,
-      finalScore: parseFloat(calculateScore()),
+      finalScore: calculateScore(),
     };
 
-    console.log('Submitting evaluation:', evaluation);
     submitEvaluationMutation.mutate(evaluation);
   };
 
@@ -179,12 +196,15 @@ export default function ConductEvaluation() {
         <h1 className="text-2xl font-bold">Conduct Evaluation</h1>
         <div className="flex gap-4">
           <div className="w-[200px]">
-            <Select onValueChange={(value) => setSelectedTrainee(parseInt(value))}>
+            <Select
+              value={selectedTrainee?.toString()}
+              onValueChange={(value) => setSelectedTrainee(parseInt(value))}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select Trainee" />
               </SelectTrigger>
               <SelectContent>
-                {trainees?.map((trainee: any) => (
+                {trainees?.map((trainee) => (
                   <SelectItem key={trainee.id} value={trainee.id.toString()}>
                     {trainee.fullName}
                   </SelectItem>
@@ -193,12 +213,15 @@ export default function ConductEvaluation() {
             </Select>
           </div>
           <div className="w-[200px]">
-            <Select onValueChange={(value) => setSelectedTemplate(parseInt(value))}>
+            <Select
+              value={selectedTemplate?.toString()}
+              onValueChange={(value) => setSelectedTemplate(parseInt(value))}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select Template" />
               </SelectTrigger>
               <SelectContent>
-                {templates?.map((template: any) => (
+                {templates?.map((template) => (
                   <SelectItem key={template.id} value={template.id.toString()}>
                     {template.name}
                   </SelectItem>
@@ -211,7 +234,7 @@ export default function ConductEvaluation() {
 
       {selectedTemplateDetails && (
         <div className="space-y-6">
-          {selectedTemplateDetails.pillars.map((pillar: any) => (
+          {selectedTemplateDetails.pillars?.map((pillar) => (
             <Card key={pillar.id}>
               <CardHeader>
                 <CardTitle className="flex justify-between items-center">
@@ -222,7 +245,7 @@ export default function ConductEvaluation() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  {pillar.parameters.map((param: any) => (
+                  {pillar.parameters?.map((param) => (
                     <Card key={param.id}>
                       <CardHeader>
                         <div className="flex justify-between items-center">
@@ -250,6 +273,7 @@ export default function ConductEvaluation() {
                           {param.ratingType === "yes_no_na" ? (
                             <div className="space-y-4">
                               <Select
+                                value={scores[param.id]?.score}
                                 onValueChange={(value) =>
                                   handleScoreChange(param.id, value)
                                 }
@@ -267,6 +291,7 @@ export default function ConductEvaluation() {
                               {scores[param.id]?.score === "no" &&
                                 param.noReasons && (
                                   <Select
+                                    value={scores[param.id]?.noReason}
                                     onValueChange={(value) =>
                                       handleNoReasonSelect(param.id, value)
                                     }
@@ -295,12 +320,14 @@ export default function ConductEvaluation() {
                               min="1"
                               max="5"
                               placeholder="Score (1-5)"
+                              value={scores[param.id]?.score || ""}
                               onChange={(e) =>
                                 handleScoreChange(param.id, e.target.value)
                               }
                             />
                           ) : (
                             <Select
+                              value={scores[param.id]?.score}
                               onValueChange={(value) =>
                                 handleScoreChange(param.id, value)
                               }
@@ -324,6 +351,7 @@ export default function ConductEvaluation() {
                             scores[param.id]?.score === "no") && (
                             <Textarea
                               placeholder="Add comments..."
+                              value={scores[param.id]?.comment || ""}
                               onChange={(e) =>
                                 handleCommentChange(param.id, e.target.value)
                               }

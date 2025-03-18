@@ -38,6 +38,7 @@ export const batchStatusEnum = pgEnum('batch_status', [
 ]);
 
 export const userCategoryTypeEnum = pgEnum('user_category_type', ['active', 'trainee']);
+
 export const roleEnum = pgEnum('role', [
   'owner',
   'admin',
@@ -85,14 +86,13 @@ export const processStatusEnum = pgEnum('process_status', [
   'archived'
 ]);
 
-// Core tables
+// Core tables in dependency order
 export const organizations = pgTable("organizations", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Organization structure 
 export const organizationLocations = pgTable("organization_locations", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
@@ -103,6 +103,32 @@ export const organizationLocations = pgTable("organization_locations", {
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(), 
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+  fullName: text("full_name").notNull(),
+  employeeId: text("employee_id").notNull().unique(),
+  role: roleEnum("role").notNull(),
+  category: userCategoryTypeEnum("category").default('trainee').notNull(),
+  email: text("email").notNull(),
+  education: text("education"),
+  dateOfJoining: date("date_of_joining"),
+  phoneNumber: text("phone_number"),
+  dateOfBirth: date("date_of_birth"),
+  lastWorkingDay: date("last_working_day"),
+  active: boolean("active").notNull().default(true),
+  certified: boolean("certified").notNull().default(false),
+  onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id),
+  locationId: integer("location_id")
+    .references(() => organizationLocations.id),
+  managerId: integer("manager_id")
+    .references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull()
 });
 
@@ -308,7 +334,7 @@ export type InsertEvaluationParameter = z.infer<typeof insertEvaluationParameter
 export type InsertEvaluationResult = z.infer<typeof insertEvaluationResultSchema>;
 export type InsertEvaluationParameterResult = z.infer<typeof insertEvaluationParameterResultSchema>;
 
-// Evaluation relations
+// Base relations
 export const evaluationTemplatesRelations = relations(evaluationTemplates, ({ one, many }) => ({
   creator: one(users, {
     fields: [evaluationTemplates.createdBy],
