@@ -25,9 +25,16 @@ export default function ConductEvaluation() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<number | null>(null);
   const [selectedTrainee, setSelectedTrainee] = useState<number | null>(null);
   const [scores, setScores] = useState<Record<number, any>>({});
+
+  // Fetch active batches
+  const { data: batches } = useQuery({
+    queryKey: ['/api/batches'],
+    enabled: !!user,
+  });
 
   // Fetch active templates
   const { data: templates } = useQuery({
@@ -35,10 +42,10 @@ export default function ConductEvaluation() {
     select: (data) => data.filter((t: any) => t.status === "active"),
   });
 
-  // Updated query to use the correct endpoint
+  // Fetch trainees for selected batch
   const { data: trainees } = useQuery({
-    queryKey: ['/api/trainees-for-evaluation'],
-    enabled: !!user,
+    queryKey: ['/api/batches', selectedBatch, 'trainees'],
+    enabled: !!selectedBatch && !!user,
   });
 
   // Submit evaluation
@@ -136,11 +143,11 @@ export default function ConductEvaluation() {
   };
 
   const handleSubmit = () => {
-    if (!selectedTemplate || !selectedTrainee) {
+    if (!selectedTemplate || !selectedTrainee || !selectedBatch) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Please select both template and trainee",
+        description: "Please select batch, template and trainee",
       });
       return;
     }
@@ -148,6 +155,7 @@ export default function ConductEvaluation() {
     const evaluation = {
       templateId: selectedTemplate,
       traineeId: selectedTrainee,
+      batchId: selectedBatch,
       evaluatorId: user?.id,
       scores: Object.entries(scores).map(([parameterId, value]) => ({
         parameterId: parseInt(parameterId),
@@ -164,10 +172,35 @@ export default function ConductEvaluation() {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Conduct Evaluation</h1>
         <div className="flex gap-4">
+          {/* Batch Selection */}
           <div className="w-[200px]">
-            <Select onValueChange={(value) => setSelectedTrainee(parseInt(value))}>
+            <Select 
+              onValueChange={(value) => {
+                setSelectedBatch(parseInt(value));
+                setSelectedTrainee(null); // Reset trainee when batch changes
+              }}
+            >
               <SelectTrigger>
-                <SelectValue placeholder="Select Trainee" />
+                <SelectValue placeholder="Select Batch" />
+              </SelectTrigger>
+              <SelectContent>
+                {batches?.map((batch: any) => (
+                  <SelectItem key={batch.id} value={batch.id.toString()}>
+                    {batch.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Trainee Selection - Only enabled if batch is selected */}
+          <div className="w-[200px]">
+            <Select 
+              onValueChange={(value) => setSelectedTrainee(parseInt(value))}
+              disabled={!selectedBatch}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={selectedBatch ? "Select Trainee" : "Select Batch First"} />
               </SelectTrigger>
               <SelectContent>
                 {trainees?.map((trainee: any) => (
@@ -178,10 +211,15 @@ export default function ConductEvaluation() {
               </SelectContent>
             </Select>
           </div>
+
+          {/* Template Selection - Only enabled if trainee is selected */}
           <div className="w-[200px]">
-            <Select onValueChange={(value) => setSelectedTemplate(parseInt(value))}>
+            <Select 
+              onValueChange={(value) => setSelectedTemplate(parseInt(value))}
+              disabled={!selectedTrainee}
+            >
               <SelectTrigger>
-                <SelectValue placeholder="Select Template" />
+                <SelectValue placeholder={selectedTrainee ? "Select Template" : "Select Trainee First"} />
               </SelectTrigger>
               <SelectContent>
                 {templates?.map((template: any) => (
