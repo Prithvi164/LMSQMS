@@ -31,11 +31,9 @@ type Batch = {
 
 type Trainee = {
   id: number;
-  user: {
-    fullName: string;
-    employeeId: string;
-    email: string;
-  };
+  fullName: string;
+  employeeId: string;
+  email: string;
 };
 
 export default function ConductEvaluation() {
@@ -68,7 +66,7 @@ export default function ConductEvaluation() {
   // Fetch active templates
   const { data: templates, isLoading: isTemplatesLoading } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
-    select: (data) => data.filter((t: any) => t.status === "active"),
+    select: (data) => data?.filter((t: any) => t.status === "active"),
   });
 
   // Submit evaluation mutation
@@ -110,8 +108,8 @@ export default function ConductEvaluation() {
     let totalScore = 0;
     let totalWeight = 0;
 
-    selectedTemplateDetails.pillars.forEach((pillar: any) => {
-      pillar.parameters.forEach((param: any) => {
+    selectedTemplateDetails.pillars?.forEach((pillar: any) => {
+      pillar.parameters?.forEach((param: any) => {
         if (param.weightageEnabled && scores[param.id]?.score) {
           const paramScore =
             param.ratingType === "yes_no_na"
@@ -211,7 +209,7 @@ export default function ConductEvaluation() {
               <SelectContent>
                 {trainees?.map((trainee) => (
                   <SelectItem key={trainee.id} value={trainee.id.toString()}>
-                    {trainee.user.fullName} ({trainee.user.employeeId})
+                    {trainee.fullName} ({trainee.employeeId})
                   </SelectItem>
                 ))}
                 {isTraineesLoading && (
