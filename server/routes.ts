@@ -463,6 +463,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add route to get a single evaluation
+  app.get("/api/organizations/:organizationId/evaluations/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      const evaluationId = parseInt(req.params.id);
+      
+      // Validate organization access
+      if (req.user.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Fetch evaluation from database using provided ID
+      const [evaluation] = await db
+        .select()
+        .from(evaluationResults)
+        .where(and(
+          eq(evaluationResults.id, evaluationId),
+          eq(evaluationResults.organizationId, organizationId)
+        ))
+        .limit(1);
+
+      if (!evaluation) {
+        return res.status(404).json({ message: "Evaluation not found" });
+      }
+
+      // Return the evaluation data
+      res.json(evaluation);
+    } catch (error: any) {
+      console.error("Error fetching evaluation:", error);
+      res.status(500).json({ 
+        message: error.message || "Failed to fetch evaluation" 
+      });
+    }
+  });
+
   // Add evaluation routes for creating evaluations
   app.post("/api/organizations/:organizationId/evaluations", async (req, res) => {
     if (!req.user) {

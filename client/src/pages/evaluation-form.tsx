@@ -29,19 +29,12 @@ export default function EvaluationForm() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { id } = useParams();
-  const [evaluation, setEvaluation] = useState<EvaluationData | null>(null);
 
   // Fetch evaluation data
-  const { data: evaluationData, isLoading } = useQuery({
+  const { data: evaluation, isLoading } = useQuery<EvaluationData>({
     queryKey: [`/api/organizations/${user?.organizationId}/evaluations/${id}`],
     enabled: !!user?.organizationId && !!id,
   });
-
-  useEffect(() => {
-    if (evaluationData) {
-      setEvaluation(evaluationData);
-    }
-  }, [evaluationData]);
 
   if (isLoading) {
     return <div>Loading evaluation form...</div>;
@@ -78,9 +71,9 @@ export default function EvaluationForm() {
               <h3 className="font-medium">Comments</h3>
               <p>{evaluation.comments || 'No comments'}</p>
             </div>
-            
+
             {/* Add form fields for editing evaluation */}
-            
+
             <Button className="w-full">
               Save Changes
             </Button>
