@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { evaluationApi } from "@/lib/api";
 import {
   Card,
   CardContent,
@@ -29,30 +30,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-// Type definitions for API responses
-interface Batch {
-  id: number;
-  name: string;
-}
-
-interface Trainee {
-  userId: number;
-  status: string;
-  user: {
-    id: number;
-    fullName: string;
-    email: string;
-    role: string;
-    category: string;
-  };
-}
-
-interface Template {
-  id: number;
-  name: string;
-  description?: string;
-}
-
 // Form schema for starting an evaluation
 const formSchema = z.object({
   batchId: z.number().min(1, "Batch is required"),
@@ -66,19 +43,19 @@ export default function EvaluationExecutionPage() {
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
 
   // Fetch active batches
-  const { data: batches = [], isLoading: isBatchesLoading } = useQuery<Batch[]>({
+  const { data: batches = [], isLoading: isBatchesLoading } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/batches`],
     enabled: !!user?.organizationId,
   });
 
   // Fetch trainees for selected batch
-  const { data: trainees = [], isLoading: isTraineesLoading } = useQuery<Trainee[]>({
+  const { data: trainees = [], isLoading: isTraineesLoading } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${selectedBatchId}/trainees`],
     enabled: !!selectedBatchId && !!user?.organizationId,
   });
 
   // Fetch evaluation templates
-  const { data: templates = [], isLoading: isTemplatesLoading } = useQuery<Template[]>({
+  const { data: templates = [], isLoading: isTemplatesLoading } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
     enabled: !!user?.organizationId,
   });
@@ -95,22 +72,13 @@ export default function EvaluationExecutionPage() {
   // Create evaluation mutation
   const createEvaluationMutation = useMutation({
     mutationFn: async (values: z.infer<typeof formSchema>) => {
-      const response = await fetch(`/api/organizations/${user?.organizationId}/evaluations`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...values,
-          evaluatorId: user?.id,
-          organizationId: user?.organizationId,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to create evaluation");
+      if (!user?.organizationId) {
+        throw new Error('Organization ID is required');
       }
-
-      return response.json();
+      return evaluationApi.initiateEvaluation({
+        ...values,
+        organizationId: user.organizationId
+      });
     },
     onSuccess: (evaluation) => {
       toast({
