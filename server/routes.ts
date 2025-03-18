@@ -20,13 +20,6 @@ import { eq, and, sql, inArray } from "drizzle-orm";
 import { toIST, formatIST, toUTCStorage, formatISTDateOnly } from './utils/timezone';
 import { attendance } from "@shared/schema";
 import type { User } from "@shared/schema";
-import { 
-  insertEvaluationResultSchema, 
-  evaluationResults, 
-  evaluationParameterResults,
-  evaluationTemplates,
-  insertEvaluationParameterResultSchema 
-} from "@shared/schema";
 
 // Type definitions for user updates
 type AllowedSelfUpdateFields = Pick<User, "fullName" | "email" | "phoneNumber" | "locationId" | "dateOfBirth" | "education">;
@@ -463,154 +456,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add route to get a single evaluation
-  app.get("/api/organizations/:organizationId/evaluations/:id", async (req, res) => {
-    if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const organizationId = parseInt(req.params.organizationId);
-      const evaluationId = parseInt(req.params.id);
-      
-      // Validate organization access
-      if (req.user.organizationId !== organizationId) {
-        return res.status(403).json({ message: "Forbidden" });
-      }
-
-      // Raw SQL query to fetch evaluation data
-      const result = await db.query(
-        `SELECT * FROM evaluation_results 
-         WHERE id = $1 AND organization_id = $2 
-         LIMIT 1`,
-        [evaluationId, organizationId]
-      );
-
-      const evaluation = result.rows[0];
-
-      if (!evaluation) {
-        return res.status(404).json({ message: "Evaluation not found" });
-      }
-
-      // Return the raw evaluation data
-      res.json(evaluation);
-    } catch (error: any) {
-      console.error("Error fetching evaluation:", error);
-      res.status(500).json({ 
-        message: error.message || "Failed to fetch evaluation" 
-      });
-    }
-  });
-
-  // Add route to get a single evaluation
-  app.get("/api/organizations/:organizationId/evaluations/:id", async (req, res) => {
-    if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const organizationId = parseInt(req.params.organizationId);
-      const evaluationId = parseInt(req.params.id);
-      
-      // Validate organization access
-      if (req.user.organizationId !== organizationId) {
-        return res.status(403).json({ message: "Forbidden" });
-      }
-
-      // Raw SQL query to fetch evaluation data without any type conversion
-      const result = await db.query(`
-        SELECT 
-          id,
-          trainee_id as "traineeId",
-          evaluator_id as "evaluatorId",
-          template_id as "templateId",
-          batch_id as "batchId",
-          organization_id as "organizationId",
-          total_score as "totalScore",
-          status,
-          to_char(evaluated_at, 'YYYY-MM-DD') as "evaluatedAt",
-          comments,
-          created_at as "createdAt",
-          updated_at as "updatedAt"
-        FROM evaluation_results 
-        WHERE id = $1 AND organization_id = $2 
-        LIMIT 1
-      `, [evaluationId, organizationId]);
-
-      const evaluation = result.rows[0];
-
-      if (!evaluation) {
-        return res.status(404).json({ message: "Evaluation not found" });
-      }
-
-      // Return the raw evaluation data
-      res.json(evaluation);
-    } catch (error: any) {
-      console.error("Error fetching evaluation:", error);
-      res.status(500).json({ 
-        message: error.message || "Failed to fetch evaluation" 
-      });
-    }
-  });
-
-  // Add evaluation routes for creating evaluations
-  app.post("/api/organizations/:organizationId/evaluations", async (req, res) => {
-    if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const organizationId = parseInt(req.params.organizationId);
-      
-      // Validate organization access
-      if (req.user.organizationId !== organizationId) {
-        return res.status(403).json({ message: "Forbidden" });
-      }
-
-      // Set current date 
-      const now = new Date();
-
-      // Prepare evaluation data with proper date
-      const evaluationData = {
-        ...req.body,
-        status: 'pending',
-        totalScore: 0,
-        evaluatedAt: now,
-        organizationId,
-      };
-
-      console.log('Creating evaluation with data:', evaluationData);
-
-      try {
-        // Parse and validate the data
-        const validatedData = insertEvaluationResultSchema.parse(evaluationData);
-        
-        // Create evaluation
-        const [evaluation] = await db
-          .insert(evaluationResults)
-          .values(validatedData)
-          .returning();
-
-        console.log('Created evaluation:', evaluation);
-        
-        // Set proper content type and return JSON
-        res.setHeader('Content-Type', 'application/json');
-        return res.status(201).json(evaluation);
-      } catch (validationError: any) {
-        console.error("Validation error:", validationError);
-        return res.status(400).json({ 
-          message: "Validation error", 
-          errors: validationError.errors 
-        });
-      }
-    } catch (error: any) {
-      console.error("Error creating evaluation:", error);
-      return res.status(500).json({ 
-        message: error.message || "Failed to create evaluation" 
-      });
-    }
-  });
-
   // Add edit pillar endpoint
   app.patch("/api/evaluation-pillars/:pillarId", async (req, res) => {
     if (!req.user) {
@@ -751,8 +596,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ message: error.message || "Failed to delete parameter" });
     }
   });
-
-
 
   // Add route to get organization processes 
   app.get("/api/processes", async (req, res) => {

@@ -57,21 +57,13 @@ import { Trash2, Copy } from "lucide-react";
 import { Label } from "@/components/ui/label";
 
 
-// Add type definitions
-interface Process {
-  id: number;
-  name: string;
-}
-
-interface EvaluationTemplate {
-  id: number;
-  name: string;
-  description: string;
-  status: 'draft' | 'active' | 'archived';
-  processId: number;
-  customerProfile?: any;
-  expectedDialogue?: any;
-}
+// Form schema for creating a template
+const formSchema = z.object({
+  name: z.string().min(1, "Template name is required"),
+  description: z.string().optional(),
+  processId: z.number().min(1, "Process is required"),
+  status: z.enum(["draft", "active", "archived"]).default("draft"),
+});
 
 export default function EvaluationTemplatesPage() {
   const { user } = useAuth();
@@ -84,23 +76,16 @@ export default function EvaluationTemplatesPage() {
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState("");
 
-  // Fetch available processes with proper typing
-  const { data: processes = [] } = useQuery<Process[]>({
+  // Fetch available processes
+  const { data: processes = [] } = useQuery({
     queryKey: [`/api/processes`],
     enabled: !!user?.organizationId,
   });
 
-  // Fetch evaluation templates with proper typing
-  const { data: templates = [], isLoading } = useQuery<EvaluationTemplate[]>({
+  // Fetch evaluation templates
+  const { data: templates = [], isLoading } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
     enabled: !!user?.organizationId,
-  });
-
-  const formSchema = z.object({
-    name: z.string().min(1, "Template name is required"),
-    description: z.string().optional(),
-    processId: z.number().min(1, "Process is required"),
-    status: z.enum(["draft", "active", "archived"]).default("draft"),
   });
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -305,7 +290,7 @@ export default function EvaluationTemplatesPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {processes.map((process: Process) => (
+                          {processes.map((process: any) => (
                             <SelectItem
                               key={process.id}
                               value={process.id.toString()}
@@ -396,7 +381,7 @@ export default function EvaluationTemplatesPage() {
         </DialogContent>
       </Dialog>
 
-      <Tabs defaultValue="templates" className="space-y-4">
+      <Tabs defaultValue="templates">
         <TabsList>
           <TabsTrigger value="templates">Templates</TabsTrigger>
           {selectedTemplateId && (
@@ -411,7 +396,7 @@ export default function EvaluationTemplatesPage() {
             ) : templates.length === 0 ? (
               <p>No templates available. Create your first template to get started.</p>
             ) : (
-              templates.map((template: EvaluationTemplate) => (
+              templates.map((template: any) => (
                 <Card
                   key={template.id}
                   className={`cursor-pointer transition-all ${
@@ -502,7 +487,7 @@ export default function EvaluationTemplatesPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="builder" className="space-y-4">
+        <TabsContent value="builder">
           {selectedTemplateId ? (
             <FormBuilder templateId={selectedTemplateId} />
           ) : (

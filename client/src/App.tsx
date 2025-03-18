@@ -17,15 +17,13 @@ import { QuizTakingPage } from "@/pages/quiz-taking";
 import { QuizResultsPage } from "@/pages/quiz-results";
 import { MyQuizzesPage } from "@/pages/my-quizzes";
 import MockCallScenarios from "@/pages/mock-call-scenarios";
-import EvaluationTemplates from "@/pages/evaluation-templates";
-import EvaluationExecution from "@/pages/evaluation-execution";
+import EvaluationTemplates from "@/pages/evaluation-templates"; // Import the new page
 import { ProtectedRoute } from "./lib/protected-route";
 import { SidebarNav } from "./components/sidebar-nav";
 import { UserProfile } from "./components/user-profile";
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
 import { BatchDetailsPage } from "@/components/batch-management/batch-details-page";
 import { BatchDetail } from "@/components/batch-management/batch-detail";
-import EvaluationForm from "@/pages/evaluation-form";
 
 interface BatchDetailProps {
   onCreateBatch?: () => void;
@@ -67,8 +65,6 @@ function Router() {
           <ProtectedRoute path="/quiz-results/:attemptId" component={QuizResultsPage} />
           <ProtectedRoute path="/mock-call-scenarios" component={MockCallScenarios} />
           <ProtectedRoute path="/evaluation-templates" component={EvaluationTemplates} />
-          <ProtectedRoute path="/evaluation-execution" component={EvaluationExecution} />
-          <ProtectedRoute path="/evaluations/:id" component={EvaluationForm} />
           <Route component={NotFound} />
         </Switch>
       </main>
