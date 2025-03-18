@@ -1340,9 +1340,9 @@ export const evaluationRatingTypeEnum = pgEnum('evaluation_rating_type', [
 ]);
 
 export const evaluationStatusEnum = pgEnum('evaluation_status', [
-  'draft',
-  'active',
-  'archived'
+  'pending',
+  'completed',
+  'cancelled'
 ]);
 
 // Evaluation Templates
@@ -1428,10 +1428,9 @@ export const evaluationResults = pgTable("evaluation_results", {
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
+  evaluatedAt: timestamp("evaluated_at").notNull(),
   totalScore: integer("total_score").notNull(),
-  status: text("status").notNull(),
-  evaluatedAt: timestamp("evaluated_at").defaultNow().notNull(),
-  comments: text("comments"),
+  status: evaluationStatusEnum("status").default('pending').notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -1530,8 +1529,8 @@ export const insertEvaluationResultSchema = createInsertSchema(evaluationResults
     batchId: z.number().int().positive("Batch is required"),
     organizationId: z.number().int().positive("Organization is required"),
     totalScore: z.number().int().min(0).max(100),
-    status: z.string().min(1, "Status is required"),
-    evaluatedAt: z.coerce.date(),  // This will coerce string dates into Date objects
+    status: z.enum(['pending', 'completed', 'cancelled']).default('pending'),
+    evaluatedAt: z.coerce.date(),
     comments: z.string().optional(),
   });
 
