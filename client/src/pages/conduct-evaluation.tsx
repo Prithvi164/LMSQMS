@@ -1,0 +1,347 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/use-auth";
+
+export default function ConductEvaluation() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [selectedTemplate, setSelectedTemplate] = useState<number | null>(null);
+  const [selectedTrainee, setSelectedTrainee] = useState<number | null>(null);
+  const [scores, setScores] = useState<Record<number, any>>({});
+
+  // Fetch active templates
+  const { data: templates } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
+    select: (data) => data.filter((t: any) => t.status === "active"),
+  });
+
+  // Fetch trainees
+  const { data: trainees } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/trainees`],
+  });
+
+  // Submit evaluation
+  const submitEvaluationMutation = useMutation({
+    mutationFn: async (evaluation: any) => {
+      const response = await fetch("/api/evaluations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(evaluation),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to submit evaluation");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/organizations/${user?.organizationId}/evaluations`],
+      });
+      toast({
+        title: "Success",
+        description: "Evaluation submitted successfully",
+      });
+      setScores({});
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
+  // Get selected template details
+  const { data: selectedTemplateDetails } = useQuery({
+    queryKey: [`/api/evaluation-templates/${selectedTemplate}`],
+    enabled: !!selectedTemplate,
+  });
+
+  const handleScoreChange = (parameterId: number, value: any) => {
+    setScores((prev) => ({
+      ...prev,
+      [parameterId]: {
+        ...prev[parameterId],
+        score: value,
+      },
+    }));
+  };
+
+  const handleCommentChange = (parameterId: number, comment: string) => {
+    setScores((prev) => ({
+      ...prev,
+      [parameterId]: {
+        ...prev[parameterId],
+        comment,
+      },
+    }));
+  };
+
+  const handleNoReasonSelect = (parameterId: number, reason: string) => {
+    setScores((prev) => ({
+      ...prev,
+      [parameterId]: {
+        ...prev[parameterId],
+        noReason: reason,
+      },
+    }));
+  };
+
+  const calculateScore = () => {
+    if (!selectedTemplateDetails) return 0;
+
+    let totalScore = 0;
+    let totalWeight = 0;
+
+    selectedTemplateDetails.pillars.forEach((pillar: any) => {
+      pillar.parameters.forEach((param: any) => {
+        if (param.weightageEnabled && scores[param.id]?.score) {
+          const paramScore = 
+            param.ratingType === "yes_no_na" 
+              ? scores[param.id].score === "yes" ? 100 : 0
+              : parseFloat(scores[param.id].score);
+          
+          totalScore += (paramScore * param.weightage);
+          totalWeight += param.weightage;
+        }
+      });
+    });
+
+    return totalWeight > 0 ? (totalScore / totalWeight).toFixed(2) : 0;
+  };
+
+  const handleSubmit = () => {
+    if (!selectedTemplate || !selectedTrainee) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please select both template and trainee",
+      });
+      return;
+    }
+
+    const evaluation = {
+      templateId: selectedTemplate,
+      traineeId: selectedTrainee,
+      evaluatorId: user?.id,
+      scores: Object.entries(scores).map(([parameterId, value]) => ({
+        parameterId: parseInt(parameterId),
+        ...value,
+      })),
+      finalScore: calculateScore(),
+    };
+
+    submitEvaluationMutation.mutate(evaluation);
+  };
+
+  return (
+    <div className="container mx-auto py-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Conduct Evaluation</h1>
+        <div className="flex gap-4">
+          <div className="w-[200px]">
+            <Select onValueChange={(value) => setSelectedTrainee(parseInt(value))}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select Trainee" />
+              </SelectTrigger>
+              <SelectContent>
+                {trainees?.map((trainee: any) => (
+                  <SelectItem key={trainee.id} value={trainee.id.toString()}>
+                    {trainee.fullName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-[200px]">
+            <Select onValueChange={(value) => setSelectedTemplate(parseInt(value))}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select Template" />
+              </SelectTrigger>
+              <SelectContent>
+                {templates?.map((template: any) => (
+                  <SelectItem key={template.id} value={template.id.toString()}>
+                    {template.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      {selectedTemplateDetails && (
+        <div className="space-y-6">
+          {selectedTemplateDetails.pillars.map((pillar: any) => (
+            <Card key={pillar.id}>
+              <CardHeader>
+                <CardTitle className="flex justify-between items-center">
+                  <span>{pillar.name}</span>
+                  <Badge variant="outline">{pillar.weightage}%</Badge>
+                </CardTitle>
+                <CardDescription>{pillar.description}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  {pillar.parameters.map((param: any) => (
+                    <Card key={param.id}>
+                      <CardHeader>
+                        <div className="flex justify-between items-center">
+                          <CardTitle className="text-base">
+                            {param.name}
+                            {param.isFatal && (
+                              <Badge variant="destructive" className="ml-2">
+                                Fatal
+                              </Badge>
+                            )}
+                          </CardTitle>
+                          {param.weightageEnabled && (
+                            <Badge variant="outline">{param.weightage}%</Badge>
+                          )}
+                        </div>
+                        <CardDescription>{param.description}</CardDescription>
+                        {param.guidelines && (
+                          <div className="mt-2 text-sm bg-muted p-2 rounded">
+                            <strong>Guidelines:</strong> {param.guidelines}
+                          </div>
+                        )}
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {param.ratingType === "yes_no_na" ? (
+                            <div className="space-y-4">
+                              <Select
+                                onValueChange={(value) =>
+                                  handleScoreChange(param.id, value)
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select Rating" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="yes">Yes</SelectItem>
+                                  <SelectItem value="no">No</SelectItem>
+                                  <SelectItem value="na">N/A</SelectItem>
+                                </SelectContent>
+                              </Select>
+
+                              {scores[param.id]?.score === "no" &&
+                                param.noReasons && (
+                                  <Select
+                                    onValueChange={(value) =>
+                                      handleNoReasonSelect(param.id, value)
+                                    }
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select Reason" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {param.noReasons.map(
+                                        (reason: string, idx: number) => (
+                                          <SelectItem
+                                            key={idx}
+                                            value={reason}
+                                          >
+                                            {reason}
+                                          </SelectItem>
+                                        )
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                            </div>
+                          ) : param.ratingType === "numeric" ? (
+                            <Input
+                              type="number"
+                              min="1"
+                              max="5"
+                              placeholder="Score (1-5)"
+                              onChange={(e) =>
+                                handleScoreChange(param.id, e.target.value)
+                              }
+                            />
+                          ) : (
+                            <Select
+                              onValueChange={(value) =>
+                                handleScoreChange(param.id, value)
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select Rating" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {param.customRatingOptions?.map(
+                                  (option: string, idx: number) => (
+                                    <SelectItem key={idx} value={option}>
+                                      {option}
+                                    </SelectItem>
+                                  )
+                                )}
+                              </SelectContent>
+                            </Select>
+                          )}
+
+                          {(param.requiresComment ||
+                            scores[param.id]?.score === "no") && (
+                            <Textarea
+                              placeholder="Add comments..."
+                              onChange={(e) =>
+                                handleCommentChange(param.id, e.target.value)
+                              }
+                            />
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Final Score</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{calculateScore()}%</div>
+            </CardContent>
+          </Card>
+
+          <div className="flex justify-end">
+            <Button
+              onClick={handleSubmit}
+              disabled={submitEvaluationMutation.isPending}
+            >
+              {submitEvaluationMutation.isPending
+                ? "Submitting..."
+                : "Submit Evaluation"}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
