@@ -841,10 +841,10 @@ export const insertOrganizationLocationSchema = createInsertSchema(organizationL
 export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organizationLineOfBusinesses)
   .omit({
     id: true,
-    createdAt: true
+    createdAt true
   })
   .extend({
-name: z.string().min(1, "LOBname is required"),
+    name: z.string().min(1, "LOBname is required"),
     description: z.string().min(1, "Description is required"),
     organizationId: z.number().int().positive("Organization is required"),
   });
@@ -1143,7 +1143,10 @@ export type {
   InsertEvaluationParameter,
   InsertEvaluationSubReason,
   InsertEvaluationResult,
-  InsertEvaluationParameterResult
+  InsertEvaluationParameterResult,
+  EvaluationSession,
+  InsertEvaluationSession,
+  InsertEvaluationResult
 };
 
 // Add new enums for mock calls
@@ -1640,3 +1643,121 @@ export type InsertEvaluationParameter = z.infer<typeof insertEvaluationParameter
 export type InsertEvaluationSubReason = z.infer<typeof insertEvaluationSubReasonSchema>;
 export type InsertEvaluationResult = z.infer<typeof insertEvaluationResultSchema>;
 export type InsertEvaluationParameterResult = z.infer<typeof insertEvaluationParameterResultSchema>;
+
+
+// Add after the existing evaluation-related tables
+
+export const evaluationSessionStatusEnum = pgEnum('evaluation_session_status', [
+  'in_progress',
+  'completed',
+  'cancelled'
+]);
+
+export const evaluationSessions = pgTable("evaluation_sessions", {
+  id: serial("id").primaryKey(),
+  templateId: integer("template_id")
+    .references(() => evaluationTemplates.id)
+    .notNull(),
+  evaluatorId: integer("evaluator_id")
+    .references(() => users.id)
+    .notNull(),
+  traineeId: integer("trainee_id")
+    .references(() => users.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  status: evaluationSessionStatusEnum("status").default('in_progress').notNull(),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+  overallScore: integer("overall_score"),
+  feedback: text("feedback"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const evaluationResults = pgTable("evaluation_results", {
+  id: serial("id").primaryKey(),
+  sessionId: integer("session_id")
+    .references(() => evaluationSessions.id)
+    .notNull(),
+  parameterId: integer("parameter_id")
+    .references(() => evaluationParameters.id)
+    .notNull(),
+  score: integer("score").notNull(),
+  comment: text("comment"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Define types
+export type EvaluationSession = InferSelectModel<typeof evaluationSessions>;
+export type EvaluationResult = InferSelectModel<typeof evaluationResults>;
+
+// Define relations
+export const evaluationSessionsRelations = relations(evaluationSessions, ({ one, many }) => ({
+  template: one(evaluationTemplates, {
+    fields: [evaluationSessions.templateId],
+    references: [evaluationTemplates.id],
+  }),
+  evaluator: one(users, {
+    fields: [evaluationSessions.evaluatorId],
+    references: [users.id],
+  }),
+  trainee: one(users, {
+    fields: [evaluationSessions.traineeId],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [evaluationSessions.organizationId],
+    references: [organizations.id],
+  }),
+  results: many(evaluationResults),
+}));
+
+export const evaluationResultsRelations = relations(evaluationResults, ({ one }) => ({
+  session: one(evaluationSessions, {
+    fields: [evaluationResults.sessionId],
+    references: [evaluationSessions.id],
+  }),
+  parameter: one(evaluationParameters, {
+    fields: [evaluationResults.parameterId],
+    references: [evaluationParameters.id],
+    references: [evaluationParameters.id],
+  }),
+}));
+
+// Define insert schemas
+export const insertEvaluationSessionSchema = createInsertSchema(evaluationSessions)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    templateId: z.number().int().positive("Template is required"),
+    evaluatorId: z.number().int().positive("Evaluator is required"),
+    traineeId: z.number().int().positive("Trainee is required"),
+    organizationId: z.number().int().positive("Organization is required"),
+    status: z.enum(['in_progress', 'completed', 'cancelled']).default('in_progress'),
+    startedAt: z.date().default(() => new Date()),
+    completedAt: z.date().optional(),
+    overallScore: z.number().int().min(0).max(100).optional(),
+    feedback: z.string().optional(),
+  });
+
+export const insertEvaluationResultSchema = createInsertSchema(evaluationResults)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    sessionId: z.number().int().positive("Session is required"),
+    parameterId: z.number().int().positive("Parameter is required"),
+    score: z.number().int().min(0).max(100),
+    comment: z.string().optional(),
+  });
+
+export type InsertEvaluationSession = z.infer<typeof insertEvaluationSessionSchema>;
+export type InsertEvaluationResult = z.infer<typeof insertEvaluationResultSchema>;

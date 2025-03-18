@@ -415,6 +415,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add route to get active templates
+  app.get("/api/organizations/:organizationId/evaluation-templates/active", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      if (organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const templates = await storage.listActiveTemplates(organizationId);
+      res.json(templates);
+    } catch (error: any) {
+      console.error("Error listing active templates:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Add route to create evaluation session
+  app.post("/api/evaluation-sessions", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const sessionData = {
+        ...req.body,
+        evaluatorId: req.user.id,
+        organizationId: req.user.organizationId,
+      };
+
+      console.log('Creating evaluation session:', sessionData);
+      const session = await storage.createEvaluationSession(sessionData);
+      
+      res.status(201).json(session);
+    } catch (error: any) {
+      console.error("Error creating evaluation session:", error);
+      res.status(400).json({ message: error.message || "Failed to create session" });
+    }
+  });
+
+  // Add route to submit evaluation results
+  app.post("/api/evaluation-sessions/:sessionId/submit", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const sessionId = parseInt(req.params.sessionId);
+      if (!sessionId) {
+        return res.status(400).json({ message: "Invalid session ID" });
+      }
+
+      const session = await storage.getEvaluationSession(sessionId);
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+
+      if (session.evaluatorId !== req.user.id) {
+        return res.status(403).json({ message: "You can only submit your own evaluations" });
+      }
+
+      const { results } = req.body;
+      if (!Array.isArray(results)) {
+        return res.status(400).json({ message: "Results must be an array" });
+      }
+
+      await storage.submitEvaluationSession(sessionId, results);
+      res.status(200).json({ message: "Evaluation submitted successfully" });
+    } catch (error: any) {
+      console.error("Error submitting evaluation:", error);
+      res.status(400).json({ message: error.message || "Failed to submit evaluation" });
+    }
+  });
+
   // Add routes for pillars and parameters
   app.post("/api/evaluation-templates/:templateId/pillars", async (req, res) => {
     if (!req.user) {
