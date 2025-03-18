@@ -96,6 +96,9 @@ export default function EvaluationExecutionPage() {
   // Create evaluation mutation
   const createEvaluationMutation = useMutation({
     mutationFn: async (values: z.infer<typeof formSchema>) => {
+      const now = new Date();
+      const formattedDate = now.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+
       const response = await fetch(`/api/organizations/${user?.organizationId}/evaluations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -103,7 +106,7 @@ export default function EvaluationExecutionPage() {
           ...values,
           evaluatorId: user?.id,
           organizationId: user?.organizationId,
-          evaluatedAt: new Date().toISOString(), // Convert Date to ISO string
+          evaluatedAt: formattedDate, // Using only the date part
           totalScore: 0,
           status: 'pending'
         }),

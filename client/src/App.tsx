@@ -25,6 +25,7 @@ import { UserProfile } from "./components/user-profile";
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
 import { BatchDetailsPage } from "@/components/batch-management/batch-details-page";
 import { BatchDetail } from "@/components/batch-management/batch-detail";
+import EvaluationForm from "@/pages/evaluation-form";
 
 interface BatchDetailProps {
   onCreateBatch?: () => void;
@@ -67,6 +68,7 @@ function Router() {
           <ProtectedRoute path="/mock-call-scenarios" component={MockCallScenarios} />
           <ProtectedRoute path="/evaluation-templates" component={EvaluationTemplates} />
           <ProtectedRoute path="/evaluation-execution" component={EvaluationExecution} />
+          <ProtectedRoute path="/evaluations/:id" component={EvaluationForm} />
           <Route component={NotFound} />
         </Switch>
       </main>
