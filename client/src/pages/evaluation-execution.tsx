@@ -103,8 +103,9 @@ export default function EvaluationExecutionPage() {
           ...values,
           evaluatorId: user?.id,
           organizationId: user?.organizationId,
-          evaluatedAt: new Date().toISOString(),
-          totalScore: 0
+          evaluatedAt: new Date().toISOString(), // Convert Date to ISO string
+          totalScore: 0,
+          status: 'pending'
         }),
       });
 
@@ -285,8 +286,8 @@ export default function EvaluationExecutionPage() {
                 )}
               />
 
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="w-full"
                 disabled={isSubmitting || createEvaluationMutation.isPending}
               >
