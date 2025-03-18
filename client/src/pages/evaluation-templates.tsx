@@ -53,7 +53,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { InsertEvaluationTemplate } from "@shared/schema";
-import { Trash2, Copy } from "lucide-react";
+import { Trash2, Copy, Archive, Check } from "lucide-react";
 import { Label } from "@/components/ui/label";
 
 
@@ -185,6 +185,66 @@ export default function EvaluationTemplatesPage() {
       setDuplicateDialogOpen(false);
       setNewTemplateName("");
       setTemplateToDuplicate(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
+  const finalizeTemplateMutation = useMutation({
+    mutationFn: async (templateId: number) => {
+      const response = await fetch(`/api/evaluation-templates/${templateId}/finalize`, {
+        method: "POST",
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to finalize template");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
+      });
+      toast({
+        title: "Success",
+        description: "Template status updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
+  const archiveTemplateMutation = useMutation({
+    mutationFn: async (templateId: number) => {
+      const response = await fetch(`/api/evaluation-templates/${templateId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "archived" }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to archive template");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
+      });
+      toast({
+        title: "Success",
+        description: "Template archived successfully",
+      });
     },
     onError: (error: Error) => {
       toast({
@@ -411,6 +471,74 @@ export default function EvaluationTemplatesPage() {
                         <CardDescription>{template.description}</CardDescription>
                       </div>
                       <div className="flex gap-2">
+                        {template.status === "draft" && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                }}
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Finalize Template?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will activate the template for use in evaluations. You won't be
+                                  able to modify the template structure after activation.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => {
+                                    finalizeTemplateMutation.mutate(template.id);
+                                  }}
+                                >
+                                  Finalize
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                        {template.status === "active" && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                }}
+                              >
+                                <Archive className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Archive Template?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will archive the template. Archived templates cannot be used for
+                                  new evaluations but existing evaluations will be preserved.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => {
+                                    archiveTemplateMutation.mutate(template.id);
+                                  }}
+                                >
+                                  Archive
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
