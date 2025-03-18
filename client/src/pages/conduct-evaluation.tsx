@@ -20,6 +20,21 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
+import { Loader2 } from "lucide-react";
+
+// Define types
+type Batch = {
+  id: number;
+  name: string;
+  status: string;
+};
+
+type Trainee = {
+  id: number;
+  fullName: string;
+  employeeId: string;
+  email: string;
+};
 
 export default function ConductEvaluation() {
   const { user } = useAuth();
@@ -31,24 +46,30 @@ export default function ConductEvaluation() {
   const [scores, setScores] = useState<Record<number, any>>({});
 
   // Fetch active batches
-  const { data: batches } = useQuery({
+  const { data: batches, isLoading: isBatchesLoading } = useQuery<Batch[]>({
     queryKey: ['/api/batches'],
     enabled: !!user,
   });
 
   // Fetch active templates
-  const { data: templates } = useQuery({
+  const { data: templates, isLoading: isTemplatesLoading } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
     select: (data) => data.filter((t: any) => t.status === "active"),
   });
 
   // Fetch trainees for selected batch
-  const { data: trainees } = useQuery({
+  const { data: trainees, isLoading: isTraineesLoading } = useQuery<Trainee[]>({
     queryKey: ['/api/batches', selectedBatch, 'trainees'],
     enabled: !!selectedBatch && !!user,
   });
 
-  // Submit evaluation
+  // Get selected template details
+  const { data: selectedTemplateDetails } = useQuery({
+    queryKey: [`/api/evaluation-templates/${selectedTemplate}`],
+    enabled: !!selectedTemplate,
+  });
+
+  // Submit evaluation mutation
   const submitEvaluationMutation = useMutation({
     mutationFn: async (evaluation: any) => {
       const response = await fetch("/api/evaluations", {
@@ -81,12 +102,7 @@ export default function ConductEvaluation() {
     },
   });
 
-  // Get selected template details
-  const { data: selectedTemplateDetails } = useQuery({
-    queryKey: [`/api/evaluation-templates/${selectedTemplate}`],
-    enabled: !!selectedTemplate,
-  });
-
+  // Handle scoring and submission
   const handleScoreChange = (parameterId: number, value: any) => {
     setScores((prev) => ({
       ...prev,
@@ -103,16 +119,6 @@ export default function ConductEvaluation() {
       [parameterId]: {
         ...prev[parameterId],
         comment,
-      },
-    }));
-  };
-
-  const handleNoReasonSelect = (parameterId: number, reason: string) => {
-    setScores((prev) => ({
-      ...prev,
-      [parameterId]: {
-        ...prev[parameterId],
-        noReason: reason,
       },
     }));
   };
@@ -181,45 +187,83 @@ export default function ConductEvaluation() {
               }}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select Batch" />
+                <SelectValue placeholder={isBatchesLoading ? "Loading batches..." : "Select Batch"} />
               </SelectTrigger>
               <SelectContent>
-                {batches?.map((batch: any) => (
+                {batches?.map((batch) => (
                   <SelectItem key={batch.id} value={batch.id.toString()}>
                     {batch.name}
                   </SelectItem>
                 ))}
+                {isBatchesLoading && (
+                  <SelectItem value="loading" disabled>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Loading...
+                  </SelectItem>
+                )}
+                {!isBatchesLoading && (!batches || batches.length === 0) && (
+                  <SelectItem value="none" disabled>
+                    No active batches found
+                  </SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
 
-          {/* Trainee Selection - Only enabled if batch is selected */}
+          {/* Trainee Selection */}
           <div className="w-[200px]">
             <Select 
               onValueChange={(value) => setSelectedTrainee(parseInt(value))}
               disabled={!selectedBatch}
             >
               <SelectTrigger>
-                <SelectValue placeholder={selectedBatch ? "Select Trainee" : "Select Batch First"} />
+                <SelectValue 
+                  placeholder={
+                    !selectedBatch 
+                      ? "Select Batch First" 
+                      : isTraineesLoading 
+                        ? "Loading trainees..." 
+                        : "Select Trainee"
+                  } 
+                />
               </SelectTrigger>
               <SelectContent>
-                {trainees?.map((trainee: any) => (
+                {trainees?.map((trainee) => (
                   <SelectItem key={trainee.id} value={trainee.id.toString()}>
                     {trainee.fullName}
                   </SelectItem>
                 ))}
+                {isTraineesLoading && (
+                  <SelectItem value="loading" disabled>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Loading...
+                  </SelectItem>
+                )}
+                {!isTraineesLoading && (!trainees || trainees.length === 0) && (
+                  <SelectItem value="none" disabled>
+                    No trainees found in this batch
+                  </SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
 
-          {/* Template Selection - Only enabled if trainee is selected */}
+          {/* Template Selection */}
           <div className="w-[200px]">
             <Select 
               onValueChange={(value) => setSelectedTemplate(parseInt(value))}
               disabled={!selectedTrainee}
             >
               <SelectTrigger>
-                <SelectValue placeholder={selectedTrainee ? "Select Template" : "Select Trainee First"} />
+                <SelectValue 
+                  placeholder={
+                    !selectedTrainee 
+                      ? "Select Trainee First" 
+                      : isTemplatesLoading 
+                        ? "Loading templates..." 
+                        : "Select Template"
+                  } 
+                />
               </SelectTrigger>
               <SelectContent>
                 {templates?.map((template: any) => (
@@ -227,6 +271,17 @@ export default function ConductEvaluation() {
                     {template.name}
                   </SelectItem>
                 ))}
+                {isTemplatesLoading && (
+                  <SelectItem value="loading" disabled>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Loading...
+                  </SelectItem>
+                )}
+                {!isTemplatesLoading && (!templates || templates.length === 0) && (
+                  <SelectItem value="none" disabled>
+                    No active templates found
+                  </SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
