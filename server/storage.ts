@@ -258,6 +258,7 @@ export interface IStorage {
   updateEvaluationParameter(id: number, parameter: Partial<InsertEvaluationParameter>): Promise<EvaluationParameter>;
   deleteEvaluationParameter(id: number): Promise<void>;
   deleteEvaluationTemplate(id: number): Promise<void>;
+  updateEvaluationTemplate(id: number, template: Partial<InsertEvaluationTemplate>): Promise<EvaluationTemplate>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -338,6 +339,31 @@ export class DatabaseStorage implements IStorage {
       });
     } catch (error) {
       console.error('Error deleting evaluation template:', error);
+      throw error;
+    }
+  }
+
+  async updateEvaluationTemplate(id: number, template: Partial<InsertEvaluationTemplate>): Promise<EvaluationTemplate> {
+    try {
+      console.log('Updating evaluation template:', id, template);
+      
+      const [updatedTemplate] = await db
+        .update(evaluationTemplates)
+        .set({
+          ...template,
+          updatedAt: new Date(),
+        })
+        .where(eq(evaluationTemplates.id, id))
+        .returning() as EvaluationTemplate[];
+
+      if (!updatedTemplate) {
+        throw new Error('Template not found');
+      }
+
+      console.log('Successfully updated template:', updatedTemplate);
+      return updatedTemplate;
+    } catch (error) {
+      console.error('Error updating evaluation template:', error);
       throw error;
     }
   }
