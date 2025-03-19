@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -9,18 +9,25 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Trash2, Search, Download, ChevronRight, ChevronDown } from "lucide-react";
+import { Edit2, Trash2, Search, Download, Upload, FileSpreadsheet } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { z } from "zod";
-import { insertUserSchema } from "@shared/schema";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { insertUserSchema } from "@shared/schema";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { z } from "zod";
 import * as XLSX from "xlsx";
 
 // Extend the insertUserSchema for the edit form
@@ -30,26 +37,9 @@ const editUserSchema = insertUserSchema.extend({
   dateOfJoining: z.string().optional(),
   dateOfBirth: z.string().optional(),
   education: z.string().optional(),
-}).omit({ certified: true }).partial();
+}).omit({ certified: true }).partial();  // Remove certified from the schema
 
 type UserFormData = z.infer<typeof editUserSchema>;
-
-interface User {
-  id: number;
-  username: string;
-  fullName?: string;
-  email: string;
-  employeeId?: string;
-  role: string;
-  phoneNumber?: string;
-  locationId?: number | null;
-  managerId?: number | null;
-  dateOfJoining?: string;
-  dateOfBirth?: string;
-  education?: string;
-  active: boolean;
-  reports?: User[];
-}
 
 export function UserManagement() {
   const { user } = useAuth();
@@ -616,71 +606,6 @@ export function UserManagement() {
     );
   }
 
-  // Add new state for tree view
-  const [expandedUsers, setExpandedUsers] = useState<number[]>([]);
-
-  // Function to toggle user expansion in tree view
-  const toggleUserExpansion = (userId: number) => {
-    setExpandedUsers(prev =>
-      prev.includes(userId)
-        ? prev.filter(id => id !== userId)
-        : [...prev, userId]
-    );
-  };
-
-  // Function to build user hierarchy
-  const buildUserHierarchy = (users: User[]) => {
-    const userMap = new Map(users.map(user => [user.id, { ...user, reports: [] }]));
-    const rootUsers: User[] = [];
-
-    users.forEach(user => {
-      if (!user.managerId) {
-        rootUsers.push(user);
-      } else {
-        const manager = userMap.get(user.managerId);
-        if (manager && manager.reports) {
-          manager.reports.push(user);
-        }
-      }
-    });
-
-    return rootUsers;
-  };
-
-  // Recursive component for rendering user hierarchy
-  const UserHierarchyItem = ({ user, level = 0 }: { user: User & { reports?: User[] }, level?: number }) => {
-    const hasReports = user.reports && user.reports.length > 0;
-    const isExpanded = expandedUsers.includes(user.id);
-
-    return (
-      <div className="user-hierarchy-item">
-        <div
-          className={`flex items-center p-2 hover:bg-muted/50 rounded-lg cursor-pointer`}
-          style={{ paddingLeft: `${level * 24 + 12}px` }}
-          onClick={() => hasReports && toggleUserExpansion(user.id)}
-        >
-          {hasReports && (
-            <Button variant="ghost" size="sm" className="p-0 h-6 w-6">
-              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            </Button>
-          )}
-          <div className="flex items-center gap-2 ml-2">
-            <span className="font-medium">{user.fullName || user.username}</span>
-            <Badge variant="outline">{user.role}</Badge>
-            {!user.active && <Badge variant="destructive">Inactive</Badge>}
-          </div>
-        </div>
-        {isExpanded && hasReports && (
-          <div className="ml-6 border-l pl-4">
-            {user.reports?.map(report => (
-              <UserHierarchyItem key={report.id} user={report} level={level + 1} />
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -689,224 +614,188 @@ export function UserManagement() {
 
       <Card>
         <CardContent className="pt-6">
-          <Tabs defaultValue="list" className="space-y-6">
-            <TabsList>
-              <TabsTrigger value="list">List View</TabsTrigger>
-              <TabsTrigger value="hierarchy">Hierarchy View</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="list">
-              <div className="flex flex-col gap-4 mb-6">
-                <div className="flex items-center gap-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search by name, email..."
-                      value={searchTerm}
-                      onChange={(e) => {
-                        setSearchTerm(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      className="pl-9"
-                    />
-                  </div>
-                  <Select
-                    value={roleFilter}
-                    onValueChange={(value) => {
-                      setRoleFilter(value);
-                      setCurrentPage(1);
-                    }}
-                  >
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Filter by role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Roles</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="manager">Manager</SelectItem>
-                      <SelectItem value="trainer">Trainer</SelectItem>
-                      <SelectItem value="advisor">Advisor</SelectItem>
-                      <SelectItem value="team_lead">Team Lead</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select
-                    value={managerFilter}
-                    onValueChange={(value) => {
-                      setManagerFilter(value);
-                      setCurrentPage(1);
-                    }}
-                  >
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Filter by manager" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Managers</SelectItem>
-                      <SelectItem value="none">No Manager</SelectItem>
-                      {uniqueManagers.map((manager) => (
-                        <SelectItem key={manager.id} value={manager.id.toString()}>
-                          {manager.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {canManageUsers && (
-                  <div className="flex justify-between items-center mb-4">
-                    <div className="space-x-2">
-                      <Button
-                        onClick={exportToExcel}
-                        variant="outline"
-                        className="gap-2"
-                      >
-                        <Download className="h-4 w-4" />
-                        Export Users
-                      </Button>
-                    </div>
-                  </div>
-                )}
+          <div className="flex flex-col gap-4 mb-6">
+            <div className="flex items-center gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, email..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="pl-9"
+                />
               </div>
-              <div className="relative overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[150px]">Username</TableHead>
-                      <TableHead className="w-[200px]">Email</TableHead>
-                      <TableHead className="w-[150px]">Full Name</TableHead>
-                      <TableHead className="w-[100px]">Role</TableHead>
-                      <TableHead className="w-[150px]">Manager</TableHead>
-                      <TableHead className="w-[150px]">Location</TableHead>
-                      <TableHead className="w-[200px]">Processes</TableHead>
-                      <TableHead className="w-[100px]">Status</TableHead>
-                      {canManageUsers && (
-                        <TableHead className="w-[100px] text-right">Actions</TableHead>
+              <Select
+                value={roleFilter}
+                onValueChange={(value) => {
+                  setRoleFilter(value);
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Roles</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="trainer">Trainer</SelectItem>
+                  <SelectItem value="advisor">Advisor</SelectItem>
+                  <SelectItem value="team_lead">Team Lead</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={managerFilter}
+                onValueChange={(value) => {
+                  setManagerFilter(value);
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by manager" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Managers</SelectItem>
+                  <SelectItem value="none">No Manager</SelectItem>
+                  {uniqueManagers.map((manager) => (
+                    <SelectItem key={manager.id} value={manager.id.toString()}>
+                      {manager.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {canManageUsers && (
+              <div className="flex justify-between items-center mb-4">
+                <div className="space-x-2">
+                  <Button
+                    onClick={exportToExcel}
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Export Users
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="relative overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[150px]">Username</TableHead>
+                  <TableHead className="w-[200px]">Email</TableHead>
+                  <TableHead className="w-[150px]">Full Name</TableHead>
+                  <TableHead className="w-[100px]">Role</TableHead>
+                  <TableHead className="w-[150px]">Manager</TableHead>
+                  <TableHead className="w-[150px]">Location</TableHead>
+                  <TableHead className="w-[200px]">Processes</TableHead>
+                  <TableHead className="w-[100px]">Status</TableHead>
+                  {canManageUsers && (
+                    <TableHead className="w-[100px] text-right">Actions</TableHead>
+                  )}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {currentUsers.map((u) => (
+                  <TableRow key={u.id} className={!u.active ? "opacity-60" : ""}>
+                    <TableCell className="font-medium">{u.username}</TableCell>
+                    <TableCell>{u.email}</TableCell>
+                    <TableCell>{u.fullName}</TableCell>
+                    <TableCell>
+                      <Badge>{u.role}</Badge>
+                    </TableCell>
+                    <TableCell>{getManagerName(u.managerId)}</TableCell>
+                    <TableCell>{getLocationName(u.locationId)}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {getUserProcesses(u.id).split(", ").map((process, idx) => (
+                          <Badge key={idx} variant="outline">
+                            {process}
+                          </Badge>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {u.role === "owner" ? (
+                        <div className="flex items-center" title="Owner status cannot be changed">
+                          <Switch
+                            checked={true}
+                            disabled={true}
+                            className="opacity-50 cursor-not-allowed"
+                          />
+                        </div>
+                      ) : canManageUsers ? (
+                        <Switch
+                          checked={u.active}
+                          onCheckedChange={(checked) => toggleUserStatus(u.id, u.active, u.role)}
+                          disabled={false}
+                        />
+                      ) : (
+                        <Switch checked={u.active} disabled={true} />
                       )}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {currentUsers.map((u) => (
-                      <TableRow key={u.id} className={!u.active ? "opacity-60" : ""}>
-                        <TableCell className="font-medium">{u.username}</TableCell>
-                        <TableCell>{u.email}</TableCell>
-                        <TableCell>{u.fullName}</TableCell>
-                        <TableCell>
-                          <Badge>{u.role}</Badge>
-                        </TableCell>
-                        <TableCell>{getManagerName(u.managerId)}</TableCell>
-                        <TableCell>{getLocationName(u.locationId)}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {getUserProcesses(u.id).split(", ").map((process, idx) => (
-                              <Badge key={idx} variant="outline">
-                                {process}
-                              </Badge>
-                            ))}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {u.role === "owner" ? (
-                            <div className="flex items-center" title="Owner status cannot be changed">
-                              <Switch
-                                checked={true}
-                                disabled={true}
-                                className="opacity-50 cursor-not-allowed"
-                              />
-                            </div>
-                          ) : canManageUsers ? (
-                            <Switch
-                              checked={u.active}
-                              onCheckedChange={(checked) => toggleUserStatus(u.id, u.active, u.role)}
-                              disabled={false}
-                            />
-                          ) : (
-                            <Switch checked={u.active} disabled={true} />
-                          )}
-                        </TableCell>
-                        {canManageUsers && (
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <EditUserDialog user={u} />
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="text-destructive"
-                                onClick={() => {
-                                  setUserToDelete(u);
-                                  setShowDeleteDialog(true);
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-center space-x-2 py-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                    >
-                      Previous
-                    </Button>
+                    </TableCell>
+                    {canManageUsers && (
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <EditUserDialog user={u} />
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="text-destructive"
+                            onClick={() => {
+                              setUserToDelete(u);
+                              setShowDeleteDialog(true);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center space-x-2 py-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
 
-                    {getPageNumbers().map((pageNumber, index) => (
-                      <Button
-                        key={index}
-                        variant={pageNumber === currentPage ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => typeof pageNumber === 'number' && handlePageChange(pageNumber)}
-                        disabled={typeof pageNumber !== 'number'}
-                      >
-                        {pageNumber}
-                      </Button>
-                    ))}
+                {getPageNumbers().map((pageNumber, index) => (
+                  <Button
+                    key={index}
+                    variant={pageNumber === currentPage ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => typeof pageNumber === 'number' && handlePageChange(pageNumber)}
+                    disabled={typeof pageNumber !== 'number'}
+                  >
+                    {pageNumber}
+                  </Button>
+                ))}
 
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
               </div>
-            </TabsContent>
-
-            <TabsContent value="hierarchy">
-              <div className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search users..."
-                      value={searchTerm}
-                      onChange={(e) => {
-                        setSearchTerm(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      className="pl-9"
-                    />
-                  </div>
-                </div>
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="space-y-2">
-                      {buildUserHierarchy(filteredUsers).map(user => (
-                        <UserHierarchyItem key={user.id} user={user} />
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-          </Tabs>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -949,25 +838,10 @@ export function UserManagement() {
               >
                 Delete User
               </Button>
-            </DialogFooter>          </DialogContent>
+            </DialogFooter>
+          </DialogContent>
         </Dialog>
       )}
     </div>
   );
-}
-
-interface InsertUser {
-  id?: number;
-  username: string;
-  fullName?: string;
-  email: string;
-  employeeId?: string;
-  role: string;
-  phoneNumber?: string;
-  locationId?: number | null;
-  managerId?: number | null;
-  dateOfJoining?: string;
-  dateOfBirth?: string;
-  education?: string;
-  active?: boolean;
 }
