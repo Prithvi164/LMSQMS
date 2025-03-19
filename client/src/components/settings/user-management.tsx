@@ -8,7 +8,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Trash2, Search } from "lucide-react";
+import { Edit2, Trash2, Search, Download, Upload, FileSpreadsheet } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -27,6 +27,7 @@ import { useForm } from "react-hook-form";
 import { insertUserSchema } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { z } from "zod";
+import * as XLSX from "xlsx";
 
 // Extend the insertUserSchema for the edit form
 const editUserSchema = insertUserSchema.extend({
@@ -131,6 +132,30 @@ export function UserManagement() {
       console.error('Error toggling user status:', error);
     }
   };
+
+  // Add exportToExcel function after toggleUserStatus
+  const exportToExcel = () => {
+    const dataToExport = users.map(user => ({
+      Username: user.username,
+      'Full Name': user.fullName || '',
+      Email: user.email,
+      'Employee ID': user.employeeId || '',
+      Role: user.role,
+      'Phone Number': user.phoneNumber || '',
+      Location: getLocationName(user.locationId),
+      Manager: getManagerName(user.managerId),
+      'Date of Joining': user.dateOfJoining || '',
+      'Date of Birth': user.dateOfBirth || '',
+      Education: user.education || '',
+      Status: user.active ? 'Active' : 'Inactive'
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Users");
+    XLSX.writeFile(wb, `users_export_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
 
   // Find manager name for a user
   const getManagerName = (managerId: number | null) => {
@@ -563,8 +588,8 @@ export function UserManagement() {
                   className="pl-9"
                 />
               </div>
-              <Select 
-                value={roleFilter} 
+              <Select
+                value={roleFilter}
                 onValueChange={(value) => {
                   setRoleFilter(value);
                   setCurrentPage(1); // Reset to first page when filtering
@@ -583,8 +608,8 @@ export function UserManagement() {
                   <SelectItem value="team_lead">Team Lead</SelectItem>
                 </SelectContent>
               </Select>
-              <Select 
-                value={managerFilter} 
+              <Select
+                value={managerFilter}
                 onValueChange={(value) => {
                   setManagerFilter(value);
                   setCurrentPage(1); // Reset to first page when filtering
@@ -603,6 +628,19 @@ export function UserManagement() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            {/* Add Button in CardContent after the filter controls */}
+            <div className="flex justify-between items-center mb-4">
+              <div className="space-x-2">
+                <Button
+                  onClick={exportToExcel}
+                  variant="outline"
+                  className="gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Export Users
+                </Button>
+              </div>
             </div>
           </div>
 
