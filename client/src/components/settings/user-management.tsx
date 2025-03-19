@@ -8,7 +8,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Trash2, Search, Download, Upload, FileSpreadsheet, AlertCircle } from "lucide-react";
+import { Edit2, Trash2, Search, Download, Upload, FileSpreadsheet, AlertCircle, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -243,6 +243,12 @@ export function UserManagement() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Show loading toast
+    toast({
+      title: "Processing",
+      description: "Reading file content...",
+    });
+
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
@@ -257,26 +263,40 @@ export function UserManagement() {
           processes.map((p: any) => p.name?.toLowerCase()).filter(Boolean) :
           [];
 
-        jsonData.forEach((row, index) => {
-          if (!row.Username) errors.push(`Row ${index + 1}: Username is required`);
-          if (!row.Email) errors.push(`Row ${index + 1}: Email is required`);
-          if (!row.Role || !['admin', 'manager', 'advisor', 'trainer', 'trainee'].includes(row.Role.toLowerCase())) {
-            errors.push(`Row ${index + 1}: Invalid role`);
-          }
+        // Process in chunks to avoid blocking the UI
+        const chunkSize = 100;
+        for (let i = 0; i < jsonData.length; i += chunkSize) {
+          const chunk = jsonData.slice(i, i + chunkSize);
+          await new Promise(resolve => setTimeout(resolve, 0)); // Let the UI breathe
 
-          // Validate processes if provided
-          if (row.Processes && processNames.length > 0) {
-            const rowProcesses = row.Processes.split(',').map(p => p.trim().toLowerCase());
-            const invalidProcesses = rowProcesses.filter(p => !processNames.includes(p));
-            if (invalidProcesses.length > 0) {
-              errors.push(`Row ${index + 1}: Invalid processes: ${invalidProcesses.join(', ')}`);
+          chunk.forEach((row, index) => {
+            const rowIndex = i + index + 1;
+            if (!row.Username) errors.push(`Row ${rowIndex}: Username is required`);
+            if (!row.Email) errors.push(`Row ${rowIndex}: Email is required`);
+            if (!row.Role || !['admin', 'manager', 'advisor', 'trainer', 'trainee'].includes(row.Role.toLowerCase())) {
+              errors.push(`Row ${rowIndex}: Invalid role`);
             }
-          }
-        });
+
+            // Validate processes if provided
+            if (row.Processes && processNames.length > 0) {
+              const rowProcesses = row.Processes.split(',').map(p => p.trim().toLowerCase());
+              const invalidProcesses = rowProcesses.filter(p => !processNames.includes(p));
+              if (invalidProcesses.length > 0) {
+                errors.push(`Row ${rowIndex}: Invalid processes: ${invalidProcesses.join(', ')}`);
+              }
+            }
+          });
+        }
 
         setImportErrors(errors);
         setImportData(jsonData);
         setShowImportPreview(true);
+
+        // Show success toast
+        toast({
+          title: "Success",
+          description: `File processed successfully. ${jsonData.length} records found.`,
+        });
       } catch (error) {
         console.error('Error parsing file:', error);
         toast({
@@ -413,7 +433,14 @@ export function UserManagement() {
               onClick={() => importUsersMutation.mutate(importData as ImportedUser[])}
               disabled={importErrors.length > 0 || importUsersMutation.isPending}
             >
-              {importUsersMutation.isPending ? "Importing..." : "Import Users"}
+              {importUsersMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Importing...
+                </>
+              ) : (
+                "Import Users"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -941,8 +968,7 @@ export function UserManagement() {
                   <TableHead className="w-[100px]">Role</TableHead>
                   <TableHead className="w-[150px]">Manager</TableHead>
                   <TableHead className="w-[150px]">Location</TableHead>
-                  <TableHead className="w-[150px]">Last Working Day</TableHead>
-                  <TableHead className="w-[100px]">Status</TableHead>
+                  <TableHead className="w-[150px]">Last Working Day</TableHead><TableHead className="w-[100px]">Status</TableHead>
                   <TableHead className="w-[100px] text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
