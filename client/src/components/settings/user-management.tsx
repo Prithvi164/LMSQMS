@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import type { User, Organization, OrganizationLocation } from "@shared/schema";
+import type { User, Organization, OrganizationLocation, UserProcess } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -573,6 +573,18 @@ export function UserManagement() {
     enabled: !!user?.organizationId,
   });
 
+  // Add new query for user processes
+  const { data: userProcesses = {} } = useQuery({
+    queryKey: ["/api/users/processes"],
+    enabled: !!user,
+  });
+
+  // Add helper function to get user processes
+  const getUserProcesses = (userId: number) => {
+    const processes = userProcesses[userId] || [];
+    return processes.map((p: UserProcess) => p.processName).join(", ") || "No processes";
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -660,6 +672,7 @@ export function UserManagement() {
                   <TableHead className="w-[100px]">Role</TableHead>
                   <TableHead className="w-[150px]">Manager</TableHead>
                   <TableHead className="w-[150px]">Location</TableHead>
+                  <TableHead className="w-[200px]">Processes</TableHead>
                   <TableHead className="w-[100px]">Status</TableHead>
                   <TableHead className="w-[100px] text-right">Actions</TableHead>
                 </TableRow>
@@ -675,6 +688,15 @@ export function UserManagement() {
                     </TableCell>
                     <TableCell>{getManagerName(u.managerId)}</TableCell>
                     <TableCell>{getLocationName(u.locationId)}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {getUserProcesses(u.id).split(", ").map((process, idx) => (
+                          <Badge key={idx} variant="outline">
+                            {process}
+                          </Badge>
+                        ))}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       {u.role === "owner" ? (
                         <div className="flex items-center" title="Owner status cannot be changed">

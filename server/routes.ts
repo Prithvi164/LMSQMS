@@ -893,6 +893,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add GET endpoint for user processes
+  app.get("/api/users/processes", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      // Get all user processes for the organization
+      const processes = await db.query.userProcesses.findMany({
+        where: sql`user_id IN (
+          SELECT id FROM users 
+          WHERE organization_id = ${req.user.organizationId}
+        )`,
+        with: {
+          process: {
+            columns: {
+              name: true
+            }
+          }
+        }
+      });
+
+      // Format the response to group processes by user ID
+      const userProcessMap = processes.reduce((acc: Record<number, any[]>, curr) => {
+        if (!acc[curr.userId]) {
+          acc[curr.userId] = [];
+        }
+        acc[curr.userId].push({
+          processId: curr.processId,
+          processName: curr.process.name
+        });
+        return acc;
+      }, {});
+
+      res.json(userProcessMap);
+    } catch (error: any) {
+      console.error("Error fetching user processes:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // User management routes
   app.get("/api/users", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
