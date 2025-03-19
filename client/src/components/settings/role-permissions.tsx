@@ -8,7 +8,12 @@ import { useAuth } from "@/hooks/use-auth";
 import { permissionEnum, roleEnum } from "@shared/schema";
 import type { RolePermission } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { 
+  Tooltip, 
+  TooltipContent, 
+  TooltipTrigger,
+  TooltipProvider 
+} from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
 
 export function RolePermissions() {
@@ -116,87 +121,89 @@ export function RolePermissions() {
         <h1 className="text-3xl font-bold">Role Permissions</h1>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            Role Management
-            <Tooltip>
-              <TooltipTrigger>
-                <Info className="h-4 w-4 text-muted-foreground" />
-              </TooltipTrigger>
-              <TooltipContent>
-                Select a role to manage its permissions. Changes are applied immediately.
-              </TooltipContent>
-            </Tooltip>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            {/* Role Selection */}
-            <div className="p-4 bg-muted/50 rounded-lg">
-              <h3 className="text-sm font-medium mb-3">Select Role</h3>
-              <div className="flex flex-wrap gap-2">
-                {availableRoles.map((role) => (
-                  <Badge
-                    key={role}
-                    variant={selectedRole === role ? "default" : "outline"}
-                    className={`cursor-pointer hover:bg-primary/90 transition-colors ${
-                      selectedRole === role ? 'shadow-sm' : ''
-                    }`}
-                    onClick={() => setSelectedRole(role)}
-                  >
-                    {role.replace(/_/g, " ")}
-                  </Badge>
-                ))}
+      <TooltipProvider>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              Role Management
+              <Tooltip>
+                <TooltipTrigger>
+                  <Info className="h-4 w-4 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  Select a role to manage its permissions. Changes are applied immediately.
+                </TooltipContent>
+              </Tooltip>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              {/* Role Selection */}
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <h3 className="text-sm font-medium mb-3">Select Role</h3>
+                <div className="flex flex-wrap gap-2">
+                  {availableRoles.map((role) => (
+                    <Badge
+                      key={role}
+                      variant={selectedRole === role ? "default" : "outline"}
+                      className={`cursor-pointer hover:bg-primary/90 transition-colors ${
+                        selectedRole === role ? 'shadow-sm' : ''
+                      }`}
+                      onClick={() => setSelectedRole(role)}
+                    >
+                      {role.replace(/_/g, " ")}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              {/* Permissions Grid */}
+              <div className="grid gap-6">
+                {Object.entries(groupPermissionsByCategory(permissionEnum.enumValues)).map(
+                  ([category, permissions]) => (
+                    <div key={category} className="space-y-4">
+                      <h3 className="text-lg font-semibold capitalize">
+                        {category.replace("_", " ")}
+                      </h3>
+                      <div className="grid gap-3 bg-card p-4 rounded-lg border">
+                        {permissions.map((permission) => (
+                          <Tooltip key={permission}>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-muted/50 transition-colors">
+                                <div className="space-y-1">
+                                  <p className="font-medium capitalize">
+                                    {permission.replace(/_/g, " ")}
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {getPermissionDescription(permission)}
+                                  </p>
+                                </div>
+                                <Switch
+                                  checked={getPermissionsForRole(selectedRole).includes(
+                                    permission
+                                  )}
+                                  onCheckedChange={() => handlePermissionToggle(permission)}
+                                  disabled={
+                                    selectedRole === 'owner' && user?.role !== 'owner' ||
+                                    updatePermissionMutation.isPending
+                                  }
+                                />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="left" align="center">
+                              {getPermissionDescription(permission)}
+                            </TooltipContent>
+                          </Tooltip>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                )}
               </div>
             </div>
-
-            {/* Permissions Grid */}
-            <div className="grid gap-6">
-              {Object.entries(groupPermissionsByCategory(permissionEnum.enumValues)).map(
-                ([category, permissions]) => (
-                  <div key={category} className="space-y-4">
-                    <h3 className="text-lg font-semibold capitalize">
-                      {category.replace("_", " ")}
-                    </h3>
-                    <div className="grid gap-3 bg-card p-4 rounded-lg border">
-                      {permissions.map((permission) => (
-                        <Tooltip key={permission}>
-                          <TooltipTrigger asChild>
-                            <div className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-muted/50 transition-colors">
-                              <div className="space-y-1">
-                                <p className="font-medium capitalize">
-                                  {permission.replace(/_/g, " ")}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                  {getPermissionDescription(permission)}
-                                </p>
-                              </div>
-                              <Switch
-                                checked={getPermissionsForRole(selectedRole).includes(
-                                  permission
-                                )}
-                                onCheckedChange={() => handlePermissionToggle(permission)}
-                                disabled={
-                                  selectedRole === 'owner' && user?.role !== 'owner' ||
-                                  updatePermissionMutation.isPending
-                                }
-                              />
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent side="left" align="center">
-                            {getPermissionDescription(permission)}
-                          </TooltipContent>
-                        </Tooltip>
-                      ))}
-                    </div>
-                  </div>
-                )
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </TooltipProvider>
     </div>
   );
 }
