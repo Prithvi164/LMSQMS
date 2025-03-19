@@ -959,7 +959,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ message: error.message || "Failed to create user" });
     }
   });
-
   // Update user route
   app.patch("/api/users/:id", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
@@ -999,41 +998,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           'education'
         ];
 
-  // Delete user endpoint
-  app.delete("/api/users/:id", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
-    try {
-      const userId = parseInt(req.params.id);
-      const userToDelete = await storage.getUser(userId);
-
-      if (!userToDelete) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      // Check if user belongs to the same organization
-      if (userToDelete.organizationId !== req.user.organizationId) {
-        return res.status(403).json({ message: "Cannot delete users from other organizations" });
-      }
-
-      // Only owners and admins can delete users
-      if (req.user.role !== 'owner' && req.user.role !== 'admin') {
-        console.log(`Delete request rejected: Insufficient permissions for user ${req.user.id}`);
-        return res.status(403).json({ message: "Insufficient permissions to delete users" });
-      }
-
-      // Cannot delete owners
-      if (userToDelete.role === 'owner') {
-        return res.status(403).json({ message: "Cannot delete organization owner" });
-      }
-
-      await storage.deleteUser(userId);
-      res.status(204).send();
-    } catch (error: any) {
-      console.error("Error deleting user:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
 
       const filteredUpdateData = Object.keys(updateData)
         .filter(key => allowedSelfUpdateFields.includes(key))

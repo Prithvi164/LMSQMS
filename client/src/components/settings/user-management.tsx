@@ -64,22 +64,26 @@ export function UserManagement() {
       try {
         console.log('Attempting to delete user:', userId);
         const response = await apiRequest("DELETE", `/api/users/${userId}`);
+        const data = await response.json().catch(() => null);
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => null);
-          throw new Error(errorData?.message || "Failed to delete user");
+          throw new Error(data?.message || "Failed to delete user");
         }
 
-        return { success: true };
+        if (!data?.success) {
+          throw new Error(data?.message || "User deletion failed");
+        }
+
+        return data;
       } catch (error) {
         console.error('Error in delete mutation:', error);
         throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "Success",
-        description: "User deleted successfully",
+        description: data.message || "User deleted successfully",
       });
 
       // Force refetch the users list
