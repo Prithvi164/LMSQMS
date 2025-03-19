@@ -772,13 +772,24 @@ export function UserManagement() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete User</DialogTitle>
-            <DialogDescription>
-              This is a permanent action. Are you sure you want to delete {userToDelete?.username}?
+            <DialogDescription className="space-y-3">
+              <p>You are about to delete user <strong>{userToDelete?.username}</strong>.</p>
+              <div className="bg-amber-50 dark:bg-amber-950 p-4 rounded-md text-amber-900 dark:text-amber-100">
+                <p className="font-semibold mb-2">This will permanently delete:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>User's attendance records</li>
+                  <li>Quiz attempts and responses</li>
+                  <li>Evaluations (both as trainee and evaluator)</li>
+                  <li>Process assignments</li>
+                  <li>Batch assignments</li>
+                </ul>
+                <p className="mt-3 text-sm">This action cannot be undone.</p>
+              </div>
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <Label htmlFor="confirmation" className="text-sm text-muted-foreground block mb-2">
-              Type "{userToDelete?.username}" to confirm deletion:
+              Type <strong>"{userToDelete?.username}"</strong> to confirm deletion:
             </Label>
             <Input
               id="confirmation"
