@@ -618,19 +618,17 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
 
           <div>
             <Label htmlFor="category">Category</Label>
-            <select
+            <Input
               id="category"
-              className="w-full rounded-md border border-input bg-background px-3 py-2"
-              value={newUserData.category}
-              onChange={(e) => setNewUserData(prev => ({
-                ...prev,
-                category: e.target.value
-              }))}
-              required
-            >
-              <option value="">Select category</option>
-              <option value="active">Active</option>
-            </select>
+              value="Active"
+              disabled
+              className="bg-muted cursor-not-allowed"
+            />
+            <input 
+              type="hidden" 
+              name="category" 
+              value="active" 
+            />
           </div>
 
           <Button
