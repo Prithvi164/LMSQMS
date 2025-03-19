@@ -73,6 +73,16 @@ export const permissionEnum = pgEnum('permission', [
   'export_reports'
 ]);
 
+// Add after the existing permission enum
+export const locationPermissionEnum = pgEnum('location_permission', [
+  'view_location',
+  'manage_location',
+  'manage_users_in_location',
+  'view_reports_in_location',
+  'manage_processes_in_location',
+  'manage_batches_in_location'
+]);
+
 export const processStatusEnum = pgEnum('process_status', [
   'active',
   'inactive',
@@ -834,6 +844,7 @@ export const insertOrganizationLocationSchema = createInsertSchema(organizationL
     address: z.string().min(1, "Address is required"),
     city: z.string().min(1, "City is required"),
     state: z.string().min(1, "State is required"),
+```javascript
     country: z.string().min(1, "Country is required"),
     organizationId: z.number().int().positive("Organization is required"),
   });
@@ -1748,5 +1759,57 @@ export const evaluationScoresRelations = relations(evaluationScores, ({ one }) =
   parameter: one(evaluationParameters, {
     fields: [evaluationScores.parameterId],
     references: [evaluationParameters.id],
+  }),
+}));
+
+// Add new table for location-based permissions
+export const locationPermissions = pgTable("location_permissions", {
+  id: serial("id").primaryKey(),
+  roleId: roleEnum("role_id").notNull(),
+  locationId: integer("location_id")
+    .references(() => organizationLocations.id)
+    .notNull(),
+  permissions: jsonb("permissions").$type<string[]>().notNull(),
+  features: jsonb("features").$type<string[]>().notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    unq: unique().on(table.roleId, table.locationId, table.organizationId),
+  };
+});
+
+// Add type for locationPermissions
+export type LocationPermission = typeof locationPermissions.$inferSelect;
+
+// Add insert schema for locationPermissions
+export const insertLocationPermissionSchema = createInsertSchema(locationPermissions)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    roleId: z.enum(['owner', 'admin', 'manager', 'team_lead', 'quality_analyst', 'trainer', 'advisor']),
+    locationId: z.number().int().positive("Location is required"),
+    permissions: z.array(z.string()).min(1, "At least one permission is required"),
+    features: z.array(z.string()).min(1, "At least one feature is required"),
+    organizationId: z.number().int().positive("Organization is required"),
+  });
+
+export type InsertLocationPermission = z.infer<typeof insertLocationPermissionSchema>;
+
+// Add relations
+export const locationPermissionsRelations = relations(locationPermissions, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [locationPermissions.organizationId],
+    references: [organizations.id],
+  }),
+  location: one(organizationLocations, {
+    fields: [locationPermissions.locationId],
+    references: [organizationLocations.id],
   }),
 }));
