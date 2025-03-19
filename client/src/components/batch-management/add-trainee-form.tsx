@@ -70,13 +70,12 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
   const traineeCount = batch.enrolledCount || 0;
   const remainingCapacity = (batch.capacityLimit || 0) - traineeCount;
 
-  // Update the query to include trainer details
-  const { data: batchDetails, isLoading: isLoadingBatchDetails } = useQuery({
-    queryKey: [`/api/organizations/${batch.organizationId}/batches/${batch.id}/details`],
+  const { data: batchDetails } = useQuery({
+    queryKey: [`/api/organizations/${batch.organizationId}/batches/${batch.id}`],
     enabled: !!batch.id,
   });
 
-  const form = useForm({
+  const form = useForm<z.infer<typeof addTraineeSchema>>({
     resolver: zodResolver(addTraineeSchema),
     defaultValues: {
       role: 'advisor'
@@ -97,8 +96,8 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
         trainerId: batch.trainerId,
         organizationId: batch.organizationId,
         batchId: batch.id,
-        category: "trainee",
-        role: values.role,
+        category: "trainee", // Always set category as trainee
+        role: values.role, // Use selected role
       };
 
       const response = await fetch(`/api/organizations/${batch.organizationId}/batches/${batch.id}/trainees`, {
@@ -107,14 +106,15 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
         body: JSON.stringify(traineeData),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const data = await response.json();
         throw new Error(data.message || "Failed to add trainee");
       }
 
       toast({
         title: "Success",
-        description: `Trainee ${values.fullName} has been successfully added to batch ${batch.name}`,
+        description: `Trainee ${values.fullName} has been successfully added to batch ${batch.name} with role ${values.role}`,
       });
 
       onSuccess();
@@ -133,6 +133,7 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Validate file type
     if (!file.name.endsWith('.xlsx')) {
       toast({
         title: 'Error',
@@ -150,6 +151,12 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
     try {
       setIsSubmitting(true);
 
+      console.log('Uploading file:', {
+        name: file.name,
+        size: file.size,
+        type: file.type
+      });
+
       const response = await fetch(
         `/api/organizations/${batch.organizationId}/batches/${batch.id}/trainees/bulk`,
         {
@@ -164,6 +171,7 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
         throw new Error(data.message || 'Failed to upload trainees');
       }
 
+      // Show success toast with detailed information
       toast({
         title: 'Upload Complete',
         description: (
@@ -186,9 +194,10 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
             )}
           </div>
         ),
-        duration: data.failureCount > 0 ? 10000 : 5000,
+        duration: data.failureCount > 0 ? 10000 : 5000, // Show longer for errors
       });
 
+      // Only close dialog and refresh if at least one trainee was added successfully
       if (data.successCount > 0) {
         onSuccess();
         setShowBulkUpload(false);
@@ -202,23 +211,17 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
       });
     } finally {
       setIsSubmitting(false);
+      // Clear the file input
       event.target.value = '';
     }
   };
 
-  const getTrainerName = () => {
-    if (isLoadingBatchDetails) return 'Loading batch details...';
-    if (!batch.trainerId) return 'No trainer assigned';
-    return batchDetails?.trainer?.fullName || 'Loading trainer details...';
-  };
 
   return (
     <div className="max-h-[70vh] overflow-y-auto px-4">
       <div className="mb-6 p-4 rounded-lg bg-muted">
-        <h3 className="font-medium mb-2">Batch Details</h3>
+        <h3 className="font-medium mb-2">Batch Capacity</h3>
         <div className="text-sm space-y-1">
-          <p>Batch Name: {batch.name}</p>
-          <p>Trainer: {getTrainerName()}</p>
           <p>Total Capacity: {batch.capacityLimit}</p>
           <p>Current Trainees: {traineeCount}</p>
           <p className="font-medium">Remaining Slots: {remainingCapacity}</p>
@@ -290,7 +293,7 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <FormLabel className="text-muted-foreground">Trainer</FormLabel>
-                <Input value={getTrainerName()} disabled />
+                <Input value={batchDetails?.trainer?.fullName || 'Loading...'} disabled />
               </div>
               <div>
                 <FormLabel className="text-muted-foreground">Location</FormLabel>
