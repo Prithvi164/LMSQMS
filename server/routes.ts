@@ -909,6 +909,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete user endpoint
+  app.delete("/api/users/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Unauthorized" 
+      });
+    }
+
+    try {
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Invalid user ID" 
+        });
+      }
+
+      console.log(`Delete user request received for userId: ${userId}`);
+      const userToDelete = await storage.getUser(userId);
+
+      if (!userToDelete) {
+        return res.status(404).json({ 
+          success: false, 
+          message: "User not found" 
+        });
+      }
+
+      // Check if user belongs to the same organization
+      if (userToDelete.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ 
+          success: false, 
+          message: "Cannot delete users from other organizations" 
+        });
+      }
+
+      // Only owners and admins can delete users
+      if (req.user.role !== 'owner' && req.user.role !== 'admin') {
+        console.log(`Delete request rejected: Insufficient permissions for user ${req.user.id}`);
+        return res.status(403).json({ 
+          success: false, 
+          message: "Insufficient permissions to delete users" 
+        });
+      }
+
+      // Cannot delete owners
+      if (userToDelete.role === 'owner') {
+        return res.status(403).json({ 
+          success: false, 
+          message: "Cannot delete organization owner" 
+        });
+      }
+
+      console.log(`Attempting to delete user ${userId} from storage`);
+      await storage.deleteUser(userId);
+      console.log(`Successfully deleted user ${userId}`);
+
+      return res.status(200).json({ 
+        success: true, 
+        message: "User deleted successfully" 
+      });
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
+      return res.status(500).json({ 
+        success: false, 
+        message: error.message || "Failed to delete user" 
+      });
+    }
+  });
+
   // Create user endpoint
   app.post("/api/users", async (req, res) => {
     if (!req.user) {
@@ -953,12 +1023,150 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(result.user);
     } catch (error: any) {
       console.error("User creation error:", error);
-      if (error.message.includes('already exists')) {
-        return res.status(400).json({ message: error.message });
-      }
       res.status(400).json({ message: error.message || "Failed to create user" });
     }
   });
+
+  // Delete user endpoint
+  app.delete("/api/users/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Unauthorized" 
+      });
+    }
+
+    try {
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Invalid user ID" 
+        });
+      }
+
+      console.log(`Delete user request received for userId: ${userId}`);
+      const userToDelete = await storage.getUser(userId);
+
+      if (!userToDelete) {
+        return res.status(404).json({ 
+          success: false, 
+          message: "User not found" 
+        });
+      }
+
+      // Check if user belongs to the same organization
+      if (userToDelete.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ 
+          success: false, 
+          message: "Cannot delete users from other organizations" 
+        });
+      }
+
+      // Only owners and admins can delete users
+      if (req.user.role !== 'owner' && req.user.role !== 'admin') {
+        console.log(`Delete request rejected: Insufficient permissions for user ${req.user.id}`);
+        return res.status(403).json({ 
+          success: false, 
+          message: "Insufficient permissions to delete users" 
+        });
+      }
+
+      // Cannot delete owners
+      if (userToDelete.role === 'owner') {
+        return res.status(403).json({ 
+          success: false, 
+          message: "Cannot delete organization owner" 
+        });
+      }
+
+      console.log(`Attempting to delete user ${userId} from storage`);
+      await storage.deleteUser(userId);
+      console.log(`Successfully deleted user ${userId}`);
+
+      return res.status(200).json({ 
+        success: true, 
+        message: "User deleted successfully" 
+      });
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
+      return res.status(500).json({ 
+        success: false, 
+        message: error.message || "Failed to delete user" 
+      });
+    }
+  });
+
+  // Delete user endpoint
+  app.delete("/api/users/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Unauthorized" 
+      });
+    }
+
+    try {
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Invalid user ID" 
+        });
+      }
+
+      console.log(`Delete user request received for userId: ${userId}`);
+      const userToDelete = await storage.getUser(userId);
+
+      if (!userToDelete) {
+        return res.status(404).json({ 
+          success: false, 
+          message: "User not found" 
+        });
+      }
+
+      // Check if user belongs to the same organization
+      if (userToDelete.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ 
+          success: false, 
+          message: "Cannot delete users from other organizations" 
+        });
+      }
+
+      // Only owners and admins can delete users
+      if (req.user.role !== 'owner' && req.user.role !== 'admin') {
+        console.log(`Delete request rejected: Insufficient permissions for user ${req.user.id}`);
+        return res.status(403).json({ 
+          success: false, 
+          message: "Insufficient permissions to delete users" 
+        });
+      }
+
+      // Cannot delete owners
+      if (userToDelete.role === 'owner') {
+        return res.status(403).json({ 
+          success: false, 
+          message: "Cannot delete organization owner" 
+        });
+      }
+
+      console.log(`Attempting to delete user ${userId} from storage`);
+      await storage.deleteUser(userId);
+      console.log(`Successfully deleted user ${userId}`);
+
+      return res.status(200).json({ 
+        success: true, 
+        message: "User deleted successfully" 
+      });
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
+      return res.status(500).json({ 
+        success: false, 
+        message: error.message || "Failed to delete user" 
+      });
+    }
+  });
+
   // Update user route
   app.patch("/api/users/:id", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
