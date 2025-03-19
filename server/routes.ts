@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { Router } from "express";
-import { insertUserSchema, users, userBatchProcesses, organizationProcesses, userProcesses, quizzes, insertMockCallScenarioSchema, insertMockCallAttemptSchema, mockCallScenarios, mockCallAttempts, batches, evaluations } from "@shared/schema";
+import { insertUserSchema, users, userBatchProcesses, organizationProcesses, userProcesses, quizzes, insertMockCallScenarioSchema, insertMockCallAttemptSchema, mockCallScenarios, mockCallAttempts, batches } from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
@@ -909,90 +909,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add new endpoint to get user deletion impact
-  app.get("/api/users/:id/deletion-impact", async (req, res) => {
-    if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const userId = parseInt(req.params.id);
-      if (isNaN(userId)) {
-        return res.status(400).json({ message: "Invalid user ID" });
-      }
-
-      const userToDelete = await storage.getUser(userId);
-      if (!userToDelete) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      // Check if user belongs to the same organization
-      if (userToDelete.organizationId !== req.user.organizationId) {
-        return res.status(403).json({ message: "Cannot access users from other organizations" });
-      }
-
-      // Gather impact details
-      const [
-        attendanceCount,
-        evaluationsAsTrainee,
-        evaluationsAsEvaluator,
-        quizAttempts,
-        managedUsers,
-        batchEnrollments
-      ] = await Promise.all([
-        // Count attendance records
-        db.select({ count: sql<number>`count(*)` })
-          .from(attendance)
-          .where(eq(attendance.traineeId, userId))
-          .then(result => result[0].count),
-
-        // Count evaluations as trainee
-        db.select({ count: sql<number>`count(*)` })
-          .from(evaluations)
-          .where(eq(evaluations.traineeId, userId))
-          .then(result => result[0].count),
-
-        // Count evaluations as evaluator
-        db.select({ count: sql<number>`count(*)` })
-          .from(evaluations)
-          .where(eq(evaluations.evaluatorId, userId))
-          .then(result => result[0].count),
-
-        // Count quiz attempts
-        db.select({ count: sql<number>`count(*)` })
-          .from(quizAttempts)
-          .where(eq(quizAttempts.userId, userId))
-          .then(result => result[0].count),
-
-        // Count users being managed
-        db.select({ count: sql<number>`count(*)` })
-          .from(users)
-          .where(eq(users.managerId, userId))
-          .then(result => result[0].count),
-
-        // Count batch enrollments
-        db.select({ count: sql<number>`count(*)` })
-          .from(userBatchProcesses)
-          .where(eq(userBatchProcesses.userId, userId))
-          .then(result => result[0].count)
-      ]);
-
-      return res.json({
-        attendanceRecords: attendanceCount,
-        evaluations: {
-          asTrainee: evaluationsAsTrainee,
-          asEvaluator: evaluationsAsEvaluator
-        },
-        quizAttempts,
-        managedUsers,
-        batchEnrollments
-      });
-
-    } catch (error: any) {
-      console.error("Error fetching user deletion impact:", error);
-      return res.status(500).json({ message: error.message });
-    }
-  });
   // Delete user endpoint
   app.delete("/api/users/:id", async (req, res) => {
     if (!req.user) {
