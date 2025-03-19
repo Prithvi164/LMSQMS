@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/use-auth";
@@ -14,7 +14,7 @@ import {
   TooltipTrigger,
   TooltipProvider 
 } from "@/components/ui/tooltip";
-import { Info } from "lucide-react";
+import { Info, Shield } from "lucide-react";
 
 export function RolePermissions() {
   const { user } = useAuth();
@@ -30,10 +30,23 @@ export function RolePermissions() {
   // Filter out owner and trainee from role selection
   const availableRoles = roleEnum.enumValues.filter(role => {
     if (user?.role !== 'owner') {
-      return role !== 'owner' && role !== 'trainee'; // Filter out both owner and trainee
+      return role !== 'owner' && role !== 'trainee';
     }
-    return role !== 'trainee'; // Always filter out trainee
+    return role !== 'trainee';
   });
+
+  const getRoleDescription = (role: string) => {
+    const descriptions: Record<string, string> = {
+      owner: "Full system access and control",
+      admin: "Organization-wide administration",
+      manager: "Department and team management",
+      team_lead: "Team supervision and coordination",
+      quality_analyst: "Quality monitoring and assurance",
+      trainer: "Training delivery and assessment",
+      advisor: "Support and guidance provision"
+    };
+    return descriptions[role] || role;
+  };
 
   const updatePermissionMutation = useMutation({
     mutationFn: async ({
@@ -92,7 +105,6 @@ export function RolePermissions() {
       manage_organization: "Control organization-wide settings",
       manage_performance: "Access and manage performance metrics",
       export_reports: "Generate and download reports",
-      // Removed course and learning path related descriptions
     };
     return descriptions[permission] || permission.replace(/_/g, " ");
   };
@@ -132,34 +144,40 @@ export function RolePermissions() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              Role Management
-              <Tooltip>
-                <TooltipTrigger>
-                  <Info className="h-4 w-4 text-muted-foreground" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  Select a role to manage its permissions. Changes are applied immediately.
-                </TooltipContent>
-              </Tooltip>
+              <Shield className="h-5 w-5" /> Role Management
             </CardTitle>
+            <CardDescription>
+              Define access levels and capabilities for different roles in your organization
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
-              {/* Role Selection */}
+              {/* Role Selection with Descriptions */}
               <div className="p-4 bg-muted/50 rounded-lg">
                 <h3 className="text-sm font-medium mb-3">Select Role</h3>
-                <div className="flex flex-wrap gap-2">
+                <div className="grid gap-2">
                   {availableRoles.map((role) => (
-                    <Badge
+                    <div
                       key={role}
-                      variant={selectedRole === role ? "default" : "outline"}
-                      className={`cursor-pointer hover:bg-primary/90 transition-colors ${
-                        selectedRole === role ? 'shadow-sm' : ''
-                      }`}
                       onClick={() => setSelectedRole(role)}
+                      className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                        selectedRole === role 
+                          ? 'bg-primary text-primary-foreground' 
+                          : 'bg-card hover:bg-accent'
+                      }`}
                     >
-                      {role.replace(/_/g, " ")}
-                    </Badge>
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium capitalize">
+                          {role.replace(/_/g, " ")}
+                        </span>
+                        <Badge variant={selectedRole === role ? "outline" : "secondary"}>
+                          {selectedRole === role ? "Selected" : "Select"}
+                        </Badge>
+                      </div>
+                      <p className="text-sm mt-1 opacity-90">
+                        {getRoleDescription(role)}
+                      </p>
+                    </div>
                   ))}
                 </div>
               </div>
