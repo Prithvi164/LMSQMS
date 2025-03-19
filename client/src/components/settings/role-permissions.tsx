@@ -14,7 +14,8 @@ import {
   TooltipTrigger,
   TooltipProvider 
 } from "@/components/ui/tooltip";
-import { Info, Shield } from "lucide-react";
+import { Info, Shield, AlertTriangle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export function RolePermissions() {
   const { user } = useAuth();
@@ -24,7 +25,7 @@ export function RolePermissions() {
   const { data: rolePermissions, isLoading } = useQuery<RolePermission[]>({
     queryKey: ["/api/permissions"],
     enabled: !!user,
-    staleTime: 30000, // Consider data fresh for 30 seconds
+    staleTime: 0, // Always fetch fresh data
   });
 
   // Filter out owner and trainee from role selection
@@ -56,9 +57,14 @@ export function RolePermissions() {
       role: string;
       permissions: string[];
     }) => {
+      console.log('Updating permissions for role:', role, 'New permissions:', permissions);
       const res = await apiRequest("PATCH", `/api/permissions/${role}`, {
         permissions,
       });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Failed to update permissions');
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -69,6 +75,7 @@ export function RolePermissions() {
       });
     },
     onError: (error: Error) => {
+      console.error('Failed to update permissions:', error);
       toast({
         title: "Failed to update permissions",
         description: error.message,
@@ -78,7 +85,9 @@ export function RolePermissions() {
   });
 
   const getPermissionsForRole = useCallback((role: string) => {
-    return rolePermissions?.find((rp) => rp.role === role)?.permissions || [];
+    const permissions = rolePermissions?.find((rp) => rp.role === role)?.permissions || [];
+    console.log('Current permissions for role:', role, 'Permissions:', permissions);
+    return permissions;
   }, [rolePermissions]);
 
   const handlePermissionToggle = useCallback((permission: string) => {
@@ -87,27 +96,13 @@ export function RolePermissions() {
       ? currentPermissions.filter((p: string) => p !== permission)
       : [...currentPermissions, permission];
 
+    console.log('Toggling permission:', permission, 'New permissions list:', newPermissions);
+
     updatePermissionMutation.mutate({
       role: selectedRole,
       permissions: newPermissions,
     });
   }, [selectedRole, getPermissionsForRole, updatePermissionMutation]);
-
-  // Get permission description
-  const getPermissionDescription = (permission: string) => {
-    const descriptions: Record<string, string> = {
-      create_admin: "Create new admin users for the organization",
-      manage_users: "Create, edit, and delete user accounts",
-      view_users: "View user profiles and basic information",
-      edit_users: "Modify user details and settings",
-      delete_users: "Remove users from the system",
-      upload_users: "Bulk import users via file upload",
-      manage_organization: "Control organization-wide settings",
-      manage_performance: "Access and manage performance metrics",
-      export_reports: "Generate and download reports",
-    };
-    return descriptions[permission] || permission.replace(/_/g, " ");
-  };
 
   const filterPermissions = (permissions: string[]) => {
     // Filter out course and learning path related permissions
@@ -139,6 +134,13 @@ export function RolePermissions() {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Role Permissions</h1>
       </div>
+
+      <Alert>
+        <AlertTriangle className="h-4 w-4" />
+        <AlertDescription>
+          Changes to permissions take effect immediately. Users may need to refresh their page to see updates.
+        </AlertDescription>
+      </Alert>
 
       <TooltipProvider>
         <Card>
@@ -216,7 +218,7 @@ export function RolePermissions() {
                               </div>
                             </TooltipTrigger>
                             <TooltipContent side="left" align="center">
-                              {getPermissionDescription(permission)}
+                              Click to toggle this permission
                             </TooltipContent>
                           </Tooltip>
                         ))}
