@@ -70,12 +70,13 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
   const traineeCount = batch.enrolledCount || 0;
   const remainingCapacity = (batch.capacityLimit || 0) - traineeCount;
 
+  // Update the query to include trainer details
   const { data: batchDetails, isLoading: isLoadingBatchDetails } = useQuery({
-    queryKey: [`/api/organizations/${batch.organizationId}/batches/${batch.id}`],
+    queryKey: [`/api/organizations/${batch.organizationId}/batches/${batch.id}/details`],
     enabled: !!batch.id,
   });
 
-  const form = useForm<z.infer<typeof addTraineeSchema>>({
+  const form = useForm({
     resolver: zodResolver(addTraineeSchema),
     defaultValues: {
       role: 'advisor'
@@ -207,15 +208,17 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
 
   const getTrainerName = () => {
     if (isLoadingBatchDetails) return 'Loading batch details...';
-    if (!batchDetails?.trainer?.fullName) return 'No trainer assigned';
-    return batchDetails.trainer.fullName;
+    if (!batch.trainerId) return 'No trainer assigned';
+    return batchDetails?.trainer?.fullName || 'Loading trainer details...';
   };
 
   return (
     <div className="max-h-[70vh] overflow-y-auto px-4">
       <div className="mb-6 p-4 rounded-lg bg-muted">
-        <h3 className="font-medium mb-2">Batch Capacity</h3>
+        <h3 className="font-medium mb-2">Batch Details</h3>
         <div className="text-sm space-y-1">
+          <p>Batch Name: {batch.name}</p>
+          <p>Trainer: {getTrainerName()}</p>
           <p>Total Capacity: {batch.capacityLimit}</p>
           <p>Current Trainees: {traineeCount}</p>
           <p className="font-medium">Remaining Slots: {remainingCapacity}</p>
