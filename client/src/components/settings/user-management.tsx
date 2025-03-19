@@ -554,19 +554,6 @@ export function UserManagement() {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="lastWorkingDay"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Last Working Day</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="date" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
               <Button type="submit">Save Changes</Button>
             </form>
@@ -712,7 +699,6 @@ export function UserManagement() {
                   <TableHead className="w-[100px]">Role</TableHead>
                   <TableHead className="w-[150px]">Manager</TableHead>
                   <TableHead className="w-[150px]">Location</TableHead>
-                  <TableHead className="w-[150px]">Last Working Day</TableHead>
                   <TableHead className="w-[100px]">Status</TableHead>
                   <TableHead className="w-[100px] text-right">Actions</TableHead>
                 </TableRow>
@@ -728,7 +714,6 @@ export function UserManagement() {
                     </TableCell>
                     <TableCell>{getManagerName(u.managerId)}</TableCell>
                     <TableCell>{getLocationName(u.locationId)}</TableCell>
-                    <TableCell>{u.lastWorkingDay || "-"}</TableCell>
                     <TableCell>
                       {u.role === "owner" ? (
                         <div className="flex items-center" title="Owner status cannot be changed">
