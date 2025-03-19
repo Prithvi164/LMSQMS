@@ -1,15 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import type { User, Organization, OrganizationLocation, UserProcess } from "@shared/schema";
+import type { User, Organization, OrganizationLocation, UserProcess, OrganizationLineOfBusiness, OrganizationProcess } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Trash2, Search, Download, Upload, FileSpreadsheet } from "lucide-react";
+import { Edit2, Trash2, Search, Download, Upload, FileSpreadsheet, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -29,6 +29,19 @@ import { insertUserSchema } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { z } from "zod";
 import * as XLSX from "xlsx";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 // Extend the insertUserSchema for the edit form
 const editUserSchema = insertUserSchema.extend({
@@ -37,7 +50,9 @@ const editUserSchema = insertUserSchema.extend({
   dateOfJoining: z.string().optional(),
   dateOfBirth: z.string().optional(),
   education: z.string().optional(),
-}).omit({ certified: true }).partial();  // Remove certified from the schema
+  category: z.string(),
+  processes: z.array(z.number()).optional(),
+}).omit({ certified: true }).partial();
 
 type UserFormData = z.infer<typeof editUserSchema>;
 
@@ -264,6 +279,29 @@ export function UserManagement() {
     return rangeWithDots;
   };
 
+  // Add new state for LOB selection
+  const [selectedLOBs, setSelectedLOBs] = useState<number[]>([]);
+  const [openLOB, setOpenLOB] = useState(false);
+  const [openProcess, setOpenProcess] = useState(false);
+
+  // Add LOB and Process queries
+  const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery<OrganizationLineOfBusiness[]>({
+    queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses`],
+    enabled: !!user?.organizationId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: processes = [], isLoading: isLoadingProcesses } = useQuery<OrganizationProcess[]>({
+    queryKey: [`/api/organizations/${user?.organizationId}/processes`],
+    enabled: !!user?.organizationId && selectedLOBs.length > 0,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const filteredProcesses = processes.filter(process =>
+    selectedLOBs.includes(process.lineOfBusinessId)
+  );
+
+
   // Create EditUserDialog component
   const EditUserDialog = ({ user: editUser }: { user: User }) => {
     const form = useForm<UserFormData>({
@@ -280,8 +318,24 @@ export function UserManagement() {
         dateOfJoining: editUser.dateOfJoining || "",
         dateOfBirth: editUser.dateOfBirth || "",
         education: editUser.education || "",
+        category: editUser.category || "active",
+        processes: editUser.processes || [],
       }
     });
+
+    useEffect(() => {
+      // Initialize selectedLOBs based on user's processes
+      if (editUser.processes) {
+        const lobIds = editUser.processes
+          .map(processId => {
+            const process = processes.find(p => p.id === processId);
+            return process?.lineOfBusinessId;
+          })
+          .filter((id): id is number => id !== undefined);
+
+        setSelectedLOBs([...new Set(lobIds)]);
+      }
+    }, [editUser.processes]);
 
     // Determine if the current user can edit this user
     const canEdit = user?.role === "owner" || (user?.role === "admin" && editUser.role !== "admin");
@@ -316,8 +370,7 @@ export function UserManagement() {
                   ...data,
                   locationId: data.locationId === "none" ? null : parseInt(data.locationId!),
                   managerId: data.managerId === "none" ? null : parseInt(data.managerId!),
-                  // Only include lastWorkingDay if it has a value
-
+                  processes: data.processes || [],
                 };
 
                 await updateUserMutation.mutateAsync({
@@ -546,6 +599,146 @@ export function UserManagement() {
                     </FormItem>
                   )}
                 />
+                {/* Add Category field */}
+                <FormField
+                  control={form.control}
+                  name="category"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Category</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="trainee">Trainee</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Add LOB Selection */}
+                <div className="col-span-2">
+                  <Label>Line of Business</Label>
+                  <div className="flex gap-2">
+                    <Popover open={openLOB} onOpenChange={setOpenLOB}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={openLOB}
+                          className="w-full justify-between"
+                        >
+                          {selectedLOBs.length > 0
+                            ? `${selectedLOBs.length} LOBs selected`
+                            : "Select Line of Business"}
+                          <Check
+                            className={cn(
+                              "ml-2 h-4 w-4",
+                              selectedLOBs.length > 0 ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0">
+                        <Command>
+                          <CommandInput placeholder="Search Line of Business..." />
+                          <CommandEmpty>No Line of Business found.</CommandEmpty>
+                          <CommandGroup className="max-h-64 overflow-auto">
+                            {lineOfBusinesses.map((lob) => (
+                              <CommandItem
+                                key={lob.id}
+                                onSelect={() => {
+                                  setSelectedLOBs(prev => {
+                                    const newSelection = prev.includes(lob.id)
+                                      ? prev.filter(id => id !== lob.id)
+                                      : [...prev, lob.id];
+                                    return newSelection;
+                                  });
+                                  form.setValue('processes', []);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    selectedLOBs.includes(lob.id) ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {lob.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+
+                {/* Add Process Selection */}
+                {selectedLOBs.length > 0 && (
+                  <div className="col-span-2">
+                    <Label>Processes</Label>
+                    <Popover open={openProcess} onOpenChange={setOpenProcess}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={openProcess}
+                          className="w-full justify-between"
+                        >
+                          {form.watch('processes')?.length > 0
+                            ? `${form.watch('processes')?.length} processes selected`
+                            : "Select processes"}
+                          <Check
+                            className={cn(
+                              "ml-2 h-4 w-4",
+                              form.watch('processes')?.length > 0 ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0">
+                        <Command>
+                          <CommandInput placeholder="Search processes..." />
+                          <CommandEmpty>No process found.</CommandEmpty>
+                          <CommandGroup className="max-h-64 overflow-auto">
+                            {filteredProcesses.map((process) => (
+                              <CommandItem
+                                key={process.id}
+                                onSelect={() => {
+                                  const currentProcesses = form.watch('processes') || [];
+                                  const newProcesses = currentProcesses.includes(process.id)
+                                    ? currentProcesses.filter(id => id !== process.id)
+                                    : [...currentProcesses, process.id];
+                                  form.setValue('processes', newProcesses);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    form.watch('processes')?.includes(process.id) ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {process.name}
+                                <span className="ml-2 text-muted-foreground">
+                                  ({lineOfBusinesses.find(l => l.id === process.lineOfBusinessId)?.name})
+                                </span>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                )}
               </div>
               <Button type="submit">Save Changes</Button>
             </form>
