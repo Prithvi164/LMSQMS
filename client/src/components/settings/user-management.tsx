@@ -128,30 +128,20 @@ export function UserManagement() {
   });
 
   const updateUserMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<UserFormData> }) => {
-      try {
-        console.log('Sending update request with data:', data);
-        const response = await apiRequest("PATCH", `/api/users/${id}`, data);
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || "Failed to update user");
-        }
-        return response.json();
-      } catch (error) {
-        console.error('Error in update mutation:', error);
-        throw error;
+    mutationFn: async ({ id, data }: { id: number; data: Partial<InsertUser> }) => {
+      const response = await apiRequest("PATCH", `/api/users/${id}`, data);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update user");
       }
+      return response.json();
     },
-    onSuccess: (data) => {
-      console.log('Update successful, response:', data);
+    onSuccess: () => {
       toast({
         title: "Success",
         description: "User updated successfully",
       });
-      // Invalidate both users and processes queries to refresh the data
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      queryClient.invalidateQueries({ queryKey: [`/api/users/${data.id}/processes`] });
-      queryClient.refetchQueries({ queryKey: [`/api/users/${data.id}/processes`] });
     },
     onError: (error: Error) => {
       toast({
@@ -289,6 +279,8 @@ export function UserManagement() {
     return rangeWithDots;
   };
 
+  // Add new state for LOB selection
+
   // Add LOB and Process queries
   const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery<OrganizationLineOfBusiness[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses`],
@@ -302,22 +294,17 @@ export function UserManagement() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Add this query to get user processes
-  const { data: userProcesses = {} } = useQuery({
-    queryKey: [`/api/users/${user?.id}/processes`], //Corrected query key
-    enabled: !!user?.id, //Corrected enabled condition
-  });
+  const [selectedLOBs, setSelectedLOBs] = useState<number[]>([]);
+  const filteredProcesses = processes.filter(process =>
+    selectedLOBs.includes(process.lineOfBusinessId)
+  );
+
 
   // Create EditUserDialog component
   const EditUserDialog = ({ user: editUser }: { user: User }) => {
     const [openLOB, setOpenLOB] = useState(false);
     const [openProcess, setOpenProcess] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [selectedLOBs, setSelectedLOBs] = useState<number[]>([]);
-
-    const filteredProcesses = processes.filter(process =>
-      selectedLOBs.includes(process.lineOfBusinessId)
-    );
 
     const form = useForm<UserFormData>({
       resolver: zodResolver(editUserSchema),
@@ -339,8 +326,8 @@ export function UserManagement() {
     });
 
     useEffect(() => {
-      if (editUser.processes && processes.length > 0) {
-        // Get unique LOB IDs from the user's processes
+      // Initialize selectedLOBs based on user's processes
+      if (editUser.processes) {
         const lobIds = editUser.processes
           .map(processId => {
             const process = processes.find(p => p.id === processId);
@@ -348,7 +335,6 @@ export function UserManagement() {
           })
           .filter((id): id is number => id !== undefined);
 
-        // Set selectedLOBs with unique LOB IDs
         setSelectedLOBs([...new Set(lobIds)]);
       }
     }, [editUser.processes, processes]);
@@ -387,34 +373,16 @@ export function UserManagement() {
                     ...data,
                     locationId: data.locationId === "none" ? null : parseInt(data.locationId!),
                     managerId: data.managerId === "none" ? null : parseInt(data.managerId!),
-                    processes: form.getValues('processes') || [], // Get processes directly from form values
-                    lineOfBusinesses: selectedLOBs,
+                    processes: data.processes || [],
                   };
 
-                  console.log('Form values:', form.getValues());
-                  console.log('Sending update request with data:', cleanedData);
-                  console.log('Selected LOBs:', selectedLOBs);
-                  console.log('Selected processes:', form.getValues('processes'));
-
-                  const response = await updateUserMutation.mutateAsync({
+                  await updateUserMutation.mutateAsync({
                     id: editUser.id,
                     data: cleanedData
                   });
-
-                  console.log('Update response:', response);
-
-                  // After successful update
-                  queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-                  queryClient.invalidateQueries({ queryKey: ["/api/users/processes"] });
-                  queryClient.refetchQueries({ queryKey: ["/api/users/processes"] });
                   setIsDialogOpen(false);
                 } catch (error) {
                   console.error('Error updating user:', error);
-                  toast({
-                    title: "Error",
-                    description: error instanceof Error ? error.message : "Failed to update user",
-                    variant: "destructive"
-                  });
                 }
               })} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -831,13 +799,16 @@ export function UserManagement() {
     enabled: !!user?.organizationId,
   });
 
+  // Add new query for user processes
+  const { data: userProcesses = {} } = useQuery({
+    queryKey: ["/api/users/processes"],
+    enabled: !!user,
+  });
 
   // Add helper function to get user processes
   const getUserProcesses = (userId: number) => {
-    if (!userProcesses || !userProcesses[userId]) {
-      return [];
-    }
-    return userProcesses[userId];
+    const processes = userProcesses[userId] || [];
+    return processes.map((p: UserProcess) => p.processName).join(", ") || "No processes";
   };
 
   // Check for user management permissions
@@ -943,7 +914,8 @@ export function UserManagement() {
                 <TableRow>
                   <TableHead className="w-[150px]">Username</TableHead>
                   <TableHead className="w-[200px]">Email</TableHead>
-                  <TableHead className="w-[150px]">Full Name</TableHead><TableHead className="w-[100px]">Role</TableHead>
+                  <TableHead className="w-[150px]">Full Name</TableHead>
+                  <TableHead className="w-[100px]">Role</TableHead>
                   <TableHead className="w-[150px]">Manager</TableHead>
                   <TableHead className="w-[150px]">Location</TableHead>
                   <TableHead className="w-[200px]">Processes</TableHead>
@@ -956,7 +928,7 @@ export function UserManagement() {
               <TableBody>
                 {currentUsers.map((u) => (
                   <TableRow key={u.id} className={!u.active ? "opacity-60" : ""}>
-                    <TableCell className="fontmedium">{u.username}</TableCell>
+                    <TableCell className="font-medium">{u.username}</TableCell>
                     <TableCell>{u.email}</TableCell>
                     <TableCell>{u.fullName}</TableCell>
                     <TableCell>
@@ -966,9 +938,9 @@ export function UserManagement() {
                     <TableCell>{getLocationName(u.locationId)}</TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {getUserProcesses(u.id)?.map((process: any, idx: number) => (
+                        {getUserProcesses(u.id).split(", ").map((process, idx) => (
                           <Badge key={idx} variant="outline">
-                            {process.name}
+                            {process}
                           </Badge>
                         ))}
                       </div>
