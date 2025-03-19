@@ -279,8 +279,6 @@ export function UserManagement() {
     return rangeWithDots;
   };
 
-  // Add new state for LOB selection
-
   // Add LOB and Process queries
   const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery<OrganizationLineOfBusiness[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses`],
@@ -294,17 +292,16 @@ export function UserManagement() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const [selectedLOBs, setSelectedLOBs] = useState<number[]>([]);
-  const filteredProcesses = processes.filter(process =>
-    selectedLOBs.includes(process.lineOfBusinessId)
-  );
-
-
   // Create EditUserDialog component
   const EditUserDialog = ({ user: editUser }: { user: User }) => {
     const [openLOB, setOpenLOB] = useState(false);
     const [openProcess, setOpenProcess] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [selectedLOBs, setSelectedLOBs] = useState<number[]>([]);
+
+    const filteredProcesses = processes.filter(process =>
+      selectedLOBs.includes(process.lineOfBusinessId)
+    );
 
     const form = useForm<UserFormData>({
       resolver: zodResolver(editUserSchema),
@@ -326,8 +323,8 @@ export function UserManagement() {
     });
 
     useEffect(() => {
-      // Initialize selectedLOBs based on user's processes
-      if (editUser.processes) {
+      if (editUser.processes && processes.length > 0) {
+        // Get unique LOB IDs from the user's processes
         const lobIds = editUser.processes
           .map(processId => {
             const process = processes.find(p => p.id === processId);
@@ -335,6 +332,7 @@ export function UserManagement() {
           })
           .filter((id): id is number => id !== undefined);
 
+        // Set selectedLOBs with unique LOB IDs
         setSelectedLOBs([...new Set(lobIds)]);
       }
     }, [editUser.processes, processes]);
