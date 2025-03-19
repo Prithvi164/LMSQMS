@@ -47,7 +47,7 @@ const addTraineeSchema = z.object({
   password: z.string()
     .min(8, "Password must be at least 8 characters")
     .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Password must contain uppercase, lowercase, and numbers"),
-  role: z.enum(['manager', 'team_lead', 'quality_analyst', 'trainer', 'advisor']).default('advisor'),
+  role: z.enum(['advisor']).default('advisor'),
 });
 
 type AddTraineeFormProps = {
@@ -58,7 +58,6 @@ type AddTraineeFormProps = {
 export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showBulkUpload, setShowBulkUpload] = useState(false);
 
   // Get current trainee count from batch's enrolledCount
   const traineeCount = batch.enrolledCount || 0;
@@ -77,13 +76,19 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
   });
 
   async function onSubmit(values: z.infer<typeof addTraineeSchema>) {
+    if (isSubmitting) return; // Prevent multiple submissions
+
     try {
       setIsSubmitting(true);
 
       // Create user with batch enrollment in a single request
       const response = await fetch(`/api/organizations/${batch.organizationId}/users`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          // Add a custom header to help with debugging
+          "X-Request-Type": "batch-trainee-enrollment"
+        },
         body: JSON.stringify({
           ...values,
           dateOfJoining: values.dateOfJoining.toISOString().split('T')[0],
@@ -97,10 +102,13 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
           batchId: batch.id, // Include batch ID for enrollment
           status: "active",
         }),
+        // Add signal to handle timeout
+        signal: AbortSignal.timeout(30000) // 30 second timeout
       });
 
       if (!response.ok) {
-        throw new Error(await response.text());
+        const errorData = await response.text();
+        throw new Error(errorData || "Failed to add user to batch");
       }
 
       const userData = await response.json();
@@ -110,13 +118,26 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
         description: `${values.fullName} has been successfully added to batch ${batch.name}`,
       });
 
+      // Reset form and call success callback
+      form.reset();
       onSuccess();
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to add user",
-        variant: "destructive",
-      });
+      console.error('Error adding trainee:', error);
+
+      // Handle specific error types
+      if (error instanceof TypeError && error.name === "AbortError") {
+        toast({
+          title: "Request Timeout",
+          description: "The request took too long. Please try again.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Failed to add user",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -210,6 +231,7 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
   };
 
 
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
   return (
     <div className="max-h-[70vh] overflow-y-auto px-4">
       <div className="mb-6 p-4 rounded-lg bg-muted">
@@ -426,32 +448,6 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
                 <FormControl>
                   <Input {...field} />
                 </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Role Selection */}
-          <FormField
-            control={form.control}
-            name="role"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Role</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a role" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="manager">Manager</SelectItem>
-                    <SelectItem value="team_lead">Team Lead</SelectItem>
-                    <SelectItem value="quality_analyst">Quality Analyst</SelectItem>
-                    <SelectItem value="trainer">Trainer</SelectItem>
-                    <SelectItem value="advisor">Advisor</SelectItem>
-                  </SelectContent>
-                </Select>
                 <FormMessage />
               </FormItem>
             )}
