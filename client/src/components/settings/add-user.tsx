@@ -83,7 +83,8 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
 
   const getFilteredManagers = () => {
     if (!users) return [];
-    return users.filter(u => u.active);
+    // Filter out advisors and inactive users
+    return users.filter(u => u.active && u.role !== 'advisor');
   };
 
   const createUserMutation = useMutation({
@@ -319,20 +320,6 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                     <CommandInput placeholder="Search manager..." />
                     <CommandEmpty>No manager found.</CommandEmpty>
                     <CommandGroup>
-                      <CommandItem
-                        onSelect={() => {
-                          setNewUserData(prev => ({ ...prev, managerId: "none" }));
-                          setOpenManager(false);
-                        }}
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            newUserData.managerId === "none" ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                        No Manager
-                      </CommandItem>
                       {getFilteredManagers().map((manager) => (
                         <CommandItem
                           key={manager.id}
@@ -637,14 +624,14 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
             <Label htmlFor="category">Category</Label>
             <Input
               id="category"
-              value="Active"
+              value={newUserData.role === "manager" ? "Active" : newUserData.category}
               disabled
               className="bg-muted cursor-not-allowed"
             />
             <input 
               type="hidden" 
               name="category" 
-              value="active" 
+              value={newUserData.role === "manager" ? "active" : newUserData.category} 
             />
           </div>
 
