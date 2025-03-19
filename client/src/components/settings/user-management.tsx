@@ -50,6 +50,21 @@ const editUserSchema = insertUserSchema.extend({
 
 type UserFormData = z.infer<typeof editUserSchema>;
 
+// Add types for imported data
+interface ImportedUser {
+  Username: string;
+  "Full Name": string;
+  Email: string;
+  "Employee ID": string;
+  Role: string;
+  "Phone Number": string;
+  Location: string;
+  Manager: string;
+  "Date of Joining": string;
+  "Date of Birth": string;
+  Education: string;
+}
+
 export function UserManagement() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -196,7 +211,7 @@ export function UserManagement() {
   const [showImportPreview, setShowImportPreview] = useState(false);
   const [importErrors, setImportErrors] = useState<string[]>([]);
 
-  // Add handleFileImport function
+  // Update the import handling logic
   const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -207,11 +222,11 @@ export function UserManagement() {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        const jsonData = XLSX.utils.sheet_to_json<ImportedUser>(worksheet);
 
         // Validate the data
         const errors: string[] = [];
-        jsonData.forEach((row: any, index) => {
+        jsonData.forEach((row, index) => {
           if (!row.Username) errors.push(`Row ${index + 1}: Username is required`);
           if (!row.Email) errors.push(`Row ${index + 1}: Email is required`);
           if (!row.Role || !['admin', 'manager', 'advisor', 'trainer', 'trainee'].includes(row.Role)) {
@@ -223,6 +238,7 @@ export function UserManagement() {
         setImportData(jsonData);
         setShowImportPreview(true);
       } catch (error) {
+        console.error('Error parsing file:', error);
         toast({
           title: "Error",
           description: "Failed to parse Excel file. Please ensure it follows the template format.",
@@ -233,10 +249,23 @@ export function UserManagement() {
     reader.readAsArrayBuffer(file);
   };
 
-  // Add importUsers mutation
+  // Update the import mutation
   const importUsersMutation = useMutation({
-    mutationFn: async (users: any[]) => {
-      const response = await apiRequest("POST", "/api/users/bulk-import", { users });
+    mutationFn: async (users: ImportedUser[]) => {
+      // Transform the data to match the API expectations
+      const transformedUsers = users.map(user => ({
+        username: user.Username,
+        fullName: user["Full Name"],
+        email: user.Email,
+        employeeId: user["Employee ID"],
+        role: user.Role.toLowerCase(),
+        phoneNumber: user["Phone Number"],
+        dateOfJoining: user["Date of Joining"],
+        dateOfBirth: user["Date of Birth"],
+        education: user.Education,
+      }));
+
+      const response = await apiRequest("POST", "/api/users/bulk-import", { users: transformedUsers });
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || "Failed to import users");
@@ -262,77 +291,81 @@ export function UserManagement() {
     },
   });
 
-  // Add ImportPreviewDialog component
-  const ImportPreviewDialog = () => (
-    <AlertDialog open={showImportPreview} onOpenChange={setShowImportPreview}>
-      <AlertDialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-        <AlertDialogHeader>
-          <AlertDialogTitle>Import Preview</AlertDialogTitle>
-          <AlertDialogDescription>
-            Review the data before importing
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+  // Optimize the import preview dialog
+  const ImportPreviewDialog = () => {
+    if (!showImportPreview) return null;
 
-        {importErrors.length > 0 && (
-          <div className="mb-4 p-4 border border-destructive rounded-lg">
-            <div className="flex items-center gap-2 text-destructive mb-2">
-              <AlertCircle className="h-4 w-4" />
-              <span className="font-semibold">Validation Errors</span>
+    return (
+      <AlertDialog open={showImportPreview} onOpenChange={setShowImportPreview}>
+        <AlertDialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Import Preview</AlertDialogTitle>
+            <AlertDialogDescription>
+              Review the data before importing
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {importErrors.length > 0 && (
+            <div className="mb-4 p-4 border border-destructive rounded-lg">
+              <div className="flex items-center gap-2 text-destructive mb-2">
+                <AlertCircle className="h-4 w-4" />
+                <span className="font-semibold">Validation Errors</span>
+              </div>
+              <ul className="list-disc list-inside space-y-1">
+                {importErrors.map((error, index) => (
+                  <li key={index} className="text-sm text-destructive">{error}</li>
+                ))}
+              </ul>
             </div>
-            <ul className="list-disc list-inside space-y-1">
-              {importErrors.map((error, index) => (
-                <li key={index} className="text-sm text-destructive">{error}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        <div className="my-4">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Username</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Full Name</TableHead>
-                <TableHead>Role</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {importData.slice(0, 5).map((row, index) => (
-                <TableRow key={index}>
-                  <TableCell>{row.Username}</TableCell>
-                  <TableCell>{row.Email}</TableCell>
-                  <TableCell>{row["Full Name"]}</TableCell>
-                  <TableCell>{row.Role}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          {importData.length > 5 && (
-            <p className="text-sm text-muted-foreground mt-2">
-              And {importData.length - 5} more rows...
-            </p>
           )}
-        </div>
 
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => {
-            setShowImportPreview(false);
-            setImportData([]);
-            setImportErrors([]);
-          }}>
-            Cancel
-          </AlertDialogCancel>
-          <AlertDialogAction
-            onClick={() => importUsersMutation.mutate(importData)}
-            disabled={importErrors.length > 0 || importUsersMutation.isPending}
-          >
-            {importUsersMutation.isPending ? "Importing..." : "Import Users"}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
+          <div className="my-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Username</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Full Name</TableHead>
+                  <TableHead>Role</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(importData as ImportedUser[]).slice(0, 5).map((row, index) => (
+                  <TableRow key={index}>
+                    <TableCell>{row.Username}</TableCell>
+                    <TableCell>{row.Email}</TableCell>
+                    <TableCell>{row["Full Name"]}</TableCell>
+                    <TableCell>{row.Role}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {importData.length > 5 && (
+              <p className="text-sm text-muted-foreground mt-2">
+                And {importData.length - 5} more rows...
+              </p>
+            )}
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowImportPreview(false);
+              setImportData([]);
+              setImportErrors([]);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => importUsersMutation.mutate(importData as ImportedUser[])}
+              disabled={importErrors.length > 0 || importUsersMutation.isPending}
+            >
+              {importUsersMutation.isPending ? "Importing..." : "Import Users"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    );
+  };
 
   // Find manager name for a user
   const getManagerName = (managerId: number | null) => {
