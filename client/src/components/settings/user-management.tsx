@@ -102,6 +102,7 @@ export function UserManagement() {
       setUserToDelete(null);
       setDeleteConfirmation("");
       setUserDataInfo(null);
+      setUserDataImpact(null);
 
       // Reset to first page if current page becomes empty
       if (currentUsers.length === 1 && currentPage > 1) {
@@ -593,21 +594,31 @@ export function UserManagement() {
   // Modify the delete button click handler
   const handleDeleteClick = async (u: User) => {
     try {
-      // Fetch user's data information
-      const response = await apiRequest("GET", `/api/users/${u.id}/data-info`);
-      const dataInfo = await response.json();
+      // Fetch user's data impact information
+      const response = await apiRequest("GET", `/api/users/${u.id}/data-impact`);
+      const impact = await response.json();
 
-      setUserDataInfo(dataInfo);
+      setUserDataImpact(impact);
       setUserToDelete(u);
       setShowDeleteDialog(true);
     } catch (error) {
-      console.error('Error fetching user data info:', error);
-      // Still show dialog but without specific data info
-      setUserDataInfo(null);
+      console.error('Error fetching user data impact:', error);
+      // Still show dialog but without impact info
+      setUserDataImpact(null);
       setUserToDelete(u);
       setShowDeleteDialog(true);
     }
   };
+
+  const [userDataImpact, setUserDataImpact] = useState<{
+    attendance: number;
+    batches: number;
+    quizzes: number;
+    evaluationsAsTrainee: number;
+    evaluationsAsEvaluator: number;
+    processes: number;
+  } | null>(null);
+
 
   const { data: orgSettings } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/settings`],
@@ -800,24 +811,32 @@ export function UserManagement() {
             <DialogTitle>Delete User</DialogTitle>
             <DialogDescription className="space-y-3">
               <p>You are about to delete user <strong>{userToDelete?.username}</strong>.</p>
-              {userDataInfo && (
+              {userDataImpact && (Object.values(userDataImpact).some(count => count > 0)) && (
                 <div className="bg-amber-50 dark:bg-amber-950 p-4 rounded-md text-amber-900 dark:text-amber-100">
                   <p className="font-semibold mb-2">This will permanently delete:</p>
                   <ul className="list-disc list-inside space-y-1">
-                    {userDataInfo.hasAttendance && (
-                      <li>User's attendance records</li>
+                    {userDataImpact.attendance > 0 && (
+                      <li>{userDataImpact.attendance} attendance record{userDataImpact.attendance !== 1 ? 's' : ''}</li>
                     )}
-                    {userDataInfo.hasQuizzes && (
-                      <li>Quiz attempts and responses</li>
+                    {userDataImpact.batches > 0 && (
+                      <li>{userDataImpact.batches} batch assignment{userDataImpact.batches !== 1 ? 's' : ''}</li>
                     )}
-                    {userDataInfo.hasEvaluations && (
-                      <li>Evaluations (both as trainee and evaluator)</li>
+                    {userDataImpact.quizzes > 0 && (
+                      <li>{userDataImpact.quizzes} quiz attempt{userDataImpact.quizzes !== 1 ? 's' : ''} and their responses</li>
                     )}
-                    {userDataInfo.hasProcesses && (
-                      <li>Process assignments</li>
+                    {(userDataImpact.evaluationsAsTrainee > 0 || userDataImpact.evaluationsAsEvaluator > 0) && (
+                      <li>
+                        {userDataImpact.evaluationsAsTrainee + userDataImpact.evaluationsAsEvaluator} evaluation{(userDataImpact.evaluationsAsTrainee + userDataImpact.evaluationsAsEvaluator) !== 1 ? 's' : ''} 
+                        {userDataImpact.evaluationsAsTrainee > 0 && userDataImpact.evaluationsAsEvaluator > 0 
+                          ? ` (${userDataImpact.evaluationsAsTrainee} as trainee, ${userDataImpact.evaluationsAsEvaluator} as evaluator)`
+                          : userDataImpact.evaluationsAsTrainee > 0
+                            ? ` (as trainee)`
+                            : ` (as evaluator)`
+                        }
+                      </li>
                     )}
-                    {userDataInfo.hasBatches && (
-                      <li>Batch assignments</li>
+                    {userDataImpact.processes > 0 && (
+                      <li>{userDataImpact.processes} process assignment{userDataImpact.processes !== 1 ? 's' : ''}</li>
                     )}
                   </ul>
                   <p className="mt-3 text-sm">This action cannot be undone.</p>
@@ -844,7 +863,7 @@ export function UserManagement() {
                 setShowDeleteDialog(false);
                 setUserToDelete(null);
                 setDeleteConfirmation("");
-                setUserDataInfo(null);
+                setUserDataImpact(null);
               }}
             >
               Cancel

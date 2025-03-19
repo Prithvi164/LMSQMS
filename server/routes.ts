@@ -18,7 +18,7 @@ import { join } from 'path';
 import express from 'express';
 import { eq, and, sql, inArray } from "drizzle-orm";
 import { toIST, formatIST, toUTCStorage, formatISTDateOnly } from './utils/timezone';
-import { attendance } from "@shared/schema";
+import { attendance, evaluations } from "@shared/schema";
 import type { User } from "@shared/schema";
 
 // Type definitions for user updates
@@ -909,6 +909,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add new endpoint to get user data impact
+  app.get("/api/users/:id/data-impact", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+
+      const userToCheck = await storage.getUser(userId);
+      if (!userToCheck) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check if user belongs to the same organization  
+      if (userToCheck.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Cannot access users from other organizations" });
+      }
+
+      // Get counts of related data
+      const impact = await db.transaction(async (tx) => {
+        const [
+          attendanceCount,
+          batchCount, 
+          quizCount,
+          evaluationsAsTraineeCount,
+          evaluationsAsEvaluatorCount,
+          processCount
+        ] = await Promise.all([
+          tx.select({ count: sql<number>`count(*)` })
+            .from(attendance)
+            .where(eq(attendance.traineeId, userId))
+            .then(result => result[0].count),
+          
+          tx.select({ count: sql<number>`count(*)` })
+            .from(userBatchProcesses)
+            .where(eq(userBatchProcesses.userId, userId))
+            .then(result => result[0].count),
+          
+          tx.select({ count: sql<number>`count(*)` })
+            .from(quizAttempts)
+            .where(eq(quizAttempts.userId, userId))
+            .then(result => result[0].count),
+          
+          tx.select({ count: sql<number>`count(*)` })
+            .from(evaluations)
+            .where(eq(evaluations.traineeId, userId))
+            .then(result => result[0].count),
+          
+          tx.select({ count: sql<number>`count(*)` })
+            .from(evaluations)
+            .where(eq(evaluations.evaluatorId, userId))
+            .then(result => result[0].count),
+          
+          tx.select({ count: sql<number>`count(*)` })
+            .from(userProcesses)
+            .where(eq(userProcesses.userId, userId))
+            .then(result => result[0].count)
+        ]);
+
+        return {
+          attendance: attendanceCount,
+          batches: batchCount,
+          quizzes: quizCount,
+          evaluationsAsTrainee: evaluationsAsTraineeCount,
+          evaluationsAsEvaluator: evaluationsAsEvaluatorCount,
+          processes: processCount
+        };
+      });
+
+      res.json(impact);
+    } catch (error: any) {
+      console.error("Error getting user data impact:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
   // Delete user endpoint
   app.delete("/api/users/:id", async (req, res) => {
     if (!req.user) {
