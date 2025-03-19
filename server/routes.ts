@@ -367,23 +367,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
               id: true,
               fullName: true,
               employeeId: true,
-              email: true
+              email: true,
+              phoneNumber: true,
+              dateOfJoining: true,
+              category: true,
+              active: true
             }
           }
         }
       });
 
-      // Format the response to match the expected structure  
+      // Format the response
       const formattedTrainees = trainees.map(enrollment => ({
-        id: enrollment.userId,
+        id: enrollment.id,
+        userId: enrollment.userId,
         fullName: enrollment.user.fullName,
         employeeId: enrollment.user.employeeId,
-        email: enrollment.user.email
+        email: enrollment.user.email,
+        phoneNumber: enrollment.user.phoneNumber,
+        dateOfJoining: enrollment.user.dateOfJoining,
+        category: enrollment.user.category
       }));
 
       res.json(formattedTrainees);
     } catch (error: any) {
       console.error("Error fetching batch trainees:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Add new batch statistics endpoint
+  app.get("/api/organizations/:organizationId/batches/:batchId/stats", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      const batchId = parseInt(req.params.batchId);
+      
+      if (organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      console.log(`Fetching stats for batch ${batchId}`);
+
+      // Get all trainees for the batch with their user details
+      const trainees = await db.query.userBatchProcesses.findMany({
+        where: and(
+          eq(userBatchProcesses.batchId, batchId),
+          eq(userBatchProcesses.status, 'active')
+        ),
+        with: {
+          user: {
+            columns: {
+              id: true,
+              category: true,
+              role: true,
+              active: true
+            }
+          }
+        }
+      });
+
+      console.log('Found trainees:', trainees.map(t => ({
+        id: t.id,
+        userId: t.userId,
+        category: t.user.category,
+        active: t.user.active
+      })));
+
+      // Calculate statistics
+      const stats = {
+        totalTrainees: trainees.length,
+        activeTrainees: trainees.filter(t => t.user.active).length,
+        traineesByCategory: trainees.reduce((acc, t) => {
+          const category = t.user.category?.toLowerCase() || 'active';
+          acc[category] = (acc[category] || 0) + 1;
+          return acc;
+        }, { active: 0, trainee: 0 } as Record<string, number>)
+      };
+
+      console.log('Calculated stats:', stats);
+
+      res.json(stats);
+    } catch (error: any) {
+      console.error("Error fetching batch statistics:", error);
       res.status(500).json({ message: error.message });
     }
   });
