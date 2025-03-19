@@ -372,15 +372,27 @@ export function UserManagement() {
                     locationId: data.locationId === "none" ? null : parseInt(data.locationId!),
                     managerId: data.managerId === "none" ? null : parseInt(data.managerId!),
                     processes: data.processes || [],
+                    lineOfBusinessId: selectedLOBs.length > 0 ? selectedLOBs[0] : null // Include the first selected LOB
                   };
+
+                  console.log('Updating user with data:', cleanedData);
 
                   await updateUserMutation.mutateAsync({
                     id: editUser.id,
                     data: cleanedData
                   });
+
+                  // After successful update
+                  queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+                  queryClient.invalidateQueries({ queryKey: ["/api/users/processes"] });
                   setIsDialogOpen(false);
                 } catch (error) {
                   console.error('Error updating user:', error);
+                  toast({
+                    title: "Error",
+                    description: error instanceof Error ? error.message : "Failed to update user",
+                    variant: "destructive"
+                  });
                 }
               })} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -926,7 +938,7 @@ export function UserManagement() {
               <TableBody>
                 {currentUsers.map((u) => (
                   <TableRow key={u.id} className={!u.active ? "opacity-60" : ""}>
-                    <TableCell className="font-medium">{u.username}</TableCell>
+                    <TableCell className="fontmedium">{u.username}</TableCell>
                     <TableCell>{u.email}</TableCell>
                     <TableCell>{u.fullName}</TableCell>
                     <TableCell>
