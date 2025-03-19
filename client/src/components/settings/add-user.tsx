@@ -36,7 +36,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     fullName: "",
     employeeId: "",
     role: "advisor",
-    category: "",
+    category: "active", // Default to active
     email: "",
     phoneNumber: "",
     education: "",
@@ -630,7 +630,6 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
             >
               <option value="">Select category</option>
               <option value="active">Active</option>
-              <option value="trainee">Trainee</option>
             </select>
           </div>
 
