@@ -81,12 +81,16 @@ export function UserManagement() {
         title: "Success",
         description: "User deleted successfully",
       });
-      // Force refetch users after deletion
+
+      // Force refetch the users list
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.refetchQueries({ queryKey: ["/api/users"] });
+
       // Reset UI state
       setShowDeleteDialog(false);
       setUserToDelete(null);
       setDeleteConfirmation("");
+
       // Reset to first page if current page becomes empty
       if (currentUsers.length === 1 && currentPage > 1) {
         setCurrentPage(1);
