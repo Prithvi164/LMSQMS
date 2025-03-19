@@ -61,12 +61,16 @@ export function UserManagement() {
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: number) => {
-      const response = await apiRequest("DELETE", `/api/users/${userId}`);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to delete user");
+      try {
+        const response = await apiRequest("DELETE", `/api/users/${userId}`);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ message: "Failed to delete user" }));
+          throw new Error(errorData.message || "Failed to delete user");
+        }
+        return response.json().catch(() => ({}));
+      } catch (error) {
+        throw new Error(error instanceof Error ? error.message : "Failed to delete user");
       }
-      return response.json();
     },
     onSuccess: () => {
       toast({
@@ -81,7 +85,7 @@ export function UserManagement() {
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to delete user. Please try again.",
         variant: "destructive",
       });
     },
@@ -545,19 +549,13 @@ export function UserManagement() {
   };
 
   // Helper function to handle delete confirmation
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (!userToDelete) return;
 
-    // Attempt to delete the user
     try {
-      deleteUserMutation.mutate(userToDelete.id);
+      await deleteUserMutation.mutateAsync(userToDelete.id);
     } catch (error) {
       console.error("Error deleting user:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete user. Please try again.",
-        variant: "destructive",
-      });
     }
   };
 
