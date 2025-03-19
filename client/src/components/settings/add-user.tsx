@@ -13,6 +13,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Check } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions"; // Add permissions hook
 
 interface AddUserProps {
   users: User[];
@@ -23,6 +25,7 @@ interface AddUserProps {
 
 export function AddUser({ users, user, organization, potentialManagers }: AddUserProps) {
   const { toast } = useToast();
+  const { hasPermission } = usePermissions(); // Add permissions hook
   const queryClient = useQueryClient();
   const [selectedLOBs, setSelectedLOBs] = useState<number[]>([]);
   const [openLOB, setOpenLOB] = useState(false);
@@ -150,6 +153,20 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       });
     },
   });
+
+  // Check if user has permission to manage users
+  if (!hasPermission("manage_users")) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Add New User</CardTitle>
+          <CardDescription className="text-destructive">
+            You don't have permission to add new users.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   if (!organization) {
     return null;

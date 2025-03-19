@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { User, Organization, OrganizationLocation, UserProcess } from "@shared/schema";
@@ -42,6 +43,7 @@ type UserFormData = z.infer<typeof editUserSchema>;
 
 export function UserManagement() {
   const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
@@ -189,7 +191,7 @@ export function UserManagement() {
 
   // Find location name for a user
   const getLocationName = (locationId: number | null) => {
-    if (!locationId ) return "No Location";
+    if (!locationId) return "No Location";
     const location = orgSettings?.locations?.find((l: OrganizationLocation) => l.id === locationId);
     return location ? location.name : "Unknown Location";
   };
@@ -585,6 +587,25 @@ export function UserManagement() {
     return processes.map((p: UserProcess) => p.processName).join(", ") || "No processes";
   };
 
+  // Check for user management permissions
+  const canManageUsers = hasPermission("manage_users");
+  const canViewUsers = hasPermission("view_users");
+
+  // If user can't even view users, show restricted access message
+  if (!canViewUsers) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">
+              You don't have permission to view user information.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -602,7 +623,7 @@ export function UserManagement() {
                   value={searchTerm}
                   onChange={(e) => {
                     setSearchTerm(e.target.value);
-                    setCurrentPage(1); // Reset to first page when searching
+                    setCurrentPage(1);
                   }}
                   className="pl-9"
                 />
@@ -611,7 +632,7 @@ export function UserManagement() {
                 value={roleFilter}
                 onValueChange={(value) => {
                   setRoleFilter(value);
-                  setCurrentPage(1); // Reset to first page when filtering
+                  setCurrentPage(1);
                 }}
               >
                 <SelectTrigger className="w-[180px]">
@@ -630,7 +651,7 @@ export function UserManagement() {
                 value={managerFilter}
                 onValueChange={(value) => {
                   setManagerFilter(value);
-                  setCurrentPage(1); // Reset to first page when filtering
+                  setCurrentPage(1);
                 }}
               >
                 <SelectTrigger className="w-[180px]">
@@ -647,19 +668,20 @@ export function UserManagement() {
                 </SelectContent>
               </Select>
             </div>
-            {/* Add Button in CardContent after the filter controls */}
-            <div className="flex justify-between items-center mb-4">
-              <div className="space-x-2">
-                <Button
-                  onClick={exportToExcel}
-                  variant="outline"
-                  className="gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  Export Users
-                </Button>
+            {canManageUsers && (
+              <div className="flex justify-between items-center mb-4">
+                <div className="space-x-2">
+                  <Button
+                    onClick={exportToExcel}
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Export Users
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           <div className="relative overflow-x-auto">
@@ -674,7 +696,9 @@ export function UserManagement() {
                   <TableHead className="w-[150px]">Location</TableHead>
                   <TableHead className="w-[200px]">Processes</TableHead>
                   <TableHead className="w-[100px]">Status</TableHead>
-                  <TableHead className="w-[100px] text-right">Actions</TableHead>
+                  {canManageUsers && (
+                    <TableHead className="w-[100px] text-right">Actions</TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -706,36 +730,38 @@ export function UserManagement() {
                             className="opacity-50 cursor-not-allowed"
                           />
                         </div>
-                      ) : (
+                      ) : canManageUsers ? (
                         <Switch
                           checked={u.active}
                           onCheckedChange={(checked) => toggleUserStatus(u.id, u.active, u.role)}
                           disabled={false}
                         />
+                      ) : (
+                        <Switch checked={u.active} disabled={true} />
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <EditUserDialog user={u} />
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="text-destructive"
-                          onClick={() => {
-                            setUserToDelete(u);
-                            setShowDeleteDialog(true);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+                    {canManageUsers && (
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <EditUserDialog user={u} />
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="text-destructive"
+                            onClick={() => {
+                              setUserToDelete(u);
+                              setShowDeleteDialog(true);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-
-            {/* Pagination Controls */}
             {totalPages > 1 && (
               <div className="flex items-center justify-center space-x-2 py-4">
                 <Button
@@ -773,48 +799,49 @@ export function UserManagement() {
         </CardContent>
       </Card>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete User</DialogTitle>
-            <DialogDescription>
-              This is a permanent action. Are you sure you want to delete {userToDelete?.username}?
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Label htmlFor="confirmation" className="text-sm text-muted-foreground block mb-2">
-              Type "{userToDelete?.username}" to confirm deletion:
-            </Label>
-            <Input
-              id="confirmation"
-              value={deleteConfirmation}
-              onChange={(e) => setDeleteConfirmation(e.target.value)}
-              className="mt-2"
-              placeholder="Type the user's username..."
-            />
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowDeleteDialog(false);
-                setUserToDelete(null);
-                setDeleteConfirmation("");
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteConfirm}
-              disabled={deleteConfirmation !== userToDelete?.username}
-            >
-              Delete User
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {canManageUsers && (
+        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete User</DialogTitle>
+              <DialogDescription>
+                This is a permanent action. Are you sure you want to delete {userToDelete?.username}?
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Label htmlFor="confirmation" className="text-sm text-muted-foreground block mb-2">
+                Type "{userToDelete?.username}" to confirm deletion:
+              </Label>
+              <Input
+                id="confirmation"
+                value={deleteConfirmation}
+                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                className="mt-2"
+                placeholder="Type the user's username..."
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDeleteDialog(false);
+                  setUserToDelete(null);
+                  setDeleteConfirmation("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteConfirm}
+                disabled={deleteConfirmation !== userToDelete?.username}
+              >
+                Delete User
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
