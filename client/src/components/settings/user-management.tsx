@@ -297,17 +297,22 @@ export function UserManagement() {
   // Import Users Mutation
   const importUsersMutation = useMutation({
     mutationFn: async (users: ImportedUser[]) => {
+      // Transform the data to match the API expectations
       const transformedUsers = users.map(user => {
-        const userProcessIds = user.Processes && Array.isArray(processes) ?
+        // Extract process IDs
+        const processIds = user.Processes && Array.isArray(processes) ?
           processes
             .filter((p: any) =>
-              user.Processes.toLowerCase().includes(p.name?.toLowerCase())
+              user.Processes.toLowerCase().split(',')
+                .map(proc => proc.trim())
+                .includes(p.name?.toLowerCase())
             )
             .map((p: any) => p.id)
             .filter(Boolean)
           : [];
 
-        return {
+        // Separate user data from process data
+        const userData = {
           username: user.Username,
           fullName: user["Full Name"],
           email: user.Email,
@@ -317,11 +322,20 @@ export function UserManagement() {
           dateOfJoining: user["Date of Joining"],
           dateOfBirth: user["Date of Birth"],
           education: user.Education,
-          processIds: userProcessIds
+          active: true // Set default active status
+        };
+
+        return {
+          ...userData,
+          processIds // This will be handled separately by the backend
         };
       });
 
-      const response = await apiRequest("POST", "/api/users/bulk-import", { users: transformedUsers });
+      const response = await apiRequest("POST", "/api/users/bulk-import", {
+        users: transformedUsers,
+        organizationId: user?.organizationId // Include organization ID for process linking
+      });
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || "Failed to import users");
