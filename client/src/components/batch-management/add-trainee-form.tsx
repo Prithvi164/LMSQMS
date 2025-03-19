@@ -84,6 +84,15 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
   async function onSubmit(values: z.infer<typeof addTraineeSchema>) {
     if (isSubmitting) return; // Prevent multiple submissions
 
+    if (!batch.trainerId) {
+      toast({
+        title: "Error",
+        description: "No trainer assigned to this batch. Please assign a trainer first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setIsSubmitting(true);
 
@@ -92,8 +101,6 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
-          // Add a custom header to help with debugging
-          "X-Request-Type": "batch-trainee-enrollment"
         },
         body: JSON.stringify({
           ...values,
@@ -103,13 +110,11 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
           lineOfBusinessId: batch.lineOfBusinessId,
           locationId: batch.locationId,
           organizationId: batch.organizationId,
-          managerId: batch.trainerId, // Set trainer as manager
+          managerId: batch.trainerId, // Set trainer as reporting manager
           category: "trainee",
-          batchId: batch.id, // Include batch ID for enrollment
+          batchId: batch.id,
           status: "active",
         }),
-        // Add signal to handle timeout
-        signal: AbortSignal.timeout(30000) // 30 second timeout
       });
 
       if (!response.ok) {
@@ -117,33 +122,39 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
         throw new Error(errorData || "Failed to add user to batch");
       }
 
+      // After successful user creation, let's verify the manager was set
       const userData = await response.json();
+
+      // Double-check if manager ID was set
+      if (!userData.managerId) {
+        // Update the user's manager ID if it wasn't set
+        const updateResponse = await fetch(`/api/organizations/${batch.organizationId}/users/${userData.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            managerId: batch.trainerId
+          }),
+        });
+
+        if (!updateResponse.ok) {
+          console.error('Failed to update manager ID');
+        }
+      }
 
       toast({
         title: "Success",
         description: `${values.fullName} has been successfully added to batch ${batch.name}`,
       });
 
-      // Reset form and call success callback
       form.reset();
       onSuccess();
     } catch (error) {
       console.error('Error adding trainee:', error);
-
-      // Handle specific error types
-      if (error instanceof TypeError && error.name === "AbortError") {
-        toast({
-          title: "Request Timeout",
-          description: "The request took too long. Please try again.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "Failed to add user",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to add user",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
