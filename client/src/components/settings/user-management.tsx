@@ -376,15 +376,20 @@ export function UserManagement() {
                   };
 
                   console.log('Updating user with data:', cleanedData);
+                  console.log('Selected LOBs:', selectedLOBs);
+                  console.log('Selected processes:', data.processes);
 
-                  await updateUserMutation.mutateAsync({
+                  const response = await updateUserMutation.mutateAsync({
                     id: editUser.id,
                     data: cleanedData
                   });
 
+                  console.log('Update response:', response);
+
                   // After successful update
                   queryClient.invalidateQueries({ queryKey: ["/api/users"] });
                   queryClient.invalidateQueries({ queryKey: ["/api/users/processes"] });
+                  queryClient.refetchQueries({ queryKey: ["/api/users/processes"] });
                   setIsDialogOpen(false);
                 } catch (error) {
                   console.error('Error updating user:', error);
