@@ -62,14 +62,20 @@ export function UserManagement() {
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: number) => {
       try {
+        console.log('Attempting to delete user:', userId);
         const response = await apiRequest("DELETE", `/api/users/${userId}`);
+
         if (!response.ok) {
+          console.error('Delete response not ok:', response.status);
           const errorData = await response.json().catch(() => ({ message: "Failed to delete user" }));
           throw new Error(errorData.message || "Failed to delete user");
         }
-        // Ensure we get a proper response or at least an empty object
-        return response.json().catch(() => ({}));
+
+        // Log successful deletion
+        console.log('User deleted successfully:', userId);
+        return { success: true };
       } catch (error) {
+        console.error('Error in delete mutation:', error);
         throw new Error(error instanceof Error ? error.message : "Failed to delete user");
       }
     },
@@ -78,8 +84,9 @@ export function UserManagement() {
         title: "Success",
         description: "User deleted successfully",
       });
-      // Properly invalidate the users query to refresh the list
+      // Force refetch users after deletion
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      // Reset UI state
       setShowDeleteDialog(false);
       setUserToDelete(null);
       setDeleteConfirmation("");
@@ -89,6 +96,7 @@ export function UserManagement() {
       }
     },
     onError: (error: Error) => {
+      console.error('Delete mutation error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete user. Please try again.",
@@ -559,6 +567,7 @@ export function UserManagement() {
     if (!userToDelete) return;
 
     try {
+      console.log('Confirming deletion for user:', userToDelete.id);
       await deleteUserMutation.mutateAsync(userToDelete.id);
     } catch (error) {
       console.error("Error deleting user:", error);
