@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import type { User, Organization, OrganizationLocation, InsertUser } from "@shared/schema";
+import type { User, Organization, OrganizationLocation } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -38,21 +38,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-
-// Define a type for imported user data
-interface ImportedUser {
-  Username: string;
-  Email: string;
-  "Full Name": string;
-  Role: string;
-  "Employee ID"?: string;
-  "Phone Number"?: string;
-  Location?: string;
-  Manager?: string;
-  "Date of Joining"?: string;
-  "Date of Birth"?: string;
-  Education?: string;
-}
 
 // Extend the insertUserSchema for the edit form
 const editUserSchema = insertUserSchema.extend({
@@ -207,7 +192,7 @@ export function UserManagement() {
   };
 
   // Add state for import preview
-  const [importData, setImportData] = useState<ImportedUser[]>([]);
+  const [importData, setImportData] = useState<any[]>([]);
   const [showImportPreview, setShowImportPreview] = useState(false);
   const [importErrors, setImportErrors] = useState<string[]>([]);
 
@@ -222,11 +207,11 @@ export function UserManagement() {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json<ImportedUser>(worksheet);
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
         // Validate the data
         const errors: string[] = [];
-        jsonData.forEach((row, index) => {
+        jsonData.forEach((row: any, index) => {
           if (!row.Username) errors.push(`Row ${index + 1}: Username is required`);
           if (!row.Email) errors.push(`Row ${index + 1}: Email is required`);
           if (!row.Role || !['admin', 'manager', 'advisor', 'trainer', 'trainee'].includes(row.Role)) {
@@ -250,19 +235,8 @@ export function UserManagement() {
 
   // Add importUsers mutation
   const importUsersMutation = useMutation({
-    mutationFn: async (users: ImportedUser[]) => {
-      // Transform imported data to match API expectations
-      const transformedUsers = users.map(user => ({
-        username: user.Username,
-        email: user.Email,
-        fullName: user["Full Name"],
-        role: user.Role.toLowerCase(),
-        employeeId: user["Employee ID"],
-        phoneNumber: user["Phone Number"],
-        // Add other fields as needed
-      }));
-
-      const response = await apiRequest("POST", "/api/users/bulk-import", { users: transformedUsers });
+    mutationFn: async (users: any[]) => {
+      const response = await apiRequest("POST", "/api/users/bulk-import", { users });
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || "Failed to import users");
@@ -950,7 +924,7 @@ export function UserManagement() {
                 {getPageNumbers().map((pageNumber, index) => (
                   <Button
                     key={index}
-                                        variant={pageNumber === currentPage ? "default" : "outline"}
+                    variant={pageNumber === currentPage ? "default" : "outline"}
                     size="sm"
                     onClick={() => typeof pageNumber === 'number' && handlePageChange(pageNumber)}
                     disabled={typeof pageNumber !== 'number'}
