@@ -40,6 +40,18 @@ const editUserSchema = insertUserSchema.extend({
 
 type UserFormData = z.infer<typeof editUserSchema>;
 
+// Add type for deletion impact
+type DeletionImpact = {
+  attendanceRecords: number;
+  evaluations: {
+    asTrainee: number;
+    asEvaluator: number;
+  };
+  quizAttempts: number;
+  managedUsers: number;
+  batchEnrollments: number;
+};
+
 export function UserManagement() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -49,6 +61,7 @@ export function UserManagement() {
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deletionImpact, setDeletionImpact] = useState<DeletionImpact | null>(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -94,6 +107,7 @@ export function UserManagement() {
       setShowDeleteDialog(false);
       setUserToDelete(null);
       setDeleteConfirmation("");
+      setDeletionImpact(null);
 
       // Reset to first page if current page becomes empty
       if (currentUsers.length === 1 && currentPage > 1) {
@@ -567,6 +581,25 @@ export function UserManagement() {
     );
   };
 
+  // Add function to fetch deletion impact
+  const fetchDeletionImpact = async (userId: number) => {
+    try {
+      const response = await apiRequest("GET", `/api/users/${userId}/deletion-impact`);
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to fetch deletion impact");
+      }
+      setDeletionImpact(data);
+    } catch (error) {
+      console.error("Error fetching deletion impact:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch deletion impact details",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Helper function to handle delete confirmation
   const handleDeleteConfirm = async () => {
     if (!userToDelete) {
@@ -580,6 +613,13 @@ export function UserManagement() {
     } catch (error) {
       console.error("Error in handleDeleteConfirm:", error);
     }
+  };
+
+  // Update the delete button click handler
+  const handleDeleteClick = async (user: User) => {
+    setUserToDelete(user);
+    setShowDeleteDialog(true);
+    await fetchDeletionImpact(user.id);
   };
 
   const { data: orgSettings } = useQuery({
@@ -715,10 +755,7 @@ export function UserManagement() {
                           variant="outline"
                           size="icon"
                           className="text-destructive"
-                          onClick={() => {
-                            setUserToDelete(u);
-                            setShowDeleteDialog(true);
-                          }}
+                          onClick={() => handleDeleteClick(u)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -767,27 +804,58 @@ export function UserManagement() {
         </CardContent>
       </Card>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Update Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Delete User</DialogTitle>
             <DialogDescription>
               This is a permanent action. Are you sure you want to delete {userToDelete?.username}?
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <Label htmlFor="confirmation" className="text-sm text-muted-foreground block mb-2">
-              Type "{userToDelete?.username}" to confirm deletion:
-            </Label>
-            <Input
-              id="confirmation"
-              value={deleteConfirmation}
-              onChange={(e) => setDeleteConfirmation(e.target.value)}
-              className="mt-2"
-              placeholder="Type the user's username..."
-            />
-          </div>
+
+          {deletionImpact && (
+            <div className="py-4 space-y-4">
+              <div className="bg-muted p-4 rounded-lg space-y-2">
+                <h4 className="font-semibold">This will delete:</h4>
+                <ul className="space-y-2 text-sm">
+                  {deletionImpact.attendanceRecords > 0 && (
+                    <li>• {deletionImpact.attendanceRecords} attendance record(s)</li>
+                  )}
+                  {deletionImpact.evaluations.asTrainee > 0 && (
+                    <li>• {deletionImpact.evaluations.asTrainee} evaluation(s) as trainee</li>
+                  )}
+                  {deletionImpact.evaluations.asEvaluator > 0 && (
+                    <li>• {deletionImpact.evaluations.asEvaluator} evaluation(s) as evaluator</li>
+                  )}
+                  {deletionImpact.quizAttempts > 0 && (
+                    <li>• {deletionImpact.quizAttempts} quiz attempt(s)</li>
+                  )}
+                  {deletionImpact.batchEnrollments > 0 && (
+                    <li>• {deletionImpact.batchEnrollments} batch enrollment(s)</li>
+                  )}
+                </ul>
+
+                {deletionImpact.managedUsers > 0 && (
+                  <div className="mt-4 text-sm text-yellow-600 dark:text-yellow-500">
+                    <p className="font-semibold">⚠️ Important:</p>
+                    <p>{deletionImpact.managedUsers} user(s) currently managed by this user will have their manager removed.</p>
+                  </div>
+                )}
+              </div>
+
+              <Label htmlFor="confirmation" className="text-sm text-muted-foreground block">
+                Type "{userToDelete?.username}" to confirm deletion:
+              </Label>
+              <Input
+                id="confirmation"
+                value={deleteConfirmation}
+                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                placeholder="Type the user's username..."
+              />
+            </div>
+          )}
+
           <DialogFooter>
             <Button
               variant="outline"
@@ -795,6 +863,7 @@ export function UserManagement() {
                 setShowDeleteDialog(false);
                 setUserToDelete(null);
                 setDeleteConfirmation("");
+                setDeletionImpact(null);
               }}
             >
               Cancel
@@ -802,7 +871,7 @@ export function UserManagement() {
             <Button
               variant="destructive"
               onClick={handleDeleteConfirm}
-              disabled={deleteConfirmation !== userToDelete?.username}
+              disabled={deleteConfirmation !== userToDelete?.username || !deletionImpact}
             >
               Delete User
             </Button>
