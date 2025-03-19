@@ -1348,57 +1348,75 @@ export class DatabaseStorage implements IStorage {
 
   async listBatches(organizationId: number): Promise<OrganizationBatch[]> {
     try {
-      console.log(`Fetching batches for organization ${organizationId}`);
-
-      // Explicitly select and cast the batch_category field
       const batches = await db
         .select({
           id: organizationBatches.id,
           name: organizationBatches.name,
-          batchCategory: sql<string>`${organizationBatches.batchCategory}::text`,
+          batchCode: organizationBatches.batchCode,
+          status: organizationBatches.status,
           startDate: organizationBatches.startDate,
           endDate: organizationBatches.endDate,
-          status: organizationBatches.status,
-          capacityLimit: organizationBatches.capacityLimit,
-          locationId: organizationBatches.locationId,
-          processId: organizationBatches.processId,
-          lineOfBusinessId: organizationBatches.lineOfBusinessId,
           trainerId: organizationBatches.trainerId,
           organizationId: organizationBatches.organizationId,
-          inductionStartDate: organizationBatches.inductionStartDate,
-          inductionEndDate: organizationBatches.inductionEndDate,
-          trainingStartDate: organizationBatches.trainingStartDate,
-          trainingEndDate: organizationBatches.trainingEndDate,
-          certificationStartDate: organizationBatches.certificationStartDate,
-          certificationEndDate: organizationBatches.certificationEndDate,
-          ojtStartDate: organizationBatches.ojtStartDate,
-          ojtEndDate: organizationBatches.ojtEndDate,
-          ojtCertificationStartDate: organizationBatches.ojtCertificationStartDate,
-          ojtCertificationEndDate: organizationBatches.ojtCertificationEndDate,
-          handoverToOpsDate: organizationBatches.handoverToOpsDate,
-          createdAt: organizationBatches.createdAt,
-          updatedAt: organizationBatches.updatedAt,
-          location: organizationLocations,
-          process: organizationProcesses,
-          line_of_business: organizationLineOfBusinesses,
+          locationId: organizationBatches.locationId,
+          lineOfBusinessId: organizationBatches.lineOfBusinessId,
+          processId: organizationBatches.processId,
+          capacityLimit: organizationBatches.capacityLimit,
+          traineesCount: sql<number>`CAST(COUNT(DISTINCT ${userBatchProcesses.userId}) AS INTEGER)`,
+          location: {
+            id: organizationLocations.id,
+            name: organizationLocations.name,
+          },
+          lineOfBusiness: {
+            id: organizationLineOfBusinesses.id,
+            name: organizationLineOfBusinesses.name,
+          },
+          process: {
+            id: organizationProcesses.id,
+            name: organizationProcesses.name,
+          },
         })
         .from(organizationBatches)
+        .leftJoin(
+          userBatchProcesses,
+          eq(organizationBatches.id, userBatchProcesses.batchId)
+        )
         .leftJoin(
           organizationLocations,
           eq(organizationBatches.locationId, organizationLocations.id)
         )
         .leftJoin(
-          organizationProcesses,
-          eq(organizationBatches.processId, organizationProcesses.id)
-        )
-        .leftJoin(
           organizationLineOfBusinesses,
           eq(organizationBatches.lineOfBusinessId, organizationLineOfBusinesses.id)
         )
+        .leftJoin(
+          organizationProcesses,
+          eq(organizationBatches.processId, organizationProcesses.id)
+        )
         .where(eq(organizationBatches.organizationId, organizationId))
+        .groupBy(
+          organizationBatches.id,
+          organizationBatches.name,
+          organizationBatches.batchCode,
+          organizationBatches.status,
+          organizationBatches.startDate,
+          organizationBatches.endDate,
+          organizationBatches.trainerId,
+          organizationBatches.organizationId,
+          organizationBatches.locationId,
+          organizationBatches.lineOfBusinessId,
+          organizationBatches.processId,
+          organizationBatches.capacityLimit,
+          organizationLocations.id,
+          organizationLocations.name,
+          organizationLineOfBusinesses.id,
+          organizationLineOfBusinesses.name,
+          organizationProcesses.id,
+          organizationProcesses.name,
+        )
         .orderBy(desc(organizationBatches.createdAt));
 
-
+      console.log('Retrieved batches with trainee counts:', batches);
       return batches as OrganizationBatch[];
     } catch (error) {
       console.error('Error fetching batches:', error);
