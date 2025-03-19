@@ -322,7 +322,7 @@ export function UserManagement() {
 
           console.log('Matched process IDs:', processIds);
 
-          // Separate user data from process data
+          // Create user data
           const userData = {
             username: user.Username,
             fullName: user["Full Name"],
@@ -333,7 +333,7 @@ export function UserManagement() {
             dateOfJoining: user["Date of Joining"],
             dateOfBirth: user["Date of Birth"],
             education: user.Education,
-            organizationId: user?.organizationId,
+            organizationId: Number(user?.organizationId), // Ensure organizationId is a number
             active: true
           };
 
@@ -345,15 +345,18 @@ export function UserManagement() {
           };
         });
 
-        console.log('Making API request with data:', {
-          users: transformedUsers,
-          organizationId: user?.organizationId
-        });
+        // Add organization ID from the current user's context
+        const requestData = {
+          users: transformedUsers.map(user => ({
+            ...user,
+            organizationId: user?.organizationId || Number(user?.organizationId), // Try both formats
+          })),
+          organizationId: Number(user?.organizationId), // Ensure organizationId is a number
+        };
 
-        const response = await apiRequest("POST", "/api/users/bulk-import", {
-          users: transformedUsers,
-          organizationId: user?.organizationId
-        });
+        console.log('Making API request with data:', requestData);
+
+        const response = await apiRequest("POST", "/api/users/bulk-import", requestData);
 
         console.log('API Response:', response);
 
