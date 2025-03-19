@@ -83,19 +83,26 @@ export function RolePermissions() {
   // Get permission description
   const getPermissionDescription = (permission: string) => {
     const descriptions: Record<string, string> = {
+      create_admin: "Create new admin users for the organization",
       manage_users: "Create, edit, and delete user accounts",
       view_users: "View user profiles and basic information",
       edit_users: "Modify user details and settings",
       delete_users: "Remove users from the system",
       upload_users: "Bulk import users via file upload",
-      manage_courses: "Create and manage training courses",
-      manage_learning_paths: "Define and edit learning paths",
       manage_organization: "Control organization-wide settings",
       manage_performance: "Access and manage performance metrics",
       export_reports: "Generate and download reports",
-      // Add more descriptions as needed
+      // Removed course and learning path related descriptions
     };
     return descriptions[permission] || permission.replace(/_/g, " ");
+  };
+
+  const filterPermissions = (permissions: string[]) => {
+    // Filter out course and learning path related permissions
+    return permissions.filter(permission => 
+      !permission.includes('course') && 
+      !permission.includes('learning_path')
+    );
   };
 
   if (isLoading) {
@@ -159,7 +166,7 @@ export function RolePermissions() {
 
               {/* Permissions Grid */}
               <div className="grid gap-6">
-                {Object.entries(groupPermissionsByCategory(permissionEnum.enumValues)).map(
+                {Object.entries(groupPermissionsByCategory(filterPermissions(permissionEnum.enumValues))).map(
                   ([category, permissions]) => (
                     <div key={category} className="space-y-4">
                       <h3 className="text-lg font-semibold capitalize">
