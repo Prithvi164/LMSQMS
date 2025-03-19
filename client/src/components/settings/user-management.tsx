@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Edit2, Trash2, Search, Download, ChevronRight, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -949,8 +949,7 @@ export function UserManagement() {
               >
                 Delete User
               </Button>
-            </DialogFooter>
-          </DialogContent>
+            </DialogFooter>          </DialogContent>
         </Dialog>
       )}
     </div>
