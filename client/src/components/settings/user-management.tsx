@@ -302,6 +302,12 @@ export function UserManagement() {
     staleTime: 5 * 60 * 1000,
   });
 
+  // Add this query to get user processes
+  const { data: userProcesses = {} } = useQuery({
+    queryKey: [`/api/users/${user?.id}/processes`], //Corrected query key
+    enabled: !!user?.id, //Corrected enabled condition
+  });
+
   // Create EditUserDialog component
   const EditUserDialog = ({ user: editUser }: { user: User }) => {
     const [openLOB, setOpenLOB] = useState(false);
@@ -381,20 +387,21 @@ export function UserManagement() {
                     ...data,
                     locationId: data.locationId === "none" ? null : parseInt(data.locationId!),
                     managerId: data.managerId === "none" ? null : parseInt(data.managerId!),
-                    processes: data.processes || [], // Ensure processes array is included
-                    lineOfBusinesses: selectedLOBs, // Include all selected LOBs
+                    processes: form.getValues('processes') || [], // Get processes directly from form values
+                    lineOfBusinesses: selectedLOBs,
                   };
 
-                  console.log('Updating user with data:', cleanedData);
+                  console.log('Form values:', form.getValues());
+                  console.log('Sending update request with data:', cleanedData);
                   console.log('Selected LOBs:', selectedLOBs);
-                  console.log('Selected processes:', data.processes);
+                  console.log('Selected processes:', form.getValues('processes'));
 
-                  await updateUserMutation.mutateAsync({
+                  const response = await updateUserMutation.mutateAsync({
                     id: editUser.id,
                     data: cleanedData
                   });
 
-                  console.log('Update response:', "Success");
+                  console.log('Update response:', response);
 
                   // After successful update
                   queryClient.invalidateQueries({ queryKey: ["/api/users"] });
@@ -824,16 +831,13 @@ export function UserManagement() {
     enabled: !!user?.organizationId,
   });
 
-  // Add new query for user processes
-  const { data: userProcesses = {} } = useQuery({
-    queryKey: ["/api/users/processes"],
-    enabled: !!user,
-  });
 
   // Add helper function to get user processes
   const getUserProcesses = (userId: number) => {
-    const processes = userProcesses[userId] || [];
-    return processes.map((p: UserProcess) => p.processName).join(", ") || "No processes";
+    if (!userProcesses || !userProcesses[userId]) {
+      return [];
+    }
+    return userProcesses[userId];
   };
 
   // Check for user management permissions
@@ -939,8 +943,7 @@ export function UserManagement() {
                 <TableRow>
                   <TableHead className="w-[150px]">Username</TableHead>
                   <TableHead className="w-[200px]">Email</TableHead>
-                  <TableHead className="w-[150px]">Full Name</TableHead>
-                  <TableHead className="w-[100px]">Role</TableHead>
+                  <TableHead className="w-[150px]">Full Name</TableHead><TableHead className="w-[100px]">Role</TableHead>
                   <TableHead className="w-[150px]">Manager</TableHead>
                   <TableHead className="w-[150px]">Location</TableHead>
                   <TableHead className="w-[200px]">Processes</TableHead>
@@ -963,9 +966,9 @@ export function UserManagement() {
                     <TableCell>{getLocationName(u.locationId)}</TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {getUserProcesses(u.id).split(", ").map((process, idx) => (
+                        {getUserProcesses(u.id)?.map((process: any, idx: number) => (
                           <Badge key={idx} variant="outline">
-                            {process}
+                            {process.name}
                           </Badge>
                         ))}
                       </div>
