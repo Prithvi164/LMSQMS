@@ -1362,7 +1362,14 @@ export class DatabaseStorage implements IStorage {
           lineOfBusinessId: organizationBatches.lineOfBusinessId,
           processId: organizationBatches.processId,
           capacityLimit: organizationBatches.capacityLimit,
-          traineesCount: sql<number>`CAST(COUNT(DISTINCT ${userBatchProcesses.userId}) AS INTEGER)`,
+          traineesCount: sql<number>`
+            CAST(
+              COUNT(DISTINCT CASE 
+                WHEN ${userBatchProcesses.status} != 'dropped' 
+                THEN ${userBatchProcesses.userId} 
+                ELSE null 
+              END
+            ) AS INTEGER)`,
           location: {
             id: organizationLocations.id,
             name: organizationLocations.name,
@@ -1379,7 +1386,10 @@ export class DatabaseStorage implements IStorage {
         .from(organizationBatches)
         .leftJoin(
           userBatchProcesses,
-          eq(organizationBatches.id, userBatchProcesses.batchId)
+          and(
+            eq(organizationBatches.id, userBatchProcesses.batchId),
+            eq(userBatchProcesses.organizationId, organizationId)
+          )
         )
         .leftJoin(
           organizationLocations,
@@ -1416,7 +1426,15 @@ export class DatabaseStorage implements IStorage {
         )
         .orderBy(desc(organizationBatches.createdAt));
 
-      console.log('Retrieved batches with trainee counts:', batches);
+      console.log('Retrieved batches with trainee counts:', 
+        batches.map(b => ({
+          id: b.id,
+          name: b.name,
+          traineesCount: b.traineesCount,
+          capacityLimit: b.capacityLimit
+        }))
+      );
+
       return batches as OrganizationBatch[];
     } catch (error) {
       console.error('Error fetching batches:', error);
