@@ -280,9 +280,6 @@ export function UserManagement() {
   };
 
   // Add new state for LOB selection
-  const [selectedLOBs, setSelectedLOBs] = useState<number[]>([]);
-  const [openLOB, setOpenLOB] = useState(false);
-  const [openProcess, setOpenProcess] = useState(false);
 
   // Add LOB and Process queries
   const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery<OrganizationLineOfBusiness[]>({
@@ -293,10 +290,11 @@ export function UserManagement() {
 
   const { data: processes = [], isLoading: isLoadingProcesses } = useQuery<OrganizationProcess[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/processes`],
-    enabled: !!user?.organizationId && selectedLOBs.length > 0,
+    enabled: !!user?.organizationId,
     staleTime: 5 * 60 * 1000,
   });
 
+  const [selectedLOBs, setSelectedLOBs] = useState<number[]>([]);
   const filteredProcesses = processes.filter(process =>
     selectedLOBs.includes(process.lineOfBusinessId)
   );
@@ -304,6 +302,10 @@ export function UserManagement() {
 
   // Create EditUserDialog component
   const EditUserDialog = ({ user: editUser }: { user: User }) => {
+    const [openLOB, setOpenLOB] = useState(false);
+    const [openProcess, setOpenProcess] = useState(false);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+
     const form = useForm<UserFormData>({
       resolver: zodResolver(editUserSchema),
       defaultValues: {
@@ -335,7 +337,7 @@ export function UserManagement() {
 
         setSelectedLOBs([...new Set(lobIds)]);
       }
-    }, [editUser.processes]);
+    }, [editUser.processes, processes]);
 
     // Determine if the current user can edit this user
     const canEdit = user?.role === "owner" || (user?.role === "admin" && editUser.role !== "admin");
@@ -349,13 +351,13 @@ export function UserManagement() {
     }
 
     return (
-      <Dialog>
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogTrigger asChild>
-          <Button variant="outline" size="icon">
+          <Button variant="outline" size="icon" onClick={() => setIsDialogOpen(true)}>
             <Edit2 className="h-4 w-4" />
           </Button>
         </DialogTrigger>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl" onPointerDownOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
             <DialogDescription>
@@ -377,6 +379,7 @@ export function UserManagement() {
                   id: editUser.id,
                   data: cleanedData
                 });
+                setIsDialogOpen(false);
               } catch (error) {
                 console.error('Error updating user:', error);
               }
@@ -629,13 +632,22 @@ export function UserManagement() {
                 <div className="col-span-2">
                   <Label>Line of Business</Label>
                   <div className="flex gap-2">
-                    <Popover open={openLOB} onOpenChange={setOpenLOB}>
+                    <Popover 
+                      open={openLOB} 
+                      onOpenChange={setOpenLOB}
+                    >
                       <PopoverTrigger asChild>
                         <Button
+                          type="button"
                           variant="outline"
                           role="combobox"
                           aria-expanded={openLOB}
                           className="w-full justify-between"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setOpenLOB(true);
+                          }}
                         >
                           {selectedLOBs.length > 0
                             ? `${selectedLOBs.length} LOBs selected`
@@ -648,7 +660,10 @@ export function UserManagement() {
                           />
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-full p-0">
+                      <PopoverContent 
+                        className="w-full p-0"
+                        onPointerDownOutside={(e) => e.preventDefault()}
+                      >
                         <Command>
                           <CommandInput placeholder="Search Line of Business..." />
                           <CommandEmpty>No Line of Business found.</CommandEmpty>
@@ -686,13 +701,22 @@ export function UserManagement() {
                 {selectedLOBs.length > 0 && (
                   <div className="col-span-2">
                     <Label>Processes</Label>
-                    <Popover open={openProcess} onOpenChange={setOpenProcess}>
+                    <Popover 
+                      open={openProcess} 
+                      onOpenChange={setOpenProcess}
+                    >
                       <PopoverTrigger asChild>
                         <Button
+                          type="button"
                           variant="outline"
                           role="combobox"
                           aria-expanded={openProcess}
                           className="w-full justify-between"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setOpenProcess(true);
+                          }}
                         >
                           {form.watch('processes')?.length > 0
                             ? `${form.watch('processes')?.length} processes selected`
@@ -705,7 +729,10 @@ export function UserManagement() {
                           />
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-full p-0">
+                      <PopoverContent 
+                        className="w-full p-0"
+                        onPointerDownOutside={(e) => e.preventDefault()}
+                      >
                         <Command>
                           <CommandInput placeholder="Search processes..." />
                           <CommandEmpty>No process found.</CommandEmpty>
