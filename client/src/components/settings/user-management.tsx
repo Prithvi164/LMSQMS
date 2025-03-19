@@ -49,13 +49,6 @@ export function UserManagement() {
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [userDataInfo, setUserDataInfo] = useState<{
-    hasAttendance: boolean;
-    hasQuizzes: boolean;
-    hasEvaluations: boolean;
-    hasProcesses: boolean;
-    hasBatches: boolean;
-  } | null>(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -101,8 +94,6 @@ export function UserManagement() {
       setShowDeleteDialog(false);
       setUserToDelete(null);
       setDeleteConfirmation("");
-      setUserDataInfo(null);
-      setUserDataImpact(null);
 
       // Reset to first page if current page becomes empty
       if (currentUsers.length === 1 && currentPage > 1) {
@@ -554,6 +545,19 @@ export function UserManagement() {
                     </FormItem>
                   )}
                 />
+                <FormField
+                  control={form.control}
+                  name="lastWorkingDay"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Last Working Day</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
               <Button type="submit">Save Changes</Button>
             </form>
@@ -577,35 +581,6 @@ export function UserManagement() {
       console.error("Error in handleDeleteConfirm:", error);
     }
   };
-
-  // Modify the delete button click handler
-  const handleDeleteClick = async (u: User) => {
-    try {
-      // Fetch user's data impact information
-      const response = await apiRequest("GET", `/api/users/${u.id}/data-impact`);
-      const impact = await response.json();
-
-      setUserDataImpact(impact);
-      setUserToDelete(u);
-      setShowDeleteDialog(true);
-    } catch (error) {
-      console.error('Error fetching user data impact:', error);
-      // Still show dialog but without impact info
-      setUserDataImpact(null);
-      setUserToDelete(u);
-      setShowDeleteDialog(true);
-    }
-  };
-
-  const [userDataImpact, setUserDataImpact] = useState<{
-    attendance: number;
-    batches: number;
-    quizzes: number;
-    evaluationsAsTrainee: number;
-    evaluationsAsEvaluator: number;
-    processes: number;
-  } | null>(null);
-
 
   const { data: orgSettings } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/settings`],
@@ -699,6 +674,7 @@ export function UserManagement() {
                   <TableHead className="w-[100px]">Role</TableHead>
                   <TableHead className="w-[150px]">Manager</TableHead>
                   <TableHead className="w-[150px]">Location</TableHead>
+                  <TableHead className="w-[150px]">Last Working Day</TableHead>
                   <TableHead className="w-[100px]">Status</TableHead>
                   <TableHead className="w-[100px] text-right">Actions</TableHead>
                 </TableRow>
@@ -714,6 +690,7 @@ export function UserManagement() {
                     </TableCell>
                     <TableCell>{getManagerName(u.managerId)}</TableCell>
                     <TableCell>{getLocationName(u.locationId)}</TableCell>
+                    <TableCell>{u.lastWorkingDay || "-"}</TableCell>
                     <TableCell>
                       {u.role === "owner" ? (
                         <div className="flex items-center" title="Owner status cannot be changed">
@@ -739,7 +716,8 @@ export function UserManagement() {
                           size="icon"
                           className="text-destructive"
                           onClick={() => {
-                            handleDeleteClick(u);
+                            setUserToDelete(u);
+                            setShowDeleteDialog(true);
                           }}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -796,37 +774,17 @@ export function UserManagement() {
             <DialogTitle>Delete User</DialogTitle>
             <DialogDescription className="space-y-3">
               <p>You are about to delete user <strong>{userToDelete?.username}</strong>.</p>
-              {userDataImpact && (Object.values(userDataImpact).some(count => count > 0)) && (
-                <div className="bg-amber-50 dark:bg-amber-950 p-4 rounded-md text-amber-900 dark:text-amber-100">
-                  <p className="font-semibold mb-2">This will permanently delete:</p>
-                  <ul className="list-disc list-inside space-y-1">
-                    {userDataImpact.attendance > 0 && (
-                      <li>{userDataImpact.attendance} attendance record{userDataImpact.attendance !== 1 ? 's' : ''}</li>
-                    )}
-                    {userDataImpact.batches > 0 && (
-                      <li>{userDataImpact.batches} batch assignment{userDataImpact.batches !== 1 ? 's' : ''}</li>
-                    )}
-                    {userDataImpact.quizzes > 0 && (
-                      <li>{userDataImpact.quizzes} quiz attempt{userDataImpact.quizzes !== 1 ? 's' : ''} and their responses</li>
-                    )}
-                    {(userDataImpact.evaluationsAsTrainee > 0 || userDataImpact.evaluationsAsEvaluator > 0) && (
-                      <li>
-                        {userDataImpact.evaluationsAsTrainee + userDataImpact.evaluationsAsEvaluator} evaluation{(userDataImpact.evaluationsAsTrainee + userDataImpact.evaluationsAsEvaluator) !== 1 ? 's' : ''} 
-                        {userDataImpact.evaluationsAsTrainee > 0 && userDataImpact.evaluationsAsEvaluator > 0 
-                          ? ` (${userDataImpact.evaluationsAsTrainee} as trainee, ${userDataImpact.evaluationsAsEvaluator} as evaluator)`
-                          : userDataImpact.evaluationsAsTrainee > 0
-                            ? ` (as trainee)`
-                            : ` (as evaluator)`
-                        }
-                      </li>
-                    )}
-                    {userDataImpact.processes > 0 && (
-                      <li>{userDataImpact.processes} process assignment{userDataImpact.processes !== 1 ? 's' : ''}</li>
-                    )}
-                  </ul>
-                  <p className="mt-3 text-sm">This action cannot be undone.</p>
-                </div>
-              )}
+              <div className="bg-amber-50 dark:bg-amber-950 p-4 rounded-md text-amber-900 dark:text-amber-100">
+                <p className="font-semibold mb-2">This will permanently delete:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>User's attendance records</li>
+                  <li>Quiz attempts and responses</li>
+                  <li>Evaluations (both as trainee and evaluator)</li>
+                  <li>Process assignments</li>
+                  <li>Batch assignments</li>
+                </ul>
+                <p className="mt-3 text-sm">This action cannot be undone.</p>
+              </div>
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -848,7 +806,6 @@ export function UserManagement() {
                 setShowDeleteDialog(false);
                 setUserToDelete(null);
                 setDeleteConfirmation("");
-                setUserDataImpact(null);
               }}
             >
               Cancel
