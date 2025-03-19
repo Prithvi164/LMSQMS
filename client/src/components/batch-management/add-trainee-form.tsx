@@ -106,9 +106,8 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
         body: JSON.stringify(traineeData),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
+        const data = await response.json();
         throw new Error(data.message || "Failed to add trainee");
       }
 
@@ -208,9 +207,8 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
 
   const getTrainerName = () => {
     if (isLoadingBatchDetails) return 'Loading batch details...';
-    if (!batchDetails) return 'No batch details available';
-    if (!batchDetails?.trainer) return 'No trainer assigned';
-    return batchDetails?.trainer.fullName;
+    if (!batchDetails?.trainer?.fullName) return 'No trainer assigned';
+    return batchDetails.trainer.fullName;
   };
 
   return (
