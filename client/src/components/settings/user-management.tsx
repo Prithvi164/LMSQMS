@@ -49,6 +49,13 @@ export function UserManagement() {
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [userDataInfo, setUserDataInfo] = useState<{
+    hasAttendance: boolean;
+    hasQuizzes: boolean;
+    hasEvaluations: boolean;
+    hasProcesses: boolean;
+    hasBatches: boolean;
+  } | null>(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -94,6 +101,7 @@ export function UserManagement() {
       setShowDeleteDialog(false);
       setUserToDelete(null);
       setDeleteConfirmation("");
+      setUserDataInfo(null);
 
       // Reset to first page if current page becomes empty
       if (currentUsers.length === 1 && currentPage > 1) {
@@ -582,6 +590,25 @@ export function UserManagement() {
     }
   };
 
+  // Modify the delete button click handler
+  const handleDeleteClick = async (u: User) => {
+    try {
+      // Fetch user's data information
+      const response = await apiRequest("GET", `/api/users/${u.id}/data-info`);
+      const dataInfo = await response.json();
+
+      setUserDataInfo(dataInfo);
+      setUserToDelete(u);
+      setShowDeleteDialog(true);
+    } catch (error) {
+      console.error('Error fetching user data info:', error);
+      // Still show dialog but without specific data info
+      setUserDataInfo(null);
+      setUserToDelete(u);
+      setShowDeleteDialog(true);
+    }
+  };
+
   const { data: orgSettings } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/settings`],
     enabled: !!user?.organizationId,
@@ -716,8 +743,7 @@ export function UserManagement() {
                           size="icon"
                           className="text-destructive"
                           onClick={() => {
-                            setUserToDelete(u);
-                            setShowDeleteDialog(true);
+                            handleDeleteClick(u);
                           }}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -774,17 +800,29 @@ export function UserManagement() {
             <DialogTitle>Delete User</DialogTitle>
             <DialogDescription className="space-y-3">
               <p>You are about to delete user <strong>{userToDelete?.username}</strong>.</p>
-              <div className="bg-amber-50 dark:bg-amber-950 p-4 rounded-md text-amber-900 dark:text-amber-100">
-                <p className="font-semibold mb-2">This will permanently delete:</p>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>User's attendance records</li>
-                  <li>Quiz attempts and responses</li>
-                  <li>Evaluations (both as trainee and evaluator)</li>
-                  <li>Process assignments</li>
-                  <li>Batch assignments</li>
-                </ul>
-                <p className="mt-3 text-sm">This action cannot be undone.</p>
-              </div>
+              {userDataInfo && (
+                <div className="bg-amber-50 dark:bg-amber-950 p-4 rounded-md text-amber-900 dark:text-amber-100">
+                  <p className="font-semibold mb-2">This will permanently delete:</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    {userDataInfo.hasAttendance && (
+                      <li>User's attendance records</li>
+                    )}
+                    {userDataInfo.hasQuizzes && (
+                      <li>Quiz attempts and responses</li>
+                    )}
+                    {userDataInfo.hasEvaluations && (
+                      <li>Evaluations (both as trainee and evaluator)</li>
+                    )}
+                    {userDataInfo.hasProcesses && (
+                      <li>Process assignments</li>
+                    )}
+                    {userDataInfo.hasBatches && (
+                      <li>Batch assignments</li>
+                    )}
+                  </ul>
+                  <p className="mt-3 text-sm">This action cannot be undone.</p>
+                </div>
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -806,6 +844,7 @@ export function UserManagement() {
                 setShowDeleteDialog(false);
                 setUserToDelete(null);
                 setDeleteConfirmation("");
+                setUserDataInfo(null);
               }}
             >
               Cancel
