@@ -159,18 +159,30 @@ export function UserManagement() {
     }
   };
 
-  // Add process data fetching
-  const { data: processes = [] } = useQuery({
+  // Add process data fetching with error handling
+  const { data: processes = [], error: processError } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/processes`],
     enabled: !!user?.organizationId,
   });
 
+  //Check for processError and display a toast message if there's an error
+  if (processError) {
+    toast({
+      title: "Error",
+      description: `Failed to fetch processes: ${processError.message}`,
+      variant: "destructive",
+    });
+  }
+
   // Update exportToExcel function to include processes
   const exportToExcel = () => {
     const dataToExport = users.map(user => {
-      const userProcesses = processes.filter((p: any) => 
-        user.processIds?.includes(p.id)
-      ).map((p: any) => p.name).join(", ");
+      const userProcesses = Array.isArray(processes) ?
+        processes
+          .filter((p: any) => user.processIds?.includes(p.id))
+          .map((p: any) => p.name)
+          .join(", ")
+        : "";
 
       return {
         Username: user.username,
@@ -241,17 +253,19 @@ export function UserManagement() {
 
         // Validate the data
         const errors: string[] = [];
-        const processNames = processes.map((p: any) => p.name.toLowerCase());
+        const processNames = Array.isArray(processes) ?
+          processes.map((p: any) => p.name?.toLowerCase()).filter(Boolean) :
+          [];
 
         jsonData.forEach((row, index) => {
           if (!row.Username) errors.push(`Row ${index + 1}: Username is required`);
           if (!row.Email) errors.push(`Row ${index + 1}: Email is required`);
-          if (!row.Role || !['admin', 'manager', 'advisor', 'trainer', 'trainee'].includes(row.Role)) {
+          if (!row.Role || !['admin', 'manager', 'advisor', 'trainer', 'trainee'].includes(row.Role.toLowerCase())) {
             errors.push(`Row ${index + 1}: Invalid role`);
           }
 
           // Validate processes if provided
-          if (row.Processes) {
+          if (row.Processes && processNames.length > 0) {
             const rowProcesses = row.Processes.split(',').map(p => p.trim().toLowerCase());
             const invalidProcesses = rowProcesses.filter(p => !processNames.includes(p));
             if (invalidProcesses.length > 0) {
@@ -280,12 +294,13 @@ export function UserManagement() {
     mutationFn: async (users: ImportedUser[]) => {
       // Transform the data to match the API expectations
       const transformedUsers = users.map(user => {
-        const userProcessIds = user.Processes
-          ? processes
-              .filter((p: any) => 
-                user.Processes.toLowerCase().includes(p.name.toLowerCase())
-              )
-              .map((p: any) => p.id)
+        const userProcessIds = user.Processes && Array.isArray(processes) ?
+          processes
+            .filter((p: any) =>
+              user.Processes.toLowerCase().includes(p.name?.toLowerCase())
+            )
+            .map((p: any) => p.id)
+            .filter(Boolean)
           : [];
 
         return {
