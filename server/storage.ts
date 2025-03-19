@@ -557,10 +557,9 @@ export class DatabaseStorage implements IStorage {
       await db.transaction(async (tx) => {
         // Delete all related records in correct order to respect foreign key constraints
         
-        // 1. Delete attendance records first
+        // 1. Delete attendance records first (using proper Drizzle syntax)
         await tx
-          .delete(sql.raw('attendance'))
-          .where(sql.raw('trainee_id = $1', [id]));
+          .execute(sql`DELETE FROM attendance WHERE trainee_id = ${id}`);
         console.log(`Deleted attendance records for user ${id}`);
 
         // 2. Delete quiz responses for user's attempts
