@@ -6,7 +6,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { User, Organization, OrganizationLocation, UserProcess, OrganizationLineOfBusiness, OrganizationProcess } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Table, TableBody, TableCell, TableHead, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Edit2, Trash2, Search, Download, Upload, FileSpreadsheet, Check } from "lucide-react";
@@ -150,7 +150,7 @@ export function UserManagement() {
       });
       // Invalidate both users and processes queries to refresh the data
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      queryClient.invalidateQueries({ queryKey: [`/api/users/${data.id}/processes`] }); 
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${data.id}/processes`] });
       queryClient.refetchQueries({ queryKey: [`/api/users/${data.id}/processes`] });
     },
     onError: (error: Error) => {
@@ -942,7 +942,7 @@ export function UserManagement() {
                   <TableHead className="w-[150px]">Full Name</TableHead>
                   <TableHead className="w-[100px]">Role</TableHead>
                   <TableHead className="w-[150px]">Manager</TableHead>
-<TableHead className="w-[150px]">Location</TableHead>
+                  <TableHead className="w-[150px]">Location</TableHead>
                   <TableHead className="w-[200px]">Processes</TableHead>
                   <TableHead className="w-[100px]">Status</TableHead>
                   {canManageUsers && (
