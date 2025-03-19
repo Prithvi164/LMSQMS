@@ -624,7 +624,6 @@ export function UserManagement() {
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="manager">Manager</SelectItem>
                   <SelectItem value="trainer">Trainer</SelectItem>
-                  <SelectItem value="trainee">Trainee</SelectItem>
                   <SelectItem value="advisor">Advisor</SelectItem>
                   <SelectItem value="team_lead">Team Lead</SelectItem>
                 </SelectContent>
@@ -774,19 +773,19 @@ export function UserManagement() {
           <DialogHeader>
             <DialogTitle>Delete User</DialogTitle>
             <DialogDescription>
-              This is a permanent action. Are you sure you want to delete {userToDelete?.fullName || userToDelete?.username}?
+              This is a permanent action. Are you sure you want to delete {userToDelete?.username}?
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <Label htmlFor="confirmation" className="text-sm text-muted-foreground block mb-2">
-              Type "{userToDelete?.fullName || userToDelete?.username}" to confirm deletion:
+              Type "{userToDelete?.username}" to confirm deletion:
             </Label>
             <Input
               id="confirmation"
               value={deleteConfirmation}
               onChange={(e) => setDeleteConfirmation(e.target.value)}
               className="mt-2"
-              placeholder="Type the user's name..."
+              placeholder="Type the user's username..."
             />
           </div>
           <DialogFooter>
@@ -803,7 +802,7 @@ export function UserManagement() {
             <Button
               variant="destructive"
               onClick={handleDeleteConfirm}
-              disabled={deleteConfirmation !== (userToDelete?.fullName || userToDelete?.username)}
+              disabled={deleteConfirmation !== userToDelete?.username}
             >
               Delete User
             </Button>
