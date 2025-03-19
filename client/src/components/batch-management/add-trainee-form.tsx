@@ -98,6 +98,7 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
         batchId: batch.id,
         category: "trainee", // Always set category as trainee
         role: values.role, // Use selected role
+        managerId: batch.trainerId, // Set trainer as manager for trainees
       };
 
       const response = await fetch(`/api/organizations/${batch.organizationId}/batches/${batch.id}/trainees`, {
