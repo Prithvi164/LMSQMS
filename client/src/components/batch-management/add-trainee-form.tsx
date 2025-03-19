@@ -27,12 +27,6 @@ import { CalendarIcon, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import type { OrganizationBatch } from "@shared/schema";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
 // Updated trainee data submission type
 const addTraineeSchema = z.object({
@@ -86,36 +80,49 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
     try {
       setIsSubmitting(true);
 
-      const traineeData = {
-        ...values,
-        dateOfJoining: values.dateOfJoining.toISOString().split('T')[0],
-        dateOfBirth: values.dateOfBirth.toISOString().split('T')[0],
-        processId: batch.processId,
-        lineOfBusinessId: batch.lineOfBusinessId,
-        locationId: batch.locationId,
-        trainerId: batch.trainerId,
-        organizationId: batch.organizationId,
-        batchId: batch.id,
-        category: "trainee", // Always set category as trainee
-        role: values.role, // Use selected role
-        managerId: batch.trainerId, // Set trainer as manager for trainees
-      };
-
-      const response = await fetch(`/api/organizations/${batch.organizationId}/batches/${batch.id}/trainees`, {
+      // First create the user and update their manager
+      const userResponse = await fetch(`/api/organizations/${batch.organizationId}/users`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(traineeData),
+        body: JSON.stringify({
+          ...values,
+          dateOfJoining: values.dateOfJoining.toISOString().split('T')[0],
+          dateOfBirth: values.dateOfBirth.toISOString().split('T')[0],
+          processId: batch.processId,
+          lineOfBusinessId: batch.lineOfBusinessId,
+          locationId: batch.locationId,
+          trainerId: batch.trainerId,
+          organizationId: batch.organizationId,
+          category: "trainee",
+          role: values.role,
+          managerId: batch.trainerId, // Set trainer as manager
+        }),
       });
 
-      const data = await response.json();
+      if (!userResponse.ok) {
+        throw new Error(await userResponse.text());
+      }
 
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to add trainee");
+      const userData = await userResponse.json();
+
+      // Then enroll them in the batch
+      const enrollResponse = await fetch(`/api/organizations/${batch.organizationId}/batches/${batch.id}/trainees`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: userData.id,
+          processId: batch.processId,
+          status: "active",
+        }),
+      });
+
+      if (!enrollResponse.ok) {
+        throw new Error(await enrollResponse.text());
       }
 
       toast({
         title: "Success",
-        description: `Trainee ${values.fullName} has been successfully added to batch ${batch.name} with role ${values.role}`,
+        description: `Trainee ${values.fullName} has been successfully added to batch ${batch.name}`,
       });
 
       onSuccess();
