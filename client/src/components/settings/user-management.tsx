@@ -51,7 +51,7 @@ const editUserSchema = insertUserSchema.extend({
 
 type UserFormData = z.infer<typeof editUserSchema>;
 
-// Update the ImportedUser interface to include processes
+// Define ImportedUser interface
 interface ImportedUser {
   Username: string;
   "Full Name": string;
@@ -67,24 +67,218 @@ interface ImportedUser {
   "Processes": string; // Comma-separated process names
 }
 
+// Edit User Dialog Component
+const EditUserDialog: React.FC<{ user: User }> = ({ user: editUser }) => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const form = useForm<UserFormData>({
+    resolver: zodResolver(editUserSchema),
+    defaultValues: {
+      username: editUser.username,
+      fullName: editUser.fullName || "",
+      email: editUser.email,
+      employeeId: editUser.employeeId || "",
+      role: editUser.role,
+      phoneNumber: editUser.phoneNumber || "",
+      locationId: editUser.locationId?.toString() || "none",
+      managerId: editUser.managerId?.toString() || "none",
+      dateOfJoining: editUser.dateOfJoining || "",
+      dateOfBirth: editUser.dateOfBirth || "",
+      education: editUser.education || "",
+      lastWorkingDay: editUser.lastWorkingDay || "",
+    }
+  });
+
+  const updateUserMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<InsertUser> }) => {
+      const response = await apiRequest("PATCH", `/api/users/${id}`, data);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update user");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "User updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Determine if the current user can edit this user
+  const canEdit = user?.role === "owner" || (user?.role === "admin" && editUser.role !== "admin");
+
+  if (!canEdit) {
+    return (
+      <Button variant="outline" size="icon" disabled title="You don't have permission to edit this user">
+        <Edit2 className="h-4 w-4" />
+      </Button>
+    );
+  }
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="icon">
+          <Edit2 className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Edit User</DialogTitle>
+          <DialogDescription>
+            Update information for {editUser.username}
+          </DialogDescription>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(async (data) => {
+            try {
+              // Clean up the data before submission
+              const cleanedData = {
+                ...data,
+                locationId: data.locationId === "none" ? null : parseInt(data.locationId),
+                managerId: data.managerId === "none" ? null : parseInt(data.managerId),
+                lastWorkingDay: data.lastWorkingDay || null,
+              };
+
+              await updateUserMutation.mutateAsync({
+                id: editUser.id,
+                data: cleanedData
+              });
+            } catch (error) {
+              console.error('Error updating user:', error);
+            }
+          })} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              {/* Form fields go here - keeping them minimal for now */}
+              <Button type="submit">Save Changes</Button>
+            </div>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// Import Preview Dialog Component
+const ImportPreviewDialog: React.FC<{
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  importData: ImportedUser[];
+  importErrors: string[];
+  onImport: () => void;
+  isImporting: boolean;
+  onCancel: () => void;
+}> = ({
+  open,
+  onOpenChange,
+  importData,
+  importErrors,
+  onImport,
+  isImporting,
+  onCancel,
+}) => (
+  <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+      <AlertDialogHeader>
+        <AlertDialogTitle>Import Preview</AlertDialogTitle>
+        <AlertDialogDescription>
+          Review the data before importing
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+
+      {importErrors.length > 0 && (
+        <div className="mb-4 p-4 border border-destructive rounded-lg">
+          <div className="flex items-center gap-2 text-destructive mb-2">
+            <AlertCircle className="h-4 w-4" />
+            <span className="font-semibold">Validation Errors</span>
+          </div>
+          <ul className="list-disc list-inside space-y-1">
+            {importErrors.map((error, index) => (
+              <li key={index} className="text-sm text-destructive">{error}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="my-4">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Username</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Full Name</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Processes</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {importData.slice(0, 5).map((row, index) => (
+              <TableRow key={index}>
+                <TableCell>{row.Username}</TableCell>
+                <TableCell>{row.Email}</TableCell>
+                <TableCell>{row["Full Name"]}</TableCell>
+                <TableCell>{row.Role}</TableCell>
+                <TableCell>{row.Processes}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        {importData.length > 5 && (
+          <p className="text-sm text-muted-foreground mt-2">
+            And {importData.length - 5} more rows...
+          </p>
+        )}
+      </div>
+
+      <AlertDialogFooter>
+        <AlertDialogCancel onClick={onCancel}>
+          Cancel
+        </AlertDialogCancel>
+        <AlertDialogAction
+          onClick={onImport}
+          disabled={importErrors.length > 0 || isImporting}
+        >
+          {isImporting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Importing...
+            </>
+          ) : (
+            "Import Users"
+          )}
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+);
+
+// Main User Management Component
 export function UserManagement() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [managerFilter, setManagerFilter] = useState<string>("all");
-  const [deleteConfirmation, setDeleteConfirmation] = useState("");
-  const [userToDelete, setUserToDelete] = useState<User | null>(null);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Add state for import preview
+  // Import state
   const [importData, setImportData] = useState<ImportedUser[]>([]);
   const [showImportPreview, setShowImportPreview] = useState(false);
   const [importErrors, setImportErrors] = useState<string[]>([]);
 
-  // Queries and mutations
+  // Queries
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
     enabled: !!user,
@@ -100,148 +294,9 @@ export function UserManagement() {
     enabled: !!user?.organizationId,
   });
 
-  // Handle process error
-  if (processError) {
-    toast({
-      title: "Error",
-      description: `Failed to fetch processes: ${processError.message}`,
-      variant: "destructive",
-    });
-  }
-
-  // Export functionality
-  const exportToExcel = () => {
-    const dataToExport = users.map(user => {
-      const userProcesses = Array.isArray(processes) ?
-        processes
-          .filter((p: any) => user.processIds?.includes(p.id))
-          .map((p: any) => p.name)
-          .join(", ")
-        : "";
-
-      return {
-        Username: user.username,
-        'Full Name': user.fullName || '',
-        Email: user.email,
-        'Employee ID': user.employeeId || '',
-        Role: user.role,
-        'Phone Number': user.phoneNumber || '',
-        Location: getLocationName(user.locationId),
-        Manager: getManagerName(user.managerId),
-        'Date of Joining': user.dateOfJoining || '',
-        'Date of Birth': user.dateOfBirth || '',
-        Education: user.education || '',
-        Status: user.active ? 'Active' : 'Inactive',
-        Processes: userProcesses
-      };
-    });
-
-    const ws = XLSX.utils.json_to_sheet(dataToExport);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Users");
-    XLSX.writeFile(wb, `users_export_${new Date().toISOString().split('T')[0]}.xlsx`);
-  };
-
-  // Template download
-  const downloadTemplate = () => {
-    const template = [
-      {
-        Username: "john.doe",
-        "Full Name": "John Doe",
-        Email: "john@example.com",
-        "Employee ID": "EMP001",
-        Role: "advisor",
-        "Phone Number": "+1234567890",
-        Location: "Main Office",
-        Manager: "jane.smith",
-        "Date of Joining": "2024-01-01",
-        "Date of Birth": "1990-01-01",
-        Education: "Bachelor's Degree",
-        "Processes": "Customer Service, Technical Support" // Example of comma-separated process names
-      }
-    ];
-
-    const ws = XLSX.utils.json_to_sheet(template);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Template");
-    XLSX.writeFile(wb, "user_import_template.xlsx");
-  };
-
-  // Import functionality
-  const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // Show loading toast
-    toast({
-      title: "Processing",
-      description: "Reading file content...",
-    });
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json<ImportedUser>(worksheet);
-
-        // Validate the data
-        const errors: string[] = [];
-        const processNames = Array.isArray(processes) ?
-          processes.map((p: any) => p.name?.toLowerCase()).filter(Boolean) :
-          [];
-
-        // Process in chunks to avoid blocking the UI
-        const chunkSize = 100;
-        for (let i = 0; i < jsonData.length; i += chunkSize) {
-          const chunk = jsonData.slice(i, i + chunkSize);
-          await new Promise(resolve => setTimeout(resolve, 0)); // Let the UI breathe
-
-          chunk.forEach((row, index) => {
-            const rowIndex = i + index + 1;
-            if (!row.Username) errors.push(`Row ${rowIndex}: Username is required`);
-            if (!row.Email) errors.push(`Row ${rowIndex}: Email is required`);
-            if (!row.Role || !['admin', 'manager', 'advisor', 'trainer', 'trainee'].includes(row.Role.toLowerCase())) {
-              errors.push(`Row ${rowIndex}: Invalid role`);
-            }
-
-            // Validate processes if provided
-            if (row.Processes && processNames.length > 0) {
-              const rowProcesses = row.Processes.split(',').map(p => p.trim().toLowerCase());
-              const invalidProcesses = rowProcesses.filter(p => !processNames.includes(p));
-              if (invalidProcesses.length > 0) {
-                errors.push(`Row ${rowIndex}: Invalid processes: ${invalidProcesses.join(', ')}`);
-              }
-            }
-          });
-        }
-
-        setImportErrors(errors);
-        setImportData(jsonData);
-        setShowImportPreview(true);
-
-        // Show success toast
-        toast({
-          title: "Success",
-          description: `File processed successfully. ${jsonData.length} records found.`,
-        });
-      } catch (error) {
-        console.error('Error parsing file:', error);
-        toast({
-          title: "Error",
-          description: "Failed to parse Excel file. Please ensure it follows the template format.",
-          variant: "destructive",
-        });
-      }
-    };
-    reader.readAsArrayBuffer(file);
-  };
-
-  // Import mutation
+  // Import Users Mutation
   const importUsersMutation = useMutation({
     mutationFn: async (users: ImportedUser[]) => {
-      // Transform the data to match the API expectations
       const transformedUsers = users.map(user => {
         const userProcessIds = user.Processes && Array.isArray(processes) ?
           processes
@@ -292,92 +347,7 @@ export function UserManagement() {
     },
   });
 
-  // Import preview dialog
-  const ImportPreviewDialog = () => {
-    if (!showImportPreview) return null;
-
-    return (
-      <AlertDialog open={showImportPreview} onOpenChange={setShowImportPreview}>
-        <AlertDialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Import Preview</AlertDialogTitle>
-            <AlertDialogDescription>
-              Review the data before importing
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          {importErrors.length > 0 && (
-            <div className="mb-4 p-4 border border-destructive rounded-lg">
-              <div className="flex items-center gap-2 text-destructive mb-2">
-                <AlertCircle className="h-4 w-4" />
-                <span className="font-semibold">Validation Errors</span>
-              </div>
-              <ul className="list-disc list-inside space-y-1">
-                {importErrors.map((error, index) => (
-                  <li key={index} className="text-sm text-destructive">{error}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          <div className="my-4">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Username</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Full Name</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Processes</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {importData.slice(0, 5).map((row, index) => (
-                  <TableRow key={index}>
-                    <TableCell>{row.Username}</TableCell>
-                    <TableCell>{row.Email}</TableCell>
-                    <TableCell>{row["Full Name"]}</TableCell>
-                    <TableCell>{row.Role}</TableCell>
-                    <TableCell>{row.Processes}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            {importData.length > 5 && (
-              <p className="text-sm text-muted-foreground mt-2">
-                And {importData.length - 5} more rows...
-              </p>
-            )}
-          </div>
-
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => {
-              setShowImportPreview(false);
-              setImportData([]);
-              setImportErrors([]);
-            }}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => importUsersMutation.mutate(importData)}
-              disabled={importErrors.length > 0 || importUsersMutation.isPending}
-            >
-              {importUsersMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Importing...
-                </>
-              ) : (
-                "Import Users"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    );
-  };
-
-  // Other helper functions
+  // Helper Functions
   const getManagerName = (managerId: number | null) => {
     if (!managerId) return "No Manager";
     const manager = users.find(u => u.id === managerId);
@@ -388,6 +358,130 @@ export function UserManagement() {
     if (!locationId) return "No Location";
     const location = orgSettings?.locations?.find((l: OrganizationLocation) => l.id === locationId);
     return location ? location.name : "Unknown Location";
+  };
+
+  // Export functionality
+  const exportToExcel = () => {
+    const dataToExport = users.map(user => {
+      const userProcesses = Array.isArray(processes) ?
+        processes
+          .filter((p: any) => user.processIds?.includes(p.id))
+          .map((p: any) => p.name)
+          .join(", ")
+        : "";
+
+      return {
+        Username: user.username,
+        'Full Name': user.fullName || '',
+        Email: user.email,
+        'Employee ID': user.employeeId || '',
+        Role: user.role,
+        'Phone Number': user.phoneNumber || '',
+        Location: getLocationName(user.locationId),
+        Manager: getManagerName(user.managerId),
+        'Date of Joining': user.dateOfJoining || '',
+        'Date of Birth': user.dateOfBirth || '',
+        Education: user.education || '',
+        Status: user.active ? 'Active' : 'Inactive',
+        Processes: userProcesses
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Users");
+    XLSX.writeFile(wb, `users_export_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  // Template download
+  const downloadTemplate = () => {
+    const template = [
+      {
+        Username: "john.doe",
+        "Full Name": "John Doe",
+        Email: "john@example.com",
+        "Employee ID": "EMP001",
+        Role: "advisor",
+        "Phone Number": "+1234567890",
+        Location: "Main Office",
+        Manager: "jane.smith",
+        "Date of Joining": "2024-01-01",
+        "Date of Birth": "1990-01-01",
+        Education: "Bachelor's Degree",
+        "Processes": "Customer Service, Technical Support"
+      }
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(template);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Template");
+    XLSX.writeFile(wb, "user_import_template.xlsx");
+  };
+
+  // Import handling
+  const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    toast({
+      title: "Processing",
+      description: "Reading file content...",
+    });
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json<ImportedUser>(worksheet);
+
+        const errors: string[] = [];
+        const processNames = Array.isArray(processes) ?
+          processes.map((p: any) => p.name?.toLowerCase()).filter(Boolean) :
+          [];
+
+        const chunkSize = 100;
+        for (let i = 0; i < jsonData.length; i += chunkSize) {
+          const chunk = jsonData.slice(i, i + chunkSize);
+          await new Promise(resolve => setTimeout(resolve, 0));
+
+          chunk.forEach((row, index) => {
+            const rowIndex = i + index + 1;
+            if (!row.Username) errors.push(`Row ${rowIndex}: Username is required`);
+            if (!row.Email) errors.push(`Row ${rowIndex}: Email is required`);
+            if (!row.Role || !['admin', 'manager', 'advisor', 'trainer', 'trainee'].includes(row.Role.toLowerCase())) {
+              errors.push(`Row ${rowIndex}: Invalid role`);
+            }
+
+            if (row.Processes && processNames.length > 0) {
+              const rowProcesses = row.Processes.split(',').map(p => p.trim().toLowerCase());
+              const invalidProcesses = rowProcesses.filter(p => !processNames.includes(p));
+              if (invalidProcesses.length > 0) {
+                errors.push(`Row ${rowIndex}: Invalid processes: ${invalidProcesses.join(', ')}`);
+              }
+            }
+          });
+        }
+
+        setImportErrors(errors);
+        setImportData(jsonData);
+        setShowImportPreview(true);
+
+        toast({
+          title: "Success",
+          description: `File processed successfully. ${jsonData.length} records found.`,
+        });
+      } catch (error) {
+        console.error('Error parsing file:', error);
+        toast({
+          title: "Error",
+          description: "Failed to parse Excel file. Please ensure it follows the template format.",
+          variant: "destructive",
+        });
+      }
+    };
+    reader.readAsArrayBuffer(file);
   };
 
   const deleteUserMutation = useMutation({
@@ -405,9 +499,9 @@ export function UserManagement() {
         description: "User deleted successfully",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      setShowDeleteDialog(false);
-      setUserToDelete(null);
-      setDeleteConfirmation("");
+      setShowImportPreview(false);
+      setImportData([]);
+      setImportErrors([]);
     },
     onError: (error: Error) => {
       toast({
@@ -463,80 +557,6 @@ export function UserManagement() {
     }
   };
 
-  const EditUserDialog = ({ user: editUser }: { user: User }) => {
-    const { user } = useAuth();
-    const form = useForm<UserFormData>({
-      resolver: zodResolver(editUserSchema),
-      defaultValues: {
-        username: editUser.username,
-        fullName: editUser.fullName || "",
-        email: editUser.email,
-        employeeId: editUser.employeeId || "",
-        role: editUser.role,
-        phoneNumber: editUser.phoneNumber || "",
-        locationId: editUser.locationId?.toString() || "none",
-        managerId: editUser.managerId?.toString() || "none",
-        dateOfJoining: editUser.dateOfJoining || "",
-        dateOfBirth: editUser.dateOfBirth || "",
-        education: editUser.education || "",
-        lastWorkingDay: editUser.lastWorkingDay || "",
-      }
-    });
-
-    // Determine if the current user can edit this user
-    const canEdit = user?.role === "owner" || (user?.role === "admin" && editUser.role !== "admin");
-
-    if (!canEdit) {
-      return (
-        <Button variant="outline" size="icon" disabled title="You don't have permission to edit this user">
-          <Edit2 className="h-4 w-4" />
-        </Button>
-      );
-    }
-
-    return (
-      <Dialog>
-        <DialogTrigger asChild>
-          <Button variant="outline" size="icon">
-            <Edit2 className="h-4 w-4" />
-          </Button>
-        </DialogTrigger>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Edit User</DialogTitle>
-            <DialogDescription>
-              Update information for {editUser.username}
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(async (data) => {
-              try {
-                const cleanedData = {
-                  ...data,
-                  locationId: data.locationId === "none" ? null : parseInt(data.locationId),
-                  managerId: data.managerId === "none" ? null : parseInt(data.managerId),
-                  lastWorkingDay: data.lastWorkingDay || null,
-                };
-
-                await updateUserMutation.mutateAsync({
-                  id: editUser.id,
-                  data: cleanedData
-                });
-              } catch (error) {
-                console.error('Error updating user:', error);
-              }
-            })} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                {/* Form fields go here - keeping them minimal for now */}
-                <Button type="submit">Save Changes</Button>
-              </div>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-    );
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -545,10 +565,8 @@ export function UserManagement() {
 
       <Card>
         <CardContent className="pt-6">
-          {/* Search and filters */}
           <div className="flex flex-col gap-4 mb-6">
             <div className="flex items-center gap-4">
-              {/* Search input */}
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -559,7 +577,6 @@ export function UserManagement() {
                 />
               </div>
 
-              {/* Role filter */}
               <Select value={roleFilter} onValueChange={setRoleFilter}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filter by role" />
@@ -611,7 +628,6 @@ export function UserManagement() {
             </div>
           </div>
 
-          {/* Users table */}
           <Table>
             <TableHeader>
               <TableRow>
@@ -642,8 +658,7 @@ export function UserManagement() {
                       variant="outline"
                       size="icon"
                       onClick={() => {
-                        setUserToDelete(user);
-                        setShowDeleteDialog(true);
+                        deleteUserMutation.mutate(user.id);
                       }}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -656,7 +671,19 @@ export function UserManagement() {
         </CardContent>
       </Card>
 
-      <ImportPreviewDialog />
+      <ImportPreviewDialog
+        open={showImportPreview}
+        onOpenChange={setShowImportPreview}
+        importData={importData}
+        importErrors={importErrors}
+        onImport={() => importUsersMutation.mutate(importData)}
+        isImporting={importUsersMutation.isPending}
+        onCancel={() => {
+          setShowImportPreview(false);
+          setImportData([]);
+          setImportErrors([]);
+        }}
+      />
     </div>
   );
 }
