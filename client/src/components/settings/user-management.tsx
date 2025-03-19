@@ -29,6 +29,7 @@ import { insertUserSchema } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { z } from "zod";
 import * as XLSX from "xlsx";
+import { useLocationPermissions } from "@/hooks/use-location-permissions";
 
 // Extend the insertUserSchema for the edit form
 const editUserSchema = insertUserSchema.extend({
@@ -45,6 +46,7 @@ export function UserManagement() {
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
   const { toast } = useToast();
+  const { filterUsersByLocation, canManageUserInLocation } = useLocationPermissions();
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [managerFilter, setManagerFilter] = useState<string>("all");
@@ -209,8 +211,11 @@ export function UserManagement() {
     ).values()
   );
 
+  // Filter users based on location access
+  const accessibleUsers = filterUsersByLocation(users);
+
   // Filter users based on search term and filters
-  const filteredUsers = users.filter(u => {
+  const filteredUsers = accessibleUsers.filter(u => {
     const matchesSearch = searchTerm === "" ||
       u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -283,8 +288,8 @@ export function UserManagement() {
       }
     });
 
-    // Determine if the current user can edit this user
-    const canEdit = user?.role === "owner" || (user?.role === "admin" && editUser.role !== "admin");
+    // Check if the current user can edit this user based on location
+    const canEdit = canManageUserInLocation(editUser);
 
     if (!canEdit) {
       return (
@@ -606,6 +611,20 @@ export function UserManagement() {
     );
   }
 
+  // Update the delete user functionality to check location permissions
+  const handleDelete = (u: User) => {
+    if (!canManageUserInLocation(u)) {
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to delete users from this location",
+        variant: "destructive"
+      });
+      return;
+    }
+    setUserToDelete(u);
+    setShowDeleteDialog(true);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -748,10 +767,7 @@ export function UserManagement() {
                             variant="outline"
                             size="icon"
                             className="text-destructive"
-                            onClick={() => {
-                              setUserToDelete(u);
-                              setShowDeleteDialog(true);
-                            }}
+                            onClick={() => handleDelete(u)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
