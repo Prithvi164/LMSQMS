@@ -480,14 +480,7 @@ export const organizationBatches = pgTable("organization_batches", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Update the OrganizationBatch type to include traineesCount
-export type OrganizationBatch = InferSelectModel<typeof organizationBatches> & {
-  traineesCount?: number;
-  location?: OrganizationLocation;
-  process?: OrganizationProcess;
-  lineOfBusiness?: OrganizationLineOfBusiness;
-  trainer?: User;
-};
+export type OrganizationBatch = InferSelectModel<typeof organizationBatches>;
 
 // Add relations for batches
 export const organizationBatchesRelations = relations(organizationBatches, ({ one }) => ({
@@ -845,7 +838,7 @@ export const insertOrganizationLocationSchema = createInsertSchema(organizationL
     organizationId: z.number().int().positive("Organization is required"),
   });
 
-export constinsertOrganizationLineOfBusinessSchema = createInsertSchema(organizationLineOfBusinesses)
+export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organizationLineOfBusinesses)
   .omit({
     id: true,
     createdAt: true
@@ -1715,7 +1708,7 @@ export const insertEvaluationScoreSchema = createInsertSchema(evaluationScores)
   .extend({
     evaluationId: z.number().int().positive("Evaluation ID is required"),
     parameterId: z.number().int().positive("Parameter ID is required"),
-    score: z.string().min(1, "Scoreis required"),
+    score: z.string().min(1, "Score is required"),
     comment: z.string().optional(),
     noReason: z.string().optional(),
   });

@@ -90,11 +90,11 @@ export function BatchesTab() {
     queryKey: [`/api/organizations/${user?.organizationId}/batches`],
     enabled: !!user?.organizationId,
     onSuccess: (data) => {
-      console.log('Debug - Batch Data with trainee counts:', data.map(batch => ({
+      console.log('Batches API Response:', data.map(batch => ({
         id: batch.id,
         name: batch.name,
-        traineesCount: batch.traineesCount,
-        capacityLimit: batch.capacityLimit
+        rawCategory: batch.batchCategory,
+        typeofCategory: typeof batch.batchCategory
       })));
     }
   });
@@ -571,11 +571,11 @@ export function BatchesTab() {
               <TableCell className="text-center">{batch.process?.name || '-'}</TableCell>
               <TableCell className="text-center">
                 <div className="font-medium">
-                  {batch.traineesCount || 0} / {batch.capacityLimit || '-'}
+                  {batch.enrolledCount || 0} / {batch.capacityLimit || '-'}
                 </div>
                 {batch.capacityLimit && (
                   <Progress
-                    value={(batch.traineesCount / batch.capacityLimit) * 100}
+                    value={(batch.enrolledCount / batch.capacityLimit) * 100}
                     className="h-2 w-20 mx-auto"
                   />
                 )}
@@ -853,7 +853,7 @@ export function BatchesTab() {
                     cell: "h-24 w-24 p-0 border-2 border-gray-100 dark:border-gray-800",
                     head_cell: "text-muted-foreground font-normal border-b-2 border-gray100 dark:border-gray-800 p-2",
                     table: "border-collapse border-spacing-0 border-2 border-gray-100 dark:border-gray-800",
-                    day: "h-full roundednone hover:bg-gray-50 dark:hover:bg-gray-800 focus-visible:bg-gray-50 dark:focus-visible:bg-gray800",
+                    day: "h-full rounded-none hover:bg-gray-50 dark:hover:bg-gray-800 focus-visible:bg-gray-50 dark:focus-visible:bg-gray800",
                     nav_button: "h-12 w-12 bg-primary/10 hover:bg-primary/20 p-0 opacity-90 hover:opacity-100 absolute top-[50%] -translate-y-1/2 flex items-center justify-center rounded-full transition-all shadow-sm hover:shadowmd border border-primary/20",                    nav_button_previous:"left-4",
                     nav_button_next: "right-4",
                     nav: "relative flex items-center justify-between pt-4 pb-10 px-2 border-b-2 border-gray-100 dark:border-gray-800 mb-4",
