@@ -6,7 +6,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { User, Organization, OrganizationLocation, UserProcess, OrganizationLineOfBusiness, OrganizationProcess } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Edit2, Trash2, Search, Download, Upload, FileSpreadsheet, Check } from "lucide-react";
@@ -128,20 +128,30 @@ export function UserManagement() {
   });
 
   const updateUserMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<InsertUser> }) => {
-      const response = await apiRequest("PATCH", `/api/users/${id}`, data);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to update user");
+    mutationFn: async ({ id, data }: { id: number; data: Partial<UserFormData> }) => {
+      try {
+        console.log('Sending update request with data:', data);
+        const response = await apiRequest("PATCH", `/api/users/${id}`, data);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Failed to update user");
+        }
+        return response.json();
+      } catch (error) {
+        console.error('Error in update mutation:', error);
+        throw error;
       }
-      return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Update successful, response:', data);
       toast({
         title: "Success",
         description: "User updated successfully",
       });
+      // Invalidate both users and processes queries to refresh the data
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${data.id}/processes`] }); 
+      queryClient.refetchQueries({ queryKey: [`/api/users/${data.id}/processes`] });
     },
     onError: (error: Error) => {
       toast({
@@ -371,20 +381,20 @@ export function UserManagement() {
                     ...data,
                     locationId: data.locationId === "none" ? null : parseInt(data.locationId!),
                     managerId: data.managerId === "none" ? null : parseInt(data.managerId!),
-                    processes: data.processes || [],
-                    lineOfBusinessId: selectedLOBs.length > 0 ? selectedLOBs[0] : null // Include the first selected LOB
+                    processes: data.processes || [], // Ensure processes array is included
+                    lineOfBusinesses: selectedLOBs, // Include all selected LOBs
                   };
 
                   console.log('Updating user with data:', cleanedData);
                   console.log('Selected LOBs:', selectedLOBs);
                   console.log('Selected processes:', data.processes);
 
-                  const response = await updateUserMutation.mutateAsync({
+                  await updateUserMutation.mutateAsync({
                     id: editUser.id,
                     data: cleanedData
                   });
 
-                  console.log('Update response:', response);
+                  console.log('Update response:', "Success");
 
                   // After successful update
                   queryClient.invalidateQueries({ queryKey: ["/api/users"] });
@@ -932,7 +942,7 @@ export function UserManagement() {
                   <TableHead className="w-[150px]">Full Name</TableHead>
                   <TableHead className="w-[100px]">Role</TableHead>
                   <TableHead className="w-[150px]">Manager</TableHead>
-                  <TableHead className="w-[150px]">Location</TableHead>
+<TableHead className="w-[150px]">Location</TableHead>
                   <TableHead className="w-[200px]">Processes</TableHead>
                   <TableHead className="w-[100px]">Status</TableHead>
                   {canManageUsers && (
