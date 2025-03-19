@@ -14,6 +14,7 @@ import * as z from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,7 +49,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Plus, Loader2, Pencil, Trash2, MapPin, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Plus,
+  Loader2,
+  Pencil,
+  Trash2,
+  MapPin,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { Mascot } from "@/components/ui/mascot";
 import { Skeleton } from "@/components/ui/skeleton";
 import {Select as RadixSelect, SelectContent as RadixSelectContent, SelectGroup as RadixSelectGroup, SelectItem as RadixSelectItem, SelectLabel as RadixSelectLabel, SelectTrigger as RadixSelectTrigger, SelectValue as RadixSelectValue} from '@radix-ui/react-select'
@@ -75,15 +85,17 @@ export function LocationDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const [mascotState, setMascotState] = useState<{
-    state: 'idle' | 'pointing' | 'explaining' | 'celebrating';
+    state: "idle" | "pointing" | "explaining" | "celebrating";
     message: string;
   }>({
-    state: 'idle',
-    message: "Welcome! I'm Loco, your location management assistant. Need help managing your locations?"
+    state: "idle",
+    message:
+      "Welcome! I'm Loco, your location management assistant. Need help managing your locations?",
   });
   const [showTour, setShowTour] = useState(() => {
-    const hasSeenTour = localStorage.getItem('locationManagementTourComplete');
+    const hasSeenTour = localStorage.getItem("locationManagementTourComplete");
     return !hasSeenTour;
   });
 
@@ -98,8 +110,10 @@ export function LocationDetail() {
     queryKey: [`/api/organizations/${organization?.id}/settings`],
     queryFn: async () => {
       if (!organization?.id) return null;
-      const res = await fetch(`/api/organizations/${organization.id}/settings`);
-      if (!res.ok) throw new Error('Failed to fetch organization settings');
+      const res = await fetch(
+        `/api/organizations/${organization.id}/settings`
+      );
+      if (!res.ok) throw new Error("Failed to fetch organization settings");
       return res.json();
     },
     enabled: !!organization?.id,
@@ -129,6 +143,10 @@ export function LocationDetail() {
 
   const createLocationMutation = useMutation({
     mutationFn: async (data: z.infer<typeof locationFormSchema>) => {
+      if (!canManageLocations) {
+        throw new Error('You do not have permission to create locations');
+      }
+
       try {
         const requestBody = {
           type: 'locations',
@@ -179,6 +197,10 @@ export function LocationDetail() {
 
   const editLocationMutation = useMutation({
     mutationFn: async (data: z.infer<typeof locationFormSchema>) => {
+      if (!canManageLocations) {
+        throw new Error('You do not have permission to edit locations');
+      }
+
       try {
         const response = await fetch(
           `/api/organizations/${organization?.id}/settings/locations/${selectedLocation.id}`,
@@ -199,9 +221,6 @@ export function LocationDetail() {
 
         if (!response.ok) {
           const errorData = await response.json();
-          if (errorData.message?.includes('already exists')) {
-            throw new Error('A location with this name already exists');
-          }
           throw new Error(errorData.message || 'Failed to update location');
         }
 
@@ -220,7 +239,6 @@ export function LocationDetail() {
       setIsEditDialogOpen(false);
       setSelectedLocation(null);
       editForm.reset();
-      updateMascotState({ state: 'celebrating', message: 'Location updated successfully! 🎉' });
     },
     onError: (error: Error) => {
       toast({
@@ -233,6 +251,10 @@ export function LocationDetail() {
 
   const deleteLocationMutation = useMutation({
     mutationFn: async () => {
+      if (!canManageLocations) {
+        throw new Error('You do not have permission to delete locations');
+      }
+
       try {
         const response = await fetch(
           `/api/organizations/${organization?.id}/settings/locations/${selectedLocation.id}`,
@@ -246,7 +268,6 @@ export function LocationDetail() {
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error('Server response:', errorText);
           throw new Error(errorText || 'Failed to delete location');
         }
 
@@ -265,12 +286,11 @@ export function LocationDetail() {
       setIsDeleteDialogOpen(false);
       setSelectedLocation(null);
       setDeleteConfirmation("");
-      updateMascotState({ state: 'celebrating', message: 'Location deleted successfully! 🎉' });
     },
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to delete location",
+        description: error.message,
         variant: "destructive",
       });
     },
@@ -297,8 +317,8 @@ export function LocationDetail() {
     editForm.reset(location);
     setIsEditDialogOpen(true);
     updateMascotState({
-      state: 'explaining',
-      message: `Editing ${location.name}? I'll help you update the details!`
+      state: "explaining",
+      message: `Editing ${location.name}? I'll help you update the details!`,
     });
   };
 
@@ -306,8 +326,8 @@ export function LocationDetail() {
     setSelectedLocation(location);
     setIsDeleteDialogOpen(true);
     updateMascotState({
-      state: 'explaining',
-      message: `Please be careful when deleting ${location.name}. This action cannot be undone!`
+      state: "explaining",
+      message: `Please be careful when deleting ${location.name}. This action cannot be undone!`,
     });
   };
 
@@ -329,7 +349,9 @@ export function LocationDetail() {
   };
 
   const onCreateSuccess = () => {
-    queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
+    queryClient.invalidateQueries({
+      queryKey: [`/api/organizations/${organization?.id}/settings`],
+    });
     toast({
       title: "Success",
       description: "Location created successfully",
@@ -337,8 +359,8 @@ export function LocationDetail() {
     setIsCreateDialogOpen(false);
     form.reset();
     updateMascotState({
-      state: 'celebrating',
-      message: "Great job! The new location has been added successfully! 🎉"
+      state: "celebrating",
+      message: "Great job! The new location has been added successfully! 🎉",
     });
   };
 
@@ -354,15 +376,18 @@ export function LocationDetail() {
   // Calculate pagination with dynamic page size
   const totalPages = Math.ceil(filteredLocations.length / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
-  const paginatedLocations = filteredLocations.slice(startIndex, startIndex + pageSize);
+  const paginatedLocations = filteredLocations.slice(
+    startIndex,
+    startIndex + pageSize
+  );
 
   // Handle page size change
   const handlePageSizeChange = (newSize: number) => {
     setPageSize(newSize);
     setCurrentPage(1); // Reset to first page when changing page size
     updateMascotState({
-      state: 'explaining',
-      message: `Showing ${newSize} locations per page`
+      state: "explaining",
+      message: `Showing ${newSize} locations per page`,
     });
   };
 
@@ -370,55 +395,62 @@ export function LocationDetail() {
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
     updateMascotState({
-      state: 'pointing',
-      message: `Showing page ${newPage} of ${totalPages}`
+      state: "pointing",
+      message: `Showing page ${newPage} of ${totalPages}`,
     });
   };
 
   const tourSteps: TourStep[] = [
     {
       target: '[data-tour="search"]',
-      title: 'Search Locations',
-      content: 'Quickly find locations by searching across names, addresses, cities, and more.',
-      position: 'bottom'
+      title: "Search Locations",
+      content:
+        "Quickly find locations by searching across names, addresses, cities, and more.",
+      position: "bottom",
     },
     {
       target: '[data-tour="add-location"]',
-      title: 'Add New Locations',
-      content: 'Click here to add a new location to your organization.',
-      position: 'left'
+      title: "Add New Locations",
+      content:
+        "Click here to add a new location to your organization.",
+      position: "left",
     },
     {
       target: '[data-tour="page-size"]',
-      title: 'Adjust View',
-      content: 'Choose how many locations to display per page (10, 50, or 100 records).',
-      position: 'top'
+      title: "Adjust View",
+      content:
+        "Choose how many locations to display per page (10, 50, or 100 records).",
+      position: "top",
     },
     {
       target: '[data-tour="location-actions"]',
-      title: 'Manage Locations',
-      content: 'Edit or delete locations using these action buttons.',
-      position: 'left'
-    }
+      title: "Manage Locations",
+      content: "Edit or delete locations using these action buttons.",
+      position: "left",
+    },
   ];
 
   const handleTourComplete = () => {
-    localStorage.setItem('locationManagementTourComplete', 'true');
+    localStorage.setItem("locationManagementTourComplete", "true");
     setShowTour(false);
     updateMascotState({
-      state: 'celebrating',
-      message: "Great! Now you know how to manage locations. Let me know if you need any help!"
+      state: "celebrating",
+      message:
+        "Great! Now you know how to manage locations. Let me know if you need any help!",
     });
   };
 
   const handleTourSkip = () => {
-    localStorage.setItem('locationManagementTourComplete', 'true');
+    localStorage.setItem("locationManagementTourComplete", "true");
     setShowTour(false);
     updateMascotState({
-      state: 'idle',
-      message: "You can always ask me if you need any help with anything!"
+      state: "idle",
+      message: "You can always ask me if you need any help with anything!",
     });
   };
+
+  // Check if user has permission to manage locations
+  const canManageLocations = hasPermission("manage_locations");
 
   if (isLoading) {
     return (
@@ -471,35 +503,40 @@ export function LocationDetail() {
                     setCurrentPage(1);
                     if (e.target.value) {
                       updateMascotState({
-                        state: 'explaining',
-                        message: `Searching for locations containing "${e.target.value}"`
+                        state: "explaining",
+                        message: `Searching for locations containing "${e.target.value}"`,
                       });
                     }
                   }}
                   className="pl-9 w-[250px] focus:border-purple-500"
                 />
               </div>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      data-tour="add-location"
-                      onClick={() => {
-                        setIsCreateDialogOpen(true);
-                        updateMascotState({
-                          state: 'pointing',
-                          message: "Let's add a new location! I'll help you fill out the details."
-                        });
-                      }}
-                      className="bg-purple-600 hover:bg-purple-700 transition-colors"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add New Location
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Add a new location to your organization</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              {canManageLocations && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        data-tour="add-location"
+                        onClick={() => {
+                          setIsCreateDialogOpen(true);
+                          updateMascotState({
+                            state: "pointing",
+                            message:
+                              "Let's add a new location! I'll help you fill out the details.",
+                          });
+                        }}
+                        className="bg-purple-600 hover:bg-purple-700 transition-colors"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add New Location
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Add a new location to your organization
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
           </div>
 
@@ -509,12 +546,16 @@ export function LocationDetail() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
-                      <TableHead className="font-semibold">Location Name</TableHead>
+                      <TableHead className="font-semibold">
+                        Location Name
+                      </TableHead>
                       <TableHead className="font-semibold">Address</TableHead>
                       <TableHead className="font-semibold">City</TableHead>
                       <TableHead className="font-semibold">State</TableHead>
                       <TableHead className="font-semibold">Country</TableHead>
-                      <TableHead className="font-semibold text-right">Actions</TableHead>
+                      <TableHead className="font-semibold text-right">
+                        Actions
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -523,45 +564,56 @@ export function LocationDetail() {
                         key={location.id}
                         className="hover:bg-muted/50 transition-colors"
                       >
-                        <TableCell className="font-medium">{location.name}</TableCell>
+                        <TableCell className="font-medium">
+                          {location.name}
+                        </TableCell>
                         <TableCell>{location.address}</TableCell>
                         <TableCell>{location.city}</TableCell>
                         <TableCell>{location.state}</TableCell>
                         <TableCell>{location.country}</TableCell>
                         <TableCell>
-                          <div data-tour="location-actions" className="flex justify-end space-x-2">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleEdit(location)}
-                                    className="hover:bg-purple-50"
-                                  >
-                                    <Pencil className="h-4 w-4 text-purple-600" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Edit location</TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
+                          {canManageLocations && (
+                            <div
+                              data-tour="location-actions"
+                              className="flex justify-end space-x-2"
+                            >
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleEdit(location)}
+                                      className="hover:bg-purple-50"
+                                    >
+                                      <Pencil
+                                        className="h-4 w-4 text-purple-600"
+                                      />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Edit location</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
 
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="destructive"
-                                    size="sm"
-                                    onClick={() => handleDelete(location)}
-                                    className="hover:bg-red-600"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Delete location</TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </div>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      onClick={() => handleDelete(location)}
+                                      className="hover:bg-red-600"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    Delete location
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -574,12 +626,21 @@ export function LocationDetail() {
                 <div className="flex justify-between items-center mt-4 px-4">
                   <div className="flex items-center gap-4">
                     <div className="text-sm text-muted-foreground">
-                      Showing {startIndex + 1} to {Math.min(startIndex + pageSize, filteredLocations.length)} of {filteredLocations.length} locations
+                      Showing{" "}
+                      {startIndex + 1}{" "}
+                      to{" "}
+                      {Math.min(
+                        startIndex + pageSize,
+                        filteredLocations.length
+                      )}{" "}
+                      of {filteredLocations.length} locations
                     </div>
                     <Select
                       data-tour="page-size"
                       value={pageSize.toString()}
-                      onValueChange={(value) => handlePageSizeChange(parseInt(value))}
+                      onValueChange={(value) =>
+                        handlePageSizeChange(parseInt(value))
+                      }
                     >
                       <SelectTrigger className="w-[130px]">
                         <SelectValue placeholder="Select page size" />
@@ -603,17 +664,19 @@ export function LocationDetail() {
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                      <Button
-                        key={page}
-                        variant={currentPage === page ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => handlePageChange(page)}
-                        className={currentPage === page ? "bg-purple-600" : ""}
-                      >
-                        {page}
-                      </Button>
-                    ))}
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                      (page) => (
+                        <Button
+                          key={page}
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handlePageChange(page)}
+                          className={currentPage === page ? "bg-purple-600" : ""}
+                        >
+                          {page}
+                        </Button>
+                      )
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
@@ -629,12 +692,16 @@ export function LocationDetail() {
           ) : searchTerm ? (
             <div className="text-center py-8 bg-muted/10 rounded-lg border-2 border-dashed">
               <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground text-lg">No locations found matching "{searchTerm}"</p>
+              <p className="text-muted-foreground text-lg">
+                No locations found matching "{searchTerm}"
+              </p>
             </div>
           ) : (
             <div className="text-center py-8 bg-muted/10 rounded-lg border-2 border-dashed">
               <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground text-lg">No locations found. Add your first location to get started.</p>
+              <p className="text-muted-foreground text-lg">
+                No locations found. Add your first location to get started.
+              </p>
             </div>
           )}
         </CardContent>
@@ -646,7 +713,8 @@ export function LocationDetail() {
           <DialogHeader>
             <DialogTitle className="text-2xl mb-6">Add Location</DialogTitle>
             <DialogDescription>
-              Fill in the details below to add a new location to your organization.
+              Fill in the details below to add a new location to your
+              organization.
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
@@ -658,7 +726,9 @@ export function LocationDetail() {
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-semibold text-foreground">LOCATION NAME</FormLabel>
+                        <FormLabel className="text-sm font-semibold text-foreground">
+                          LOCATION NAME
+                        </FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter location name"
@@ -676,7 +746,9 @@ export function LocationDetail() {
                     name="address"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-semibold text-foreground">ADDRESS</FormLabel>
+                        <FormLabel className="text-sm font-semibold text-foreground">
+                          ADDRESS
+                        </FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter complete address"
@@ -695,7 +767,9 @@ export function LocationDetail() {
                       name="city"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm font-semibold text-foreground">CITY</FormLabel>
+                          <FormLabel className="text-sm font-semibold text-foreground">
+                            CITY
+                          </FormLabel>
                           <FormControl>
                             <Input
                               placeholder="Enter city name"
@@ -713,7 +787,9 @@ export function LocationDetail() {
                       name="state"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm font-semibold text-foreground">STATE</FormLabel>
+                          <FormLabel className="text-sm font-semibold text-foreground">
+                            STATE
+                          </FormLabel>
                           <FormControl>
                             <Input
                               placeholder="Enter state name"
@@ -731,7 +807,9 @@ export function LocationDetail() {
                       name="country"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm font-semibold text-foreground">COUNTRY</FormLabel>
+                          <FormLabel className="text-sm font-semibold text-foreground">
+                            COUNTRY
+                          </FormLabel>
                           <FormControl>
                             <Input
                               placeholder="Enter country name"
@@ -754,8 +832,8 @@ export function LocationDetail() {
                   onClick={() => {
                     setIsCreateDialogOpen(false);
                     updateMascotState({
-                      state: 'idle',
-                      message: "Need help with anything else?"
+                      state: "idle",
+                      message: "Need help with anything else?",
                     });
                   }}
                 >
@@ -798,7 +876,10 @@ export function LocationDetail() {
                       <FormItem>
                         <FormLabel>LOCATION NAME</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter location name" {...field} />
+                          <Input
+                            placeholder="Enter location name"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -812,7 +893,10 @@ export function LocationDetail() {
                       <FormItem>
                         <FormLabel>ADDRESS</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter address" {...field} />
+                          <Input
+                            placeholder="Enter address"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -855,7 +939,10 @@ export function LocationDetail() {
                         <FormItem>
                           <FormLabel>COUNTRY</FormLabel>
                           <FormControl>
-                            <Input placeholder="Enter country" {...field} />
+                            <Input
+                              placeholder="Enter country"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -890,10 +977,13 @@ export function LocationDetail() {
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-2xl mb-6">Delete Location</DialogTitle>
+            <DialogTitle className="text-2xl mb-6">
+              Delete Location
+            </DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this location? This action cannot be undone.
-              To confirm, type "delete-{selectedLocation?.name.toLowerCase()}" below.
+              Are you sure you want to delete this location? This action cannot
+              be undone. To confirm, type "delete-{selectedLocation?.name.toLowerCase()}"
+              below.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -910,8 +1000,8 @@ export function LocationDetail() {
                 setIsDeleteDialogOpen(false);
                 setDeleteConfirmation("");
                 updateMascotState({
-                  state: 'idle',
-                  message: "Need help with anything else?"
+                  state: "idle",
+                  message: "Need help with anything else?",
                 });
               }}
             >
