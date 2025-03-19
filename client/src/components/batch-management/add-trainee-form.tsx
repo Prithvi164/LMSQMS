@@ -80,8 +80,8 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
     try {
       setIsSubmitting(true);
 
-      // First create the user and update their manager
-      const userResponse = await fetch(`/api/organizations/${batch.organizationId}/users`, {
+      // Create user with batch enrollment in a single request
+      const response = await fetch(`/api/organizations/${batch.organizationId}/users`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -91,45 +91,30 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
           processId: batch.processId,
           lineOfBusinessId: batch.lineOfBusinessId,
           locationId: batch.locationId,
-          trainerId: batch.trainerId,
           organizationId: batch.organizationId,
-          category: "trainee",
-          role: values.role,
           managerId: batch.trainerId, // Set trainer as manager
-        }),
-      });
-
-      if (!userResponse.ok) {
-        throw new Error(await userResponse.text());
-      }
-
-      const userData = await userResponse.json();
-
-      // Then enroll them in the batch
-      const enrollResponse = await fetch(`/api/organizations/${batch.organizationId}/batches/${batch.id}/trainees`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: userData.id,
-          processId: batch.processId,
+          category: "trainee",
+          batchId: batch.id, // Include batch ID for enrollment
           status: "active",
         }),
       });
 
-      if (!enrollResponse.ok) {
-        throw new Error(await enrollResponse.text());
+      if (!response.ok) {
+        throw new Error(await response.text());
       }
+
+      const userData = await response.json();
 
       toast({
         title: "Success",
-        description: `Trainee ${values.fullName} has been successfully added to batch ${batch.name}`,
+        description: `${values.fullName} has been successfully added to batch ${batch.name}`,
       });
 
       onSuccess();
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to add trainee",
+        description: error instanceof Error ? error.message : "Failed to add user",
         variant: "destructive",
       });
     } finally {
