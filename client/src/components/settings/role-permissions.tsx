@@ -20,12 +20,12 @@ export function RolePermissions() {
     staleTime: 30000, // Consider data fresh for 30 seconds
   });
 
-  // Filter out owner from role selection if user is not an owner
+  // Filter out owner and trainee from role selection
   const availableRoles = roleEnum.enumValues.filter(role => {
     if (user?.role !== 'owner') {
-      return role !== 'owner'; // Only owner can see/modify owner permissions
+      return role !== 'owner' && role !== 'trainee'; // Filter out both owner and trainee
     }
-    return true;
+    return role !== 'trainee'; // Always filter out trainee
   });
 
   const updatePermissionMutation = useMutation({

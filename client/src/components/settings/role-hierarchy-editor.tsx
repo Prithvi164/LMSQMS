@@ -29,7 +29,7 @@ const RoleCard = ({ role, isSelected, onClick }: RoleCardProps) => (
       {role === 'admin' && 'Organization-wide administration'}
       {role === 'manager' && 'Department/team management'}
       {role === 'team_lead' && 'Team supervision'}
-      {role === 'qualityassurance' && 'Quality monitoring and assurance'}
+      {role === 'quality_analyst' && 'Quality monitoring and assurance'}
       {role === 'trainer' && 'Training delivery'}
       {role === 'advisor' && 'Support and guidance'}
     </p>
@@ -37,7 +37,9 @@ const RoleCard = ({ role, isSelected, onClick }: RoleCardProps) => (
 );
 
 export const RoleHierarchyEditor = () => {
-  const [roles, setRoles] = useState<typeof roleEnum.enumValues>(roleEnum.enumValues);
+  // Filter out trainee from the roles list
+  const availableRoles = roleEnum.enumValues.filter(role => role !== 'trainee');
+  const [roles, setRoles] = useState<typeof roleEnum.enumValues>(availableRoles);
   const [selectedRole, setSelectedRole] = useState<typeof roleEnum.enumValues[number] | null>(null);
   const [editedPermissions, setEditedPermissions] = useState<typeof permissionEnum.enumValues>([]);
   const [isEditing, setIsEditing] = useState(false);
