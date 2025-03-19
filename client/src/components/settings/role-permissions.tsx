@@ -49,6 +49,45 @@ export function RolePermissions() {
     return descriptions[role] || role;
   };
 
+  // Get permission description
+  const getPermissionDescription = (permission: string) => {
+    const descriptions: Record<string, string> = {
+      // Manage Section
+      manage_billing: "Control payment and billing settings",
+      manage_subscription: "Handle subscription-related tasks",
+      manage_organization_settings: "Configure organization-wide parameters",
+      manage_users: "Create, edit, and delete user accounts",
+      manage_organization: "Control organization-wide settings",
+      manage_locations: "Manage different office/center locations",
+      manage_processes: "Handle workflow processes",
+      manage_performance: "Access and manage performance metrics",
+
+      // Create Section
+      create_admin: "Create new administrator accounts",
+      create_location: "Add new location entries",
+      create_process: "Set up new workflow processes",
+
+      // View Section
+      view_users: "View user profiles and information",
+      view_reports: "Access system reports",
+      view_performance: "View performance metrics",
+
+      // Edit Section
+      edit_users: "Modify user account details",
+      edit_organization: "Update organization settings",
+
+      // Delete Section
+      delete_users: "Remove user accounts",
+
+      // Upload Section
+      upload_users: "Bulk import user data",
+
+      // Export Section
+      export_reports: "Generate and download reports"
+    };
+    return descriptions[permission] || permission.replace(/_/g, " ");
+  };
+
   const updatePermissionMutation = useMutation({
     mutationFn: async ({
       role,
