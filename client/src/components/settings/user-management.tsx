@@ -8,7 +8,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Trash2, Search, Download, Upload, FileSpreadsheet, AlertTriangle } from "lucide-react";
+import { Edit2, Trash2, Search, Download, Upload, FileSpreadsheet } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -20,12 +20,6 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -718,29 +712,17 @@ export function UserManagement() {
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <EditUserDialog user={u} />
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="text-destructive"
-                                onClick={() => {
-                                  setUserToDelete(u);
-                                  setShowDeleteDialog(true);
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="left" className="max-w-[300px]">
-                              <p>Delete this user and all associated data</p>
-                              <p className="text-sm text-muted-foreground mt-1">
-                                This will remove: user profile, quiz attempts, evaluations, and batch enrollments
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="text-destructive"
+                          onClick={() => {
+                            setUserToDelete(u);
+                            setShowDeleteDialog(true);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -788,36 +770,11 @@ export function UserManagement() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent className="max-w-xl">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
-              Delete User Confirmation
-            </DialogTitle>
-            <DialogDescription className="pt-4">
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-semibold mb-2">The following data will be permanently deleted:</h4>
-                  <ul className="list-disc pl-6 space-y-2">
-                    <li>User profile and account information</li>
-                    <li>All quiz attempts and responses</li>
-                    <li>Performance evaluations (both as evaluator and trainee)</li>
-                    <li>Batch enrollments and process assignments</li>
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="font-semibold mb-2">The following changes will occur:</h4>
-                  <ul className="list-disc pl-6 space-y-2">
-                    <li>Users managed by this person will have their manager reference removed</li>
-                    <li>Historical evaluation data will be maintained but anonymized</li>
-                  </ul>
-                </div>
-                <div className="bg-destructive/10 p-4 rounded-md mt-4">
-                  <p className="text-sm text-destructive font-semibold">
-                    This action cannot be undone. All associated data will be permanently deleted.
-                  </p>
-                </div>
-              </div>
+            <DialogTitle>Delete User</DialogTitle>
+            <DialogDescription>
+              This is a permanent action. Are you sure you want to delete {userToDelete?.fullName || userToDelete?.username}?
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
