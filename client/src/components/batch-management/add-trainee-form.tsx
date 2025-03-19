@@ -19,12 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -33,6 +27,12 @@ import { CalendarIcon, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import type { OrganizationBatch } from "@shared/schema";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // Updated trainee data submission type
 const addTraineeSchema = z.object({
@@ -53,7 +53,7 @@ const addTraineeSchema = z.object({
   password: z.string()
     .min(8, "Password must be at least 8 characters")
     .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Password must contain uppercase, lowercase, and numbers"),
-  role: z.enum(['advisor']).default('advisor'),
+  role: z.enum(['manager', 'team_lead', 'quality_analyst', 'trainer', 'advisor']).default('advisor'),
 });
 
 type AddTraineeFormProps = {
@@ -64,6 +64,7 @@ type AddTraineeFormProps = {
 export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
 
   // Get current trainee count from batch's enrolledCount
   const traineeCount = batch.enrolledCount || 0;
@@ -82,77 +83,45 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
   });
 
   async function onSubmit(values: z.infer<typeof addTraineeSchema>) {
-    if (isSubmitting) return; // Prevent multiple submissions
-
-    if (!batch.trainerId) {
-      toast({
-        title: "Error",
-        description: "No trainer assigned to this batch. Please assign a trainer first.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
       setIsSubmitting(true);
 
-      // Create user with batch enrollment in a single request
-      const response = await fetch(`/api/organizations/${batch.organizationId}/users`, {
+      const traineeData = {
+        ...values,
+        dateOfJoining: values.dateOfJoining.toISOString().split('T')[0],
+        dateOfBirth: values.dateOfBirth.toISOString().split('T')[0],
+        processId: batch.processId,
+        lineOfBusinessId: batch.lineOfBusinessId,
+        locationId: batch.locationId,
+        trainerId: batch.trainerId,
+        organizationId: batch.organizationId,
+        batchId: batch.id,
+        category: "trainee", // Always set category as trainee
+        role: values.role, // Use selected role
+      };
+
+      const response = await fetch(`/api/organizations/${batch.organizationId}/batches/${batch.id}/trainees`, {
         method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...values,
-          dateOfJoining: values.dateOfJoining.toISOString().split('T')[0],
-          dateOfBirth: values.dateOfBirth.toISOString().split('T')[0],
-          processId: batch.processId,
-          lineOfBusinessId: batch.lineOfBusinessId,
-          locationId: batch.locationId,
-          organizationId: batch.organizationId,
-          managerId: batch.trainerId, // Set trainer as reporting manager
-          category: "trainee",
-          batchId: batch.id,
-          status: "active",
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(traineeData),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(errorData || "Failed to add user to batch");
-      }
-
-      // After successful user creation, let's verify the manager was set
-      const userData = await response.json();
-
-      // Double-check if manager ID was set
-      if (!userData.managerId) {
-        // Update the user's manager ID if it wasn't set
-        const updateResponse = await fetch(`/api/organizations/${batch.organizationId}/users/${userData.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            managerId: batch.trainerId
-          }),
-        });
-
-        if (!updateResponse.ok) {
-          console.error('Failed to update manager ID');
-        }
+        throw new Error(data.message || "Failed to add trainee");
       }
 
       toast({
         title: "Success",
-        description: `${values.fullName} has been successfully added to batch ${batch.name}`,
+        description: `Trainee ${values.fullName} has been successfully added to batch ${batch.name} with role ${values.role}`,
       });
 
-      form.reset();
       onSuccess();
     } catch (error) {
-      console.error('Error adding trainee:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to add user",
+        description: error instanceof Error ? error.message : "Failed to add trainee",
         variant: "destructive",
       });
     } finally {
@@ -248,7 +217,6 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
   };
 
 
-  const [showBulkUpload, setShowBulkUpload] = useState(false);
   return (
     <div className="max-h-[70vh] overflow-y-auto px-4">
       <div className="mb-6 p-4 rounded-lg bg-muted">
@@ -465,6 +433,32 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
                 <FormControl>
                   <Input {...field} />
                 </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Role Selection */}
+          <FormField
+            control={form.control}
+            name="role"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Role</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a role" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="manager">Manager</SelectItem>
+                    <SelectItem value="team_lead">Team Lead</SelectItem>
+                    <SelectItem value="quality_analyst">Quality Analyst</SelectItem>
+                    <SelectItem value="trainer">Trainer</SelectItem>
+                    <SelectItem value="advisor">Advisor</SelectItem>
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
