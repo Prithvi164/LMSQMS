@@ -67,6 +67,7 @@ export function UserManagement() {
           const errorData = await response.json().catch(() => ({ message: "Failed to delete user" }));
           throw new Error(errorData.message || "Failed to delete user");
         }
+        // Ensure we get a proper response or at least an empty object
         return response.json().catch(() => ({}));
       } catch (error) {
         throw new Error(error instanceof Error ? error.message : "Failed to delete user");
@@ -77,10 +78,15 @@ export function UserManagement() {
         title: "Success",
         description: "User deleted successfully",
       });
+      // Properly invalidate the users query to refresh the list
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       setShowDeleteDialog(false);
       setUserToDelete(null);
       setDeleteConfirmation("");
+      // Reset to first page if current page becomes empty
+      if (currentUsers.length === 1 && currentPage > 1) {
+        setCurrentPage(1);
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -165,7 +171,7 @@ export function UserManagement() {
   const getManagerName = (managerId: number | null) => {
     if (!managerId) return "No Manager";
     const manager = users.find(u => u.id === managerId);
-    return manager ? manager.username : "Unknown Manager";
+    return manager ? manager.fullName || manager.username : "Unknown Manager";
   };
 
   // Find location name for a user
