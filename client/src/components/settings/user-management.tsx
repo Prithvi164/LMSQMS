@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -66,6 +66,99 @@ interface ImportedUser {
   Education: string;
   "Processes": string; // Comma-separated process names
 }
+
+// Import Preview Dialog Component
+const ImportPreviewDialog: React.FC<{
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  importData: ImportedUser[];
+  importErrors: string[];
+  onImport: () => void;
+  isImporting: boolean;
+  onCancel: () => void;
+}> = ({
+  open,
+  onOpenChange,
+  importData,
+  importErrors,
+  onImport,
+  isImporting,
+  onCancel,
+}) => (
+  <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+      <AlertDialogHeader>
+        <AlertDialogTitle>Import Preview</AlertDialogTitle>
+        <AlertDialogDescription>
+          Review the data before importing
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+
+      {importErrors.length > 0 && (
+        <div className="mb-4 p-4 border border-destructive rounded-lg">
+          <div className="flex items-center gap-2 text-destructive mb-2">
+            <AlertCircle className="h-4 w-4" />
+            <span className="font-semibold">Validation Errors</span>
+          </div>
+          <ul className="list-disc list-inside space-y-1">
+            {importErrors.map((error, index) => (
+              <li key={index} className="text-sm text-destructive">{error}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="my-4">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Username</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Full Name</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Processes</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {importData.slice(0, 5).map((row, index) => (
+              <TableRow key={index}>
+                <TableCell>{row.Username}</TableCell>
+                <TableCell>{row.Email}</TableCell>
+                <TableCell>{row["Full Name"]}</TableCell>
+                <TableCell>{row.Role}</TableCell>
+                <TableCell>{row.Processes}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        {importData.length > 5 && (
+          <p className="text-sm text-muted-foreground mt-2">
+            And {importData.length - 5} more rows...
+          </p>
+        )}
+      </div>
+
+      <AlertDialogFooter>
+        <AlertDialogCancel onClick={onCancel}>
+          Cancel
+        </AlertDialogCancel>
+        <AlertDialogAction
+          onClick={onImport}
+          disabled={importErrors.length > 0 || isImporting}
+        >
+          {isImporting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Importing...
+            </>
+          ) : (
+            "Import Users"
+          )}
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+);
 
 // Edit User Dialog Component
 const EditUserDialog: React.FC<{ user: User }> = ({ user: editUser }) => {
@@ -170,99 +263,6 @@ const EditUserDialog: React.FC<{ user: User }> = ({ user: editUser }) => {
   );
 };
 
-// Import Preview Dialog Component
-const ImportPreviewDialog: React.FC<{
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  importData: ImportedUser[];
-  importErrors: string[];
-  onImport: () => void;
-  isImporting: boolean;
-  onCancel: () => void;
-}> = ({
-  open,
-  onOpenChange,
-  importData,
-  importErrors,
-  onImport,
-  isImporting,
-  onCancel,
-}) => (
-  <AlertDialog open={open} onOpenChange={onOpenChange}>
-    <AlertDialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-      <AlertDialogHeader>
-        <AlertDialogTitle>Import Preview</AlertDialogTitle>
-        <AlertDialogDescription>
-          Review the data before importing
-        </AlertDialogDescription>
-      </AlertDialogHeader>
-
-      {importErrors.length > 0 && (
-        <div className="mb-4 p-4 border border-destructive rounded-lg">
-          <div className="flex items-center gap-2 text-destructive mb-2">
-            <AlertCircle className="h-4 w-4" />
-            <span className="font-semibold">Validation Errors</span>
-          </div>
-          <ul className="list-disc list-inside space-y-1">
-            {importErrors.map((error, index) => (
-              <li key={index} className="text-sm text-destructive">{error}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <div className="my-4">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Username</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Full Name</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Processes</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {importData.slice(0, 5).map((row, index) => (
-              <TableRow key={index}>
-                <TableCell>{row.Username}</TableCell>
-                <TableCell>{row.Email}</TableCell>
-                <TableCell>{row["Full Name"]}</TableCell>
-                <TableCell>{row.Role}</TableCell>
-                <TableCell>{row.Processes}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        {importData.length > 5 && (
-          <p className="text-sm text-muted-foreground mt-2">
-            And {importData.length - 5} more rows...
-          </p>
-        )}
-      </div>
-
-      <AlertDialogFooter>
-        <AlertDialogCancel onClick={onCancel}>
-          Cancel
-        </AlertDialogCancel>
-        <AlertDialogAction
-          onClick={onImport}
-          disabled={importErrors.length > 0 || isImporting}
-        >
-          {isImporting ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Importing...
-            </>
-          ) : (
-            "Import Users"
-          )}
-        </AlertDialogAction>
-      </AlertDialogFooter>
-    </AlertDialogContent>
-  </AlertDialog>
-);
-
 // Main User Management Component
 export function UserManagement() {
   const { user } = useAuth();
@@ -279,17 +279,17 @@ export function UserManagement() {
   const [importErrors, setImportErrors] = useState<string[]>([]);
 
   // Queries
-  const { data: users = [] } = useQuery<User[]>({
+  const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ["/api/users"],
     enabled: !!user,
   });
 
-  const { data: processes = [], error: processError } = useQuery({
+  const { data: processes = [], error: processError, isLoading: processesLoading } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/processes`],
     enabled: !!user?.organizationId,
   });
 
-  const { data: orgSettings } = useQuery({
+  const { data: orgSettings, isLoading: orgSettingsLoading } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/settings`],
     enabled: !!user?.organizationId,
   });
@@ -585,6 +585,9 @@ export function UserManagement() {
                   <SelectItem value="all">All Roles</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="team_lead">Team Lead</SelectItem>
+                  <SelectItem value="qualityassurance">Quality Assurance</SelectItem>
+                  <SelectItem value="trainer">Trainer</SelectItem>
                   <SelectItem value="advisor">Advisor</SelectItem>
                 </SelectContent>
               </Select>
@@ -633,6 +636,7 @@ export function UserManagement() {
               <TableRow>
                 <TableHead>Username</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Full Name</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -643,6 +647,7 @@ export function UserManagement() {
                 <TableRow key={user.id}>
                   <TableCell>{user.username}</TableCell>
                   <TableCell>{user.email}</TableCell>
+                  <TableCell>{user.fullName}</TableCell>
                   <TableCell>
                     <Badge>{user.role}</Badge>
                   </TableCell>
@@ -650,6 +655,7 @@ export function UserManagement() {
                     <Switch
                       checked={user.active}
                       onCheckedChange={() => toggleUserStatus(user.id, user.active, user.role)}
+                      aria-label="User status"
                     />
                   </TableCell>
                   <TableCell className="text-right space-x-2">
