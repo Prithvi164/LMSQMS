@@ -557,7 +557,13 @@ export class DatabaseStorage implements IStorage {
       await db.transaction(async (tx) => {
         // Delete all related records in correct order to respect foreign key constraints
         
-        // 1. Delete quiz responses for user's attempts
+        // 1. Delete attendance records first
+        await tx
+          .delete(sql.raw('attendance'))
+          .where(sql.raw('trainee_id = $1', [id]));
+        console.log(`Deleted attendance records for user ${id}`);
+
+        // 2. Delete quiz responses for user's attempts
         await tx
           .delete(quizResponses)
           .where(
@@ -570,19 +576,19 @@ export class DatabaseStorage implements IStorage {
           );
         console.log(`Deleted quiz responses for user ${id}`);
 
-        // 2. Delete quiz attempts
+        // 3. Delete quiz attempts
         await tx
           .delete(quizAttempts)
           .where(eq(quizAttempts.userId, id));
         console.log(`Deleted quiz attempts for user ${id}`);
 
-        // 3. Delete evaluations where user is trainee
+        // 4. Delete evaluations where user is trainee
         await tx
           .delete(evaluations)
           .where(eq(evaluations.traineeId, id));
         console.log(`Deleted evaluations for user ${id}`);
 
-        // 4. Delete evaluation scores for evaluations where user is evaluator
+        // 5. Delete evaluation scores for evaluations where user is evaluator
         await tx
           .delete(evaluationScores)
           .where(
@@ -595,32 +601,32 @@ export class DatabaseStorage implements IStorage {
           );
         console.log(`Deleted evaluation scores for user ${id}`);
 
-        // 5. Delete evaluations where user is evaluator
+        // 6. Delete evaluations where user is evaluator
         await tx
           .delete(evaluations)
           .where(eq(evaluations.evaluatorId, id));
         console.log(`Deleted evaluations where user is evaluator ${id}`);
 
-        // 6. Delete user processes
+        // 7. Delete user processes
         await tx
           .delete(userProcesses)
           .where(eq(userProcesses.userId, id));
         console.log(`Deleted user processes for user ${id}`);
 
-        // 7. Delete user batch processes
+        // 8. Delete user batch processes
         await tx
           .delete(userBatchProcesses)
           .where(eq(userBatchProcesses.userId, id));
         console.log(`Deleted user batch processes for user ${id}`);
 
-        // 8. Update any users that have this user as their manager
+        // 9. Update any users that have this user as their manager
         await tx
           .update(users)
           .set({ managerId: null })
           .where(eq(users.managerId, id));
         console.log(`Updated manager references for user ${id}`);
 
-        // 9. Finally delete the user
+        // 10. Finally delete the user
         const result = await tx
           .delete(users)
           .where(eq(users.id, id))
