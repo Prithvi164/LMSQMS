@@ -297,52 +297,82 @@ export function UserManagement() {
   // Import Users Mutation
   const importUsersMutation = useMutation({
     mutationFn: async (users: ImportedUser[]) => {
-      // Transform the data to match the API expectations
-      const transformedUsers = users.map(user => {
-        // Extract process IDs
-        const processIds = user.Processes && Array.isArray(processes) ?
-          processes
-            .filter((p: any) =>
-              user.Processes.toLowerCase().split(',')
-                .map(proc => proc.trim())
-                .includes(p.name?.toLowerCase())
-            )
-            .map((p: any) => p.id)
-            .filter(Boolean)
-          : [];
+      console.log('Starting import mutation with users:', users);
+      try {
+        // Transform the data to match the API expectations
+        const transformedUsers = users.map(user => {
+          console.log('Processing user:', user.Username);
+          // Extract process IDs
+          const processIds = user.Processes && Array.isArray(processes) ?
+            processes
+              .filter((p: any) => {
+                const userProcesses = user.Processes.toLowerCase().split(',')
+                  .map(proc => proc.trim());
+                const matches = userProcesses.includes(p.name?.toLowerCase());
+                console.log('Process matching:', {
+                  processName: p.name,
+                  userProcesses,
+                  matches
+                });
+                return matches;
+              })
+              .map((p: any) => p.id)
+              .filter(Boolean)
+            : [];
 
-        // Separate user data from process data
-        const userData = {
-          username: user.Username,
-          fullName: user["Full Name"],
-          email: user.Email,
-          employeeId: user["Employee ID"],
-          role: user.Role.toLowerCase(),
-          phoneNumber: user["Phone Number"],
-          dateOfJoining: user["Date of Joining"],
-          dateOfBirth: user["Date of Birth"],
-          education: user.Education,
-          active: true // Set default active status
-        };
+          console.log('Matched process IDs:', processIds);
 
-        return {
-          ...userData,
-          processIds // This will be handled separately by the backend
-        };
-      });
+          // Separate user data from process data
+          const userData = {
+            username: user.Username,
+            fullName: user["Full Name"],
+            email: user.Email,
+            employeeId: user["Employee ID"],
+            role: user.Role.toLowerCase(),
+            phoneNumber: user["Phone Number"],
+            dateOfJoining: user["Date of Joining"],
+            dateOfBirth: user["Date of Birth"],
+            education: user.Education,
+            organizationId: user?.organizationId,
+            active: true
+          };
 
-      const response = await apiRequest("POST", "/api/users/bulk-import", {
-        users: transformedUsers,
-        organizationId: user?.organizationId // Include organization ID for process linking
-      });
+          console.log('Transformed user data:', userData);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to import users");
+          return {
+            ...userData,
+            processIds
+          };
+        });
+
+        console.log('Making API request with data:', {
+          users: transformedUsers,
+          organizationId: user?.organizationId
+        });
+
+        const response = await apiRequest("POST", "/api/users/bulk-import", {
+          users: transformedUsers,
+          organizationId: user?.organizationId
+        });
+
+        console.log('API Response:', response);
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('API Error:', errorData);
+          throw new Error(errorData.message || "Failed to import users");
+        }
+
+        const result = await response.json();
+        console.log('Import successful:', result);
+        return result;
+      } catch (error) {
+        console.error('Import error:', error);
+        throw error;
       }
-      return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Mutation success:', data);
       toast({
         title: "Success",
         description: "Users imported successfully",
@@ -353,6 +383,7 @@ export function UserManagement() {
       setImportErrors([]);
     },
     onError: (error: Error) => {
+      console.error('Mutation error:', error);
       toast({
         title: "Error",
         description: error.message,
