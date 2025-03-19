@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { Router } from "express";
-import { insertUserSchema, users, userBatchProcesses, organizationProcesses, userProcesses, quizzes, insertMockCallScenarioSchema, insertMockCallAttemptSchema, mockCallScenarios, mockCallAttempts, organizationBatches } from "@shared/schema";
+import { insertUserSchema, users, userBatchProcesses, organizationProcesses, userProcesses, quizzes, insertMockCallScenarioSchema, insertMockCallAttemptSchema, mockCallScenarios, mockCallAttempts, batches } from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
@@ -384,93 +384,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(formattedTrainees);
     } catch (error: any) {
       console.error("Error fetching batch trainees:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Endpoint for enrolling trainees in a batch
-  app.post("/api/organizations/:organizationId/batches/:batchId/trainees", async (req, res) => {
-    if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const organizationId = parseInt(req.params.organizationId);
-      const batchId = parseInt(req.params.batchId);
-      const { traineeIds } = req.body;
-      
-      console.log('Starting trainee enrollment:', {
-        organizationId,
-        batchId,
-        traineeCount: traineeIds?.length
-      });
-      
-      if (organizationId !== req.user.organizationId) {
-        return res.status(403).json({ message: "Forbidden" });
-      }
-
-      // Get batch details to get trainer information
-      const batch = await db.query.organizationBatches.findFirst({
-        where: eq(organizationBatches.id, batchId),
-        columns: {
-          trainerId: true,
-          status: true
-        }
-      });
-
-      console.log('Found batch:', batch);
-
-      if (!batch) {
-        return res.status(404).json({ message: "Batch not found" });
-      }
-
-      if (!batch.trainerId) {
-        return res.status(400).json({ message: "Batch has no trainer assigned" });
-      }
-
-      if (batch.status !== 'planned') {
-        return res.status(400).json({ message: "Can only enroll trainees in planned batches" });
-      }
-
-      // Validate traineeIds
-      if (!Array.isArray(traineeIds) || traineeIds.length === 0) {
-        return res.status(400).json({ message: "Invalid trainee list" });
-      }
-
-      // Begin a transaction
-      await db.transaction(async (tx) => {
-        console.log('Updating users with trainer as manager:', {
-          trainerId: batch.trainerId,
-          trainees: traineeIds
-        });
-
-        // First update users' managerId to match batch trainer
-        await tx
-          .update(users)
-          .set({ 
-            managerId: batch.trainerId,
-            category: 'trainee' // Ensure they are marked as trainees
-          })
-          .where(inArray(users.id, traineeIds));
-
-        // Then create batch enrollments
-        const enrollments = traineeIds.map(traineeId => ({
-          userId: traineeId,
-          batchId: batchId,
-          status: 'active',
-          organizationId: organizationId
-        }));
-
-        console.log('Creating batch enrollments:', enrollments);
-
-        await tx.insert(userBatchProcesses).values(enrollments);
-      });
-
-      console.log('Successfully enrolled trainees');
-
-      res.status(201).json({ message: "Trainees enrolled successfully" });
-    } catch (error: any) {
-      console.error("Error enrolling trainees:", error);
       res.status(500).json({ message: error.message });
     }
   });
