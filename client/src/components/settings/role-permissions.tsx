@@ -1,13 +1,15 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/use-auth";
 import { permissionEnum, roleEnum } from "@shared/schema";
 import type { RolePermission } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Info } from "lucide-react";
 
 export function RolePermissions() {
   const { user } = useAuth();
@@ -73,8 +75,39 @@ export function RolePermissions() {
     });
   }, [selectedRole, getPermissionsForRole, updatePermissionMutation]);
 
+  // Get permission description
+  const getPermissionDescription = (permission: string) => {
+    const descriptions: Record<string, string> = {
+      manage_users: "Create, edit, and delete user accounts",
+      view_users: "View user profiles and basic information",
+      edit_users: "Modify user details and settings",
+      delete_users: "Remove users from the system",
+      upload_users: "Bulk import users via file upload",
+      manage_courses: "Create and manage training courses",
+      manage_learning_paths: "Define and edit learning paths",
+      manage_organization: "Control organization-wide settings",
+      manage_performance: "Access and manage performance metrics",
+      export_reports: "Generate and download reports",
+      // Add more descriptions as needed
+    };
+    return descriptions[permission] || permission.replace(/_/g, " ");
+  };
+
   if (isLoading) {
-    return <div>Loading permissions...</div>;
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="space-y-4">
+            <div className="h-8 w-32 bg-muted animate-pulse rounded" />
+            <div className="space-y-2">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-12 bg-muted animate-pulse rounded" />
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
@@ -83,55 +116,86 @@ export function RolePermissions() {
         <h1 className="text-3xl font-bold">Role Permissions</h1>
       </div>
 
-      <Card className="p-6">
-        <div className="space-y-6">
-          <div className="flex gap-2">
-            {availableRoles.map((role) => (
-              <Badge
-                key={role}
-                variant={selectedRole === role ? "default" : "outline"}
-                className="cursor-pointer"
-                onClick={() => setSelectedRole(role)}
-              >
-                {role}
-              </Badge>
-            ))}
-          </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            Role Management
+            <Tooltip>
+              <TooltipTrigger>
+                <Info className="h-4 w-4 text-muted-foreground" />
+              </TooltipTrigger>
+              <TooltipContent>
+                Select a role to manage its permissions. Changes are applied immediately.
+              </TooltipContent>
+            </Tooltip>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-6">
+            {/* Role Selection */}
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <h3 className="text-sm font-medium mb-3">Select Role</h3>
+              <div className="flex flex-wrap gap-2">
+                {availableRoles.map((role) => (
+                  <Badge
+                    key={role}
+                    variant={selectedRole === role ? "default" : "outline"}
+                    className={`cursor-pointer hover:bg-primary/90 transition-colors ${
+                      selectedRole === role ? 'shadow-sm' : ''
+                    }`}
+                    onClick={() => setSelectedRole(role)}
+                  >
+                    {role.replace(/_/g, " ")}
+                  </Badge>
+                ))}
+              </div>
+            </div>
 
-          <div className="grid gap-4">
-            {Object.entries(groupPermissionsByCategory(permissionEnum.enumValues)).map(
-              ([category, permissions]) => (
-                <div key={category}>
-                  <h3 className="text-lg font-semibold mb-2 capitalize">
-                    {category.replace("_", " ")}
-                  </h3>
-                  <div className="grid gap-2">
-                    {permissions.map((permission) => (
-                      <div
-                        key={permission}
-                        className="flex items-center justify-between py-2"
-                      >
-                        <span className="capitalize">
-                          {permission.replace(/_/g, " ")}
-                        </span>
-                        <Switch
-                          checked={getPermissionsForRole(selectedRole).includes(
-                            permission
-                          )}
-                          onCheckedChange={() => handlePermissionToggle(permission)}
-                          disabled={
-                            selectedRole === 'owner' && user?.role !== 'owner' ||
-                            updatePermissionMutation.isPending
-                          }
-                        />
-                      </div>
-                    ))}
+            {/* Permissions Grid */}
+            <div className="grid gap-6">
+              {Object.entries(groupPermissionsByCategory(permissionEnum.enumValues)).map(
+                ([category, permissions]) => (
+                  <div key={category} className="space-y-4">
+                    <h3 className="text-lg font-semibold capitalize">
+                      {category.replace("_", " ")}
+                    </h3>
+                    <div className="grid gap-3 bg-card p-4 rounded-lg border">
+                      {permissions.map((permission) => (
+                        <Tooltip key={permission}>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-muted/50 transition-colors">
+                              <div className="space-y-1">
+                                <p className="font-medium capitalize">
+                                  {permission.replace(/_/g, " ")}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {getPermissionDescription(permission)}
+                                </p>
+                              </div>
+                              <Switch
+                                checked={getPermissionsForRole(selectedRole).includes(
+                                  permission
+                                )}
+                                onCheckedChange={() => handlePermissionToggle(permission)}
+                                disabled={
+                                  selectedRole === 'owner' && user?.role !== 'owner' ||
+                                  updatePermissionMutation.isPending
+                                }
+                              />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="left" align="center">
+                            {getPermissionDescription(permission)}
+                          </TooltipContent>
+                        </Tooltip>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )
-            )}
+                )
+              )}
+            </div>
           </div>
-        </div>
+        </CardContent>
       </Card>
     </div>
   );
