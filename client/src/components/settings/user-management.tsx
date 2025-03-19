@@ -64,22 +64,26 @@ export function UserManagement() {
       try {
         console.log('Attempting to delete user:', userId);
         const response = await apiRequest("DELETE", `/api/users/${userId}`);
+        const responseData = await response.json().catch(() => null);
+
+        console.log('Delete response:', response.status, responseData);
 
         if (!response.ok) {
-          console.error('Delete response not ok:', response.status);
-          const errorData = await response.json().catch(() => ({ message: "Failed to delete user" }));
-          throw new Error(errorData.message || "Failed to delete user");
+          throw new Error(responseData?.message || "Failed to delete user");
         }
 
-        // Log successful deletion
-        console.log('User deleted successfully:', userId);
-        return { success: true };
+        if (!responseData?.success) {
+          throw new Error("User deletion failed on the server");
+        }
+
+        return responseData;
       } catch (error) {
         console.error('Error in delete mutation:', error);
-        throw new Error(error instanceof Error ? error.message : "Failed to delete user");
+        throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Delete mutation success:', data);
       toast({
         title: "Success",
         description: "User deleted successfully",
@@ -564,13 +568,16 @@ export function UserManagement() {
 
   // Helper function to handle delete confirmation
   const handleDeleteConfirm = async () => {
-    if (!userToDelete) return;
+    if (!userToDelete) {
+      console.error('No user selected for deletion');
+      return;
+    }
 
     try {
       console.log('Confirming deletion for user:', userToDelete.id);
       await deleteUserMutation.mutateAsync(userToDelete.id);
     } catch (error) {
-      console.error("Error deleting user:", error);
+      console.error("Error in handleDeleteConfirm:", error);
     }
   };
 
