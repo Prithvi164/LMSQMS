@@ -70,7 +70,7 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
   const traineeCount = batch.enrolledCount || 0;
   const remainingCapacity = (batch.capacityLimit || 0) - traineeCount;
 
-  const { data: batchDetails } = useQuery({
+  const { data: batchDetails, isLoading: isLoadingBatchDetails } = useQuery({
     queryKey: [`/api/organizations/${batch.organizationId}/batches/${batch.id}`],
     enabled: !!batch.id,
   });
@@ -96,8 +96,8 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
         trainerId: batch.trainerId,
         organizationId: batch.organizationId,
         batchId: batch.id,
-        category: "trainee", // Always set category as trainee
-        role: values.role, // Use selected role
+        category: "trainee",
+        role: values.role,
       };
 
       const response = await fetch(`/api/organizations/${batch.organizationId}/batches/${batch.id}/trainees`, {
@@ -114,7 +114,7 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
 
       toast({
         title: "Success",
-        description: `Trainee ${values.fullName} has been successfully added to batch ${batch.name} with role ${values.role}`,
+        description: `Trainee ${values.fullName} has been successfully added to batch ${batch.name}`,
       });
 
       onSuccess();
@@ -133,7 +133,6 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.name.endsWith('.xlsx')) {
       toast({
         title: 'Error',
@@ -151,12 +150,6 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
     try {
       setIsSubmitting(true);
 
-      console.log('Uploading file:', {
-        name: file.name,
-        size: file.size,
-        type: file.type
-      });
-
       const response = await fetch(
         `/api/organizations/${batch.organizationId}/batches/${batch.id}/trainees/bulk`,
         {
@@ -171,7 +164,6 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
         throw new Error(data.message || 'Failed to upload trainees');
       }
 
-      // Show success toast with detailed information
       toast({
         title: 'Upload Complete',
         description: (
@@ -194,10 +186,9 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
             )}
           </div>
         ),
-        duration: data.failureCount > 0 ? 10000 : 5000, // Show longer for errors
+        duration: data.failureCount > 0 ? 10000 : 5000,
       });
 
-      // Only close dialog and refresh if at least one trainee was added successfully
       if (data.successCount > 0) {
         onSuccess();
         setShowBulkUpload(false);
@@ -211,11 +202,16 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
       });
     } finally {
       setIsSubmitting(false);
-      // Clear the file input
       event.target.value = '';
     }
   };
 
+  const getTrainerName = () => {
+    if (isLoadingBatchDetails) return 'Loading batch details...';
+    if (!batchDetails) return 'No batch details available';
+    if (!batchDetails?.trainer) return 'No trainer assigned';
+    return batchDetails?.trainer.fullName;
+  };
 
   return (
     <div className="max-h-[70vh] overflow-y-auto px-4">
@@ -293,7 +289,7 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <FormLabel className="text-muted-foreground">Trainer</FormLabel>
-                <Input value={batchDetails?.trainer?.fullName || 'Loading...'} disabled />
+                <Input value={getTrainerName()} disabled />
               </div>
               <div>
                 <FormLabel className="text-muted-foreground">Location</FormLabel>
