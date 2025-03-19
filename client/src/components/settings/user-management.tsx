@@ -50,7 +50,7 @@ const editUserSchema = insertUserSchema.extend({
 
 type UserFormData = z.infer<typeof editUserSchema>;
 
-// Add types for imported data
+// Update the ImportedUser interface to include processes
 interface ImportedUser {
   Username: string;
   "Full Name": string;
@@ -63,6 +63,7 @@ interface ImportedUser {
   "Date of Joining": string;
   "Date of Birth": string;
   Education: string;
+  "Processes": string; // Comma-separated process names
 }
 
 export function UserManagement() {
@@ -158,22 +159,35 @@ export function UserManagement() {
     }
   };
 
-  // Add exportToExcel function after toggleUserStatus
+  // Add process data fetching
+  const { data: processes = [] } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/processes`],
+    enabled: !!user?.organizationId,
+  });
+
+  // Update exportToExcel function to include processes
   const exportToExcel = () => {
-    const dataToExport = users.map(user => ({
-      Username: user.username,
-      'Full Name': user.fullName || '',
-      Email: user.email,
-      'Employee ID': user.employeeId || '',
-      Role: user.role,
-      'Phone Number': user.phoneNumber || '',
-      Location: getLocationName(user.locationId),
-      Manager: getManagerName(user.managerId),
-      'Date of Joining': user.dateOfJoining || '',
-      'Date of Birth': user.dateOfBirth || '',
-      Education: user.education || '',
-      Status: user.active ? 'Active' : 'Inactive'
-    }));
+    const dataToExport = users.map(user => {
+      const userProcesses = processes.filter((p: any) => 
+        user.processIds?.includes(p.id)
+      ).map((p: any) => p.name).join(", ");
+
+      return {
+        Username: user.username,
+        'Full Name': user.fullName || '',
+        Email: user.email,
+        'Employee ID': user.employeeId || '',
+        Role: user.role,
+        'Phone Number': user.phoneNumber || '',
+        Location: getLocationName(user.locationId),
+        Manager: getManagerName(user.managerId),
+        'Date of Joining': user.dateOfJoining || '',
+        'Date of Birth': user.dateOfBirth || '',
+        Education: user.education || '',
+        Status: user.active ? 'Active' : 'Inactive',
+        Processes: userProcesses
+      };
+    });
 
     const ws = XLSX.utils.json_to_sheet(dataToExport);
     const wb = XLSX.utils.book_new();
@@ -197,6 +211,7 @@ export function UserManagement() {
         "Date of Joining": "2024-01-01",
         "Date of Birth": "1990-01-01",
         Education: "Bachelor's Degree",
+        "Processes": "Customer Service, Technical Support" // Example of comma-separated process names
       }
     ];
 
@@ -226,11 +241,22 @@ export function UserManagement() {
 
         // Validate the data
         const errors: string[] = [];
+        const processNames = processes.map((p: any) => p.name.toLowerCase());
+
         jsonData.forEach((row, index) => {
           if (!row.Username) errors.push(`Row ${index + 1}: Username is required`);
           if (!row.Email) errors.push(`Row ${index + 1}: Email is required`);
           if (!row.Role || !['admin', 'manager', 'advisor', 'trainer', 'trainee'].includes(row.Role)) {
             errors.push(`Row ${index + 1}: Invalid role`);
+          }
+
+          // Validate processes if provided
+          if (row.Processes) {
+            const rowProcesses = row.Processes.split(',').map(p => p.trim().toLowerCase());
+            const invalidProcesses = rowProcesses.filter(p => !processNames.includes(p));
+            if (invalidProcesses.length > 0) {
+              errors.push(`Row ${index + 1}: Invalid processes: ${invalidProcesses.join(', ')}`);
+            }
           }
         });
 
@@ -253,17 +279,28 @@ export function UserManagement() {
   const importUsersMutation = useMutation({
     mutationFn: async (users: ImportedUser[]) => {
       // Transform the data to match the API expectations
-      const transformedUsers = users.map(user => ({
-        username: user.Username,
-        fullName: user["Full Name"],
-        email: user.Email,
-        employeeId: user["Employee ID"],
-        role: user.Role.toLowerCase(),
-        phoneNumber: user["Phone Number"],
-        dateOfJoining: user["Date of Joining"],
-        dateOfBirth: user["Date of Birth"],
-        education: user.Education,
-      }));
+      const transformedUsers = users.map(user => {
+        const userProcessIds = user.Processes
+          ? processes
+              .filter((p: any) => 
+                user.Processes.toLowerCase().includes(p.name.toLowerCase())
+              )
+              .map((p: any) => p.id)
+          : [];
+
+        return {
+          username: user.Username,
+          fullName: user["Full Name"],
+          email: user.Email,
+          employeeId: user["Employee ID"],
+          role: user.Role.toLowerCase(),
+          phoneNumber: user["Phone Number"],
+          dateOfJoining: user["Date of Joining"],
+          dateOfBirth: user["Date of Birth"],
+          education: user.Education,
+          processIds: userProcessIds
+        };
+      });
 
       const response = await apiRequest("POST", "/api/users/bulk-import", { users: transformedUsers });
       if (!response.ok) {
@@ -327,6 +364,7 @@ export function UserManagement() {
                   <TableHead>Email</TableHead>
                   <TableHead>Full Name</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead>Processes</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -336,6 +374,7 @@ export function UserManagement() {
                     <TableCell>{row.Email}</TableCell>
                     <TableCell>{row["Full Name"]}</TableCell>
                     <TableCell>{row.Role}</TableCell>
+                    <TableCell>{row.Processes}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
