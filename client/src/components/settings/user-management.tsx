@@ -8,7 +8,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Trash2, Search, Download, Upload, FileSpreadsheet } from "lucide-react";
+import { Edit2, Trash2, Search, Download, Upload, FileSpreadsheet, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -28,6 +28,16 @@ import { insertUserSchema } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { z } from "zod";
 import * as XLSX from "xlsx";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Extend the insertUserSchema for the edit form
 const editUserSchema = insertUserSchema.extend({
@@ -157,16 +167,183 @@ export function UserManagement() {
   };
 
 
+  // Add downloadTemplate function
+  const downloadTemplate = () => {
+    const template = [
+      {
+        Username: "john.doe",
+        "Full Name": "John Doe",
+        Email: "john@example.com",
+        "Employee ID": "EMP001",
+        Role: "advisor",
+        "Phone Number": "+1234567890",
+        Location: "Main Office",
+        Manager: "jane.smith",
+        "Date of Joining": "2024-01-01",
+        "Date of Birth": "1990-01-01",
+        Education: "Bachelor's Degree",
+      }
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(template);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Template");
+    XLSX.writeFile(wb, "user_import_template.xlsx");
+  };
+
+  // Add state for import preview
+  const [importData, setImportData] = useState<any[]>([]);
+  const [showImportPreview, setShowImportPreview] = useState(false);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
+
+  // Add handleFileImport function
+  const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+        // Validate the data
+        const errors: string[] = [];
+        jsonData.forEach((row: any, index) => {
+          if (!row.Username) errors.push(`Row ${index + 1}: Username is required`);
+          if (!row.Email) errors.push(`Row ${index + 1}: Email is required`);
+          if (!row.Role || !['admin', 'manager', 'advisor', 'trainer', 'trainee'].includes(row.Role)) {
+            errors.push(`Row ${index + 1}: Invalid role`);
+          }
+        });
+
+        setImportErrors(errors);
+        setImportData(jsonData);
+        setShowImportPreview(true);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to parse Excel file. Please ensure it follows the template format.",
+          variant: "destructive",
+        });
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  // Add importUsers mutation
+  const importUsersMutation = useMutation({
+    mutationFn: async (users: any[]) => {
+      const response = await apiRequest("POST", "/api/users/bulk-import", { users });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to import users");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Users imported successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      setShowImportPreview(false);
+      setImportData([]);
+      setImportErrors([]);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Add ImportPreviewDialog component
+  const ImportPreviewDialog = () => (
+    <AlertDialog open={showImportPreview} onOpenChange={setShowImportPreview}>
+      <AlertDialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Import Preview</AlertDialogTitle>
+          <AlertDialogDescription>
+            Review the data before importing
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+
+        {importErrors.length > 0 && (
+          <div className="mb-4 p-4 border border-destructive rounded-lg">
+            <div className="flex items-center gap-2 text-destructive mb-2">
+              <AlertCircle className="h-4 w-4" />
+              <span className="font-semibold">Validation Errors</span>
+            </div>
+            <ul className="list-disc list-inside space-y-1">
+              {importErrors.map((error, index) => (
+                <li key={index} className="text-sm text-destructive">{error}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div className="my-4">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Username</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Full Name</TableHead>
+                <TableHead>Role</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {importData.slice(0, 5).map((row, index) => (
+                <TableRow key={index}>
+                  <TableCell>{row.Username}</TableCell>
+                  <TableCell>{row.Email}</TableCell>
+                  <TableCell>{row["Full Name"]}</TableCell>
+                  <TableCell>{row.Role}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {importData.length > 5 && (
+            <p className="text-sm text-muted-foreground mt-2">
+              And {importData.length - 5} more rows...
+            </p>
+          )}
+        </div>
+
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => {
+            setShowImportPreview(false);
+            setImportData([]);
+            setImportErrors([]);
+          }}>
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => importUsersMutation.mutate(importData)}
+            disabled={importErrors.length > 0 || importUsersMutation.isPending}
+          >
+            {importUsersMutation.isPending ? "Importing..." : "Import Users"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
   // Find manager name for a user
   const getManagerName = (managerId: number | null) => {
     if (!managerId) return "No Manager";
     const manager = users.find(u => u.id === managerId);
-    return manager ? manager.username : "Unknown Manager";
+    return manager ? manager.fullName || manager.username : "Unknown Manager";
   };
 
   // Find location name for a user
   const getLocationName = (locationId: number | null) => {
-    if (!locationId ) return "No Location";
+    if (!locationId) return "No Location";
     const location = orgSettings?.locations?.find((l: OrganizationLocation) => l.id === locationId);
     return location ? location.name : "Unknown Location";
   };
@@ -640,6 +817,29 @@ export function UserManagement() {
                   <Download className="h-4 w-4" />
                   Export Users
                 </Button>
+                <Button
+                  onClick={downloadTemplate}
+                  variant="outline"
+                  className="gap-2"
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Download Template
+                </Button>
+                <div className="relative inline-block">
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleFileImport}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    <Upload className="h-4 w-4" />
+                    Import Users
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -749,8 +949,7 @@ export function UserManagement() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent><DialogHeader>
             <DialogTitle>Delete User</DialogTitle>
             <DialogDescription>
               This is a permanent action. Are you sure you want to delete {userToDelete?.fullName || userToDelete?.username}?
@@ -789,6 +988,7 @@ export function UserManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ImportPreviewDialog />
     </div>
   );
 }
