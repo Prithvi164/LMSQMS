@@ -51,15 +51,6 @@ import { Progress } from "@/components/ui/progress"; // Import Progress componen
 import { useLocation } from "wouter";
 import { TraineeManagement } from "./trainee-management";
 
-type BatchStats = {
-  totalTrainees: number;
-  activeTrainees: number;
-  traineesByCategory: {
-    active: number;
-    trainee: number;
-  };
-};
-
 export function BatchesTab() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -495,25 +486,6 @@ export function BatchesTab() {
     setIsTraineeDialogOpen(true);
   };
 
-  const { data: batchStats } = useQuery<BatchStats>({
-    queryKey: [`/api/organizations/${user?.organizationId}/batches/${selectedBatchForDetails?.id}/stats`],
-    enabled: !!selectedBatchForDetails?.id && !!user?.organizationId,
-  });
-
-  // Add debug logging for batch data and stats
-  useEffect(() => {
-    console.log('Debug - Batch Data and Stats:', {
-      selectedBatchForDetails,
-      batchStats,
-      batches: batches.map(b => ({
-        id: b.id,
-        name: b.name,
-        enrolledCount: b.enrolledCount,
-        traineeCount: b.traineeCount
-      }))
-    });
-  }, [selectedBatchForDetails, batchStats, batches]);
-
   const renderBatchTable = (batchList: OrganizationBatch[]) => (
     <div className="rounded-md border">
       <Table>
@@ -600,21 +572,12 @@ export function BatchesTab() {
               <TableCell className="text-center">
                 <div className="font-medium">
                   {batch.enrolledCount || 0} / {batch.capacityLimit || '-'}
-                  <div className="text-xs text-muted-foreground mt-1">
-                    ({batch.traineeCount || 0} trainees)
-                  </div>
                 </div>
                 {batch.capacityLimit && (
                   <Progress
                     value={(batch.enrolledCount / batch.capacityLimit) * 100}
-                    className="h-2 w-20 mx-auto mt-1"
+                    className="h-2 w-20 mx-auto"
                   />
-                )}
-                {batch.id === selectedBatchForDetails?.id && batchStats && (
-                  <div className="text-xs text-muted-foreground mt-2">
-                    <div>Active: {batchStats.traineesByCategory.active || 0}</div>
-                    <div>Trainees: {batchStats.traineesByCategory.trainee || 0}</div>
-                  </div>
                 )}
               </TableCell>
               <TableCell className="text-center">
@@ -850,10 +813,11 @@ export function BatchesTab() {
               defaultMonth={dateRange.from}
               selected={{
                 from: dateRange.from,
-                to: dateRange.to
+                to: dateRange.to,
               }}
               onSelect={(range) => setDateRange({
-                from: range?.from                to: range?.to,
+                from: range?.from,
+                to: range?.to,
               })}
               numberOfMonths={2}
             />
@@ -864,162 +828,181 @@ export function BatchesTab() {
             <TabsList>
               <TabsTrigger value="table" className="flex items-center gap-2">
                 <List className="h-4 w-4" />
-                List View
+                Table View
               </TabsTrigger>
               <TabsTrigger value="calendar" className="flex items-center gap-2">
                 <CalendarIcon className="h-4 w-4" />
                 Calendar View
               </TabsTrigger>
             </TabsList>
-            <TabsContent value="table" className="mt-4">
+
+            <TabsContent value="table" className="space-y-6">
               {renderBatchTable(sortedBatches)}
             </TabsContent>
-            <TabsContent value="calendar" className="mt-4">
-              <div className="rounded-md border">
+
+            <TabsContent value="calendar" className="space-y-6">
+              <div className="rounded-md border p-6">
                 <Calendar
                   mode="single"
-                  className="rounded-md"
-                  numberOfMonths={1}
+                  disabled={false}
                   components={{
-                    Day: renderCalendarDay,
+                    Day: ({ date }) => renderCalendarDay(date)
+                  }}
+                  className="w-full"
+                  classNames={{
+                    cell: "h-24 w-24 p-0 border-2 border-gray-100 dark:border-gray-800",
+                    head_cell: "text-muted-foreground font-normal border-b-2 border-gray100 dark:border-gray-800 p-2",
+                    table: "border-collapse border-spacing-0 border-2 border-gray-100 dark:border-gray-800",
+                    day: "h-full rounded-none hover:bg-gray-50 dark:hover:bg-gray-800 focus-visible:bg-gray-50 dark:focus-visible:bg-gray800",
+                    nav_button: "h-12 w-12 bg-primary/10 hover:bg-primary/20 p-0 opacity-90 hover:opacity-100 absolute top-[50%] -translate-y-1/2 flex items-center justify-center rounded-full transition-all shadow-sm hover:shadowmd border border-primary/20",                    nav_button_previous:"left-4",
+                    nav_button_next: "right-4",
+                    nav: "relative flex items-center justify-between pt-4 pb-10 px-2 border-b-2 border-gray-100 dark:border-gray-800 mb-4",
+                    caption: "text-2xl font-semibold text-center flex-1px-10",
+                    caption_label: "text-lg font-medium"
                   }}
                 />
+                <div className="mt-6 flex items-center gap-6 text-sm border-t pt-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-blue-500" />
+                    <span className="font-medium">Planned</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h3 h-3 rounded-full bg-green-500" />
+                    <span className="font-medium">Ongoing</span></div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-gray-500" />
+                    <span className="font-medium">Completed</span>
+                  </div>
+                </div>
               </div>
             </TabsContent>
           </Tabs>
         ) : (
-          <div className="text-center py-8 text-muted-foreground">
-            No batches found.
+          <div className="flex min-h-[400px] flex-col items-center justify-center rounded-md border border-dashed p-8 text-center animate-in fade-in-50">
+            <div className="mx-auto flex max-w-[420px] flex-col items-center justify-center text-center">
+              <h3 className="mt-4 text-lg font-semibold">No batches found</h3>
+              <p className="mb-4 mt-2 text-sm text-muted-foreground">
+                You haven't created any batches yet. Start by creating a new batch.
+              </p>
+              {canManageBatches && (
+                <Button
+                  size="sm"
+                  className="relative"
+                  onClick={() => setIsCreateDialogOpen(true)}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Batch
+                </Button>
+              )}
+            </div>
           </div>
         )}
+
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Create New Batch</DialogTitle>
+            </DialogHeader>
+            <CreateBatchForm />
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Edit Batch</DialogTitle>
+              <DialogDescription>
+                Make changes to the batch details.
+              </DialogDescription>
+            </DialogHeader>
+            {selectedBatch && (
+              <CreateBatchForm
+                editMode={true}
+                batchData={selectedBatch}
+                onSuccess={() => setIsEditDialogOpen(false)}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription className="space-y-2">
+                  <p>Only batches with no trainees and 'Planned' status can be deleted.</p>
+                  <p className="font-medium">To confirm deletion, type the batch name:</p>
+                  <p className="text-primary font-mono">{selectedBatch?.name}</p>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <div className="py-4">
+                <Input
+                  type="text"
+                  placeholder="Type batch name to confirm"
+                  value={deleteConfirmation}
+                  onChange={(e) => setDeleteConfirmation(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => {
+                  setDeleteDialogOpen(false);
+                  setDeleteConfirmation('');
+                }}>
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleConfirmDelete}
+                  disabled={!selectedBatch || deleteConfirmation !== selectedBatch.name}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Delete Batch
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+
+        </AlertDialog>
+        <Dialog 
+          open={isAddTraineeDialogOpen} 
+          onOpenChange={setIsAddTraineeDialogOpen}
+        >
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Add Trainee to Batch</DialogTitle>
+              <DialogDescription>
+                Add a new trainee to batch: {selectedBatchForTrainee?.name}
+              </DialogDescription>
+            </DialogHeader>
+            {selectedBatchForTrainee && (
+              <AddTraineeForm 
+                batch={selectedBatchForTrainee}
+                onSuccess={() => {
+                  setIsAddTraineeDialogOpen(false);
+                  queryClient.invalidateQueries({ 
+                    queryKey: [`/api/organizations/${user?.organizationId}/batches`] 
+                  });
+                }}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+        {/* Trainee Management Dialog */}
+        <Dialog open={isTraineeDialogOpen} onOpenChange={setIsTraineeDialogOpen}>
+          <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                Manage Trainees - {selectedBatchForDetails?.name}
+              </DialogTitle>
+            </DialogHeader>
+            {selectedBatchForDetails && (
+              <TraineeManagement
+                batchId={selectedBatchForDetails.id}
+                organizationId={user?.organizationId || 0}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
-
-    {/* Edit Dialog */}
-    <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>Edit Batch</DialogTitle>
-        </DialogHeader>
-        <CreateBatchForm
-          editBatch={selectedBatch}
-          onSuccess={() => setIsEditDialogOpen(false)}
-        />
-      </DialogContent>
-    </Dialog>
-
-    {/* Delete Confirmation Dialog */}
-    <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-          <AlertDialogDescription>
-            This action cannot be undone. This will permanently delete the batch
-            &quot;{selectedBatch?.name}&quot; and remove all associated data.
-            <div className="mt-4">
-              <p className="font-medium">
-                Please type <span className="font-semibold">{selectedBatch?.name}</span> to confirm
-              </p>
-              <Input
-                value={deleteConfirmation}
-                onChange={(e) => setDeleteConfirmation(e.target.value)}
-                placeholder="Type batch name here..."
-                className="mt-2"
-              />
-            </div>
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => setDeleteConfirmation('')}>
-            Cancel
-          </AlertDialogCancel>
-          <AlertDialogAction
-            onClick={handleConfirmDelete}
-            disabled={deleteConfirmation !== selectedBatch?.name}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-          >
-            Delete Batch
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-
-    {/* Add Trainee Dialog */}
-    <Dialog open={isAddTraineeDialogOpen} onOpenChange={setIsAddTraineeDialogOpen}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>Add Trainee to Batch</DialogTitle>
-        </DialogHeader>
-        <AddTraineeForm
-          batch={selectedBatchForTrainee}
-          onSuccess={() => {
-            setIsAddTraineeDialogOpen(false);
-            queryClient.invalidateQueries({
-              queryKey: [`/api/organizations/${user?.organizationId}/batches`],
-            });
-          }}
-        />
-      </DialogContent>
-    </Dialog>
-
-    {/* Trainee Management Dialog */}
-    <Dialog
-      open={isTraineeDialogOpen}
-      onOpenChange={setIsTraineeDialogOpen}
-    >
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Batch Details: {selectedBatchForDetails?.name}</DialogTitle>
-          <DialogDescription>
-            <div className="flex items-center gap-4 mt-2">
-              <Badge variant="outline" className="text-sm">
-                {formatBatchCategory(selectedBatchForDetails?.batchCategory)}
-              </Badge>
-              <Badge
-                variant="secondary"
-                className={getStatusColor(selectedBatchForDetails?.status || '')}
-              >
-                {selectedBatchForDetails?.status.charAt(0).toUpperCase() +
-                selectedBatchForDetails?.status.slice(1)}
-              </Badge>
-            </div>
-            {batchStats && (
-              <div className="grid grid-cols-2 gap-4 mt-4">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Enrollment Status</p>
-                  <p className="text-2xl font-bold">
-                    {selectedBatchForDetails?.enrolledCount || 0} / {selectedBatchForDetails?.capacityLimit}
-                  </p>
-                  <Progress
-                    value={((selectedBatchForDetails?.enrolledCount || 0) /
-                      (selectedBatchForDetails?.capacityLimit || 1)) * 100}
-                    className="h-2"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Category Breakdown</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Active</p>
-                      <p className="text-xl font-semibold">{batchStats.traineesByCategory.active}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Trainee</p>
-                      <p className="text-xl font-semibold">{batchStats.traineesByCategory.trainee}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="mt-4">
-          <TraineeManagement
-            batchId={selectedBatchForDetails?.id || 0}
-            organizationId={user?.organizationId || 0}
-          />
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }
