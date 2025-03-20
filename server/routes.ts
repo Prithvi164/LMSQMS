@@ -1013,14 +1013,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Hash the password
           const hashedPassword = await hashPassword(userData.password);
 
-          // Create the user
+          // Create the user with category set to 'active'
           const newUser = await storage.createUser({
             username: userData.username,
             password: hashedPassword,
             fullName: userData.fullName,
             email: userData.email,
             role: userData.role,
-            category: userData.role === "manager" ? "active" : "trainee",
+            category: "active", // Always set to active for bulk upload
             locationId,
             employeeId: userData.employeeId, 
             phoneNumber: userData.phoneNumber,
@@ -1028,192 +1028,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             dateOfBirth: userData.dateOfBirth ? new Date(userData.dateOfBirth) : null,
             education: userData.education,
             organizationId: req.user.organizationId!,
-            managerId,
-            active: true,
-            certified: false,
-            onboardingCompleted: true,
-          });
-
-          // Associate process if provided
-          if (userData.process) {
-            const process = await storage.getProcessByName(userData.process);
-            if (!process) {
-              throw new Error(`Process ${userData.process} not found`);
-            }
-            await storage.assignProcessToUser(newUser.id, process.id);
-          }
-        }
-      });
-
-      res.status(201).json({ message: "Users created successfully" });
-    } catch (error: any) {
-      console.error("Bulk user creation error:", error);
-      res.status(400).json({ message: error.message });
-    }
-  });
-
-  // Bulk user creation endpoint
-  app.post("/api/users/bulk", async (req, res) => {
-    if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const users = req.body.users;
-      if (!Array.isArray(users) || users.length === 0) {
-        return res.status(400).json({ message: "Invalid users data" });
-      }
-
-      // Start a transaction
-      await db.transaction(async (tx) => {
-        for (const userData of users) {
-          // Validate required fields
-          if (!userData.username || !userData.email || !userData.password) {
-            throw new Error(`Missing required fields for user: ${userData.username || 'unknown'}`);
-          }
-
-          // Check if username or email already exists
-          const existingUser = await storage.getUserByUsername(userData.username);
-          if (existingUser) {
-            throw new Error(`Username ${userData.username} already exists`);
-          }
-
-          const existingEmail = await storage.getUserByEmail(userData.email);
-          if (existingEmail) {
-            throw new Error(`Email ${userData.email} already exists`);
-          }
-
-          // Find reporting manager by username if provided
-          let managerId = null;
-          if (userData.reportingManager) {
-            const manager = await storage.getUserByUsername(userData.reportingManager);
-            if (!manager) {
-              throw new Error(`Reporting manager ${userData.reportingManager} not found`);
-            }
-            managerId = manager.id;
-          }
-
-          // Find location by name if provided
-          let locationId = null;
-          if (userData.location) {
-            const location = await storage.getLocationByName(userData.location);
-            if (!location) {
-              throw new Error(`Location ${userData.location} not found`);
-            }
-            locationId = location.id;
-          }
-
-          // Hash the password
-          const hashedPassword = await hashPassword(userData.password);
-
-          // Create the user
-          const newUser = await storage.createUser({
-            username: userData.username,
-            password: hashedPassword,
-            fullName: userData.fullName,
-            email: userData.email,
-            role: userData.role,
-            category: userData.role === "manager" ? "active" : "trainee",
-            locationId,
-            employeeId: userData.employeeId, 
-            phoneNumber: userData.phoneNumber,
-            dateOfJoining: userData.dateOfJoining ? new Date(userData.dateOfJoining) : null,
-            dateOfBirth: userData.dateOfBirth ? new Date(userData.dateOfBirth) : null,
-            education: userData.education,
-            organizationId: req.user.organizationId,
-            managerId,
-            active: true,
-            certified: false,
-            onboardingCompleted: true,
-          });
-
-          // Associate process if provided
-          if (userData.process) {
-            const process = await storage.getProcessByName(userData.process);
-            if (!process) {
-              throw new Error(`Process ${userData.process} not found`);
-            }
-            await storage.assignProcessToUser(newUser.id, process.id);
-          }
-        }
-      });
-
-      res.status(201).json({ message: "Users created successfully" });
-    } catch (error: any) {
-      console.error("Bulk user creation error:", error);
-      res.status(400).json({ message: error.message });
-    }
-  });
-
-  // Bulk user creation endpoint
-  app.post("/api/users/bulk", async (req, res) => {
-    if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const users = req.body.users;
-      if (!Array.isArray(users) || users.length === 0) {
-        return res.status(400).json({ message: "Invalid users data" });
-      }
-
-      // Start a transaction
-      await db.transaction(async (tx) => {
-        for (const userData of users) {
-          // Validate required fields
-          if (!userData.username || !userData.email || !userData.password) {
-            throw new Error(`Missing required fields for user: ${userData.username || 'unknown'}`);
-          }
-
-          // Check if username or email already exists
-          const existingUser = await storage.getUserByUsername(userData.username);
-          if (existingUser) {
-            throw new Error(`Username ${userData.username} already exists`);
-          }
-
-          const existingEmail = await storage.getUserByEmail(userData.email);
-          if (existingEmail) {
-            throw new Error(`Email ${userData.email} already exists`);
-          }
-
-          // Find reporting manager by username if provided
-          let managerId = null;
-          if (userData.reportingManager) {
-            const manager = await storage.getUserByUsername(userData.reportingManager);
-            if (!manager) {
-              throw new Error(`Reporting manager ${userData.reportingManager} not found`);
-            }
-            managerId = manager.id;
-          }
-
-          // Find location by name if provided
-          let locationId = null;
-          if (userData.location) {
-            const location = await storage.getLocationByName(userData.location);
-            if (!location) {
-              throw new Error(`Location ${userData.location} not found`);
-            }
-            locationId = location.id;
-          }
-
-          // Hash the password
-          const hashedPassword = await hashPassword(userData.password);
-
-          // Create the user
-          const newUser = await storage.createUser({
-            username: userData.username,
-            password: hashedPassword,
-            fullName: userData.fullName,
-            email: userData.email,
-            role: userData.role,
-            category: userData.role === "manager" ? "active" : "trainee",
-            locationId,
-            employeeId: userData.employeeId, 
-            phoneNumber: userData.phoneNumber,
-            dateOfJoining: userData.dateOfJoining ? new Date(userData.dateOfJoining) : null,
-            dateOfBirth: userData.dateOfBirth ? new Date(userData.dateOfBirth) : null,
-            education: userData.education,
-            organizationId: req.user.organizationId,
             managerId,
             active: true,
             certified: false,
