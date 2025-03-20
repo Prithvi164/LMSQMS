@@ -12,9 +12,12 @@ import type { User, Organization, OrganizationProcess, OrganizationLineOfBusines
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Check } from "lucide-react";
+import { Check, FileSpreadsheet, Upload, Download } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions"; // Add permissions hook
+import * as XLSX from "xlsx";
+import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "@/components/ui/table";
+
 
 interface AddUserProps {
   users: User[];
@@ -189,6 +192,110 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     );
   }
 
+  // Add bulk upload types and handlers
+  type BulkUserUpload = {
+    username: string;
+    fullName: string;
+    email: string;
+    role: string;
+    reportingManager: string; // Username of the manager
+    location: string;
+    employeeId: string;
+    password: string;
+    phoneNumber: string;
+    dateOfJoining: string;
+    dateOfBirth: string;
+    education: string;
+    lineOfBusiness: string;
+    process: string;
+  };
+
+  const bulkUploadMutation = useMutation({
+    mutationFn: async (users: BulkUserUpload[]) => {
+      const response = await apiRequest("POST", "/api/users/bulk", { users });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to bulk upload users");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Users uploaded successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const [bulkUploadData, setBulkUploadData] = useState<BulkUserUpload[]>([]);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json<BulkUserUpload>(worksheet);
+
+      // Basic validation of required fields
+      const validatedData = data.map((row, index) => {
+        if (!row.username || !row.email || !row.role || !row.password) {
+          throw new Error(`Row ${index + 1}: Missing required fields (username, email, role, or password)`);
+        }
+        return row;
+      });
+
+      setBulkUploadData(validatedData);
+      toast({
+        title: "File Uploaded",
+        description: `Successfully parsed ${validatedData.length} users`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to parse file",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const downloadTemplate = () => {
+    const template = [
+      {
+        username: "example_user",
+        fullName: "Example User",
+        email: "user@example.com",
+        role: "advisor",
+        reportingManager: "manager_username",
+        location: "Location Name",
+        employeeId: "EMP001",
+        password: "password123",
+        phoneNumber: "1234567890",
+        dateOfJoining: "2024-03-20",
+        dateOfBirth: "1990-01-01",
+        education: "Bachelor's Degree",
+        lineOfBusiness: "Sales",
+        process: "Customer Support"
+      }
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(template);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Template");
+    XLSX.writeFile(wb, "user_upload_template.xlsx");
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -197,9 +304,87 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
             <CardTitle>Add New User</CardTitle>
             <CardDescription>Create new user account</CardDescription>
           </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowBulkUpload(!showBulkUpload)}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Bulk Upload
+            </Button>
+            <Button
+              variant="outline"
+              onClick={downloadTemplate}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Download Template
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
+        {showBulkUpload && (
+          <div className="mb-6 p-4 border rounded-lg">
+            <h3 className="text-lg font-medium mb-4">Bulk Upload Users</h3>
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <Input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleFileUpload}
+                  className="max-w-md"
+                />
+                <Button
+                  onClick={() => bulkUploadMutation.mutate(bulkUploadData)}
+                  disabled={bulkUploadData.length === 0 || bulkUploadMutation.isPending}
+                >
+                  {bulkUploadMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                      Upload Users
+                    </>
+                  )}
+                </Button>
+              </div>
+              {bulkUploadData.length > 0 && (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Preview: {bulkUploadData.length} users loaded
+                  </p>
+                  <div className="max-h-60 overflow-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Username</TableHead>
+                          <TableHead>Full Name</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Location</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {bulkUploadData.map((user, index) => (
+                          <TableRow key={index}>
+                            <TableCell>{user.username}</TableCell>
+                            <TableCell>{user.fullName}</TableCell>
+                            <TableCell>{user.email}</TableCell>
+                            <TableCell>{user.role}</TableCell>
+                            <TableCell>{user.location}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         <form
           className="space-y-4"
           onSubmit={(e) => {
@@ -628,10 +813,10 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
               disabled
               className="bg-muted cursor-not-allowed"
             />
-            <input 
-              type="hidden" 
-              name="category" 
-              value={newUserData.role === "manager" ? "active" : newUserData.category} 
+            <input
+              type="hidden"
+              name="category"
+              value={newUserData.role === "manager" ? "active" : newUserData.category}
             />
           </div>
 
