@@ -965,67 +965,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Create a map of line of business names to IDs
         const lobMap = new Map(allLobs.map(lob => [lob.name, lob.id]));
         
-        // Pre-validate all processes and line of businesses exist  
-        const processNames = [...new Set(userProcesses.map(up => up.process))];
-        const processes = await Promise.all(processNames.map(name => storage.getProcessByName(name)));
-        
-        // Create process name to ID mapping
-        const processMap = processNames.reduce((acc, name, index) => {
-          if (processes[index]) {
-            acc[name] = processes[index]!.id;
-          }
-          return acc;
-        }, {} as Record<string, number>);
-
-        for (const userProcess of userProcesses) {
-          const { username, process, lineOfBusiness } = userProcess;
-          
-          // Get user by username
-          const user = await storage.getUserByUsername(username);
-          if (!user) {
-            throw new Error(`User ${username} not found`);
-          }
-
-          // Get process ID from our pre-fetched map
-          const processId = processMap[process];
-          if (!processId) {
-            throw new Error(`Process ${process} not found`);
-          }
-
-          // Get line of business ID from our pre-fetched map
-          let lineOfBusinessId = null;
-          if (lineOfBusiness) {
-            lineOfBusinessId = lobMap.get(lineOfBusiness);
-            if (!lineOfBusinessId) {
-              throw new Error(`Line of Business '${lineOfBusiness}' not found. Available options: ${Array.from(lobMap.keys()).join(', ')}`);
-            }
-          }
-
-          // Insert into user_processes table
-          await db.insert(userProcesses).values({
-            userId: user.id,
-            processId,
-            organizationId: req.user.organizationId!,
-            status: 'assigned',
-            lineOfBusinessId,
-            assignedAt: new Date(),
-            createdAt: new Date(),
-            updatedAt: new Date() 
-          });
-        }
-      });
-
-      res.status(201).json({ message: "User processes created successfully" });
-    } catch (error: any) {
-      console.error("Bulk user process creation error:", error);
-      res.status(400).json({ message: error.message });
-    }
-  });
-        const lobMap = new Map(allLobs.map(lob => [lob.name, lob.id]));
-        
         console.log('Available line of businesses:', Array.from(lobMap.entries()));
 
-        // Pre-validate all processes and line of businesses exist  
+        // Pre-validate all processes exist  
         const processNames = [...new Set(userProcesses.map(up => up.process))];
         const processes = await Promise.all(processNames.map(name => storage.getProcessByName(name)));
         
@@ -1052,7 +994,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             throw new Error(`Process ${process} not found`);
           }
 
-          // Get line of business ID from our pre-fetched map
+          // Get line of business ID from our pre-fetched map 
           let lineOfBusinessId = null;
           if (lineOfBusiness) {
             lineOfBusinessId = lobMap.get(lineOfBusiness);
@@ -1063,25 +1005,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
 
-          // Insert into user process using storage method
-          await db.insert(userProcesses).values({
-            userId: user.id,
-            processId: processId,
-            organizationId: req.user.organizationId!,
-            status: 'assigned',
-            lineOfBusinessId: lineOfBusinessId,
-            assignedAt: new Date(),
-            createdAt: new Date(),
-            updatedAt: new Date() 
-          });
-
-          // Get line of business ID from our pre-fetched map
-          const lineOfBusinessId = lineOfBusiness ? lobMap[lineOfBusiness] : null;
-          if (lineOfBusiness && !lineOfBusinessId) {
-            throw new Error(`Line of Business ${lineOfBusiness} not found`);
-          }
-
-          // Insert into user process using storage method
+          // Insert into user_processes table through storage method
           await storage.assignProcessToUser(
             user.id,
             processId,
