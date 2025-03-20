@@ -18,7 +18,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -943,7 +942,7 @@ export function UserManagement() {
                     <TableCell>{getManagerName(user.managerId)}</TableCell>
                     <TableCell>{getLocationName(user.locationId)}</TableCell>
                     <TableCell>
-                                            <div className="flex flex-wrap gap-1">
+                      <div className="flex flex-wrap gap-1">
                         {getUserProcesses(user.id).split(", ").map((process, idx) => (
                           <Badge key={idx} variant="outline">
                             {process}
@@ -987,56 +986,6 @@ export function UserManagement() {
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           )}
-                          <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-                            <DialogTrigger asChild>
-                              <span /> {/* Empty trigger since we're controlling open state manually */}
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-[425px]">
-                              <DialogHeader>
-                                <DialogTitle>Deactivate User</DialogTitle>
-                                <DialogDescription>
-                                  Are you sure you want to deactivate this user? This action can be reversed by toggling the active status.
-                                </DialogDescription>
-                              </DialogHeader>
-                              <div className="space-y-4 py-4">
-                                <p className="text-sm text-muted-foreground">
-                                  Type <span className="font-mono text-primary">{userToDelete?.username}</span> to confirm deactivation.
-                                </p>
-                                <Input
-                                  className="font-mono"
-                                  placeholder="Type username to confirm"
-                                  value={deleteConfirmation}
-                                  onChange={(e) => setDeleteConfirmation(e.target.value)}
-                                />
-                              </div>
-                              <DialogFooter>
-                                <Button
-                                  variant="outline"
-                                  onClick={() => {
-                                    setShowDeleteDialog(false);
-                                    setDeleteConfirmation("");
-                                  }}
-                                >
-                                  Cancel
-                                </Button>
-                                <Button
-                                  variant="destructive"
-                                  disabled={deleteConfirmation !== (userToDelete?.username || "") || deleteUserMutation.isPending}
-                                  onClick={handleDeleteConfirm}
-                                >
-                                  {deleteUserMutation.isPending ? (
-                                    <>
-                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                      Deactivating...
-                                    </>
-                                  ) : (
-                                    "Deactivate User"
-                                  )}
-                                </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
-
                         </div>
                       </TableCell>
                     )}
@@ -1081,25 +1030,24 @@ export function UserManagement() {
         </CardContent>
       </Card>
 
-      {canManageUsers && (
+      {userToDelete && (
         <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>Delete User</DialogTitle>
+              <DialogTitle>Deactivate User</DialogTitle>
               <DialogDescription>
-                This is a permanent action. Are you sure you want to delete {userToDelete?.username}?
+                Are you sure you want to deactivate this user? This action can be reversed by toggling the active status.
               </DialogDescription>
             </DialogHeader>
-            <div className="py-4">
-              <Label htmlFor="confirmation" className="text-sm text-muted-foreground block mb-2">
-                Type "{userToDelete?.username}" to confirm deletion:
-              </Label>
+            <div className="space-y-4 py-4">
+              <p className="text-sm text-muted-foreground">
+                Type <span className="font-mono text-primary">{userToDelete.username}</span> to confirm deactivation.
+              </p>
               <Input
-                id="confirmation"
+                className="font-mono"
+                placeholder="Type username to confirm"
                 value={deleteConfirmation}
                 onChange={(e) => setDeleteConfirmation(e.target.value)}
-                className="mt-2"
-                placeholder="Type the user's username..."
               />
             </div>
             <DialogFooter>
@@ -1107,7 +1055,6 @@ export function UserManagement() {
                 variant="outline"
                 onClick={() => {
                   setShowDeleteDialog(false);
-                  setUserToDelete(null);
                   setDeleteConfirmation("");
                 }}
               >
@@ -1115,10 +1062,17 @@ export function UserManagement() {
               </Button>
               <Button
                 variant="destructive"
+                disabled={deleteConfirmation !== userToDelete.username || deleteUserMutation.isPending}
                 onClick={handleDeleteConfirm}
-                disabled={deleteConfirmation !== userToDelete?.username}
               >
-                Delete User
+                {deleteUserMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deactivating...
+                  </>
+                ) : (
+                  "Deactivate User"
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
