@@ -18,7 +18,6 @@ import { usePermissions } from "@/hooks/use-permissions"; // Add permissions hoo
 import * as XLSX from "xlsx";
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "@/components/ui/table";
 
-
 interface AddUserProps {
   users: User[];
   user: User;
@@ -26,15 +25,35 @@ interface AddUserProps {
   potentialManagers: User[];
 }
 
+// Add bulk upload types
+type BulkUserUpload = {
+  username: string;
+  fullName: string;
+  email: string;
+  role: string;
+  reportingManager: string; // Username of the manager
+  location: string;
+  employeeId: string;
+  password: string;
+  phoneNumber: string;
+  dateOfJoining: string;
+  dateOfBirth: string;
+  education: string;
+  lineOfBusiness: string;
+  process: string;
+};
+
 export function AddUser({ users, user, organization, potentialManagers }: AddUserProps) {
   const { toast } = useToast();
-  const { hasPermission } = usePermissions(); // Add permissions hook
+  const { hasPermission } = usePermissions();
   const queryClient = useQueryClient();
   const [selectedLOBs, setSelectedLOBs] = useState<number[]>([]);
   const [openLOB, setOpenLOB] = useState(false);
   const [openProcess, setOpenProcess] = useState(false);
   const [openManager, setOpenManager] = useState(false);
   const [openLocation, setOpenLocation] = useState(false);
+  const [bulkUploadData, setBulkUploadData] = useState<BulkUserUpload[]>([]);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
 
   const [newUserData, setNewUserData] = useState({
     username: "",
@@ -71,24 +90,30 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     staleTime: 5 * 60 * 1000,
   });
 
-  const filteredProcesses = processes.filter(process =>
-    selectedLOBs.includes(process.lineOfBusinessId)
-  );
-
-  const clearLOBSelections = () => {
-    setSelectedLOBs([]);
-    setNewUserData(prev => ({
-      ...prev,
-      processes: []
-    }));
-    setOpenLOB(false);
-  };
-
-  const getFilteredManagers = () => {
-    if (!users) return [];
-    // Filter out advisors and inactive users
-    return users.filter(u => u.active && u.role !== 'advisor');
-  };
+  const bulkUploadMutation = useMutation({
+    mutationFn: async (users: BulkUserUpload[]) => {
+      const response = await apiRequest("POST", "/api/users/bulk", { users });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to bulk upload users");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Users uploaded successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   const createUserMutation = useMutation({
     mutationFn: async (data: typeof newUserData) => {
@@ -158,85 +183,25 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     },
   });
 
-  // Check if user has permission to manage users
-  if (!hasPermission("manage_users")) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Add New User</CardTitle>
-          <CardDescription className="text-destructive">
-            You don't have permission to add new users.
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
+  // Rest of your component logic...
+  const filteredProcesses = processes.filter(process =>
+    selectedLOBs.includes(process.lineOfBusinessId)
+  );
 
-  if (!organization) {
-    return null;
-  }
-
-  if (isLoadingLOB || isLoadingLocations) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Add New User</CardTitle>
-          <CardDescription>Loading organization data...</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center p-8">
-            <Loader2 className="h-8 w-8 animate-spin" />
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Add bulk upload types and handlers
-  type BulkUserUpload = {
-    username: string;
-    fullName: string;
-    email: string;
-    role: string;
-    reportingManager: string; // Username of the manager
-    location: string;
-    employeeId: string;
-    password: string;
-    phoneNumber: string;
-    dateOfJoining: string;
-    dateOfBirth: string;
-    education: string;
-    lineOfBusiness: string;
-    process: string;
+  const clearLOBSelections = () => {
+    setSelectedLOBs([]);
+    setNewUserData(prev => ({
+      ...prev,
+      processes: []
+    }));
+    setOpenLOB(false);
   };
 
-  const bulkUploadMutation = useMutation({
-    mutationFn: async (users: BulkUserUpload[]) => {
-      const response = await apiRequest("POST", "/api/users/bulk", { users });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to bulk upload users");
-      }
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Users uploaded successfully",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const [bulkUploadData, setBulkUploadData] = useState<BulkUserUpload[]>([]);
-  const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const getFilteredManagers = () => {
+    if (!users) return [];
+    // Filter out advisors and inactive users
+    return users.filter(u => u.active && u.role !== 'advisor');
+  };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -295,6 +260,40 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     XLSX.utils.book_append_sheet(wb, ws, "Template");
     XLSX.writeFile(wb, "user_upload_template.xlsx");
   };
+
+  // Check if user has permission to manage users
+  if (!hasPermission("manage_users")) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Add New User</CardTitle>
+          <CardDescription className="text-destructive">
+            You don't have permission to add new users.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  if (!organization) {
+    return null;
+  }
+
+  if (isLoadingLOB || isLoadingLocations) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Add New User</CardTitle>
+          <CardDescription>Loading organization data...</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center p-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
