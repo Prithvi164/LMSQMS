@@ -238,7 +238,7 @@ export function UserManagement() {
       (u.managerId?.toString() === managerFilter);
 
     // Only show active users if active filter is selected
-    return matchesSearch && matchesRole && matchesManager ;
+    return matchesSearch && matchesRole && matchesManager;
   });
 
   // Pagination calculations
@@ -943,7 +943,7 @@ export function UserManagement() {
                     <TableCell>{getManagerName(user.managerId)}</TableCell>
                     <TableCell>{getLocationName(user.locationId)}</TableCell>
                     <TableCell>
-                      <div className="flex flex-wrap gap-1">
+                                            <div className="flex flex-wrap gap-1">
                         {getUserProcesses(user.id).split(", ").map((process, idx) => (
                           <Badge key={idx} variant="outline">
                             {process}
@@ -974,40 +974,55 @@ export function UserManagement() {
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <EditUserDialog user={user} />
+                          {user.role !== "owner" && (
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="text-destructive hover:bg-destructive/10"
+                              onClick={() => {
+                                setUserToDelete(user);
+                                setShowDeleteDialog(true);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                            <DialogTrigger asChild>
+                              <span /> {/* Empty trigger since we're controlling open state manually */}
+                            </DialogTrigger>
                             <DialogContent className="sm:max-w-[425px]">
                               <DialogHeader>
                                 <DialogTitle>Deactivate User</DialogTitle>
+                                <DialogDescription>
+                                  Are you sure you want to deactivate this user? This action can be reversed by toggling the active status.
+                                </DialogDescription>
                               </DialogHeader>
                               <div className="space-y-4 py-4">
                                 <p className="text-sm text-muted-foreground">
-                                  This will deactivate the user's account. The user will no longer be able to log in, but their historical data will be preserved. Type{" "}
-                                  <span className="font-mono text-primary">{deleteConfirmationText}</span> to confirm.
+                                  Type <span className="font-mono text-primary">{userToDelete?.username}</span> to confirm deactivation.
                                 </p>
                                 <Input
                                   className="font-mono"
-                                  placeholder="Type deactivation confirmation"
-                                  value={deleteForm.watch("confirmText")}
-                                  onChange={(e) => deleteForm.setValue("confirmText", e.target.value)}
+                                  placeholder="Type username to confirm"
+                                  value={deleteConfirmation}
+                                  onChange={(e) => setDeleteConfirmation(e.target.value)}
                                 />
                               </div>
-                              <div className="flex justify-end gap-3">
+                              <DialogFooter>
                                 <Button
                                   variant="outline"
-                                  onClick={() => setShowDeleteDialog(false)}
+                                  onClick={() => {
+                                    setShowDeleteDialog(false);
+                                    setDeleteConfirmation("");
+                                  }}
                                 >
                                   Cancel
                                 </Button>
                                 <Button
                                   variant="destructive"
-                                  disabled={deleteForm.watch("confirmText") !== deleteConfirmationText || deleteUserMutation.isPending}
-                                  onClick={async () => {
-                                    try {
-                                      await deleteUserMutation.mutateAsync(user.id);
-                                    } catch (error) {
-                                      console.error("Error deactivating user:", error);
-                                    }
-                                  }}
+                                  disabled={deleteConfirmation !== (userToDelete?.username || "") || deleteUserMutation.isPending}
+                                  onClick={handleDeleteConfirm}
                                 >
                                   {deleteUserMutation.isPending ? (
                                     <>
@@ -1018,9 +1033,10 @@ export function UserManagement() {
                                     "Deactivate User"
                                   )}
                                 </Button>
-                              </div>
+                              </DialogFooter>
                             </DialogContent>
                           </Dialog>
+
                         </div>
                       </TableCell>
                     )}
