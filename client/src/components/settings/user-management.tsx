@@ -26,14 +26,7 @@ import { Switch } from "@/components/ui/switch";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { insertUserSchema } from "@shared/schema";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { z } from "zod";
 import * as XLSX from "xlsx";
 import {
@@ -843,89 +836,6 @@ export function UserManagement() {
     defaultValues: { confirmText: "" },
   });
 
-  // Add bulk upload mutation after deleteUserMutation
-  const bulkUploadMutation = useMutation({
-    mutationFn: async (formData: FormData) => {
-      const response = await fetch(`/api/organizations/${user?.organizationId}/users/bulk`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to upload users");
-      }
-
-      return response.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: 'Upload Complete',
-        description: (
-          <div className="space-y-2">
-            <p>Successfully uploaded {data.successCount} of {data.totalRows} users.</p>
-            {data.failureCount > 0 && (
-              <details className="text-sm">
-                <summary className="cursor-pointer font-medium text-destructive">
-                  Failed uploads: {data.failureCount}
-                </summary>
-                <ul className="mt-2 list-disc list-inside">
-                  {data.errors?.map((error: string, index: number) => (
-                    <li key={index} className="text-xs text-destructive">{error}</li>
-                  ))}
-                </ul>
-              </details>
-            )}
-          </div>
-        ),
-        duration: data.failureCount > 0 ? 10000 : 5000,
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Add bulk upload dialog state
-  const [showBulkUpload, setShowBulkUpload] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-
-  // Add handleFileUpload function
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // Validate file type
-    if (!file.name.endsWith('.xlsx')) {
-      toast({
-        title: 'Error',
-        description: 'Please upload an Excel file (.xlsx)',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('organizationId', user?.organizationId?.toString() || '');
-
-    try {
-      setIsUploading(true);
-      await bulkUploadMutation.mutateAsync(formData);
-      setShowBulkUpload(false);
-    } catch (error) {
-      console.error('Upload error:', error);
-    } finally {
-      setIsUploading(false);
-      event.target.value = '';
-    }
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -955,7 +865,7 @@ export function UserManagement() {
                   setCurrentPage(1);
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filter by role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -974,7 +884,7 @@ export function UserManagement() {
                   setCurrentPage(1);
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filter by manager" />
                 </SelectTrigger>
                 <SelectContent>
@@ -987,16 +897,6 @@ export function UserManagement() {
                   ))}
                 </SelectContent>
               </Select>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowBulkUpload(true)}
-                  disabled={!hasPermission('create_user')}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Bulk Upload
-                </Button>
-              </div>
             </div>
             {canManageUsers && (
               <div className="flex justify-between items-center mb-4">
@@ -1045,7 +945,7 @@ export function UserManagement() {
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {getUserProcesses(user.id).split(", ").map((process, idx) => (
-                          <Badge key={idx} variant="outline">
+                          <Badge key={idx}                          variant="outline">
                             {process}
                           </Badge>
                         ))}
@@ -1179,38 +1079,6 @@ export function UserManagement() {
           </DialogContent>
         </Dialog>
       )}
-      <Dialog open={showBulkUpload} onOpenChange={setShowBulkUpload}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Bulk Upload Users</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Upload an Excel file (.xlsx) containing user information.
-              Download the template below to ensure correct format.
-            </p>
-            <div className="flex flex-col gap-4">
-              <Button variant="outline" asChild>
-                <a href="/api/templates/user-upload" download="user-upload-template.xlsx">
-                  <FileSpreadsheet className="h-4 w-4 mr-2" />
-                  Download Template
-                </a>
-              </Button>
-              <Input
-                type="file"
-                accept=".xlsx"
-                onChange={handleFileUpload}
-                disabled={isUploading}
-              />
-              {isUploading && (
-                <p className="text-sm text-muted-foreground">
-                  Uploading users...
-                </p>
-              )}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
