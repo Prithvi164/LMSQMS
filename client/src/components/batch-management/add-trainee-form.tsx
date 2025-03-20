@@ -67,6 +67,7 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
 
+  // Get current trainee count from batch's enrolledCount
   const traineeCount = batch.enrolledCount || 0;
   const remainingCapacity = (batch.capacityLimit || 0) - traineeCount;
 
@@ -94,9 +95,9 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
         trainerId: batch.trainerId,
         organizationId: batch.organizationId,
         batchId: batch.id,
-        category: "trainee", // Always trainee category
-        role: values.role, // Use the role selected in the form
-        managerId: batch.trainerId, // Set trainer as manager
+        category: "trainee", 
+        role: values.role, 
+        managerId: batch.trainerId,
       };
 
       const response = await fetch(`/api/organizations/${batch.organizationId}/batches/${batch.id}/trainees`, {
@@ -115,7 +116,7 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
     onSuccess: () => {
       toast({
         title: "Success",
-        description: `Trainee ${form.getValues("fullName")} has been successfully added to batch ${batch.name}`,
+        description: `Trainee ${form.getValues("fullName")} has been successfully added to batch ${batch.name} with role ${form.getValues("role")}`,
       });
       onSuccess();
     },
@@ -442,7 +443,6 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
               </FormItem>
             )}
           />
-
 
           {/* Role Selection */}
           <FormField
