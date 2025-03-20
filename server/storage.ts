@@ -143,6 +143,9 @@ export interface IStorage {
   deleteLocation(id: number): Promise<void>;
   createLocation(location: InsertOrganizationLocation): Promise<OrganizationLocation>;
   getLocation(id: number): Promise<OrganizationLocation | undefined>;
+  getLocationByName(name: string): Promise<{ id: number } | null>;
+  getProcessByName(name: string): Promise<{ id: number } | null>;
+  assignProcessToUser(userId: number, processId: number): Promise<void>;
 
   // Batch operations
   createBatch(batch: InsertOrganizationBatch): Promise<OrganizationBatch>;
@@ -207,6 +210,11 @@ export interface IStorage {
   // Add batch history methods
   listBatchHistory(batchId: number): Promise<BatchHistory[]>;
   createBatchHistoryEvent(event: InsertBatchHistory): Promise<BatchHistory>;
+
+  // Helper methods for bulk upload
+  getLocationByName(name: string): Promise<{ id: number } | null>;
+  getProcessByName(name: string): Promise<{ id: number } | null>;
+  assignProcessToUser(userId: number, processId: number): Promise<void>;
 
   // Question operations
   createQuestion(question: InsertQuestion): Promise<Question>;
@@ -1209,6 +1217,53 @@ export class DatabaseStorage implements IStorage {
       return newLocation;
     } catch (error: any) {
       console.error('Error creating location:', error);
+      throw error;
+    }
+  }
+
+  async getLocationByName(name: string): Promise<{ id: number } | null> {
+    try {
+      const [location] = await db
+        .select({ id: organizationLocations.id })
+        .from(organizationLocations)
+        .where(eq(organizationLocations.name, name));
+      return location || null;
+    } catch (error) {
+      console.error('Error getting location by name:', error);
+      throw error;
+    }
+  }
+
+  async getProcessByName(name: string): Promise<{ id: number } | null> {
+    try {
+      const [process] = await db
+        .select({ id: organizationProcesses.id })
+        .from(organizationProcesses)
+        .where(eq(organizationProcesses.name, name));
+      return process || null;
+    } catch (error) {
+      console.error('Error getting process by name:', error);
+      throw error;
+    }
+  }
+
+  async assignProcessToUser(userId: number, processId: number): Promise<void> {
+    try {
+      // Get the organization ID for the user
+      const user = await this.getUser(userId);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Create the user process association
+      await db.insert(userProcesses).values({
+        userId,
+        processId,
+        organizationId: user.organizationId,
+        status: 'assigned'
+      });
+    } catch (error) {
+      console.error('Error assigning process to user:', error);
       throw error;
     }
   }
