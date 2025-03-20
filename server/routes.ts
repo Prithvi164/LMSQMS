@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { Router } from "express";
-import { insertUserSchema, users, userBatchProcesses, organizationLineOfBusinesses, organizationProcesses, userProcesses, quizzes, insertMockCallScenarioSchema, insertMockCallAttemptSchema, mockCallScenarios, mockCallAttempts } from "@shared/schema";
+import { insertUserSchema, users, userBatchProcesses, organizationProcesses, userProcesses, quizzes, insertMockCallScenarioSchema, insertMockCallAttemptSchema, mockCallScenarios, mockCallAttempts, batches, lineOfBusiness } from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
@@ -943,6 +943,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User management routes
+  app.get("/api/users", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
+
+    try {
+      console.log(`Fetching users for organization ${req.user.organizationId}`);
+      const users = await storage.listUsers(req.user.organizationId);
+      console.log(`Found ${users.length} users`);
+      res.json(users);
+    } catch (error: any) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Bulk user creation endpoint
   app.post("/api/users/bulk", async (req, res) => {
     if (!req.user) {
@@ -957,16 +973,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Start a transaction
       await db.transaction(async (tx) => {
-        // Pre-fetch all line of businesses for the organization
-        const allLobs = await db.query.organizationLineOfBusinesses.findMany({
-          where: eq(organizationLineOfBusinesses.organizationId, req.user.organizationId!)
-        });
-        
-        // Create a map of line of business names to IDs
-        const lobMap = new Map(allLobs.map(lob => [lob.name, lob.id]));
-        
-        console.log('Available line of businesses:', Array.from(lobMap.entries()));
-
         for (const userData of users) {
           // Validate required fields
           if (!userData.username || !userData.email || !userData.password) {
@@ -1004,28 +1010,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             locationId = location.id;
           }
 
-          // Get line of business ID from our pre-fetched map 
-          let lineOfBusinessId = null;
-          if (userData.lineOfBusiness) {
-            lineOfBusinessId = lobMap.get(userData.lineOfBusiness);
-            console.log(`Mapping line of business '${userData.lineOfBusiness}' to ID:`, lineOfBusinessId);
-            
-            if (!lineOfBusinessId) {
-              throw new Error(`Line of Business '${userData.lineOfBusiness}' not found. Available options: ${Array.from(lobMap.keys()).join(', ')}`);
-            }
-          }
-
           // Hash the password
           const hashedPassword = await hashPassword(userData.password);
 
-          // Create the user with line of business ID
+          // Create the user with category set to 'active'
           const newUser = await storage.createUser({
             username: userData.username,
             password: hashedPassword,
             fullName: userData.fullName,
             email: userData.email,
             role: userData.role,
-            category: userData.role === "manager" ? "active" : "trainee",
+            category: "active", // Always set to active for bulk upload
             locationId,
             employeeId: userData.employeeId, 
             phoneNumber: userData.phoneNumber,
@@ -1034,7 +1029,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             education: userData.education,
             organizationId: req.user.organizationId!,
             managerId,
-            lineOfBusinessId, // Add line of business ID here
             active: true,
             certified: false,
             onboardingCompleted: true,
@@ -1055,101 +1049,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Bulk user creation error:", error);
       res.status(400).json({ message: error.message });
-    }
-  });
-
-  // Bulk user process creation endpoint
-  app.post("/api/users/processes/bulk", async (req, res) => {
-    if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const { userProcesses } = req.body;
-      if (!Array.isArray(userProcesses) || userProcesses.length === 0) {
-        return res.status(400).json({ message: "Invalid user processes data" });
-      }
-
-      // Start a transaction
-      await db.transaction(async (tx) => {
-        // Pre-fetch all line of businesses for the organization 
-        const allLobs = await db.query.organizationLineOfBusinesses.findMany({
-          where: eq(organizationLineOfBusinesses.organizationId, req.user.organizationId!)
-        });
-        
-        // Create a map of line of business names to IDs
-        const lobMap = new Map(allLobs.map(lob => [lob.name, lob.id]));
-        
-        console.log('Available line of businesses:', Array.from(lobMap.entries()));
-
-        // Pre-validate all processes exist  
-        const processNames = [...new Set(userProcesses.map(up => up.process))];
-        const processes = await Promise.all(processNames.map(name => storage.getProcessByName(name)));
-        
-        // Create process name to ID mapping
-        const processMap = processNames.reduce((acc, name, index) => {
-          if (processes[index]) {
-            acc[name] = processes[index]!.id;
-          }
-          return acc;
-        }, {} as Record<string, number>);
-
-        for (const userProcess of userProcesses) {
-          const { username, process, lineOfBusiness } = userProcess;
-          
-          // Get user by username
-          const user = await storage.getUserByUsername(username);
-          if (!user) {
-            throw new Error(`User ${username} not found`);
-          }
-
-          // Get process ID from our pre-fetched map
-          const processId = processMap[process];
-          if (!processId) {
-            throw new Error(`Process ${process} not found`);
-          }
-
-          // Get line of business ID from our pre-fetched map 
-          let lineOfBusinessId = null;
-          if (lineOfBusiness) {
-            lineOfBusinessId = lobMap.get(lineOfBusiness);
-            console.log(`Mapping line of business '${lineOfBusiness}' to ID:`, lineOfBusinessId);
-            
-            if (!lineOfBusinessId) {
-              throw new Error(`Line of Business '${lineOfBusiness}' not found. Available options: ${Array.from(lobMap.keys()).join(', ')}`);
-            }
-          }
-
-          // Insert into user_processes table through storage method
-          await storage.assignProcessToUser(
-            user.id,
-            processId,
-            req.user.organizationId!,
-            lineOfBusinessId
-          );
-        }
-      });
-
-      res.status(201).json({ message: "User processes created successfully" });
-    } catch (error: any) {
-      console.error("Bulk user process creation error:", error);
-      res.status(400).json({ message: error.message });
-    }
-  });
-
-  // User management routes
-  app.get("/api/users", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-    if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
-
-    try {
-      console.log(`Fetching users for organization ${req.user.organizationId}`);
-      const users = await storage.listUsers(req.user.organizationId);
-      console.log(`Found ${users.length} users`);
-      res.json(users);
-    } catch (error: any) {
-      console.error("Error fetching users:", error);
-      res.status(500).json({ message: error.message });
     }
   });
 
