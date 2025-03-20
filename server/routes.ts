@@ -265,17 +265,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const row of rows) {
         try {
           await db.transaction(async (tx) => {
-            // Find reporting manager by employee ID
-            let managerId = null;
-            if (row.reportingManagerId) {
-              const manager = await tx.query.users.findFirst({
-                where: eq(users.employeeId, row.reportingManagerId)
-              });
-              if (!manager) {
-                throw new Error(`Reporting manager with ID ${row.reportingManagerId} not found`);
+            // Validate required fields
+            const requiredFields = [
+              'username', 'fullName', 'email', 'employeeId', 'role',
+              'locationId', 'education', 'dateOfJoining', 'dateOfBirth',
+              'reportingManagerId', 'line_of_business_id', 'process_location_id'
+            ];
+
+            for (const field of requiredFields) {
+              if (!row[field]) {
+                throw new Error(`${field} is required`);
               }
-              managerId = manager.id;
             }
+
+            // Find reporting manager by employee ID
+            const manager = await tx.query.users.findFirst({
+              where: eq(users.employeeId, row.reportingManagerId)
+            });
+            if (!manager) {
+              throw new Error(`Reporting manager with ID ${row.reportingManagerId} not found`);
+            }
+
+            // Convert Excel date format if needed
+            const dateOfJoining = typeof row.dateOfJoining === 'number' 
+              ? excelSerialDateToJSDate(row.dateOfJoining)
+              : row.dateOfJoining;
+            
+            const dateOfBirth = typeof row.dateOfBirth === 'number'
+              ? excelSerialDateToJSDate(row.dateOfBirth)
+              : row.dateOfBirth;
 
             // Validate and prepare user data
             const userData = {
@@ -286,8 +304,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               role: row.role,
               phoneNumber: row.phoneNumber,
               location: row.location,
+              locationId: parseInt(row.locationId),
+              education: row.education,
+              dateOfJoining,
+              dateOfBirth,
               organizationId,
-              managerId, // Add manager ID to user data
+              managerId: manager.id,
               password: await hashPassword(row.password || 'defaultPassword123'),
               active: true,
             };
@@ -307,12 +329,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 )
               });
 
-              // Create user process assignments
+              // Create user process assignments with line of business and location
               for (const process of processes) {
                 await tx.insert(userProcesses).values({
                   userId: newUser[0].id,
                   processId: process.id,
-                  organizationId
+                  organizationId,
+                  line_of_business_id: parseInt(row.line_of_business_id),
+                  location_id: parseInt(row.process_location_id)
                 });
               }
             }
