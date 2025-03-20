@@ -306,117 +306,97 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              onClick={() => setShowBulkUpload(!showBulkUpload)}
+              onClick={downloadTemplate}
             >
-              <Upload className="h-4 w-4 mr-2" />
-              Bulk Upload
+              Download Template
             </Button>
             <Button
               variant="outline"
-              onClick={downloadTemplate}
+              onClick={() => setShowBulkUpload(!showBulkUpload)}
             >
-              <Download className="h-4 w-4 mr-2" />
-              Download Template
+              Bulk Upload
             </Button>
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        {/* Modified bulk upload section to match add-trainee style */}
         {showBulkUpload && (
-          <div className="space-y-6 p-6 border rounded-lg bg-card">
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="text-lg font-semibold">Bulk Upload Users</h3>
-                <p className="text-sm text-muted-foreground">
-                  Upload multiple users using an Excel file
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                onClick={downloadTemplate}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Download Template
-              </Button>
-            </div>
-
-            <div className="grid gap-6">
+          <div className="space-y-4 mb-6">
+            <div>
+              <h3 className="text-base font-medium mb-2">Bulk Upload Users</h3>
+              <p className="text-sm text-muted-foreground mb-4">Upload multiple users using an Excel file</p>
               <div className="flex items-center gap-4">
                 <div className="flex-1">
                   <Label htmlFor="file-upload">Select Excel File</Label>
-                  <Input
-                    id="file-upload"
-                    type="file"
-                    accept=".xlsx,.xls"
-                    onChange={handleFileUpload}
-                    className="cursor-pointer"
-                  />
-                </div>
-                <Button
-                  onClick={() => bulkUploadMutation.mutate(bulkUploadData)}
-                  disabled={bulkUploadData.length === 0 || bulkUploadMutation.isPending}
-                  className="mt-6"
-                >
-                  {bulkUploadMutation.isPending ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <FileSpreadsheet className="h-4 w-4 mr-2" />
-                      Upload Users
-                    </>
-                  )}
-                </Button>
-              </div>
-
-              {bulkUploadData.length > 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium">Preview: {bulkUploadData.length} users</h4>
+                  <div className="flex gap-2 mt-1">
+                    <Input
+                      id="file-upload"
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={handleFileUpload}
+                      className="flex-1"
+                    />
                     <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setBulkUploadData([])}
+                      onClick={() => bulkUploadMutation.mutate(bulkUploadData)}
+                      disabled={bulkUploadData.length === 0 || bulkUploadMutation.isPending}
                     >
-                      Clear
+                      {bulkUploadMutation.isPending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Uploading...
+                        </>
+                      ) : (
+                        "Upload Users"
+                      )}
                     </Button>
                   </div>
-                  <div className="border rounded-md">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Username</TableHead>
-                          <TableHead>Full Name</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Role</TableHead>
-                          <TableHead>Location</TableHead>
-                          <TableHead>Line of Business</TableHead>
-                          <TableHead>Process</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {bulkUploadData.map((user, index) => (
-                          <TableRow key={index}>
-                            <TableCell>{user.username}</TableCell>
-                            <TableCell>{user.fullName}</TableCell>
-                            <TableCell>{user.email}</TableCell>
-                            <TableCell>{user.role}</TableCell>
-                            <TableCell>{user.location}</TableCell>
-                            <TableCell>{user.lineOfBusiness}</TableCell>
-                            <TableCell>{user.process}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
                 </div>
-              )}
+              </div>
             </div>
+
+            {bulkUploadData.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium">Preview: {bulkUploadData.length} users</h4>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setBulkUploadData([])}
+                  >
+                    Clear
+                  </Button>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Username</TableHead>
+                      <TableHead>Full Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Line of Business</TableHead>
+                      <TableHead>Process</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {bulkUploadData.map((user, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{user.username}</TableCell>
+                        <TableCell>{user.fullName}</TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>{user.role}</TableCell>
+                        <TableCell>{user.location}</TableCell>
+                        <TableCell>{user.lineOfBusiness}</TableCell>
+                        <TableCell>{user.process}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </div>
         )}
+
         <form
           className="space-y-4"
           onSubmit={(e) => {
