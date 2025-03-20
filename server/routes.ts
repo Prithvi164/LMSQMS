@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { Router } from "express";
-import { insertUserSchema, users, userBatchProcesses, organizationProcesses, userProcesses, quizzes, insertMockCallScenarioSchema, insertMockCallAttemptSchema, mockCallScenarios, mockCallAttempts, batches, lineOfBusiness } from "@shared/schema";
+import { insertUserSchema, users, userBatchProcesses, organizationLineOfBusinesses, organizationProcesses, userProcesses, quizzes, insertMockCallScenarioSchema, insertMockCallAttemptSchema, mockCallScenarios, mockCallAttempts } from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
@@ -943,7 +943,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Bulk user_process creation endpoint
+  // Bulk user process creation endpoint
   app.post("/api/users/processes/bulk", async (req, res) => {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -955,35 +955,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid user processes data" });
       }
 
-      // Pre-validate all processes and line of businesses exist
-      const processNames = [...new Set(userProcesses.map(up => up.process))];
-      const lobNames = [...new Set(userProcesses.map(up => up.lineOfBusiness).filter(Boolean))];
-
-      // Fetch all process and LOB mappings in parallel
-      const [processes, lobs] = await Promise.all([
-        Promise.all(processNames.map(name => storage.getProcessByName(name))),
-        Promise.all(lobNames.map(name => storage.getLineOfBusinessByName(name)))
-      ]);
-      
-      // Create process name to ID mapping
-      // Create process name to ID mapping
-      const processMap = processNames.reduce((acc, name, index) => {
-        if (processes[index]) {
-          acc[name] = processes[index]!.id;
-        }
-        return acc;
-      }, {} as Record<string, number>);
-
-      // Create LOB name to ID mapping
-      const lobMap = lobNames.reduce((acc, name, index) => {
-        if (lobs[index]) {
-          acc[name] = lobs[index]!.id;
-        }
-        return acc;
-      }, {} as Record<string, number>);
-
       // Start a transaction
       await db.transaction(async (tx) => {
+        // Pre-fetch all line of businesses for the organization 
+        const allLobs = await db.query.organizationLineOfBusinesses.findMany({
+          where: eq(organizationLineOfBusinesses.organizationId, req.user.organizationId!)
+        });
+        
+        // Create a map of line of business names to IDs
+        const lobMap = new Map(allLobs.map(lob => [lob.name, lob.id]));
+        
+        // Pre-validate all processes and line of businesses exist  
+        const processNames = [...new Set(userProcesses.map(up => up.process))];
+        const processes = await Promise.all(processNames.map(name => storage.getProcessByName(name)));
+        
+        // Create process name to ID mapping
+        const processMap = processNames.reduce((acc, name, index) => {
+          if (processes[index]) {
+            acc[name] = processes[index]!.id;
+          }
+          return acc;
+        }, {} as Record<string, number>);
+
         for (const userProcess of userProcesses) {
           const { username, process, lineOfBusiness } = userProcess;
           
@@ -998,6 +991,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!processId) {
             throw new Error(`Process ${process} not found`);
           }
+
+          // Get line of business ID from our pre-fetched map
+          let lineOfBusinessId = null;
+          if (lineOfBusiness) {
+            lineOfBusinessId = lobMap.get(lineOfBusiness);
+            if (!lineOfBusinessId) {
+              throw new Error(`Line of Business '${lineOfBusiness}' not found. Available options: ${Array.from(lobMap.keys()).join(', ')}`);
+            }
+          }
+
+          // Insert into user_processes table
+          await db.insert(userProcesses).values({
+            userId: user.id,
+            processId,
+            organizationId: req.user.organizationId!,
+            status: 'assigned',
+            lineOfBusinessId,
+            assignedAt: new Date(),
+            createdAt: new Date(),
+            updatedAt: new Date() 
+          });
+        }
+      });
+
+      res.status(201).json({ message: "User processes created successfully" });
+    } catch (error: any) {
+      console.error("Bulk user process creation error:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+        const lobMap = new Map(allLobs.map(lob => [lob.name, lob.id]));
+        
+        console.log('Available line of businesses:', Array.from(lobMap.entries()));
+
+        // Pre-validate all processes and line of businesses exist  
+        const processNames = [...new Set(userProcesses.map(up => up.process))];
+        const processes = await Promise.all(processNames.map(name => storage.getProcessByName(name)));
+        
+        // Create process name to ID mapping
+        const processMap = processNames.reduce((acc, name, index) => {
+          if (processes[index]) {
+            acc[name] = processes[index]!.id;
+          }
+          return acc;
+        }, {} as Record<string, number>);
+
+        for (const userProcess of userProcesses) {
+          const { username, process, lineOfBusiness } = userProcess;
+          
+          // Get user by username
+          const user = await storage.getUserByUsername(username);
+          if (!user) {
+            throw new Error(`User ${username} not found`);
+          }
+
+          // Get process ID from our pre-fetched map
+          const processId = processMap[process];
+          if (!processId) {
+            throw new Error(`Process ${process} not found`);
+          }
+
+          // Get line of business ID from our pre-fetched map
+          let lineOfBusinessId = null;
+          if (lineOfBusiness) {
+            lineOfBusinessId = lobMap.get(lineOfBusiness);
+            console.log(`Mapping line of business '${lineOfBusiness}' to ID:`, lineOfBusinessId);
+            
+            if (!lineOfBusinessId) {
+              throw new Error(`Line of Business '${lineOfBusiness}' not found. Available options: ${Array.from(lobMap.keys()).join(', ')}`);
+            }
+          }
+
+          // Insert into user process using storage method
+          await db.insert(userProcesses).values({
+            userId: user.id,
+            processId: processId,
+            organizationId: req.user.organizationId!,
+            status: 'assigned',
+            lineOfBusinessId: lineOfBusinessId,
+            assignedAt: new Date(),
+            createdAt: new Date(),
+            updatedAt: new Date() 
+          });
 
           // Get line of business ID from our pre-fetched map
           const lineOfBusinessId = lineOfBusiness ? lobMap[lineOfBusiness] : null;
