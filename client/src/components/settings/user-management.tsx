@@ -26,6 +26,14 @@ import { Switch } from "@/components/ui/switch";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { insertUserSchema } from "@shared/schema";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { z } from "zod";
 import * as XLSX from "xlsx";
 import {
@@ -947,7 +955,7 @@ export function UserManagement() {
                   setCurrentPage(1);
                 }}
               >
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger>
                   <SelectValue placeholder="Filter by role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -966,7 +974,7 @@ export function UserManagement() {
                   setCurrentPage(1);
                 }}
               >
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger>
                   <SelectValue placeholder="Filter by manager" />
                 </SelectTrigger>
                 <SelectContent>
