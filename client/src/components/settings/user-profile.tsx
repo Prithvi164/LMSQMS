@@ -182,11 +182,11 @@ export function UserProfile() {
               </div>
               <div>
                 <Label className="text-sm text-muted-foreground">Location</Label>
-                <p className="text-lg">{user.location || 'Not specified'}</p>
+                <p className="text-lg">{editedUser.location || 'Not specified'}</p>
               </div>
               <div>
                 <Label className="text-sm text-muted-foreground">Phone Number</Label>
-                <p className="text-lg">{user.phoneNumber || 'Not specified'}</p>
+                <p className="text-lg">{editedUser.phoneNumber || 'Not specified'}</p>
               </div>
             </div>
           )}
