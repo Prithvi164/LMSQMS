@@ -54,7 +54,6 @@ const addTraineeSchema = z.object({
   password: z.string()
     .min(8, "Password must be at least 8 characters")
     .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Password must contain uppercase, lowercase, and numbers"),
-  role: z.enum(['manager', 'team_lead', 'quality_analyst', 'trainer', 'advisor']).default('advisor'),
 });
 
 type AddTraineeFormProps = {
@@ -78,9 +77,7 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
 
   const form = useForm<z.infer<typeof addTraineeSchema>>({
     resolver: zodResolver(addTraineeSchema),
-    defaultValues: {
-      role: 'advisor'
-    }
+    defaultValues: {},
   });
 
   const addTraineeMutation = useMutation({
@@ -95,9 +92,9 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
         trainerId: batch.trainerId,
         organizationId: batch.organizationId,
         batchId: batch.id,
-        category: "trainee", 
-        role: values.role, 
-        managerId: batch.trainerId,
+        category: "trainee",
+        role: "trainee", // Always set as trainee
+        managerId: batch.trainerId, // Set trainer as manager
       };
 
       const response = await fetch(`/api/organizations/${batch.organizationId}/batches/${batch.id}/trainees`, {
@@ -116,7 +113,7 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
     onSuccess: () => {
       toast({
         title: "Success",
-        description: `Trainee ${form.getValues("fullName")} has been successfully added to batch ${batch.name} with role ${form.getValues("role")}`,
+        description: `Trainee ${form.getValues("fullName")} has been successfully added to batch ${batch.name}`,
       });
       onSuccess();
     },
@@ -444,31 +441,6 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
             )}
           />
 
-          {/* Role Selection */}
-          <FormField
-            control={form.control}
-            name="role"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Role</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a role" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="manager">Manager</SelectItem>
-                    <SelectItem value="team_lead">Team Lead</SelectItem>
-                    <SelectItem value="quality_analyst">Quality Analyst</SelectItem>
-                    <SelectItem value="trainer">Trainer</SelectItem>
-                    <SelectItem value="advisor">Advisor</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
 
           <FormField
             control={form.control}
