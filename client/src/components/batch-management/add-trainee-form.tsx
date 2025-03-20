@@ -33,6 +33,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useMutation } from "@tanstack/react-query";
 
 // Updated trainee data submission type
 const addTraineeSchema = z.object({
@@ -82,10 +83,8 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
     }
   });
 
-  async function onSubmit(values: z.infer<typeof addTraineeSchema>) {
-    try {
-      setIsSubmitting(true);
-
+  const addTraineeMutation = useMutation({
+    mutationFn: async (values: z.infer<typeof addTraineeSchema>) => {
       const traineeData = {
         ...values,
         dateOfJoining: values.dateOfJoining.toISOString().split('T')[0],
@@ -96,8 +95,9 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
         trainerId: batch.trainerId,
         organizationId: batch.organizationId,
         batchId: batch.id,
-        category: "trainee", // Always set category as trainee
-        role: values.role, // Use selected role
+        category: "trainee", 
+        role: values.role, 
+        managerId: batch.trainerId,
       };
 
       const response = await fetch(`/api/organizations/${batch.organizationId}/batches/${batch.id}/trainees`, {
@@ -106,27 +106,33 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
         body: JSON.stringify(traineeData),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.message || "Failed to add trainee");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to add trainee");
       }
 
+      return response.json();
+    },
+    onSuccess: () => {
       toast({
         title: "Success",
-        description: `Trainee ${values.fullName} has been successfully added to batch ${batch.name} with role ${values.role}`,
+        description: `Trainee ${form.getValues("fullName")} has been successfully added to batch ${batch.name} with role ${form.getValues("role")}`,
       });
-
       onSuccess();
-    } catch (error) {
+    },
+    onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to add trainee",
+        description: error.message,
         variant: "destructive",
       });
-    } finally {
-      setIsSubmitting(false);
-    }
+    },
+  });
+
+  async function onSubmit(values: z.infer<typeof addTraineeSchema>) {
+    setIsSubmitting(true);
+    await addTraineeMutation.mutateAsync(values);
+    setIsSubmitting(false);
   }
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
