@@ -25,7 +25,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Edit, Trash2, ArrowRightLeft, Loader2 } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
@@ -39,8 +38,6 @@ type Trainee = {
   email: string;
   phoneNumber: string;
   dateOfJoining: string;
-  role: string; // Add role field
-  category: string; // Add category field
 };
 
 interface TraineeManagementProps {
@@ -215,7 +212,6 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
               <TableHead>Email</TableHead>
               <TableHead>Phone</TableHead>
               <TableHead>Date of Joining</TableHead>
-              <TableHead>Role</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -227,11 +223,6 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                 <TableCell>{trainee.email}</TableCell>
                 <TableCell>{trainee.phoneNumber}</TableCell>
                 <TableCell>{formatDate(trainee.dateOfJoining)}</TableCell>
-                <TableCell>
-                  <Badge variant="outline" className="capitalize">
-                    {trainee.role?.replace('_', ' ')}
-                  </Badge>
-                </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Button
