@@ -94,8 +94,8 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
         trainerId: batch.trainerId,
         organizationId: batch.organizationId,
         batchId: batch.id,
-        category: "trainee", // Always set as trainee regardless of role
-        role: values.role, // Use selected role from form
+        category: "trainee", // Always trainee category
+        role: values.role, // Use the role selected in the form
         managerId: batch.trainerId, // Set trainer as manager
       };
 
