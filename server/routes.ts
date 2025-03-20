@@ -943,6 +943,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk user_process creation endpoint
+  app.post("/api/users/processes/bulk", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const { userProcesses } = req.body;
+      if (!Array.isArray(userProcesses) || userProcesses.length === 0) {
+        return res.status(400).json({ message: "Invalid user processes data" });
+      }
+
+      // Pre-validate all processes exist
+      const processNames = [...new Set(userProcesses.map(up => up.process))];
+      const processes = await Promise.all(
+        processNames.map(name => storage.getProcessByName(name))
+      );
+      
+      const processMap = processNames.reduce((acc, name, index) => {
+        if (processes[index]) {
+          acc[name] = processes[index]!.id;
+        }
+        return acc;
+      }, {} as Record<string, number>);
+
+      // Start a transaction
+      await db.transaction(async (tx) => {
+        for (const userProcess of userProcesses) {
+          const { username, process, lineOfBusiness } = userProcess;
+          
+          // Get user by username
+          const user = await storage.getUserByUsername(username);
+          if (!user) {
+            throw new Error(`User ${username} not found`);
+          }
+
+          // Get process ID from our pre-fetched map
+          const processId = processMap[process];
+          if (!processId) {
+            throw new Error(`Process ${process} not found`);
+          }
+
+          // Insert into user_processes table
+          await db.insert(userProcesses).values({
+            userId: user.id,
+            processId,
+            organizationId: req.user.organizationId!,
+            status: 'assigned',
+            lineOfBusinessId: lineOfBusiness ? Number(lineOfBusiness) : null,
+            locationId: user.locationId
+          });
+        }
+      });
+
+      res.status(201).json({ message: "User processes created successfully" });
+    } catch (error: any) {
+      console.error("Bulk user process creation error:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
   // User management routes
   app.get("/api/users", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
