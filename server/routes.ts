@@ -3795,12 +3795,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create password hash
       const hashedPassword = await hashPassword(userData.password);
 
-      // Create user with trainee role
+      // Create user with role from form 
       const userToCreate = {
         ...userData,
         password: hashedPassword,
-        role: "trainee",
-        category: "trainee",
+        category: "trainee", // Keep category as trainee
         organizationId,
         locationId,
         active: true
