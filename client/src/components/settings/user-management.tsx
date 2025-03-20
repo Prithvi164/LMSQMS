@@ -814,6 +814,7 @@ export function UserManagement() {
   // Check for user management permissions
   const canManageUsers = hasPermission("manage_users");
   const canViewUsers = hasPermission("view_users");
+  const canDelete = hasPermission("delete_users"); // Added canDelete variable
 
   // If user can't even view users, show restricted access message
   if (!canViewUsers) {
@@ -926,59 +927,51 @@ export function UserManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {currentUsers.map((u) => (
-                  <TableRow key={u.id} className={!u.active ? "opacity-60" : ""}>
-                    <TableCell className="font-medium">{u.username}</TableCell>
-                    <TableCell>{u.email}</TableCell>
-                    <TableCell>{u.fullName}</TableCell>
+                {currentUsers.map((user) => ( // Changed u to user for consistency
+                  <TableRow key={user.id} className={!user.active ? "opacity-60" : ""}>
+                    <TableCell className="font-medium">{user.username}</TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>{user.fullName}</TableCell>
                     <TableCell>
-                      <Badge>{u.role}</Badge>
+                      <Badge variant="secondary">
+                        {user.role.replace('_', ' ')}
+                      </Badge>
                     </TableCell>
-                    <TableCell>{getManagerName(u.managerId)}</TableCell>
-                    <TableCell>{getLocationName(u.locationId)}</TableCell>
+                    <TableCell>{getManagerName(user.managerId)}</TableCell>
+                    <TableCell>{getLocationName(user.locationId)}</TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {getUserProcesses(u.id).split(", ").map((process, idx) => (
-                          <Badge key={idx} variant="outline">
+                        {getUserProcesses(user.id).split(", ").map((process, idx) => (
+                                                    <Badge key={idx} variant="outline">
                             {process}
                           </Badge>
                         ))}
                       </div>
                     </TableCell>
                     <TableCell>
-                      {u.role === "owner" ? (
-                        <div className="flex items-center" title="Owner status cannot be changed">
-                          <Switch
-                            checked={true}
-                            disabled={true}
-                            className="opacity-50 cursor-not-allowed"
-                          />
-                        </div>
-                      ) : canManageUsers ? (
-                        <Switch
-                          checked={u.active}
-                          onCheckedChange={(checked) => toggleUserStatus(u.id, u.active, u.role)}
-                          disabled={false}
-                        />
-                      ) : (
-                        <Switch checked={u.active} disabled={true} />
-                      )}
+                      <Switch
+                        checked={user.active}
+                        onCheckedChange={() => toggleUserStatus(user.id, user.active, user.role)}
+                        disabled={user.role === 'owner'}
+                      />
                     </TableCell>
                     {canManageUsers && (
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <EditUserDialog user={u} />
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="text-destructive"
-                            onClick={() => {
-                              setUserToDelete(u);
-                              setShowDeleteDialog(true);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <EditUserDialog user={user} />
+                          {canDelete && (
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => {
+                                setUserToDelete(user);
+                                setShowDeleteDialog(true);
+                              }}
+                              disabled={user.role === 'owner'}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     )}

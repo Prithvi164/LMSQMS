@@ -950,6 +950,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Handle bulk upload of trainees
+  app.post("/api/organizations/:organizationId/batches/:batchId/trainees/bulk", upload.single('file'), async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      const batchId = parseInt(req.params.batchId);
+
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      // Read Excel file
+      console.log('Reading Excel file');
+      const workbook = XLSX.read(req.file.buffer);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(worksheet);
+      console.log('Excel parsing complete. Row count:', rows.length);
+
+      const processedRows = { totalRows: rows.length, successCount: 0, failureCount: 0, errors: [] };
+
+      for (const row of rows) {
+        console.log('Processing row:', row);
+        const userData = {
+          ...row,
+          phoneNumber: row.phoneNumber?.toString(),
+          dateOfJoining: row.dateOfJoining ? excelSerialDateToJSDate(row.dateOfJoining) : row.dateOfJoining,
+          dateOfBirth: row.dateOfBirth ? excelSerialDateToJSDate(row.dateOfBirth) : row.dateOfBirth
+        };
+
+        console.log('Creating user with data:', {
+          ...userData,
+          password: '[REDACTED]',
+          role: userData.role, // Ensure role is logged
+          category: 'trainee'
+        });
+
+        try {
+          // Create user with the specified role
+          const user = await storage.createUser({
+            ...userData,
+            password: await hashPassword(userData.password),
+            role: userData.role, // Preserve the role from form
+            category: 'trainee',
+            organizationId: organizationId
+          });
+
+          // Create user batch process entry
+          await storage.createUserBatchProcess({
+            userId: user.id,
+            batchId,
+            processId: userData.processId,
+            status: 'active',
+            joinedAt: new Date()
+          });
+
+          processedRows.successCount++;
+        } catch (err: any) {
+          console.error('Error processing row:', err);
+          processedRows.failureCount++;
+          processedRows.errors.push(`Row ${processedRows.successCount + processedRows.failureCount}: ${err.message}`);
+        }
+      }
+
+      console.log('Upload processing complete:', processedRows);
+      res.json({ message: 'File processed', ...processedRows });
+    } catch (error: any) {
+      console.error("Error processing file:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Handle single trainee addition
+  app.post("/api/organizations/:organizationId/batches/:batchId/trainees", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      const batchId = parseInt(req.params.batchId);
+      const userData = req.body;
+
+      console.log('Creating trainee with data:', {
+        ...userData,
+        password: '[REDACTED]',
+        role: userData.role, // Log the role being used
+        category: 'trainee'
+      });
+
+      // Create user with the specified role
+      const user = await storage.createUser({
+        ...userData,
+        password: await hashPassword(userData.password),
+        role: userData.role, // Ensure role from form is preserved
+        category: 'trainee',
+        organizationId
+      });
+
+      // Create user batch process entry
+      await storage.createUserBatchProcess({
+        userId: user.id,
+        batchId,
+        processId: userData.processId,
+        status: 'active',
+        joinedAt: new Date()
+      });
+
+      res.status(201).json(user);
+    } catch (error: any) {
+      console.error("Error creating trainee:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  });
+
   // Delete user endpoint
   app.delete("/api/users/:id", async (req, res) => {
     if (!req.user) {
@@ -3795,11 +3913,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create password hash
       const hashedPassword = await hashPassword(userData.password);
 
-      // Create user with trainee role
+      // Create user with specified role
       const userToCreate = {
         ...userData,
         password: hashedPassword,
-        role: "trainee",
+        role: userData.role || "trainee", // Use provided role or default to trainee
         category: "trainee",
         organizationId,
         locationId,
