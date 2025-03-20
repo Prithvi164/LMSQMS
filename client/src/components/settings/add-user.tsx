@@ -221,11 +221,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         dateOfJoining: "2024-03-20",
         dateOfBirth: "1990-01-01",
         education: "Bachelor's Degree",
-        processes: [
-          { process: "Customer Support", lineOfBusiness: "Sales" },
-          { process: "Technical Support", lineOfBusiness: "IT" }
-          // Add more process columns as needed
-        ]
+        processes: "Customer Support,Technical Support,Sales Support" // Comma-separated processes
       }
     ];
 
@@ -249,21 +245,16 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
 
       // Transform the data to match our expected format
       const transformedData: BulkUserUpload[] = rawData.map(row => {
-        // Extract all process and lineOfBusiness pairs
-        const processes = [];
-        let i = 1;
-        while (row[`process_${i}`] && row[`lineOfBusiness_${i}`]) {
-          processes.push({
-            process: row[`process_${i}`],
-            lineOfBusiness: row[`lineOfBusiness_${i}`]
-          });
-          i++;
-        }
-
         // Basic validation of required fields
         if (!row.username || !row.email || !row.role || !row.password) {
           throw new Error(`Row contains missing required fields (username, email, role, or password)`);
         }
+
+        // Split processes string into an array of process objects
+        const processes = (row.processes || "").split(",").map(process => ({
+          process: process.trim(),
+          lineOfBusiness: row.lineOfBusiness || "" // You may need to adjust this based on your needs
+        })).filter(p => p.process); // Filter out empty processes
 
         return {
           username: row.username,
