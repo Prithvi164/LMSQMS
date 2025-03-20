@@ -145,7 +145,8 @@ export interface IStorage {
   getLocation(id: number): Promise<OrganizationLocation | undefined>;
   getLocationByName(name: string): Promise<{ id: number } | null>;
   getProcessByName(name: string): Promise<{ id: number } | null>;
-  assignProcessToUser(userId: number, processId: number): Promise<void>;
+  getLineOfBusinessByName(name: string): Promise<{ id: number } | null>;
+  assignProcessToUser(userId: number, processId: number, organizationId: number, lineOfBusinessId?: number | null): Promise<void>;
 
   // Batch operations
   createBatch(batch: InsertOrganizationBatch): Promise<OrganizationBatch>;
@@ -916,6 +917,19 @@ export class DatabaseStorage implements IStorage {
       .from(organizationLineOfBusinesses)
       .where(eq(organizationLineOfBusinesses.id, id)) as OrganizationLineOfBusiness[];
     return lob;
+  }
+
+  async getLineOfBusinessByName(name: string): Promise<{ id: number } | null> {
+    try {
+      const [lob] = await db
+        .select({ id: organizationLineOfBusinesses.id })
+        .from(organizationLineOfBusinesses)
+        .where(eq(organizationLineOfBusinesses.name, name));
+      return lob || null;
+    } catch (error) {
+      console.error('Error getting line of business by name:', error);
+      throw error;
+    }
   }
 
   async listLineOfBusinesses(organizationId: number): Promise<OrganizationLineOfBusiness[]> {

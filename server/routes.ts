@@ -955,15 +955,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid user processes data" });
       }
 
-      // Pre-validate all processes exist
+      // Pre-validate all processes and line of businesses exist
       const processNames = [...new Set(userProcesses.map(up => up.process))];
-      const processes = await Promise.all(
-        processNames.map(name => storage.getProcessByName(name))
-      );
+      const lobNames = [...new Set(userProcesses.map(up => up.lineOfBusiness).filter(Boolean))];
+
+      // Fetch all process and LOB mappings in parallel
+      const [processes, lobs] = await Promise.all([
+        Promise.all(processNames.map(name => storage.getProcessByName(name))),
+        Promise.all(lobNames.map(name => storage.getLineOfBusinessByName(name)))
+      ]);
       
+      // Create process name to ID mapping
+      // Create process name to ID mapping
       const processMap = processNames.reduce((acc, name, index) => {
         if (processes[index]) {
           acc[name] = processes[index]!.id;
+        }
+        return acc;
+      }, {} as Record<string, number>);
+
+      // Create LOB name to ID mapping
+      const lobMap = lobNames.reduce((acc, name, index) => {
+        if (lobs[index]) {
+          acc[name] = lobs[index]!.id;
         }
         return acc;
       }, {} as Record<string, number>);
@@ -985,15 +999,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             throw new Error(`Process ${process} not found`);
           }
 
-          // Insert into user_processes table
-          await db.insert(userProcesses).values({
-            userId: user.id,
+          // Get line of business ID from our pre-fetched map
+          const lineOfBusinessId = lineOfBusiness ? lobMap[lineOfBusiness] : null;
+          if (lineOfBusiness && !lineOfBusinessId) {
+            throw new Error(`Line of Business ${lineOfBusiness} not found`);
+          }
+
+          // Insert into user process using storage method
+          await storage.assignProcessToUser(
+            user.id,
             processId,
-            organizationId: req.user.organizationId!,
-            status: 'assigned',
-            lineOfBusinessId: lineOfBusiness ? Number(lineOfBusiness) : null,
-            locationId: user.locationId
-          });
+            req.user.organizationId!,
+            lineOfBusinessId
+          );
         }
       });
 
