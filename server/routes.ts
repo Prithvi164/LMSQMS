@@ -1,21 +1,9 @@
-import type { Express, Request, Response } from "express";
+import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { Router } from "express";
-import { 
-  insertUserSchema, 
-  users, 
-  userBatchProcesses, 
-  organizationProcesses, 
-  userProcesses, 
-  quizzes, 
-  insertMockCallScenarioSchema, 
-  insertMockCallAttemptSchema, 
-  mockCallScenarios, 
-  mockCallAttempts, 
-  lineOfBusiness
-} from "@shared/schema";
+import { insertUserSchema, users, userBatchProcesses, organizationProcesses, userProcesses, quizzes, insertMockCallScenarioSchema, insertMockCallAttemptSchema, mockCallScenarios, mockCallAttempts, batches, lineOfBusiness } from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
@@ -971,9 +959,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Bulk user creation endpoint (single definition)
+  // Bulk user creation endpoint
   app.post("/api/users/bulk", async (req, res) => {
-    if (!req.user || !req.user.organizationId) {
+    if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
@@ -982,142 +970,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!Array.isArray(users) || users.length === 0) {
         return res.status(400).json({ message: "Invalid users data" });
       }
-
-      console.log('Starting bulk user creation for organization:', req.user.organizationId);
-
-      // Start a transaction
-      await db.transaction(async (tx) => {
-        for (const userData of users) {
-          // Validate required fields
-          if (!userData.username || !userData.email || !userData.password) {
-            throw new Error(`Missing required fields for user: ${userData.username || 'unknown'}`);
-          }
-
-          // Check if username or email already exists  
-          const existingUser = await storage.getUserByUsername(userData.username);
-          if (existingUser) {
-            throw new Error(`Username ${userData.username} already exists`);
-          }
-
-          const existingEmail = await storage.getUserByEmail(userData.email);
-          if (existingEmail) {
-            throw new Error(`Email ${userData.email} already exists`);
-          }
-
-          // Find reporting manager by username if provided
-          let managerId: number | null = null;
-          if (userData.reportingManager) {
-            const manager = await storage.getUserByUsername(userData.reportingManager);
-            if (!manager) {
-              throw new Error(`Reporting manager ${userData.reportingManager} not found`);
-            }
-            managerId = manager.id;
-          }
-
-          // Find location by name if provided
-          let locationId: number | null = null;
-          if (userData.location) {
-            const location = await storage.getLocationByName(userData.location);
-            if (!location) {
-              throw new Error(`Location ${userData.location} not found`);
-            }
-            locationId = location.id;
-          }
-
-          // Find line of business by name if provided
-          let lineOfBusinessId: number | null = null;
-          if (userData.lineOfBusiness) {
-            console.log('Looking up line of business:', userData.lineOfBusiness);
-            try {
-              const [lob] = await db
-                .select()
-                .from(lineOfBusiness)
-                .where(
-                  and(
-                    eq(lineOfBusiness.name, userData.lineOfBusiness),
-                    eq(lineOfBusiness.organizationId, req.user.organizationId)
-                  )
-                );
-
-              if (!lob) {
-                throw new Error(`Line of Business ${userData.lineOfBusiness} not found`);
-              }
-              lineOfBusinessId = lob.id;
-              console.log('Found line of business ID:', lineOfBusinessId);
-            } catch (error) {
-              console.error('Error finding line of business:', error);
-              throw new Error(`Failed to find line of business: ${userData.lineOfBusiness}`);
-            }
-          }
-
-          // Hash the password
-          const hashedPassword = await hashPassword(userData.password);
-
-          // Create user with active category
-          const newUser = await storage.createUser({
-            username: userData.username,
-            password: hashedPassword,
-            fullName: userData.fullName || '',
-            email: userData.email,
-            role: userData.role,
-            category: "active", // Always set to active for bulk upload
-            locationId,
-            employeeId: userData.employeeId || '', 
-            phoneNumber: userData.phoneNumber || '',
-            dateOfJoining: userData.dateOfJoining ? new Date(userData.dateOfJoining) : null,
-            dateOfBirth: userData.dateOfBirth ? new Date(userData.dateOfBirth) : null,
-            education: userData.education || '',
-            organizationId: req.user.organizationId,
-            managerId,
-            active: true,
-            certified: false,
-            onboardingCompleted: true,
-          });
-
-          // Associate process and line of business if provided
-          if (userData.process && lineOfBusinessId) {
-            console.log('Looking up process:', userData.process);
-            try {
-              const process = await storage.getProcessByName(userData.process);
-              if (!process) {
-                throw new Error(`Process ${userData.process} not found`);
-              }
-              console.log('Found process ID:', process.id);
-
-              // Create user process with line of business and location IDs
-              await db.insert(userProcesses).values({
-                userId: newUser.id,
-                processId: process.id,
-                organizationId: req.user.organizationId,
-                lineOfBusinessId,
-                locationId, 
-                status: 'assigned'
-              });
-              console.log('Created user process association with line of business and location');
-            } catch (error) {
-              console.error('Error creating process association:', error);
-              throw new Error(`Failed to associate process: ${userData.process}`);
-            }
-          }
-        }
-      });
-
-      res.status(201).json({ message: "Users created successfully" });
-    } catch (error: any) {
-      console.error("Bulk user creation error:", error);
-      res.status(400).json({ message: error.message });
-    }
-  });
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const users = req.body.users;
-      if (!Array.isArray(users) || users.length === 0) {
-        return res.status(400).json({ message: "Invalid users data" });
-      }
-
-      console.log('Starting bulk user creation for organization:', req.user.organizationId);
 
       // Start a transaction
       await db.transaction(async (tx) => {
@@ -1139,7 +991,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           // Find reporting manager by username if provided
-          let managerId: number | null = null;
+          let managerId = null;
           if (userData.reportingManager) {
             const manager = await storage.getUserByUsername(userData.reportingManager);
             if (!manager) {
@@ -1149,7 +1001,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           // Find location by name if provided
-          let locationId: number | null = null;
+          let locationId = null;
           if (userData.location) {
             const location = await storage.getLocationByName(userData.location);
             if (!location) {
@@ -1158,80 +1010,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
             locationId = location.id;
           }
 
-          // Find line of business by name if provided
-          let lineOfBusinessId: number | null = null;
-          if (userData.lineOfBusiness) {
-            console.log('Looking up line of business:', userData.lineOfBusiness);
-            try {
-              const [lob] = await db
-                .select()
-                .from(lineOfBusiness)
-                .where(
-                  and(
-                    eq(lineOfBusiness.name, userData.lineOfBusiness),
-                    eq(lineOfBusiness.organizationId, req.user.organizationId)
-                  )
-                );
-
-              if (!lob) {
-                throw new Error(`Line of Business ${userData.lineOfBusiness} not found`);
-              }
-              lineOfBusinessId = lob.id;
-              console.log('Found line of business ID:', lineOfBusinessId);
-            } catch (error) {
-              console.error('Error finding line of business:', error);
-              throw new Error(`Failed to find line of business: ${userData.lineOfBusiness}`);
-            }
-          }
-
           // Hash the password
           const hashedPassword = await hashPassword(userData.password);
 
-          // Create user with active category
+          // Create the user with category set to 'active'
           const newUser = await storage.createUser({
             username: userData.username,
             password: hashedPassword,
-            fullName: userData.fullName || '',
+            fullName: userData.fullName,
             email: userData.email,
             role: userData.role,
             category: "active", // Always set to active for bulk upload
             locationId,
-            employeeId: userData.employeeId || '', 
-            phoneNumber: userData.phoneNumber || '',
+            employeeId: userData.employeeId, 
+            phoneNumber: userData.phoneNumber,
             dateOfJoining: userData.dateOfJoining ? new Date(userData.dateOfJoining) : null,
             dateOfBirth: userData.dateOfBirth ? new Date(userData.dateOfBirth) : null,
-            education: userData.education || '',
-            organizationId: req.user.organizationId,
+            education: userData.education,
+            organizationId: req.user.organizationId!,
             managerId,
             active: true,
             certified: false,
             onboardingCompleted: true,
           });
 
-          // Associate process and line of business if provided
-          if (userData.process && lineOfBusinessId) {
-            console.log('Looking up process:', userData.process);
-            try {
-              const process = await storage.getProcessByName(userData.process);
-              if (!process) {
-                throw new Error(`Process ${userData.process} not found`);
-              }
-              console.log('Found process ID:', process.id);
-
-              // Create user process with line of business and location IDs
-              await db.insert(userProcesses).values({
-                userId: newUser.id,
-                processId: process.id,
-                organizationId: req.user.organizationId,
-                lineOfBusinessId,
-                locationId,
-                status: 'assigned'
-              });
-              console.log('Created user process association with line of business and location');
-            } catch (error) {
-              console.error('Error creating process association:', error);
-              throw new Error(`Failed to associate process: ${userData.process}`);
+          // Associate process if provided
+          if (userData.process) {
+            const process = await storage.getProcessByName(userData.process);
+            if (!process) {
+              throw new Error(`Process ${userData.process} not found`);
             }
+            await storage.assignProcessToUser(newUser.id, process.id);
           }
         }
       });
@@ -1240,6 +1049,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Bulk user creation error:", error);
       res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Delete user endpoint  
+  app.delete("/api/users/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Unauthorized" 
+      });
+    }
+
+    try {
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Invalid user ID" 
+        });
+      }
+
+      console.log(`Delete user request received for userId: ${userId}`);
+      const userToDelete = await storage.getUser(userId);
+
+      if (!userToDelete) {
+        return res.status(404).json({ 
+          success: false, 
+          message: "User not found" 
+        });
+      }
+
+      // Check if user belongs to the same organization
+      if (userToDelete.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ 
+          success: false, 
+          message: "Cannot delete users from other organizations" 
+        });
+      }
+
+      // Only owners and admins can delete users
+      if (req.user.role !== 'owner' && req.user.role !== 'admin') {
+        console.log(`Delete request rejected: Insufficient permissions for user ${req.user.id}`);
+        return res.status(403).json({ 
+          success: false, 
+          message: "Insufficient permissions to delete users" 
+        });
+      }
+
+      // Cannot delete owners
+      if (userToDelete.role === 'owner') {
+        return res.status(403).json({ 
+          success: false, 
+          message: "Cannot delete organization owner" 
+        });
+      }
+
+      console.log(`Attempting to delete user ${userId} from storage`);
+      await storage.deleteUser(userId);
+      console.log(`Successfully deleted user ${userId}`);
+
+      return res.status(200).json({ 
+        success: true, 
+        message: "User deleted successfully" 
+      });
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
+      return res.status(500).json({ 
+        success: false, 
+        message: error.message || "Failed to delete user" 
+      });
+    }
+  });
+
+  // Create user endpoint
+  app.post("/api/users", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const { processes, lineOfBusinessId, ...userData } = req.body;
+
+      // Validate that lineOfBusinessId is provided when processes are specified
+      if (processes?.length > 0 && !lineOfBusinessId) {
+        return res.status(400).json({
+          message: "Line of Business ID is required when assigning processes"
+        });
+      }
+
+      // Hash the password before creating the user
+      const hashedPassword = await hashPassword(userData.password);
+
+      // Prepare user data with explicit type casting for organizationId
+      const userToCreate = {
+        ...userData,
+        password: hashedPassword,
+        role: userData.role.toLowerCase(),
+        organizationId: req.user.organizationId as number,
+      };
+
+      console.log('Creating user with data:', {
+        ...userToCreate,
+        processCount: processes?.length || 0,
+        lineOfBusinessId
+      });
+
+      // Create user with optional processes, ensuring lineOfBusinessId is a number
+      const result = await storage.createUserWithProcesses(
+        userToCreate,
+        processes || [],
+        req.user.organizationId,
+        lineOfBusinessId ? Number(lineOfBusinessId) : undefined
+      );
+
+      res.status(201).json(result.user);
+    } catch (error: any) {
+      console.error("User creation error:", error);
+      res.status(400).json({ message: error.message || "Failed to create user" });
     }
   });
 
@@ -1313,57 +1240,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-
-
-  // Create user endpoint
-  app.post("/api/users", async (req, res) => {
+  // Delete user endpoint
+  app.delete("/api/users/:id", async (req, res) => {
     if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
+      return res.status(401).json({ 
+        success: false, 
+        message: "Unauthorized" 
+      });
     }
 
     try {
-      const { processes, lineOfBusinessId, ...userData } = req.body;
-
-      // Validate that lineOfBusinessId is provided when processes are specified
-      if (processes?.length > 0 && !lineOfBusinessId) {
-        return res.status(400).json({
-          message: "Line of Business ID is required when assigning processes"
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Invalid user ID" 
         });
       }
 
-      // Hash the password before creating the user
-      const hashedPassword = await hashPassword(userData.password);
+      console.log(`Delete user request received for userId: ${userId}`);
+      const userToDelete = await storage.getUser(userId);
 
-      // Prepare user data with explicit type casting for organizationId
-      const userToCreate = {
-        ...userData,
-        password: hashedPassword,
-        role: userData.role.toLowerCase(),
-        organizationId: req.user.organizationId as number,
-      };
+      if (!userToDelete) {
+        return res.status(404).json({ 
+          success: false, 
+          message: "User not found" 
+        });
+      }
 
-      console.log('Creating user with data:', {
-        ...userToCreate,
-        processCount: processes?.length || 0,
-        lineOfBusinessId
+      // Check if user belongs to the same organization
+      if (userToDelete.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ 
+          success: false, 
+          message: "Cannot delete users from other organizations" 
+        });
+      }
+
+      // Only owners and admins can delete users
+      if (req.user.role !== 'owner' && req.user.role !== 'admin') {
+        console.log(`Delete request rejected: Insufficient permissions for user ${req.user.id}`);
+        return res.status(403).json({ 
+          success: false, 
+          message: "Insufficient permissions to delete users" 
+        });
+      }
+
+      // Cannot delete owners
+      if (userToDelete.role === 'owner') {
+        return res.status(403).json({ 
+          success: false, 
+          message: "Cannot delete organization owner" 
+        });
+      }
+
+      console.log(`Attempting to delete user ${userId} from storage`);
+      await storage.deleteUser(userId);
+      console.log(`Successfully deleted user ${userId}`);
+
+      return res.status(200).json({ 
+        success: true, 
+        message: "User deleted successfully" 
       });
-
-      // Create user with optional processes, ensuring lineOfBusinessId is a number
-      const result = await storage.createUserWithProcesses(
-        userToCreate,
-        processes || [],
-        req.user.organizationId,
-        lineOfBusinessId ? Number(lineOfBusinessId) : undefined
-      );
-
-      res.status(201).json(result.user);
     } catch (error: any) {
-      console.error("User creation error:", error);
-      res.status(400).json({ message: error.message || "Failed to create user" });
+      console.error("Error deleting user:", error);
+      return res.status(500).json({ 
+        success: false, 
+        message: error.message || "Failed to delete user" 
+      });
     }
   });
-
-
 
   // Update user route
   app.patch("/api/users/:id", async (req, res) => {
