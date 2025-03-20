@@ -322,20 +322,41 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         </div>
       </CardHeader>
       <CardContent>
+        {/* Modified bulk upload section to match add-trainee style */}
         {showBulkUpload && (
-          <div className="mb-6 p-4 border rounded-lg">
-            <h3 className="text-lg font-medium mb-4">Bulk Upload Users</h3>
-            <div className="space-y-4">
+          <div className="space-y-6 p-6 border rounded-lg bg-card">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-semibold">Bulk Upload Users</h3>
+                <p className="text-sm text-muted-foreground">
+                  Upload multiple users using an Excel file
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={downloadTemplate}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download Template
+              </Button>
+            </div>
+
+            <div className="grid gap-6">
               <div className="flex items-center gap-4">
-                <Input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={handleFileUpload}
-                  className="max-w-md"
-                />
+                <div className="flex-1">
+                  <Label htmlFor="file-upload">Select Excel File</Label>
+                  <Input
+                    id="file-upload"
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleFileUpload}
+                    className="cursor-pointer"
+                  />
+                </div>
                 <Button
                   onClick={() => bulkUploadMutation.mutate(bulkUploadData)}
                   disabled={bulkUploadData.length === 0 || bulkUploadMutation.isPending}
+                  className="mt-6"
                 >
                   {bulkUploadMutation.isPending ? (
                     <>
@@ -350,12 +371,20 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                   )}
                 </Button>
               </div>
+
               {bulkUploadData.length > 0 && (
                 <div>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Preview: {bulkUploadData.length} users loaded
-                  </p>
-                  <div className="max-h-60 overflow-auto">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium">Preview: {bulkUploadData.length} users</h4>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setBulkUploadData([])}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                  <div className="border rounded-md">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -364,6 +393,8 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                           <TableHead>Email</TableHead>
                           <TableHead>Role</TableHead>
                           <TableHead>Location</TableHead>
+                          <TableHead>Line of Business</TableHead>
+                          <TableHead>Process</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -374,6 +405,8 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                             <TableCell>{user.email}</TableCell>
                             <TableCell>{user.role}</TableCell>
                             <TableCell>{user.location}</TableCell>
+                            <TableCell>{user.lineOfBusiness}</TableCell>
+                            <TableCell>{user.process}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
