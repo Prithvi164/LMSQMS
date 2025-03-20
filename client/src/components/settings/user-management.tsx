@@ -19,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -944,7 +945,7 @@ export function UserManagement() {
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {getUserProcesses(user.id).split(", ").map((process, idx) => (
-                          <Badge key={idx} variant="outline">
+                          <Badge key={idx}                          variant="outline">
                             {process}
                           </Badge>
                         ))}
