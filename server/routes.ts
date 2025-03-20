@@ -991,7 +991,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           // Find reporting manager by username if provided
-          let managerId: number | undefined = undefined;
+          let managerId = null;
           if (userData.reportingManager) {
             const manager = await storage.getUserByUsername(userData.reportingManager);
             if (!manager) {
@@ -1020,40 +1020,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
             fullName: userData.fullName,
             email: userData.email,
             role: userData.role,
-            category: "active",
-            locationId: locationId,
-            employeeId: userData.employeeId,
+            category: "active", // Always set to active for bulk upload
+            locationId,
+            employeeId: userData.employeeId, 
             phoneNumber: userData.phoneNumber,
-            dateOfJoining: userData.dateOfJoining ? new Date(userData.dateOfJoining) : undefined,
-            dateOfBirth: userData.dateOfBirth ? new Date(userData.dateOfBirth) : undefined,
+            dateOfJoining: userData.dateOfJoining ? new Date(userData.dateOfJoining) : null,
+            dateOfBirth: userData.dateOfBirth ? new Date(userData.dateOfBirth) : null,
             education: userData.education,
-            organizationId: req.user.organizationId,
-            managerId: managerId,
+            organizationId: req.user.organizationId!,
+            managerId,
             active: true,
             certified: false,
             onboardingCompleted: true,
           });
 
-          // Associate multiple processes if provided
-          if (Array.isArray(userData.processes) && userData.processes.length > 0) {
-            for (const processData of userData.processes) {
-              const { process: processName, lineOfBusiness: lobName } = processData;
-              
-              // Get line of business ID
-              const lob = await storage.getLineOfBusinessByName(lobName);
-              if (!lob) {
-                throw new Error(`Line of Business ${lobName} not found for process ${processName}`);
-              }
-
-              // Get process ID
-              const process = await storage.getProcessByName(processName);
-              if (!process) {
-                throw new Error(`Process ${processName} not found`);
-              }
-
-              // Assign process with line of business
-              await storage.assignProcessToUser(newUser.id, process.id, lob.id);
+          // Find line of business by name if provided
+          let lineOfBusinessId = null;
+          if (userData.lineOfBusiness) {
+            const lob = await storage.getLineOfBusinessByName(userData.lineOfBusiness);
+            if (!lob) {
+              throw new Error(`Line of Business ${userData.lineOfBusiness} not found`);
             }
+            lineOfBusinessId = lob.id;
+          }
+
+          // Associate process if provided
+          if (userData.process) {
+            console.log(`Assigning process ${userData.process} to user ${userData.username} with LOB ${userData.lineOfBusiness}`);
+            const process = await storage.getProcessByName(userData.process);
+            if (!process) {
+              throw new Error(`Process ${userData.process} not found`);
+            }
+            await storage.assignProcessToUser(newUser.id, process.id, lineOfBusinessId);
           }
         }
       });
