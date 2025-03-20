@@ -54,6 +54,7 @@ const addTraineeSchema = z.object({
   password: z.string()
     .min(8, "Password must be at least 8 characters")
     .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Password must contain uppercase, lowercase, and numbers"),
+  role: z.enum(['manager', 'team_lead', 'quality_analyst', 'trainer', 'advisor']).default('advisor'),
 });
 
 type AddTraineeFormProps = {
@@ -66,7 +67,6 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
 
-  // Get current trainee count from batch's enrolledCount
   const traineeCount = batch.enrolledCount || 0;
   const remainingCapacity = (batch.capacityLimit || 0) - traineeCount;
 
@@ -77,7 +77,9 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
 
   const form = useForm<z.infer<typeof addTraineeSchema>>({
     resolver: zodResolver(addTraineeSchema),
-    defaultValues: {},
+    defaultValues: {
+      role: 'advisor'
+    }
   });
 
   const addTraineeMutation = useMutation({
@@ -92,8 +94,8 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
         trainerId: batch.trainerId,
         organizationId: batch.organizationId,
         batchId: batch.id,
-        category: "trainee",
-        role: "trainee", // Always set as trainee
+        category: "trainee", // Always set as trainee regardless of role
+        role: values.role, // Use selected role from form
         managerId: batch.trainerId, // Set trainer as manager
       };
 
@@ -441,6 +443,32 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
             )}
           />
 
+
+          {/* Role Selection */}
+          <FormField
+            control={form.control}
+            name="role"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Role</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a role" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="manager">Manager</SelectItem>
+                    <SelectItem value="team_lead">Team Lead</SelectItem>
+                    <SelectItem value="quality_analyst">Quality Analyst</SelectItem>
+                    <SelectItem value="trainer">Trainer</SelectItem>
+                    <SelectItem value="advisor">Advisor</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
           <FormField
             control={form.control}
