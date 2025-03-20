@@ -25,13 +25,13 @@ interface AddUserProps {
   potentialManagers: User[];
 }
 
-// Add bulk upload types
+// Update the bulk upload type to handle multiple processes
 type BulkUserUpload = {
   username: string;
   fullName: string;
   email: string;
   role: string;
-  reportingManager: string; // Username of the manager
+  reportingManager: string;
   location: string;
   employeeId: string;
   password: string;
@@ -39,8 +39,10 @@ type BulkUserUpload = {
   dateOfJoining: string;
   dateOfBirth: string;
   education: string;
-  lineOfBusiness: string;
-  process: string;
+  processes: Array<{
+    process: string;
+    lineOfBusiness: string;
+  }>;
 };
 
 export function AddUser({ users, user, organization, potentialManagers }: AddUserProps) {
@@ -203,38 +205,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     return users.filter(u => u.active && u.role !== 'advisor');
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer);
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const data = XLSX.utils.sheet_to_json<BulkUserUpload>(worksheet);
-
-      // Basic validation of required fields
-      const validatedData = data.map((row, index) => {
-        if (!row.username || !row.email || !row.role || !row.password) {
-          throw new Error(`Row ${index + 1}: Missing required fields (username, email, role, or password)`);
-        }
-        return row;
-      });
-
-      setBulkUploadData(validatedData);
-      toast({
-        title: "File Uploaded",
-        description: `Successfully parsed ${validatedData.length} users`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to parse file",
-        variant: "destructive",
-      });
-    }
-  };
-
+  // Update the template download function
   const downloadTemplate = () => {
     const template = [
       {
@@ -250,8 +221,11 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         dateOfJoining: "2024-03-20",
         dateOfBirth: "1990-01-01",
         education: "Bachelor's Degree",
-        lineOfBusiness: "Sales",
-        process: "Customer Support"
+        processes: [
+          { process: "Customer Support", lineOfBusiness: "Sales" },
+          { process: "Technical Support", lineOfBusiness: "IT" }
+          // Add more process columns as needed
+        ]
       }
     ];
 
@@ -259,6 +233,67 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Template");
     XLSX.writeFile(wb, "user_upload_template.xlsx");
+  };
+
+
+  // Update the file upload handler
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rawData = XLSX.utils.sheet_to_json<any>(worksheet);
+
+      // Transform the data to match our expected format
+      const transformedData: BulkUserUpload[] = rawData.map(row => {
+        // Extract all process and lineOfBusiness pairs
+        const processes = [];
+        let i = 1;
+        while (row[`process_${i}`] && row[`lineOfBusiness_${i}`]) {
+          processes.push({
+            process: row[`process_${i}`],
+            lineOfBusiness: row[`lineOfBusiness_${i}`]
+          });
+          i++;
+        }
+
+        // Basic validation of required fields
+        if (!row.username || !row.email || !row.role || !row.password) {
+          throw new Error(`Row contains missing required fields (username, email, role, or password)`);
+        }
+
+        return {
+          username: row.username,
+          fullName: row.fullName,
+          email: row.email,
+          role: row.role,
+          reportingManager: row.reportingManager,
+          location: row.location,
+          employeeId: row.employeeId,
+          password: row.password,
+          phoneNumber: row.phoneNumber,
+          dateOfJoining: row.dateOfJoining,
+          dateOfBirth: row.dateOfBirth,
+          education: row.education,
+          processes
+        };
+      });
+
+      setBulkUploadData(transformedData);
+      toast({
+        title: "File Uploaded",
+        description: `Successfully parsed ${transformedData.length} users`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to parse file",
+        variant: "destructive",
+      });
+    }
   };
 
   // Check if user has permission to manage users
@@ -354,6 +389,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
               </div>
             </div>
 
+            {/* Update the preview table to show multiple processes */}
             {bulkUploadData.length > 0 && (
               <div>
                 <div className="flex items-center justify-between mb-2">
@@ -374,8 +410,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                       <TableHead>Email</TableHead>
                       <TableHead>Role</TableHead>
                       <TableHead>Location</TableHead>
-                      <TableHead>Line of Business</TableHead>
-                      <TableHead>Process</TableHead>
+                      <TableHead>Processes & LOB</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -386,8 +421,18 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                         <TableCell>{user.email}</TableCell>
                         <TableCell>{user.role}</TableCell>
                         <TableCell>{user.location}</TableCell>
-                        <TableCell>{user.lineOfBusiness}</TableCell>
-                        <TableCell>{user.process}</TableCell>
+                        <TableCell>
+                          {user.processes.map((proc, idx) => (
+                            <div key={idx} className="flex items-center gap-2 mb-1">
+                              <Badge variant="outline" className="mr-1">
+                                {proc.process}
+                              </Badge>
+                              <span className="text-sm text-muted-foreground">
+                                ({proc.lineOfBusiness})
+                              </span>
+                            </div>
+                          ))}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
