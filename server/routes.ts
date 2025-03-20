@@ -265,14 +265,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const row of rows) {
         try {
           await db.transaction(async (tx) => {
-            // Find reporting manager by employee ID
+            // Find reporting manager by username instead of ID
             let managerId = null;
-            if (row.reportingManagerId) {
+            if (row.reportingManagerUsername) {
               const manager = await tx.query.users.findFirst({
-                where: eq(users.employeeId, row.reportingManagerId)
+                where: and(
+                  eq(users.username, row.reportingManagerUsername),
+                  eq(users.organizationId, organizationId)
+                )
               });
               if (!manager) {
-                throw new Error(`Reporting manager with ID ${row.reportingManagerId} not found`);
+                throw new Error(`Reporting manager with username "${row.reportingManagerUsername}" not found in your organization`);
               }
               managerId = manager.id;
             }
