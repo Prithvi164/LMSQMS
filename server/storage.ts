@@ -145,7 +145,8 @@ export interface IStorage {
   getLocation(id: number): Promise<OrganizationLocation | undefined>;
   getLocationByName(name: string): Promise<{ id: number } | null>;
   getProcessByName(name: string): Promise<{ id: number } | null>;
-  assignProcessToUser(userId: number, processId: number): Promise<void>;
+  getLineOfBusinessByName(name: string): Promise<{ id: number } | null>;
+  assignProcessToUser(userId: number, processId: number, lineOfBusinessId?: number): Promise<void>;
 
   // Batch operations
   createBatch(batch: InsertOrganizationBatch): Promise<OrganizationBatch>;
@@ -881,6 +882,19 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getLineOfBusinessByName(name: string): Promise<{ id: number } | null> {
+    try {
+      const [lob] = await db
+        .select({ id: organizationLineOfBusinesses.id })
+        .from(organizationLineOfBusinesses)
+        .where(eq(organizationLineOfBusinesses.name, name));
+      return lob || null;
+    } catch (error) {
+      console.error('Error getting line of business by name:', error);
+      throw error;
+    }
+  }
+
   // Line of Business operations
   async createLineOfBusiness(lob: InsertOrganizationLineOfBusiness): Promise<OrganizationLineOfBusiness> {
     try {
@@ -1247,7 +1261,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async assignProcessToUser(userId: number, processId: number): Promise<void> {
+  async assignProcessToUser(userId: number, processId: number, lineOfBusinessId?: number): Promise<void> {
     try {
       // Get the organization ID for the user
       const user = await this.getUser(userId);
@@ -1255,12 +1269,16 @@ export class DatabaseStorage implements IStorage {
         throw new Error('User not found');
       }
 
-      // Create the user process association
+      // Create the user process association with optional lineOfBusinessId
       await db.insert(userProcesses).values({
         userId,
         processId,
         organizationId: user.organizationId,
-        status: 'assigned'
+        lineOfBusinessId: lineOfBusinessId || null,
+        status: 'assigned',
+        assignedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date()
       });
     } catch (error) {
       console.error('Error assigning process to user:', error);

@@ -1034,13 +1034,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
             onboardingCompleted: true,
           });
 
+          // Find line of business by name if provided
+          let lineOfBusinessId = null;
+          if (userData.lineOfBusiness) {
+            const lob = await storage.getLineOfBusinessByName(userData.lineOfBusiness);
+            if (!lob) {
+              throw new Error(`Line of Business ${userData.lineOfBusiness} not found`);
+            }
+            lineOfBusinessId = lob.id;
+          }
+
           // Associate process if provided
           if (userData.process) {
+            console.log(`Assigning process ${userData.process} to user ${userData.username} with LOB ${userData.lineOfBusiness}`);
             const process = await storage.getProcessByName(userData.process);
             if (!process) {
               throw new Error(`Process ${userData.process} not found`);
             }
-            await storage.assignProcessToUser(newUser.id, process.id);
+            await storage.assignProcessToUser(newUser.id, process.id, lineOfBusinessId);
           }
         }
       });
