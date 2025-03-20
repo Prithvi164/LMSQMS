@@ -88,13 +88,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if organization exists
       let organization = await storage.getOrganizationByName(organizationName);
 
-      // Create user with owner role regardless of what role was sent in the request
+      // Create user with the role from form
       const userToCreate = {
         ...userData,
         username,
-        password: await hashPassword(password),
-        role: 'owner', // Force role to be owner for new registrations
-        organizationId: organization ? organization.id : undefined
+        password: await hashPassword(password), 
+        role: userData.role, // Use the role selected in the form
+        category: "trainee", // Only set category as trainee
+        organizationId: organization ? organization.id : undefined,
+        active: true
       };
 
       if (!organization) {
@@ -105,16 +107,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Update the organizationId after creating organization
         userToCreate.organizationId = organization.id;
-      } else {
-        // If organization exists, check if it already has an owner
-        const hasOwner = await storage.hasOrganizationOwner(organization.id);
-        if (hasOwner) {
-          // If organization already has an owner, make this user a trainee
-          userToCreate.role = 'trainee';
-        }
       }
 
-      // Create the user with the determined role
+      console.log('Creating user with data:', {
+        ...userToCreate,
+        password: '[REDACTED]'
+      });
+
+      // Create the user with the selected role
       const user = await storage.createUser(userToCreate);
 
       // If this is a new organization's owner, set up their permissions
