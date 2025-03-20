@@ -950,6 +950,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add bulk upload endpoint with multer middleware
+  app.post("/api/organizations/:organizationId/users/bulk", upload.single('file'), async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      if (organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      // Parse Excel file
+      const workbook = XLSX.read(req.file.buffer);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(worksheet);
+
+      const results = {
+        totalRows: rows.length,
+        successCount: 0,
+        failureCount: 0,
+        errors: [] as string[],
+      };
+
+      // Process each row in a transaction
+      for (const row of rows) {
+        try {
+          await db.transaction(async (tx) => {
+            // Validate and prepare user data
+            const userData = {
+              username: row.username,
+              fullName: row.fullName,
+              email: row.email,
+              employeeId: row.employeeId,
+              role: row.role,
+              phoneNumber: row.phoneNumber,
+              location: row.location,
+              organizationId,
+              password: await hashPassword(row.password || 'defaultPassword123'), // You might want to generate a random password
+              active: true,
+            };
+
+            // Create user
+            const newUser = await tx.insert(users).values(userData).returning();
+
+            // Handle process assignments if provided
+            if (row.processes) {
+              const processNames = String(row.processes).split(',').map(p => p.trim());
+              
+              // Get process IDs for the given names
+              const processes = await tx.query.organizationProcesses.findMany({
+                where: and(
+                  eq(organizationProcesses.organizationId, organizationId),
+                  inArray(organizationProcesses.name, processNames)
+                )
+              });
+
+              // Create user process assignments
+              for (const process of processes) {
+                await tx.insert(userProcesses).values({
+                  userId: newUser[0].id,
+                  processId: process.id,
+                  organizationId
+                });
+              }
+            }
+          });
+
+          results.successCount++;
+        } catch (error: any) {
+          results.failureCount++;
+          results.errors.push(`Row ${results.successCount + results.failureCount}: ${error.message}`);
+        }
+      }
+
+      res.json(results);
+    } catch (error: any) {
+      console.error("Bulk upload error:", error);
+      res.status(500).json({ 
+        message: error.message || "Failed to process bulk upload" 
+      });
+    }
+  });
+
+  // Add template download endpoint
+  app.get("/api/templates/user-upload", (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      // Create workbook with template 
+      const workbook = XLSX.utils.book_new();
+      const templateData = [{
+        username: 'john.doe',
+        fullName: 'John Doe',
+        email: 'john.doe@example.com',
+        employeeId: 'EMP001',
+        role: 'trainer',
+        phoneNumber: '1234567890',
+        location: 'Main Office',
+        processes: 'Process1, Process2'
+      }];
+
+      const worksheet = XLSX.utils.json_to_sheet(templateData);
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Users');
+
+      // Set headers for file download
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename=user-upload-template.xlsx');
+
+      // Send the workbook
+      const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+      res.send(buffer);
+    } catch (error: any) {
+      console.error("Template generation error:", error);
+      res.status(500).json({ message: "Failed to generate template" });
+    }
+  });
+
   // Delete user endpoint
   app.delete("/api/users/:id", async (req, res) => {
     if (!req.user) {
@@ -1208,7 +1332,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update user route
+  // Add bulk upload endpoint with multer middleware
+  app.post("/api/organizations/:organizationId/users/bulk", upload.single('file'), async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      if (organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      // Parse Excel file
+      const workbook = XLSX.read(req.file.buffer);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(worksheet);
+
+      const results = {
+        totalRows: rows.length,
+        successCount: 0,
+        failureCount: 0,
+        errors: [] as string[],
+      };
+
+      // Process each row in a transaction
+      for (const row of rows) {
+        try {
+          await db.transaction(async (tx) => {
+            // Validate and prepare user data
+            const userData = {
+              username: row.username,
+              fullName: row.fullName,
+              email: row.email,
+              employeeId: row.employeeId,
+              role: row.role,
+              phoneNumber: row.phoneNumber,
+              location: row.location,
+              organizationId,
+              password: await hashPassword(row.password || 'defaultPassword123'), // You might want to generate a random password
+              active: true,
+            };
+
+            // Create user
+            const newUser = await tx.insert(users).values(userData).returning();
+
+            // Handle process assignments if provided
+            if (row.processes) {
+              const processNames = String(row.processes).split(',').map(p => p.trim());
+              
+              // Get process IDs for the given names
+              const processes = await tx.query.organizationProcesses.findMany({
+                where: and(
+                  eq(organizationProcesses.organizationId, organizationId),
+                  inArray(organizationProcesses.name, processNames)
+                )
+              });
+
+              // Create user process assignments
+              for (const process of processes) {
+                await tx.insert(userProcesses).values({
+                  userId: newUser[0].id,
+                  processId: process.id,
+                  organizationId
+                });
+              }
+            }
+          });
+
+          results.successCount++;
+        } catch (error: any) {
+          results.failureCount++;
+          results.errors.push(`Row ${results.successCount + results.failureCount}: ${error.message}`);
+        }
+      }
+
+      res.json(results);
+    } catch (error: any) {
+      console.error("Bulk upload error:", error);
+      res.status(500).json({ 
+        message: error.message || "Failed to process bulk upload" 
+      });
+    }
+  });
+
+  // Add template download endpoint
+  app.get("/api/templates/user-upload", (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      // Create workbook with template
+      const workbook = XLSX.utils.book_new();
+      const templateData = [{
+        username: 'john.doe',
+        fullName: 'John Doe',
+        email: 'john.doe@example.com',
+        employeeId: 'EMP001',
+        role: 'trainer',
+        phoneNumber: '1234567890',
+        location: 'Main Office',
+        processes: 'Process1, Process2'
+      }];
+
+      const worksheet = XLSX.utils.json_to_sheet(templateData);
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Users');
+
+      // Set headers for file download
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename=user-upload-template.xlsx');
+
+      // Send the workbook
+      const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+      res.send(buffer);
+    } catch (error: any) {
+      console.error("Template generation error:", error);
+      res.status(500).json({ message: "Failed to generate template" });
+    }
+  });
+
+  // Update user route 
   app.patch("/api/users/:id", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
