@@ -9,7 +9,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Trash2, Search, Download, Upload, FileSpreadsheet, Check } from "lucide-react";
+import { Edit2, Trash2, Search, Download, Upload, FileSpreadsheet, Check, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -79,28 +79,28 @@ export function UserManagement() {
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: number) => {
       try {
-        console.log('Attempting to delete user:', userId);
+        console.log('Attempting to deactivate user:', userId);
         const response = await apiRequest("DELETE", `/api/users/${userId}`);
         const data = await response.json().catch(() => null);
 
         if (!response.ok) {
-          throw new Error(data?.message || "Failed to delete user");
+          throw new Error(data?.message || "Failed to deactivate user");
         }
 
         if (!data?.success) {
-          throw new Error(data?.message || "User deletion failed");
+          throw new Error(data?.message || "User deactivation failed");
         }
 
         return data;
       } catch (error) {
-        console.error('Error in delete mutation:', error);
+        console.error('Error in deactivate mutation:', error);
         throw error;
       }
     },
     onSuccess: (data) => {
       toast({
         title: "Success",
-        description: data.message || "User deleted successfully",
+        description: data.message || "User deactivated successfully",
       });
 
       // Force refetch the users list
@@ -118,10 +118,10 @@ export function UserManagement() {
       }
     },
     onError: (error: Error) => {
-      console.error('Delete mutation error:', error);
+      console.error('Deactivate mutation error:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to delete user. Please try again.",
+        description: error.message || "Failed to deactivate user. Please try again.",
         variant: "destructive",
       });
     },
@@ -237,7 +237,8 @@ export function UserManagement() {
       (managerFilter === "none" && !u.managerId) ||
       (u.managerId?.toString() === managerFilter);
 
-    return matchesSearch && matchesRole && matchesManager;
+    // Only show active users if active filter is selected
+    return matchesSearch && matchesRole && matchesManager ;
   });
 
   // Pagination calculations
@@ -830,6 +831,11 @@ export function UserManagement() {
     );
   }
 
+  const deleteConfirmationText = userToDelete?.username || "";
+  const deleteForm = useForm({
+    defaultValues: { confirmText: "" },
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -926,19 +932,19 @@ export function UserManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {currentUsers.map((u) => (
-                  <TableRow key={u.id} className={!u.active ? "opacity-60" : ""}>
-                    <TableCell className="font-medium">{u.username}</TableCell>
-                    <TableCell>{u.email}</TableCell>
-                    <TableCell>{u.fullName}</TableCell>
+                {currentUsers.map((user) => (
+                  <TableRow key={user.id} className={cn(!user.active && "opacity-50")}>
+                    <TableCell className="font-medium">{user.username}</TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>{user.fullName}</TableCell>
                     <TableCell>
-                      <Badge>{u.role}</Badge>
+                      <Badge>{user.role}</Badge>
                     </TableCell>
-                    <TableCell>{getManagerName(u.managerId)}</TableCell>
-                    <TableCell>{getLocationName(u.locationId)}</TableCell>
+                    <TableCell>{getManagerName(user.managerId)}</TableCell>
+                    <TableCell>{getLocationName(user.locationId)}</TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {getUserProcesses(u.id).split(", ").map((process, idx) => (
+                        {getUserProcesses(user.id).split(", ").map((process, idx) => (
                           <Badge key={idx} variant="outline">
                             {process}
                           </Badge>
@@ -946,7 +952,7 @@ export function UserManagement() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {u.role === "owner" ? (
+                      {user.role === "owner" ? (
                         <div className="flex items-center" title="Owner status cannot be changed">
                           <Switch
                             checked={true}
@@ -956,29 +962,65 @@ export function UserManagement() {
                         </div>
                       ) : canManageUsers ? (
                         <Switch
-                          checked={u.active}
-                          onCheckedChange={(checked) => toggleUserStatus(u.id, u.active, u.role)}
+                          checked={user.active}
+                          onCheckedChange={(checked) => toggleUserStatus(user.id, user.active, user.role)}
                           disabled={false}
                         />
                       ) : (
-                        <Switch checked={u.active} disabled={true} />
+                        <Switch checked={user.active} disabled={true} />
                       )}
                     </TableCell>
                     {canManageUsers && (
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <EditUserDialog user={u} />
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="text-destructive"
-                            onClick={() => {
-                              setUserToDelete(u);
-                              setShowDeleteDialog(true);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <EditUserDialog user={user} />
+                          <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                            <DialogContent className="sm:max-w-[425px]">
+                              <DialogHeader>
+                                <DialogTitle>Deactivate User</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4 py-4">
+                                <p className="text-sm text-muted-foreground">
+                                  This will deactivate the user's account. The user will no longer be able to log in, but their historical data will be preserved. Type{" "}
+                                  <span className="font-mono text-primary">{deleteConfirmationText}</span> to confirm.
+                                </p>
+                                <Input
+                                  className="font-mono"
+                                  placeholder="Type deactivation confirmation"
+                                  value={deleteForm.watch("confirmText")}
+                                  onChange={(e) => deleteForm.setValue("confirmText", e.target.value)}
+                                />
+                              </div>
+                              <div className="flex justify-end gap-3">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => setShowDeleteDialog(false)}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  disabled={deleteForm.watch("confirmText") !== deleteConfirmationText || deleteUserMutation.isPending}
+                                  onClick={async () => {
+                                    try {
+                                      await deleteUserMutation.mutateAsync(user.id);
+                                    } catch (error) {
+                                      console.error("Error deactivating user:", error);
+                                    }
+                                  }}
+                                >
+                                  {deleteUserMutation.isPending ? (
+                                    <>
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      Deactivating...
+                                    </>
+                                  ) : (
+                                    "Deactivate User"
+                                  )}
+                                </Button>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
                         </div>
                       </TableCell>
                     )}
