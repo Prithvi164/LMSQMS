@@ -480,12 +480,10 @@ export const organizationBatches = pgTable("organization_batches", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export type OrganizationBatch = InferSelectModel<typeof organizationBatches> & {
-  enrolledCount?: number;
-};
+export type OrganizationBatch = InferSelectModel<typeof organizationBatches>;
 
-// Add relations for enrolled count
-export const organizationBatchesRelations = relations(organizationBatches, ({ one, many }) => ({
+// Add relations for batches
+export const organizationBatchesRelations = relations(organizationBatches, ({ one }) => ({
   organization: one(organizations, {
     fields: [organizationBatches.organizationId],
     references: [organizations.id],
@@ -506,8 +504,6 @@ export const organizationBatchesRelations = relations(organizationBatches, ({ on
     fields: [organizationBatches.trainerId],
     references: [users.id],
   }),
-  // Add relation to user batch processes to get enrolled count
-  enrolledTrainees: many(userBatchProcesses),
 }));
 
 // Update validation schema to properly handle the enum
@@ -838,7 +834,7 @@ export const insertOrganizationLocationSchema = createInsertSchema(organizationL
     address: z.string().min(1, "Address is required"),
     city: z.string().min(1, "City is required"),
     state: z.string().min(1, "State is required"),
-    country: z.string().min(1, "Countryis required"),
+    country: z.string().min(1, "Country is required"),
     organizationId: z.number().int().positive("Organization is required"),
   });
 
