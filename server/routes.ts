@@ -1044,14 +1044,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             lineOfBusinessId = lob.id;
           }
 
-          // Associate process if provided
+          // Handle multiple processes (comma-separated)
           if (userData.process) {
-            console.log(`Assigning process ${userData.process} to user ${userData.username} with LOB ${userData.lineOfBusiness}`);
-            const process = await storage.getProcessByName(userData.process);
-            if (!process) {
-              throw new Error(`Process ${userData.process} not found`);
+            console.log(`Processing processes for user ${userData.username}: ${userData.process}`);
+            // Split processes by comma and trim whitespace
+            const processes = userData.process.split(',').map(p => p.trim()).filter(Boolean);
+            
+            for (const processName of processes) {
+              console.log(`Assigning process ${processName} to user ${userData.username} with LOB ${userData.lineOfBusiness}`);
+              const process = await storage.getProcessByName(processName);
+              if (!process) {
+                throw new Error(`Process ${processName} not found`);
+              }
+              await storage.assignProcessToUser(newUser.id, process.id, lineOfBusinessId);
             }
-            await storage.assignProcessToUser(newUser.id, process.id, lineOfBusinessId);
           }
         }
       });

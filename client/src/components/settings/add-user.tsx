@@ -251,7 +251,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         dateOfBirth: "1990-01-01",
         education: "Bachelor's Degree",
         lineOfBusiness: "Sales",
-        process: "Customer Support"
+        process: "Customer Support, Technical Support" // Example of multiple processes
       }
     ];
 
