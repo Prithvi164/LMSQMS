@@ -197,7 +197,8 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     setOpenLOB(false);
   };
 
-  // Get valid managers based on role hierarchy and preventing circular reporting chains
+  // Get valid managers based on role hierarchy, preventing circular reporting chains,
+  // and restricting to current user's reporting chain
   const getValidManagersForRole = (selectedRole: string) => {
     if (!users) return [];
     
@@ -218,16 +219,45 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     // If no allowed roles, return empty array (e.g., for owners)
     if (allowedManagerRoles.length === 0) return [];
     
+    // For owners and admins, they can see all appropriate roles
+    if (user.role === 'owner' || user.role === 'admin') {
+      return users.filter(u => 
+        u.active && 
+        allowedManagerRoles.includes(u.role)
+      );
+    }
+    
+    // For other roles, we need to restrict to the current user's reporting chain
+    
+    // Get users in the current user's reporting chain (including the current user)
+    const currentUserReportingChain = [user.id]; // Start with the current user
+    
+    // Add the current user's manager and their managers upwards in the chain
+    let currentManagerId = user.managerId;
+    const managerChain: number[] = [];
+    
+    while (currentManagerId) {
+      managerChain.push(currentManagerId);
+      const manager = users.find(u => u.id === currentManagerId);
+      currentManagerId = manager?.managerId || null;
+    }
+    
+    // The complete reporting chain includes the user, their managers, and all managers above
+    const reportingChainIds = [...currentUserReportingChain, ...managerChain];
+    
     // Filter potential managers based on:
     // 1. Active status
     // 2. Allowed role (based on hierarchy)
+    // 3. Being in the current user's reporting chain upward
     return users.filter(u => 
       u.active && 
-      allowedManagerRoles.includes(u.role)
+      allowedManagerRoles.includes(u.role) &&
+      reportingChainIds.includes(u.id)
     );
   };
 
   // Check if the specified manager is valid for a user role based on role hierarchy
+  // and restrict to current user's reporting chain
   const validateRoleHierarchy = (userRole: string, managerUsername: string) => {
     if (!users || !managerUsername) return true; // Skip validation if no manager specified
     
@@ -251,8 +281,34 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     // If no allowed roles (e.g., for owners), manager is invalid
     if (allowedManagerRoles.length === 0) return false;
     
-    // Check if manager's role is in the allowed roles
-    return managerUser.active && allowedManagerRoles.includes(managerUser.role);
+    // Check if manager's role is in the allowed roles 
+    const isRoleValid = managerUser.active && allowedManagerRoles.includes(managerUser.role);
+    if (!isRoleValid) return false;
+    
+    // For owners and admins, they can assign anyone with appropriate role
+    if (user.role === 'owner' || user.role === 'admin') {
+      return true;
+    }
+    
+    // For other roles, check if manager is in the user's reporting chain
+    // Get current user's reporting chain (user + managers upward)
+    const currentUserReportingChain = [user.id]; // Start with the current user
+    
+    // Add the current user's manager and their managers upwards in the chain
+    let currentManagerId = user.managerId;
+    const managerChain: number[] = [];
+    
+    while (currentManagerId) {
+      managerChain.push(currentManagerId);
+      const manager = users.find(u => u.id === currentManagerId);
+      currentManagerId = manager?.managerId || null;
+    }
+    
+    // The complete reporting chain includes the user and their managers upward
+    const reportingChainIds = [...currentUserReportingChain, ...managerChain];
+    
+    // Check if the specified manager is in the user's reporting chain
+    return reportingChainIds.includes(managerUser.id);
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -323,37 +379,63 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       {
         role: "owner",
         canReportTo: "No one (top of hierarchy)",
-        canManage: "Everyone"
+        canManage: "Everyone",
+        reportingChain: "Users can only be assigned managers within their own reporting chain"
       },
       {
         role: "admin",
         canReportTo: "Owner",
-        canManage: "All except Owner"
+        canManage: "All except Owner",
+        reportingChain: "Users can only be assigned managers within their own reporting chain"
       },
       {
         role: "manager",
         canReportTo: "Owner, Admin",
-        canManage: "Team Lead, Quality Analyst, Trainer, Advisor"
+        canManage: "Team Lead, Quality Analyst, Trainer, Advisor",
+        reportingChain: "Users can only be assigned managers within their own reporting chain"
       },
       {
         role: "team_lead",
         canReportTo: "Owner, Admin, Manager",
-        canManage: "Quality Analyst, Trainer, Advisor"
+        canManage: "Quality Analyst, Trainer, Advisor",
+        reportingChain: "Users can only be assigned managers within their own reporting chain"
       },
       {
         role: "quality_analyst",
         canReportTo: "Owner, Admin, Manager, Team Lead",
-        canManage: "Advisor"
+        canManage: "Advisor",
+        reportingChain: "Users can only be assigned managers within their own reporting chain"
       },
       {
         role: "trainer",
         canReportTo: "Owner, Admin, Manager, Team Lead",
-        canManage: "Advisor"
+        canManage: "Advisor",
+        reportingChain: "Users can only be assigned managers within their own reporting chain"
       },
       {
         role: "advisor",
         canReportTo: "Owner, Admin, Manager, Team Lead, Quality Analyst, Trainer",
-        canManage: "No one"
+        canManage: "No one",
+        reportingChain: "Users can only be assigned managers within their own reporting chain"
+      }
+    ];
+    
+    // Third sheet with examples and guidance
+    const guidanceSheet = [
+      {
+        section: "Reporting Chain Guidance",
+        description: "When assigning managers, keep in mind that you can only assign managers from your own reporting chain.",
+        example: "If you're a Team Lead who reports to Manager A, you can only assign your team members to yourself or to Manager A and their upline managers."
+      },
+      {
+        section: "Owner/Admin Exception",
+        description: "Owners and Admins can assign users to any appropriate manager, not just those in their reporting chain.",
+        example: "As an Owner or Admin, you have full visibility of the organization hierarchy."
+      },
+      {
+        section: "Common Mistakes",
+        description: "Trying to assign a user to a manager outside your reporting chain will result in validation errors.",
+        example: "If you're a Team Lead reporting to Manager A, you cannot assign users to Team Lead B who reports to Manager B."
       }
     ];
 
@@ -366,7 +448,11 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     const hierarchySheet = XLSX.utils.json_to_sheet(roleHierarchyDocs);
     XLSX.utils.book_append_sheet(wb, hierarchySheet, "Role Hierarchy");
     
-    // Write the file with both sheets
+    // Create the guidance sheet with examples
+    const guidanceExampleSheet = XLSX.utils.json_to_sheet(guidanceSheet);
+    XLSX.utils.book_append_sheet(wb, guidanceExampleSheet, "Reporting Chain Guide");
+    
+    // Write the file with all sheets
     XLSX.writeFile(wb, "user_upload_template.xlsx");
   };
 
@@ -445,6 +531,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                   <li>Quality Analysts and Trainers can report to Owners, Admins, Managers, or Team Leads</li>
                   <li>Advisors can report to any higher role</li>
                 </ul>
+                <p className="text-muted-foreground mt-2"><strong>Important:</strong> You can only assign managers who are within your own reporting chain. For example, if you are a Team Lead, you can only assign users to report to yourself or your upline managers.</p>
                 <p className="text-muted-foreground mt-2">The downloaded template includes detailed guidance in the "Role Hierarchy" sheet.</p>
               </div>
               <div className="flex items-center gap-4">
