@@ -227,33 +227,40 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       );
     }
     
-    // For other roles, we need to restrict to the current user's reporting chain
+    // For other roles, we need to restrict to users in the current user's downward chain (not upward)
     
-    // Get users in the current user's reporting chain (including the current user)
-    const currentUserReportingChain = [user.id]; // Start with the current user
-    
-    // Add the current user's manager and their managers upwards in the chain
-    let currentManagerId = user.managerId;
-    const managerChain: number[] = [];
-    
-    while (currentManagerId) {
-      managerChain.push(currentManagerId);
-      const manager = users.find(u => u.id === currentManagerId);
-      currentManagerId = manager?.managerId || null;
+    // First, include the current user as a potential manager (if appropriate role)
+    let validManagers: User[] = [];
+    if (allowedManagerRoles.includes(user.role)) {
+      validManagers.push(user);
     }
     
-    // The complete reporting chain includes the user, their managers, and all managers above
-    const reportingChainIds = [...currentUserReportingChain, ...managerChain];
+    // We need a function to recursively find all subordinates of a user
+    const findAllSubordinates = (managerId: number): User[] => {
+      const directReports = users.filter(u => u.managerId === managerId);
+      let allSubordinates = [...directReports];
+      
+      for (const report of directReports) {
+        const deeperSubordinates = findAllSubordinates(report.id);
+        allSubordinates = [...allSubordinates, ...deeperSubordinates];
+      }
+      
+      return allSubordinates;
+    };
     
-    // Filter potential managers based on:
-    // 1. Active status
-    // 2. Allowed role (based on hierarchy)
-    // 3. Being in the current user's reporting chain upward
-    return users.filter(u => 
-      u.active && 
-      allowedManagerRoles.includes(u.role) &&
-      reportingChainIds.includes(u.id)
-    );
+    // Get all users in the current user's downward reporting chain
+    const subordinates = findAllSubordinates(user.id);
+    
+    // Add subordinates with appropriate roles to valid managers
+    validManagers = [
+      ...validManagers,
+      ...subordinates.filter(u => 
+        u.active && 
+        allowedManagerRoles.includes(u.role)
+      )
+    ];
+    
+    return validManagers;
   };
 
   // Check if the specified manager is valid for a user role based on role hierarchy
@@ -290,25 +297,31 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       return true;
     }
     
-    // For other roles, check if manager is in the user's reporting chain
-    // Get current user's reporting chain (user + managers upward)
-    const currentUserReportingChain = [user.id]; // Start with the current user
+    // For other roles, we need to verify the manager is the current user or one of their subordinates
     
-    // Add the current user's manager and their managers upwards in the chain
-    let currentManagerId = user.managerId;
-    const managerChain: number[] = [];
+    // Helper function to recursively find all subordinates of a user
+    const findAllSubordinates = (managerId: number): User[] => {
+      const directReports = users.filter(u => u.managerId === managerId);
+      let allSubordinates = [...directReports];
+      
+      for (const report of directReports) {
+        const deeperSubordinates = findAllSubordinates(report.id);
+        allSubordinates = [...allSubordinates, ...deeperSubordinates];
+      }
+      
+      return allSubordinates;
+    };
     
-    while (currentManagerId) {
-      managerChain.push(currentManagerId);
-      const manager = users.find(u => u.id === currentManagerId);
-      currentManagerId = manager?.managerId || null;
+    // Current user is a valid manager
+    if (managerUser.id === user.id) {
+      return true;
     }
     
-    // The complete reporting chain includes the user and their managers upward
-    const reportingChainIds = [...currentUserReportingChain, ...managerChain];
+    // Get all users in the current user's downward reporting chain
+    const subordinates = findAllSubordinates(user.id);
     
-    // Check if the specified manager is in the user's reporting chain
-    return reportingChainIds.includes(managerUser.id);
+    // Check if the specified manager is in the current user's subordinate list
+    return subordinates.some(s => s.id === managerUser.id);
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
