@@ -109,8 +109,9 @@ export default function AnalyticsDashboard() {
   });
 
   // Fetch analytics based on selected filter
-  const { data: analyticsData, isLoading: isAnalyticsLoading } = useQuery({
+  const { data: analyticsData, isLoading: isAnalyticsLoading, error: analyticsError } = useQuery({
     queryKey: [
+      'analytics',
       selectedTab === 'overview' 
         ? '/api/analytics/headcount' 
         : selectedTab === 'process' && selectedProcess 
@@ -119,10 +120,10 @@ export default function AnalyticsDashboard() {
             ? `/api/analytics/headcount/line-of-business/${selectedLOB}`
             : null
     ],
-    enabled: selectedTab === 'overview' || 
+    enabled: (selectedTab === 'overview') || 
              (selectedTab === 'process' && !!selectedProcess) || 
              (selectedTab === 'lob' && !!selectedLOB),
-    retry: false,
+    retry: 1,
     // Add a success handler to debug the response data
     onSuccess: (data) => {
       console.log('Analytics data received:', data);
@@ -131,6 +132,15 @@ export default function AnalyticsDashboard() {
       console.error('Error fetching analytics data:', error);
     }
   });
+  
+  // Debug information
+  useEffect(() => {
+    console.log('Current tab:', selectedTab);
+    console.log('Selected process:', selectedProcess);
+    console.log('Selected LOB:', selectedLOB);
+    console.log('Is analytics loading:', isAnalyticsLoading);
+    console.log('Analytics error:', analyticsError);
+  }, [selectedTab, selectedProcess, selectedLOB, isAnalyticsLoading, analyticsError]);
 
   // Format data for role pie chart
   const formatRoleData = (data: ProcessHeadcountAnalytics | ProcessHeadcountAnalytics[]) => {
@@ -333,7 +343,19 @@ export default function AnalyticsDashboard() {
               </Card>
             ))}
           </div>
-        ) : analyticsData && (
+        ) : analyticsError ? (
+          <div className="p-6 text-center">
+            <div className="text-red-500 mb-4">Error loading analytics data</div>
+            <pre className="text-sm bg-gray-100 p-4 rounded overflow-auto max-h-[200px]">
+              {analyticsError.toString()}
+            </pre>
+          </div>
+        ) : !analyticsData ? (
+          <div className="p-6 text-center">
+            <div className="text-amber-500 mb-4">No analytics data available</div>
+            <p>There might be no users assigned to the selected process or filters.</p>
+          </div>
+        ) : (
           <>
             {/* Stats Cards */}
             <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-6">
