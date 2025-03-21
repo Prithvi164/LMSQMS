@@ -74,7 +74,7 @@ export function UserManagement() {
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [viewMode, setViewMode] = useState<'flat' | 'hierarchy'>('flat');
+  const [viewMode, setViewMode] = useState<'flat' | 'hierarchy'>('hierarchy');
   const [expandedManagers, setExpandedManagers] = useState<number[]>([]);
   const [showHierarchicalFilter, setShowHierarchicalFilter] = useState<boolean>(false);
   
@@ -941,18 +941,18 @@ export function UserManagement() {
               </Select>
               <Button
                 variant="outline"
-                onClick={() => setViewMode(viewMode === 'flat' ? 'hierarchy' : 'flat')}
+                onClick={() => setViewMode(viewMode === 'hierarchy' ? 'flat' : 'hierarchy')}
                 className="gap-2"
               >
-                {viewMode === 'flat' ? (
-                  <>
-                    <Network className="h-4 w-4" />
-                    Hierarchy View
-                  </>
-                ) : (
+                {viewMode === 'hierarchy' ? (
                   <>
                     <Users className="h-4 w-4" />
                     Flat View
+                  </>
+                ) : (
+                  <>
+                    <Network className="h-4 w-4" />
+                    Hierarchy View
                   </>
                 )}
               </Button>
