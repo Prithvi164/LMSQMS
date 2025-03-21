@@ -144,10 +144,9 @@ export function RolePermissions() {
   }, [selectedRole, getPermissionsForRole, updatePermissionMutation]);
 
   const filterPermissions = (permissions: string[]) => {
-    // Filter out course and learning path related permissions
+    // Filter out course related permissions
     return permissions.filter(permission => 
-      !permission.includes('course') && 
-      !permission.includes('learning_path')
+      !permission.includes('course')
     );
   };
 
