@@ -3161,21 +3161,16 @@ export class DatabaseStorage implements IStorage {
         // If we have results from the database, return them
         if (result && result.length > 0) {
           return result;
+        } else {
+          console.log('No role distribution data found for organizationId:', organizationId);
+          // Return an empty array if no data is found
+          return [];
         }
       } catch (dbError) {
-        console.warn('Database query for role distribution failed, using fallback data:', dbError);
+        console.warn('Database query for role distribution failed:', dbError);
+        // Return empty array on error
+        return [];
       }
-
-      // Fallback data if query returns no results
-      return [
-        { role: 'owner', count: 1 },
-        { role: 'admin', count: 3 },
-        { role: 'manager', count: 8 },
-        { role: 'team_lead', count: 12 },
-        { role: 'trainer', count: 15 },
-        { role: 'quality_analyst', count: 7 },
-        { role: 'advisor', count: 45 }
-      ];
     } catch (error) {
       console.error('Error fetching role distribution data:', error);
       throw error;
@@ -3223,39 +3218,16 @@ export class DatabaseStorage implements IStorage {
               lng: Number(item.longitude) 
             } : undefined
           }));
+        } else {
+          console.log('No location distribution data found for organizationId:', organizationId);
+          // Return an empty array if no data is found
+          return [];
         }
       } catch (dbError) {
-        console.warn('Database query for location distribution failed, using fallback data:', dbError);
+        console.warn('Database query for location distribution failed:', dbError);
+        // Return empty array on error
+        return [];
       }
-
-      // Fallback data if query returns no results
-      return [
-        { 
-          location: 'New York', 
-          count: 35,
-          coordinates: { lat: 40.7128, lng: -74.0060 }
-        },
-        { 
-          location: 'San Francisco', 
-          count: 25,
-          coordinates: { lat: 37.7749, lng: -122.4194 }
-        },
-        { 
-          location: 'Chicago', 
-          count: 18,
-          coordinates: { lat: 41.8781, lng: -87.6298 }
-        },
-        { 
-          location: 'Austin', 
-          count: 12,
-          coordinates: { lat: 30.2672, lng: -97.7431 }
-        },
-        { 
-          location: 'Miami', 
-          count: 10,
-          coordinates: { lat: 25.7617, lng: -80.1918 }
-        }
-      ];
     } catch (error) {
       console.error('Error fetching location distribution data:', error);
       throw error;
@@ -3307,22 +3279,16 @@ export class DatabaseStorage implements IStorage {
             lineOfBusiness: item.lineOfBusiness || 'Unknown LOB',
             count: item.count
           }));
+        } else {
+          console.log('No process heatmap data found for organizationId:', organizationId);
+          // Return an empty array if no data is found
+          return [];
         }
       } catch (dbError) {
-        console.warn('Database query for process heatmap failed, using fallback data:', dbError);
+        console.warn('Database query for process heatmap failed:', dbError);
+        // Return empty array on error
+        return [];
       }
-
-      // Fallback data if query returns no results
-      return [
-        { process: 'Customer Support', lineOfBusiness: 'Service', count: 28 },
-        { process: 'Technical Support', lineOfBusiness: 'Service', count: 15 },
-        { process: 'Sales', lineOfBusiness: 'Revenue', count: 22 },
-        { process: 'Outbound Sales', lineOfBusiness: 'Revenue', count: 18 },
-        { process: 'Collections', lineOfBusiness: 'Finance', count: 12 },
-        { process: 'Retention', lineOfBusiness: 'Revenue', count: 9 },
-        { process: 'Billing Support', lineOfBusiness: 'Service', count: 14 },
-        { process: 'Email Support', lineOfBusiness: 'Service', count: 11 }
-      ];
     } catch (error) {
       console.error('Error fetching process heatmap data:', error);
       throw error;
@@ -3390,20 +3356,20 @@ export class DatabaseStorage implements IStorage {
           });
           
           return result;
+        } else {
+          console.log('No tenure analysis data found for organizationId:', organizationId);
+          // Return empty tenure ranges with zero counts if no data
+          return ranges.map(range => ({
+            range: range.name,
+            count: 0,
+            avg: 0
+          }));
         }
       } catch (dbError) {
-        console.warn('Database query for tenure analysis failed, using fallback data:', dbError);
+        console.warn('Database query for tenure analysis failed:', dbError);
+        // Return empty array on error
+        return [];
       }
-
-      // Fallback data if query returns no results
-      return [
-        { range: '0-30 days', count: 15, avg: 18 },
-        { range: '1-3 months', count: 22, avg: 65 },
-        { range: '3-6 months', count: 18, avg: 130 },
-        { range: '6-12 months', count: 25, avg: 270 },
-        { range: '1-2 years', count: 14, avg: 500 },
-        { range: '2+ years', count: 8, avg: 920 }
-      ];
     } catch (error) {
       console.error('Error fetching tenure analysis data:', error);
       throw error;
@@ -3461,23 +3427,16 @@ export class DatabaseStorage implements IStorage {
             current: item.current,
             target: Math.round(item.current * 1.2) // Dummy target based on current headcount
           }));
+        } else {
+          console.log('No capacity planning data found for organizationId:', organizationId);
+          // Return empty array if no data is found
+          return [];
         }
       } catch (dbError) {
-        console.warn('Database query for capacity planning failed, using fallback data:', dbError);
+        console.warn('Database query for capacity planning failed:', dbError);
+        // Return empty array on error
+        return [];
       }
-
-      // Fallback data if query returns no results
-      return [
-        { role: 'advisor', location: 'New York', process: 'Customer Support', current: 28, target: 35 },
-        { role: 'advisor', location: 'New York', process: 'Technical Support', current: 22, target: 27 },
-        { role: 'advisor', location: 'San Francisco', process: 'Customer Support', current: 18, target: 25 },
-        { role: 'team_lead', location: 'New York', process: 'Customer Support', current: 4, target: 6 },
-        { role: 'team_lead', location: 'San Francisco', process: 'Customer Support', current: 3, target: 3 },
-        { role: 'manager', location: 'New York', process: 'All', current: 2, target: 2 },
-        { role: 'manager', location: 'San Francisco', process: 'All', current: 1, target: 2 },
-        { role: 'trainer', location: 'New York', process: 'Training', current: 5, target: 6 },
-        { role: 'quality_analyst', location: 'New York', process: 'Quality', current: 6, target: 8 }
-      ];
     } catch (error) {
       console.error('Error fetching capacity planning data:', error);
       throw error;
@@ -3557,38 +3516,41 @@ export class DatabaseStorage implements IStorage {
             count: usersByRisk[level].length,
             factors: calculateFactors(usersByRisk[level])
           }));
+        } else {
+          console.log('No attrition risk data found for organizationId:', organizationId);
+          // Return default empty risk levels
+          return [
+            {
+              riskLevel: 'High',
+              count: 0,
+              factors: {
+                'Short Tenure': 0,
+                'High Turnover Role': 0
+              }
+            },
+            {
+              riskLevel: 'Medium',
+              count: 0,
+              factors: {
+                'Short Tenure': 0,
+                'High Turnover Role': 0
+              }
+            },
+            {
+              riskLevel: 'Low',
+              count: 0,
+              factors: {
+                'Short Tenure': 0,
+                'High Turnover Role': 0
+              }
+            }
+          ];
         }
       } catch (dbError) {
-        console.warn('Database query for attrition risk data failed, using fallback data:', dbError);
+        console.warn('Database query for attrition risk data failed:', dbError);
+        // Return empty array on error
+        return [];
       }
-
-      // Return fallback data if query fails or returns no results
-      return [
-        {
-          riskLevel: 'High',
-          count: 18,
-          factors: {
-            'Short Tenure': 15,
-            'High Turnover Role': 12
-          }
-        },
-        {
-          riskLevel: 'Medium',
-          count: 32,
-          factors: {
-            'Short Tenure': 8,
-            'High Turnover Role': 22
-          }
-        },
-        {
-          riskLevel: 'Low',
-          count: 25,
-          factors: {
-            'Short Tenure': 3,
-            'High Turnover Role': 10
-          }
-        }
-      ];
     } catch (error) {
       console.error('Error fetching attrition risk data:', error);
       throw error;
@@ -3678,28 +3640,15 @@ export class DatabaseStorage implements IStorage {
             return processSkills.flat();
           }
         }
+        
+        console.log('No skills gap data found for organizationId:', organizationId);
+        // Return empty array if no data is found
+        return [];
       } catch (dbError) {
-        console.warn('Database query for skills gap data failed, using fallback data:', dbError);
+        console.warn('Database query for skills gap data failed:', dbError);
+        // Return empty array on error
+        return [];
       }
-      
-      // Return fallback data if queries fail or no data is returned
-      return [
-        { process: 'Customer Support', skill: 'Customer Service', required: 32, available: 26 },
-        { process: 'Customer Support', skill: 'Technical Support', required: 28, available: 19 },
-        { process: 'Customer Support', skill: 'Problem Solving', required: 25, available: 15 },
-        { process: 'Customer Support', skill: 'Communication', required: 30, available: 27 },
-        { process: 'Customer Support', skill: 'Product Knowledge', required: 28, available: 18 },
-        { process: 'Technical Support', skill: 'Customer Service', required: 20, available: 16 },
-        { process: 'Technical Support', skill: 'Technical Support', required: 25, available: 18 },
-        { process: 'Technical Support', skill: 'Problem Solving', required: 22, available: 13 },
-        { process: 'Technical Support', skill: 'Communication', required: 18, available: 16 },
-        { process: 'Technical Support', skill: 'Product Knowledge', required: 24, available: 16 },
-        { process: 'Sales', skill: 'Customer Service', required: 18, available: 14 },
-        { process: 'Sales', skill: 'Technical Support', required: 12, available: 8 },
-        { process: 'Sales', skill: 'Problem Solving', required: 15, available: 9 },
-        { process: 'Sales', skill: 'Communication', required: 18, available: 16 },
-        { process: 'Sales', skill: 'Product Knowledge', required: 18, available: 12 }
-      ];
     } catch (error) {
       console.error('Error fetching skills gap data:', error);
       throw error;
