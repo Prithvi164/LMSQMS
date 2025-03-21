@@ -158,9 +158,9 @@ const WidgetComponent: React.FC<WidgetProps> = ({ widget, onEdit, onDelete }) =>
     : 'h-full';
 
   const renderWidgetContent = () => {
-    const { widgetType, configuration } = widget;
+    const { widgetType, configuration = {} } = widget;
     const defaultTitle = WIDGET_TYPE_LABELS[widgetType] || 'Widget';
-    const title = configuration.title || defaultTitle;
+    const title = configuration?.title || defaultTitle;
 
     switch (widgetType) {
       case 'role_distribution':
@@ -186,7 +186,7 @@ const WidgetComponent: React.FC<WidgetProps> = ({ widget, onEdit, onDelete }) =>
     <Card className={`${sizeClasses}`}>
       <CardHeader className="p-4">
         <div className="flex justify-between items-center">
-          <CardTitle className="text-lg">{widget.configuration.title || WIDGET_TYPE_LABELS[widget.widgetType]}</CardTitle>
+          <CardTitle className="text-lg">{widget.configuration?.title || WIDGET_TYPE_LABELS[widget.widgetType] || 'Widget'}</CardTitle>
           <div className="flex space-x-2">
             <Button variant="ghost" size="icon" onClick={() => setIsExpanded(!isExpanded)}>
               {isExpanded ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -853,12 +853,16 @@ export default function AnalyticsDashboard() {
                   key={widget.id} 
                   className="col-span-1" 
                   style={{ 
-                    gridColumn: `span ${Math.min(widget.position.w, 4)}`,
-                    gridRow: `span ${Math.min(widget.position.h, 3)}`,
+                    gridColumn: `span ${Math.min(widget.position?.w || 1, 4)}`,
+                    gridRow: `span ${Math.min(widget.position?.h || 1, 3)}`,
                   }}
                 >
                   <WidgetComponent 
-                    widget={widget} 
+                    widget={{
+                      ...widget,
+                      position: widget.position || { x: 0, y: 0, w: 1, h: 1 },
+                      configuration: widget.configuration || { title: '', filters: {} }
+                    }} 
                     onEdit={handleEditWidget}
                     onDelete={handleDeleteWidget}
                   />
