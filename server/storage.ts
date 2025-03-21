@@ -13,6 +13,8 @@ import {
   batchPhaseChangeRequests,
   quizResponses,
   userBatchProcesses,
+  userDashboards,
+  dashboardWidgets,
   type QuizResponse,
   type InsertQuizResponse,
   type User,
@@ -48,6 +50,10 @@ import {
   quizzes,
   type Quiz,
   type InsertQuiz,
+  type UserDashboard,
+  type InsertUserDashboard,
+  type DashboardWidget,
+  type InsertDashboardWidget,
   quizAttempts,
   type QuizAttempt,
   type InsertQuizAttempt,
@@ -277,6 +283,29 @@ export interface IStorage {
 
   // Evaluation operations
   createEvaluation(evaluation: InsertEvaluation & { scores: Array<{ parameterId: number; score: string; comment?: string; noReason?: string; }> }): Promise<Evaluation>;
+  
+  // Dashboard operations
+  createUserDashboard(dashboard: InsertUserDashboard): Promise<UserDashboard>;
+  getUserDashboards(userId: number): Promise<UserDashboard[]>;
+  getUserDefaultDashboard(userId: number): Promise<UserDashboard | undefined>;
+  updateUserDashboard(id: number, dashboard: Partial<InsertUserDashboard>): Promise<UserDashboard>;
+  deleteUserDashboard(id: number): Promise<void>;
+  setDefaultDashboard(userId: number, dashboardId: number): Promise<void>;
+  
+  // Dashboard widget operations
+  createDashboardWidget(widget: InsertDashboardWidget): Promise<DashboardWidget>;
+  getDashboardWidgets(dashboardId: number): Promise<DashboardWidget[]>;
+  updateDashboardWidget(id: number, widget: Partial<InsertDashboardWidget>): Promise<DashboardWidget>;
+  deleteDashboardWidget(id: number): Promise<void>;
+  
+  // Analytics data operations
+  getRoleDistributionData(organizationId: number, filters?: Record<string, any>): Promise<{ role: string; count: number }[]>;
+  getLocationDistributionData(organizationId: number, filters?: Record<string, any>): Promise<{ location: string; count: number; coordinates?: { lat: number; lng: number } }[]>;
+  getProcessHeatmapData(organizationId: number, filters?: Record<string, any>): Promise<{ process: string; lineOfBusiness: string; count: number }[]>;
+  getTenureAnalysisData(organizationId: number, filters?: Record<string, any>): Promise<{ range: string; count: number; avg: number }[]>;
+  getCapacityPlanningData(organizationId: number, filters?: Record<string, any>): Promise<{ role: string; location: string; process: string; current: number; target: number }[]>;
+  getAttritionRiskData(organizationId: number, filters?: Record<string, any>): Promise<{ riskLevel: string; count: number; factors: Record<string, number> }[]>;
+  getSkillsGapData(organizationId: number, filters?: Record<string, any>): Promise<{ process: string; skill: string; required: number; available: number }[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2942,6 +2971,571 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // Dashboard operations
+  async createUserDashboard(dashboard: InsertUserDashboard): Promise<UserDashboard> {
+    try {
+      const [newDashboard] = await db
+        .insert(userDashboards)
+        .values(dashboard)
+        .returning() as UserDashboard[];
+      
+      return newDashboard;
+    } catch (error) {
+      console.error('Error creating dashboard:', error);
+      throw error;
+    }
+  }
+
+  async getUserDashboards(userId: number): Promise<UserDashboard[]> {
+    try {
+      const dashboards = await db
+        .select()
+        .from(userDashboards)
+        .where(eq(userDashboards.userId, userId))
+        .orderBy(desc(userDashboards.isDefault), desc(userDashboards.updatedAt)) as UserDashboard[];
+      
+      return dashboards;
+    } catch (error) {
+      console.error('Error fetching user dashboards:', error);
+      throw error;
+    }
+  }
+
+  async getUserDefaultDashboard(userId: number): Promise<UserDashboard | undefined> {
+    try {
+      const [dashboard] = await db
+        .select()
+        .from(userDashboards)
+        .where(eq(userDashboards.userId, userId))
+        .where(eq(userDashboards.isDefault, true)) as UserDashboard[];
+      
+      return dashboard;
+    } catch (error) {
+      console.error('Error fetching default dashboard:', error);
+      throw error;
+    }
+  }
+
+  async updateUserDashboard(id: number, dashboard: Partial<InsertUserDashboard>): Promise<UserDashboard> {
+    try {
+      const [updatedDashboard] = await db
+        .update(userDashboards)
+        .set({
+          ...dashboard,
+          updatedAt: new Date()
+        })
+        .where(eq(userDashboards.id, id))
+        .returning() as UserDashboard[];
+      
+      return updatedDashboard;
+    } catch (error) {
+      console.error('Error updating dashboard:', error);
+      throw error;
+    }
+  }
+
+  async deleteUserDashboard(id: number): Promise<void> {
+    try {
+      await db
+        .delete(userDashboards)
+        .where(eq(userDashboards.id, id));
+    } catch (error) {
+      console.error('Error deleting dashboard:', error);
+      throw error;
+    }
+  }
+
+  async setDefaultDashboard(userId: number, dashboardId: number): Promise<void> {
+    try {
+      // First, unset default for all user dashboards
+      await db
+        .update(userDashboards)
+        .set({ isDefault: false })
+        .where(eq(userDashboards.userId, userId));
+      
+      // Then set the selected dashboard as default
+      await db
+        .update(userDashboards)
+        .set({ isDefault: true })
+        .where(eq(userDashboards.id, dashboardId));
+    } catch (error) {
+      console.error('Error setting default dashboard:', error);
+      throw error;
+    }
+  }
+
+  // Dashboard widget operations
+  async createDashboardWidget(widget: InsertDashboardWidget): Promise<DashboardWidget> {
+    try {
+      const [newWidget] = await db
+        .insert(dashboardWidgets)
+        .values(widget)
+        .returning() as DashboardWidget[];
+      
+      return newWidget;
+    } catch (error) {
+      console.error('Error creating dashboard widget:', error);
+      throw error;
+    }
+  }
+
+  async getDashboardWidgets(dashboardId: number): Promise<DashboardWidget[]> {
+    try {
+      const widgets = await db
+        .select()
+        .from(dashboardWidgets)
+        .where(eq(dashboardWidgets.dashboardId, dashboardId))
+        .orderBy(dashboardWidgets.position) as DashboardWidget[];
+      
+      return widgets;
+    } catch (error) {
+      console.error('Error fetching dashboard widgets:', error);
+      throw error;
+    }
+  }
+
+  async updateDashboardWidget(id: number, widget: Partial<InsertDashboardWidget>): Promise<DashboardWidget> {
+    try {
+      const [updatedWidget] = await db
+        .update(dashboardWidgets)
+        .set({
+          ...widget,
+          updatedAt: new Date()
+        })
+        .where(eq(dashboardWidgets.id, id))
+        .returning() as DashboardWidget[];
+      
+      return updatedWidget;
+    } catch (error) {
+      console.error('Error updating dashboard widget:', error);
+      throw error;
+    }
+  }
+
+  async deleteDashboardWidget(id: number): Promise<void> {
+    try {
+      await db
+        .delete(dashboardWidgets)
+        .where(eq(dashboardWidgets.id, id));
+    } catch (error) {
+      console.error('Error deleting dashboard widget:', error);
+      throw error;
+    }
+  }
+
+  // Analytics data operations
+  async getRoleDistributionData(organizationId: number, filters?: Record<string, any>): Promise<{ role: string; count: number }[]> {
+    try {
+      // Build the base query
+      let query = db
+        .select({
+          role: users.role,
+          count: sql`count(*)::int`
+        })
+        .from(users)
+        .where(eq(users.organizationId, organizationId))
+        .where(eq(users.active, true))
+        .groupBy(users.role);
+      
+      // Apply filters if provided
+      if (filters) {
+        if (filters.locationId) {
+          query = query.where(eq(users.locationId, filters.locationId));
+        }
+        
+        if (filters.managerId) {
+          query = query.where(eq(users.managerId, filters.managerId));
+        }
+        
+        if (filters.dateFrom && filters.dateTo) {
+          const fromDate = new Date(filters.dateFrom);
+          const toDate = new Date(filters.dateTo);
+          query = query.where(
+            sql`${users.dateOfJoining} BETWEEN ${fromDate} AND ${toDate}`
+          );
+        }
+      }
+      
+      const result = await query;
+      return result;
+    } catch (error) {
+      console.error('Error fetching role distribution data:', error);
+      throw error;
+    }
+  }
+
+  async getLocationDistributionData(organizationId: number, filters?: Record<string, any>): Promise<{ location: string; count: number; coordinates?: { lat: number; lng: number } }[]> {
+    try {
+      // Build the base query
+      let query = db
+        .select({
+          locationId: users.locationId,
+          location: organizationLocations.name,
+          latitude: organizationLocations.latitude,
+          longitude: organizationLocations.longitude,
+          count: sql`count(*)::int`
+        })
+        .from(users)
+        .leftJoin(organizationLocations, eq(users.locationId, organizationLocations.id))
+        .where(eq(users.organizationId, organizationId))
+        .where(eq(users.active, true))
+        .groupBy(users.locationId, organizationLocations.name, organizationLocations.latitude, organizationLocations.longitude);
+      
+      // Apply filters if provided
+      if (filters) {
+        if (filters.role) {
+          query = query.where(eq(users.role, filters.role));
+        }
+        
+        if (filters.managerId) {
+          query = query.where(eq(users.managerId, filters.managerId));
+        }
+      }
+      
+      const result = await query;
+      
+      // Transform the result to match the expected return type
+      return result.map(item => ({
+        location: item.location || 'No Location',
+        count: item.count,
+        coordinates: item.latitude && item.longitude ? { 
+          lat: Number(item.latitude), 
+          lng: Number(item.longitude) 
+        } : undefined
+      }));
+    } catch (error) {
+      console.error('Error fetching location distribution data:', error);
+      throw error;
+    }
+  }
+
+  async getProcessHeatmapData(organizationId: number, filters?: Record<string, any>): Promise<{ process: string; lineOfBusiness: string; count: number }[]> {
+    try {
+      // Query to get processes assigned to users
+      let query = db
+        .select({
+          processId: userProcesses.processId,
+          process: organizationProcesses.name,
+          lineOfBusinessId: organizationProcesses.lineOfBusinessId,
+          lineOfBusiness: organizationLineOfBusinesses.name,
+          count: sql`count(distinct ${userProcesses.userId})::int`
+        })
+        .from(userProcesses)
+        .leftJoin(organizationProcesses, eq(userProcesses.processId, organizationProcesses.id))
+        .leftJoin(organizationLineOfBusinesses, eq(organizationProcesses.lineOfBusinessId, organizationLineOfBusinesses.id))
+        .leftJoin(users, eq(userProcesses.userId, users.id))
+        .where(eq(userProcesses.organizationId, organizationId))
+        .where(eq(users.active, true))
+        .groupBy(
+          userProcesses.processId, 
+          organizationProcesses.name, 
+          organizationProcesses.lineOfBusinessId, 
+          organizationLineOfBusinesses.name
+        );
+      
+      // Apply filters if provided
+      if (filters) {
+        if (filters.locationId) {
+          query = query.where(eq(users.locationId, filters.locationId));
+        }
+        
+        if (filters.role) {
+          query = query.where(eq(users.role, filters.role));
+        }
+      }
+      
+      const result = await query;
+      
+      // Transform the result to match the expected return type
+      return result.map(item => ({
+        process: item.process || 'Unknown Process',
+        lineOfBusiness: item.lineOfBusiness || 'Unknown LOB',
+        count: item.count
+      }));
+    } catch (error) {
+      console.error('Error fetching process heatmap data:', error);
+      throw error;
+    }
+  }
+
+  async getTenureAnalysisData(organizationId: number, filters?: Record<string, any>): Promise<{ range: string; count: number; avg: number }[]> {
+    try {
+      // Build the base query to get raw user data with join dates
+      let subquery = db
+        .select({
+          userId: users.id,
+          joiningDate: users.dateOfJoining,
+          tenureDays: sql`CASE WHEN ${users.dateOfJoining} IS NOT NULL 
+                          THEN EXTRACT(DAY FROM (CURRENT_DATE - ${users.dateOfJoining}))::int 
+                          ELSE 0 END`
+        })
+        .from(users)
+        .where(eq(users.organizationId, organizationId))
+        .where(eq(users.active, true));
+      
+      // Apply filters if provided
+      if (filters) {
+        if (filters.locationId) {
+          subquery = subquery.where(eq(users.locationId, filters.locationId));
+        }
+        
+        if (filters.role) {
+          subquery = subquery.where(eq(users.role, filters.role));
+        }
+      }
+      
+      // Execute the subquery to get tenure data
+      const userData = await subquery;
+      
+      // Define tenure ranges
+      const ranges = [
+        { name: '0-30 days', min: 0, max: 30 },
+        { name: '1-3 months', min: 31, max: 90 },
+        { name: '3-6 months', min: 91, max: 180 },
+        { name: '6-12 months', min: 181, max: 365 },
+        { name: '1-2 years', min: 366, max: 730 },
+        { name: '2+ years', min: 731, max: Infinity }
+      ];
+      
+      // Categorize users into tenure ranges
+      const result = ranges.map(range => {
+        const usersInRange = userData.filter(
+          u => u.tenureDays >= range.min && u.tenureDays <= range.max
+        );
+        
+        const count = usersInRange.length;
+        const avg = count > 0 
+          ? usersInRange.reduce((sum, u) => sum + u.tenureDays, 0) / count 
+          : 0;
+        
+        return {
+          range: range.name,
+          count,
+          avg: Math.round(avg)
+        };
+      });
+      
+      return result;
+    } catch (error) {
+      console.error('Error fetching tenure analysis data:', error);
+      throw error;
+    }
+  }
+
+  async getCapacityPlanningData(organizationId: number, filters?: Record<string, any>): Promise<{ role: string; location: string; process: string; current: number; target: number }[]> {
+    try {
+      // This is a more complex query that would require capacity targets to be stored in the database
+      // For now, we'll return a simpler version with just current staffing levels
+      
+      // Build the base query for current staffing levels
+      let query = db
+        .select({
+          role: users.role,
+          location: organizationLocations.name,
+          locationId: users.locationId,
+          processId: userProcesses.processId,
+          process: organizationProcesses.name,
+          current: sql`count(distinct ${users.id})::int`
+        })
+        .from(users)
+        .leftJoin(organizationLocations, eq(users.locationId, organizationLocations.id))
+        .leftJoin(userProcesses, eq(users.id, userProcesses.userId))
+        .leftJoin(organizationProcesses, eq(userProcesses.processId, organizationProcesses.id))
+        .where(eq(users.organizationId, organizationId))
+        .where(eq(users.active, true))
+        .groupBy(users.role, organizationLocations.name, users.locationId, userProcesses.processId, organizationProcesses.name);
+      
+      // Apply filters if provided
+      if (filters) {
+        if (filters.locationId) {
+          query = query.where(eq(users.locationId, filters.locationId));
+        }
+        
+        if (filters.role) {
+          query = query.where(eq(users.role, filters.role));
+        }
+        
+        if (filters.processId) {
+          query = query.where(eq(userProcesses.processId, filters.processId));
+        }
+      }
+      
+      const result = await query;
+      
+      // Transform the result to match the expected return type
+      // For now, we'll use a dummy target number (current + 20%)
+      return result.map(item => ({
+        role: item.role,
+        location: item.location || 'No Location',
+        process: item.process || 'No Process',
+        current: item.current,
+        target: Math.round(item.current * 1.2) // Dummy target based on current headcount
+      }));
+    } catch (error) {
+      console.error('Error fetching capacity planning data:', error);
+      throw error;
+    }
+  }
+
+  async getAttritionRiskData(organizationId: number, filters?: Record<string, any>): Promise<{ riskLevel: string; count: number; factors: Record<string, number> }[]> {
+    try {
+      // This is a complex calculation that would require historical data and algorithms
+      // For now, we'll use a simplified approach based on tenure
+      
+      // Build the base query to get user data
+      let query = db
+        .select({
+          userId: users.id,
+          role: users.role,
+          tenureDays: sql`CASE WHEN ${users.dateOfJoining} IS NOT NULL 
+                          THEN EXTRACT(DAY FROM (CURRENT_DATE - ${users.dateOfJoining}))::int 
+                          ELSE 0 END`,
+          location: organizationLocations.name
+        })
+        .from(users)
+        .leftJoin(organizationLocations, eq(users.locationId, organizationLocations.id))
+        .where(eq(users.organizationId, organizationId))
+        .where(eq(users.active, true));
+      
+      // Apply filters if provided
+      if (filters) {
+        if (filters.locationId) {
+          query = query.where(eq(users.locationId, filters.locationId));
+        }
+        
+        if (filters.role) {
+          query = query.where(eq(users.role, filters.role));
+        }
+      }
+      
+      const userData = await query;
+      
+      // Define risk levels and their criteria (simplified for this example)
+      const calculateRiskLevel = (tenureDays: number, role: string) => {
+        if (tenureDays < 90) return 'High';
+        if (tenureDays > 730) return 'Low';
+        
+        // Middle tenure employees
+        if (['advisor', 'trainee'].includes(role)) return 'Medium';
+        if (['manager', 'team_lead'].includes(role)) return 'Low';
+        
+        return 'Medium';
+      };
+      
+      // Categorize users by risk level
+      const usersByRisk = userData.reduce((acc, user) => {
+        const riskLevel = calculateRiskLevel(user.tenureDays, user.role);
+        if (!acc[riskLevel]) acc[riskLevel] = [];
+        acc[riskLevel].push(user);
+        return acc;
+      }, {} as Record<string, any[]>);
+      
+      // Calculate factors (simplified)
+      const calculateFactors = (users: any[]) => {
+        const tenureCount = users.filter(u => u.tenureDays < 180).length;
+        const roleCount = users.filter(u => ['advisor', 'trainee'].includes(u.role)).length;
+        
+        return {
+          'Short Tenure': tenureCount,
+          'High Turnover Role': roleCount
+        };
+      };
+      
+      // Format the result
+      return Object.keys(usersByRisk).map(level => ({
+        riskLevel: level,
+        count: usersByRisk[level].length,
+        factors: calculateFactors(usersByRisk[level])
+      }));
+    } catch (error) {
+      console.error('Error fetching attrition risk data:', error);
+      throw error;
+    }
+  }
+
+  async getSkillsGapData(organizationId: number, filters?: Record<string, any>): Promise<{ process: string; skill: string; required: number; available: number }[]> {
+    try {
+      // Get all processes in the organization
+      let query = db
+        .select({
+          processId: organizationProcesses.id,
+          process: organizationProcesses.name
+        })
+        .from(organizationProcesses)
+        .where(eq(organizationProcesses.organizationId, organizationId))
+        .where(eq(organizationProcesses.status, 'active'));
+      
+      // Apply filters if provided
+      if (filters?.processId) {
+        query = query.where(eq(organizationProcesses.id, filters.processId));
+      }
+      
+      const processes = await query;
+      
+      // For each process, get the count of users assigned to it
+      const processUserCounts = await Promise.all(
+        processes.map(async proc => {
+          const result = await db
+            .select({
+              count: sql`count(*)::int`
+            })
+            .from(userProcesses)
+            .where(eq(userProcesses.processId, proc.processId))
+            .leftJoin(users, eq(userProcesses.userId, users.id))
+            .where(eq(users.active, true));
+          
+          return {
+            processId: proc.processId,
+            process: proc.process,
+            userCount: result[0]?.count || 0
+          };
+        })
+      );
+      
+      // For each process, query quiz results to determine skill levels
+      const processSkills = await Promise.all(
+        processUserCounts.map(async proc => {
+          // Define skills based on what would be expected for this process
+          // In a real implementation, this would come from a skills table or be derived from quiz categories
+          const skills = [
+            'Customer Service',
+            'Technical Support',
+            'Problem Solving',
+            'Communication',
+            'Product Knowledge'
+          ];
+          
+          return skills.map(skill => {
+            // Calculate skill requirements based on process name (simplified example)
+            // In a real implementation, this would be stored in the database
+            const required = Math.max(5, Math.round(proc.userCount * 1.2));
+            
+            // Calculate available skills based on quiz results (simplified example)
+            // In a real implementation, this would be based on quiz scores or evaluations
+            const skillFactor = skill === 'Customer Service' ? 0.8 : 
+                              skill === 'Technical Support' ? 0.7 : 
+                              skill === 'Problem Solving' ? 0.6 : 
+                              skill === 'Communication' ? 0.9 : 0.65;
+            
+            const available = Math.round(proc.userCount * skillFactor);
+            
+            return {
+              process: proc.process,
+              skill,
+              required,
+              available
+            };
+          });
+        })
+      );
+      
+      // Flatten the array of arrays
+      return processSkills.flat();
+    } catch (error) {
+      console.error('Error fetching skills gap data:', error);
+      throw error;
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();
