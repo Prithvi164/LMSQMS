@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { 
   Card,
@@ -25,12 +25,11 @@ export default function AuthPage() {
   const { toast } = useToast();
   const { login, register, user } = useAuth();
 
-  // Use useEffect for navigation to avoid state updates during render
-  useEffect(() => {
-    if (user) {
-      navigate("/");
-    }
-  }, [user, navigate]);
+  // Redirect if already logged in
+  if (user) {
+    navigate("/");
+    return null;
+  }
 
   const handleAuth = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

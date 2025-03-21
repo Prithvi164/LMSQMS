@@ -12,9 +12,7 @@ import {
   FileCheck,
   PhoneCall,
   CheckSquare,
-  FileSpreadsheet,
-  LineChart,
-  PieChart 
+  FileSpreadsheet 
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -40,7 +38,6 @@ export function SidebarNav() {
       { href: '/conduct-evaluation', label: 'Conduct Evaluation', icon: FileSpreadsheet },
       { href: '/learning-paths', label: 'Learning Paths', icon: GraduationCap },
       { href: '/performance', label: 'Performance', icon: BarChart2 },
-      { href: '/analytics-dashboard', label: 'Analytics Dashboard', icon: LineChart },
     ]),
   ];
 
