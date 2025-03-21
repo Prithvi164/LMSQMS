@@ -100,20 +100,25 @@ export const getProcessHeadcountAnalytics = async (organizationId: number, proce
     const userIds = processUsers.map(u => u.userId);
 
     // Get user details with necessary information
-    const userDetails = await db.select({
-      id: users.id,
-      role: users.role,
-      category: users.category,
-      locationId: users.locationId,
-      lastWorkingDay: users.lastWorkingDay,
-    })
-    .from(users)
-    .where(
-      and(
-        sql`${users.id} IN (${userIds.join(',')})`,
-        eq(users.organizationId, organizationId)
-      )
-    );
+    let userDetails: { id: number; role: string; category: string; locationId: number | null; lastWorkingDay: Date | null }[] = [];
+    
+    // Only query if we have userIds
+    if (userIds.length > 0) {
+      userDetails = await db.select({
+        id: users.id,
+        role: users.role,
+        category: users.category,
+        locationId: users.locationId,
+        lastWorkingDay: users.lastWorkingDay,
+      })
+      .from(users)
+      .where(
+        and(
+          sql`${users.id} IN (${sql.join(userIds)})`,
+          eq(users.organizationId, organizationId)
+        )
+      );
+    }
 
     // Calculate total headcount
     const totalHeadcount = userDetails.length;
@@ -155,7 +160,7 @@ export const getProcessHeadcountAnalytics = async (organizationId: number, proce
       .from(organizationLocations)
       .where(
         and(
-          sql`${organizationLocations.id} IN (${locationIds.join(',')})`,
+          sql`${organizationLocations.id} IN (${sql.join(locationIds)})`,
           eq(organizationLocations.organizationId, organizationId)
         )
       );
@@ -223,17 +228,22 @@ export const getHeadcountProjection = async (
     const userIds = processUsers.map(u => u.userId);
 
     // Get user details with last working day
-    const userDetails = await db.select({
-      id: users.id,
-      lastWorkingDay: users.lastWorkingDay,
-    })
-    .from(users)
-    .where(
-      and(
-        sql`${users.id} IN (${userIds.join(',')})`,
-        eq(users.organizationId, organizationId)
-      )
-    );
+    let userDetails: { id: number; lastWorkingDay: Date | null }[] = [];
+    
+    // Only query if we have userIds
+    if (userIds.length > 0) {
+      userDetails = await db.select({
+        id: users.id,
+        lastWorkingDay: users.lastWorkingDay,
+      })
+      .from(users)
+      .where(
+        and(
+          sql`${users.id} IN (${sql.join(userIds)})`,
+          eq(users.organizationId, organizationId)
+        )
+      );
+    }
 
     // Get batch ops handover dates for this process
     const batches = await db.select({
