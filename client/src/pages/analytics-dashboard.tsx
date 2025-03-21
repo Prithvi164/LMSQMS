@@ -259,10 +259,7 @@ export default function AnalyticsDashboard() {
   // Create dashboard mutation
   const createDashboardMutation = useMutation({
     mutationFn: async (data: z.infer<typeof dashboardSchema>) => {
-      return apiRequest('/api/dashboards', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      return apiRequest('POST', '/api/dashboards', data);
     },
     onSuccess: (newDashboard) => {
       toast({
@@ -286,10 +283,7 @@ export default function AnalyticsDashboard() {
   const createWidgetMutation = useMutation({
     mutationFn: async (data: z.infer<typeof widgetSchema>) => {
       if (!selectedDashboard) throw new Error("No dashboard selected");
-      return apiRequest(`/api/dashboards/${selectedDashboard.id}/widgets`, {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      return apiRequest('POST', `/api/dashboards/${selectedDashboard.id}/widgets`, data);
     },
     onSuccess: (newWidget) => {
       toast({
@@ -323,10 +317,7 @@ export default function AnalyticsDashboard() {
   // Update widget mutation
   const updateWidgetMutation = useMutation({
     mutationFn: async (data: { id: number; widget: Partial<Widget> }) => {
-      return apiRequest(`/api/widgets/${data.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(data.widget),
-      });
+      return apiRequest('PATCH', `/api/widgets/${data.id}`, data.widget);
     },
     onSuccess: (updatedWidget) => {
       toast({
@@ -349,9 +340,7 @@ export default function AnalyticsDashboard() {
   // Delete widget mutation
   const deleteWidgetMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest(`/api/widgets/${id}`, {
-        method: 'DELETE',
-      });
+      return apiRequest('DELETE', `/api/widgets/${id}`);
     },
     onSuccess: () => {
       toast({
@@ -372,9 +361,7 @@ export default function AnalyticsDashboard() {
   // Set default dashboard mutation
   const setDefaultDashboardMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest(`/api/dashboards/${id}/default`, {
-        method: 'POST',
-      });
+      return apiRequest('POST', `/api/dashboards/${id}/default`);
     },
     onSuccess: () => {
       toast({
