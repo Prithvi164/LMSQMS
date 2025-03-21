@@ -969,16 +969,16 @@ export function UserManagement() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Username</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Full Name</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Manager</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Processes</TableHead>
-                  <TableHead>Active</TableHead>
+                  <TableHead className="w-[13%]">Username</TableHead>
+                  <TableHead className="w-[15%]">Email</TableHead>
+                  <TableHead className="w-[13%]">Full Name</TableHead>
+                  <TableHead className="w-[8%]">Role</TableHead>
+                  <TableHead className="w-[10%]">Manager</TableHead>
+                  <TableHead className="w-[10%]">Location</TableHead>
+                  <TableHead className="w-[18%]">Processes</TableHead>
+                  <TableHead className="w-[5%]">Active</TableHead>
                   {canManageUsers && (
-                    <TableHead className="w-[100px] text-right">Actions</TableHead>
+                    <TableHead className="w-[8%] text-right">Actions</TableHead>
                   )}
                 </TableRow>
               </TableHeader>
@@ -1009,14 +1009,34 @@ export function UserManagement() {
                       </TableCell>
                       <TableCell>{getLocationName(user.locationId)}</TableCell>
                       <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {getUserProcesses(user.id).split(", ").map((process, idx) => (
-                            process ? (
-                              <Badge key={idx} variant="outline">
-                                {process}
-                              </Badge>
-                            ) : null
-                          ))}
+                        <div className="max-w-[200px]">
+                          {getUserProcesses(user.id) ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="flex flex-col space-y-1 cursor-help">
+                                    {getUserProcesses(user.id).split(", ").map((process, idx) => (
+                                      process ? (
+                                        <Badge key={idx} variant="outline" className="justify-start text-left w-full truncate">
+                                          {process}
+                                        </Badge>
+                                      ) : null
+                                    ))}
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="right" className="max-w-xs">
+                                  <p className="font-medium text-sm">Assigned Processes:</p>
+                                  <ul className="list-disc list-inside text-xs mt-1">
+                                    {getUserProcesses(user.id).split(", ").map((process, idx) => (
+                                      <li key={idx}>{process}</li>
+                                    ))}
+                                  </ul>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : (
+                            <span className="text-muted-foreground text-sm italic">No processes</span>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>

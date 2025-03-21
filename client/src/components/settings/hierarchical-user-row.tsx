@@ -97,12 +97,32 @@ export const HierarchicalUserRow: React.FC<HierarchicalUserRowProps> = ({
         </TableCell>
         <TableCell>{getLocationName(user.locationId)}</TableCell>
         <TableCell>
-          <div className="flex flex-wrap gap-1">
-            {getProcessNames(user.id).split(", ").map((process, idx) => (
-              <Badge key={idx} variant="outline">
-                {process}
-              </Badge>
-            ))}
+          <div className="max-w-[200px]">
+            {getProcessNames(user.id) ? (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex flex-col space-y-1 cursor-help">
+                      {getProcessNames(user.id).split(", ").map((process, idx) => (
+                        <Badge key={idx} variant="outline" className="justify-start text-left w-full truncate">
+                          {process}
+                        </Badge>
+                      ))}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-xs">
+                    <p className="font-medium text-sm">Assigned Processes:</p>
+                    <ul className="list-disc list-inside text-xs mt-1">
+                      {getProcessNames(user.id).split(", ").map((process, idx) => (
+                        <li key={idx}>{process}</li>
+                      ))}
+                    </ul>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <span className="text-muted-foreground text-sm italic">No processes</span>
+            )}
           </div>
         </TableCell>
         <TableCell>
