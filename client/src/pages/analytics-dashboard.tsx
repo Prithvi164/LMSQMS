@@ -149,126 +149,170 @@ export default function AnalyticsDashboard() {
 
   // Format data for role pie chart
   const formatRoleData = (data: ProcessHeadcountAnalytics | ProcessHeadcountAnalytics[]) => {
-    if (!data) return [];
+    if (!data) return [{ name: 'No Data Available', value: 1 }];
     
     if (Array.isArray(data)) {
       // For overview, aggregate roles across all processes
       const aggregatedRoles: { [key: string]: number } = {};
       data.forEach(process => {
-        if (process.byRole) {
+        if (process?.byRole) {
           Object.entries(process.byRole).forEach(([role, count]) => {
-            aggregatedRoles[role] = (aggregatedRoles[role] || 0) + count;
+            aggregatedRoles[role] = (aggregatedRoles[role] || 0) + (count || 0);
           });
         }
       });
-      return Object.entries(aggregatedRoles).map(([name, value]) => ({ name, value }));
+      
+      const roleData = Object.entries(aggregatedRoles).map(([name, value]) => ({ name, value }));
+      return roleData.length > 0 ? roleData : [{ name: 'No Data Available', value: 1 }];
     } else {
       // For single process
-      return Object.entries(data.byRole || {}).map(([name, value]) => ({ name, value }));
+      const roleData = Object.entries(data.byRole || {}).map(([name, value]) => ({ name, value: value || 0 }));
+      return roleData.length > 0 ? roleData : [{ name: 'No Data Available', value: 1 }];
     }
   };
 
   // Format data for location pie chart
   const formatLocationData = (data: ProcessHeadcountAnalytics | ProcessHeadcountAnalytics[]) => {
-    if (!data) return [];
+    if (!data) return [{ name: 'No Data Available', value: 1 }];
     
     if (Array.isArray(data)) {
       // For overview, aggregate locations across all processes
       const aggregatedLocations: { [key: string]: number } = {};
       data.forEach(process => {
-        if (process.byLocation) {
+        if (process?.byLocation) {
           Object.entries(process.byLocation).forEach(([location, count]) => {
-            aggregatedLocations[location] = (aggregatedLocations[location] || 0) + count;
+            aggregatedLocations[location] = (aggregatedLocations[location] || 0) + (count || 0);
           });
         }
       });
-      return Object.entries(aggregatedLocations).map(([name, value]) => ({ name, value }));
+      
+      const locationData = Object.entries(aggregatedLocations).map(([name, value]) => ({ name, value }));
+      return locationData.length > 0 ? locationData : [{ name: 'No Data Available', value: 1 }];
     } else {
       // For single process
-      return Object.entries(data.byLocation || {}).map(([name, value]) => ({ name, value }));
+      const locationData = Object.entries(data.byLocation || {}).map(([name, value]) => ({ name, value: value || 0 }));
+      return locationData.length > 0 ? locationData : [{ name: 'No Data Available', value: 1 }];
     }
   };
 
   // Format data for headcount projection line chart
   const formatProjectionData = (data: ProcessHeadcountAnalytics | ProcessHeadcountAnalytics[]) => {
+    if (!data) return [{ date: new Date().toISOString(), expectedHeadcount: 0 }];
+    
     if (Array.isArray(data)) {
       // Combine projections from all processes
       const projectionMap = new Map<string, number>();
       
       data.forEach(process => {
-        if (process.projection) {
+        if (process?.projection && Array.isArray(process.projection)) {
           process.projection.forEach(proj => {
-            const currentValue = projectionMap.get(proj.date) || 0;
-            projectionMap.set(proj.date, currentValue + proj.expectedHeadcount);
+            if (proj?.date && typeof proj.expectedHeadcount === 'number') {
+              const currentValue = projectionMap.get(proj.date) || 0;
+              projectionMap.set(proj.date, currentValue + proj.expectedHeadcount);
+            }
           });
         }
       });
       
+      // If there's no data, return a placeholder with today's date and zero headcount
+      if (projectionMap.size === 0) {
+        return [{ date: new Date().toISOString(), expectedHeadcount: 0 }];
+      }
+      
       // Convert map to array and sort by date
       return Array.from(projectionMap, ([date, expectedHeadcount]) => ({ date, expectedHeadcount }))
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        .sort((a, b) => {
+          try {
+            return new Date(a.date).getTime() - new Date(b.date).getTime();
+          } catch (e) {
+            // If we can't parse the date, return 0 (no change in order)
+            return 0;
+          }
+        });
     } else {
+      // Check if projection exists and is an array
+      if (!data.projection || !Array.isArray(data.projection) || data.projection.length === 0) {
+        return [{ date: new Date().toISOString(), expectedHeadcount: 0 }];
+      }
+      
       // Return projection for single process, sorted by date
-      return data.projection 
-        ? [...data.projection].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-        : [];
+      return [...data.projection]
+        .filter(proj => proj?.date && typeof proj.expectedHeadcount === 'number') // Only include valid entries
+        .sort((a, b) => {
+          try {
+            return new Date(a.date).getTime() - new Date(b.date).getTime();
+          } catch (e) {
+            // If we can't parse the date, return 0 (no change in order)
+            return 0;
+          }
+        });
     }
   };
 
   // Format data for process comparison bar chart
   const formatProcessComparisonData = (data: ProcessHeadcountAnalytics[]) => {
-    if (!Array.isArray(data)) return [];
+    if (!data || !Array.isArray(data)) return [];
     
     return data.map(process => ({
-      name: process.processName,
-      total: process.totalHeadcount,
-      active: process.byCategory.active,
-      trainee: process.byCategory.trainee
+      name: process?.processName || 'Unknown Process',
+      total: process?.totalHeadcount || 0,
+      active: process?.byCategory?.active || 0,
+      trainee: process?.byCategory?.trainee || 0
     }));
   };
 
   // Calculate active-to-trainee ratio for process
   const calculateActiveToTraineeRatio = (data: ProcessHeadcountAnalytics | ProcessHeadcountAnalytics[]) => {
+    if (!data) return 'N/A';
+    
     if (Array.isArray(data)) {
       let totalActive = 0;
       let totalTrainee = 0;
       
       data.forEach(process => {
-        totalActive += process.byCategory.active;
-        totalTrainee += process.byCategory.trainee;
+        if (process?.byCategory) {
+          totalActive += process.byCategory.active || 0;
+          totalTrainee += process.byCategory.trainee || 0;
+        }
       });
       
       return totalTrainee > 0 ? (totalActive / totalTrainee).toFixed(2) : 'N/A';
     } else {
-      return data.byCategory.trainee > 0 
-        ? (data.byCategory.active / data.byCategory.trainee).toFixed(2)
+      return data.byCategory?.trainee > 0 
+        ? ((data.byCategory?.active || 0) / data.byCategory.trainee).toFixed(2)
         : 'N/A';
     }
   };
 
   // Get total headcount
   const getTotalHeadcount = (data: ProcessHeadcountAnalytics | ProcessHeadcountAnalytics[]) => {
+    if (!data) return 0;
+    
     if (Array.isArray(data)) {
-      return data.reduce((sum, process) => sum + process.totalHeadcount, 0);
+      return data.reduce((sum, process) => sum + (process?.totalHeadcount || 0), 0);
     } else {
-      return data.totalHeadcount;
+      return data.totalHeadcount || 0;
     }
   };
 
   // Get active and trainee totals
   const getCategoryTotals = (data: ProcessHeadcountAnalytics | ProcessHeadcountAnalytics[]) => {
+    if (!data) return { active: 0, trainee: 0 };
+    
     if (Array.isArray(data)) {
       let totalActive = 0;
       let totalTrainee = 0;
       
       data.forEach(process => {
-        totalActive += process.byCategory.active;
-        totalTrainee += process.byCategory.trainee;
+        if (process?.byCategory) {
+          totalActive += process.byCategory.active || 0;
+          totalTrainee += process.byCategory.trainee || 0;
+        }
       });
       
       return { active: totalActive, trainee: totalTrainee };
     } else {
-      return data.byCategory;
+      return data.byCategory || { active: 0, trainee: 0 };
     }
   };
 
