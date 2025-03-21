@@ -227,6 +227,34 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     );
   };
 
+  // Check if the specified manager is valid for a user role based on role hierarchy
+  const validateRoleHierarchy = (userRole: string, managerUsername: string) => {
+    if (!users || !managerUsername) return true; // Skip validation if no manager specified
+    
+    // Find the manager user
+    const managerUser = users.find(u => u.username === managerUsername);
+    if (!managerUser) return false; // Manager doesn't exist
+    
+    // Get allowed roles for the user
+    const roleHierarchy: Record<string, string[]> = {
+      "owner": [], // Owners don't report to anyone
+      "admin": ["owner"], // Admins can only report to owners
+      "manager": ["owner", "admin"], // Managers can report to owners or admins
+      "team_lead": ["owner", "admin", "manager"], // Team leads can report to owners, admins, or managers
+      "quality_analyst": ["owner", "admin", "manager", "team_lead"], // QAs can report to owners, admins, managers, or team leads
+      "trainer": ["owner", "admin", "manager", "team_lead"], // Trainers can report to owners, admins, managers, or team leads
+      "advisor": ["owner", "admin", "manager", "team_lead", "quality_analyst", "trainer"] // Advisors can report to any higher role
+    };
+    
+    const allowedManagerRoles = roleHierarchy[userRole] || [];
+    
+    // If no allowed roles (e.g., for owners), manager is invalid
+    if (allowedManagerRoles.length === 0) return false;
+    
+    // Check if manager's role is in the allowed roles
+    return managerUser.active && allowedManagerRoles.includes(managerUser.role);
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -237,11 +265,21 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const data = XLSX.utils.sheet_to_json<BulkUserUpload>(worksheet);
 
-      // Basic validation of required fields
+      // Enhanced validation for required fields and role hierarchy
       const validatedData = data.map((row, index) => {
+        // Basic required field validation
         if (!row.username || !row.email || !row.role || !row.password) {
           throw new Error(`Row ${index + 1}: Missing required fields (username, email, role, or password)`);
         }
+        
+        // Validate reporting relationship based on role hierarchy
+        if (row.reportingManager && !validateRoleHierarchy(row.role, row.reportingManager)) {
+          throw new Error(
+            `Row ${index + 1}: Invalid reporting manager "${row.reportingManager}" for role "${row.role}". ` +
+            `Please ensure the manager has a compatible role according to the hierarchy.`
+          );
+        }
+        
         return row;
       });
 
@@ -260,6 +298,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
   };
 
   const downloadTemplate = () => {
+    // First sheet will be the template with example data
     const template = [
       {
         username: "example_user",
@@ -278,10 +317,56 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         process: "Customer Support, Technical Support" // Example of multiple processes
       }
     ];
+    
+    // Second sheet with role hierarchy documentation
+    const roleHierarchyDocs = [
+      {
+        role: "owner",
+        canReportTo: "No one (top of hierarchy)",
+        canManage: "Everyone"
+      },
+      {
+        role: "admin",
+        canReportTo: "Owner",
+        canManage: "All except Owner"
+      },
+      {
+        role: "manager",
+        canReportTo: "Owner, Admin",
+        canManage: "Team Lead, Quality Analyst, Trainer, Advisor"
+      },
+      {
+        role: "team_lead",
+        canReportTo: "Owner, Admin, Manager",
+        canManage: "Quality Analyst, Trainer, Advisor"
+      },
+      {
+        role: "quality_analyst",
+        canReportTo: "Owner, Admin, Manager, Team Lead",
+        canManage: "Advisor"
+      },
+      {
+        role: "trainer",
+        canReportTo: "Owner, Admin, Manager, Team Lead",
+        canManage: "Advisor"
+      },
+      {
+        role: "advisor",
+        canReportTo: "Owner, Admin, Manager, Team Lead, Quality Analyst, Trainer",
+        canManage: "No one"
+      }
+    ];
 
-    const ws = XLSX.utils.json_to_sheet(template);
+    // Create the main data template sheet
+    const dataSheet = XLSX.utils.json_to_sheet(template);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Template");
+    XLSX.utils.book_append_sheet(wb, dataSheet, "Template");
+    
+    // Create the role hierarchy guidance sheet
+    const hierarchySheet = XLSX.utils.json_to_sheet(roleHierarchyDocs);
+    XLSX.utils.book_append_sheet(wb, hierarchySheet, "Role Hierarchy");
+    
+    // Write the file with both sheets
     XLSX.writeFile(wb, "user_upload_template.xlsx");
   };
 
@@ -348,7 +433,20 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
           <div className="space-y-4 mb-6">
             <div>
               <h3 className="text-base font-medium mb-2">Bulk Upload Users</h3>
-              <p className="text-sm text-muted-foreground mb-4">Upload multiple users using an Excel file</p>
+              <p className="text-sm text-muted-foreground mb-2">Upload multiple users using an Excel file</p>
+              <div className="mb-4 bg-muted p-3 rounded-md text-sm">
+                <p className="font-medium mb-1">Role Hierarchy Requirements</p>
+                <p className="text-muted-foreground">Users can only report to managers with appropriate roles according to the hierarchy:</p>
+                <ul className="list-disc list-inside text-muted-foreground pl-2 space-y-1 mt-1">
+                  <li>Owners don't report to anyone</li>
+                  <li>Admins can only report to Owners</li>
+                  <li>Managers can report to Owners or Admins</li>
+                  <li>Team Leads can report to Owners, Admins, or Managers</li>
+                  <li>Quality Analysts and Trainers can report to Owners, Admins, Managers, or Team Leads</li>
+                  <li>Advisors can report to any higher role</li>
+                </ul>
+                <p className="text-muted-foreground mt-2">The downloaded template includes detailed guidance in the "Role Hierarchy" sheet.</p>
+              </div>
               <div className="flex items-center gap-4">
                 <div className="flex-1">
                   <Label htmlFor="file-upload">Select Excel File</Label>
