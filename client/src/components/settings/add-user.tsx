@@ -197,10 +197,34 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     setOpenLOB(false);
   };
 
-  const getFilteredManagers = () => {
+  // Get valid managers based on role hierarchy and preventing circular reporting chains
+  const getValidManagersForRole = (selectedRole: string) => {
     if (!users) return [];
-    // Filter out advisors and inactive users
-    return users.filter(u => u.active && u.role !== 'advisor');
+    
+    // Define role hierarchy for reporting relationships
+    const roleHierarchy: Record<string, string[]> = {
+      "owner": [], // Owners don't report to anyone
+      "admin": ["owner"], // Admins can only report to owners
+      "manager": ["owner", "admin"], // Managers can report to owners or admins
+      "team_lead": ["owner", "admin", "manager"], // Team leads can report to owners, admins, or managers
+      "quality_analyst": ["owner", "admin", "manager", "team_lead"], // QAs can report to owners, admins, managers, or team leads
+      "trainer": ["owner", "admin", "manager", "team_lead"], // Trainers can report to owners, admins, managers, or team leads
+      "advisor": ["owner", "admin", "manager", "team_lead", "quality_analyst", "trainer"] // Advisors can report to any higher role
+    };
+    
+    // Get allowed manager roles for the selected role
+    const allowedManagerRoles = roleHierarchy[selectedRole] || [];
+    
+    // If no allowed roles, return empty array (e.g., for owners)
+    if (allowedManagerRoles.length === 0) return [];
+    
+    // Filter potential managers based on:
+    // 1. Active status
+    // 2. Allowed role (based on hierarchy)
+    return users.filter(u => 
+      u.active && 
+      allowedManagerRoles.includes(u.role)
+    );
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -501,8 +525,8 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                   >
                     {newUserData.managerId === "none"
                       ? "Select manager..."
-                      : getFilteredManagers().find(m => m.id.toString() === newUserData.managerId)
-                        ? `${getFilteredManagers().find(m => m.id.toString() === newUserData.managerId)?.fullName}`
+                      : getValidManagersForRole(newUserData.role).find(m => m.id.toString() === newUserData.managerId)
+                        ? `${getValidManagersForRole(newUserData.role).find(m => m.id.toString() === newUserData.managerId)?.fullName}`
                         : "Select manager..."}
                     <Check
                       className={cn(
@@ -517,7 +541,7 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                     <CommandInput placeholder="Search manager..." />
                     <CommandEmpty>No manager found.</CommandEmpty>
                     <CommandGroup>
-                      {getFilteredManagers().map((manager) => (
+                      {getValidManagersForRole(newUserData.role).map((manager) => (
                         <CommandItem
                           key={manager.id}
                           onSelect={() => {
