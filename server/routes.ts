@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { Router } from "express";
-import { insertUserSchema, users, userBatchProcesses, organizationProcesses, userProcesses, quizzes, insertMockCallScenarioSchema, insertMockCallAttemptSchema, mockCallScenarios, mockCallAttempts, batches, lineOfBusiness } from "@shared/schema";
+import { insertUserSchema, users, userBatchProcesses, organizationProcesses, userProcesses, quizzes, insertMockCallScenarioSchema, insertMockCallAttemptSchema, mockCallScenarios, mockCallAttempts, batches, lineOfBusiness, insertUserDashboardSchema, insertDashboardWidgetSchema, userDashboards, dashboardWidgets } from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
@@ -5289,6 +5289,338 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error evaluating mock call attempt:", error);
       res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Dashboard API Routes
+  app.get("/api/dashboards", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const dashboards = await storage.getUserDashboards(req.user.id);
+      res.json(dashboards);
+    } catch (error: any) {
+      console.error("Error fetching dashboards:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/dashboards/default", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const dashboard = await storage.getUserDefaultDashboard(req.user.id);
+      if (!dashboard) {
+        return res.status(404).json({ message: "No default dashboard found" });
+      }
+      res.json(dashboard);
+    } catch (error: any) {
+      console.error("Error fetching default dashboard:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/dashboards", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const dashboardData = insertUserDashboardSchema.parse({
+        ...req.body,
+        userId: req.user.id
+      });
+      
+      const dashboard = await storage.createUserDashboard(dashboardData);
+      res.status(201).json(dashboard);
+    } catch (error: any) {
+      console.error("Error creating dashboard:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/dashboards/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const dashboardId = parseInt(req.params.id);
+      if (isNaN(dashboardId)) {
+        return res.status(400).json({ message: "Invalid dashboard ID" });
+      }
+      
+      // Get the dashboard to check ownership
+      const dashboards = await storage.getUserDashboards(req.user.id);
+      const dashboard = dashboards.find(d => d.id === dashboardId);
+      
+      if (!dashboard) {
+        return res.status(403).json({ message: "Dashboard not found or access denied" });
+      }
+      
+      const updatedDashboard = await storage.updateUserDashboard(dashboardId, req.body);
+      res.json(updatedDashboard);
+    } catch (error: any) {
+      console.error("Error updating dashboard:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/dashboards/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const dashboardId = parseInt(req.params.id);
+      if (isNaN(dashboardId)) {
+        return res.status(400).json({ message: "Invalid dashboard ID" });
+      }
+      
+      // Get the dashboard to check ownership
+      const dashboards = await storage.getUserDashboards(req.user.id);
+      const dashboard = dashboards.find(d => d.id === dashboardId);
+      
+      if (!dashboard) {
+        return res.status(403).json({ message: "Dashboard not found or access denied" });
+      }
+      
+      await storage.deleteUserDashboard(dashboardId);
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting dashboard:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/dashboards/:id/widgets", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const dashboardId = parseInt(req.params.id);
+      if (isNaN(dashboardId)) {
+        return res.status(400).json({ message: "Invalid dashboard ID" });
+      }
+      
+      // Get the dashboard to check ownership
+      const dashboards = await storage.getUserDashboards(req.user.id);
+      const dashboard = dashboards.find(d => d.id === dashboardId);
+      
+      if (!dashboard) {
+        return res.status(403).json({ message: "Dashboard not found or access denied" });
+      }
+      
+      const widgetData = insertDashboardWidgetSchema.parse({
+        ...req.body,
+        dashboardId
+      });
+      
+      const widget = await storage.createDashboardWidget(widgetData);
+      res.status(201).json(widget);
+    } catch (error: any) {
+      console.error("Error creating widget:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/widgets/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const widgetId = parseInt(req.params.id);
+      if (isNaN(widgetId)) {
+        return res.status(400).json({ message: "Invalid widget ID" });
+      }
+      
+      // Get the widget's dashboard first
+      const widgets = await db.query.dashboardWidgets.findMany({
+        where: eq(dashboardWidgets.id, widgetId),
+        with: {
+          dashboard: true
+        }
+      });
+      
+      if (widgets.length === 0 || widgets[0].dashboard.userId !== req.user.id) {
+        return res.status(403).json({ message: "Widget not found or access denied" });
+      }
+      
+      const updatedWidget = await storage.updateDashboardWidget(widgetId, req.body);
+      res.json(updatedWidget);
+    } catch (error: any) {
+      console.error("Error updating widget:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/widgets/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const widgetId = parseInt(req.params.id);
+      if (isNaN(widgetId)) {
+        return res.status(400).json({ message: "Invalid widget ID" });
+      }
+      
+      // Get the widget's dashboard first
+      const widgets = await db.query.dashboardWidgets.findMany({
+        where: eq(dashboardWidgets.id, widgetId),
+        with: {
+          dashboard: true
+        }
+      });
+      
+      if (widgets.length === 0 || widgets[0].dashboard.userId !== req.user.id) {
+        return res.status(403).json({ message: "Widget not found or access denied" });
+      }
+      
+      await storage.deleteDashboardWidget(widgetId);
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting widget:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/dashboards/:id/default", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const dashboardId = parseInt(req.params.id);
+      if (isNaN(dashboardId)) {
+        return res.status(400).json({ message: "Invalid dashboard ID" });
+      }
+      
+      // Get the dashboard to check ownership
+      const dashboards = await storage.getUserDashboards(req.user.id);
+      const dashboard = dashboards.find(d => d.id === dashboardId);
+      
+      if (!dashboard) {
+        return res.status(403).json({ message: "Dashboard not found or access denied" });
+      }
+      
+      await storage.setDefaultDashboard(req.user.id, dashboardId);
+      res.status(200).json({ message: "Default dashboard set successfully" });
+    } catch (error: any) {
+      console.error("Error setting default dashboard:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Analytics data endpoints
+  app.get("/api/analytics/role-distribution", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const filters = req.query.filters ? JSON.parse(req.query.filters as string) : undefined;
+      const data = await storage.getRoleDistributionData(req.user.organizationId, filters);
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching role distribution data:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/analytics/location-distribution", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const filters = req.query.filters ? JSON.parse(req.query.filters as string) : undefined;
+      const data = await storage.getLocationDistributionData(req.user.organizationId, filters);
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching location distribution data:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/analytics/process-heatmap", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const filters = req.query.filters ? JSON.parse(req.query.filters as string) : undefined;
+      const data = await storage.getProcessHeatmapData(req.user.organizationId, filters);
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching process heatmap data:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/analytics/tenure-analysis", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const filters = req.query.filters ? JSON.parse(req.query.filters as string) : undefined;
+      const data = await storage.getTenureAnalysisData(req.user.organizationId, filters);
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching tenure analysis data:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/analytics/capacity-planning", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const filters = req.query.filters ? JSON.parse(req.query.filters as string) : undefined;
+      const data = await storage.getCapacityPlanningData(req.user.organizationId, filters);
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching capacity planning data:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/analytics/attrition-risk", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const filters = req.query.filters ? JSON.parse(req.query.filters as string) : undefined;
+      const data = await storage.getAttritionRiskData(req.user.organizationId, filters);
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching attrition risk data:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/analytics/skills-gap", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const filters = req.query.filters ? JSON.parse(req.query.filters as string) : undefined;
+      const data = await storage.getSkillsGapData(req.user.organizationId, filters);
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching skills gap data:", error);
+      res.status(500).json({ message: error.message });
     }
   });
 
