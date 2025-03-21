@@ -734,32 +734,34 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                     />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[200px] p-0">
+                <PopoverContent className="w-[300px] p-0">
                   <Command>
                     <CommandInput placeholder="Search manager..." />
                     <CommandEmpty>No manager found.</CommandEmpty>
-                    <CommandGroup>
-                      {getValidManagersForRole(newUserData.role).map((manager) => (
-                        <CommandItem
-                          key={manager.id}
-                          onSelect={() => {
-                            setNewUserData(prev => ({
-                              ...prev,
-                              managerId: manager.id.toString()
-                            }));
-                            setOpenManager(false);
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              newUserData.managerId === manager.id.toString() ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          {manager.fullName} ({manager.role})
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
+                    <div className="max-h-[300px] overflow-y-auto">
+                      <CommandGroup>
+                        {getValidManagersForRole(newUserData.role).map((manager) => (
+                          <CommandItem
+                            key={manager.id}
+                            onSelect={() => {
+                              setNewUserData(prev => ({
+                                ...prev,
+                                managerId: manager.id.toString()
+                              }));
+                              setOpenManager(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                newUserData.managerId === manager.id.toString() ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {manager.fullName} ({manager.role})
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </div>
                   </Command>
                 </PopoverContent>
               </Popover>
@@ -786,46 +788,48 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
                     />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[200px] p-0">
+                <PopoverContent className="w-[300px] p-0">
                   <Command>
                     <CommandInput placeholder="Search location..." />
                     <CommandEmpty>No location found.</CommandEmpty>
-                    <CommandGroup>
-                      <CommandItem
-                        onSelect={() => {
-                          setNewUserData(prev => ({ ...prev, locationId: "none" }));
-                          setOpenLocation(false);
-                        }}
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            newUserData.locationId === "none" ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                        No Location
-                      </CommandItem>
-                      {locations.map((location) => (
+                    <div className="max-h-[300px] overflow-y-auto">
+                      <CommandGroup>
                         <CommandItem
-                          key={location.id}
                           onSelect={() => {
-                            setNewUserData(prev => ({
-                              ...prev,
-                              locationId: location.id.toString()
-                            }));
+                            setNewUserData(prev => ({ ...prev, locationId: "none" }));
                             setOpenLocation(false);
                           }}
                         >
                           <Check
                             className={cn(
                               "mr-2 h-4 w-4",
-                              newUserData.locationId === location.id.toString() ? "opacity-100" : "opacity-0"
+                              newUserData.locationId === "none" ? "opacity-100" : "opacity-0"
                             )}
                           />
-                          {location.name}
+                          No Location
                         </CommandItem>
-                      ))}
-                    </CommandGroup>
+                        {locations.map((location) => (
+                          <CommandItem
+                            key={location.id}
+                            onSelect={() => {
+                              setNewUserData(prev => ({
+                                ...prev,
+                                locationId: location.id.toString()
+                              }));
+                              setOpenLocation(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                newUserData.locationId === location.id.toString() ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {location.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </div>
                   </Command>
                 </PopoverContent>
               </Popover>
