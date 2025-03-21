@@ -122,7 +122,14 @@ export default function AnalyticsDashboard() {
     enabled: selectedTab === 'overview' || 
              (selectedTab === 'process' && !!selectedProcess) || 
              (selectedTab === 'lob' && !!selectedLOB),
-    retry: false
+    retry: false,
+    // Add a success handler to debug the response data
+    onSuccess: (data) => {
+      console.log('Analytics data received:', data);
+    },
+    onError: (error) => {
+      console.error('Error fetching analytics data:', error);
+    }
   });
 
   // Format data for role pie chart
