@@ -158,43 +158,67 @@ const WidgetComponent: React.FC<WidgetProps> = ({ widget, onEdit, onDelete }) =>
     : 'h-full';
 
   const renderWidgetContent = () => {
-    const { widgetType, configuration = {} } = widget;
+    // Ensure widget type and configuration exist with defaults
+    const { widgetType = '', configuration = {} } = widget || {};
     const defaultTitle = WIDGET_TYPE_LABELS[widgetType] || 'Widget';
     const title = configuration?.title || defaultTitle;
+    const filters = configuration?.filters || {};
+
+    console.log("Rendering widget:", widgetType, configuration);
 
     switch (widgetType) {
       case 'role_distribution':
-        return <RoleDistributionChart title={title} filters={configuration.filters} />;
+        return <RoleDistributionChart title={title} filters={filters} />;
       case 'location_distribution':
-        return <LocationDistributionMap title={title} filters={configuration.filters} />;
+        return <LocationDistributionMap title={title} filters={filters} />;
       case 'process_heatmap':
-        return <ProcessHeatmap title={title} filters={configuration.filters} />;
+        return <ProcessHeatmap title={title} filters={filters} />;
       case 'tenure_analysis':
-        return <TenureAnalysis title={title} filters={configuration.filters} />;
+        return <TenureAnalysis title={title} filters={filters} />;
       case 'capacity_planning':
-        return <CapacityPlanning title={title} filters={configuration.filters} />;
+        return <CapacityPlanning title={title} filters={filters} />;
       case 'attrition_risk':
-        return <AttritionRisk title={title} filters={configuration.filters} />;
+        return <AttritionRisk title={title} filters={filters} />;
       case 'skills_gap':
-        return <SkillsGap title={title} filters={configuration.filters} />;
+        return <SkillsGap title={title} filters={filters} />;
       default:
-        return <div>Unknown widget type: {widgetType}</div>;
+        return (
+          <div className="flex flex-col items-center justify-center h-32 text-center p-4">
+            <div className="text-yellow-500 mb-2">Widget type not recognized</div>
+            <div className="text-sm text-muted-foreground">Type: {widgetType || 'Not specified'}</div>
+            <Button variant="outline" size="sm" className="mt-2" onClick={() => onEdit(widget)}>
+              <Settings className="mr-2 h-4 w-4" />
+              Configure Widget
+            </Button>
+          </div>
+        );
     }
+  };
+
+  // Ensure widget properties exist with defaults
+  const safeWidget = {
+    ...widget,
+    configuration: widget.configuration || {},
+    widgetType: widget.widgetType || '',
+    id: widget.id || 0,
+    position: widget.position || { x: 0, y: 0, w: 1, h: 1 }
   };
 
   return (
     <Card className={`${sizeClasses}`}>
       <CardHeader className="p-4">
         <div className="flex justify-between items-center">
-          <CardTitle className="text-lg">{widget.configuration?.title || WIDGET_TYPE_LABELS[widget.widgetType] || 'Widget'}</CardTitle>
+          <CardTitle className="text-lg">
+            {safeWidget.configuration?.title || WIDGET_TYPE_LABELS[safeWidget.widgetType] || 'Widget'}
+          </CardTitle>
           <div className="flex space-x-2">
             <Button variant="ghost" size="icon" onClick={() => setIsExpanded(!isExpanded)}>
               {isExpanded ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => onEdit(widget)}>
+            <Button variant="ghost" size="icon" onClick={() => onEdit(safeWidget)}>
               <Settings className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => onDelete(widget.id)}>
+            <Button variant="ghost" size="icon" onClick={() => onDelete(safeWidget.id)}>
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
@@ -395,6 +419,17 @@ export default function AnalyticsDashboard() {
       }
     }
   }, [dashboardsData, selectedDashboard]);
+
+  // Effect to set widgets when data is loaded
+  useEffect(() => {
+    if (widgetsData && selectedDashboard) {
+      // Update the selected dashboard with the fetched widgets
+      setSelectedDashboard({
+        ...selectedDashboard,
+        widgets: widgetsData
+      });
+    }
+  }, [widgetsData, selectedDashboard]);
 
   // Submit handler for dashboard creation
   const onSubmitDashboard = (data: z.infer<typeof dashboardSchema>) => {
