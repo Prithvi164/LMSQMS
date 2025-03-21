@@ -77,6 +77,13 @@ export function UserManagement() {
   const [viewMode, setViewMode] = useState<'flat' | 'hierarchy'>('flat');
   const [expandedManagers, setExpandedManagers] = useState<number[]>([]);
   const [showHierarchicalFilter, setShowHierarchicalFilter] = useState<boolean>(false);
+  
+  // Auto-expand current user's node when switching to hierarchical view
+  useEffect(() => {
+    if (viewMode === 'hierarchy' && user?.id && !expandedManagers.includes(user.id)) {
+      setExpandedManagers(prev => [...prev, user.id]);
+    }
+  }, [viewMode, user?.id]);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -1050,27 +1057,53 @@ export function UserManagement() {
                     </TableRow>
                   ))
                 ) : (
-                  // Hierarchical view - tree structure
-                  filteredUsers
-                    .filter(u => !u.managerId) // Only root users (no manager)
-                    .map(rootUser => (
-                      <HierarchicalUserRow
-                        key={rootUser.id}
-                        user={rootUser}
-                        users={filteredUsers}
-                        level={0}
-                        expandedManagers={expandedManagers}
-                        toggleExpanded={toggleManagerExpanded}
-                        getManagerName={getManagerName}
-                        getLocationName={getLocationName}
-                        getProcessNames={getUserProcesses}
-                        canManageUsers={canManageUsers}
-                        editUserComponent={(user) => <EditUserDialog user={user} />}
-                        toggleUserStatus={toggleUserStatus}
-                        handleDeleteClick={handleDeleteClick}
-                        getFormattedReportingPath={getFormattedReportingPath}
-                      />
-                    ))
+                  // Hierarchical view - tree structure based on current user and visible permissions
+                  (() => {
+                    // If owner or admin, show the entire org hierarchy from root users
+                    if (user?.role === 'owner' || user?.role === 'admin') {
+                      return filteredUsers
+                        .filter(u => !u.managerId) // Only root users (no manager)
+                        .map(rootUser => (
+                          <HierarchicalUserRow
+                            key={rootUser.id}
+                            user={rootUser}
+                            users={filteredUsers}
+                            level={0}
+                            expandedManagers={expandedManagers}
+                            toggleExpanded={toggleManagerExpanded}
+                            getManagerName={getManagerName}
+                            getLocationName={getLocationName}
+                            getProcessNames={getUserProcesses}
+                            canManageUsers={canManageUsers}
+                            editUserComponent={(user) => <EditUserDialog user={user} />}
+                            toggleUserStatus={toggleUserStatus}
+                            handleDeleteClick={handleDeleteClick}
+                            getFormattedReportingPath={getFormattedReportingPath}
+                          />
+                        ));
+                    } 
+                    // For managers and other roles, show only their own hierarchy
+                    else {
+                      return (
+                        <HierarchicalUserRow
+                          key={user?.id}
+                          user={user as User}
+                          users={filteredUsers}
+                          level={0}
+                          expandedManagers={expandedManagers}
+                          toggleExpanded={toggleManagerExpanded}
+                          getManagerName={getManagerName}
+                          getLocationName={getLocationName}
+                          getProcessNames={getUserProcesses}
+                          canManageUsers={canManageUsers}
+                          editUserComponent={(user) => <EditUserDialog user={user} />}
+                          toggleUserStatus={toggleUserStatus}
+                          handleDeleteClick={handleDeleteClick}
+                          getFormattedReportingPath={getFormattedReportingPath}
+                        />
+                      );
+                    }
+                  })()
                 )}
               </TableBody>
             </Table>
