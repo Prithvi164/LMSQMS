@@ -9,7 +9,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Trash2, Search, Download, Upload, FileSpreadsheet, Check, Loader2 } from "lucide-react";
+import { Edit2, Trash2, Search, Download, Upload, FileSpreadsheet, Check, Loader2, Users, ChevronDown, ChevronRight, Network } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -42,6 +42,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { 
+  getReportingChainUsers, 
+  canEditUser, 
+  isSubordinate, 
+  getFormattedReportingPath
+} from "@/lib/hierarchy-utils";
 
 // Extend the insertUserSchema for the edit form
 const editUserSchema = insertUserSchema.extend({
@@ -66,6 +73,9 @@ export function UserManagement() {
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [viewMode, setViewMode] = useState<'flat' | 'hierarchy'>('flat');
+  const [expandedManagers, setExpandedManagers] = useState<number[]>([]);
+  const [showHierarchicalFilter, setShowHierarchicalFilter] = useState<boolean>(false);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -211,10 +221,52 @@ export function UserManagement() {
     return location ? location.name : "Unknown Location";
   };
 
+  // Get hierarchy level
+  const getHierarchyLevel = (userId: number): number => {
+    let level = 0;
+    let currentUser = users.find(u => u.id === userId);
+    
+    while (currentUser?.managerId) {
+      level++;
+      currentUser = users.find(u => u.id === currentUser?.managerId);
+    }
+    
+    return level;
+  };
+
+  // Toggle expanded state for a manager
+  const toggleManagerExpanded = (managerId: number) => {
+    if (expandedManagers.includes(managerId)) {
+      setExpandedManagers(expandedManagers.filter(id => id !== managerId));
+    } else {
+      setExpandedManagers([...expandedManagers, managerId]);
+    }
+  };
+
+  // Check if a user is in the current user's reporting chain
+  const isInCurrentUserHierarchy = (targetUserId: number): boolean => {
+    if (!user) return false;
+    if (user.id === targetUserId) return true;
+    return isSubordinate(user.id, targetUserId, users);
+  };
+
+  // Get all users visible to the current user based on hierarchy
+  const getVisibleUsers = (): User[] => {
+    if (!user) return [];
+    
+    // Owners and admins can see all users
+    if (user.role === 'owner' || user.role === 'admin') {
+      return users;
+    }
+    
+    // Other roles can only see themselves and their subordinates
+    return getReportingChainUsers(user.id, users);
+  };
+
   // Get unique managers for filter dropdown
   const uniqueManagers = Array.from(
     new Map(
-      users
+      getVisibleUsers()
         .filter(u => u.managerId !== null)
         .map(u => {
           const manager = users.find(m => m.id === u.managerId);
@@ -224,8 +276,8 @@ export function UserManagement() {
     ).values()
   );
 
-  // Filter users based on search term and filters
-  const filteredUsers = users.filter(u => {
+  // Filter users based on search term, filters, and hierarchy visibility
+  const filteredUsers = getVisibleUsers().filter(u => {
     const matchesSearch = searchTerm === "" ||
       u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -233,11 +285,13 @@ export function UserManagement() {
 
     const matchesRole = roleFilter === "all" || u.role === roleFilter;
 
+    // Enhanced manager filter to include hierarchical filtering
     const matchesManager = managerFilter === "all" ||
       (managerFilter === "none" && !u.managerId) ||
+      (managerFilter === "direct" && u.managerId === user?.id) ||
+      (managerFilter === "team" && isSubordinate(user?.id || 0, u.id, users)) ||
       (u.managerId?.toString() === managerFilter);
 
-    // Only show active users if active filter is selected
     return matchesSearch && matchesRole && matchesManager;
   });
 
