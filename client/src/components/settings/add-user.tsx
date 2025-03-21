@@ -451,6 +451,77 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         example: "If you're a Team Lead reporting to Manager A, you cannot assign users to Team Lead B who reports to Manager B."
       }
     ];
+    
+    // Create a roles reference sheet
+    const roleSheet = [
+      {
+        role: "owner",
+        description: "Organization owner with full access",
+        canCreateUsersWithRoles: "All roles except owner",
+        systemRole: "Yes - cannot be changed"
+      },
+      {
+        role: "admin",
+        description: "Administrator with extensive permissions",
+        canCreateUsersWithRoles: "All roles except owner",
+        systemRole: "No"
+      },
+      {
+        role: "manager",
+        description: "Department or team manager",
+        canCreateUsersWithRoles: "team_lead, quality_analyst, trainer, advisor",
+        systemRole: "No"
+      },
+      {
+        role: "team_lead",
+        description: "Team leader responsible for a team of agents",
+        canCreateUsersWithRoles: "quality_analyst, trainer, advisor",
+        systemRole: "No"
+      },
+      {
+        role: "quality_analyst",
+        description: "Quality monitoring and evaluation specialist",
+        canCreateUsersWithRoles: "advisor",
+        systemRole: "No"
+      },
+      {
+        role: "trainer",
+        description: "Training and development specialist",
+        canCreateUsersWithRoles: "advisor",
+        systemRole: "No"
+      },
+      {
+        role: "advisor",
+        description: "Contact center agent/advisor",
+        canCreateUsersWithRoles: "None",
+        systemRole: "No"
+      }
+    ];
+    
+    // Create location reference sheet from available locations
+    const locationSheet = locations.map(location => ({
+      id: location.id,
+      name: location.name,
+      city: location.city,
+      state: location.state,
+      country: location.country
+    }));
+    
+    // Create Line of Business reference sheet
+    const lobSheet = lineOfBusinesses.map(lob => ({
+      id: lob.id,
+      name: lob.name,
+      description: lob.description || ''
+    }));
+    
+    // Create Process reference sheet with LOB associations
+    const processSheet = processes.map(process => ({
+      id: process.id,
+      name: process.name,
+      description: process.description || '',
+      lineOfBusiness: lineOfBusinesses.find(lob => lob.id === process.lineOfBusinessId)?.name || 'Unknown',
+      lineOfBusinessId: process.lineOfBusinessId
+    }));
 
     // Create the main data template sheet
     const dataSheet = XLSX.utils.json_to_sheet(template);
@@ -465,8 +536,26 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
     const guidanceExampleSheet = XLSX.utils.json_to_sheet(guidanceSheet);
     XLSX.utils.book_append_sheet(wb, guidanceExampleSheet, "Reporting Chain Guide");
     
+    // Add new reference sheets
+    const roleReferenceSheet = XLSX.utils.json_to_sheet(roleSheet);
+    XLSX.utils.book_append_sheet(wb, roleReferenceSheet, "Roles");
+    
+    const locationReferenceSheet = XLSX.utils.json_to_sheet(locationSheet);
+    XLSX.utils.book_append_sheet(wb, locationReferenceSheet, "Locations");
+    
+    const lobReferenceSheet = XLSX.utils.json_to_sheet(lobSheet);
+    XLSX.utils.book_append_sheet(wb, lobReferenceSheet, "Line of Business");
+    
+    const processReferenceSheet = XLSX.utils.json_to_sheet(processSheet);
+    XLSX.utils.book_append_sheet(wb, processReferenceSheet, "Processes");
+    
     // Write the file with all sheets
     XLSX.writeFile(wb, "user_upload_template.xlsx");
+    
+    toast({
+      title: "Template Downloaded",
+      description: "The template includes reference sheets for Roles, Locations, Line of Business, and Processes",
+    });
   };
 
   // Check if user has permission to manage users
