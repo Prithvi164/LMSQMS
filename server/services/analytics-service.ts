@@ -81,7 +81,7 @@ export const getProcessHeadcountAnalytics = async (organizationId: number, proce
     .from(userProcesses)
     .where(and(
       eq(userProcesses.processId, processId),
-      eq(userProcesses.status, 'active')
+      eq(userProcesses.status, 'assigned')
     ));
 
     if (!processUsers || processUsers.length === 0) {
@@ -212,7 +212,7 @@ export const getHeadcountProjection = async (
     .from(userProcesses)
     .where(and(
       eq(userProcesses.processId, processId),
-      eq(userProcesses.status, 'active')
+      eq(userProcesses.status, 'assigned')
     ));
 
     if (!processUsers || processUsers.length === 0) {
