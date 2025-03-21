@@ -11,7 +11,8 @@ import {
   FileCheck,
   PhoneCall,
   CheckSquare,
-  FileSpreadsheet 
+  FileSpreadsheet,
+  BarChart2 
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -35,6 +36,7 @@ export function SidebarNav() {
       { href: '/mock-call-scenarios', label: 'Mock Calls', icon: PhoneCall },
       { href: '/evaluation-templates', label: 'Evaluation Forms', icon: CheckSquare },
       { href: '/conduct-evaluation', label: 'Conduct Evaluation', icon: FileSpreadsheet },
+      { href: '/analytics-dashboard', label: 'Analytics Dashboard', icon: BarChart2 },
     ]),
   ];
 
