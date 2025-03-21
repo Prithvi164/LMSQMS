@@ -246,7 +246,7 @@ export const getHeadcountProjection = async (
       eq(organizationBatches.processId, processId),
       eq(organizationBatches.organizationId, organizationId),
       and(
-        isNull(organizationBatches.handoverToOpsDate).not(),
+        sql`${organizationBatches.handoverToOpsDate} IS NOT NULL`,
         gte(organizationBatches.handoverToOpsDate, new Date().toISOString().slice(0, 10))
       )
     ));

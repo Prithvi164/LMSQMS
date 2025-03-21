@@ -1,0 +1,500 @@
+import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { StatsCard } from '@/components/ui/stats-card';
+import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
+import { 
+  BarChart, 
+  Bar, 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend, 
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell
+} from 'recharts';
+import { 
+  Users, 
+  UserRound, 
+  Layers, 
+  MapPin, 
+  BarChart2,
+  PieChart as PieChartIcon,
+  LineChart as LineChartIcon,
+  TrendingUp
+} from 'lucide-react';
+
+// Types for the analytics API responses
+interface HeadcountByCategory {
+  active: number;
+  trainee: number;
+}
+
+interface HeadcountByRole {
+  [role: string]: number;
+}
+
+interface HeadcountByLocation {
+  [location: string]: number;
+}
+
+interface HeadcountProjection {
+  date: string;
+  expectedHeadcount: number;
+}
+
+interface ProcessHeadcountAnalytics {
+  processId: number;
+  processName: string;
+  totalHeadcount: number;
+  byCategory: HeadcountByCategory;
+  byRole: HeadcountByRole;
+  byLocation: HeadcountByLocation;
+  projection?: HeadcountProjection[];
+}
+
+interface Process {
+  id: number;
+  name: string;
+}
+
+interface LineOfBusiness {
+  id: number;
+  name: string;
+}
+
+// Colors for charts
+const COLORS = [
+  '#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#a4de6c', 
+  '#d0ed57', '#83a6ed', '#8dd1e1', '#a4262c', '#ca5010'
+];
+
+export default function AnalyticsDashboard() {
+  const [selectedTab, setSelectedTab] = useState('overview');
+  const [selectedProcess, setSelectedProcess] = useState<number | null>(null);
+  const [selectedLOB, setSelectedLOB] = useState<number | null>(null);
+
+  // Fetch processes
+  const { data: processes, isLoading: isProcessesLoading } = useQuery({
+    queryKey: ['/api/processes'],
+    retry: false
+  });
+
+  // Fetch line of businesses
+  const { data: lineOfBusinesses, isLoading: isLOBLoading } = useQuery({
+    queryKey: ['/api/line-of-businesses'],
+    retry: false
+  });
+
+  // Fetch analytics based on selected filter
+  const { data: analyticsData, isLoading: isAnalyticsLoading } = useQuery({
+    queryKey: [
+      selectedTab === 'overview' 
+        ? '/api/analytics/headcount' 
+        : selectedTab === 'process' && selectedProcess 
+          ? `/api/analytics/headcount/process/${selectedProcess}` 
+          : selectedTab === 'lob' && selectedLOB 
+            ? `/api/analytics/headcount/line-of-business/${selectedLOB}`
+            : null
+    ],
+    enabled: selectedTab === 'overview' || 
+             (selectedTab === 'process' && !!selectedProcess) || 
+             (selectedTab === 'lob' && !!selectedLOB),
+    retry: false
+  });
+
+  // Format data for role pie chart
+  const formatRoleData = (data: ProcessHeadcountAnalytics | ProcessHeadcountAnalytics[]) => {
+    if (Array.isArray(data)) {
+      // For overview, aggregate roles across all processes
+      const aggregatedRoles: { [key: string]: number } = {};
+      data.forEach(process => {
+        Object.entries(process.byRole).forEach(([role, count]) => {
+          aggregatedRoles[role] = (aggregatedRoles[role] || 0) + count;
+        });
+      });
+      return Object.entries(aggregatedRoles).map(([name, value]) => ({ name, value }));
+    } else {
+      // For single process
+      return Object.entries(data.byRole).map(([name, value]) => ({ name, value }));
+    }
+  };
+
+  // Format data for location pie chart
+  const formatLocationData = (data: ProcessHeadcountAnalytics | ProcessHeadcountAnalytics[]) => {
+    if (Array.isArray(data)) {
+      // For overview, aggregate locations across all processes
+      const aggregatedLocations: { [key: string]: number } = {};
+      data.forEach(process => {
+        Object.entries(process.byLocation).forEach(([location, count]) => {
+          aggregatedLocations[location] = (aggregatedLocations[location] || 0) + count;
+        });
+      });
+      return Object.entries(aggregatedLocations).map(([name, value]) => ({ name, value }));
+    } else {
+      // For single process
+      return Object.entries(data.byLocation).map(([name, value]) => ({ name, value }));
+    }
+  };
+
+  // Format data for headcount projection line chart
+  const formatProjectionData = (data: ProcessHeadcountAnalytics | ProcessHeadcountAnalytics[]) => {
+    if (Array.isArray(data)) {
+      // Combine projections from all processes
+      const projectionMap = new Map<string, number>();
+      
+      data.forEach(process => {
+        if (process.projection) {
+          process.projection.forEach(proj => {
+            const currentValue = projectionMap.get(proj.date) || 0;
+            projectionMap.set(proj.date, currentValue + proj.expectedHeadcount);
+          });
+        }
+      });
+      
+      // Convert map to array and sort by date
+      return Array.from(projectionMap, ([date, expectedHeadcount]) => ({ date, expectedHeadcount }))
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    } else {
+      // Return projection for single process, sorted by date
+      return data.projection 
+        ? [...data.projection].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        : [];
+    }
+  };
+
+  // Format data for process comparison bar chart
+  const formatProcessComparisonData = (data: ProcessHeadcountAnalytics[]) => {
+    if (!Array.isArray(data)) return [];
+    
+    return data.map(process => ({
+      name: process.processName,
+      total: process.totalHeadcount,
+      active: process.byCategory.active,
+      trainee: process.byCategory.trainee
+    }));
+  };
+
+  // Calculate active-to-trainee ratio for process
+  const calculateActiveToTraineeRatio = (data: ProcessHeadcountAnalytics | ProcessHeadcountAnalytics[]) => {
+    if (Array.isArray(data)) {
+      let totalActive = 0;
+      let totalTrainee = 0;
+      
+      data.forEach(process => {
+        totalActive += process.byCategory.active;
+        totalTrainee += process.byCategory.trainee;
+      });
+      
+      return totalTrainee > 0 ? (totalActive / totalTrainee).toFixed(2) : 'N/A';
+    } else {
+      return data.byCategory.trainee > 0 
+        ? (data.byCategory.active / data.byCategory.trainee).toFixed(2)
+        : 'N/A';
+    }
+  };
+
+  // Get total headcount
+  const getTotalHeadcount = (data: ProcessHeadcountAnalytics | ProcessHeadcountAnalytics[]) => {
+    if (Array.isArray(data)) {
+      return data.reduce((sum, process) => sum + process.totalHeadcount, 0);
+    } else {
+      return data.totalHeadcount;
+    }
+  };
+
+  // Get active and trainee totals
+  const getCategoryTotals = (data: ProcessHeadcountAnalytics | ProcessHeadcountAnalytics[]) => {
+    if (Array.isArray(data)) {
+      let totalActive = 0;
+      let totalTrainee = 0;
+      
+      data.forEach(process => {
+        totalActive += process.byCategory.active;
+        totalTrainee += process.byCategory.trainee;
+      });
+      
+      return { active: totalActive, trainee: totalTrainee };
+    } else {
+      return data.byCategory;
+    }
+  };
+
+  // Handle process selection
+  const handleProcessChange = (value: string) => {
+    setSelectedProcess(Number(value));
+  };
+
+  // Handle LOB selection
+  const handleLOBChange = (value: string) => {
+    setSelectedLOB(Number(value));
+  };
+
+  // Loading state
+  const isLoading = isProcessesLoading || isLOBLoading || isAnalyticsLoading;
+  
+  return (
+    <div className="container mx-auto py-6">
+      <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:gap-8 mb-6">
+        <div className="flex-1">
+          <h1 className="text-3xl font-bold tracking-tight">Analytics Dashboard</h1>
+          <p className="text-muted-foreground">
+            View headcount analytics and projections across processes
+          </p>
+        </div>
+      </div>
+
+      <Tabs
+        value={selectedTab}
+        onValueChange={setSelectedTab}
+        className="space-y-4"
+      >
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="process">Process</TabsTrigger>
+          <TabsTrigger value="lob">Line of Business</TabsTrigger>
+        </TabsList>
+
+        {selectedTab === 'process' && (
+          <div className="my-4">
+            <Select onValueChange={handleProcessChange}>
+              <SelectTrigger className="w-[280px]">
+                <SelectValue placeholder="Select a process" />
+              </SelectTrigger>
+              <SelectContent>
+                {processes?.map((process: Process) => (
+                  <SelectItem key={process.id} value={process.id.toString()}>
+                    {process.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {selectedTab === 'lob' && (
+          <div className="my-4">
+            <Select onValueChange={handleLOBChange}>
+              <SelectTrigger className="w-[280px]">
+                <SelectValue placeholder="Select a line of business" />
+              </SelectTrigger>
+              <SelectContent>
+                {lineOfBusinesses?.map((lob: LineOfBusiness) => (
+                  <SelectItem key={lob.id} value={lob.id.toString()}>
+                    {lob.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* Ensure data is loaded and selected view (if needed) is chosen before displaying content */}
+        {isLoading ? (
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-6">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i} className="overflow-hidden">
+                <CardHeader className="pb-2">
+                  <Skeleton className="h-4 w-1/2 mb-2" />
+                  <Skeleton className="h-6 w-full" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-24 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : analyticsData && (
+          <>
+            {/* Stats Cards */}
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-6">
+              <StatsCard
+                title="Total Headcount"
+                value={getTotalHeadcount(analyticsData).toString()}
+                icon={<Users className="h-4 w-4" />}
+              />
+              <StatsCard
+                title="Active Employees"
+                value={getCategoryTotals(analyticsData).active.toString()}
+                icon={<UserRound className="h-4 w-4" />}
+              />
+              <StatsCard
+                title="Trainees"
+                value={getCategoryTotals(analyticsData).trainee.toString()}
+                icon={<Layers className="h-4 w-4" />}
+              />
+              <StatsCard
+                title="Active-to-Trainee Ratio"
+                value={calculateActiveToTraineeRatio(analyticsData)}
+                icon={<TrendingUp className="h-4 w-4" />}
+              />
+            </div>
+
+            {/* Charts - in tabs */}
+            <Tabs defaultValue="breakdown" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="breakdown">Breakdowns</TabsTrigger>
+                <TabsTrigger value="projections">Projections</TabsTrigger>
+                {selectedTab === 'overview' && <TabsTrigger value="comparison">Process Comparison</TabsTrigger>}
+              </TabsList>
+
+              <TabsContent value="breakdown" className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Role Distribution Chart */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <UserRound className="h-4 w-4 mr-2" />
+                        Role Distribution
+                      </CardTitle>
+                      <CardDescription>Headcount breakdown by role</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={formatRoleData(analyticsData)}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={true}
+                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="value"
+                          >
+                            {formatRoleData(analyticsData).map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  {/* Location Distribution Chart */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <MapPin className="h-4 w-4 mr-2" />
+                        Location Distribution
+                      </CardTitle>
+                      <CardDescription>Headcount breakdown by location</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={formatLocationData(analyticsData)}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={true}
+                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="value"
+                          >
+                            {formatLocationData(analyticsData).map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="projections">
+                {/* Headcount Projection Chart */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <LineChartIcon className="h-4 w-4 mr-2" />
+                      Headcount Projection (Next 90 Days)
+                    </CardTitle>
+                    <CardDescription>Expected headcount changes based on last working days and batch handovers</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={400}>
+                      <LineChart data={formatProjectionData(analyticsData)}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis 
+                          dataKey="date" 
+                          tickFormatter={(date) => new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                        />
+                        <YAxis />
+                        <Tooltip 
+                          labelFormatter={(date) => new Date(date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                        />
+                        <Legend />
+                        <Line 
+                          type="monotone" 
+                          dataKey="expectedHeadcount" 
+                          stroke="#8884d8" 
+                          activeDot={{ r: 8 }} 
+                          name="Expected Headcount"
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {selectedTab === 'overview' && (
+                <TabsContent value="comparison">
+                  {/* Process Comparison Chart */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <BarChart2 className="h-4 w-4 mr-2" />
+                        Process Comparison
+                      </CardTitle>
+                      <CardDescription>Headcount comparison across processes</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={400}>
+                        <BarChart data={formatProcessComparisonData(analyticsData as ProcessHeadcountAnalytics[])}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" />
+                          <YAxis />
+                          <Tooltip />
+                          <Legend />
+                          <Bar dataKey="active" fill="#8884d8" name="Active" />
+                          <Bar dataKey="trainee" fill="#82ca9d" name="Trainee" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              )}
+            </Tabs>
+          </>
+        )}
+      </Tabs>
+    </div>
+  );
+}
