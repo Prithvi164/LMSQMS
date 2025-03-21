@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { 
   LayoutDashboard, 
   GraduationCap, 
-  BarChart2, 
   Users,
   ClipboardCheck,
   LogOut,
@@ -36,7 +35,6 @@ export function SidebarNav() {
       { href: '/mock-call-scenarios', label: 'Mock Calls', icon: PhoneCall },
       { href: '/evaluation-templates', label: 'Evaluation Forms', icon: CheckSquare },
       { href: '/conduct-evaluation', label: 'Conduct Evaluation', icon: FileSpreadsheet },
-      { href: '/performance', label: 'Performance', icon: BarChart2 },
     ]),
   ];
 
