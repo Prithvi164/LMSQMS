@@ -7,7 +7,7 @@ import { PermissionsProvider } from "@/hooks/use-permissions";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import Dashboard from "@/pages/dashboard";
-import LearningPaths from "@/pages/learning-paths";
+
 import Performance from "@/pages/performance";
 import Settings from "@/pages/settings";
 import TraineeManagement from "@/pages/trainee-management";
@@ -53,7 +53,7 @@ function Router() {
         <Switch>
           <Route path="/auth" component={AuthPage} />
           <ProtectedRoute path="/" component={Dashboard} />
-          <ProtectedRoute path="/learning-paths" component={LearningPaths} />
+
           <ProtectedRoute path="/trainee-management" component={TraineeManagement} />
           <ProtectedRoute path="/performance" component={Performance} />
           <ProtectedRoute path="/settings" component={Settings} />

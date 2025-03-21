@@ -36,7 +36,6 @@ export function SidebarNav() {
       { href: '/mock-call-scenarios', label: 'Mock Calls', icon: PhoneCall },
       { href: '/evaluation-templates', label: 'Evaluation Forms', icon: CheckSquare },
       { href: '/conduct-evaluation', label: 'Conduct Evaluation', icon: FileSpreadsheet },
-      { href: '/learning-paths', label: 'Learning Paths', icon: GraduationCap },
       { href: '/performance', label: 'Performance', icon: BarChart2 },
     ]),
   ];
