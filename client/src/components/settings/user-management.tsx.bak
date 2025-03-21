@@ -9,7 +9,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Trash2, Search, Download, Upload, FileSpreadsheet, Check, Loader2, Users, Network, ChevronDown, ChevronRight } from "lucide-react";
+import { Edit2, Trash2, Search, Download, Upload, FileSpreadsheet, Check, Loader2, Users, Network } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -139,7 +139,7 @@ export function UserManagement() {
   });
 
   const updateUserMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<User> }) => {
+    mutationFn: async ({ id, data }: { id: number; data: Partial<InsertUser> }) => {
       const response = await apiRequest("PATCH", `/api/users/${id}`, data);
       if (!response.ok) {
         const errorData = await response.json();
@@ -244,10 +244,170 @@ export function UserManagement() {
     }
   };
   
+  // Get formatted process names for a user
+  const getProcessNames = (userId: number): string => {
+    return getUserProcesses(userId);
+  };
+
   // Handle delete confirmation
   const handleDeleteClick = (user: User) => {
     setUserToDelete(user);
     setShowDeleteDialog(true);
+  };
+  
+  // Component for displaying users in a hierarchical structure
+  interface HierarchicalUserRowProps {
+    user: User;
+    users: User[];
+    level: number;
+    expandedManagers: number[];
+    toggleExpanded: (userId: number) => void;
+    getManagerName: (managerId: number | null) => string;
+    getLocationName: (locationId: number | null) => string;
+    getProcessNames: (userId: number) => string;
+    canManageUsers: boolean;
+    editUserComponent: (user: User) => React.ReactNode;
+    toggleUserStatus: (userId: number, currentStatus: boolean, userRole: string) => void;
+    handleDeleteClick: (user: User) => void;
+  }
+  
+  const HierarchicalUserRow = ({
+    user,
+    users,
+    level,
+    expandedManagers,
+    toggleExpanded,
+    getManagerName,
+    getLocationName,
+    getProcessNames,
+    canManageUsers,
+    editUserComponent,
+    toggleUserStatus,
+    handleDeleteClick
+  }: HierarchicalUserRowProps) => {
+    // Find direct reports (users whose manager is the current user)
+    const directReports = users.filter(u => u.managerId === user.id);
+    const hasDirectReports = directReports.length > 0;
+    const isExpanded = expandedManagers.includes(user.id);
+    
+    // Calculate indentation based on hierarchy level
+    const indentPadding = level * 20; // 20px per level
+    
+    return (
+      <>
+        <TableRow key={user.id} className={cn(!user.active && "opacity-50")}>
+          <TableCell>
+            <div className="flex items-center" style={{ paddingLeft: `${indentPadding}px` }}>
+              {/* Expand/collapse button for users with direct reports */}
+              {hasDirectReports && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-6 w-6 p-0 mr-1" 
+                  onClick={() => toggleExpanded(user.id)}
+                >
+                  {isExpanded ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
+              
+              {/* Indentation for users without direct reports */}
+              {!hasDirectReports && level > 0 && (
+                <div className="w-7"></div>
+              )}
+              
+              <span className="font-medium">{user.username}</span>
+            </div>
+          </TableCell>
+          <TableCell>{user.email}</TableCell>
+          <TableCell>{user.fullName}</TableCell>
+          <TableCell>
+            <Badge>{user.role}</Badge>
+          </TableCell>
+          <TableCell>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="cursor-help underline decoration-dotted">
+                    {getManagerName(user.managerId)}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Reporting Path: {getFormattedReportingPath(user.id, users)}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </TableCell>
+          <TableCell>{getLocationName(user.locationId)}</TableCell>
+          <TableCell>
+            <div className="flex flex-wrap gap-1">
+              {getProcessNames(user.id).split(", ").map((process, idx) => (
+                <Badge key={idx} variant="outline">
+                  {process}
+                </Badge>
+              ))}
+            </div>
+          </TableCell>
+          <TableCell>
+            {user.role === "owner" ? (
+              <div className="flex items-center" title="Owner status cannot be changed">
+                <Switch
+                  checked={true}
+                  disabled={true}
+                  className="opacity-50 cursor-not-allowed"
+                />
+              </div>
+            ) : canManageUsers ? (
+              <Switch
+                checked={user.active}
+                onCheckedChange={(checked) => toggleUserStatus(user.id, user.active, user.role)}
+              />
+            ) : (
+              <Switch checked={user.active} disabled={true} />
+            )}
+          </TableCell>
+          {canManageUsers && (
+            <TableCell className="text-right">
+              <div className="flex justify-end gap-2">
+                {editUserComponent(user)}
+                {user.role !== "owner" && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="text-destructive hover:bg-destructive/10"
+                    onClick={() => handleDeleteClick(user)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </TableCell>
+          )}
+        </TableRow>
+        
+        {/* Render direct reports recursively when expanded */}
+        {isExpanded && hasDirectReports && directReports.map(report => (
+          <HierarchicalUserRow 
+            key={report.id}
+            user={report}
+            users={users}
+            level={level + 1}
+            expandedManagers={expandedManagers}
+            toggleExpanded={toggleExpanded}
+            getManagerName={getManagerName}
+            getLocationName={getLocationName}
+            getProcessNames={getProcessNames}
+            canManageUsers={canManageUsers}
+            editUserComponent={editUserComponent}
+            toggleUserStatus={toggleUserStatus}
+            handleDeleteClick={handleDeleteClick}
+          />
+        ))}
+      </>
+    );
   };
 
   // Check if a user is in the current user's reporting chain
@@ -342,7 +502,6 @@ export function UserManagement() {
   };
 
   // Add new state for LOB selection
-  const [selectedLOBs, setSelectedLOBs] = useState<number[]>([]);
 
   // Add LOB and Process queries
   const { data: lineOfBusinesses = [], isLoading: isLoadingLOB } = useQuery<OrganizationLineOfBusiness[]>({
@@ -357,65 +516,11 @@ export function UserManagement() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const [selectedLOBs, setSelectedLOBs] = useState<number[]>([]);
   const filteredProcesses = processes.filter(process =>
     selectedLOBs.includes(process.lineOfBusinessId)
   );
 
-  // Helper function to handle delete confirmation
-  const handleDeleteConfirm = async () => {
-    if (!userToDelete) {
-      console.error('No user selected for deletion');
-      return;
-    }
-
-    try {
-      console.log('Confirming deletion for user:', userToDelete.id);
-      await deleteUserMutation.mutateAsync(userToDelete.id);
-    } catch (error) {
-      console.error("Error in handleDeleteConfirm:", error);
-    }
-  };
-
-  const { data: orgSettings } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/settings`],
-    enabled: !!user?.organizationId,
-  });
-
-  // Add new query for user processes
-  const { data: userProcesses = {} } = useQuery({
-    queryKey: ["/api/users/processes"],
-    enabled: !!user,
-  });
-
-  // Add helper function to get user processes
-  const getUserProcesses = (userId: number) => {
-    const processes = userProcesses[userId] || [];
-    return processes.map((p: any) => p.processName).join(", ") || "No processes";
-  };
-
-  // Check for user management permissions
-  const canManageUsers = hasPermission("manage_users");
-  const canViewUsers = hasPermission("view_users");
-
-  // If user can't even view users, show restricted access message
-  if (!canViewUsers) {
-    return (
-      <Card>
-        <CardContent className="pt-6">
-          <div className="text-center py-8">
-            <p className="text-muted-foreground">
-              You don't have permission to view user information.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const deleteConfirmationText = userToDelete?.username || "";
-  const deleteForm = useForm({
-    defaultValues: { confirmText: "" },
-  });
 
   // Create EditUserDialog component
   const EditUserDialog = ({ user: editUser }: { user: User }) => {
@@ -488,8 +593,8 @@ export function UserManagement() {
                   // Clean up the data before submission
                   const cleanedData = {
                     ...data,
-                    locationId: data.locationId === "none" ? null : parseInt(data.locationId),
-                    managerId: data.managerId === "none" ? null : parseInt(data.managerId),
+                    locationId: data.locationId === "none" ? null : parseInt(data.locationId!),
+                    managerId: data.managerId === "none" ? null : parseInt(data.managerId!),
                     processes: data.processes || [],
                   };
 
@@ -585,28 +690,46 @@ export function UserManagement() {
                       <FormItem>
                         <FormLabel>Role</FormLabel>
                         <Select
-                          disabled={editUser.role === "owner"}
                           onValueChange={field.onChange}
-                          defaultValue={field.value}
+                          value={field.value}
+                          disabled={editUser.role === "owner"}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select a role" />
+                              <SelectValue placeholder="Select role" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="manager">Manager</SelectItem>
-                            <SelectItem value="team_lead">Team Lead</SelectItem>
-                            <SelectItem value="quality_analyst">Quality Analyst</SelectItem>
-                            <SelectItem value="trainer">Trainer</SelectItem>
-                            <SelectItem value="advisor">Advisor</SelectItem>
-                            <SelectItem value="trainee">Trainee</SelectItem>
+                            {user?.role === "owner" ? (
+                              <>
+                                <SelectItem value="admin">Admin</SelectItem>
+                                <SelectItem value="manager">Manager</SelectItem>
+                                <SelectItem value="team_lead">Team Lead</SelectItem>
+                                <SelectItem value="qualityassurance">Quality Assurance</SelectItem>
+                                <SelectItem value="trainer">Trainer</SelectItem>
+                                <SelectItem value="advisor">Advisor</SelectItem>
+                              </>
+                            ) : user?.role === "admin" ? (
+                              <>
+                                <SelectItem value="manager">Manager</SelectItem>
+                                <SelectItem value="team_lead">Team Lead</SelectItem>
+                                <SelectItem value="qualityassurance">Quality Assurance</SelectItem>
+                                <SelectItem value="trainer">Trainer</SelectItem>
+                                <SelectItem value="advisor">Advisor</SelectItem>
+                              </>
+                            ) : (
+                              <>
+                                <SelectItem value="team_lead">Team Lead</SelectItem>
+                                <SelectItem value="qualityassurance">Quality Assurance</SelectItem>
+                                <SelectItem value="trainer">Trainer</SelectItem>
+                                <SelectItem value="advisor">Advisor</SelectItem>
+                              </>
+                            )}
                           </SelectContent>
                         </Select>
                         {editUser.role === "owner" && (
-                          <p className="text-sm text-muted-foreground">
-                            Role cannot be changed for owner accounts
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Owner role cannot be changed
                           </p>
                         )}
                         <FormMessage />
@@ -619,13 +742,10 @@ export function UserManagement() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Location</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select a location" />
+                              <SelectValue placeholder="Select location" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -647,24 +767,19 @@ export function UserManagement() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Manager</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select a manager" />
+                              <SelectValue placeholder="Select manager" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="none">No Manager</SelectItem>
-                            {users
-                              .filter(u => u.id !== editUser.id && u.active) // Can't assign self as manager
-                              .map(manager => (
-                                <SelectItem key={manager.id} value={manager.id.toString()}>
-                                  {manager.fullName || manager.username}
-                                </SelectItem>
-                              ))}
+                            {uniqueManagers.map((manager) => (
+                              <SelectItem key={manager.id} value={manager.id.toString()}>
+                                {manager.name}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -710,6 +825,7 @@ export function UserManagement() {
                       </FormItem>
                     )}
                   />
+                  {/* Add Category field */}
                   <FormField
                     control={form.control}
                     name="category"
@@ -718,11 +834,11 @@ export function UserManagement() {
                         <FormLabel>Category</FormLabel>
                         <Select
                           onValueChange={field.onChange}
-                          defaultValue={field.value}
+                          value={field.value}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select a category" />
+                              <SelectValue placeholder="Select category" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -734,117 +850,67 @@ export function UserManagement() {
                       </FormItem>
                     )}
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label>Processes</Label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm font-normal">Line of Business</Label>
-                      <Popover open={openLOB} onOpenChange={setOpenLOB}>
+
+                  {/* Add LOB Selection */}
+                  <div className="col-span-2">
+                    <Label>Line of Business</Label>
+                    <div className="flex gap-2">
+                      <Popover
+                        open={openLOB}
+                        onOpenChange={setOpenLOB}
+                      >
                         <PopoverTrigger asChild>
                           <Button
+                            type="button"
                             variant="outline"
                             role="combobox"
                             aria-expanded={openLOB}
-                            className="w-full justify-between mt-1"
+                            className="w-full justify-between"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setOpenLOB(true);
+                            }}
                           >
                             {selectedLOBs.length > 0
-                              ? `${selectedLOBs.length} selected`
-                              : "Select line of business..."}
+                              ? `${selectedLOBs.length} LOBs selected`
+                              : "Select Line of Business"}
+                            <Check
+                              className={cn(
+                                "ml-2 h-4 w-4",
+                                selectedLOBs.length > 0 ? "opacity-100" : "opacity-0"
+                              )}
+                            />
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-96 p-0">
+                        <PopoverContent
+                          className="w-full p-0"
+                          onPointerDownOutside={(e) => e.preventDefault()}
+                        >
                           <Command>
-                            <CommandInput placeholder="Search line of business..." />
-                            <CommandEmpty>No line of business found.</CommandEmpty>
-                            <CommandGroup className="max-h-60 overflow-y-auto">
+                            <CommandInput placeholder="Search Line of Business..." />
+                            <CommandEmpty>No Line of Business found.</CommandEmpty>
+                            <CommandGroup className="max-h-64 overflow-auto">
                               {lineOfBusinesses.map((lob) => (
                                 <CommandItem
                                   key={lob.id}
-                                  value={lob.name}
                                   onSelect={() => {
-                                    const isSelected = selectedLOBs.includes(lob.id);
-                                    if (isSelected) {
-                                      setSelectedLOBs(selectedLOBs.filter(id => id !== lob.id));
-                                    } else {
-                                      setSelectedLOBs([...selectedLOBs, lob.id]);
-                                    }
+                                    setSelectedLOBs(prev => {
+                                      const newSelection = prev.includes(lob.id)
+                                        ? prev.filter(id => id !== lob.id)
+                                        : [...prev, lob.id];
+                                      return newSelection;
+                                    });
+                                    form.setValue('processes', []);
                                   }}
                                 >
-                                  <div className="flex items-center gap-2">
-                                    <div
-                                      className={cn(
-                                        "h-4 w-4 border rounded-sm flex items-center justify-center",
-                                        selectedLOBs.includes(lob.id)
-                                          ? "bg-primary border-primary text-primary-foreground"
-                                          : "border-input"
-                                      )}
-                                    >
-                                      {selectedLOBs.includes(lob.id) && <Check className="h-3 w-3" />}
-                                    </div>
-                                    {lob.name}
-                                  </div>
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-
-                    <div>
-                      <Label className="text-sm font-normal">Processes</Label>
-                      <Popover open={openProcess} onOpenChange={setOpenProcess}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={openProcess}
-                            className="w-full justify-between mt-1"
-                            disabled={selectedLOBs.length === 0}
-                          >
-                            {form.watch("processes")?.length
-                              ? `${form.watch("processes")?.length} selected`
-                              : "Select processes..."}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-96 p-0">
-                          <Command>
-                            <CommandInput placeholder="Search processes..." />
-                            <CommandEmpty>No processes found.</CommandEmpty>
-                            <CommandGroup className="max-h-60 overflow-y-auto">
-                              {filteredProcesses.map((process) => (
-                                <CommandItem
-                                  key={process.id}
-                                  value={process.name}
-                                  onSelect={() => {
-                                    const currentProcesses = form.getValues("processes") || [];
-                                    const isSelected = currentProcesses.includes(process.id);
-                                    if (isSelected) {
-                                      form.setValue(
-                                        "processes",
-                                        currentProcesses.filter(id => id !== process.id)
-                                      );
-                                    } else {
-                                      form.setValue("processes", [...currentProcesses, process.id]);
-                                    }
-                                  }}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <div
-                                      className={cn(
-                                        "h-4 w-4 border rounded-sm flex items-center justify-center",
-                                        form.watch("processes")?.includes(process.id)
-                                          ? "bg-primary border-primary text-primary-foreground"
-                                          : "border-input"
-                                      )}
-                                    >
-                                      {form.watch("processes")?.includes(process.id) && (
-                                        <Check className="h-3 w-3" />
-                                      )}
-                                    </div>
-                                    {process.name}
-                                  </div>
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      selectedLOBs.includes(lob.id) ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {lob.name}
                                 </CommandItem>
                               ))}
                             </CommandGroup>
@@ -853,10 +919,80 @@ export function UserManagement() {
                       </Popover>
                     </div>
                   </div>
+
+                  {/* Add Process Selection */}
+                  {selectedLOBs.length > 0 && (
+                    <div className="col-span-2">
+                      <Label>Processes</Label>
+                      <Popover
+                        open={openProcess}
+                        onOpenChange={setOpenProcess}
+                      >
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={openProcess}
+                            className="w-full justify-between"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setOpenProcess(true);
+                            }}
+                          >
+                            {form.watch('processes')?.length > 0
+                              ? `${form.watch('processes')?.length} processes selected`
+                              : "Select processes"}
+                            <Check
+                              className={cn(
+                                "ml-2 h-4 w-4",
+                                form.watch('processes')?.length > 0 ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          className="w-full p-0"
+                          onPointerDownOutside={(e) => e.preventDefault()}
+                        >
+                          <Command>
+                            <CommandInput placeholder="Search processes..." />
+                            <CommandEmpty>No process found.</CommandEmpty>
+                            <CommandGroup className="max-h-64 overflow-auto">
+                              {filteredProcesses.map((process) => (
+                                <CommandItem
+                                  key={process.id}
+                                  onSelect={() => {
+                                    const currentProcesses = form.watch('processes') || [];
+                                    const newProcesses = currentProcesses.includes(process.id)
+                                      ? currentProcesses.filter(id => id !== process.id)
+                                      : [...currentProcesses, process.id];
+                                    form.setValue('processes', newProcesses);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      form.watch('processes')?.includes(process.id) ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {process.name}
+                                  <span className="ml-2 text-muted-foreground">
+                                    ({lineOfBusinesses.find(l => l.id === process.lineOfBusinessId)?.name})
+                                  </span>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  )}
                 </div>
-                <DialogFooter>
+                <div className="sticky bottom-0 bg-background pt-4 flex justify-end">
                   <Button type="submit">Save Changes</Button>
-                </DialogFooter>
+                </div>
               </form>
             </Form>
           </div>
@@ -864,6 +1000,62 @@ export function UserManagement() {
       </Dialog>
     );
   };
+
+  // Helper function to handle delete confirmation
+  const handleDeleteConfirm = async () => {
+    if (!userToDelete) {
+      console.error('No user selected for deletion');
+      return;
+    }
+
+    try {
+      console.log('Confirming deletion for user:', userToDelete.id);
+      await deleteUserMutation.mutateAsync(userToDelete.id);
+    } catch (error) {
+      console.error("Error in handleDeleteConfirm:", error);
+    }
+  };
+
+  const { data: orgSettings } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/settings`],
+    enabled: !!user?.organizationId,
+  });
+
+  // Add new query for user processes
+  const { data: userProcesses = {} } = useQuery({
+    queryKey: ["/api/users/processes"],
+    enabled: !!user,
+  });
+
+  // Add helper function to get user processes
+  const getUserProcesses = (userId: number) => {
+    const processes = userProcesses[userId] || [];
+    return processes.map((p: UserProcess) => p.processName).join(", ") || "No processes";
+  };
+
+  // Check for user management permissions
+  const canManageUsers = hasPermission("manage_users");
+  const canViewUsers = hasPermission("view_users");
+
+  // If user can't even view users, show restricted access message
+  if (!canViewUsers) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">
+              You don't have permission to view user information.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const deleteConfirmationText = userToDelete?.username || "";
+  const deleteForm = useForm({
+    defaultValues: { confirmText: "" },
+  });
 
   return (
     <div className="space-y-6">
@@ -913,18 +1105,12 @@ export function UserManagement() {
                   setCurrentPage(1);
                 }}
               >
-                <SelectTrigger className="w-[200px]">
+                <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filter by manager" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Managers</SelectItem>
                   <SelectItem value="none">No Manager</SelectItem>
-                  {user && (
-                    <>
-                      <SelectItem value="direct">My Direct Reports</SelectItem>
-                      <SelectItem value="team">My Team (All)</SelectItem>
-                    </>
-                  )}
                   {uniqueManagers.map((manager) => (
                     <SelectItem key={manager.id} value={manager.id.toString()}>
                       {manager.name}
@@ -932,44 +1118,59 @@ export function UserManagement() {
                   ))}
                 </SelectContent>
               </Select>
-              <Button
-                variant="outline"
-                onClick={() => setViewMode(viewMode === 'flat' ? 'hierarchy' : 'flat')}
-                className="gap-2"
-              >
-                {viewMode === 'flat' ? (
-                  <>
-                    <Network className="h-4 w-4" />
-                    Hierarchy View
-                  </>
-                ) : (
-                  <>
-                    <Users className="h-4 w-4" />
-                    Flat View
-                  </>
-                )}
-              </Button>
-              {canManageUsers && (
-                <Button onClick={exportToExcel} variant="outline" className="gap-2">
-                  <Download className="h-4 w-4" />
-                  Export
+            </div>
+            {canManageUsers && (
+              <div className="flex justify-between items-center mb-4">
+                <div className="space-x-2">
+                  <Button
+                    onClick={exportToExcel}
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Export Users
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* View Mode Toggle */}
+            <div className="flex justify-end mb-4">
+              <div className="border rounded-md p-1 inline-flex">
+                <Button
+                  variant={viewMode === 'flat' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => setViewMode('flat')}
+                >
+                  <Users className="h-4 w-4" />
+                  <span className="hidden sm:inline">Flat View</span>
                 </Button>
-              )}
+                <Button
+                  variant={viewMode === 'hierarchy' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => setViewMode('hierarchy')}
+                >
+                  <Network className="h-4 w-4" />
+                  <span className="hidden sm:inline">Hierarchy View</span>
+                </Button>
+              </div>
             </div>
           </div>
 
-          <div className="rounded-md border">
+          <div className="relative overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Username</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Full Name</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Manager</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Processes</TableHead>
-                  <TableHead>Active</TableHead>
+                  <TableHead className="w-[150px]">Username</TableHead>
+                  <TableHead className="w-[200px]">Email</TableHead>
+                  <TableHead className="w-[150px]">Full Name</TableHead>
+                  <TableHead className="w-[100px]">Role</TableHead>
+                  <TableHead className="w-[150px]">Manager</TableHead>
+                  <TableHead className="w-[150px]">Location</TableHead>
+                  <TableHead className="w-[200px]">Processes</TableHead>
+                  <TableHead className="w-[100px]">Status</TableHead>
                   {canManageUsers && (
                     <TableHead className="w-[100px] text-right">Actions</TableHead>
                   )}
@@ -1001,74 +1202,28 @@ export function UserManagement() {
                         </TooltipProvider>
                       </TableCell>
                       <TableCell>{getLocationName(user.locationId)}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {getUserProcesses(user.id).split(", ").map((process, idx) => (
-                            process ? (
-                              <Badge key={idx} variant="outline">
-                                {process}
-                              </Badge>
-                            ) : null
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {user.role === "owner" ? (
-                          <div className="flex items-center" title="Owner status cannot be changed">
-                            <Switch
-                              checked={true}
-                              disabled={true}
-                              className="opacity-50 cursor-not-allowed"
-                            />
-                          </div>
-                        ) : canManageUsers ? (
-                          <Switch
-                            checked={user.active}
-                            onCheckedChange={(checked) => toggleUserStatus(user.id, user.active, user.role)}
-                          />
-                        ) : (
-                          <Switch checked={user.active} disabled={true} />
-                        )}
-                      </TableCell>
-                      {canManageUsers && (
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <EditUserDialog user={user} />
-                            {user.role !== "owner" && (
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="text-destructive hover:bg-destructive/10"
-                                onClick={() => handleDeleteClick(user)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      )}
                     </TableRow>
                   ))
                 ) : (
-                  // Hierarchical view - tree structure
-                  filteredUsers
-                    .filter(u => !u.managerId) // Only root users (no manager)
-                    .map(rootUser => (
-                      <HierarchicalUserRow
-                        key={rootUser.id}
-                        user={rootUser}
-                        users={filteredUsers}
+                  // Hierarchical view - displays relationships with indentation
+                  currentUsers
+                    // Find top-level users (no manager or manager not in current view)
+                    .filter(u => !u.managerId || !currentUsers.some(cu => cu.id === u.managerId))
+                    .map(user => (
+                      <HierarchicalUserRow 
+                        key={user.id}
+                        user={user}
+                        users={currentUsers}
                         level={0}
                         expandedManagers={expandedManagers}
                         toggleExpanded={toggleManagerExpanded}
                         getManagerName={getManagerName}
                         getLocationName={getLocationName}
-                        getProcessNames={getUserProcesses}
+                        getProcessNames={getProcessNames}
                         canManageUsers={canManageUsers}
                         editUserComponent={(user) => <EditUserDialog user={user} />}
                         toggleUserStatus={toggleUserStatus}
                         handleDeleteClick={handleDeleteClick}
-                        getFormattedReportingPath={getFormattedReportingPath}
                       />
                     ))
                 )}
@@ -1076,25 +1231,66 @@ export function UserManagement() {
             </Table>
             
             {/* No results message */}
-            {filteredUsers.length === 0 && (
+            {currentUsers.length === 0 && (
               <div className="text-center py-4 text-muted-foreground">
                 No users match your current filters
               </div>
             )}
           </div>
-
-          {/* Pagination controls */}
-          {totalPages > 1 && (
-            <div className="flex justify-center mt-6">
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(1)}
-                  disabled={currentPage === 1}
-                >
-                  First
-                </Button>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {getUserProcesses(user.id).split(", ").map((process, idx) => (
+                          <Badge key={idx}                          variant="outline">
+                            {process}
+                          </Badge>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {user.role === "owner" ? (
+                        <div className="flex items-center" title="Owner status cannot be changed">
+                          <Switch
+                            checked={true}
+                            disabled={true}
+                            className="opacity-50 cursor-not-allowed"
+                          />
+                        </div>
+                      ) : canManageUsers ? (
+                        <Switch
+                          checked={user.active}
+                          onCheckedChange={(checked) => toggleUserStatus(user.id, user.active, user.role)}
+                          disabled={false}
+                        />
+                      ) : (
+                        <Switch checked={user.active} disabled={true} />
+                      )}
+                    </TableCell>
+                    {canManageUsers && (
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <EditUserDialog user={user} />
+                          {user.role !== "owner" && (
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="text-destructive hover:bg-destructive/10"
+                              onClick={() => {
+                                setUserToDelete(user);
+                                setShowDeleteDialog(true);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center space-x-2 py-4">
                 <Button
                   variant="outline"
                   size="sm"
@@ -1103,17 +1299,19 @@ export function UserManagement() {
                 >
                   Previous
                 </Button>
-                {getPageNumbers().map((pageNum, idx) => (
+
+                {getPageNumbers().map((pageNumber, index) => (
                   <Button
-                    key={idx}
-                    variant={pageNum === currentPage ? "default" : "outline"}
+                    key={index}
+                    variant={pageNumber === currentPage ? "default" : "outline"}
                     size="sm"
-                    onClick={() => typeof pageNum === 'number' && handlePageChange(pageNum)}
-                    disabled={pageNum === '...'}
+                    onClick={() => typeof pageNumber === 'number' && handlePageChange(pageNumber)}
+                    disabled={typeof pageNumber !== 'number'}
                   >
-                    {pageNum}
+                    {pageNumber}
                   </Button>
                 ))}
+
                 <Button
                   variant="outline"
                   size="sm"
@@ -1122,61 +1320,60 @@ export function UserManagement() {
                 >
                   Next
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(totalPages)}
-                  disabled={currentPage === totalPages}
-                >
-                  Last
-                </Button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </CardContent>
       </Card>
 
-      {/* Delete confirmation dialog */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Deactivate User</DialogTitle>
-            <DialogDescription>
-              This action will deactivate the user, preventing them from logging in.
-              Their data will be maintained in the system.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <p>To confirm, type the username: <strong>{deleteConfirmationText}</strong></p>
+      {userToDelete && (
+        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Deactivate User</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to deactivate this user? This action can be reversed by toggling the active status.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <p className="text-sm text-muted-foreground">
+                Type <span className="font-mono text-primary">{userToDelete.username}</span> to confirm deactivation.
+              </p>
               <Input
+                className="font-mono"
+                placeholder="Type username to confirm"
                 value={deleteConfirmation}
                 onChange={(e) => setDeleteConfirmation(e.target.value)}
-                placeholder="Type username to confirm"
               />
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteConfirm}
-              disabled={deleteConfirmation !== deleteConfirmationText}
-            >
-              {deleteUserMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deactivating...
-                </>
-              ) : (
-                "Deactivate User"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDeleteDialog(false);
+                  setDeleteConfirmation("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={deleteConfirmation !== userToDelete.username || deleteUserMutation.isPending}
+                onClick={handleDeleteConfirm}
+              >
+                {deleteUserMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deactivating...
+                  </>
+                ) : (
+                  "Deactivate User"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
