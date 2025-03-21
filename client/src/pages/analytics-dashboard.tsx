@@ -108,22 +108,27 @@ export default function AnalyticsDashboard() {
     retry: false
   });
 
+  // Build the correct endpoint URL based on the selected filter
+  const analyticsEndpoint = useMemo(() => {
+    if (selectedTab === 'overview') {
+      return '/api/analytics/headcount';
+    } else if (selectedTab === 'process' && selectedProcess) {
+      return `/api/analytics/headcount/process/${selectedProcess}`;
+    } else if (selectedTab === 'lob' && selectedLOB) {
+      return `/api/analytics/headcount/line-of-business/${selectedLOB}`;
+    }
+    return null;
+  }, [selectedTab, selectedProcess, selectedLOB]);
+
   // Fetch analytics based on selected filter
   const { data: analyticsData, isLoading: isAnalyticsLoading, error: analyticsError } = useQuery({
-    queryKey: [
-      'analytics',
-      selectedTab === 'overview' 
-        ? '/api/analytics/headcount' 
-        : selectedTab === 'process' && selectedProcess 
-          ? `/api/analytics/headcount/process/${selectedProcess}` 
-          : selectedTab === 'lob' && selectedLOB 
-            ? `/api/analytics/headcount/line-of-business/${selectedLOB}`
-            : null
-    ],
-    enabled: (selectedTab === 'overview') || 
-             (selectedTab === 'process' && !!selectedProcess) || 
-             (selectedTab === 'lob' && !!selectedLOB),
-    retry: 1,
+    queryKey: analyticsEndpoint ? [analyticsEndpoint] : ['analytics', 'disabled'],
+    enabled: !!analyticsEndpoint && (
+      (selectedTab === 'overview') || 
+      (selectedTab === 'process' && !!selectedProcess) || 
+      (selectedTab === 'lob' && !!selectedLOB)
+    ),
+    retry: 2,
     // Add a success handler to debug the response data
     onSuccess: (data) => {
       console.log('Analytics data received:', data);
@@ -144,35 +149,43 @@ export default function AnalyticsDashboard() {
 
   // Format data for role pie chart
   const formatRoleData = (data: ProcessHeadcountAnalytics | ProcessHeadcountAnalytics[]) => {
+    if (!data) return [];
+    
     if (Array.isArray(data)) {
       // For overview, aggregate roles across all processes
       const aggregatedRoles: { [key: string]: number } = {};
       data.forEach(process => {
-        Object.entries(process.byRole).forEach(([role, count]) => {
-          aggregatedRoles[role] = (aggregatedRoles[role] || 0) + count;
-        });
+        if (process.byRole) {
+          Object.entries(process.byRole).forEach(([role, count]) => {
+            aggregatedRoles[role] = (aggregatedRoles[role] || 0) + count;
+          });
+        }
       });
       return Object.entries(aggregatedRoles).map(([name, value]) => ({ name, value }));
     } else {
       // For single process
-      return Object.entries(data.byRole).map(([name, value]) => ({ name, value }));
+      return Object.entries(data.byRole || {}).map(([name, value]) => ({ name, value }));
     }
   };
 
   // Format data for location pie chart
   const formatLocationData = (data: ProcessHeadcountAnalytics | ProcessHeadcountAnalytics[]) => {
+    if (!data) return [];
+    
     if (Array.isArray(data)) {
       // For overview, aggregate locations across all processes
       const aggregatedLocations: { [key: string]: number } = {};
       data.forEach(process => {
-        Object.entries(process.byLocation).forEach(([location, count]) => {
-          aggregatedLocations[location] = (aggregatedLocations[location] || 0) + count;
-        });
+        if (process.byLocation) {
+          Object.entries(process.byLocation).forEach(([location, count]) => {
+            aggregatedLocations[location] = (aggregatedLocations[location] || 0) + count;
+          });
+        }
       });
       return Object.entries(aggregatedLocations).map(([name, value]) => ({ name, value }));
     } else {
       // For single process
-      return Object.entries(data.byLocation).map(([name, value]) => ({ name, value }));
+      return Object.entries(data.byLocation || {}).map(([name, value]) => ({ name, value }));
     }
   };
 
