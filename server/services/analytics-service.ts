@@ -114,7 +114,7 @@ export const getProcessHeadcountAnalytics = async (organizationId: number, proce
       .from(users)
       .where(
         and(
-          sql`${users.id} IN (${sql.join(userIds)})`,
+          inArray(users.id, userIds),
           eq(users.organizationId, organizationId)
         )
       );
@@ -160,7 +160,7 @@ export const getProcessHeadcountAnalytics = async (organizationId: number, proce
       .from(organizationLocations)
       .where(
         and(
-          sql`${organizationLocations.id} IN (${sql.join(locationIds)})`,
+          inArray(organizationLocations.id, locationIds),
           eq(organizationLocations.organizationId, organizationId)
         )
       );
@@ -239,7 +239,7 @@ export const getHeadcountProjection = async (
       .from(users)
       .where(
         and(
-          sql`${users.id} IN (${sql.join(userIds)})`,
+          inArray(users.id, userIds),
           eq(users.organizationId, organizationId)
         )
       );
