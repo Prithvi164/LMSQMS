@@ -1750,3 +1750,100 @@ export const evaluationScoresRelations = relations(evaluationScores, ({ one }) =
     references: [evaluationParameters.id],
   }),
 }));
+
+// Dashboard customization schema
+export const widgetTypeEnum = pgEnum('widget_type', [
+  'role_distribution', 
+  'location_distribution',
+  'process_heatmap',
+  'tenure_analysis',
+  'capacity_planning',
+  'attrition_risk',
+  'skills_gap'
+]);
+
+export const userDashboards = pgTable("user_dashboards", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  isDefault: boolean("is_default").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const dashboardWidgets = pgTable("dashboard_widgets", {
+  id: serial("id").primaryKey(),
+  dashboardId: integer("dashboard_id").references(() => userDashboards.id, { onDelete: 'cascade' }).notNull(),
+  widgetType: widgetTypeEnum("widget_type").notNull(),
+  position: jsonb("position").notNull().$type<{x: number, y: number, w: number, h: number}>(),
+  configuration: jsonb("configuration").notNull().$type<{
+    title?: string,
+    timeRange?: string,
+    filters?: Record<string, any>,
+    chartType?: string,
+    showLegend?: boolean,
+    colorScheme?: string
+  }>(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type UserDashboard = InferSelectModel<typeof userDashboards>;
+export type DashboardWidget = InferSelectModel<typeof dashboardWidgets>;
+
+export const insertUserDashboardSchema = createInsertSchema(userDashboards)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    name: z.string().min(1, "Dashboard name is required"),
+    description: z.string().optional(),
+    userId: z.number().int().positive("User is required"),
+    isDefault: z.boolean().default(false),
+  });
+
+export const insertDashboardWidgetSchema = createInsertSchema(dashboardWidgets)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    dashboardId: z.number().int().positive("Dashboard is required"),
+    widgetType: z.enum(widgetTypeEnum.enumValues),
+    position: z.object({
+      x: z.number().int().min(0),
+      y: z.number().int().min(0),
+      w: z.number().int().min(1),
+      h: z.number().int().min(1),
+    }),
+    configuration: z.object({
+      title: z.string().optional(),
+      timeRange: z.string().optional(),
+      filters: z.record(z.any()).optional(),
+      chartType: z.string().optional(),
+      showLegend: z.boolean().optional(),
+      colorScheme: z.string().optional(),
+    }),
+  });
+
+export type InsertUserDashboard = z.infer<typeof insertUserDashboardSchema>;
+export type InsertDashboardWidget = z.infer<typeof insertDashboardWidgetSchema>;
+
+export const userDashboardsRelations = relations(userDashboards, ({ one, many }) => ({
+  user: one(users, {
+    fields: [userDashboards.userId],
+    references: [users.id],
+  }),
+  widgets: many(dashboardWidgets),
+}));
+
+export const dashboardWidgetsRelations = relations(dashboardWidgets, ({ one }) => ({
+  dashboard: one(userDashboards, {
+    fields: [dashboardWidgets.dashboardId],
+    references: [userDashboards.id],
+  }),
+}));
