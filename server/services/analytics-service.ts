@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { users, userProcesses, organizationProcesses, organizationLocations, organizationBatches, organizationLineOfBusinesses } from '@shared/schema';
-import { eq, and, isNull, gte, lte } from 'drizzle-orm/expressions';
+import { eq, and, isNull, gte, lte, inArray } from 'drizzle-orm/expressions';
 
 // Types for the analytics service responses
 export interface HeadcountByCategory {
