@@ -376,11 +376,11 @@ export function ProcessDetail() {
                     <TableRow>
                       <TableHead>Process Name</TableHead>
                       <TableHead>Line of Business</TableHead>
-                      <TableHead className="text-center">ID</TableHead>
-                      <TableHead className="text-center">TD</TableHead>
-                      <TableHead className="text-center">CD</TableHead>
-                      <TableHead className="text-center">OJT</TableHead>
-                      <TableHead className="text-center">OJTC</TableHead>
+                      <TableHead className="text-center">Induction Days</TableHead>
+                      <TableHead className="text-center">Training Days</TableHead>
+                      <TableHead className="text-center">Certification Days</TableHead>
+                      <TableHead className="text-center">OJT Days</TableHead>
+                      <TableHead className="text-center">OJT Cert Days</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
