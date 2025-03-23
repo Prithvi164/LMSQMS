@@ -43,7 +43,13 @@ import {
   BarChart2,
   PieChart as PieChartIcon,
   LineChart as LineChartIcon,
-  TrendingUp
+  TrendingUp,
+  Briefcase,
+  GraduationCap,
+  CheckCircle2,
+  ClipboardCheck,
+  Award,
+  Calendar
 } from 'lucide-react';
 
 // Types for the analytics API responses
