@@ -18,7 +18,6 @@ import { join } from 'path';
 import express from 'express';
 import { eq, and, sql, inArray } from "drizzle-orm";
 import { toIST, formatIST, toUTCStorage, formatISTDateOnly } from './utils/timezone';
-import { getOrganizationHeadcountAnalytics, getProcessHeadcountAnalytics, getLineOfBusinessAnalytics } from './services/analytics-service';
 import { attendance } from "@shared/schema";
 import type { User } from "@shared/schema";
 
@@ -5290,66 +5289,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error evaluating mock call attempt:", error);
       res.status(400).json({ message: error.message });
-    }
-  });
-
-  // Analytics routes
-  
-  // Get organization-wide headcount analytics
-  app.get("/api/analytics/headcount", async (req, res) => {
-    if (!req.user || !req.user.organizationId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      console.log(`Fetching headcount analytics for organization ${req.user.organizationId}`);
-      const analytics = await getOrganizationHeadcountAnalytics(req.user.organizationId);
-      res.json(analytics);
-    } catch (error: any) {
-      console.error("Error fetching headcount analytics:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Get process-specific headcount analytics
-  app.get("/api/analytics/headcount/process/:processId", async (req, res) => {
-    if (!req.user || !req.user.organizationId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const processId = parseInt(req.params.processId);
-      if (isNaN(processId)) {
-        return res.status(400).json({ message: "Invalid process ID" });
-      }
-
-      console.log(`Fetching headcount analytics for process ${processId}`);
-      const analytics = await getProcessHeadcountAnalytics(req.user.organizationId, processId);
-      res.json(analytics);
-    } catch (error: any) {
-      console.error("Error fetching process headcount analytics:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Get line of business headcount analytics
-  app.get("/api/analytics/headcount/line-of-business/:lobId", async (req, res) => {
-    if (!req.user || !req.user.organizationId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const lobId = parseInt(req.params.lobId);
-      if (isNaN(lobId)) {
-        return res.status(400).json({ message: "Invalid line of business ID" });
-      }
-
-      console.log(`Fetching headcount analytics for line of business ${lobId}`);
-      const analytics = await getLineOfBusinessAnalytics(req.user.organizationId, lobId);
-      res.json(analytics);
-    } catch (error: any) {
-      console.error("Error fetching line of business headcount analytics:", error);
-      res.status(500).json({ message: error.message });
     }
   });
 
