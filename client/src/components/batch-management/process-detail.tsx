@@ -93,7 +93,7 @@ export function ProcessDetail() {
     queryKey: ["/api/organization"],
     enabled: !!user,
     staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
-    cacheTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
+    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes (using gcTime instead of cacheTime)
   });
 
   // Fetch line of businesses with optimized caching
@@ -101,15 +101,23 @@ export function ProcessDetail() {
     queryKey: [`/api/organizations/${organization?.id}/line-of-businesses`],
     enabled: !!organization?.id,
     staleTime: 5 * 60 * 1000,
-    cacheTime: 30 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 
-  // Fetch processes with optimized caching
-  const { data: processes = [], isLoading: isLoadingProcesses } = useQuery({
+  // Fetch processes with optimized caching and error handling
+  const { 
+    data: processes = [], 
+    isLoading: isLoadingProcesses,
+    isError: isProcessError,
+    error: processError,
+    refetch: refetchProcesses
+  } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/processes`],
     enabled: !!organization?.id,
     staleTime: 5 * 60 * 1000,
-    cacheTime: 30 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    retry: 3,
+    retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
   });
 
   // Filter and pagination calculations
@@ -303,11 +311,24 @@ export function ProcessDetail() {
     }
   };
 
-  // Show loading state
+  // Show loading or error state
   if (isLoadingLOB || isLoadingProcesses) {
     return (
       <div className="flex items-center justify-center p-8">
         <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (isProcessError) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 space-y-4">
+        <div className="text-red-500 text-lg font-medium">
+          Error loading processes: {processError?.message || "Unknown error"}
+        </div>
+        <Button onClick={() => refetchProcesses()} variant="outline">
+          Retry
+        </Button>
       </div>
     );
   }
