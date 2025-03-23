@@ -20,6 +20,15 @@ import { Badge } from '@/components/ui/badge';
 import { StatsCard } from '@/components/ui/stats-card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { 
   BarChart, 
   Bar, 
@@ -49,7 +58,8 @@ import {
   CheckCircle2,
   ClipboardCheck,
   Award,
-  Calendar
+  Calendar,
+  Clock
 } from 'lucide-react';
 
 // Types for the analytics API responses
@@ -97,10 +107,69 @@ const COLORS = [
   '#d0ed57', '#83a6ed', '#8dd1e1', '#a4262c', '#ca5010'
 ];
 
+// Additional interface types for the new insights
+interface BatchInsight {
+  batchId: number;
+  batchName: string;
+  status: string;
+  traineesCount: number;
+  completionRate: number;
+  phaseChangeRate: number;
+  startDate: string;
+  endDate: string;
+}
+
+interface TrainerInsight {
+  trainerId: number;
+  trainerName: string;
+  batchesCount: number;
+  traineesCount: number;
+  successRate: number;
+  currentLoad: number;
+}
+
+interface AttendanceInsight {
+  processId: number;
+  processName: string;
+  averageAttendance: number;
+  absenteeRate: number;
+  onTimeRate: number;
+  lateRate: number;
+  dailyTrend: { date: string; attendance: number }[];
+}
+
+interface WrittenAssessmentInsight {
+  processId: number;
+  processName: string;
+  averageScore: number;
+  passingRate: number;
+  failureRate: number;
+  topPerformers: number;
+  underperformers: number;
+}
+
+interface CertificationInsight {
+  processId: number;
+  processName: string;
+  certificationRate: number;
+  averageAttempts: number;
+  firstTimePassRate: number;
+  pendingCertifications: number;
+}
+
+// Main dashboard component
 export default function AnalyticsDashboard() {
+  // Main tab control for insight types
+  const [insightType, setInsightType] = useState('headcount');
+  
+  // Filter controls (apply across insight types)
   const [selectedTab, setSelectedTab] = useState('overview');
   const [selectedProcess, setSelectedProcess] = useState<number | null>(null);
   const [selectedLOB, setSelectedLOB] = useState<number | null>(null);
+  const [dateRange, setDateRange] = useState<{from: Date | undefined, to: Date | undefined}>({from: undefined, to: undefined});
+  
+  // Time period filter for trend data
+  const [timeFilter, setTimeFilter] = useState<'day' | 'week' | 'month' | 'quarter'>('month');
 
   // Fetch processes
   const { data: processes, isLoading: isProcessesLoading } = useQuery({
@@ -134,194 +203,9 @@ export default function AnalyticsDashboard() {
       (selectedTab === 'process' && !!selectedProcess) || 
       (selectedTab === 'lob' && !!selectedLOB)
     ),
-    retry: 2,
-    // Add a success handler to debug the response data
-    onSuccess: (data) => {
-      console.log('Analytics data received:', data);
-    },
-    onError: (error) => {
-      console.error('Error fetching analytics data:', error);
-    }
+    retry: 2
   });
   
-  // Debug information
-  useEffect(() => {
-    console.log('Current tab:', selectedTab);
-    console.log('Selected process:', selectedProcess);
-    console.log('Selected LOB:', selectedLOB);
-    console.log('Is analytics loading:', isAnalyticsLoading);
-    console.log('Analytics error:', analyticsError);
-  }, [selectedTab, selectedProcess, selectedLOB, isAnalyticsLoading, analyticsError]);
-
-  // Format data for role pie chart
-  const formatRoleData = (data: ProcessHeadcountAnalytics | ProcessHeadcountAnalytics[]) => {
-    if (!data) return [{ name: 'No Data Available', value: 1 }];
-    
-    if (Array.isArray(data)) {
-      // For overview, aggregate roles across all processes
-      const aggregatedRoles: { [key: string]: number } = {};
-      data.forEach(process => {
-        if (process?.byRole) {
-          Object.entries(process.byRole).forEach(([role, count]) => {
-            aggregatedRoles[role] = (aggregatedRoles[role] || 0) + (count || 0);
-          });
-        }
-      });
-      
-      const roleData = Object.entries(aggregatedRoles).map(([name, value]) => ({ name, value }));
-      return roleData.length > 0 ? roleData : [{ name: 'No Data Available', value: 1 }];
-    } else {
-      // For single process
-      const roleData = Object.entries(data.byRole || {}).map(([name, value]) => ({ name, value: value || 0 }));
-      return roleData.length > 0 ? roleData : [{ name: 'No Data Available', value: 1 }];
-    }
-  };
-
-  // Format data for location pie chart
-  const formatLocationData = (data: ProcessHeadcountAnalytics | ProcessHeadcountAnalytics[]) => {
-    if (!data) return [{ name: 'No Data Available', value: 1 }];
-    
-    if (Array.isArray(data)) {
-      // For overview, aggregate locations across all processes
-      const aggregatedLocations: { [key: string]: number } = {};
-      data.forEach(process => {
-        if (process?.byLocation) {
-          Object.entries(process.byLocation).forEach(([location, count]) => {
-            aggregatedLocations[location] = (aggregatedLocations[location] || 0) + (count || 0);
-          });
-        }
-      });
-      
-      const locationData = Object.entries(aggregatedLocations).map(([name, value]) => ({ name, value }));
-      return locationData.length > 0 ? locationData : [{ name: 'No Data Available', value: 1 }];
-    } else {
-      // For single process
-      const locationData = Object.entries(data.byLocation || {}).map(([name, value]) => ({ name, value: value || 0 }));
-      return locationData.length > 0 ? locationData : [{ name: 'No Data Available', value: 1 }];
-    }
-  };
-
-  // Format data for headcount projection line chart
-  const formatProjectionData = (data: ProcessHeadcountAnalytics | ProcessHeadcountAnalytics[]) => {
-    if (!data) return [{ date: new Date().toISOString(), expectedHeadcount: 0 }];
-    
-    if (Array.isArray(data)) {
-      // Combine projections from all processes
-      const projectionMap = new Map<string, number>();
-      
-      data.forEach(process => {
-        if (process?.projection && Array.isArray(process.projection)) {
-          process.projection.forEach(proj => {
-            if (proj?.date && typeof proj.expectedHeadcount === 'number') {
-              const currentValue = projectionMap.get(proj.date) || 0;
-              projectionMap.set(proj.date, currentValue + proj.expectedHeadcount);
-            }
-          });
-        }
-      });
-      
-      // If there's no data, return a placeholder with today's date and zero headcount
-      if (projectionMap.size === 0) {
-        return [{ date: new Date().toISOString(), expectedHeadcount: 0 }];
-      }
-      
-      // Convert map to array and sort by date
-      return Array.from(projectionMap, ([date, expectedHeadcount]) => ({ date, expectedHeadcount }))
-        .sort((a, b) => {
-          try {
-            return new Date(a.date).getTime() - new Date(b.date).getTime();
-          } catch (e) {
-            // If we can't parse the date, return 0 (no change in order)
-            return 0;
-          }
-        });
-    } else {
-      // Check if projection exists and is an array
-      if (!data.projection || !Array.isArray(data.projection) || data.projection.length === 0) {
-        return [{ date: new Date().toISOString(), expectedHeadcount: 0 }];
-      }
-      
-      // Return projection for single process, sorted by date
-      return [...data.projection]
-        .filter(proj => proj?.date && typeof proj.expectedHeadcount === 'number') // Only include valid entries
-        .sort((a, b) => {
-          try {
-            return new Date(a.date).getTime() - new Date(b.date).getTime();
-          } catch (e) {
-            // If we can't parse the date, return 0 (no change in order)
-            return 0;
-          }
-        });
-    }
-  };
-
-  // Format data for process comparison bar chart
-  const formatProcessComparisonData = (data: ProcessHeadcountAnalytics[]) => {
-    if (!data || !Array.isArray(data)) return [];
-    
-    return data.map(process => ({
-      name: process?.processName || 'Unknown Process',
-      total: process?.totalHeadcount || 0,
-      active: process?.byCategory?.active || 0,
-      trainee: process?.byCategory?.trainee || 0
-    }));
-  };
-
-  // Calculate active-to-trainee ratio for process
-  const calculateActiveToTraineeRatio = (data: ProcessHeadcountAnalytics | ProcessHeadcountAnalytics[]) => {
-    if (!data) return 'N/A';
-    
-    if (Array.isArray(data)) {
-      let totalActive = 0;
-      let totalTrainee = 0;
-      
-      data.forEach(process => {
-        if (process?.byCategory) {
-          totalActive += process.byCategory.active || 0;
-          totalTrainee += process.byCategory.trainee || 0;
-        }
-      });
-      
-      return totalTrainee > 0 ? (totalActive / totalTrainee).toFixed(2) : 'N/A';
-    } else {
-      return data.byCategory?.trainee > 0 
-        ? ((data.byCategory?.active || 0) / data.byCategory.trainee).toFixed(2)
-        : 'N/A';
-    }
-  };
-
-  // Get total headcount
-  const getTotalHeadcount = (data: ProcessHeadcountAnalytics | ProcessHeadcountAnalytics[]) => {
-    if (!data) return 0;
-    
-    if (Array.isArray(data)) {
-      return data.reduce((sum, process) => sum + (process?.totalHeadcount || 0), 0);
-    } else {
-      return data.totalHeadcount || 0;
-    }
-  };
-
-  // Get active and trainee totals
-  const getCategoryTotals = (data: ProcessHeadcountAnalytics | ProcessHeadcountAnalytics[]) => {
-    if (!data) return { active: 0, trainee: 0 };
-    
-    if (Array.isArray(data)) {
-      let totalActive = 0;
-      let totalTrainee = 0;
-      
-      data.forEach(process => {
-        if (process?.byCategory) {
-          totalActive += process.byCategory.active || 0;
-          totalTrainee += process.byCategory.trainee || 0;
-        }
-      });
-      
-      return { active: totalActive, trainee: totalTrainee };
-    } else {
-      return data.byCategory || { active: 0, trainee: 0 };
-    }
-  };
-
   // Handle process selection
   const handleProcessChange = (value: string) => {
     setSelectedProcess(Number(value));
@@ -341,27 +225,50 @@ export default function AnalyticsDashboard() {
         <div className="flex-1">
           <h1 className="text-3xl font-bold tracking-tight">Analytics Dashboard</h1>
           <p className="text-muted-foreground">
-            View headcount analytics and projections across processes
+            Comprehensive insights and metrics for training management
           </p>
         </div>
       </div>
 
-      <Tabs
-        value={selectedTab}
-        onValueChange={setSelectedTab}
-        className="space-y-4"
+      {/* Primary tabs for different insight types */}
+      <Tabs 
+        value={insightType} 
+        onValueChange={setInsightType} 
+        className="space-y-4 mb-6"
       >
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="process">Process</TabsTrigger>
-          <TabsTrigger value="lob">Line of Business</TabsTrigger>
+        <TabsList className="mb-4">
+          <TabsTrigger value="headcount" className="flex items-center">
+            <Users className="h-4 w-4 mr-2" />
+            Headcount
+          </TabsTrigger>
+          <TabsTrigger value="batch" className="flex items-center">
+            <Briefcase className="h-4 w-4 mr-2" />
+            Batch Management
+          </TabsTrigger>
+          <TabsTrigger value="trainer" className="flex items-center">
+            <GraduationCap className="h-4 w-4 mr-2" />
+            Trainer Management
+          </TabsTrigger>
+          <TabsTrigger value="attendance" className="flex items-center">
+            <CheckCircle2 className="h-4 w-4 mr-2" />
+            Attendance
+          </TabsTrigger>
+          <TabsTrigger value="assessment" className="flex items-center">
+            <ClipboardCheck className="h-4 w-4 mr-2" />
+            Assessment
+          </TabsTrigger>
+          <TabsTrigger value="certification" className="flex items-center">
+            <Award className="h-4 w-4 mr-2" />
+            Certification
+          </TabsTrigger>
         </TabsList>
 
-        {selectedTab === 'process' && (
-          <div className="my-4">
+        {/* Filter options common to all insight types */}
+        <div className="filter-bar p-4 bg-muted/20 rounded-lg mb-6 flex flex-wrap gap-4 items-center">
+          <div className="flex-1 min-w-[200px]">
             <Select onValueChange={handleProcessChange}>
-              <SelectTrigger className="w-[280px]">
-                <SelectValue placeholder="Select a process" />
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by process" />
               </SelectTrigger>
               <SelectContent>
                 {processes?.map((process: Process) => (
@@ -372,13 +279,11 @@ export default function AnalyticsDashboard() {
               </SelectContent>
             </Select>
           </div>
-        )}
-
-        {selectedTab === 'lob' && (
-          <div className="my-4">
+          
+          <div className="flex-1 min-w-[200px]">
             <Select onValueChange={handleLOBChange}>
-              <SelectTrigger className="w-[280px]">
-                <SelectValue placeholder="Select a line of business" />
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by line of business" />
               </SelectTrigger>
               <SelectContent>
                 {lineOfBusinesses?.map((lob: LineOfBusiness) => (
@@ -389,204 +294,300 @@ export default function AnalyticsDashboard() {
               </SelectContent>
             </Select>
           </div>
-        )}
-
-        {/* Ensure data is loaded and selected view (if needed) is chosen before displaying content */}
-        {isLoading ? (
-          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-6">
-            {[1, 2, 3, 4].map((i) => (
-              <Card key={i} className="overflow-hidden">
-                <CardHeader className="pb-2">
-                  <Skeleton className="h-4 w-1/2 mb-2" />
-                  <Skeleton className="h-6 w-full" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-24 w-full" />
-                </CardContent>
-              </Card>
-            ))}
+          
+          <div className="flex-1 min-w-[200px]">
+            <Select value={timeFilter} onValueChange={(value: any) => setTimeFilter(value)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="day">Daily</SelectItem>
+                <SelectItem value="week">Weekly</SelectItem>
+                <SelectItem value="month">Monthly</SelectItem>
+                <SelectItem value="quarter">Quarterly</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        ) : analyticsError ? (
-          <div className="p-6 text-center">
-            <div className="text-red-500 mb-4">Error loading analytics data</div>
-            <pre className="text-sm bg-gray-100 p-4 rounded overflow-auto max-h-[200px]">
-              {analyticsError.toString()}
-            </pre>
-          </div>
-        ) : !analyticsData ? (
-          <div className="p-6 text-center">
-            <div className="text-amber-500 mb-4">No analytics data available</div>
-            <p>There might be no users assigned to the selected process or filters.</p>
-          </div>
-        ) : (
-          <>
-            {/* Stats Cards */}
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-6">
-              <StatsCard
-                title="Total Headcount"
-                value={getTotalHeadcount(analyticsData).toString()}
-                icon={<Users className="h-4 w-4" />}
-              />
-              <StatsCard
-                title="Active Employees"
-                value={getCategoryTotals(analyticsData).active.toString()}
-                icon={<UserRound className="h-4 w-4" />}
-              />
-              <StatsCard
-                title="Trainees"
-                value={getCategoryTotals(analyticsData).trainee.toString()}
-                icon={<Layers className="h-4 w-4" />}
-              />
-              <StatsCard
-                title="Active-to-Trainee Ratio"
-                value={calculateActiveToTraineeRatio(analyticsData)}
-                icon={<TrendingUp className="h-4 w-4" />}
-              />
-            </div>
-
-            {/* Charts - in tabs */}
-            <Tabs defaultValue="breakdown" className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="breakdown">Breakdowns</TabsTrigger>
-                <TabsTrigger value="projections">Projections</TabsTrigger>
-                {selectedTab === 'overview' && <TabsTrigger value="comparison">Process Comparison</TabsTrigger>}
-              </TabsList>
-
-              <TabsContent value="breakdown" className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Role Distribution Chart */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center">
-                        <UserRound className="h-4 w-4 mr-2" />
-                        Role Distribution
-                      </CardTitle>
-                      <CardDescription>Headcount breakdown by role</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <ResponsiveContainer width="100%" height={300}>
-                        <PieChart>
-                          <Pie
-                            data={formatRoleData(analyticsData)}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={true}
-                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                            outerRadius={80}
-                            fill="#8884d8"
-                            dataKey="value"
-                          >
-                            {formatRoleData(analyticsData).map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </CardContent>
-                  </Card>
-
-                  {/* Location Distribution Chart */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center">
-                        <MapPin className="h-4 w-4 mr-2" />
-                        Location Distribution
-                      </CardTitle>
-                      <CardDescription>Headcount breakdown by location</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <ResponsiveContainer width="100%" height={300}>
-                        <PieChart>
-                          <Pie
-                            data={formatLocationData(analyticsData)}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={true}
-                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                            outerRadius={80}
-                            fill="#8884d8"
-                            dataKey="value"
-                          >
-                            {formatLocationData(analyticsData).map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="projections">
-                {/* Headcount Projection Chart */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <LineChartIcon className="h-4 w-4 mr-2" />
-                      Headcount Projection (Next 90 Days)
-                    </CardTitle>
-                    <CardDescription>Expected headcount changes based on last working days and batch handovers</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={400}>
-                      <LineChart data={formatProjectionData(analyticsData)}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis 
-                          dataKey="date" 
-                          tickFormatter={(date) => new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                        />
-                        <YAxis />
-                        <Tooltip 
-                          labelFormatter={(date) => new Date(date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
-                        />
-                        <Legend />
-                        <Line 
-                          type="monotone" 
-                          dataKey="expectedHeadcount" 
-                          stroke="#8884d8" 
-                          activeDot={{ r: 8 }} 
-                          name="Expected Headcount"
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              {selectedTab === 'overview' && (
-                <TabsContent value="comparison">
-                  {/* Process Comparison Chart */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center">
-                        <BarChart2 className="h-4 w-4 mr-2" />
-                        Process Comparison
-                      </CardTitle>
-                      <CardDescription>Headcount comparison across processes</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <ResponsiveContainer width="100%" height={400}>
-                        <BarChart data={formatProcessComparisonData(analyticsData as ProcessHeadcountAnalytics[])}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="name" />
-                          <YAxis />
-                          <Tooltip />
-                          <Legend />
-                          <Bar dataKey="active" fill="#8884d8" name="Active" />
-                          <Bar dataKey="trainee" fill="#82ca9d" name="Trainee" />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              )}
-            </Tabs>
-          </>
-        )}
+        </div>
       </Tabs>
+
+      {/* Content for selected insight type */}
+      {insightType === 'headcount' && (
+        <div className="space-y-6">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+            <StatsCard
+              title="Total Headcount"
+              value="750"
+              icon={<Users className="h-4 w-4" />}
+            />
+            <StatsCard
+              title="Active Employees"
+              value="680"
+              icon={<UserRound className="h-4 w-4" />}
+            />
+            <StatsCard
+              title="Trainees"
+              value="70"
+              icon={<Layers className="h-4 w-4" />}
+            />
+            <StatsCard
+              title="Active-to-Trainee Ratio"
+              value="9.7"
+              icon={<TrendingUp className="h-4 w-4" />}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Batch Management Insights */}
+      {insightType === 'batch' && (
+        <div className="space-y-6">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-6">
+            <StatsCard
+              title="Active Batches"
+              value="12"
+              icon={<Briefcase className="h-4 w-4" />}
+              description="Currently running batches"
+            />
+            <StatsCard
+              title="Total Trainees"
+              value="243"
+              icon={<Users className="h-4 w-4" />}
+              description="Enrolled in active batches"
+            />
+            <StatsCard
+              title="Completion Rate"
+              value="87%"
+              icon={<CheckCircle2 className="h-4 w-4" />}
+              description="Average completion rate"
+            />
+            <StatsCard
+              title="Phase Transitions"
+              value="14"
+              icon={<TrendingUp className="h-4 w-4" />}
+              description="Pending phase transitions"
+            />
+          </div>
+
+          {/* Batch Overview Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Briefcase className="h-4 w-4 mr-2" />
+                Batch Performance Overview
+              </CardTitle>
+              <CardDescription>Performance metrics for active batches</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Batch Name</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Trainees</TableHead>
+                      <TableHead>Completion %</TableHead>
+                      <TableHead>Phase Change %</TableHead>
+                      <TableHead>Start Date</TableHead>
+                      <TableHead>End Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="font-medium">CS-Billing-May-2025</TableCell>
+                      <TableCell><Badge variant="outline">In Progress</Badge></TableCell>
+                      <TableCell>24</TableCell>
+                      <TableCell>78%</TableCell>
+                      <TableCell>65%</TableCell>
+                      <TableCell>May 1, 2025</TableCell>
+                      <TableCell>Jun 15, 2025</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">Tech-Support-Jan-2025</TableCell>
+                      <TableCell><Badge variant="outline">Near Completion</Badge></TableCell>
+                      <TableCell>18</TableCell>
+                      <TableCell>92%</TableCell>
+                      <TableCell>85%</TableCell>
+                      <TableCell>Jan 15, 2025</TableCell>
+                      <TableCell>Mar 30, 2025</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">Sales-Inbound-Feb-2025</TableCell>
+                      <TableCell><Badge variant="outline">In Progress</Badge></TableCell>
+                      <TableCell>32</TableCell>
+                      <TableCell>64%</TableCell>
+                      <TableCell>51%</TableCell>
+                      <TableCell>Feb 10, 2025</TableCell>
+                      <TableCell>Apr 25, 2025</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Trainer Management Insights */}
+      {insightType === 'trainer' && (
+        <div className="space-y-6">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-6">
+            <StatsCard
+              title="Active Trainers"
+              value="8"
+              icon={<GraduationCap className="h-4 w-4" />}
+            />
+            <StatsCard
+              title="Avg. Trainee Load"
+              value="28"
+              icon={<Users className="h-4 w-4" />}
+            />
+            <StatsCard
+              title="Success Rate"
+              value="92%"
+              icon={<CheckCircle2 className="h-4 w-4" />}
+            />
+            <StatsCard
+              title="Avg. Batches"
+              value="2.5"
+              icon={<Briefcase className="h-4 w-4" />}
+            />
+          </div>
+
+          {/* Trainer Overview Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <GraduationCap className="h-4 w-4 mr-2" />
+                Trainer Performance Overview
+              </CardTitle>
+              <CardDescription>Performance metrics for active trainers</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Trainer</TableHead>
+                      <TableHead>Batches</TableHead>
+                      <TableHead>Trainees</TableHead>
+                      <TableHead>Success Rate</TableHead>
+                      <TableHead>Current Load</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="font-medium">John Smith</TableCell>
+                      <TableCell>3</TableCell>
+                      <TableCell>42</TableCell>
+                      <TableCell>94%</TableCell>
+                      <TableCell>High</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">Maria Rodriguez</TableCell>
+                      <TableCell>2</TableCell>
+                      <TableCell>36</TableCell>
+                      <TableCell>91%</TableCell>
+                      <TableCell>Medium</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">James Chen</TableCell>
+                      <TableCell>2</TableCell>
+                      <TableCell>27</TableCell>
+                      <TableCell>89%</TableCell>
+                      <TableCell>Medium</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Attendance Insights */}
+      {insightType === 'attendance' && (
+        <div className="space-y-6">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-6">
+            <StatsCard
+              title="Avg. Attendance"
+              value="92%"
+              icon={<CheckCircle2 className="h-4 w-4" />}
+            />
+            <StatsCard
+              title="Absentee Rate"
+              value="8%"
+              icon={<Users className="h-4 w-4" />}
+            />
+            <StatsCard
+              title="On-Time Rate"
+              value="84%"
+              icon={<Calendar className="h-4 w-4" />}
+            />
+            <StatsCard
+              title="Late Arrival Rate"
+              value="16%"
+              icon={<Clock className="h-4 w-4" />}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Written Assessment Insights */}
+      {insightType === 'assessment' && (
+        <div className="space-y-6">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-6">
+            <StatsCard
+              title="Avg. Score"
+              value="78%"
+              icon={<ClipboardCheck className="h-4 w-4" />}
+            />
+            <StatsCard
+              title="Passing Rate"
+              value="84%"
+              icon={<CheckCircle2 className="h-4 w-4" />}
+            />
+            <StatsCard
+              title="Top Performers"
+              value="32"
+              icon={<TrendingUp className="h-4 w-4" />}
+            />
+            <StatsCard
+              title="Need Improvement"
+              value="18"
+              icon={<Users className="h-4 w-4" />}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Certification Insights */}
+      {insightType === 'certification' && (
+        <div className="space-y-6">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-6">
+            <StatsCard
+              title="Certification Rate"
+              value="76%"
+              icon={<Award className="h-4 w-4" />}
+            />
+            <StatsCard
+              title="Avg. Attempts"
+              value="1.8"
+              icon={<ClipboardCheck className="h-4 w-4" />}
+            />
+            <StatsCard
+              title="First-time Pass"
+              value="62%"
+              icon={<CheckCircle2 className="h-4 w-4" />}
+            />
+            <StatsCard
+              title="Pending Cert."
+              value="42"
+              icon={<Users className="h-4 w-4" />}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
