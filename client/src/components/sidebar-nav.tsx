@@ -4,13 +4,11 @@ import { Button } from '@/components/ui/button';
 import { 
   LayoutDashboard, 
   GraduationCap, 
-  BarChart2, 
   Users,
   ClipboardCheck,
   LogOut,
   BookOpen,
   FileCheck,
-  PhoneCall,
   CheckSquare,
   FileSpreadsheet 
 } from 'lucide-react';
@@ -33,10 +31,8 @@ export function SidebarNav() {
       { href: '/batch-management', label: 'Batch Management', icon: Users },
       { href: '/trainee-management', label: 'Trainee Management', icon: ClipboardCheck },
       { href: '/quiz-management', label: 'Quiz Management', icon: BookOpen },
-      { href: '/mock-call-scenarios', label: 'Mock Calls', icon: PhoneCall },
       { href: '/evaluation-templates', label: 'Evaluation Forms', icon: CheckSquare },
       { href: '/conduct-evaluation', label: 'Conduct Evaluation', icon: FileSpreadsheet },
-      { href: '/performance', label: 'Performance', icon: BarChart2 },
     ]),
   ];
 
