@@ -60,7 +60,6 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import {Select as RadixSelect, SelectContent as RadixSelectContent, SelectGroup as RadixSelectGroup, SelectItem as RadixSelectItem, SelectLabel as RadixSelectLabel, SelectTrigger as RadixSelectTrigger, SelectValue as RadixSelectValue} from '@radix-ui/react-select'
 import { Tour, type TourStep } from "@/components/ui/tour";
 
 // Form validation schema
@@ -308,19 +307,11 @@ export function LocationDetail() {
     setSelectedLocation(location);
     editForm.reset(location);
     setIsEditDialogOpen(true);
-    updateMascotState({
-      state: "explaining",
-      message: `Editing ${location.name}? I'll help you update the details!`,
-    });
   };
 
   const handleDelete = (location: any) => {
     setSelectedLocation(location);
     setIsDeleteDialogOpen(true);
-    updateMascotState({
-      state: "explaining",
-      message: `Please be careful when deleting ${location.name}. This action cannot be undone!`,
-    });
   };
 
   const confirmDelete = () => {
@@ -336,8 +327,6 @@ export function LocationDetail() {
     }
   };
 
-
-
   const onCreateSuccess = () => {
     queryClient.invalidateQueries({
       queryKey: [`/api/organizations/${organization?.id}/settings`],
@@ -348,10 +337,6 @@ export function LocationDetail() {
     });
     setIsCreateDialogOpen(false);
     form.reset();
-    updateMascotState({
-      state: "celebrating",
-      message: "Great job! The new location has been added successfully! 🎉",
-    });
   };
 
   const locations = orgSettings?.locations || [];
@@ -375,19 +360,11 @@ export function LocationDetail() {
   const handlePageSizeChange = (newSize: number) => {
     setPageSize(newSize);
     setCurrentPage(1); // Reset to first page when changing page size
-    updateMascotState({
-      state: "explaining",
-      message: `Showing ${newSize} locations per page`,
-    });
   };
 
   // Handle page change
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
-    updateMascotState({
-      state: "pointing",
-      message: `Showing page ${newPage} of ${totalPages}`,
-    });
   };
 
   const tourSteps: TourStep[] = [
@@ -423,20 +400,11 @@ export function LocationDetail() {
   const handleTourComplete = () => {
     localStorage.setItem("locationManagementTourComplete", "true");
     setShowTour(false);
-    updateMascotState({
-      state: "celebrating",
-      message:
-        "Great! Now you know how to manage locations. Let me know if you need any help!",
-    });
   };
 
   const handleTourSkip = () => {
     localStorage.setItem("locationManagementTourComplete", "true");
     setShowTour(false);
-    updateMascotState({
-      state: "idle",
-      message: "You can always ask me if you need any help with anything!",
-    });
   };
 
   // Check if user has permission to manage locations
@@ -486,12 +454,6 @@ export function LocationDetail() {
                   onChange={(e) => {
                     setSearchTerm(e.target.value);
                     setCurrentPage(1);
-                    if (e.target.value) {
-                      updateMascotState({
-                        state: "explaining",
-                        message: `Searching for locations containing "${e.target.value}"`,
-                      });
-                    }
                   }}
                   className="pl-9 w-[250px] focus:border-purple-500"
                 />
@@ -504,11 +466,6 @@ export function LocationDetail() {
                         data-tour="add-location"
                         onClick={() => {
                           setIsCreateDialogOpen(true);
-                          updateMascotState({
-                            state: "pointing",
-                            message:
-                              "Let's add a new location! I'll help you fill out the details.",
-                          });
                         }}
                         className="bg-purple-600 hover:bg-purple-700 transition-colors"
                       >
@@ -736,7 +693,7 @@ export function LocationDetail() {
                         </FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="Enter complete address"
+                            placeholder="Enter address"
                             {...field}
                             className="transition-colors focus:border-purple-500"
                           />
@@ -746,7 +703,7 @@ export function LocationDetail() {
                     )}
                   />
 
-                  <div className="grid grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <FormField
                       control={form.control}
                       name="city"
@@ -757,7 +714,7 @@ export function LocationDetail() {
                           </FormLabel>
                           <FormControl>
                             <Input
-                              placeholder="Enter city name"
+                              placeholder="Enter city"
                               {...field}
                               className="transition-colors focus:border-purple-500"
                             />
@@ -773,11 +730,11 @@ export function LocationDetail() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-sm font-semibold text-foreground">
-                            STATE
+                            STATE/PROVINCE
                           </FormLabel>
                           <FormControl>
                             <Input
-                              placeholder="Enter state name"
+                              placeholder="Enter state"
                               {...field}
                               className="transition-colors focus:border-purple-500"
                             />
@@ -797,7 +754,7 @@ export function LocationDetail() {
                           </FormLabel>
                           <FormControl>
                             <Input
-                              placeholder="Enter country name"
+                              placeholder="Enter country"
                               {...field}
                               className="transition-colors focus:border-purple-500"
                             />
@@ -810,33 +767,23 @@ export function LocationDetail() {
                 </CardContent>
               </Card>
 
-              <DialogFooter>
+              <DialogFooter className="flex gap-2 justify-end">
                 <Button
-                  type="button"
                   variant="outline"
-                  onClick={() => {
-                    setIsCreateDialogOpen(false);
-                    updateMascotState({
-                      state: "idle",
-                      message: "Need help with anything else?",
-                    });
-                  }}
+                  type="button"
+                  onClick={() => setIsCreateDialogOpen(false)}
                 >
                   Cancel
                 </Button>
-                <Button
+                <Button 
                   type="submit"
-                  className="bg-purple-600 hover:bg-purple-700 transition-colors min-w-[100px]"
+                  className="bg-purple-600 hover:bg-purple-700"
                   disabled={createLocationMutation.isPending}
                 >
-                  {createLocationMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    "Create"
+                  {createLocationMutation.isPending && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
+                  Add Location
                 </Button>
               </DialogFooter>
             </form>
@@ -849,24 +796,30 @@ export function LocationDetail() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-2xl mb-6">Edit Location</DialogTitle>
+            <DialogDescription>
+              Update the details for this location.
+            </DialogDescription>
           </DialogHeader>
           <Form {...editForm}>
             <form onSubmit={editForm.handleSubmit(onEdit)} className="space-y-6">
               <Card>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 pt-6">
                   <FormField
                     control={editForm.control}
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>LOCATION NAME</FormLabel>
+                        <FormLabel className="text-sm font-semibold text-foreground">
+                          LOCATION NAME
+                        </FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter location name"
                             {...field}
+                            className="transition-colors focus:border-purple-500"
                           />
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage className="text-xs" />
                       </FormItem>
                     )}
                   />
@@ -876,29 +829,38 @@ export function LocationDetail() {
                     name="address"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>ADDRESS</FormLabel>
+                        <FormLabel className="text-sm font-semibold text-foreground">
+                          ADDRESS
+                        </FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter address"
                             {...field}
+                            className="transition-colors focus:border-purple-500"
                           />
                         </FormControl>
-                        <FormMessage />
+                        <FormMessage className="text-xs" />
                       </FormItem>
                     )}
                   />
 
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <FormField
                       control={editForm.control}
                       name="city"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>CITY</FormLabel>
+                          <FormLabel className="text-sm font-semibold text-foreground">
+                            CITY
+                          </FormLabel>
                           <FormControl>
-                            <Input placeholder="Enter city" {...field} />
+                            <Input
+                              placeholder="Enter city"
+                              {...field}
+                              className="transition-colors focus:border-purple-500"
+                            />
                           </FormControl>
-                          <FormMessage />
+                          <FormMessage className="text-xs" />
                         </FormItem>
                       )}
                     />
@@ -908,11 +870,17 @@ export function LocationDetail() {
                       name="state"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>STATE</FormLabel>
+                          <FormLabel className="text-sm font-semibold text-foreground">
+                            STATE/PROVINCE
+                          </FormLabel>
                           <FormControl>
-                            <Input placeholder="Enter state" {...field} />
+                            <Input
+                              placeholder="Enter state"
+                              {...field}
+                              className="transition-colors focus:border-purple-500"
+                            />
                           </FormControl>
-                          <FormMessage />
+                          <FormMessage className="text-xs" />
                         </FormItem>
                       )}
                     />
@@ -922,14 +890,17 @@ export function LocationDetail() {
                       name="country"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>COUNTRY</FormLabel>
+                          <FormLabel className="text-sm font-semibold text-foreground">
+                            COUNTRY
+                          </FormLabel>
                           <FormControl>
                             <Input
                               placeholder="Enter country"
                               {...field}
+                              className="transition-colors focus:border-purple-500"
                             />
                           </FormControl>
-                          <FormMessage />
+                          <FormMessage className="text-xs" />
                         </FormItem>
                       )}
                     />
@@ -937,82 +908,91 @@ export function LocationDetail() {
                 </CardContent>
               </Card>
 
-              <div className="flex justify-end">
+              <DialogFooter className="flex gap-2 justify-end">
                 <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => setIsEditDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
                   type="submit"
                   className="bg-purple-600 hover:bg-purple-700"
                   disabled={editLocationMutation.isPending}
                 >
-                  {editLocationMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Updating...
-                    </>
-                  ) : (
-                    "Update"
+                  {editLocationMutation.isPending && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
+                  Save Changes
                 </Button>
-              </div>
+              </DialogFooter>
             </form>
           </Form>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Location Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-2xl mb-6">
+            <DialogTitle className="text-2xl text-red-600 mb-4">
               Delete Location
             </DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this location? This action cannot
-              be undone. To confirm, type "delete-{selectedLocation?.name.toLowerCase()}"
-              below.
+              <div className="flex flex-col gap-2">
+                <p>
+                  This action <span className="font-bold">cannot</span> be undone. This will permanently delete the
+                  location{" "}
+                  <span className="font-bold">{selectedLocation?.name}</span>.
+                </p>
+                <p className="mt-2">
+                  To confirm, type{" "}
+                  <code className="px-2 py-1 bg-muted rounded">
+                    delete-{selectedLocation?.name?.toLowerCase()}
+                  </code>{" "}
+                  below:
+                </p>
+              </div>
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <Input
-              placeholder="Type confirmation text here"
-              value={deleteConfirmation}
-              onChange={(e) => setDeleteConfirmation(e.target.value)}
-            />
-          </div>
-          <DialogFooter>
+          <Input
+            value={deleteConfirmation}
+            onChange={(e) => setDeleteConfirmation(e.target.value)}
+            className="mt-2 focus:border-red-500"
+            placeholder={`delete-${selectedLocation?.name?.toLowerCase()}`}
+          />
+          <DialogFooter className="flex gap-2 justify-end">
             <Button
               variant="outline"
+              type="button"
               onClick={() => {
                 setIsDeleteDialogOpen(false);
                 setDeleteConfirmation("");
-                updateMascotState({
-                  state: "idle",
-                  message: "Need help with anything else?",
-                });
               }}
             >
               Cancel
             </Button>
             <Button
+              type="button"
               variant="destructive"
               onClick={confirmDelete}
               disabled={deleteLocationMutation.isPending}
             >
-              {deleteLocationMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete Location"
+              {deleteLocationMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
+              Delete Location
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* Tour */}
       {showTour && (
         <Tour
           steps={tourSteps}
+          isOpen={showTour}
           onComplete={handleTourComplete}
           onSkip={handleTourSkip}
         />

@@ -308,9 +308,6 @@ export function LocationDetail() {
     setSelectedLocation(location);
     editForm.reset(location);
     setIsEditDialogOpen(true);
-      state: "explaining",
-      message: `Editing ${location.name}? I'll help you update the details!`,
-    });
   };
 
   const handleDelete = (location: any) => {
