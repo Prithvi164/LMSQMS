@@ -93,7 +93,7 @@ export function ProcessDetail() {
     queryKey: ["/api/organization"],
     enabled: !!user,
     staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
-    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes (using gcTime instead of cacheTime)
+    cacheTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
   });
 
   // Fetch line of businesses with optimized caching
@@ -101,36 +101,22 @@ export function ProcessDetail() {
     queryKey: [`/api/organizations/${organization?.id}/line-of-businesses`],
     enabled: !!organization?.id,
     staleTime: 5 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
+    cacheTime: 30 * 60 * 1000,
   });
 
-  // Fetch processes with optimized caching and error handling
-  const { 
-    data: processes = [], 
-    isLoading: isLoadingProcesses,
-    isError: isProcessError,
-    error: processError,
-    refetch: refetchProcesses
-  } = useQuery({
+  // Fetch processes with optimized caching
+  const { data: processes = [], isLoading: isLoadingProcesses } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/processes`],
     enabled: !!organization?.id,
     staleTime: 5 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
-    retry: 3,
-    retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
+    cacheTime: 30 * 60 * 1000,
   });
 
-  // Safe type assertion for processes
-  const processesData = Array.isArray(processes) ? processes : [];
-  
   // Filter and pagination calculations
-  const filteredProcesses = processesData.filter((process: Process) => {
-    // Make sure process is a valid object
-    if (!process || typeof process !== 'object') return false;
-    
+  const filteredProcesses = processes.filter((process: Process) => {
     const searchStr = searchQuery.toLowerCase();
     return (
-      process.name?.toLowerCase().includes(searchStr) ||
+      process.name.toLowerCase().includes(searchStr) ||
       (process.lineOfBusinessName || "").toLowerCase().includes(searchStr)
     );
   });
@@ -317,24 +303,11 @@ export function ProcessDetail() {
     }
   };
 
-  // Show loading or error state
+  // Show loading state
   if (isLoadingLOB || isLoadingProcesses) {
     return (
       <div className="flex items-center justify-center p-8">
         <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-
-  if (isProcessError) {
-    return (
-      <div className="flex flex-col items-center justify-center p-8 space-y-4">
-        <div className="text-red-500 text-lg font-medium">
-          Error loading processes: {processError?.message || "Unknown error"}
-        </div>
-        <Button onClick={() => refetchProcesses()} variant="outline">
-          Retry
-        </Button>
       </div>
     );
   }
@@ -373,7 +346,7 @@ export function ProcessDetail() {
       {/* Process List */}
       <Card>
         <CardContent>
-          {processesData.length > 0 ? (
+          {processes.length > 0 ? (
             <>
               <div className="flex items-center justify-end py-4">
                 <div className="flex items-center space-x-2">
@@ -418,9 +391,7 @@ export function ProcessDetail() {
                           {process.name}
                         </TableCell>
                         <TableCell>
-                          {Array.isArray(lineOfBusinesses) 
-                            ? lineOfBusinesses.find((lob: any) => lob.id === process.lineOfBusinessId)?.name || "-" 
-                            : "-"}
+                          {lineOfBusinesses.find(lob => lob.id === process.lineOfBusinessId)?.name || "-"}
                         </TableCell>
                         <TableCell className="text-center">{process.inductionDays}</TableCell>
                         <TableCell className="text-center">{process.trainingDays}</TableCell>
@@ -452,7 +423,7 @@ export function ProcessDetail() {
 
               <div className="flex items-center justify-between py-4">
                 <div className="text-sm text-gray-500">
-                  Showing {startIndex + 1} to {Math.min(endIndex, processesData.length)} of {processesData.length}{" "}
+                  Showing {startIndex + 1} to {Math.min(endIndex, processes.length)} of {processes.length}{" "}
                   entries
                 </div>
                 <div className="space-x-2">
@@ -524,14 +495,11 @@ export function ProcessDetail() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {Array.isArray(lineOfBusinesses) 
-                              ? lineOfBusinesses.map((lob: any) => (
-                                  <SelectItem key={lob.id} value={lob.id.toString()}>
-                                    {lob.name}
-                                  </SelectItem>
-                                ))
-                              : <SelectItem value="0">No line of business available</SelectItem>
-                            }
+                            {lineOfBusinesses.map((lob: LineOfBusiness) => (
+                              <SelectItem key={lob.id} value={lob.id.toString()}>
+                                {lob.name}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -801,14 +769,11 @@ export function ProcessDetail() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {Array.isArray(lineOfBusinesses) 
-                            ? lineOfBusinesses.map((lob: any) => (
-                                <SelectItem key={lob.id} value={lob.id.toString()}>
-                                  {lob.name}
-                                </SelectItem>
-                              ))
-                            : <SelectItem value="0">No line of business available</SelectItem>
-                          }
+                          {lineOfBusinesses.map((lob: LineOfBusiness) => (
+                            <SelectItem key={lob.id} value={lob.id.toString()}>
+                              {lob.name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
