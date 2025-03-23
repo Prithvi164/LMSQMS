@@ -193,7 +193,8 @@ export function UserManagement() {
 
   // Add exportToExcel function after toggleUserStatus
   const exportToExcel = () => {
-    const dataToExport = users.map(user => ({
+    // First sheet with user details
+    const usersDataToExport = users.map(user => ({
       Username: user.username,
       'Full Name': user.fullName || '',
       Email: user.email,
@@ -208,10 +209,39 @@ export function UserManagement() {
       Status: user.active ? 'Active' : 'Inactive'
     }));
 
-    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    // Second sheet with process details
+    const processDataToExport = users.map(user => {
+      const userProcessList = userProcesses[user.id] || [];
+      return {
+        Username: user.username,
+        'Full Name': user.fullName || '',
+        Email: user.email,
+        'Employee ID': user.employeeId || '',
+        'Processes': userProcessList.map((p: any) => p.processName).join(", ") || "No processes",
+        'Process Count': userProcessList.length,
+        'Process IDs': userProcessList.map((p: any) => p.processId).join(", ") || "",
+        'Line of Business': userProcessList.map((p: any) => p.lineOfBusinessName || "").join(", ") || "",
+        Status: user.active ? 'Active' : 'Inactive'
+      };
+    });
+
+    // Create workbook and add the user details sheet
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Users");
+    const wsUsers = XLSX.utils.json_to_sheet(usersDataToExport);
+    XLSX.utils.book_append_sheet(wb, wsUsers, "Users");
+    
+    // Add the process details sheet
+    const wsProcesses = XLSX.utils.json_to_sheet(processDataToExport);
+    XLSX.utils.book_append_sheet(wb, wsProcesses, "User Processes");
+    
+    // Save the file
     XLSX.writeFile(wb, `users_export_${new Date().toISOString().split('T')[0]}.xlsx`);
+    
+    // Show success toast
+    toast({
+      title: "Export Successful",
+      description: "User details and process information have been exported to Excel.",
+    });
   };
 
 
