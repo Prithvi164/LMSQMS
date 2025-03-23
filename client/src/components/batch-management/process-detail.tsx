@@ -120,11 +120,17 @@ export function ProcessDetail() {
     retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
   });
 
+  // Safe type assertion for processes
+  const processesData = Array.isArray(processes) ? processes : [];
+  
   // Filter and pagination calculations
-  const filteredProcesses = processes.filter((process: Process) => {
+  const filteredProcesses = processesData.filter((process: Process) => {
+    // Make sure process is a valid object
+    if (!process || typeof process !== 'object') return false;
+    
     const searchStr = searchQuery.toLowerCase();
     return (
-      process.name.toLowerCase().includes(searchStr) ||
+      process.name?.toLowerCase().includes(searchStr) ||
       (process.lineOfBusinessName || "").toLowerCase().includes(searchStr)
     );
   });
@@ -367,7 +373,7 @@ export function ProcessDetail() {
       {/* Process List */}
       <Card>
         <CardContent>
-          {processes.length > 0 ? (
+          {processesData.length > 0 ? (
             <>
               <div className="flex items-center justify-end py-4">
                 <div className="flex items-center space-x-2">
@@ -412,7 +418,9 @@ export function ProcessDetail() {
                           {process.name}
                         </TableCell>
                         <TableCell>
-                          {lineOfBusinesses.find(lob => lob.id === process.lineOfBusinessId)?.name || "-"}
+                          {Array.isArray(lineOfBusinesses) 
+                            ? lineOfBusinesses.find((lob: any) => lob.id === process.lineOfBusinessId)?.name || "-" 
+                            : "-"}
                         </TableCell>
                         <TableCell className="text-center">{process.inductionDays}</TableCell>
                         <TableCell className="text-center">{process.trainingDays}</TableCell>
@@ -444,7 +452,7 @@ export function ProcessDetail() {
 
               <div className="flex items-center justify-between py-4">
                 <div className="text-sm text-gray-500">
-                  Showing {startIndex + 1} to {Math.min(endIndex, processes.length)} of {processes.length}{" "}
+                  Showing {startIndex + 1} to {Math.min(endIndex, processesData.length)} of {processesData.length}{" "}
                   entries
                 </div>
                 <div className="space-x-2">
@@ -516,11 +524,14 @@ export function ProcessDetail() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {lineOfBusinesses.map((lob: LineOfBusiness) => (
-                              <SelectItem key={lob.id} value={lob.id.toString()}>
-                                {lob.name}
-                              </SelectItem>
-                            ))}
+                            {Array.isArray(lineOfBusinesses) 
+                              ? lineOfBusinesses.map((lob: any) => (
+                                  <SelectItem key={lob.id} value={lob.id.toString()}>
+                                    {lob.name}
+                                  </SelectItem>
+                                ))
+                              : <SelectItem value="0">No line of business available</SelectItem>
+                            }
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -790,11 +801,14 @@ export function ProcessDetail() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {lineOfBusinesses.map((lob: LineOfBusiness) => (
-                            <SelectItem key={lob.id} value={lob.id.toString()}>
-                              {lob.name}
-                            </SelectItem>
-                          ))}
+                          {Array.isArray(lineOfBusinesses) 
+                            ? lineOfBusinesses.map((lob: any) => (
+                                <SelectItem key={lob.id} value={lob.id.toString()}>
+                                  {lob.name}
+                                </SelectItem>
+                              ))
+                            : <SelectItem value="0">No line of business available</SelectItem>
+                          }
                         </SelectContent>
                       </Select>
                       <FormMessage />
