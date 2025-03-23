@@ -59,7 +59,6 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { Mascot } from "@/components/ui/mascot";
 import { Skeleton } from "@/components/ui/skeleton";
 import {Select as RadixSelect, SelectContent as RadixSelectContent, SelectGroup as RadixSelectGroup, SelectItem as RadixSelectItem, SelectLabel as RadixSelectLabel, SelectTrigger as RadixSelectTrigger, SelectValue as RadixSelectValue} from '@radix-ui/react-select'
 import { Tour, type TourStep } from "@/components/ui/tour";
@@ -86,14 +85,7 @@ export function LocationDetail() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
-  const [mascotState, setMascotState] = useState<{
-    state: "idle" | "pointing" | "explaining" | "celebrating";
-    message: string;
-  }>({
-    state: "idle",
-    message:
-      "Welcome! I'm Loco, your location management assistant. Need help managing your locations?",
-  });
+
   const [showTour, setShowTour] = useState(() => {
     const hasSeenTour = localStorage.getItem("locationManagementTourComplete");
     return !hasSeenTour;
@@ -344,9 +336,7 @@ export function LocationDetail() {
     }
   };
 
-  const updateMascotState = (state: typeof mascotState) => {
-    setMascotState(state);
-  };
+
 
   const onCreateSuccess = () => {
     queryClient.invalidateQueries({
@@ -479,11 +469,6 @@ export function LocationDetail() {
 
   return (
     <div className="space-y-4">
-      <Mascot
-        state={mascotState.state}
-        message={mascotState.message}
-        position="right"
-      />
       <Card className="overflow-hidden border-none shadow-lg">
         <CardContent className="p-6">
           <div className="flex justify-between items-center mb-6">
