@@ -142,8 +142,7 @@ export default function OrganizationSettings() {
     enabled: !!user?.organizationId
   });
 
-  // Update settings form when data is loaded
-  // No need for useEffect to reset weeklyOffDays form anymore
+  // No need for a settings form reset since we only handle holidays now
 
   // Create holiday mutation
   const createHolidayMutation = useMutation({
