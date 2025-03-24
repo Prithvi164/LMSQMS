@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { Router } from "express";
-import { insertUserSchema, users, userBatchProcesses, organizationProcesses, userProcesses, quizzes, insertMockCallScenarioSchema, insertMockCallAttemptSchema, mockCallScenarios, mockCallAttempts, batches, lineOfBusiness } from "@shared/schema";
+import { insertUserSchema, users, userBatchProcesses, organizationProcesses, userProcesses, quizzes, insertMockCallScenarioSchema, insertMockCallAttemptSchema, mockCallScenarios, mockCallAttempts, batches, lineOfBusiness, insertOrganizationSettingsSchema, organizationSettings, insertOrganizationHolidaySchema, organizationHolidays } from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
@@ -248,6 +248,172 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
     const organization = await storage.getOrganization(req.user.organizationId);
     res.json(organization);
+  });
+  
+  // Organization Settings routes
+  app.get("/api/organizations/:organizationId/settings", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      
+      if (organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      const settings = await storage.getOrganizationSettings(organizationId);
+      res.json(settings || { organizationId, weekly_off_days: ["Sunday"] });
+    } catch (error: any) {
+      console.error("Error fetching organization settings:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  app.post("/api/organizations/:organizationId/settings", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      
+      if (organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      const { weekly_off_days } = req.body;
+      
+      if (!Array.isArray(weekly_off_days) || weekly_off_days.length === 0) {
+        return res.status(400).json({ message: "Weekly off days must be a non-empty array" });
+      }
+      
+      // Check if settings already exist
+      const existingSettings = await storage.getOrganizationSettings(organizationId);
+      
+      let settings;
+      if (existingSettings) {
+        // Update existing settings
+        settings = await storage.updateOrganizationSettings(organizationId, {
+          weekly_off_days,
+          updatedAt: new Date()
+        });
+      } else {
+        // Create new settings
+        settings = await storage.createOrganizationSettings({
+          organizationId,
+          weekly_off_days,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+      }
+      
+      res.json(settings);
+    } catch (error: any) {
+      console.error("Error updating organization settings:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // Organization Holidays routes
+  app.get("/api/organizations/:organizationId/holidays", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      const locationId = req.query.locationId ? parseInt(req.query.locationId as string) : undefined;
+      
+      if (organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      const holidays = await storage.listOrganizationHolidays(organizationId, locationId);
+      res.json(holidays);
+    } catch (error: any) {
+      console.error("Error fetching organization holidays:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  app.post("/api/organizations/:organizationId/holidays", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      
+      if (organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      const { name, date, locationId, isRecurringYearly } = req.body;
+      
+      if (!name || !date) {
+        return res.status(400).json({ message: "Holiday name and date are required" });
+      }
+      
+      const holiday = await storage.createOrganizationHoliday({
+        name,
+        date,
+        organizationId,
+        locationId: locationId || null,
+        isRecurringYearly: isRecurringYearly || false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+      
+      res.status(201).json(holiday);
+    } catch (error: any) {
+      console.error("Error creating organization holiday:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  app.patch("/api/organizations/:organizationId/holidays/:holidayId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      const holidayId = parseInt(req.params.holidayId);
+      
+      if (organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      const { name, date, locationId, isRecurringYearly } = req.body;
+      
+      const updateData: Partial<typeof req.body> = {};
+      if (name) updateData.name = name;
+      if (date) updateData.date = date;
+      if (locationId !== undefined) updateData.locationId = locationId;
+      if (isRecurringYearly !== undefined) updateData.isRecurringYearly = isRecurringYearly;
+      
+      const holiday = await storage.updateOrganizationHoliday(holidayId, {
+        ...updateData,
+        updatedAt: new Date()
+      });
+      
+      res.json(holiday);
+    } catch (error: any) {
+      console.error("Error updating organization holiday:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  app.delete("/api/organizations/:organizationId/holidays/:holidayId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      const holidayId = parseInt(req.params.holidayId);
+      
+      if (organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      await storage.deleteOrganizationHoliday(holidayId);
+      
+      res.status(204).end();
+    } catch (error: any) {
+      console.error("Error deleting organization holiday:", error);
+      res.status(500).json({ message: error.message });
+    }
   });
 
   // Add evaluation template routes

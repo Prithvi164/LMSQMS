@@ -14,6 +14,8 @@ import {
   batchPhaseChangeRequests,
   quizResponses,
   userBatchProcesses,
+  organizationSettings,
+  organizationHolidays,
   type QuizResponse,
   type InsertQuizResponse,
   type User,
@@ -48,6 +50,10 @@ import {
   type InsertQuizTemplate,
   quizzes,
   type Quiz,
+  type OrganizationSettings,
+  type InsertOrganizationSettings,
+  type OrganizationHoliday,
+  type InsertOrganizationHoliday,
   type InsertQuiz,
   quizAttempts,
   type QuizAttempt,
@@ -278,9 +284,134 @@ export interface IStorage {
 
   // Evaluation operations
   createEvaluation(evaluation: InsertEvaluation & { scores: Array<{ parameterId: number; score: string; comment?: string; noReason?: string; }> }): Promise<Evaluation>;
+
+  // Organization Settings operations
+  getOrganizationSettings(organizationId: number): Promise<OrganizationSettings | undefined>;
+  createOrganizationSettings(settings: InsertOrganizationSettings): Promise<OrganizationSettings>;
+  updateOrganizationSettings(organizationId: number, settings: Partial<InsertOrganizationSettings>): Promise<OrganizationSettings>;
+  
+  // Organization Holidays operations
+  listOrganizationHolidays(organizationId: number, locationId?: number): Promise<OrganizationHoliday[]>;
+  createOrganizationHoliday(holiday: InsertOrganizationHoliday): Promise<OrganizationHoliday>;
+  updateOrganizationHoliday(id: number, holiday: Partial<InsertOrganizationHoliday>): Promise<OrganizationHoliday>;
+  deleteOrganizationHoliday(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
+  // Organization Settings operations
+  async getOrganizationSettings(organizationId: number): Promise<OrganizationSettings | undefined> {
+    try {
+      const [settings] = await db
+        .select()
+        .from(organizationSettings)
+        .where(eq(organizationSettings.organizationId, organizationId)) as OrganizationSettings[];
+      return settings;
+    } catch (error) {
+      console.error('Error fetching organization settings:', error);
+      throw error;
+    }
+  }
+
+  async createOrganizationSettings(settings: InsertOrganizationSettings): Promise<OrganizationSettings> {
+    try {
+      const [newSettings] = await db
+        .insert(organizationSettings)
+        .values(settings)
+        .returning() as OrganizationSettings[];
+      return newSettings;
+    } catch (error) {
+      console.error('Error creating organization settings:', error);
+      throw error;
+    }
+  }
+
+  async updateOrganizationSettings(organizationId: number, settings: Partial<InsertOrganizationSettings>): Promise<OrganizationSettings> {
+    try {
+      const [updatedSettings] = await db
+        .update(organizationSettings)
+        .set({
+          ...settings,
+          updatedAt: new Date()
+        })
+        .where(eq(organizationSettings.organizationId, organizationId))
+        .returning() as OrganizationSettings[];
+
+      if (!updatedSettings) {
+        throw new Error('Organization settings not found');
+      }
+
+      return updatedSettings;
+    } catch (error) {
+      console.error('Error updating organization settings:', error);
+      throw error;
+    }
+  }
+
+  // Organization Holidays operations
+  async listOrganizationHolidays(organizationId: number, locationId?: number): Promise<OrganizationHoliday[]> {
+    try {
+      let query = db
+        .select()
+        .from(organizationHolidays)
+        .where(eq(organizationHolidays.organizationId, organizationId));
+
+      if (locationId) {
+        query = query.where(eq(organizationHolidays.locationId, locationId));
+      }
+
+      const holidays = await query as OrganizationHoliday[];
+      return holidays;
+    } catch (error) {
+      console.error('Error fetching organization holidays:', error);
+      throw error;
+    }
+  }
+
+  async createOrganizationHoliday(holiday: InsertOrganizationHoliday): Promise<OrganizationHoliday> {
+    try {
+      const [newHoliday] = await db
+        .insert(organizationHolidays)
+        .values(holiday)
+        .returning() as OrganizationHoliday[];
+      return newHoliday;
+    } catch (error) {
+      console.error('Error creating organization holiday:', error);
+      throw error;
+    }
+  }
+
+  async updateOrganizationHoliday(id: number, holiday: Partial<InsertOrganizationHoliday>): Promise<OrganizationHoliday> {
+    try {
+      const [updatedHoliday] = await db
+        .update(organizationHolidays)
+        .set({
+          ...holiday,
+          updatedAt: new Date()
+        })
+        .where(eq(organizationHolidays.id, id))
+        .returning() as OrganizationHoliday[];
+
+      if (!updatedHoliday) {
+        throw new Error('Holiday not found');
+      }
+
+      return updatedHoliday;
+    } catch (error) {
+      console.error('Error updating organization holiday:', error);
+      throw error;
+    }
+  }
+
+  async deleteOrganizationHoliday(id: number): Promise<void> {
+    try {
+      await db
+        .delete(organizationHolidays)
+        .where(eq(organizationHolidays.id, id));
+    } catch (error) {
+      console.error('Error deleting organization holiday:', error);
+      throw error;
+    }
+  }
   async createEvaluationParameter(parameter: InsertEvaluationParameter): Promise<EvaluationParameter> {
     try {
       console.log('Creating evaluation parameter with data:', parameter);
