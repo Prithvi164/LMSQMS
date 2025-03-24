@@ -18,49 +18,6 @@ import { join } from 'path';
 import express from 'express';
 import { eq, and, sql, inArray } from "drizzle-orm";
 import { toIST, formatIST, toUTCStorage, formatISTDateOnly } from './utils/timezone';
-
-// Helper function for getting trainer details including location
-async function getTrainerDetails(batchId: number) {
-  const batch = await storage.getBatch(batchId);
-  if (!batch) {
-    throw new Error("Batch not found");
-  }
-
-  let trainerLocationId = batch.locationId; // Default to batch location
-  let trainerId = batch.trainerId;
-  let managerId = batch.trainerId; // Use trainer as manager by default
-  
-  // If trainer is assigned to the batch, get their location and manager
-  if (trainerId) {
-    const trainer = await storage.getUser(trainerId);
-    if (trainer) {
-      console.log('Found trainer:', {
-        id: trainer.id,
-        name: trainer.fullName,
-        locationId: trainer.locationId
-      });
-      
-      // Use trainer's location if available
-      if (trainer.locationId) {
-        trainerLocationId = trainer.locationId;
-        console.log('Using trainer location:', trainerLocationId);
-      } else {
-        console.log('Trainer has no location set, using batch location:', batch.locationId);
-      }
-    } else {
-      console.log('Trainer not found for ID:', trainerId);
-    }
-  } else {
-    console.log('No trainer assigned to batch, using batch location:', batch.locationId);
-  }
-
-  return {
-    batch,
-    trainerLocationId,
-    trainerId,
-    managerId
-  };
-}
 import { attendance } from "@shared/schema";
 import type { User } from "@shared/schema";
 
@@ -3339,18 +3296,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('Processing upload for:', { orgId, batchId });
 
-      // Get batch and trainer details including location
-      let batchDetails;
-      try {
-        batchDetails = await getTrainerDetails(batchId);
-      } catch (error) {
+      // Get batch details first
+      const batch = await storage.getBatch(batchId);
+      if (!batch) {
         console.log('Batch not found:', batchId);
         return res.status(404).json({ message: "Batch not found" });
       }
-      
-      const { batch, trainerLocationId, trainerId, managerId } = batchDetails;
+
       console.log('Found batch:', batch);
-      console.log('Using trainer location:', trainerLocationId);
+      
+      // Get trainer details if trainer is assigned to the batch
+      let trainerLocationId = batch.locationId; // Default to batch location
+      let trainerId = batch.trainerId;
+      
+      if (trainerId) {
+        const trainer = await storage.getUser(trainerId);
+        if (trainer) {
+          console.log('Found trainer:', {
+            id: trainer.id,
+            name: trainer.fullName,
+            locationId: trainer.locationId
+          });
+          
+          // Use trainer's location if available
+          if (trainer.locationId) {
+            trainerLocationId = trainer.locationId;
+            console.log('Using trainer location:', trainerLocationId);
+          } else {
+            console.log('Trainer has no location set, using batch location:', batch.locationId);
+          }
+        } else {
+          console.log('Trainer not found for ID:', trainerId);
+        }
+      } else {
+        console.log('No trainer assigned to batch, using batch location:', batch.locationId);
+      }
 
       // Check remaining capacity 
       const currentTrainees = await storage.getBatchTrainees(batchId);
@@ -4099,10 +4079,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const organizationId = parseInt(req.params.orgId);
       const batchId = parseInt(req.params.batchId);
 
-      // Get trainer details using the helper function
-      const batchDetails = await getTrainerDetails(batchId);
-      const { batch, trainerLocationId, trainerId } = batchDetails;
-      
+      // Get the batch details including capacity
+      const batch = await storage.getBatch(batchId);
+      if (!batch) {
+        return res.status(404).json({ message: "Batch not found" });
+      }
+
       // Get current trainee count
       const trainees = await storage.getBatchTrainees(batchId);
       if (trainees.length >= batch.capacityLimit) {
@@ -4111,28 +4093,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Get data from request
-      const { processId, lineOfBusinessId, ...userData } = req.body;
+      // Rest of the existing code remains the same
+      const { processId, lineOfBusinessId, locationId, ...userData } = req.body;
 
       // Create password hash
       const hashedPassword = await hashPassword(userData.password);
 
-      // Create user with role from form, using trainer as manager and trainer's location 
+      // Create user with role from form 
       const userToCreate = {
         ...userData,
         password: hashedPassword,
         category: "trainee", // Keep category as trainee
         organizationId,
-        locationId: trainerLocationId, // Use trainer's location
-        managerId: trainerId, // Set the batch trainer as the reporting manager
+        locationId,
         active: true
       };
 
       console.log('Creating trainee with data:', {
         ...userToCreate,
-        password: '[REDACTED]',
-        locationId: trainerLocationId,
-        managerId: trainerId
+        password: '[REDACTED]'
       });
 
       const user = await storage.createUser(userToCreate);
@@ -4142,7 +4121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const batchAssignment = await storage.assignUserToBatch({
         userId: user.id,
         batchId,
-        processId: batch.processId,
+        processId,
         status: 'active',
         joinedAt: new Date(),
       });
@@ -4151,10 +4130,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create user process record
       const userProcess = await storage.createUserProcess({
         userId: user.id,
-        processId: batch.processId,
+        processId,
         organizationId,
-        lineOfBusinessId: batch.lineOfBusinessId,
-        locationId: trainerLocationId, // Use trainer's location
+        lineOfBusinessId,
+        locationId,
         status: 'active',
         assignedAt: new Date(),
       });
