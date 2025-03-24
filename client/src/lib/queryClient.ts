@@ -82,7 +82,7 @@ export const getQueryFn = <T>({ on401 }: { on401: UnauthorizedBehavior }): Query
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      queryFn: getQueryFn({ on401: "returnNull" }),
+      queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
       staleTime: 30000, // Consider data fresh for 30 seconds

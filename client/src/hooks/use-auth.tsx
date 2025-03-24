@@ -32,28 +32,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryFn: async () => {
       try {
         const res = await fetch("/api/user", { credentials: "include" });
-        
-        // When not authenticated, return null instead of throwing an error
-        if (res.status === 401) {
-          return null;
-        }
-        
-        if (!res.ok) {
-          throw new Error(`Failed to fetch user: ${res.status} ${res.statusText}`);
-        }
-        
-        const data = await res.json();
-        return data;
+        if (res.status === 401) return null;
+        if (!res.ok) throw new Error("Failed to fetch user");
+        return res.json();
       } catch (err) {
-        console.error("Auth error:", err);
-        if (err instanceof Error && err.message.includes("401")) {
-          return null;
-        }
         throw err;
       }
     },
-    retry: false, // Don't retry auth queries
-    staleTime: 30000, // Consider fresh for 30 seconds
   });
 
   const loginMutation = useMutation({

@@ -192,7 +192,7 @@ export interface IStorage {
   // Add new methods for trainee management
   updateUserBatchProcess(userId: number, oldBatchId: number, newBatchId: number): Promise<void>;
   removeUserFromBatch(userId: number, batchId: number): Promise<void>;
-  removeTraineeFromBatch(traineeIdOrBatchProcessId: number, batchId?: number): Promise<void>;
+  removeTraineeFromBatch(userBatchProcessId: number): Promise<void>;
 
   // Phase change request operations
   createPhaseChangeRequest(request: InsertBatchPhaseChangeRequest): Promise<BatchPhaseChangeRequest>;
@@ -1983,35 +1983,8 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  async removeTraineeFromBatch(traineeIdOrBatchProcessId: number, batchId?: number): Promise<void> {
+  async removeTraineeFromBatch(userBatchProcessId: number): Promise<void> {
     try {
-      // If batchId is provided, we're being called with traineeId and batchId
-      if (batchId !== undefined) {
-        console.log(`Attempting to remove trainee ${traineeIdOrBatchProcessId} from batch ${batchId}`);
-        
-        // First get the user_batch_process record
-        const [record] = await db
-          .select()
-          .from(userBatchProcesses)
-          .where(
-            and(
-              eq(userBatchProcesses.userId, traineeIdOrBatchProcessId),
-              eq(userBatchProcesses.batchId, batchId)
-            )
-          );
-
-        if (!record) {
-          throw new Error('Trainee not found in batch');
-        }
-
-        console.log(`Found user batch process ID ${record.id} for trainee ${traineeIdOrBatchProcessId} in batch ${batchId}`);
-        
-        // Now call the same method with the user batch process ID
-        return this.removeTraineeFromBatch(record.id);
-      }
-      
-      // Otherwise, we're being called with just a userBatchProcessId
-      const userBatchProcessId = traineeIdOrBatchProcessId;
       console.log(`Attempting to remove trainee batch process ${userBatchProcessId}`);
 
       // First get the user_batch_process record to get userId
@@ -2042,13 +2015,7 @@ export class DatabaseStorage implements IStorage {
           .where(eq(userProcesses.userId, userId))
           .execute();
         console.log(`Deleted user_processes records for user ${userId}`);
-        
-        // 3. Delete the user from the users table
-        await tx
-          .delete(users)
-          .where(eq(users.id, userId))
-          .execute();
-        console.log(`Deleted user with ID ${userId} from the system`);
+
       });
 
       console.log(`Successfully removed trainee and related records`);
