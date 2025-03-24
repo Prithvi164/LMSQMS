@@ -206,6 +206,14 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     enabled: !!user?.organizationId
   });
   
+  const {
+    data: allUsers = [],
+    isLoading: isLoadingAllUsers
+  } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/users`],
+    enabled: !!user?.organizationId
+  });
+  
   // Get trainer's processes
   const {
     data: trainerProcesses = [],
@@ -262,14 +270,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
   }, [form.getValues('processId'), allProcesses, lobs]);
   
   const isLoadingProcesses = isLoadingAllProcesses || isLoadingTrainerProcesses;
-
-  const {
-    data: allUsers = [],
-    isLoading: isLoadingAllUsers
-  } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/users`],
-    enabled: !!user?.organizationId
-  });
   
   // Compute trainers from the reporting hierarchy
   const trainers = useMemo(() => {
