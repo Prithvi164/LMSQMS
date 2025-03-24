@@ -46,11 +46,32 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import type { OrganizationBatch } from "@shared/schema";
+import type { OrganizationBatch, OrganizationLocation, OrganizationLineOfBusiness, OrganizationProcess, User } from "@shared/schema";
 import { AddTraineeForm } from "./add-trainee-form";
 import { Progress } from "@/components/ui/progress"; // Import Progress component
 import { useLocation } from "wouter";
 import { TraineeManagement } from "./trainee-management";
+
+// Extended type with relations for batch display
+interface BatchWithRelations extends OrganizationBatch {
+  location?: {
+    id: number;
+    name: string;
+  };
+  line_of_business?: {
+    id: number;
+    name: string;
+  };
+  process?: {
+    id: number;
+    name: string;
+  };
+  trainer?: {
+    id: number;
+    fullName: string;
+  };
+  enrolledCount?: number;
+}
 
 export function BatchesTab() {
   const { user } = useAuth();
