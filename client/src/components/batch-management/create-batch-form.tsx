@@ -728,9 +728,25 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
   }, [form.getValues('processId'), allProcesses]);
 
   // Get organization holidays
-  const { data: organizationHolidays = [] } = useQuery({
+  const { data: organizationHolidays = [] } = useQuery<Holiday[]>({
     queryKey: ['/api/organizations/holidays', user?.organizationId],
     enabled: !!user?.organizationId,
+    onSuccess: (data) => {
+      console.log('Holidays loaded:', data);
+      // Ensure holiday dates are converted from string to Date correctly
+      if (data && data.length > 0) {
+        // We set this to see if the data format matches what's expected by isNonWorkingDay
+        setHolidaysList(data);
+      }
+    },
+    onError: (error) => {
+      console.error('Error loading holidays:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load holiday information.",
+        variant: "destructive",
+      });
+    }
   });
 
   // Update the useEffect for date calculations with proper error handling
