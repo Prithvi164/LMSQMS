@@ -1037,38 +1037,61 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
           <FormField
             control={form.control}
             name="trainerId"
-            render={({ field }) => (
-              <FormItem>
-                <div className="flex justify-between items-center">
-                  <FormLabel>Trainer</FormLabel>
-                  {field.value && <TrainerInsights trainerId={field.value} />}
-                </div>
-                <Select
-                  onValueChange={(trainerId) => {
-                    const id = parseInt(trainerId);
-                    if (!isNaN(id)) {
-                      field.onChange(id);
-                    }
-                  }}
-                  value={field.value?.toString()}
-                  disabled={isLoadingTrainers}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select trainer" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {trainers.map((trainer) => (
-                      <SelectItem key={trainer.id} value={trainer.id.toString()}>
-                        {trainer.fullName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
+            render={({ field }) => {
+              const [searchTerm, setSearchTerm] = useState("");
+              const filteredTrainers = trainers.filter(trainer => 
+                trainer.fullName.toLowerCase().includes(searchTerm.toLowerCase())
+              );
+              
+              return (
+                <FormItem>
+                  <div className="flex justify-between items-center">
+                    <FormLabel>Trainer</FormLabel>
+                    {field.value && <TrainerInsights trainerId={field.value} />}
+                  </div>
+                  <Select
+                    onValueChange={(trainerId) => {
+                      const id = parseInt(trainerId);
+                      if (!isNaN(id)) {
+                        field.onChange(id);
+                      }
+                    }}
+                    value={field.value?.toString()}
+                    disabled={isLoadingTrainers}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select trainer" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="max-h-[300px]">
+                      <div className="px-2 py-2 sticky top-0 bg-background z-10">
+                        <Input 
+                          placeholder="Search trainers..." 
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="mb-1"
+                        />
+                      </div>
+                      <div className="max-h-[250px] overflow-y-auto">
+                        {filteredTrainers.length > 0 ? (
+                          filteredTrainers.map((trainer) => (
+                            <SelectItem key={trainer.id} value={trainer.id.toString()}>
+                              {trainer.fullName}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <div className="px-2 py-4 text-center text-muted-foreground">
+                            No trainers found
+                          </div>
+                        )}
+                      </div>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
           />
 
           <FormField
