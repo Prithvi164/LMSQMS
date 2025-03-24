@@ -542,7 +542,7 @@ export const organizationSettings = pgTable("organization_settings", {
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
-  weeklyOffDays: jsonb("weekly_off_days").$type<number[]>().default([0]).notNull(), // Default to Sunday (0)
+  weeklyOffDays: integer("weekly_off_days").array().default([0]).notNull(), // Default to Sunday (0)
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

@@ -64,7 +64,7 @@ import {
 type OrganizationSettings = {
   id?: number;
   organizationId: number;
-  weekly_off_days: string[];
+  weeklyOffDays: number[];
   createdAt?: string;
   updatedAt?: string;
 };
@@ -80,7 +80,7 @@ type Holiday = {
   date: string;
   organizationId: number;
   locationId: number | null;
-  isRecurringYearly: boolean;
+  isRecurring: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -96,7 +96,7 @@ const holidaySchema = z.object({
     message: "Please select a valid date"
   }),
   locationId: z.string().optional().transform(val => val === "all-locations" || val === "" ? null : parseInt(val)),
-  isRecurringYearly: z.boolean().default(false)
+  isRecurring: z.boolean().default(false)
 });
 
 type WeeklyOffDaysForm = z.infer<typeof weeklyOffDaysSchema>;
@@ -135,7 +135,7 @@ export default function OrganizationSettings() {
       name: "",
       date: "",
       locationId: "",
-      isRecurringYearly: false
+      isRecurring: false
     }
   });
 
@@ -475,7 +475,7 @@ export default function OrganizationSettings() {
                         />
                         <FormField
                           control={holidayForm.control}
-                          name="isRecurringYearly"
+                          name="isRecurring"
                           render={({ field }) => (
                             <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                               <FormControl>
