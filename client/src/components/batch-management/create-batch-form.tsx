@@ -792,7 +792,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
         },
         weeklyOffDays,
         considerHolidays,
-        holidays: organizationHolidays
+        holidays: holidaysList || []
       });
       
       // Set all phase dates in the form
@@ -867,7 +867,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
         variant: "destructive",
       });
     }
-  }, [form.watch('startDate'), form.watch('processId'), form.watch('weeklyOffDays'), form.watch('considerHolidays'), processes, organizationHolidays]);
+  }, [form.watch('startDate'), form.watch('processId'), form.watch('weeklyOffDays'), form.watch('considerHolidays'), processes, holidaysList]);
 
   useEffect(() => {
     if (isCreating) {
@@ -1405,14 +1405,18 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                       onSelect={(date) => {
                         field.onChange(date ? format(date, 'yyyy-MM-dd') : '');
                       }}
-                      disabled={(date) =>
-                        date < new Date() || isNonWorkingDay(
+                      disabled={(date) => {
+                        // Don't allow selecting dates in the past
+                        if (date < new Date()) return true;
+                        
+                        // Check if date is a non-working day (weekly off or holiday)
+                        return isNonWorkingDay(
                           date,
                           form.getValues('weeklyOffDays') || ['Saturday', 'Sunday'],
-                          form.getValues('considerHolidays') || true,
-                          organizationHolidays
-                        )
-                      }
+                          form.getValues('considerHolidays') !== undefined ? form.getValues('considerHolidays') : true,
+                          holidaysList || [] // Use our state variable that's guaranteed to be an array
+                        );
+                      }}
                       initialFocus
                     />
                   </PopoverContent>
