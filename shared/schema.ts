@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, pgEnum, date, unique, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, pgEnum, date, unique, numeric, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { relations, type InferSelectModel } from "drizzle-orm";
 import { z } from "zod";
@@ -535,6 +535,83 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
   });
 
 export type InsertOrganizationBatch = z.infer<typeof insertOrganizationBatchSchema>;
+
+// Organization settings for weekly off days and holidays
+export const organizationSettings = pgTable("organization_settings", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  weeklyOffDays: jsonb("weekly_off_days").$type<number[]>().default([0]).notNull(), // Default to Sunday (0)
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type OrganizationSettings = InferSelectModel<typeof organizationSettings>;
+
+export const insertOrganizationSettingsSchema = createInsertSchema(organizationSettings)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    organizationId: z.number().int().positive("Organization is required"),
+    weeklyOffDays: z.array(z.number().int().min(0).max(6)).default([0])
+  });
+
+export type InsertOrganizationSettings = z.infer<typeof insertOrganizationSettingsSchema>;
+
+export const organizationSettingsRelations = relations(organizationSettings, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [organizationSettings.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
+// Organization holidays
+export const organizationHolidays = pgTable("organization_holidays", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
+  date: date("date").notNull(),
+  locationId: integer("location_id")
+    .references(() => organizationLocations.id),
+  isRecurring: boolean("is_recurring").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type OrganizationHoliday = InferSelectModel<typeof organizationHolidays>;
+
+export const insertOrganizationHolidaySchema = createInsertSchema(organizationHolidays)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    organizationId: z.number().int().positive("Organization is required"),
+    name: z.string().min(1, "Holiday name is required"),
+    date: z.string().refine(val => !isNaN(Date.parse(val)), "Invalid date format"),
+    locationId: z.number().int().positive("Location is required").optional(),
+    isRecurring: z.boolean().default(false)
+  });
+
+export type InsertOrganizationHoliday = z.infer<typeof insertOrganizationHolidaySchema>;
+
+export const organizationHolidaysRelations = relations(organizationHolidays, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [organizationHolidays.organizationId],
+    references: [organizations.id],
+  }),
+  location: one(organizationLocations, {
+    fields: [organizationHolidays.locationId],
+    references: [organizationLocations.id],
+  }),
+}));
 
 export const organizations = pgTable("organizations", {
   id: serial("id").primaryKey(),
