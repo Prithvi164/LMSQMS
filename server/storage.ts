@@ -2042,7 +2042,13 @@ export class DatabaseStorage implements IStorage {
           .where(eq(userProcesses.userId, userId))
           .execute();
         console.log(`Deleted user_processes records for user ${userId}`);
-
+        
+        // 3. Delete the user from the users table
+        await tx
+          .delete(users)
+          .where(eq(users.id, userId))
+          .execute();
+        console.log(`Deleted user with ID ${userId} from the system`);
       });
 
       console.log(`Successfully removed trainee and related records`);
