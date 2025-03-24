@@ -196,13 +196,13 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     enabled: !!selectedLocation && !!user?.organizationId
   });
 
-  // Get all processes for the selected LOB
+  // Get all processes for the org
   const {
     data: allProcesses = [],
     isLoading: isLoadingAllProcesses
   } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${selectedLob}/processes`],
-    enabled: !!selectedLob && !!user?.organizationId
+    queryKey: [`/api/organizations/${user?.organizationId}/processes`],
+    enabled: !!user?.organizationId
   });
   
   // Get trainer's processes
@@ -211,26 +211,30 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     isLoading: isLoadingTrainerProcesses
   } = useQuery({
     queryKey: [`/api/users/${form.getValues('trainerId')}/processes`],
-    enabled: !!form.getValues('trainerId') && !!user?.organizationId
+    enabled: !!form.getValues('trainerId') && !!user?.organizationId,
   });
   
-  // Filter processes to show only those assigned to the selected trainer and LOB
+  // Filter processes to show only those assigned to the selected trainer
   const processes = useMemo(() => {
     const trainerId = form.getValues('trainerId');
     
-    if (!trainerId || !selectedLob) {
-      return allProcesses;
+    if (!trainerId) {
+      return [];
     }
     
-    // If trainer is selected, show only processes assigned to that trainer
-    // that also belong to the selected LOB
-    const trainerProcessIds = new Set(trainerProcesses.map(p => p.processId));
+    // Get process details by joining trainer processes with all processes
+    const trainerProcessIds = trainerProcesses.map(p => p.processId);
+    console.log('Trainer process IDs:', trainerProcessIds);
+    console.log('All processes:', allProcesses);
     
-    return allProcesses.filter(process => 
-      trainerProcessIds.has(process.id) && 
-      process.lineOfBusinessId === selectedLob
+    const trainerProcessesWithDetails = allProcesses.filter(process => 
+      trainerProcessIds.includes(process.id)
     );
-  }, [allProcesses, trainerProcesses, form.getValues('trainerId'), selectedLob]);
+    
+    console.log('Trainer processes with details:', trainerProcessesWithDetails);
+    return trainerProcessesWithDetails;
+    
+  }, [allProcesses, trainerProcesses, form.getValues('trainerId')]);
   
   const isLoadingProcesses = isLoadingAllProcesses || isLoadingTrainerProcesses;
 

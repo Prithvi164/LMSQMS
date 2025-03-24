@@ -1,5 +1,6 @@
 import { eq, inArray, sql, desc, and, or } from "drizzle-orm";
 import { db } from "./db";
+import * as schema from "@shared/schema";
 import { batchStatusEnum } from "@shared/schema";
 import {
   users,
@@ -1554,40 +1555,9 @@ export class DatabaseStorage implements IStorage {
         organizationId: template.organizationId
       });
 
-      const [newTemplate] = await db
-        .insert(batchTemplates)
-        .values(template)
-        .returning() as BatchTemplate[];
-
-      console.log('Successfully created batch template:', newTemplate);
-      return newTemplate;
-    } catch (error: any) {
-      console.error('Error creating batch template:', error);
-      throw error;
-    }
-  }
-
-  async listBatchTemplates(organizationId: number): Promise<BatchTemplate[]> {
-    try {
-      console.log(`Fetching batch templates for organization ${organizationId}`);
-      const templates = await db
-        .select()
-        .from(batchTemplates)
-        .where(eq(batchTemplates.organizationId, organizationId)) as BatchTemplate[];
-
-      console.log(`Found ${templates.length} templates`);
-      return templates;
-    } catch (error) {
-      console.error('Error fetching batch templates:', error);
-      throw new Error('Failed to fetch batch templates');
-    }
-  }
-
-  async createBatchTemplate(template: InsertBatchTemplate): Promise<BatchTemplate> {
-    try {
-      console.log('Creating batch template with data:', template);
+      // Import from schema
       const [createdTemplate] = await db
-        .insert(batchTemplates)
+        .insert(schema.batchTemplates)
         .values(template)
         .returning() as BatchTemplate[];
 
@@ -1597,20 +1567,21 @@ export class DatabaseStorage implements IStorage {
 
       console.log('Batch template created successfully:', createdTemplate);
       return createdTemplate;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating batch template:', error);
-      throw new Error('Failed to create batch template');
+      throw error;
     }
   }
 
   async listBatchTemplates(organizationId: number): Promise<BatchTemplate[]> {
     try {
       console.log(`Listing batch templates for organization ${organizationId}`);
+      
       const templates = await db
         .select()
-        .from(batchTemplates)
-        .where(eq(batchTemplates.organizationId, organizationId))
-        .orderBy(batchTemplates.createdAt);
+        .from(schema.batchTemplates)
+        .where(eq(schema.batchTemplates.organizationId, organizationId))
+        .orderBy(schema.batchTemplates.createdAt);
 
       console.log(`Found ${templates.length} batch templates`);
       return templates as BatchTemplate[];
@@ -1625,8 +1596,8 @@ export class DatabaseStorage implements IStorage {
       console.log(`Fetching batch template with ID: ${id}`);
       const [template] = await db
         .select()
-        .from(batchTemplates)
-        .where(eq(batchTemplates.id, id)) as BatchTemplate[];
+        .from(schema.batchTemplates)
+        .where(eq(schema.batchTemplates.id, id)) as BatchTemplate[];
 
       console.log('Template found:', template);
       return template;
@@ -1641,8 +1612,8 @@ export class DatabaseStorage implements IStorage {
       console.log(`Attempting to delete batch template with ID: ${id}`);
 
       const result = await db
-        .delete(batchTemplates)
-        .where(eq(batchTemplates.id, id))
+        .delete(schema.batchTemplates)
+        .where(eq(schema.batchTemplates.id, id))
         .returning();
 
       if (!result.length) {
