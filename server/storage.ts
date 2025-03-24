@@ -2149,12 +2149,40 @@ export class DatabaseStorage implements IStorage {
       console.log(`Fetching batches for trainer ${trainerId}`);
 
       const batches = await db
-        .select()
+        .select({
+          id: organizationBatches.id,
+          name: organizationBatches.name,
+          batchCategory: sql<string>`${organizationBatches.batchCategory}::text`,
+          startDate: organizationBatches.startDate,
+          endDate: organizationBatches.endDate,
+          status: organizationBatches.status,
+          capacityLimit: organizationBatches.capacityLimit,
+          locationId: organizationBatches.locationId,
+          processId: organizationBatches.processId,
+          lineOfBusinessId: organizationBatches.lineOfBusinessId,
+          trainerId: organizationBatches.trainerId,
+          organizationId: organizationBatches.organizationId,
+          inductionStartDate: organizationBatches.inductionStartDate,
+          inductionEndDate: organizationBatches.inductionEndDate,
+          trainingStartDate: organizationBatches.trainingStartDate,
+          trainingEndDate: organizationBatches.trainingEndDate,
+          certificationStartDate: organizationBatches.certificationStartDate,
+          certificationEndDate: organizationBatches.certificationEndDate,
+          ojtStartDate: organizationBatches.ojtStartDate,
+          ojtEndDate: organizationBatches.ojtEndDate,
+          ojtCertificationStartDate: organizationBatches.ojtCertificationStartDate,
+          ojtCertificationEndDate: organizationBatches.ojtCertificationEndDate,
+          handoverToOpsDate: organizationBatches.handoverToOpsDate,
+          weeklyOffDays: organizationBatches.weeklyOffDays,
+          considerHolidays: organizationBatches.considerHolidays,
+          createdAt: organizationBatches.createdAt,
+          updatedAt: organizationBatches.updatedAt
+        })
         .from(organizationBatches)
-        .where(eq(organizationBatches.trainerId, trainerId)) as OrganizationBatch[];
+        .where(eq(organizationBatches.trainerId, trainerId));
 
       console.log(`Found ${batches.length} batches for trainer ${trainerId}`);
-      return batches;
+      return batches as OrganizationBatch[];
     } catch (error) {
       console.error('Error fetching trainer batches:', error);
       throw new Error('Failed to fetch trainer batches');
@@ -2166,12 +2194,40 @@ export class DatabaseStorage implements IStorage {
       console.log(`Fetching batches for trainers:`, trainerIds);
 
       const batches = await db
-        .select()
+        .select({
+          id: organizationBatches.id,
+          name: organizationBatches.name,
+          batchCategory: sql<string>`${organizationBatches.batchCategory}::text`,
+          startDate: organizationBatches.startDate,
+          endDate: organizationBatches.endDate,
+          status: organizationBatches.status,
+          capacityLimit: organizationBatches.capacityLimit,
+          locationId: organizationBatches.locationId,
+          processId: organizationBatches.processId,
+          lineOfBusinessId: organizationBatches.lineOfBusinessId,
+          trainerId: organizationBatches.trainerId,
+          organizationId: organizationBatches.organizationId,
+          inductionStartDate: organizationBatches.inductionStartDate,
+          inductionEndDate: organizationBatches.inductionEndDate,
+          trainingStartDate: organizationBatches.trainingStartDate,
+          trainingEndDate: organizationBatches.trainingEndDate,
+          certificationStartDate: organizationBatches.certificationStartDate,
+          certificationEndDate: organizationBatches.certificationEndDate,
+          ojtStartDate: organizationBatches.ojtStartDate,
+          ojtEndDate: organizationBatches.ojtEndDate,
+          ojtCertificationStartDate: organizationBatches.ojtCertificationStartDate,
+          ojtCertificationEndDate: organizationBatches.ojtCertificationEndDate,
+          handoverToOpsDate: organizationBatches.handoverToOpsDate,
+          weeklyOffDays: organizationBatches.weeklyOffDays,
+          considerHolidays: organizationBatches.considerHolidays,
+          createdAt: organizationBatches.createdAt,
+          updatedAt: organizationBatches.updatedAt
+        })
         .from(organizationBatches)
-        .where(inArray(organizationBatches.trainerId, trainerIds)) as OrganizationBatch[];
+        .where(inArray(organizationBatches.trainerId, trainerIds));
 
       console.log(`Found ${batches.length} batches for trainers`);
-      return batches;
+      return batches as OrganizationBatch[];
     } catch (error) {
       console.error('Error fetching trainer batches:', error);
       throw new Error('Failed to fetch trainer batches');
