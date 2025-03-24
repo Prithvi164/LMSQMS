@@ -2572,6 +2572,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message });
     }
   });
+  
+  // Get processes assigned to a trainer
+  app.get("/api/trainers/:trainerId/processes", async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: 'Not authenticated' });
+      }
+      
+      const trainerId = parseInt(req.params.trainerId);
+      
+      if (isNaN(trainerId)) {
+        return res.status(400).json({ message: 'Invalid trainer ID' });
+      }
+      
+      // Get all processes assigned to the trainer
+      const userProcesses = await storage.getUserProcesses(trainerId);
+      
+      if (!userProcesses || userProcesses.length === 0) {
+        return res.json([]);
+      }
+      
+      // Get detailed process information for each process
+      const processIds = userProcesses.map(up => up.processId);
+      const processes = [];
+      
+      for (const processId of processIds) {
+        const process = await storage.getProcess(processId);
+        if (process) {
+          processes.push(process);
+        }
+      }
+      
+      return res.json(processes);
+    } catch (error: any) {
+      console.error('Error fetching trainer processes:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
 
   // Add batch details endpoint with comprehensive error handling and logging
   app.get("/api/organizations/:orgId/batches/:batchId", async (req, res) => {

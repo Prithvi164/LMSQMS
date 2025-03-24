@@ -196,12 +196,13 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     enabled: !!selectedLocation && !!user?.organizationId
   });
 
+  // Fetch processes assigned to the selected trainer
   const {
-    data: processes = [],
-    isLoading: isLoadingProcesses
+    data: trainerProcesses = [],
+    isLoading: isLoadingTrainerProcesses
   } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${selectedLob}/processes`],
-    enabled: !!selectedLob && !!user?.organizationId
+    queryKey: [`/api/trainers/${selectedTrainer}/processes`],
+    enabled: !!selectedTrainer && !!user?.organizationId
   });
 
   const {
