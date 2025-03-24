@@ -798,15 +798,31 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       });
 
       const startDate = new Date(startDateStr);
+      
+      // Check specifically for March 31st, 2025 to debug holiday detection issue
+      const march31st = new Date('2025-03-31');
+      const isNonWorkingDayResult = isNonWorkingDay(march31st, weeklyOffDays, considerHolidays, holidaysList || []);
+      console.log('March 31st 2025 isNonWorkingDay check:', isNonWorkingDayResult);
 
       // Calculate all phase dates at once using the date-utils function
       console.log('Calculating phase dates with holidays:', { 
         startDate, 
         weeklyOffDays, 
         considerHolidays, 
-        holidaysCount: holidaysList?.length || 0,
-        holidays: holidaysList
+        holidaysCount: holidaysList?.length || 0
       });
+      
+      // Log actual holiday data structure to debug format issues
+      if (holidaysList && holidaysList.length > 0) {
+        console.log('Holiday data sample:', holidaysList[0]);
+        
+        // Verify each holiday date format
+        console.log('All holidays:');
+        holidaysList.forEach((holiday, index) => {
+          const holidayDate = new Date(holiday.date);
+          console.log(`${index}: ${holiday.name}, ${holiday.date}, parsed as: ${format(holidayDate, 'yyyy-MM-dd')}, isRecurring: ${holiday.isRecurring}`);
+        });
+      }
       
       const phaseDates = calculatePhaseDates({
         startDate,
