@@ -729,7 +729,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
 
   // Get organization holidays
   const { data: organizationHolidays = [] } = useQuery<Holiday[]>({
-    queryKey: ['/api/organizations/holidays', user?.organizationId],
+    queryKey: [`/api/organizations/${user?.organizationId}/holidays`],
     enabled: !!user?.organizationId,
     onSuccess: (data) => {
       console.log('Holidays loaded:', data);
