@@ -542,7 +542,6 @@ export const organizationSettings = pgTable("organization_settings", {
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
-  weeklyOffDays: integer("weekly_off_days").array().default([0]).notNull(), // Default to Sunday (0)
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -556,8 +555,7 @@ export const insertOrganizationSettingsSchema = createInsertSchema(organizationS
     updatedAt: true,
   })
   .extend({
-    organizationId: z.number().int().positive("Organization is required"),
-    weeklyOffDays: z.array(z.number().int().min(0).max(6)).default([0])
+    organizationId: z.number().int().positive("Organization is required")
   });
 
 export type InsertOrganizationSettings = z.infer<typeof insertOrganizationSettingsSchema>;
