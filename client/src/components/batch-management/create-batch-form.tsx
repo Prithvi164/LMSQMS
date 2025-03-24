@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, addDays, isSunday, isWithinInterval, isSameDay } from "date-fns";
 import { getAllSubordinates, getReportingChainUsers } from "@/lib/hierarchy-utils";
+import { calculatePhaseDates, calculateWorkingDays, Holiday } from "@/lib/date-utils";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -12,6 +13,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
@@ -34,9 +36,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { CalendarIcon, Loader2 } from "lucide-react";
-import { insertOrganizationBatchSchema, type InsertOrganizationBatch, insertBatchTemplateSchema, type InsertBatchTemplate, type BatchTemplate, type OrganizationBatch } from "@shared/schema";
+import { insertOrganizationBatchSchema, type InsertOrganizationBatch, insertBatchTemplateSchema, type InsertBatchTemplate, type BatchTemplate, type OrganizationBatch, type OrganizationHoliday } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { TrainerInsights } from "./trainer-insights";
@@ -139,6 +143,8 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       trainerId: batchData.trainerId,
       capacityLimit: batchData.capacityLimit,
       batchCategory: batchData.batchCategory,
+      weeklyOffDays: batchData.weeklyOffDays || ['Saturday', 'Sunday'],
+      considerHolidays: batchData.considerHolidays !== null ? batchData.considerHolidays : true,
       status: batchData.status
     } : {
       status: 'planned',
@@ -158,7 +164,9 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       ojtCertificationStartDate: '',
       ojtCertificationEndDate: '',
       handoverToOpsDate: '',
-      batchCategory: 'new_training'
+      batchCategory: 'new_training',
+      weeklyOffDays: ['Saturday', 'Sunday'],
+      considerHolidays: true
     },
   });
 
