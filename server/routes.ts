@@ -353,7 +353,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         date,
         organizationId,
         locationId: locationId || null,
-        isRecurringYearly: isRecurringYearly || false,
+        isRecurring: isRecurring || false,
         createdAt: new Date(),
         updatedAt: new Date()
       });

@@ -520,7 +520,7 @@ export default function OrganizationSettings() {
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <h4 className="font-medium">{holiday.name}</h4>
-                          {holiday.isRecurringYearly && (
+                          {holiday.isRecurring && (
                             <Badge variant="outline" className="ml-2">Yearly</Badge>
                           )}
                         </div>
