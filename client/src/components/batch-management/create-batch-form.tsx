@@ -986,77 +986,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
 
           <FormField
             control={form.control}
-            name="locationId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Location</FormLabel>
-                <Select
-                  onValueChange={(value) => {
-                    const locationId = parseInt(value);
-                    field.onChange(locationId);
-                    setSelectedLocation(locationId);
-                    setSelectedLob(null);
-                    form.setValue('lineOfBusinessId', undefined);
-                    form.setValue('processId', undefined);
-                    form.setValue('trainerId', undefined);
-                  }}
-                  value={field.value?.toString()}
-                  disabled={isLoadingLocations}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select location" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {locations.map((location) => (
-                      <SelectItem key={location.id} value={location.id.toString()}>
-                        {location.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="lineOfBusinessId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Line of Business</FormLabel>
-                <Select
-                  onValueChange={(value) => {
-                    const lobId = parseInt(value);
-                    field.onChange(lobId);
-                    setSelectedLob(lobId);
-                    form.setValue('processId', undefined);
-                  }}
-                  value={field.value?.toString()}
-                  disabled={!selectedLocation || isLoadingLobs}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={selectedLocation ? "Select LOB" : "Select location first"} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {lobs.map((lob) => (
-                      <SelectItem key={lob.id} value={lob.id.toString()}>
-                        {lob.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
             name="trainerId"
             render={({ field }) => {
               const [searchTerm, setSearchTerm] = useState("");
@@ -1137,19 +1066,92 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                   onValueChange={(value) => {
                     const processId = parseInt(value);
                     field.onChange(processId);
+                    
+                    // After process selection, we could auto-select location and LOB based on trainer's info
+                    // This would need to be implemented based on your data structure
                   }}
                   value={field.value?.toString()}
-                  disabled={!selectedLob || isLoadingProcesses}
+                  disabled={!form.getValues('trainerId') || isLoadingProcesses}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder={selectedLob ? "Select process" : "Select LOB first"} />
+                      <SelectValue placeholder={form.getValues('trainerId') ? "Select process" : "Select Trainer first"} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
                     {processes.map((process) => (
                       <SelectItem key={process.id} value={process.id.toString()}>
                         {process.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="locationId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Location</FormLabel>
+                <Select
+                  onValueChange={(value) => {
+                    const locationId = parseInt(value);
+                    field.onChange(locationId);
+                    setSelectedLocation(locationId);
+                    setSelectedLob(null);
+                    
+                    // We'd no longer reset Process and Trainer since they're selected first
+                    form.setValue('lineOfBusinessId', undefined);
+                  }}
+                  value={field.value?.toString()}
+                  disabled={isLoadingLocations || !form.getValues('processId')}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder={form.getValues('processId') ? "Auto-selected location" : "Select Process first"} />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {locations.map((location) => (
+                      <SelectItem key={location.id} value={location.id.toString()}>
+                        {location.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="lineOfBusinessId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Line of Business</FormLabel>
+                <Select
+                  onValueChange={(value) => {
+                    const lobId = parseInt(value);
+                    field.onChange(lobId);
+                    setSelectedLob(lobId);
+                  }}
+                  value={field.value?.toString()}
+                  disabled={!selectedLocation || isLoadingLobs || !form.getValues('processId')}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder={form.getValues('processId') ? "Auto-selected LOB" : "Select Process first"} />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {lobs.map((lob) => (
+                      <SelectItem key={lob.id} value={lob.id.toString()}>
+                        {lob.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
