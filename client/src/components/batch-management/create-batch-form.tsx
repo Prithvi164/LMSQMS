@@ -236,6 +236,16 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       ...subordinates.filter(u => u.role === 'trainer')
     ];
     
+    console.log('All users:', allUsers.length);
+    console.log('Current user:', user?.id, user?.username, user?.role);
+    console.log('Subordinates:', subordinates.map(u => ({ id: u.id, name: u.fullName, role: u.role })));
+    console.log('Trainer subordinates:', subordinates.filter(u => u.role === 'trainer').map(u => ({ id: u.id, name: u.fullName })));
+    console.log('Selected location:', selectedLocation);
+    console.log('Trainers after location filter:', trainersInHierarchy
+      .filter(u => !selectedLocation || u.locationId === selectedLocation)
+      .map(u => ({ id: u.id, name: u.fullName, location: u.locationId }))
+    );
+    
     // Filter by location if needed
     return trainersInHierarchy.filter(u => 
       !selectedLocation || u.locationId === selectedLocation
