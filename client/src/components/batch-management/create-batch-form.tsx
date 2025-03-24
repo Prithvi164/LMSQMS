@@ -755,7 +755,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
         variant: "destructive",
       });
     }
-  }, [form.watch('startDate'), form.watch('processId'), processes]);
+  }, [form.watch('startDate'), form.watch('processId'), trainerProcesses]);
 
   useEffect(() => {
     if (isCreating) {
@@ -781,7 +781,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       <h3 className="text-lg font-semibold mb-2">Date Range Preview</h3>
       <div className="space-y-2">
         {dateRanges.map((range, index) => {
-          const process = processes.find(p => p.id === form.getValues('processId'));
+          const process = trainerProcesses.find(p => p.id === form.getValues('processId'));
           const isZeroDayPhase = process && (
             (range.status === 'induction' && process.inductionDays === 0) ||
             (range.status === 'training' && process.trainingDays === 0) ||
