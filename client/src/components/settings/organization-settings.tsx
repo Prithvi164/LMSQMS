@@ -94,18 +94,7 @@ const holidaySchema = z.object({
   isRecurring: z.boolean().default(false)
 });
 
-type WeeklyOffDaysForm = z.infer<typeof weeklyOffDaysSchema>;
 type HolidayForm = z.infer<typeof holidaySchema>;
-
-const weekdays = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday"
-];
 
 export default function OrganizationSettings() {
   const { user } = useAuth();

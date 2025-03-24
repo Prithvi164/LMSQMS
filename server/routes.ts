@@ -262,7 +262,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const settings = await storage.getOrganizationSettings(organizationId);
-      res.json(settings || { organizationId, weeklyOffDays: ["Sunday"] });
+      res.json(settings || { organizationId });
     } catch (error: any) {
       console.error("Error fetching organization settings:", error);
       res.status(500).json({ message: error.message });
@@ -279,12 +279,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Forbidden" });
       }
       
-      const { weeklyOffDays } = req.body;
-      
-      if (!Array.isArray(weeklyOffDays) || weeklyOffDays.length === 0) {
-        return res.status(400).json({ message: "Weekly off days must be a non-empty array" });
-      }
-      
       // Check if settings already exist
       const existingSettings = await storage.getOrganizationSettings(organizationId);
       
@@ -292,14 +286,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (existingSettings) {
         // Update existing settings
         settings = await storage.updateOrganizationSettings(organizationId, {
-          weeklyOffDays: weeklyOffDays,
           updatedAt: new Date()
         });
       } else {
         // Create new settings
         settings = await storage.createOrganizationSettings({
           organizationId,
-          weeklyOffDays: weeklyOffDays,
           createdAt: new Date(),
           updatedAt: new Date()
         });
