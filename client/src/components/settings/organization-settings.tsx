@@ -87,7 +87,7 @@ type Holiday = {
 
 // Form schemas
 const weeklyOffDaysSchema = z.object({
-  weekly_off_days: z.array(z.string()).min(1, "At least one weekly off day must be selected")
+  weeklyOffDays: z.array(z.string()).min(1, "At least one weekly off day must be selected")
 });
 
 const holidaySchema = z.object({
@@ -124,7 +124,7 @@ export default function OrganizationSettings() {
   const weeklyOffDaysForm = useForm<WeeklyOffDaysForm>({
     resolver: zodResolver(weeklyOffDaysSchema),
     defaultValues: {
-      weekly_off_days: ["Sunday"]
+      weeklyOffDays: ["Sunday"]
     }
   });
 
@@ -289,84 +289,8 @@ export default function OrganizationSettings() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="weekly-off-days">Weekly Off Days</TabsTrigger>
-          <TabsTrigger value="holidays">Holidays</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="weekly-off-days" className="py-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Weekly Off Days</CardTitle>
-              <CardDescription>
-                Configure which days of the week are considered off days for your organization.
-                This affects training schedule calculations.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...weeklyOffDaysForm}>
-                <form onSubmit={weeklyOffDaysForm.handleSubmit(onWeeklyOffDaysSubmit)} className="space-y-8">
-                  <FormField
-                    control={weeklyOffDaysForm.control}
-                    name="weeklyOffDays"
-                    render={() => (
-                      <FormItem>
-                        <div className="mb-4">
-                          <FormLabel className="text-base">Select off days</FormLabel>
-                          <FormDescription>
-                            These days will be excluded when calculating training phase durations.
-                          </FormDescription>
-                        </div>
-                        {weekdays.map((day) => (
-                          <FormField
-                            key={day}
-                            control={weeklyOffDaysForm.control}
-                            name="weeklyOffDays"
-                            render={({ field }) => {
-                              return (
-                                <FormItem
-                                  key={day}
-                                  className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 mb-2"
-                                >
-                                  <FormControl>
-                                    <Checkbox
-                                      checked={field.value?.includes(day)}
-                                      onCheckedChange={(checked) => {
-                                        const updatedValue = checked
-                                          ? [...field.value, day]
-                                          : field.value?.filter(
-                                              (value) => value !== day
-                                            );
-                                        field.onChange(updatedValue);
-                                      }}
-                                    />
-                                  </FormControl>
-                                  <FormLabel className="font-normal">
-                                    {day}
-                                  </FormLabel>
-                                </FormItem>
-                              );
-                            }}
-                          />
-                        ))}
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button 
-                    type="submit" 
-                    disabled={isLoadingSettings || updateSettingsMutation.isPending}
-                  >
-                    {updateSettingsMutation.isPending ? "Saving..." : "Save Changes"}
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="holidays" className="py-4">
+      <Card className="w-full">
+        <CardContent className="pt-6">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -569,8 +493,8 @@ export default function OrganizationSettings() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+        </CardContent>
+      </Card>
     </div>
   );
 }

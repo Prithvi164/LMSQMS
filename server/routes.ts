@@ -299,7 +299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Create new settings
         settings = await storage.createOrganizationSettings({
           organizationId,
-          weeklyOffDays: weekly_off_days,
+          weeklyOffDays: weeklyOffDays,
           createdAt: new Date(),
           updatedAt: new Date()
         });
