@@ -781,6 +781,14 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       const startDate = new Date(startDateStr);
 
       // Calculate all phase dates at once using the date-utils function
+      console.log('Calculating phase dates with holidays:', { 
+        startDate, 
+        weeklyOffDays, 
+        considerHolidays, 
+        holidaysCount: holidaysList?.length || 0,
+        holidays: holidaysList
+      });
+      
       const phaseDates = calculatePhaseDates({
         startDate,
         phaseDurations: {

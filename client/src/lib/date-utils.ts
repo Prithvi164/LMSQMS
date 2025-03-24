@@ -33,20 +33,42 @@ export function isNonWorkingDay(
   }
   
   // Check if it's a holiday
-  if (considerHolidays && holidays.length > 0) {
+  if (considerHolidays && holidays && holidays.length > 0) {
+    console.log('Checking if date is a holiday:', {
+      date,
+      dateStr: format(date, 'yyyy-MM-dd'),
+      holidaysCount: holidays.length,
+      holidays: holidays
+    });
+    
     const dateStr = format(date, 'yyyy-MM-dd');
-    return holidays.some(holiday => {
+    const isHoliday = holidays.some(holiday => {
       // Check if the holiday is the same date (for recurring holidays, ignore year)
       const holidayDate = new Date(holiday.date);
+      console.log('Comparing with holiday:', {
+        holiday,
+        holidayDate,
+        isRecurring: holiday.isRecurring
+      });
+      
       if (holiday.isRecurring) {
         // For recurring holidays, just compare month and day
-        return holidayDate.getMonth() === date.getMonth() && 
-               holidayDate.getDate() === date.getDate();
+        const sameMonth = holidayDate.getMonth() === date.getMonth();
+        const sameDay = holidayDate.getDate() === date.getDate();
+        const isMatch = sameMonth && sameDay;
+        console.log('Recurring holiday comparison:', { sameMonth, sameDay, isMatch });
+        return isMatch;
       } else {
         // For non-recurring holidays, compare the full date
-        return format(holidayDate, 'yyyy-MM-dd') === dateStr;
+        const holidayDateStr = format(holidayDate, 'yyyy-MM-dd');
+        const isMatch = holidayDateStr === dateStr;
+        console.log('Non-recurring holiday comparison:', { holidayDateStr, dateStr, isMatch });
+        return isMatch;
       }
     });
+    
+    console.log('Holiday check result:', { date, isHoliday });
+    return isHoliday;
   }
   
   return false;
