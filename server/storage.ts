@@ -1583,6 +1583,43 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async createBatchTemplate(template: InsertBatchTemplate): Promise<BatchTemplate> {
+    try {
+      console.log('Creating batch template with data:', template);
+      const [createdTemplate] = await db
+        .insert(batchTemplates)
+        .values(template)
+        .returning() as BatchTemplate[];
+
+      if (!createdTemplate) {
+        throw new Error('Failed to create batch template');
+      }
+
+      console.log('Batch template created successfully:', createdTemplate);
+      return createdTemplate;
+    } catch (error) {
+      console.error('Error creating batch template:', error);
+      throw new Error('Failed to create batch template');
+    }
+  }
+
+  async listBatchTemplates(organizationId: number): Promise<BatchTemplate[]> {
+    try {
+      console.log(`Listing batch templates for organization ${organizationId}`);
+      const templates = await db
+        .select()
+        .from(batchTemplates)
+        .where(eq(batchTemplates.organizationId, organizationId))
+        .orderBy(batchTemplates.createdAt);
+
+      console.log(`Found ${templates.length} batch templates`);
+      return templates as BatchTemplate[];
+    } catch (error) {
+      console.error('Error listing batch templates:', error);
+      throw new Error('Failed to fetch batch templates');
+    }
+  }
+
   async getBatchTemplate(id: number): Promise<BatchTemplate | undefined> {
     try {
       console.log(`Fetching batch template with ID: ${id}`);

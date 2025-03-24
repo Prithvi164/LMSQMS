@@ -216,6 +216,15 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
   const trainers = useMemo(() => {
     if (!allUsers.length || !user) return [];
     
+    // DEBUG: Log all users with their location info
+    console.log('All users location info:', allUsers.map(u => ({
+      id: u.id, 
+      name: u.fullName, 
+      role: u.role,
+      locationId: u.locationId,
+      selected: selectedLocation
+    })));
+    
     // Handle special roles (admin and owner) - they can see all trainers
     if (user.role === 'owner' || user.role === 'admin') {
       return allUsers.filter(u => 
@@ -236,20 +245,24 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       ...subordinates.filter(u => u.role === 'trainer')
     ];
     
-    console.log('All users:', allUsers.length);
-    console.log('Current user:', user?.id, user?.username, user?.role);
-    console.log('Subordinates:', subordinates.map(u => ({ id: u.id, name: u.fullName, role: u.role })));
-    console.log('Trainer subordinates:', subordinates.filter(u => u.role === 'trainer').map(u => ({ id: u.id, name: u.fullName })));
+    // Log trainer info for debugging
+    console.log('Current user:', user?.id, user?.username, user?.role, 'location:', user?.locationId);
+    console.log('Subordinates:', subordinates.map(u => ({ id: u.id, name: u.fullName, role: u.role, locationId: u.locationId })));
+    console.log('Trainer subordinates:', subordinates.filter(u => u.role === 'trainer')
+      .map(u => ({ id: u.id, name: u.fullName, locationId: u.locationId })));
     console.log('Selected location:', selectedLocation);
-    console.log('Trainers after location filter:', trainersInHierarchy
-      .filter(u => !selectedLocation || u.locationId === selectedLocation)
+    
+    // Filter trainers for the selected location - this is important!
+    // This ensures we only see trainers that are assigned to the location we're creating the batch for
+    const locationFilteredTrainers = trainersInHierarchy.filter(u => 
+      !selectedLocation || u.locationId === selectedLocation
+    );
+    
+    console.log('Final trainers after location filter:', locationFilteredTrainers
       .map(u => ({ id: u.id, name: u.fullName, location: u.locationId }))
     );
     
-    // Filter by location if needed
-    return trainersInHierarchy.filter(u => 
-      !selectedLocation || u.locationId === selectedLocation
-    );
+    return locationFilteredTrainers;
   }, [allUsers, user, selectedLocation]);
   
   const isLoadingTrainers = isLoadingAllUsers;
