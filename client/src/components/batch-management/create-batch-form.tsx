@@ -106,7 +106,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
-  const [selectedTrainer, setSelectedTrainer] = useState<number | null>(null);
+  const [selectedLob, setSelectedLob] = useState<number | null>(null);
   const [dateRanges, setDateRanges] = useState<DateRange[]>([]);
   const [progress, setProgress] = useState(0);
   const [isCreating, setIsCreating] = useState(false);
@@ -196,13 +196,12 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     enabled: !!selectedLocation && !!user?.organizationId
   });
 
-  // Fetch processes assigned to the selected trainer
   const {
-    data: trainerProcesses = [],
-    isLoading: isLoadingTrainerProcesses
+    data: processes = [],
+    isLoading: isLoadingProcesses
   } = useQuery({
-    queryKey: [`/api/trainers/${selectedTrainer}/processes`],
-    enabled: !!selectedTrainer && !!user?.organizationId
+    queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${selectedLob}/processes`],
+    enabled: !!selectedLob && !!user?.organizationId
   });
 
   const {
@@ -636,7 +635,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
 
   // Update the useEffect for date calculations with proper error handling
   useEffect(() => {
-    const process = trainerProcesses.find(p => p.id === form.getValues('processId'));
+    const process = processes.find(p => p.id === form.getValues('processId'));
     const startDateStr = form.getValues('startDate');
 
     if (!process || !startDateStr) {
@@ -755,7 +754,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
         variant: "destructive",
       });
     }
-  }, [form.watch('startDate'), form.watch('processId'), trainerProcesses]);
+  }, [form.watch('startDate'), form.watch('processId'), processes]);
 
   useEffect(() => {
     if (isCreating) {
@@ -781,7 +780,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       <h3 className="text-lg font-semibold mb-2">Date Range Preview</h3>
       <div className="space-y-2">
         {dateRanges.map((range, index) => {
-          const process = trainerProcesses.find(p => p.id === form.getValues('processId'));
+          const process = processes.find(p => p.id === form.getValues('processId'));
           const isZeroDayPhase = process && (
             (range.status === 'induction' && process.inductionDays === 0) ||
             (range.status === 'training' && process.trainingDays === 0) ||
@@ -1038,15 +1037,15 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                     field.onChange(processId);
                   }}
                   value={field.value?.toString()}
-                  disabled={!selectedTrainer || isLoadingTrainerProcesses}
+                  disabled={!selectedLob || isLoadingProcesses}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder={selectedTrainer ? "Select process" : "Select trainer first"} />
+                      <SelectValue placeholder={selectedLob ? "Select process" : "Select LOB first"} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {trainerProcesses.map((process) => (
+                    {processes.map((process) => (
                       <SelectItem key={process.id} value={process.id.toString()}>
                         {process.name}
                       </SelectItem>
@@ -1078,9 +1077,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                       const id = parseInt(trainerId);
                       if (!isNaN(id)) {
                         field.onChange(id);
-                        setSelectedTrainer(id);
-                        // Reset process selection when trainer changes
-                        form.setValue('processId', undefined);
                       }
                     }}
                     value={field.value?.toString()}
@@ -1216,8 +1212,9 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
               updateBatchMutation.isPending ||
               isCreating ||
               isLoadingLocations ||
+              isLoadingLobs ||
+              isLoadingProcesses ||
               isLoadingTrainers ||
-              isLoadingTrainerProcesses ||
               isLoadingTemplates
             }
           >

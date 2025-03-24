@@ -2572,44 +2572,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message });
     }
   });
-  
-  // Get processes assigned to a trainer
-  app.get("/api/trainers/:trainerId/processes", async (req, res) => {
-    try {
-      if (!req.user) {
-        return res.status(401).json({ message: 'Not authenticated' });
-      }
-      
-      const trainerId = parseInt(req.params.trainerId);
-      
-      if (isNaN(trainerId)) {
-        return res.status(400).json({ message: 'Invalid trainer ID' });
-      }
-      
-      // Get all processes assigned to the trainer
-      const userProcesses = await storage.getUserProcesses(trainerId);
-      
-      if (!userProcesses || userProcesses.length === 0) {
-        return res.json([]);
-      }
-      
-      // Get detailed process information for each process
-      const processIds = userProcesses.map(up => up.processId);
-      const processes = [];
-      
-      for (const processId of processIds) {
-        const process = await storage.getProcess(processId);
-        if (process) {
-          processes.push(process);
-        }
-      }
-      
-      return res.json(processes);
-    } catch (error: any) {
-      console.error('Error fetching trainer processes:', error);
-      return res.status(500).json({ message: 'Internal server error' });
-    }
-  });
 
   // Add batch details endpoint with comprehensive error handling and logging
   app.get("/api/organizations/:orgId/batches/:batchId", async (req, res) => {
@@ -3630,59 +3592,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all processes for a specific trainer
-  app.get("/api/trainers/:trainerId/processes", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
-    try {
-      const trainerId = parseInt(req.params.trainerId);
-      const orgId = req.user.organizationId;
-      
-      // Validate trainer ID
-      if (!trainerId) {
-        return res.status(400).json({ message: "Invalid trainer ID" });
-      }
-
-      console.log('Fetching processes for trainer:', {
-        trainerId,
-        orgId
-      });
-
-      // Get processes assigned to this trainer
-      const trainerProcesses = await db
-        .select({
-          id: organizationProcesses.id,
-          name: organizationProcesses.name,
-          description: organizationProcesses.description,
-          status: organizationProcesses.status,
-          inductionDays: organizationProcesses.inductionDays,
-          trainingDays: organizationProcesses.trainingDays,
-          certificationDays: organizationProcesses.certificationDays,
-          ojtDays: organizationProcesses.ojtDays,
-          ojtCertificationDays: organizationProcesses.ojtCertificationDays,
-          organizationId: organizationProcesses.organizationId,
-          createdAt: organizationProcesses.createdAt,
-          updatedAt: organizationProcesses.updatedAt
-        })
-        .from(userProcesses)
-        .innerJoin(
-          organizationProcesses,
-          eq(userProcesses.processId, organizationProcesses.id)
-        )
-        .where(eq(userProcesses.userId, trainerId))
-        .where(eq(organizationProcesses.organizationId, orgId))
-        .orderBy(organizationProcesses.name);
-      
-      console.log(`Found ${trainerProcesses.length} processes for trainer ${trainerId}:`, 
-        trainerProcesses.map(p => ({ id: p.id, name: p.name }))
-      );
-
-      res.json(trainerProcesses);
-    } catch (error: any) {
-      console.error('Error fetching trainer processes:', error);
-      res.status(500).json({ message: error.message || "Failed to fetch trainer processes" });
-    }
-  });
 
   app.post("/api/organizations/:id/batches", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
