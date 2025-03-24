@@ -1103,64 +1103,74 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="weeklyOffDays"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Weekly Off Days</FormLabel>
-                <div className="grid grid-cols-7 gap-2">
-                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
-                    <div key={day} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`day-${day}`}
-                        checked={field.value.includes(day)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            field.onChange([...field.value, day]);
-                          } else {
-                            field.onChange(field.value.filter((d: string) => d !== day));
-                          }
-                        }}
-                      />
-                      <label
-                        htmlFor={`day-${day}`}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        {day.substring(0, 3)}
-                      </label>
+          <div className="col-span-2 bg-muted/20 p-4 rounded-lg border border-border">
+            <h3 className="text-lg font-medium mb-3">Working Days Configuration</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField
+                control={form.control}
+                name="weeklyOffDays"
+                render={({ field }) => (
+                  <FormItem className="bg-background rounded-md p-3">
+                    <FormLabel className="text-base">Weekly Off Days</FormLabel>
+                    <div className="flex flex-wrap items-center gap-3 mt-2">
+                      {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
+                        <div key={day} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`day-${day}`}
+                            checked={field.value.includes(day)}
+                            className={field.value.includes(day) ? "bg-primary border-primary" : ""}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                field.onChange([...field.value, day]);
+                              } else {
+                                field.onChange(field.value.filter((d: string) => d !== day));
+                              }
+                            }}
+                          />
+                          <label
+                            htmlFor={`day-${day}`}
+                            className={`text-sm font-medium cursor-pointer ${field.value.includes(day) ? "text-primary" : ""}`}
+                          >
+                            {day.substring(0, 3)}
+                          </label>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-                <FormDescription>
-                  Select the days that will be considered as weekly off days.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                    <FormDescription className="mt-2">
+                      Select the days that will be considered as weekly off days.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          <FormField
-            control={form.control}
-            name="considerHolidays"
-            render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                <div className="space-y-0.5">
-                  <FormLabel className="text-base">Consider Holidays</FormLabel>
-                  <FormDescription>
-                    When enabled, public holidays will be excluded from working days calculation.
-                  </FormDescription>
-                </div>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+              <FormField
+                control={form.control}
+                name="considerHolidays"
+                render={({ field }) => (
+                  <FormItem className="bg-background flex flex-col h-full justify-between rounded-md p-3">
+                    <div>
+                      <FormLabel className="text-base">Consider Holidays</FormLabel>
+                      <FormDescription className="mt-2">
+                        When enabled, public holidays will be excluded from working days calculation.
+                      </FormDescription>
+                    </div>
+                    <div className="flex items-center justify-between mt-4">
+                      <span className="text-sm text-muted-foreground">{field.value ? "Enabled" : "Disabled"}</span>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          className="data-[state=checked]:bg-primary"
+                        />
+                      </FormControl>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
 
           <FormField
             control={form.control}
