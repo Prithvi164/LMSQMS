@@ -7,6 +7,52 @@ export interface Holiday {
 }
 
 /**
+ * Checks if a date is a weekly off day or a holiday
+ * 
+ * @param date The date to check
+ * @param weeklyOffDays Array of days to be considered as off days (e.g., ['Saturday', 'Sunday'])
+ * @param considerHolidays Whether to consider holidays
+ * @param holidays Array of holiday objects with date and name
+ * @returns Boolean indicating if the date is a non-working day
+ */
+export function isNonWorkingDay(
+  date: Date,
+  weeklyOffDays: string[] = ['Saturday', 'Sunday'],
+  considerHolidays: boolean = true,
+  holidays: Holiday[] = []
+): boolean {
+  // Get the day name (e.g., "Monday")
+  const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+  
+  // Check if it's a weekly off day
+  const isWeeklyOff = weeklyOffDays.includes(dayName);
+  
+  // If it's a weekly off day, return true immediately
+  if (isWeeklyOff) {
+    return true;
+  }
+  
+  // Check if it's a holiday
+  if (considerHolidays && holidays.length > 0) {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    return holidays.some(holiday => {
+      // Check if the holiday is the same date (for recurring holidays, ignore year)
+      const holidayDate = new Date(holiday.date);
+      if (holiday.isRecurring) {
+        // For recurring holidays, just compare month and day
+        return holidayDate.getMonth() === date.getMonth() && 
+               holidayDate.getDate() === date.getDate();
+      } else {
+        // For non-recurring holidays, compare the full date
+        return format(holidayDate, 'yyyy-MM-dd') === dateStr;
+      }
+    });
+  }
+  
+  return false;
+}
+
+/**
  * Calculates working days considering weekly off days and holidays
  * 
  * @param startDate The start date
@@ -39,32 +85,11 @@ export function calculateWorkingDays(
     // Move to the next day
     currentDate = addDays(currentDate, 1);
     
-    // Get the day name (e.g., "Monday")
-    const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
+    // Check if the current date is a non-working day
+    const isOffDay = isNonWorkingDay(currentDate, weeklyOffDays, considerHolidays, holidays);
     
-    // Check if it's a weekly off day
-    const isWeeklyOff = weeklyOffDays.includes(dayName);
-    
-    // Check if it's a holiday
-    let isHoliday = false;
-    if (considerHolidays && holidays.length > 0) {
-      const currentDateStr = format(currentDate, 'yyyy-MM-dd');
-      isHoliday = holidays.some(holiday => {
-        // Check if the holiday is the same date (for recurring holidays, ignore year)
-        const holidayDate = new Date(holiday.date);
-        if (holiday.isRecurring) {
-          // For recurring holidays, just compare month and day
-          return holidayDate.getMonth() === currentDate.getMonth() && 
-                 holidayDate.getDate() === currentDate.getDate();
-        } else {
-          // For non-recurring holidays, compare the full date
-          return format(holidayDate, 'yyyy-MM-dd') === currentDateStr;
-        }
-      });
-    }
-    
-    // Only count as a working day if it's not an off day or holiday
-    if (!isWeeklyOff && !isHoliday) {
+    // Only count as a working day if it's not an off day
+    if (!isOffDay) {
       remainingDays--;
     }
   }
@@ -82,6 +107,35 @@ export function calculateWorkingDays(
  * @param holidays Array of holiday objects
  * @returns Object with start and end dates for each phase
  */
+/**
+ * Finds the next working day from a given date
+ * 
+ * @param date The starting date
+ * @param weeklyOffDays Array of days to be considered as off days
+ * @param considerHolidays Whether to consider holidays
+ * @param holidays Array of holiday objects
+ * @returns The next working day
+ */
+export function findNextWorkingDay(
+  date: Date,
+  weeklyOffDays: string[] = ['Saturday', 'Sunday'],
+  considerHolidays: boolean = true,
+  holidays: Holiday[] = []
+): Date {
+  // Check if the given date is already a working day
+  if (!isNonWorkingDay(date, weeklyOffDays, considerHolidays, holidays)) {
+    return date;
+  }
+  
+  // Keep adding days until we find a working day
+  let currentDate = new Date(date);
+  while (isNonWorkingDay(currentDate, weeklyOffDays, considerHolidays, holidays)) {
+    currentDate = addDays(currentDate, 1);
+  }
+  
+  return currentDate;
+}
+
 export function calculatePhaseDates({
   startDate,
   phaseDurations,
@@ -101,7 +155,11 @@ export function calculatePhaseDates({
   considerHolidays?: boolean;
   holidays?: Holiday[];
 }) {
-  const start = typeof startDate === 'string' ? new Date(startDate) : startDate;
+  let start = typeof startDate === 'string' ? new Date(startDate) : startDate;
+  
+  // Check if the start date is a non-working day (weekly off or holiday)
+  // If so, find the next working day
+  start = findNextWorkingDay(start, weeklyOffDays, considerHolidays, holidays);
   
   // Induction Phase
   const inductionStart = start;
