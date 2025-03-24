@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import type { User, Organization } from "@shared/schema";
-import { Users, UserCircle, Shield, ChevronLeft, Network } from "lucide-react";
+import { Users, UserCircle, Shield, ChevronLeft, Network, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
 
@@ -14,8 +14,9 @@ import { AddUser } from "@/components/settings/add-user";
 import { RolePermissions } from "@/components/settings/role-permissions";
 import { OrganizationTree } from "@/components/settings/organization-tree";
 import { RoleHierarchyEditor } from "@/components/settings/role-hierarchy-editor";
+import OrganizationSettings from "@/components/settings/organization-settings";
 
-type SettingsTab = "profile" | "users" | "permissions" | "organization-tree";
+type SettingsTab = "profile" | "users" | "permissions" | "organization-tree" | "organization-settings";
 type UsersSubTab = "add" | "manage";
 
 export default function Settings(): React.JSX.Element {
@@ -78,6 +79,7 @@ export default function Settings(): React.JSX.Element {
       return activeUserTab === "manage" ? "Manage Users" : "Add New User";
     }
     if (activeTab === "organization-tree") return "Organization Structure";
+    if (activeTab === "organization-settings") return "Organization Settings";
     return "Roles & Permissions";
   };
 
@@ -148,6 +150,14 @@ export default function Settings(): React.JSX.Element {
             >
               Organization Tree
             </NavTab>
+
+            <NavTab
+              active={activeTab === "organization-settings"}
+              icon={CalendarDays}
+              onClick={() => setActiveTab("organization-settings")}
+            >
+              Organization Settings
+            </NavTab>
           </div>
         </div>
 
@@ -181,6 +191,7 @@ export default function Settings(): React.JSX.Element {
                     </div>
                   )}
                   {activeTab === "organization-tree" && <OrganizationTree />}
+                  {activeTab === "organization-settings" && <OrganizationSettings />}
                 </>
               )}
             </div>
