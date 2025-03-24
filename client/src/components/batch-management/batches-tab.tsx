@@ -72,11 +72,11 @@ interface BatchWithRelations extends Omit<OrganizationBatch, 'processId' | 'loca
   };
   enrolledCount?: number;
   
-  // Original IDs are still available
-  processId: number;
-  locationId: number;
-  lineOfBusinessId: number;
-  trainerId: number;
+  // Original IDs are still available, but can be null
+  processId: number | null;
+  locationId: number | null;
+  lineOfBusinessId: number | null;
+  trainerId: number | null;
 }
 
 export function BatchesTab() {
@@ -120,10 +120,10 @@ export function BatchesTab() {
     enabled: !!user?.organizationId
   });
 
-  const locations = [...new Set(batches.map(batch => batch.location?.name).filter(Boolean))];
-  const lineOfBusinesses = [...new Set(batches.map(batch => batch.line_of_business?.name).filter(Boolean))];
-  const processes = [...new Set(batches.map(batch => batch.process?.name).filter(Boolean))];
-  const statuses = [...new Set(batches.map(batch => batch.status))];
+  const locations = Array.from(new Set(batches.map(batch => batch.location?.name).filter(Boolean) as string[]));
+  const lineOfBusinesses = Array.from(new Set(batches.map(batch => batch.line_of_business?.name).filter(Boolean) as string[]));
+  const processes = Array.from(new Set(batches.map(batch => batch.process?.name).filter(Boolean) as string[]));
+  const statuses = Array.from(new Set(batches.map(batch => batch.status)));
 
   const filteredBatches = batches.filter(batch => {
     if (selectedCategory === 'upskill') {
@@ -596,7 +596,7 @@ export function BatchesTab() {
                 </div>
                 {batch.capacityLimit && (
                   <Progress
-                    value={(batch.enrolledCount / batch.capacityLimit) * 100}
+                    value={((batch.enrolledCount || 0) / (batch.capacityLimit || 1)) * 100}
                     className="h-2 w-20 mx-auto"
                   />
                 )}
