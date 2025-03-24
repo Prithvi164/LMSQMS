@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, addDays, isSunday, isWithinInterval, isSameDay } from "date-fns";
+import { getAllSubordinates, getReportingChainUsers } from "@/lib/hierarchy-utils";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -34,7 +35,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { CalendarIcon, Loader2 } from "lucide-react";
-import { insertOrganizationBatchSchema, type InsertOrganizationBatch, insertBatchTemplateSchema, type InsertBatchTemplate, type BatchTemplate } from "@shared/schema";
+import { insertOrganizationBatchSchema, type InsertOrganizationBatch, insertBatchTemplateSchema, type InsertBatchTemplate, type BatchTemplate, type OrganizationBatch } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { TrainerInsights } from "./trainer-insights";
@@ -204,16 +205,44 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
   });
 
   const {
-    data: trainers = [],
-    isLoading: isLoadingTrainers
+    data: allUsers = [],
+    isLoading: isLoadingAllUsers
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/users`],
-    select: (users) => users?.filter((user) =>
-      user.role === 'trainer' &&
-      (!selectedLocation || user.locationId === selectedLocation)
-    ) || [],
     enabled: !!user?.organizationId
   });
+  
+  // Compute trainers from the reporting hierarchy
+  const trainers = useMemo(() => {
+    if (!allUsers.length || !user) return [];
+    
+    // Handle special roles (admin and owner) - they can see all trainers
+    if (user.role === 'owner' || user.role === 'admin') {
+      return allUsers.filter(u => 
+        u.role === 'trainer' && 
+        (!selectedLocation || u.locationId === selectedLocation)
+      );
+    }
+    
+    // For other roles, get all users who report to the current user (direct or indirect)
+    const subordinates = getAllSubordinates(user.id, allUsers);
+    
+    // Include the current user in the list if they are a trainer
+    const eligibleUsers = user.role === 'trainer' ? [user] : [];
+    
+    // Add all subordinates with trainer role
+    const trainersInHierarchy = [
+      ...eligibleUsers,
+      ...subordinates.filter(u => u.role === 'trainer')
+    ];
+    
+    // Filter by location if needed
+    return trainersInHierarchy.filter(u => 
+      !selectedLocation || u.locationId === selectedLocation
+    );
+  }, [allUsers, user, selectedLocation]);
+  
+  const isLoadingTrainers = isLoadingAllUsers;
 
   const saveTemplateMutation = useMutation({
     mutationFn: async (template: InsertBatchTemplate) => {
