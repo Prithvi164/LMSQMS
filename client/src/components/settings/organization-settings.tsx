@@ -95,7 +95,7 @@ const holidaySchema = z.object({
   date: z.string().refine(val => isValid(parseISO(val)), {
     message: "Please select a valid date"
   }),
-  locationId: z.string().optional().transform(val => val === "" ? null : parseInt(val)),
+  locationId: z.string().optional().transform(val => val === "all-locations" || val === "" ? null : parseInt(val)),
   isRecurringYearly: z.boolean().default(false)
 });
 
@@ -458,7 +458,7 @@ export default function OrganizationSettings() {
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  <SelectItem value="">All Locations</SelectItem>
+                                  <SelectItem value="all-locations">All Locations</SelectItem>
                                   {locations?.map((location: Location) => (
                                     <SelectItem key={location.id} value={location.id.toString()}>
                                       {location.name}
