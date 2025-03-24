@@ -472,6 +472,8 @@ export const organizationBatches = pgTable("organization_batches", {
   ojtCertificationStartDate: date("ojt_certification_start_date"),
   ojtCertificationEndDate: date("ojt_certification_end_date"),
   handoverToOpsDate: date("handover_to_ops_date"),
+  weeklyOffDays: text("weekly_off_days").array().default(['Saturday', 'Sunday']),
+  considerHolidays: boolean("consider_holidays").default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -525,6 +527,8 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
     ojtCertificationStartDate: z.string().optional(),
     ojtCertificationEndDate: z.string().optional(),
     handoverToOpsDate: z.string().optional(),
+    weeklyOffDays: z.array(z.string()).default(['Saturday', 'Sunday']),
+    considerHolidays: z.boolean().default(true),
     capacityLimit: z.number().int().min(1, "Capacity must be at least 1"),
     status: z.enum(['planned', 'induction', 'training', 'certification', 'ojt', 'ojt_certification', 'completed']).default('planned'),
     processId: z.number().int().positive("Process is required"),
