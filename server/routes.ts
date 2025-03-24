@@ -3304,6 +3304,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log('Found batch:', batch);
+      
+      // Get trainer details if trainer is assigned to the batch
+      let trainerLocationId = batch.locationId; // Default to batch location
+      let trainerId = batch.trainerId;
+      
+      if (trainerId) {
+        const trainer = await storage.getUser(trainerId);
+        if (trainer) {
+          console.log('Found trainer:', {
+            id: trainer.id,
+            name: trainer.fullName,
+            locationId: trainer.locationId
+          });
+          
+          // Use trainer's location if available
+          if (trainer.locationId) {
+            trainerLocationId = trainer.locationId;
+            console.log('Using trainer location:', trainerLocationId);
+          } else {
+            console.log('Trainer has no location set, using batch location:', batch.locationId);
+          }
+        } else {
+          console.log('Trainer not found for ID:', trainerId);
+        }
+      } else {
+        console.log('No trainer assigned to batch, using batch location:', batch.locationId);
+      }
 
       // Check remaining capacity 
       const currentTrainees = await storage.getBatchTrainees(batchId);
@@ -3403,8 +3430,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             category: "trainee", // This is correct - category should be trainee
             processId: batch.processId,
             lineOfBusinessId: batch.lineOfBusinessId,
-            locationId: batch.locationId,
-            trainerId: batch.trainerId,
+            locationId: trainerLocationId, // Use trainer's location instead of batch location
+            managerId: trainerId, // Set the batch trainer as the reporting manager
             organizationId: orgId
           };
 
@@ -3436,7 +3463,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             processId: batch.processId,
             organizationId: orgId,
             lineOfBusinessId: batch.lineOfBusinessId,
-            locationId: batch.locationId,
+            locationId: trainerLocationId, // Use trainer's location instead of batch location
             status: 'active',
             assignedAt: new Date()
           });
