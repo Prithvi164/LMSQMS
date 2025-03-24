@@ -148,12 +148,10 @@ export default function OrganizationSettings() {
   // Create holiday mutation
   const createHolidayMutation = useMutation({
     mutationFn: async (data: HolidayForm) => {
-      return apiRequest<Holiday>(
+      return apiRequest(
+        "POST",
         `/api/organizations/${user?.organizationId}/holidays`,
-        {
-          method: "POST",
-          body: JSON.stringify(data)
-        }
+        data
       );
     },
     onSuccess: () => {
@@ -178,10 +176,8 @@ export default function OrganizationSettings() {
   const deleteHolidayMutation = useMutation({
     mutationFn: async (id: number) => {
       return apiRequest(
-        `/api/organizations/${user?.organizationId}/holidays/${id}`,
-        {
-          method: "DELETE"
-        }
+        "DELETE",
+        `/api/organizations/${user?.organizationId}/holidays/${id}`
       );
     },
     onSuccess: () => {
