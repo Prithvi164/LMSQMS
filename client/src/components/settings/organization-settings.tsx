@@ -309,7 +309,7 @@ export default function OrganizationSettings() {
                 <form onSubmit={weeklyOffDaysForm.handleSubmit(onWeeklyOffDaysSubmit)} className="space-y-8">
                   <FormField
                     control={weeklyOffDaysForm.control}
-                    name="weekly_off_days"
+                    name="weeklyOffDays"
                     render={() => (
                       <FormItem>
                         <div className="mb-4">
@@ -322,7 +322,7 @@ export default function OrganizationSettings() {
                           <FormField
                             key={day}
                             control={weeklyOffDaysForm.control}
-                            name="weekly_off_days"
+                            name="weeklyOffDays"
                             render={({ field }) => {
                               return (
                                 <FormItem
