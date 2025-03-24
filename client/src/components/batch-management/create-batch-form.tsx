@@ -1057,38 +1057,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
 
           <FormField
             control={form.control}
-            name="processId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Process</FormLabel>
-                <Select
-                  onValueChange={(value) => {
-                    const processId = parseInt(value);
-                    field.onChange(processId);
-                  }}
-                  value={field.value?.toString()}
-                  disabled={!selectedLob || isLoadingProcesses}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={selectedLob ? "Select process" : "Select LOB first"} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {processes.map((process) => (
-                      <SelectItem key={process.id} value={process.id.toString()}>
-                        {process.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
             name="trainerId"
             render={({ field }) => {
               const [searchTerm, setSearchTerm] = useState("");
@@ -1157,6 +1125,38 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                 </FormItem>
               );
             }}
+          />
+
+          <FormField
+            control={form.control}
+            name="processId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Process</FormLabel>
+                <Select
+                  onValueChange={(value) => {
+                    const processId = parseInt(value);
+                    field.onChange(processId);
+                  }}
+                  value={field.value?.toString()}
+                  disabled={!selectedLob || isLoadingProcesses}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder={selectedLob ? "Select process" : "Select LOB first"} />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {processes.map((process) => (
+                      <SelectItem key={process.id} value={process.id.toString()}>
+                        {process.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
           />
 
           <FormField
