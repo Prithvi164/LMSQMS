@@ -12,18 +12,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { type LoginData } from "@/hooks/use-auth";
 import { type InsertUser } from "@shared/schema";
 import { SiOpenai } from "react-icons/si";
-import { BarChart2, Users, GraduationCap } from "lucide-react";
+import { BarChart2, Users, GraduationCap, Loader2 } from "lucide-react";
+
+// Define login data type here since it's not properly exported from useAuth
+type LoginData = {
+  username: string;
+  password: string;
+};
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { login, register, user } = useAuth();
+  const { login, register, user, isLoading } = useAuth();
 
   // Use useEffect for navigation to avoid state updates during render
   useEffect(() => {
@@ -34,6 +38,7 @@ export default function AuthPage() {
 
   const handleAuth = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setIsSubmitting(true);
     const formData = new FormData(e.currentTarget);
 
     try {
@@ -55,13 +60,15 @@ export default function AuthPage() {
         };
         await register(registrationData);
       }
-      navigate("/");
+      // Let the useEffect handle navigation after login
     } catch (error: any) {
       toast({
         title: isLogin ? "Login failed" : "Registration failed",
         description: error.message,
         variant: "destructive"
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -137,8 +144,16 @@ export default function AuthPage() {
                 <Button 
                   type="submit" 
                   className="w-full"
+                  disabled={isSubmitting || isLoading}
                 >
-                  {isLogin ? "Login" : "Register"}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {isLogin ? "Logging in..." : "Registering..."}
+                    </>
+                  ) : (
+                    isLogin ? "Login" : "Register"
+                  )}
                 </Button>
                 <p className="text-center text-sm text-muted-foreground">
                   {isLogin ? "Don't have an account? " : "Already have an account? "}
