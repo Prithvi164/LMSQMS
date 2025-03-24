@@ -169,9 +169,9 @@ export default function OrganizationSettings() {
 
   // Update settings form when data is loaded
   useEffect(() => {
-    if (settings?.weekly_off_days) {
+    if (settings?.weeklyOffDays) {
       weeklyOffDaysForm.reset({
-        weekly_off_days: settings.weekly_off_days
+        weeklyOffDays: settings.weeklyOffDays
       });
     }
   }, [settings, weeklyOffDaysForm]);

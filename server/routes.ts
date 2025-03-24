@@ -342,7 +342,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Forbidden" });
       }
       
-      const { name, date, locationId, isRecurringYearly } = req.body;
+      const { name, date, locationId, isRecurring } = req.body;
       
       if (!name || !date) {
         return res.status(400).json({ message: "Holiday name and date are required" });
@@ -376,13 +376,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Forbidden" });
       }
       
-      const { name, date, locationId, isRecurringYearly } = req.body;
+      const { name, date, locationId, isRecurring } = req.body;
       
       const updateData: Partial<typeof req.body> = {};
       if (name) updateData.name = name;
       if (date) updateData.date = date;
       if (locationId !== undefined) updateData.locationId = locationId;
-      if (isRecurringYearly !== undefined) updateData.isRecurringYearly = isRecurringYearly;
+      if (isRecurring !== undefined) updateData.isRecurring = isRecurring;
       
       const holiday = await storage.updateOrganizationHoliday(holidayId, {
         ...updateData,
