@@ -54,29 +54,27 @@ import { TraineeManagement } from "./trainee-management";
 
 // Extended type with relations for batch display
 interface BatchWithRelations extends Omit<OrganizationBatch, 'processId' | 'locationId' | 'lineOfBusinessId' | 'trainerId'> {
-  location?: {
-    id: number;
-    name: string;
-  };
-  line_of_business?: {
-    id: number;
-    name: string;
-  };
-  process?: {
-    id: number;
-    name: string;
-  };
-  trainer?: {
-    id: number;
-    fullName: string;
-  };
-  enrolledCount?: number;
-  
-  // Original IDs are still available, but can be null
   processId: number | null;
   locationId: number | null;
   lineOfBusinessId: number | null;
   trainerId: number | null;
+  location?: {
+    id: number;
+    name: string;
+  } | null;
+  line_of_business?: {
+    id: number;
+    name: string;
+  } | null;
+  process?: {
+    id: number;
+    name: string;
+  } | null;
+  trainer?: {
+    id: number;
+    fullName: string;
+  } | null;
+  enrolledCount?: number;
 }
 
 export function BatchesTab() {
