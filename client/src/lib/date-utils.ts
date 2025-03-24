@@ -34,59 +34,57 @@ export function isNonWorkingDay(
   
   // Check if it's a holiday
   if (considerHolidays && holidays && holidays.length > 0) {
-    console.log('Checking if date is a holiday:', {
-      date,
-      dateStr: format(date, 'yyyy-MM-dd'),
-      holidaysCount: holidays.length
-    });
+    console.log(`🗓️ Checking if ${format(date, 'yyyy-MM-dd')} is a holiday with ${holidays.length} holidays in list`);
     
     const dateStr = format(date, 'yyyy-MM-dd');
-    const isHoliday = holidays.some(holiday => {
+    const checkingDate = new Date(dateStr); // Ensure we're working with a clean date with no time component
+    
+    for (const holiday of holidays) {
       try {
         // Ensure holiday.date is a valid date
         if (!holiday.date) {
-          console.error('Invalid holiday date:', holiday);
-          return false;
+          console.error('❌ Invalid holiday date:', holiday);
+          continue;
         }
 
         // Parse the holiday date (ensure we get a valid date object)
         const holidayDate = new Date(holiday.date);
         
         if (isNaN(holidayDate.getTime())) {
-          console.error('Invalid holiday date format:', holiday.date);
-          return false;
+          console.error('❌ Invalid holiday date format:', holiday.date);
+          continue;
         }
         
-        console.log(`Comparing with holiday: ${holiday.name}, Date: ${format(holidayDate, 'yyyy-MM-dd')}, isRecurring: ${holiday.isRecurring}`);
+        const holidayDateStr = format(holidayDate, 'yyyy-MM-dd');
+        
+        console.log(`🔍 Checking: "${holiday.name}" on ${holidayDateStr} (recurring: ${holiday.isRecurring})`);
+        
+        let isMatch = false;
         
         if (holiday.isRecurring) {
           // For recurring holidays, compare month and day (regardless of year)
-          const holidayMonth = holidayDate.getMonth();
-          const holidayDay = holidayDate.getDate();
-          const dateMonth = date.getMonth();
-          const dateDay = date.getDate();
+          const sameMonth = holidayDate.getMonth() === checkingDate.getMonth();
+          const sameDay = holidayDate.getDate() === checkingDate.getDate();
+          isMatch = sameMonth && sameDay;
           
-          const sameMonth = holidayMonth === dateMonth;
-          const sameDay = holidayDay === dateDay;
-          const isMatch = sameMonth && sameDay;
-          
-          console.log(`Recurring holiday ${holiday.name}: Same month: ${sameMonth} (${holidayMonth}=${dateMonth}), Same day: ${sameDay} (${holidayDay}=${dateDay}), isMatch: ${isMatch}`);
-          return isMatch;
+          console.log(`   Recurring check: Month ${sameMonth ? "✓" : "✗"} (${holidayDate.getMonth()+1}=${checkingDate.getMonth()+1}), Day ${sameDay ? "✓" : "✗"} (${holidayDate.getDate()}=${checkingDate.getDate()})`);
         } else {
           // For non-recurring holidays, ensure we compare ignoring time parts
-          const holidayDateStr = format(holidayDate, 'yyyy-MM-dd');
-          const isMatch = holidayDateStr === dateStr;
-          console.log(`Non-recurring holiday ${holiday.name}: holidayDate=${holidayDateStr}, checkDate=${dateStr}, isMatch: ${isMatch}`);
-          return isMatch;
+          isMatch = holidayDateStr === dateStr;
+          console.log(`   Exact date check: ${isMatch ? "✓" : "✗"} (${holidayDateStr} vs ${dateStr})`);
+        }
+        
+        if (isMatch) {
+          console.log(`✅ Match found: ${date.toDateString()} is a holiday (${holiday.name})`);
+          return true;
         }
       } catch (error) {
-        console.error('Error comparing holiday date:', error, holiday);
-        return false;
+        console.error('❌ Error comparing holiday date:', error, holiday);
       }
-    });
+    }
     
-    console.log('Holiday check result for', format(date, 'yyyy-MM-dd'), ':', isHoliday);
-    return isHoliday;
+    console.log(`❌ ${format(date, 'yyyy-MM-dd')} is not a holiday`);
+    return false;
   }
   
   return false;
@@ -121,19 +119,43 @@ export function calculateWorkingDays(
   let remainingDays = daysToAdd;
   let currentDate = new Date(startDate);
 
+  console.log(`calculateWorkingDays: Adding ${daysToAdd} working days to ${format(startDate, 'yyyy-MM-dd')}`);
+  console.log(`Considering holidays: ${considerHolidays}, Number of holidays: ${holidays.length}`);
+  
+  // Debug holiday data
+  if (considerHolidays && holidays.length > 0) {
+    console.log("Holidays considered in calculation:");
+    holidays.forEach(h => console.log(`- ${h.name}: ${h.date}, isRecurring: ${h.isRecurring}`));
+  }
+
+  let iteration = 0;
   while (remainingDays > 0) {
     // Move to the next day
     currentDate = addDays(currentDate, 1);
+    iteration++;
     
     // Check if the current date is a non-working day
     const isOffDay = isNonWorkingDay(currentDate, weeklyOffDays, considerHolidays, holidays);
     
+    // Log detailed information about each day being checked
+    if (iteration < 20) { // Limit logging to avoid flooding console
+      console.log(`Day ${iteration}: ${format(currentDate, 'yyyy-MM-dd')} (${currentDate.toLocaleDateString('en-US', { weekday: 'long' })}), isOffDay: ${isOffDay}`);
+    }
+    
     // Only count as a working day if it's not an off day
     if (!isOffDay) {
       remainingDays--;
+      if (iteration < 20) {
+        console.log(`  Counted as working day, ${remainingDays} days remaining`);
+      }
+    } else {
+      if (iteration < 20) {
+        console.log(`  Skipped as non-working day`);
+      }
     }
   }
   
+  console.log(`Final date after adding ${daysToAdd} working days: ${format(currentDate, 'yyyy-MM-dd')}`);
   return currentDate;
 }
 
@@ -162,17 +184,35 @@ export function findNextWorkingDay(
   considerHolidays: boolean = true,
   holidays: Holiday[] = []
 ): Date {
+  console.log(`🔍 Finding next working day after ${format(date, 'yyyy-MM-dd')}`);
+  console.log(`   Weekly off days: ${weeklyOffDays.join(', ')}`);
+  console.log(`   Consider holidays: ${considerHolidays}`);
+  
   // Check if the given date is already a working day
-  if (!isNonWorkingDay(date, weeklyOffDays, considerHolidays, holidays)) {
+  const isOffDay = isNonWorkingDay(date, weeklyOffDays, considerHolidays, holidays);
+  if (!isOffDay) {
+    console.log(`✅ ${format(date, 'yyyy-MM-dd')} is already a working day`);
     return date;
   }
   
+  console.log(`❌ ${format(date, 'yyyy-MM-dd')} is a non-working day, searching for next working day...`);
+  
   // Keep adding days until we find a working day
   let currentDate = new Date(date);
+  let attempts = 0;
+  
   while (isNonWorkingDay(currentDate, weeklyOffDays, considerHolidays, holidays)) {
+    attempts++;
     currentDate = addDays(currentDate, 1);
+    console.log(`   Checking ${format(currentDate, 'yyyy-MM-dd')} (${currentDate.toLocaleDateString('en-US', { weekday: 'long' })})...`);
+    
+    if (attempts > 10) {
+      console.warn('⚠️ Excessive iterations looking for a working day, possible infinite loop');
+      break;
+    }
   }
   
+  console.log(`✅ Found next working day: ${format(currentDate, 'yyyy-MM-dd')}`);
   return currentDate;
 }
 
@@ -195,13 +235,34 @@ export function calculatePhaseDates({
   considerHolidays?: boolean;
   holidays?: Holiday[];
 }) {
+  console.log('🧮 CALCULATING PHASE DATES');
+  console.log(`📆 Start Date: ${typeof startDate === 'string' ? startDate : format(startDate, 'yyyy-MM-dd')}`);
+  console.log(`🔄 Weekly Off Days: ${weeklyOffDays.join(', ')}`);
+  console.log(`🏖️ Consider Holidays: ${considerHolidays}`);
+  console.log(`🗓️ Holidays count: ${holidays?.length || 0}`);
+  console.log('📋 Phase durations (working days):');
+  console.log(`   Induction: ${phaseDurations.induction}`);
+  console.log(`   Training: ${phaseDurations.training}`);
+  console.log(`   Certification: ${phaseDurations.certification}`);
+  console.log(`   OJT: ${phaseDurations.ojt}`);
+  console.log(`   OJT Certification: ${phaseDurations.ojtCertification}`);
+  
+  if (considerHolidays && holidays && holidays.length > 0) {
+    console.log('🏖️ Holidays included in calculation:');
+    holidays.forEach((h, i) => {
+      console.log(`   ${i+1}. ${h.name}: ${h.date} (Recurring: ${h.isRecurring})`);
+    });
+  }
+  
   let start = typeof startDate === 'string' ? new Date(startDate) : startDate;
   
   // Check if the start date is a non-working day (weekly off or holiday)
   // If so, find the next working day
   start = findNextWorkingDay(start, weeklyOffDays, considerHolidays, holidays);
+  console.log(`✅ Adjusted start date: ${format(start, 'yyyy-MM-dd')}`);
   
   // Induction Phase
+  console.log('🔍 Calculating INDUCTION PHASE:');
   const inductionStart = start;
   const inductionEnd = calculateWorkingDays(
     inductionStart,
@@ -213,6 +274,7 @@ export function calculatePhaseDates({
   );
   
   // Training Phase
+  console.log('🔍 Calculating TRAINING PHASE:');
   const trainingStart = phaseDurations.induction === 0 ? inductionEnd : 
     calculateWorkingDays(inductionEnd, 1, weeklyOffDays, considerHolidays, holidays);
   const trainingEnd = calculateWorkingDays(
@@ -225,6 +287,7 @@ export function calculatePhaseDates({
   );
   
   // Certification Phase
+  console.log('🔍 Calculating CERTIFICATION PHASE:');
   const certificationStart = phaseDurations.training === 0 ? trainingEnd : 
     calculateWorkingDays(trainingEnd, 1, weeklyOffDays, considerHolidays, holidays);
   const certificationEnd = calculateWorkingDays(
@@ -237,6 +300,7 @@ export function calculatePhaseDates({
   );
   
   // OJT Phase
+  console.log('🔍 Calculating OJT PHASE:');
   const ojtStart = phaseDurations.certification === 0 ? certificationEnd : 
     calculateWorkingDays(certificationEnd, 1, weeklyOffDays, considerHolidays, holidays);
   const ojtEnd = calculateWorkingDays(
@@ -249,6 +313,7 @@ export function calculatePhaseDates({
   );
   
   // OJT Certification Phase
+  console.log('🔍 Calculating OJT CERTIFICATION PHASE:');
   const ojtCertificationStart = phaseDurations.ojt === 0 ? ojtEnd : 
     calculateWorkingDays(ojtEnd, 1, weeklyOffDays, considerHolidays, holidays);
   const ojtCertificationEnd = calculateWorkingDays(
@@ -261,8 +326,17 @@ export function calculatePhaseDates({
   );
   
   // Handover to Ops
+  console.log('🔍 Calculating HANDOVER DATE:');
   const handoverToOps = phaseDurations.ojtCertification === 0 ? ojtCertificationEnd : 
     calculateWorkingDays(ojtCertificationEnd, 1, weeklyOffDays, considerHolidays, holidays);
+  
+  console.log('📅 FINAL CALCULATED PHASE DATES:');
+  console.log(`   Induction: ${format(inductionStart, 'yyyy-MM-dd')} to ${format(inductionEnd, 'yyyy-MM-dd')}`);
+  console.log(`   Training: ${format(trainingStart, 'yyyy-MM-dd')} to ${format(trainingEnd, 'yyyy-MM-dd')}`);
+  console.log(`   Certification: ${format(certificationStart, 'yyyy-MM-dd')} to ${format(certificationEnd, 'yyyy-MM-dd')}`);
+  console.log(`   OJT: ${format(ojtStart, 'yyyy-MM-dd')} to ${format(ojtEnd, 'yyyy-MM-dd')}`);
+  console.log(`   OJT Certification: ${format(ojtCertificationStart, 'yyyy-MM-dd')} to ${format(ojtCertificationEnd, 'yyyy-MM-dd')}`);
+  console.log(`   Handover: ${format(handoverToOps, 'yyyy-MM-dd')}`);
   
   return {
     inductionStart,
