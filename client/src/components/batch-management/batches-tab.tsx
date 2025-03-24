@@ -53,7 +53,7 @@ import { useLocation } from "wouter";
 import { TraineeManagement } from "./trainee-management";
 
 // Extended type with relations for batch display
-interface BatchWithRelations extends OrganizationBatch {
+interface BatchWithRelations extends Omit<OrganizationBatch, 'processId' | 'locationId' | 'lineOfBusinessId' | 'trainerId'> {
   location?: {
     id: number;
     name: string;
@@ -71,6 +71,12 @@ interface BatchWithRelations extends OrganizationBatch {
     fullName: string;
   };
   enrolledCount?: number;
+  
+  // Original IDs are still available
+  processId: number;
+  locationId: number;
+  lineOfBusinessId: number;
+  trainerId: number;
 }
 
 export function BatchesTab() {
@@ -82,7 +88,7 @@ export function BatchesTab() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
-  const [selectedBatch, setSelectedBatch] = useState<OrganizationBatch | null>(null);
+  const [selectedBatch, setSelectedBatch] = useState<BatchWithRelations | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -99,8 +105,8 @@ export function BatchesTab() {
     to: undefined,
   });
   const [isAddTraineeDialogOpen, setIsAddTraineeDialogOpen] = useState(false);
-  const [selectedBatchForTrainee, setSelectedBatchForTrainee] = useState<OrganizationBatch | null>(null);
-  const [selectedBatchForDetails, setSelectedBatchForDetails] = useState<OrganizationBatch | null>(null);
+  const [selectedBatchForTrainee, setSelectedBatchForTrainee] = useState<BatchWithRelations | null>(null);
+  const [selectedBatchForDetails, setSelectedBatchForDetails] = useState<BatchWithRelations | null>(null);
   const [isTraineeDialogOpen, setIsTraineeDialogOpen] = useState(false);
 
   const canManageBatches = hasPermission("manage_batches");
@@ -109,17 +115,9 @@ export function BatchesTab() {
     data: batches = [],
     isLoading,
     error
-  } = useQuery<OrganizationBatch[]>({
+  } = useQuery<BatchWithRelations[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches`],
-    enabled: !!user?.organizationId,
-    onSuccess: (data) => {
-      console.log('Batches API Response:', data.map(batch => ({
-        id: batch.id,
-        name: batch.name,
-        rawCategory: batch.batchCategory,
-        typeofCategory: typeof batch.batchCategory
-      })));
-    }
+    enabled: !!user?.organizationId
   });
 
   const locations = [...new Set(batches.map(batch => batch.location?.name).filter(Boolean))];
@@ -222,7 +220,7 @@ export function BatchesTab() {
     }
   });
 
-  const handleDeleteClick = (batch: OrganizationBatch) => {
+  const handleDeleteClick = (batch: BatchWithRelations) => {
     if (batch.status !== 'planned') {
       toast({
         title: "Cannot Delete",
@@ -236,7 +234,7 @@ export function BatchesTab() {
     setDeleteDialogOpen(true);
   };
 
-  const handleEditClick = (batch: OrganizationBatch) => {
+  const handleEditClick = (batch: BatchWithRelations) => {
     if (batch.status !== 'planned') {
       toast({
         title: "Cannot Edit",
@@ -417,7 +415,7 @@ export function BatchesTab() {
     );
   };
 
-  const sortData = (data: OrganizationBatch[], key: string, direction: 'asc' | 'desc') => {
+  const sortData = (data: BatchWithRelations[], key: string, direction: 'asc' | 'desc') => {
     return [...data].sort((a, b) => {
       let aValue: any;
       let bValue: any;
@@ -499,17 +497,17 @@ export function BatchesTab() {
     setSelectedCategory(value === 'all' ? null : value);
   };
 
-  const handleAddTraineeClick = (batch: OrganizationBatch) => {
+  const handleAddTraineeClick = (batch: BatchWithRelations) => {
     setSelectedBatchForTrainee(batch);
     setIsAddTraineeDialogOpen(true);
   };
 
-  const handleBatchClick = (batch: OrganizationBatch) => {
+  const handleBatchClick = (batch: BatchWithRelations) => {
     setSelectedBatchForDetails(batch);
     setIsTraineeDialogOpen(true);
   };
 
-  const renderBatchTable = (batchList: OrganizationBatch[]) => (
+  const renderBatchTable = (batchList: BatchWithRelations[]) => (
     <div className="rounded-md border">
       <Table>
         <TableHeader>
