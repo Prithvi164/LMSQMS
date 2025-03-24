@@ -115,9 +115,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
   const [dateRanges, setDateRanges] = useState<DateRange[]>([]);
   const [progress, setProgress] = useState(0);
   const [isCreating, setIsCreating] = useState(false);
-  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
-  const [templateName, setTemplateName] = useState('');
-  const [templateDescription, setTemplateDescription] = useState('');
   const [holidaysList, setHolidaysList] = useState<Holiday[]>([]);
 
   const form = useForm<InsertOrganizationBatch>({
@@ -996,84 +993,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
         )}
 
         <div className="grid grid-cols-2 gap-6">
-          <FormField
-            control={form.control}
-            name="template"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Load from Template</FormLabel>
-                <Select
-                  onValueChange={handleTemplateSelect}
-                  disabled={isLoadingTemplates}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a template" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {templates.map((template) => (
-                      <SelectItem key={template.id} value={template.id.toString()}>
-                        {template.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={!form.getValues('locationId') || !form.getValues('processId')}
-              >
-                Save as Template
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Save as Template</DialogTitle>
-                <DialogDescription>
-                  Save the current batch configuration as a template for future use.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <FormItem>
-                  <FormLabel>Template Name</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Enter template name"
-                      value={templateName}
-                      onChange={(e) => setTemplateName(e.target.value)}
-                    />
-                  </FormControl>
-                </FormItem>
-                <FormItem>
-                  <FormLabel>Description (Optional)</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Enter template description"
-                      value={templateDescription}
-                      onChange={(e) => setTemplateDescription(e.target.value)}
-                    />
-                  </FormControl>
-                </FormItem>
-              </div>
-              <DialogFooter>
-                <Button
-                  type="button"
-                  onClick={handleSaveTemplate}
-                  disabled={saveTemplateMutation.isPending}
-                >
-                  {saveTemplateMutation.isPending ? "Saving..." : "Save Template"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
 
           <FormField
             control={form.control}
