@@ -3338,41 +3338,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('Processing upload for:', { orgId, batchId });
 
-      // Get batch details first
-      const batch = await storage.getBatch(batchId);
-      if (!batch) {
+      // Get batch and trainer details including location
+      let batchDetails;
+      try {
+        batchDetails = await getTrainerDetails(batchId);
+      } catch (error) {
         console.log('Batch not found:', batchId);
         return res.status(404).json({ message: "Batch not found" });
       }
-
+      
+      const { batch, trainerLocationId, trainerId, managerId } = batchDetails;
       console.log('Found batch:', batch);
-      
-      // Get trainer details if trainer is assigned to the batch
-      let trainerLocationId = batch.locationId; // Default to batch location
-      let trainerId = batch.trainerId;
-      
-      if (trainerId) {
-        const trainer = await storage.getUser(trainerId);
-        if (trainer) {
-          console.log('Found trainer:', {
-            id: trainer.id,
-            name: trainer.fullName,
-            locationId: trainer.locationId
-          });
-          
-          // Use trainer's location if available
-          if (trainer.locationId) {
-            trainerLocationId = trainer.locationId;
-            console.log('Using trainer location:', trainerLocationId);
-          } else {
-            console.log('Trainer has no location set, using batch location:', batch.locationId);
-          }
-        } else {
-          console.log('Trainer not found for ID:', trainerId);
-        }
-      } else {
-        console.log('No trainer assigned to batch, using batch location:', batch.locationId);
-      }
+      console.log('Using trainer location:', trainerLocationId);
 
       // Check remaining capacity 
       const currentTrainees = await storage.getBatchTrainees(batchId);
