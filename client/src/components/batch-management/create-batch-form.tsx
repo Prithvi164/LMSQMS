@@ -1038,15 +1038,15 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                     field.onChange(processId);
                   }}
                   value={field.value?.toString()}
-                  disabled={!selectedLob || isLoadingProcesses}
+                  disabled={!selectedTrainer || isLoadingTrainerProcesses}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder={selectedLob ? "Select process" : "Select LOB first"} />
+                      <SelectValue placeholder={selectedTrainer ? "Select process" : "Select trainer first"} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {processes.map((process) => (
+                    {trainerProcesses.map((process) => (
                       <SelectItem key={process.id} value={process.id.toString()}>
                         {process.name}
                       </SelectItem>
@@ -1078,6 +1078,9 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                       const id = parseInt(trainerId);
                       if (!isNaN(id)) {
                         field.onChange(id);
+                        setSelectedTrainer(id);
+                        // Reset process selection when trainer changes
+                        form.setValue('processId', undefined);
                       }
                     }}
                     value={field.value?.toString()}
@@ -1213,9 +1216,8 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
               updateBatchMutation.isPending ||
               isCreating ||
               isLoadingLocations ||
-              isLoadingLobs ||
-              isLoadingProcesses ||
               isLoadingTrainers ||
+              isLoadingTrainerProcesses ||
               isLoadingTemplates
             }
           >
