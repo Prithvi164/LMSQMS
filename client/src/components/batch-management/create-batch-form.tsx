@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, addDays, isSunday, isWithinInterval, isSameDay } from "date-fns";
 import { getAllSubordinates, getReportingChainUsers } from "@/lib/hierarchy-utils";
-import { calculatePhaseDates, calculateWorkingDays, Holiday } from "@/lib/date-utils";
+import { calculatePhaseDates, calculateWorkingDays, Holiday, isNonWorkingDay } from "@/lib/date-utils";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -118,6 +118,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [templateDescription, setTemplateDescription] = useState('');
+  const [holidaysList, setHolidaysList] = useState<Holiday[]>([]);
 
   const form = useForm<InsertOrganizationBatch>({
     resolver: zodResolver(insertOrganizationBatchSchema),
@@ -727,7 +728,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
   }, [form.getValues('processId'), allProcesses]);
 
   // Get organization holidays
-  const { data: holidays = [] } = useQuery({
+  const { data: organizationHolidays = [] } = useQuery({
     queryKey: ['/api/organizations/holidays', user?.organizationId],
     enabled: !!user?.organizationId,
   });
@@ -775,7 +776,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
         },
         weeklyOffDays,
         considerHolidays,
-        holidays
+        holidays: organizationHolidays
       });
       
       // Set all phase dates in the form
@@ -850,7 +851,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
         variant: "destructive",
       });
     }
-  }, [form.watch('startDate'), form.watch('processId'), form.watch('weeklyOffDays'), form.watch('considerHolidays'), processes, holidays]);
+  }, [form.watch('startDate'), form.watch('processId'), form.watch('weeklyOffDays'), form.watch('considerHolidays'), processes, organizationHolidays]);
 
   useEffect(() => {
     if (isCreating) {
@@ -1389,7 +1390,12 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                         field.onChange(date ? format(date, 'yyyy-MM-dd') : '');
                       }}
                       disabled={(date) =>
-                        date < new Date() || isSunday(date)
+                        date < new Date() || isNonWorkingDay(
+                          date,
+                          form.getValues('weeklyOffDays') || ['Saturday', 'Sunday'],
+                          form.getValues('considerHolidays') || true,
+                          holidays
+                        )
                       }
                       initialFocus
                     />
