@@ -196,13 +196,43 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     enabled: !!selectedLocation && !!user?.organizationId
   });
 
+  // Get all processes for the selected LOB
   const {
-    data: processes = [],
-    isLoading: isLoadingProcesses
+    data: allProcesses = [],
+    isLoading: isLoadingAllProcesses
   } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/line-of-businesses/${selectedLob}/processes`],
     enabled: !!selectedLob && !!user?.organizationId
   });
+  
+  // Get trainer's processes
+  const {
+    data: trainerProcesses = [],
+    isLoading: isLoadingTrainerProcesses
+  } = useQuery({
+    queryKey: [`/api/users/${form.getValues('trainerId')}/processes`],
+    enabled: !!form.getValues('trainerId') && !!user?.organizationId
+  });
+  
+  // Filter processes to show only those assigned to the selected trainer and LOB
+  const processes = useMemo(() => {
+    const trainerId = form.getValues('trainerId');
+    
+    if (!trainerId || !selectedLob) {
+      return allProcesses;
+    }
+    
+    // If trainer is selected, show only processes assigned to that trainer
+    // that also belong to the selected LOB
+    const trainerProcessIds = new Set(trainerProcesses.map(p => p.processId));
+    
+    return allProcesses.filter(process => 
+      trainerProcessIds.has(process.id) && 
+      process.lineOfBusinessId === selectedLob
+    );
+  }, [allProcesses, trainerProcesses, form.getValues('trainerId'), selectedLob]);
+  
+  const isLoadingProcesses = isLoadingAllProcesses || isLoadingTrainerProcesses;
 
   const {
     data: allUsers = [],
@@ -1077,6 +1107,18 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                       const id = parseInt(trainerId);
                       if (!isNaN(id)) {
                         field.onChange(id);
+                        
+                        // Reset the process selection to force the user to select a process from this trainer
+                        form.setValue('processId', undefined);
+                        
+                        // If there's only one process available for this trainer, auto-select it
+                        setTimeout(() => {
+                          const availableProcesses = processes;
+                          if (availableProcesses.length === 1) {
+                            console.log('Auto-selecting the only available process:', availableProcesses[0]);
+                            form.setValue('processId', availableProcesses[0].id);
+                          }
+                        }, 100);
                       }
                     }}
                     value={field.value?.toString()}
