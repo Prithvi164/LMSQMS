@@ -30,6 +30,7 @@ async function getTrainerDetails(batchId: number) {
   let trainerId = batch.trainerId;
   let managerId = batch.trainerId; // Use trainer as manager by default
   
+  // If trainer is assigned to the batch, get their location and manager
   if (trainerId) {
     const trainer = await storage.getUser(trainerId);
     if (trainer) {
@@ -4098,12 +4099,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const organizationId = parseInt(req.params.orgId);
       const batchId = parseInt(req.params.batchId);
 
-      // Get the batch details including capacity
-      const batch = await storage.getBatch(batchId);
-      if (!batch) {
-        return res.status(404).json({ message: "Batch not found" });
-      }
-
+      // Get trainer details using the helper function
+      const batchDetails = await getTrainerDetails(batchId);
+      const { batch, trainerLocationId, trainerId } = batchDetails;
+      
       // Get current trainee count
       const trainees = await storage.getBatchTrainees(batchId);
       if (trainees.length >= batch.capacityLimit) {
@@ -4112,25 +4111,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Rest of the existing code remains the same
-      const { processId, lineOfBusinessId, locationId, ...userData } = req.body;
+      // Get data from request
+      const { processId, lineOfBusinessId, ...userData } = req.body;
 
       // Create password hash
       const hashedPassword = await hashPassword(userData.password);
 
-      // Create user with role from form 
+      // Create user with role from form, using trainer as manager and trainer's location 
       const userToCreate = {
         ...userData,
         password: hashedPassword,
         category: "trainee", // Keep category as trainee
         organizationId,
-        locationId,
+        locationId: trainerLocationId, // Use trainer's location
+        managerId: trainerId, // Set the batch trainer as the reporting manager
         active: true
       };
 
       console.log('Creating trainee with data:', {
         ...userToCreate,
-        password: '[REDACTED]'
+        password: '[REDACTED]',
+        locationId: trainerLocationId,
+        managerId: trainerId
       });
 
       const user = await storage.createUser(userToCreate);
@@ -4140,7 +4142,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const batchAssignment = await storage.assignUserToBatch({
         userId: user.id,
         batchId,
-        processId,
+        processId: batch.processId,
         status: 'active',
         joinedAt: new Date(),
       });
@@ -4149,10 +4151,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create user process record
       const userProcess = await storage.createUserProcess({
         userId: user.id,
-        processId,
+        processId: batch.processId,
         organizationId,
-        lineOfBusinessId,
-        locationId,
+        lineOfBusinessId: batch.lineOfBusinessId,
+        locationId: trainerLocationId, // Use trainer's location
         status: 'active',
         assignedAt: new Date(),
       });
