@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+// Removed tabs imports since they're no longer needed for weekly off days
 import { AlertCircle, CalendarIcon, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -64,7 +64,6 @@ import {
 type OrganizationSettings = {
   id?: number;
   organizationId: number;
-  weeklyOffDays: number[];
   createdAt?: string;
   updatedAt?: string;
 };
@@ -86,10 +85,6 @@ type Holiday = {
 };
 
 // Form schemas
-const weeklyOffDaysSchema = z.object({
-  weeklyOffDays: z.array(z.string()).min(1, "At least one weekly off day must be selected")
-});
-
 const holidaySchema = z.object({
   name: z.string().min(2, "Holiday name must be at least 2 characters"),
   date: z.string().refine(val => isValid(parseISO(val)), {
@@ -116,17 +111,8 @@ export default function OrganizationSettings() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("weekly-off-days");
   const [isAddHolidayOpen, setIsAddHolidayOpen] = useState(false);
   const [holidayToDelete, setHolidayToDelete] = useState<Holiday | null>(null);
-  
-  // Weekly off days form setup
-  const weeklyOffDaysForm = useForm<WeeklyOffDaysForm>({
-    resolver: zodResolver(weeklyOffDaysSchema),
-    defaultValues: {
-      weeklyOffDays: ["Sunday"]
-    }
-  });
 
   // Holiday form setup
   const holidayForm = useForm<HolidayForm>({
@@ -168,40 +154,7 @@ export default function OrganizationSettings() {
   });
 
   // Update settings form when data is loaded
-  useEffect(() => {
-    if (settings?.weeklyOffDays) {
-      weeklyOffDaysForm.reset({
-        weeklyOffDays: settings.weeklyOffDays
-      });
-    }
-  }, [settings, weeklyOffDaysForm]);
-
-  // Settings update mutation
-  const updateSettingsMutation = useMutation({
-    mutationFn: async (data: WeeklyOffDaysForm) => {
-      return apiRequest<OrganizationSettings>(
-        `/api/organizations/${user?.organizationId}/settings`,
-        {
-          method: "POST",
-          body: JSON.stringify(data)
-        }
-      );
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/settings`] });
-      toast({
-        title: "Settings updated",
-        description: "Your organization settings have been updated successfully.",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error updating settings",
-        description: error.message || "An error occurred while updating settings. Please try again.",
-        variant: "destructive"
-      });
-    }
-  });
+  // No need for useEffect to reset weeklyOffDays form anymore
 
   // Create holiday mutation
   const createHolidayMutation = useMutation({
@@ -260,9 +213,6 @@ export default function OrganizationSettings() {
   });
 
   // Form submission handlers
-  const onWeeklyOffDaysSubmit = (data: WeeklyOffDaysForm) => {
-    updateSettingsMutation.mutate(data);
-  };
 
   const onHolidaySubmit = (data: HolidayForm) => {
     createHolidayMutation.mutate(data);
