@@ -168,24 +168,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     },
   });
 
-  const {
-    data: templates = [],
-    isLoading: isLoadingTemplates,
-    error: templatesError
-  } = useQuery<BatchTemplate[]>({
-    queryKey: [`/api/organizations/${user?.organizationId}/batch-templates`],
-    enabled: !!user?.organizationId,
-    staleTime: 30000,
-    retry: 1,
-    onError: (error) => {
-      console.error('Error loading templates:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load templates. Please try again.",
-        variant: "destructive",
-      });
-    }
-  });
+  // Templates functionality has been removed
 
   const {
     data: locations = [],
@@ -332,151 +315,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
   
   const isLoadingTrainers = isLoadingAllUsers;
 
-  const saveTemplateMutation = useMutation({
-    mutationFn: async (template: InsertBatchTemplate) => {
-      if (!user?.organizationId) {
-        throw new Error('Organization ID is required');
-      }
-
-      try {
-        if (!template.name) throw new Error('Template name is required');
-        if (!template.locationId) throw new Error('Location is required');
-        if (!template.lineOfBusinessId) throw new Error('Line of Business is required');
-        if (!template.processId) throw new Error('Process is required');
-        if (!template.trainerId) throw new Error('Trainer is required');
-        if (!template.capacityLimit || template.capacityLimit < 1) throw new Error('Capacity must be at least 1');
-
-        const response = await fetch(`/api/organizations/${user.organizationId}/batch-templates`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(template),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to save template');
-        }
-
-        return await response.json();
-      } catch (error) {
-        console.error('Template save error:', error);
-        throw error instanceof Error ? error : new Error('Failed to save template');
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/batch-templates`] });
-      toast({
-        title: "Success",
-        description: "Template saved successfully",
-      });
-      setIsSavingTemplate(false);
-      setTemplateName('');
-      setTemplateDescription('');
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to save template",
-        variant: "destructive",
-      });
-    }
-  });
-
-  const handleTemplateSelect = async (templateId: string) => {
-    const template = templates.find(t => t.id.toString() === templateId);
-    if (template) {
-      try {
-        const locationId = parseInt(template.locationId.toString());
-        if (!isNaN(locationId)) {
-          setSelectedLocation(locationId);
-          form.setValue('locationId', locationId);
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        const lobId = parseInt(template.lineOfBusinessId.toString());
-        if (!isNaN(lobId)) {
-          setSelectedLob(lobId);
-          form.setValue('lineOfBusinessId', lobId);
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        const processId = parseInt(template.processId.toString());
-        if (!isNaN(processId)) {
-          form.setValue('processId', processId);
-        }
-
-        const trainerId = parseInt(template.trainerId.toString());
-        if (!isNaN(trainerId)) {
-          form.setValue('trainerId', trainerId);
-        }
-
-        if (template.capacityLimit) {
-          form.setValue('capacityLimit', parseInt(template.capacityLimit.toString()));
-        }
-
-        if (template.batchCategory) {
-          form.setValue('batchCategory', template.batchCategory);
-        }
-
-        toast({
-          title: "Template Loaded",
-          description: "All template values have been applied successfully.",
-        });
-      } catch (error) {
-        console.error('Error applying template:', error);
-        toast({
-          title: "Error",
-          description: "Failed to apply template values. Please try again.",
-          variant: "destructive",
-        });
-      }
-    }
-  };
-
-  const handleSaveTemplate = async () => {
-    try {
-      if (!templateName) throw new Error('Template name is required');
-
-      const currentLocationId = parseInt(form.getValues('locationId')?.toString() || '');
-      const currentLineOfBusinessId = parseInt(form.getValues('lineOfBusinessId')?.toString() || '');
-      const currentProcessId = parseInt(form.getValues('processId')?.toString() || '');
-      const currentTrainerId = parseInt(form.getValues('trainerId')?.toString() || '');
-      const currentCapacityLimit = parseInt(form.getValues('capacityLimit')?.toString() || '');
-      const currentBatchCategory = form.getValues('batchCategory');
-
-      if (isNaN(currentLocationId)) throw new Error('Please select a location before saving template');
-      if (isNaN(currentLineOfBusinessId)) throw new Error('Please select a line of business before saving template');
-      if (isNaN(currentProcessId)) throw new Error('Please select a process before saving template');
-      if (isNaN(currentTrainerId)) throw new Error('Please select a trainer before saving template');
-      if (isNaN(currentCapacityLimit) || currentCapacityLimit < 1) throw new Error('Please set a valid capacity limit');
-      if (!currentBatchCategory) throw new Error('Please select a batch category before saving template');
-
-      const template: InsertBatchTemplate = {
-        name: templateName,
-        description: templateDescription,
-        organizationId: user?.organizationId!,
-        locationId: currentLocationId,
-        lineOfBusinessId: currentLineOfBusinessId,
-        processId: currentProcessId,
-        trainerId: currentTrainerId,
-        capacityLimit: currentCapacityLimit,
-        batchCategory: currentBatchCategory
-      };
-
-      await saveTemplateMutation.mutateAsync(template);
-    } catch (error) {
-      console.error('Error saving template:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to save template",
-        variant: "destructive",
-      });
-    }
-  };
+  // Template functionality has been removed
 
   // Update the date calculation functions with new logic for phase transitions
   const addWorkingDays = (startDate: Date, days: number, isEndDate: boolean = false): Date => {
@@ -1436,8 +1275,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
               isLoadingLocations ||
               isLoadingLobs ||
               isLoadingProcesses ||
-              isLoadingTrainers ||
-              isLoadingTemplates
+              isLoadingTrainers
             }
           >
             {isCreating ? (
