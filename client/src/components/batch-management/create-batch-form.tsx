@@ -636,7 +636,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
 
   // Update the useEffect for date calculations with proper error handling
   useEffect(() => {
-    const process = processes.find(p => p.id === form.getValues('processId'));
+    const process = trainerProcesses.find(p => p.id === form.getValues('processId'));
     const startDateStr = form.getValues('startDate');
 
     if (!process || !startDateStr) {
