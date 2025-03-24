@@ -726,10 +726,20 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     }
   }, [form.getValues('processId'), allProcesses]);
 
+  // Get organization holidays
+  const { data: holidays = [] } = useQuery({
+    queryKey: ['/api/organizations/holidays', user?.organizationId],
+    enabled: !!user?.organizationId,
+  });
+
   // Update the useEffect for date calculations with proper error handling
   useEffect(() => {
     const process = processes.find(p => p.id === form.getValues('processId'));
     const startDateStr = form.getValues('startDate');
+    const weeklyOffDays = form.getValues('weeklyOffDays') || ['Saturday', 'Sunday'];
+    const considerHolidays = form.getValues('considerHolidays') !== undefined 
+      ? form.getValues('considerHolidays') 
+      : true;
 
     if (!process || !startDateStr) {
       console.log('No process or start date selected yet');
@@ -740,6 +750,8 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       console.log('Starting date calculations with process:', {
         processId: process.id,
         startDate: startDateStr,
+        weeklyOffDays,
+        considerHolidays,
         phases: {
           induction: process.inductionDays,
           training: process.trainingDays,
@@ -751,89 +763,80 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
 
       const startDate = new Date(startDateStr);
 
-      // Induction Phase
-      form.setValue('inductionStartDate', format(startDate, 'yyyy-MM-dd'));
-      const inductionEnd = process.inductionDays === 0 ? startDate :
-        addWorkingDays(startDate, process.inductionDays, true);
-      form.setValue('inductionEndDate', format(inductionEnd, 'yyyy-MM-dd'));
-
-      // Training Phase
-      const trainingStart = process.inductionDays === 0 ? inductionEnd :
-        addWorkingDays(inductionEnd, 1);
-      const trainingEnd = process.trainingDays === 0 ? trainingStart :
-        addWorkingDays(trainingStart, process.trainingDays, true);
-      form.setValue('trainingStartDate', format(trainingStart, 'yyyy-MM-dd'));
-      form.setValue('trainingEndDate', format(trainingEnd, 'yyyy-MM-dd'));
-
-      // Certification Phase
-      const certificationStart = process.trainingDays === 0 ? trainingEnd :
-        addWorkingDays(trainingEnd, 1);
-      const certificationEnd = process.certificationDays === 0 ? certificationStart :
-        addWorkingDays(certificationStart, process.certificationDays, true);
-      form.setValue('certificationStartDate', format(certificationStart, 'yyyy-MM-dd'));
-      form.setValue('certificationEndDate', format(certificationEnd, 'yyyy-MM-dd'));
-
-      // OJT Phase
-      const ojtStart = process.certificationDays === 0 ? certificationEnd :
-        addWorkingDays(certificationEnd, 1);
-      const ojtEnd = process.ojtDays === 0 ? ojtStart :
-        addWorkingDays(ojtStart, process.ojtDays, true);
-      form.setValue('ojtStartDate', format(ojtStart, 'yyyy-MM-dd'));
-      form.setValue('ojtEndDate', format(ojtEnd, 'yyyy-MM-dd'));
-
-      // OJT Certification Phase
-      const ojtCertificationStart = process.ojtDays === 0 ? ojtEnd :
-        addWorkingDays(ojtEnd, 1);
-      const ojtCertificationEnd = process.ojtCertificationDays === 0 ? ojtCertificationStart :
-        addWorkingDays(ojtCertificationStart, process.ojtCertificationDays, true);
-      form.setValue('ojtCertificationStartDate', format(ojtCertificationStart, 'yyyy-MM-dd'));
-      form.setValue('ojtCertificationEndDate', format(ojtCertificationEnd, 'yyyy-MM-dd'));
+      // Calculate all phase dates at once using the date-utils function
+      const phaseDates = calculatePhaseDates({
+        startDate,
+        phaseDurations: {
+          induction: process.inductionDays,
+          training: process.trainingDays,
+          certification: process.certificationDays,
+          ojt: process.ojtDays,
+          ojtCertification: process.ojtCertificationDays
+        },
+        weeklyOffDays,
+        considerHolidays,
+        holidays
+      });
+      
+      // Set all phase dates in the form
+      form.setValue('inductionStartDate', format(phaseDates.inductionStart, 'yyyy-MM-dd'));
+      form.setValue('inductionEndDate', format(phaseDates.inductionEnd, 'yyyy-MM-dd'));
+      
+      form.setValue('trainingStartDate', format(phaseDates.trainingStart, 'yyyy-MM-dd'));
+      form.setValue('trainingEndDate', format(phaseDates.trainingEnd, 'yyyy-MM-dd'));
+      
+      form.setValue('certificationStartDate', format(phaseDates.certificationStart, 'yyyy-MM-dd'));
+      form.setValue('certificationEndDate', format(phaseDates.certificationEnd, 'yyyy-MM-dd'));
+      
+      form.setValue('ojtStartDate', format(phaseDates.ojtStart, 'yyyy-MM-dd'));
+      form.setValue('ojtEndDate', format(phaseDates.ojtEnd, 'yyyy-MM-dd'));
+      
+      form.setValue('ojtCertificationStartDate', format(phaseDates.ojtCertificationStart, 'yyyy-MM-dd'));
+      form.setValue('ojtCertificationEndDate', format(phaseDates.ojtCertificationEnd, 'yyyy-MM-dd'));
 
       // Handover and Batch End Date
-      const handoverToOps = process.ojtCertificationDays === 0 ? ojtCertificationEnd :
-        addWorkingDays(ojtCertificationEnd, 1);
-      form.setValue('handoverToOpsDate', format(handoverToOps, 'yyyy-MM-dd'));
-      form.setValue('endDate', format(handoverToOps, 'yyyy-MM-dd'));
+      form.setValue('handoverToOpsDate', format(phaseDates.handoverToOps, 'yyyy-MM-dd'));
+      form.setValue('endDate', format(phaseDates.handoverToOps, 'yyyy-MM-dd'));
 
       // Log final calculated dates
       console.log('Final calculated dates:', {
-        induction: { start: startDate, end: inductionEnd, days: process.inductionDays },
-        training: { start: trainingStart, end: trainingEnd, days: process.trainingDays },
-        certification: { start: certificationStart, end: certificationEnd, days: process.certificationDays },
-        ojt: { start: ojtStart, end: ojtEnd, days: process.ojtDays },
-        ojtCertification: { start: ojtCertificationStart, end: ojtCertificationEnd, days: process.ojtCertificationDays },
-        handover: handoverToOps
+        induction: { start: phaseDates.inductionStart, end: phaseDates.inductionEnd, days: process.inductionDays },
+        training: { start: phaseDates.trainingStart, end: phaseDates.trainingEnd, days: process.trainingDays },
+        certification: { start: phaseDates.certificationStart, end: phaseDates.certificationEnd, days: process.certificationDays },
+        ojt: { start: phaseDates.ojtStart, end: phaseDates.ojtEnd, days: process.ojtDays },
+        ojtCertification: { start: phaseDates.ojtCertificationStart, end: phaseDates.ojtCertificationEnd, days: process.ojtCertificationDays },
+        handover: phaseDates.handoverToOps
       });
 
       // Update date ranges for calendar visualization
       setDateRanges([
         {
-          start: startDate,
-          end: inductionEnd,
+          start: phaseDates.inductionStart,
+          end: phaseDates.inductionEnd,
           label: 'Induction',
           status: 'induction'
         },
         {
-          start: trainingStart,
-          end: trainingEnd,
+          start: phaseDates.trainingStart,
+          end: phaseDates.trainingEnd,
           label: 'Training',
           status: 'training'
         },
         {
-          start: certificationStart,
-          end: certificationEnd,
+          start: phaseDates.certificationStart,
+          end: phaseDates.certificationEnd,
           label: 'Certification',
           status: 'certification'
         },
         {
-          start: ojtStart,
-          end: ojtEnd,
+          start: phaseDates.ojtStart,
+          end: phaseDates.ojtEnd,
           label: 'OJT',
           status: 'ojt'
         },
         {
-          start: ojtCertificationStart,
-          end: ojtCertificationEnd,
+          start: phaseDates.ojtCertificationStart,
+          end: phaseDates.ojtCertificationEnd,
           label: 'OJT Certification',
           status: 'ojt-certification'
         }
@@ -847,7 +850,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
         variant: "destructive",
       });
     }
-  }, [form.watch('startDate'), form.watch('processId'), processes]);
+  }, [form.watch('startDate'), form.watch('processId'), form.watch('weeklyOffDays'), form.watch('considerHolidays'), processes, holidays]);
 
   useEffect(() => {
     if (isCreating) {
