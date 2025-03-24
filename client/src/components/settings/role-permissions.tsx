@@ -61,6 +61,7 @@ export function RolePermissions() {
       manage_locations: "Manage different office/center locations",
       manage_processes: "Handle workflow processes",
       manage_performance: "Access and manage performance metrics",
+      manage_batches: "Create, edit, and delete training batches",
 
       // Create Section
       create_admin: "Create new administrator accounts",

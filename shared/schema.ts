@@ -65,7 +65,8 @@ export const permissionEnum = pgEnum('permission', [
   'manage_processes',
   'view_performance',
   'manage_performance',
-  'export_reports'
+  'export_reports',
+  'manage_batches'
 ]);
 
 export const processStatusEnum = pgEnum('process_status', [
