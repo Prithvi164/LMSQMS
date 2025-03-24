@@ -803,6 +803,13 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       const march31st = new Date('2025-03-31');
       const isNonWorkingDayResult = isNonWorkingDay(march31st, weeklyOffDays, considerHolidays, holidaysList || []);
       console.log('March 31st 2025 isNonWorkingDay check:', isNonWorkingDayResult);
+      
+      // Check specifically for April 2nd, 2025 to debug weekly off day detection issue
+      const april2nd = new Date('2025-04-02');
+      const april2ndDayName = april2nd.toLocaleDateString('en-US', { weekday: 'long' });
+      console.log(`April 2nd 2025 is a ${april2ndDayName}, weeklyOffDays=${JSON.stringify(weeklyOffDays)}`);
+      const isApril2ndOffDay = isNonWorkingDay(april2nd, weeklyOffDays, considerHolidays, holidaysList || []);
+      console.log('April 2nd 2025 isNonWorkingDay check:', isApril2ndOffDay);
 
       // Calculate all phase dates at once using the date-utils function
       console.log('Calculating phase dates with holidays:', { 
