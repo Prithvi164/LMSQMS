@@ -732,11 +732,30 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
     queryKey: [`/api/organizations/${user?.organizationId}/holidays`],
     enabled: !!user?.organizationId,
     onSuccess: (data) => {
-      console.log('Holidays loaded:', data);
+      console.log('Holidays loaded:', JSON.stringify(data, null, 2));
       // Ensure holiday dates are converted from string to Date correctly
       if (data && data.length > 0) {
         // We set this to see if the data format matches what's expected by isNonWorkingDay
         setHolidaysList(data);
+        
+        // Check if there's a holiday on March 31st
+        const march31st = new Date(2025, 2, 31); // Month is 0-indexed in JS
+        const march31stStr = format(march31st, 'yyyy-MM-dd');
+        console.log('Checking if March 31st is a holiday:', march31stStr);
+        
+        data.forEach(holiday => {
+          const holidayDate = new Date(holiday.date);
+          const holidayDateStr = format(holidayDate, 'yyyy-MM-dd');
+          console.log(`Holiday: ${holiday.name}, Date: ${holidayDateStr}, isRecurring: ${holiday.isRecurring}`);
+          
+          if (holiday.isRecurring) {
+            const sameMonth = holidayDate.getMonth() === march31st.getMonth();
+            const sameDay = holidayDate.getDate() === march31st.getDate();
+            console.log(`Comparing recurring: ${holiday.name}, Same month: ${sameMonth}, Same day: ${sameDay}`);
+          } else {
+            console.log(`Comparing non-recurring: ${holiday.name}, Matches March 31st: ${holidayDateStr === march31stStr}`);
+          }
+        });
       }
     },
     onError: (error) => {
