@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Search, Loader2, Plus, Trash2, Edit, Eye, Calendar as CalendarIcon, List, ArrowUpDown, Filter, UserPlus } from "lucide-react";
@@ -53,6 +54,7 @@ import { TraineeManagement } from "./trainee-management";
 
 export function BatchesTab() {
   const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -80,7 +82,7 @@ export function BatchesTab() {
   const [selectedBatchForDetails, setSelectedBatchForDetails] = useState<OrganizationBatch | null>(null);
   const [isTraineeDialogOpen, setIsTraineeDialogOpen] = useState(false);
 
-  const canManageBatches = user?.role === 'admin' || user?.role === 'owner';
+  const canManageBatches = hasPermission("manage_batches");
 
   const {
     data: batches = [],
