@@ -1523,6 +1523,8 @@ export class DatabaseStorage implements IStorage {
           ojtCertificationStartDate: organizationBatches.ojtCertificationStartDate,
           ojtCertificationEndDate: organizationBatches.ojtCertificationEndDate,
           handoverToOpsDate: organizationBatches.handoverToOpsDate,
+          weeklyOffDays: organizationBatches.weeklyOffDays,
+          considerHolidays: organizationBatches.considerHolidays,
           createdAt: organizationBatches.createdAt,
           updatedAt: organizationBatches.updatedAt,
           location: organizationLocations,
@@ -1766,15 +1768,43 @@ export class DatabaseStorage implements IStorage {
       console.log(`Fetching batches for trainer ${trainerId} with statuses:`, statuses);
 
       const batches = await db
-        .select()
+        .select({
+          id: organizationBatches.id,
+          name: organizationBatches.name,
+          batchCategory: sql<string>`${organizationBatches.batchCategory}::text`,
+          startDate: organizationBatches.startDate,
+          endDate: organizationBatches.endDate,
+          status: organizationBatches.status,
+          capacityLimit: organizationBatches.capacityLimit,
+          locationId: organizationBatches.locationId,
+          processId: organizationBatches.processId,
+          lineOfBusinessId: organizationBatches.lineOfBusinessId,
+          trainerId: organizationBatches.trainerId,
+          organizationId: organizationBatches.organizationId,
+          inductionStartDate: organizationBatches.inductionStartDate,
+          inductionEndDate: organizationBatches.inductionEndDate,
+          trainingStartDate: organizationBatches.trainingStartDate,
+          trainingEndDate: organizationBatches.trainingEndDate,
+          certificationStartDate: organizationBatches.certificationStartDate,
+          certificationEndDate: organizationBatches.certificationEndDate,
+          ojtStartDate: organizationBatches.ojtStartDate,
+          ojtEndDate: organizationBatches.ojtEndDate,
+          ojtCertificationStartDate: organizationBatches.ojtCertificationStartDate,
+          ojtCertificationEndDate: organizationBatches.ojtCertificationEndDate,
+          handoverToOpsDate: organizationBatches.handoverToOpsDate,
+          weeklyOffDays: organizationBatches.weeklyOffDays,
+          considerHolidays: organizationBatches.considerHolidays,
+          createdAt: organizationBatches.createdAt,
+          updatedAt: organizationBatches.updatedAt
+        })
         .from(organizationBatches)
         .where(eq(organizationBatches.trainerId, trainerId))
         .where(eq(organizationBatches.organizationId, organizationId))
         .where(sql`${organizationBatches.status}::text = ANY(${sql`ARRAY[${statuses.join(',')}]`}::text[])`)
-        .orderBy(desc(organizationBatches.startDate)) as OrganizationBatch[];
+        .orderBy(desc(organizationBatches.startDate));
 
       console.log(`Found ${batches.length} batches for trainer ${trainerId}`);
-      return batches;
+      return batches as OrganizationBatch[];
     } catch (error) {
       console.error('Error fetching trainer batches:', error);
       throw new Error('Failed to fetch trainer batches');
