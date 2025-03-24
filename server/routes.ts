@@ -18,6 +18,48 @@ import { join } from 'path';
 import express from 'express';
 import { eq, and, sql, inArray } from "drizzle-orm";
 import { toIST, formatIST, toUTCStorage, formatISTDateOnly } from './utils/timezone';
+
+// Helper function for getting trainer details including location
+async function getTrainerDetails(batchId: number) {
+  const batch = await storage.getBatch(batchId);
+  if (!batch) {
+    throw new Error("Batch not found");
+  }
+
+  let trainerLocationId = batch.locationId; // Default to batch location
+  let trainerId = batch.trainerId;
+  let managerId = batch.trainerId; // Use trainer as manager by default
+  
+  if (trainerId) {
+    const trainer = await storage.getUser(trainerId);
+    if (trainer) {
+      console.log('Found trainer:', {
+        id: trainer.id,
+        name: trainer.fullName,
+        locationId: trainer.locationId
+      });
+      
+      // Use trainer's location if available
+      if (trainer.locationId) {
+        trainerLocationId = trainer.locationId;
+        console.log('Using trainer location:', trainerLocationId);
+      } else {
+        console.log('Trainer has no location set, using batch location:', batch.locationId);
+      }
+    } else {
+      console.log('Trainer not found for ID:', trainerId);
+    }
+  } else {
+    console.log('No trainer assigned to batch, using batch location:', batch.locationId);
+  }
+
+  return {
+    batch,
+    trainerLocationId,
+    trainerId,
+    managerId
+  };
+}
 import { attendance } from "@shared/schema";
 import type { User } from "@shared/schema";
 
