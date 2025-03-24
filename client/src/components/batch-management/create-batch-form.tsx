@@ -1394,7 +1394,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                           date,
                           form.getValues('weeklyOffDays') || ['Saturday', 'Sunday'],
                           form.getValues('considerHolidays') || true,
-                          holidays
+                          organizationHolidays
                         )
                       }
                       initialFocus
