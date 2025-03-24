@@ -1035,6 +1035,65 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
 
           <FormField
             control={form.control}
+            name="weeklyOffDays"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Weekly Off Days</FormLabel>
+                <div className="grid grid-cols-7 gap-2">
+                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
+                    <div key={day} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`day-${day}`}
+                        checked={field.value.includes(day)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            field.onChange([...field.value, day]);
+                          } else {
+                            field.onChange(field.value.filter((d: string) => d !== day));
+                          }
+                        }}
+                      />
+                      <label
+                        htmlFor={`day-${day}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        {day.substring(0, 3)}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                <FormDescription>
+                  Select the days that will be considered as weekly off days.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="considerHolidays"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <FormLabel className="text-base">Consider Holidays</FormLabel>
+                  <FormDescription>
+                    When enabled, public holidays will be excluded from working days calculation.
+                  </FormDescription>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
             name="name"
             render={({ field }) => (
               <FormItem>
