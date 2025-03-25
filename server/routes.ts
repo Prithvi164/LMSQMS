@@ -3102,22 +3102,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Helper function to get enrolled count for a batch
   const getEnrolledCount = async (batchId: number) => {
-    // Only count users with ACTIVE status in the batch from user_batch_processes
-    const result = await db
-      .select({ count: sql<number>`count(*)::int` })
+    // Get all users assigned to this batch with category 'trainee'
+    const batchTrainees = await db
+      .select({
+        userId: userBatchProcesses.userId,
+        category: users.category,
+        status: userBatchProcesses.status
+      })
       .from(userBatchProcesses)
+      .innerJoin(users, eq(users.id, userBatchProcesses.userId))
       .where(
         and(
           eq(userBatchProcesses.batchId, batchId),
-          eq(userBatchProcesses.status, 'active')
+          eq(users.category, 'trainee'),
+          eq(userBatchProcesses.status, 'active')  // Only count active trainees
         )
-      )
-      .then(rows => rows[0].count);
-    
-    console.log(`DEBUG - Raw enrolled count for batch ${batchId}:`, result);
-      
-    console.log(`Simplified enrolled count for batch ${batchId}:`, result);
-    return result;
+      );
+
+    // Return the count of enrolled trainees
+    return batchTrainees.length;
   };
 
   // Batch listing route with enrolled count
@@ -3175,16 +3178,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           storage.getLineOfBusiness(batch.lineOfBusinessId),
           getEnrolledCount(batch.id)
         ]);
-
-        // Add detailed debugging for batch ID 52 (SatBatch_weekoff)
-        if (batch.id === 52) {
-          console.log(`IMPORTANT DEBUG - Batch 52 (${batch.name}) detailed info:`, {
-            raw_enrolledCount: enrolledCount,
-            batch_id: batch.id,
-            batch_name: batch.name,
-            capacityLimit: batch.capacityLimit
-          });
-        }
 
         return {
           ...batch,
@@ -3254,6 +3247,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(
           and(
             eq(userBatchProcesses.batchId, batchId),
+            eq(users.category, 'trainee'),  // Filter by category='trainee'
             eq(userBatchProcesses.status, 'active')  // Only get active trainees
           )
         );
