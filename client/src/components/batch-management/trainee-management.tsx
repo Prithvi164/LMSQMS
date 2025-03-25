@@ -31,8 +31,11 @@ import { format, isValid, parseISO } from "date-fns";
 
 // Updated type to match actual API response
 type Trainee = {
-  id: number;
-  userId: number;
+  id: number; // This is the user_batch_process.id (batch process ID)
+  userId: number; // This is the user's ID
+  batchId: number;
+  processId: number;
+  status: string;
   employeeId: string;
   fullName: string;
   email: string;
