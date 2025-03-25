@@ -225,13 +225,6 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
 
   return (
     <div className="max-h-[70vh] overflow-y-auto px-4">
-      <div className="mb-6 p-4 rounded-lg bg-muted">
-        <div className="text-sm space-y-1">
-          <p>Total Capacity: {batch.capacityLimit}</p>
-          <p>Current Trainees: {traineeCount}</p>
-          <p className="font-medium">Remaining Slots: {remainingCapacity}</p>
-        </div>
-      </div>
 
       <div className="flex justify-end mb-4">
         <Button
