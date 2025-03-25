@@ -4475,19 +4475,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         batches = batches.filter(batch => batch.status === status);
       }
 
-      // For each batch, enrich with location, process, and line of business details
-      const enrichedBatches = awaitPromise.all(batches.map(async (batch) => {
-        const [location, process, line_of_business] = await Promise.all([
+      // For each batch, enrich with location, process, line of business details, and enrolled count
+      const enrichedBatches = await Promise.all(batches.map(async (batch) => {
+        const [location, process, line_of_business, enrolledCount] = await Promise.all([
           storage.getLocation(batch.locationId),
           storage.getProcess(batch.processId),
-          storage.getLineOfBusiness(batch.lineOfBusinessId)
+          storage.getLineOfBusiness(batch.lineOfBusinessId),
+          storage.getEnrolledCount(batch.id)
         ]);
 
         return {
           ...batch,
           location,
           process,
-          line_ofbusiness
+          line_of_business,
+          enrolledCount,
+          capacityRemaining: batch.capacityLimit - enrolledCount
         };
       }));
 
@@ -4850,19 +4853,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         batches = batches.filter(batch => batch.status === status);
       }
 
-      // For each batch, enrich with location, process, and line of business details
+      // For each batch, enrich with location, process, line of business details, and enrolled count
       const enrichedBatches = await Promise.all(batches.map(async (batch) => {
-        const [location, process, line_of_business] = await Promise.all([
+        const [location, process, line_of_business, enrolledCount] = await Promise.all([
           storage.getLocation(batch.locationId),
           storage.getProcess(batch.processId),
-          storage.getLineOfBusiness(batch.lineOfBusinessId)
+          storage.getLineOfBusiness(batch.lineOfBusinessId),
+          storage.getEnrolledCount(batch.id)
         ]);
 
         return {
           ...batch,
           location,
           process,
-          line_ofbusiness
+          line_of_business,
+          enrolledCount,
+          capacityRemaining: batch.capacityLimit - enrolledCount
         };
       }));
 
