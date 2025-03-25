@@ -3306,7 +3306,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Found batch:', batch);
       
       // Get trainer details if trainer is assigned to the batch
-      let trainerLocationId = batch.locationId; // Default to batch location
+      // Always use batch location for trainees, not trainer's location
+      const batchLocationId = batch.locationId;
       let trainerId = batch.trainerId;
       
       if (trainerId) {
@@ -3318,18 +3319,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             locationId: trainer.locationId
           });
           
-          // Use trainer's location if available
-          if (trainer.locationId) {
-            trainerLocationId = trainer.locationId;
-            console.log('Using trainer location:', trainerLocationId);
-          } else {
-            console.log('Trainer has no location set, using batch location:', batch.locationId);
-          }
+          // Always use batch location for trainees
+          console.log('Using batch location for trainees:', batchLocationId);
         } else {
           console.log('Trainer not found for ID:', trainerId);
         }
       } else {
-        console.log('No trainer assigned to batch, using batch location:', batch.locationId);
+        console.log('No trainer assigned to batch, using batch location:', batchLocationId);
       }
 
       // Check remaining capacity 
