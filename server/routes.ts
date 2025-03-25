@@ -3102,7 +3102,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Helper function to get enrolled count for a batch
   const getEnrolledCount = async (batchId: number) => {
-    // Get all users assigned to this batch with category 'trainee'
+    // Get all users assigned to this batch, without filtering by category
     const batchTrainees = await db
       .select({
         userId: userBatchProcesses.userId,
@@ -3114,7 +3114,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       .where(
         and(
           eq(userBatchProcesses.batchId, batchId),
-          eq(users.category, 'trainee'),
           eq(userBatchProcesses.status, 'active')  // Only count active trainees
         )
       );
@@ -3247,7 +3246,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(
           and(
             eq(userBatchProcesses.batchId, batchId),
-            eq(users.category, 'trainee'),  // Filter by category='trainee'
             eq(userBatchProcesses.status, 'active')  // Only get active trainees
           )
         );
