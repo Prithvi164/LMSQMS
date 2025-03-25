@@ -139,9 +139,9 @@ export function LocationDetail() {
       }
 
       try {
+        // The server expects 'type' and 'value', not 'operation'
         const requestBody = {
           type: 'locations',
-          operation: 'create',
           value: {
             name: data.name,
             address: data.address,
@@ -151,6 +151,8 @@ export function LocationDetail() {
             organizationId: organization?.id
           }
         };
+
+        console.log('Sending location creation request:', JSON.stringify(requestBody, null, 2));
 
         const response = await fetch(`/api/organizations/${organization?.id}/settings`, {
           method: 'PATCH',
@@ -162,13 +164,16 @@ export function LocationDetail() {
 
         if (!response.ok) {
           const errorData = await response.json();
+          console.error('Location creation error response:', errorData);
           if (errorData.message?.includes('unique constraint')) {
             throw new Error('A location with this name already exists');
           }
           throw new Error(errorData.message || 'Failed to create location');
         }
 
-        return response.json();
+        const result = await response.json();
+        console.log('Location creation success response:', result);
+        return result;
       } catch (error) {
         console.error('Location creation error:', error);
         throw error;
