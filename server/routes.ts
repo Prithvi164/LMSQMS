@@ -3114,11 +3114,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       .where(
         and(
           eq(userBatchProcesses.batchId, batchId),
-          eq(users.category, 'trainee'),
           eq(userBatchProcesses.status, 'active')  // Only count active trainees
         )
       );
 
+    console.log(`Batch ${batchId} has ${batchTrainees.length} trainees:`, 
+      batchTrainees.map(t => ({userId: t.userId, category: t.category, status: t.status})));
+    
     // Return the count of enrolled trainees
     return batchTrainees.length;
   };
