@@ -101,11 +101,17 @@ export function LocationDetail() {
     queryKey: [`/api/organizations/${organization?.id}/settings`],
     queryFn: async () => {
       if (!organization?.id) return null;
+      console.log("Fetching settings for organization:", organization.id);
       const res = await fetch(
         `/api/organizations/${organization.id}/settings`
       );
-      if (!res.ok) throw new Error("Failed to fetch organization settings");
-      return res.json();
+      if (!res.ok) {
+        console.error("Failed to fetch organization settings:", res.status, res.statusText);
+        throw new Error("Failed to fetch organization settings");
+      }
+      const data = await res.json();
+      console.log("Organization settings API response:", data);
+      return data;
     },
     enabled: !!organization?.id,
   });
@@ -340,6 +346,8 @@ export function LocationDetail() {
   };
 
   const locations = orgSettings?.locations || [];
+  console.log("Raw locations array from API:", locations);
+  console.log("Organization settings data:", orgSettings);
 
   // Filter locations based on search term
   const filteredLocations = locations?.filter((location: any) =>
