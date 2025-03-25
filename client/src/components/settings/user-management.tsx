@@ -266,8 +266,21 @@ export function UserManagement() {
   // Find location name for a user
   const getLocationName = (locationId: number | null) => {
     if (!locationId) return "No Location";
-    const location = orgSettings?.locations?.find((l: OrganizationLocation) => l.id === locationId);
-    return location ? location.name : "Unknown Location";
+    
+    // First try from the dedicated locations array (from separate query)
+    if (locations && locations.length > 0) {
+      const location = locations.find(l => l.id === locationId);
+      if (location) return location.name;
+    }
+    
+    // Fallback to orgSettings locations
+    if (orgSettings?.locations && Array.isArray(orgSettings.locations)) {
+      const location = orgSettings.locations.find((l: OrganizationLocation) => l.id === locationId);
+      if (location) return location.name;
+    }
+    
+    // If neither source has the location, show a placeholder
+    return isLoadingOrgSettings ? "Loading..." : "Unknown Location";
   };
 
   // Get hierarchy level
@@ -424,8 +437,15 @@ export function UserManagement() {
     }
   };
 
-  const { data: orgSettings } = useQuery({
+  // Query for organization settings - includes locations
+  const { data: orgSettings, isLoading: isLoadingOrgSettings } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/settings`],
+    enabled: !!user?.organizationId,
+  });
+  
+  // Add a separate dedicated query for locations to ensure they load properly
+  const { data: locations = [] } = useQuery<OrganizationLocation[]>({
+    queryKey: [`/api/organizations/${user?.organizationId}/locations`],
     enabled: !!user?.organizationId,
   });
 
@@ -678,7 +698,7 @@ export function UserManagement() {
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="none">No Location</SelectItem>
-                            {orgSettings?.locations?.map((location: OrganizationLocation) => (
+                            {locations?.map((location) => (
                               <SelectItem key={location.id} value={location.id.toString()}>
                                 {location.name}
                               </SelectItem>
