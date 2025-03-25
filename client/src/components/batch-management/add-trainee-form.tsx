@@ -67,6 +67,10 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
 
+  // Get current trainee count from batch's enrolledCount
+  const traineeCount = batch.enrolledCount || 0;
+  const remainingCapacity = (batch.capacityLimit || 0) - traineeCount;
+
   const { data: batchDetails } = useQuery({
     queryKey: [`/api/organizations/${batch.organizationId}/batches/${batch.id}`],
     enabled: !!batch.id,
@@ -191,7 +195,9 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
                 </ul>
               </details>
             )}
-
+            {data.remainingCapacity !== undefined && (
+              <p className="text-sm">Remaining batch capacity: {data.remainingCapacity}</p>
+            )}
           </div>
         ),
         duration: data.failureCount > 0 ? 10000 : 5000, // Show longer for errors
@@ -224,6 +230,7 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
         <Button
           variant="outline"
           onClick={() => setShowBulkUpload(true)}
+          disabled={remainingCapacity <= 0}
         >
           <Upload className="h-4 w-4 mr-2" />
           Bulk Upload
