@@ -2000,7 +2000,7 @@ export class DatabaseStorage implements IStorage {
       const userId = traineeId;
       console.log(`Found ${records.length} batch processes for user ID ${userId}`);
 
-      // Use a transaction to ensure all deletions succeed or none do
+      // Use a transaction to ensure all operations succeed or none do
       await db.transaction(async (tx) => {
         // 1. Delete from user_batch_processes for this user
         await tx
@@ -2016,6 +2016,16 @@ export class DatabaseStorage implements IStorage {
           .execute();
         console.log(`Deleted user_processes records for user ${userId}`);
 
+        // 3. Update user to be inactive instead of deleting
+        await tx
+          .update(users)
+          .set({ 
+            active: false,
+            updatedAt: new Date()
+          })
+          .where(eq(users.id, userId))
+          .execute();
+        console.log(`Deactivated user ${userId}`);
       });
 
       console.log(`Successfully removed trainee and related records`);
