@@ -31,26 +31,16 @@ import { format, isValid, parseISO } from "date-fns";
 
 // Updated type to match actual API response structure
 type Trainee = {
-  id: number; // This is user_batch_process.id (batch process ID)
-  userId: number; // This is the user's ID
+  id: number;
+  fullName: string;
+  email: string;
+  employeeId: string | null;
+  phoneNumber: string | null;
+  dateOfJoining: string | null;
+  userId: number;
+  status: string;
   batchId: number;
   processId: number;
-  status: string;
-  joinedAt: string;
-  completedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-  user: {
-    id: number;
-    username: string;
-    fullName: string;
-    email: string;
-    employeeId: string;
-    category: string;
-    role: string;
-    phoneNumber?: string;
-    dateOfJoining?: string;
-  };
 };
 
 interface TraineeManagementProps {
