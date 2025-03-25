@@ -4244,7 +4244,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Removing trainee:', traineeId, 'from batch:', batchId);
 
       // Simply remove trainee from batch without modifying user status
-      await storage.removeTraineeFromBatch(traineeId, batchId);
+      await storage.removeTraineeFromBatch(traineeId);
 
       console.log('Successfully removed trainee from batch');
       res.json({ message: "Trainee removed from batch successfully" });
@@ -4619,7 +4619,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Removing trainee:', traineeId, 'from batch:', batchId);
 
       // Simply remove trainee from batch without modifying user status
-      await storage.removeTraineeFromBatch(traineeId, batchId);
+      await storage.removeTraineeFromBatch(traineeId);
 
       console.log('Successfully removed trainee from batch');
       res.json({ message: "Trainee removed from batch successfully" });
@@ -4994,7 +4994,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Removing trainee:', traineeId, 'from batch:', batchId);
 
       // Simply remove trainee from batch without modifying user status
-      await storage.removeTraineeFromBatch(traineeId, batchId);
+      await storage.removeTraineeFromBatch(traineeId);
 
       console.log('Successfully removed trainee from batch');
       res.json({ message: "Trainee removed from batch successfully" });
