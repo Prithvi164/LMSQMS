@@ -4681,7 +4681,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             processId: batch.processId,
             lineOfBusinessId: batch.lineOfBusinessId,
             locationId: batch.locationId,
-            trainerId: batch.trainerId,
+            managerId: batch.trainerId,
             organizationId: orgId,
             batchId: batchId
           };
@@ -5056,7 +5056,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             processId: batch.processId,
             lineOfBusinessId: batch.lineOfBusinessId,
             locationId: batch.locationId,
-            trainerId: batch.trainerId,
+            managerId: batch.trainerId,
             organizationId: orgId,
             batchId: batchId
           };
