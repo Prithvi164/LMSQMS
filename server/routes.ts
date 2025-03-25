@@ -3200,6 +3200,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }))
       );
 
+      // For debugging purposes, log the exact structure being sent to the client
+      console.log("API Response Structure:", JSON.stringify(enrichedBatches[0], null, 2));
+
       res.json(enrichedBatches);
     } catch (error: any) {
       console.error("Error fetching batches:", error);

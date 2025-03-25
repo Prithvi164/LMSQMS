@@ -115,7 +115,12 @@ export function BatchesTab() {
     error
   } = useQuery<BatchWithRelations[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches`],
-    enabled: !!user?.organizationId
+    enabled: !!user?.organizationId,
+    // Custom transform to ensure enrolledCount is a number instead of undefined
+    select: (data) => data.map(batch => ({
+      ...batch,
+      enrolledCount: typeof batch.enrolledCount === 'number' ? batch.enrolledCount : 0
+    }))
   });
 
   const locations = Array.from(new Set(batches.map(batch => batch.location?.name).filter(Boolean) as string[]));
