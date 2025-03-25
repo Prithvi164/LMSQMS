@@ -117,12 +117,12 @@ export function BatchesTab() {
     queryKey: [`/api/organizations/${user?.organizationId}/batches`],
     enabled: !!user?.organizationId,
     onSuccess: (data) => {
-      console.log('DEBUG: Received batches data:', data.map(b => ({
-        id: b.id,
-        name: b.name,
-        enrolledCount: b.enrolledCount,
-        capacityLimit: b.capacityLimit
-      })));
+      console.log('DEBUG - API Response:', data);
+      // Detailed log for the first batch
+      if (data && data.length > 0) {
+        console.log('DEBUG - First batch details:', JSON.stringify(data[0]));
+        console.log('DEBUG - Enrolled count type:', typeof data[0].enrolledCount, 'Value:', data[0].enrolledCount);
+      }
     }
   });
 
