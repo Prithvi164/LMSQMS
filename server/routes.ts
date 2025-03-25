@@ -3805,9 +3805,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Batch not found" });
       }
 
-      // Get trainee count
+      // Get trainee count and enrolled count
       const trainees = await storage.getBatchTrainees(batchId);
       const traineeCount = trainees.length;
+      
+      // Get properly filtered enrolled count of active trainees
+      const enrolledCount = await storage.getEnrolledCount(batchId);
+      console.log(`DEBUG: Batch ${batchId} has enrolledCount=${enrolledCount} vs raw traineeCount=${traineeCount}`);
 
       // Get related data
       const [process, location, lineOfBusiness, trainer] = await Promise.all([
@@ -3821,6 +3825,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const batchDetails = {
         ...batch,
         traineeCount,
+        enrolledCount, // Include the properly filtered enrolled count
         process,
         location,
         lineOfBusiness,
