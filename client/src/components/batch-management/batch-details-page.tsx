@@ -348,10 +348,6 @@ export function BatchDetailsPage() {
     );
   }
 
-  // Use trainees length directly since we get the filtered list from the API
-  const enrolledCount = trainees.length;
-  const remainingCapacity = batch.capacityLimit - enrolledCount;
-
   const canAccessPhaseRequests = user?.role === 'trainer' || user?.role === 'manager';
 
   return (
@@ -373,20 +369,11 @@ export function BatchDetailsPage() {
           <div className="space-y-4">
             <h3 className="font-medium">Batch Capacity</h3>
             <div className="grid gap-2">
-              <div className="flex justify-between">
-                <span>Total Capacity</span>
+              <div className="flex justify-between font-medium">
+                <span>Max Capacity</span>
                 <span>{batch.capacityLimit}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Enrolled Trainees</span>
-                <span>{enrolledCount}</span>
-              </div>
-              <div className="flex justify-between font-medium">
-                <span>Remaining Slots</span>
-                <span>{remainingCapacity}</span>
-              </div>
             </div>
-            <Progress value={(enrolledCount / batch.capacityLimit) * 100} />
           </div>
         </CardContent>
       </Card>
