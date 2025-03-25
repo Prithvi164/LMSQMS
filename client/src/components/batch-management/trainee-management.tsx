@@ -29,18 +29,29 @@ import { useToast } from "@/hooks/use-toast";
 import { Edit, Trash2, ArrowRightLeft, Loader2 } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 
-// Updated type to match actual API response structure
-type Trainee = {
+// Updated type to match the actual API response structure
+type User = {
   id: number;
+  username: string;
   fullName: string;
   email: string;
   employeeId: string | null;
   phoneNumber: string | null;
-  dateOfJoining: string | null;
+  category: string;
+  role: string;
+};
+
+type Trainee = {
+  id: number;  // This is the userBatchProcessId
   userId: number;
-  status: string;
   batchId: number;
   processId: number;
+  status: string;
+  joinedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  user: User;
 };
 
 interface TraineeManagementProps {
@@ -221,11 +232,11 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
           <TableBody>
             {Array.isArray(trainees) && trainees.map((trainee: Trainee) => (
               <TableRow key={trainee.id}>
-                <TableCell>{trainee.fullName || 'N/A'}</TableCell>
-                <TableCell>{trainee.employeeId || 'N/A'}</TableCell>
-                <TableCell>{trainee.email || 'N/A'}</TableCell>
-                <TableCell>{trainee.phoneNumber || 'N/A'}</TableCell>
-                <TableCell>{trainee.dateOfJoining ? formatDate(trainee.dateOfJoining) : 'N/A'}</TableCell>
+                <TableCell>{trainee.user?.fullName || 'N/A'}</TableCell>
+                <TableCell>{trainee.user?.employeeId || 'N/A'}</TableCell>
+                <TableCell>{trainee.user?.email || 'N/A'}</TableCell>
+                <TableCell>{trainee.user?.phoneNumber || 'N/A'}</TableCell>
+                <TableCell>{trainee.joinedAt ? formatDate(trainee.joinedAt) : 'N/A'}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Button
@@ -283,7 +294,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
             <AlertDialogAction
               onClick={() => {
                 if (selectedTrainee) {
-                  // Pass the user_batch_process.id directly
+                  // Pass the userBatchProcessId (trainee.id) directly
                   deleteTraineeMutation.mutate(selectedTrainee.id);
                 }
               }}
@@ -302,7 +313,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Select a batch to transfer {selectedTrainee?.fullName || 'this trainee'} to:
+              Select a batch to transfer {selectedTrainee?.user?.fullName || 'this trainee'} to:
             </p>
             <div className="space-y-2">
               {allBatches
