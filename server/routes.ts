@@ -3102,11 +3102,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Helper function to get enrolled count for a batch
   const getEnrolledCount = async (batchId: number) => {
-    // Simply count all active users in the batch from user_batch_processes
+    // Only count users with ACTIVE status in the batch from user_batch_processes
     const result = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(userBatchProcesses)
-      .where(eq(userBatchProcesses.batchId, batchId))
+      .where(
+        and(
+          eq(userBatchProcesses.batchId, batchId),
+          eq(userBatchProcesses.status, 'active')
+        )
+      )
       .then(rows => rows[0].count);
     
     console.log(`DEBUG - Raw enrolled count for batch ${batchId}:`, result);
@@ -3170,6 +3175,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           storage.getLineOfBusiness(batch.lineOfBusinessId),
           getEnrolledCount(batch.id)
         ]);
+
+        // Add detailed debugging for batch ID 52 (SatBatch_weekoff)
+        if (batch.id === 52) {
+          console.log(`IMPORTANT DEBUG - Batch 52 (${batch.name}) detailed info:`, {
+            raw_enrolledCount: enrolledCount,
+            batch_id: batch.id,
+            batch_name: batch.name,
+            capacityLimit: batch.capacityLimit
+          });
+        }
 
         return {
           ...batch,
