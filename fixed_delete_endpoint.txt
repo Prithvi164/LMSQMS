@@ -1,0 +1,26 @@
+  // Add trainee delete endpoint
+  app.delete("/api/organizations/:orgId/batches/:batchId/trainees/:traineeId", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const batchId = parseInt(req.params.batchId);
+      const userBatchProcessId = parseInt(req.params.traineeId);
+
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only manage trainees in your own organization" });
+      }
+
+      console.log('Removing trainee with batch process ID:', userBatchProcessId);
+
+      // Remove trainee from batch and delete user record
+      await storage.removeTraineeFromBatch(userBatchProcessId);
+
+      console.log('Successfully removed trainee from batch');
+      res.json({ message: "Trainee removed from batch successfully" });
+    } catch (error: any) {
+      console.error("Error removing trainee:", error);
+      res.status(400).json({ message: error.message || "Failed to remove trainee" });
+    }
+  });
