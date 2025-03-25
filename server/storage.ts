@@ -1988,17 +1988,12 @@ export class DatabaseStorage implements IStorage {
       console.log(`Attempting to remove trainee batch process ${userBatchProcessId}`);
 
       // First get the user_batch_process record to get userId
-      const results = await db
+      const [record] = await db
         .select()
         .from(userBatchProcesses)
         .where(eq(userBatchProcesses.id, userBatchProcessId));
-      
-      console.log(`Query results for userBatchProcessId ${userBatchProcessId}:`, results);
 
-      // Check if the record exists
-      const [record] = results;
       if (!record) {
-        console.error(`No user_batch_process found with ID ${userBatchProcessId}`);
         throw new Error('Trainee not found in batch');
       }
 
@@ -2020,13 +2015,7 @@ export class DatabaseStorage implements IStorage {
           .where(eq(userProcesses.userId, userId))
           .execute();
         console.log(`Deleted user_processes records for user ${userId}`);
-        
-        // 3. Delete the user record from users table
-        await tx
-          .delete(users)
-          .where(eq(users.id, userId))
-          .execute();
-        console.log(`Deleted user record for user ID ${userId}`);
+
       });
 
       console.log(`Successfully removed trainee and related records`);

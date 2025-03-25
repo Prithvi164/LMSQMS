@@ -4200,7 +4200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const orgId = parseInt(req.params.orgId);
       const batchId = parseInt(req.params.batchId);
-      const userBatchProcessId = parseInt(req.params.traineeId);
+      const traineeId = parseInt(req.params.traineeId);
       const { newBatchId } = req.body;
 
       // Validate the new batch exists and belongs to the organization
@@ -4234,17 +4234,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const orgId = parseInt(req.params.orgId);
       const batchId = parseInt(req.params.batchId);
-      const userBatchProcessId = parseInt(req.params.traineeId);
+      const traineeId = parseInt(req.params.traineeId);
 
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
         return res.status(403).json({ message: "You can only manage trainees in your own organization" });
       }
 
-      console.log('Removing trainee with batch process ID:', userBatchProcessId);
+      console.log('Removing trainee:', traineeId, 'from batch:', batchId);
 
-      // Remove trainee from batch and delete the user record
-      await storage.removeTraineeFromBatch(userBatchProcessId);
+      // Simply remove trainee from batch without modifying user status
+      await storage.removeTraineeFromBatch(traineeId, batchId);
 
       console.log('Successfully removed trainee from batch');
       res.json({ message: "Trainee removed from batch successfully" });
@@ -4575,7 +4575,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const orgId = parseInt(req.params.orgId);
       const batchId = parseInt(req.params.batchId);
-      const userBatchProcessId = parseInt(req.params.traineeId);
+      const traineeId = parseInt(req.params.traineeId);
       const { newBatchId } = req.body;
 
       // Validate the new batch exists and belongs to the organization
@@ -4609,17 +4609,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const orgId = parseInt(req.params.orgId);
       const batchId = parseInt(req.params.batchId);
-      const userBatchProcessId = parseInt(req.params.traineeId);
+      const traineeId = parseInt(req.params.traineeId);
 
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
         return res.status(403).json({ message: "You can only manage trainees in your own organization" });
       }
 
-      console.log('Removing trainee with batch process ID:', userBatchProcessId);
+      console.log('Removing trainee:', traineeId, 'from batch:', batchId);
 
-      // Remove trainee from batch and delete the user record
-      await storage.removeTraineeFromBatch(userBatchProcessId);
+      // Simply remove trainee from batch without modifying user status
+      await storage.removeTraineeFromBatch(traineeId, batchId);
 
       console.log('Successfully removed trainee from batch');
       res.json({ message: "Trainee removed from batch successfully" });
@@ -4950,7 +4950,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const orgId = parseInt(req.params.orgId);
       const batchId = parseInt(req.params.batchId);
-      const userBatchProcessId = parseInt(req.params.traineeId);
+      const traineeId = parseInt(req.params.traineeId);
       const { newBatchId } = req.body;
 
       // Validate the new batch exists and belongs to the organization
@@ -4984,17 +4984,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const orgId = parseInt(req.params.orgId);
       const batchId = parseInt(req.params.batchId);
-      const userBatchProcessId = parseInt(req.params.traineeId);
+      const traineeId = parseInt(req.params.traineeId);
 
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
         return res.status(403).json({ message: "You can only manage trainees in your own organization" });
       }
 
-      console.log('Removing trainee with batch process ID:', userBatchProcessId);
+      console.log('Removing trainee:', traineeId, 'from batch:', batchId);
 
-      // Remove trainee from batch and delete the user record
-      await storage.removeTraineeFromBatch(userBatchProcessId);
+      // Simply remove trainee from batch without modifying user status
+      await storage.removeTraineeFromBatch(traineeId, batchId);
 
       console.log('Successfully removed trainee from batch');
       res.json({ message: "Trainee removed from batch successfully" });
@@ -5227,7 +5227,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     try {
-      const userBatchProcessId = parseInt(req.params.traineeId);
+      const traineeId = parseInt(req.params.traineeId);
       const { status, date } = req.body;
 
       // Validate the status
@@ -5258,7 +5258,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     try {
-      const userBatchProcessId = parseInt(req.params.traineeId);
+      const traineeId = parseInt(req.params.traineeId);
       const date = req.query.date as string;
 
       const attendance = await storage.getAttendanceRecord(traineeId, date);
