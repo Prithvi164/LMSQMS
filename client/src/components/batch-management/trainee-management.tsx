@@ -79,16 +79,12 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
     traineeCount: trainees.length 
   });
 
-  // Delete trainee mutation - using userId for API endpoint
+  // Delete trainee mutation - using user_batch_process.id
   const deleteTraineeMutation = useMutation({
-    mutationFn: async (trainee: Trainee) => {
-      console.log('Deleting trainee:', trainee);
-      // Fix for missing userId, use id if userId is not available
-      const traineeId = trainee.userId || trainee.id;
-      console.log('Using traineeId for deletion:', traineeId);
-      
+    mutationFn: async (userBatchProcessId: number) => {
+      console.log('Deleting trainee batch process:', userBatchProcessId);
       const response = await fetch(
-        `/api/organizations/${organizationId}/batches/${batchId}/trainees/${traineeId}`,
+        `/api/organizations/${organizationId}/batches/${batchId}/trainees/${userBatchProcessId}`,
         { method: "DELETE" }
       );
       if (!response.ok) {
@@ -284,8 +280,8 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
             <AlertDialogAction
               onClick={() => {
                 if (selectedTrainee) {
-                  // Pass the entire trainee object with userId for deletion
-                  deleteTraineeMutation.mutate(selectedTrainee);
+                  // Pass the user_batch_process.id directly
+                  deleteTraineeMutation.mutate(selectedTrainee.id);
                 }
               }}
             >
