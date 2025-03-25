@@ -1983,6 +1983,25 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+  async findUserBatchProcess(userId: number, batchId: number): Promise<{ id: number } | null> {
+    try {
+      console.log(`Finding user batch process for user ${userId} in batch ${batchId}`);
+      
+      const [record] = await db
+        .select({ id: userBatchProcesses.id })
+        .from(userBatchProcesses)
+        .where(and(
+          eq(userBatchProcesses.userId, userId),
+          eq(userBatchProcesses.batchId, batchId)
+        ));
+      
+      return record || null;
+    } catch (error) {
+      console.error('Error finding user batch process:', error);
+      return null;
+    }
+  }
+
   async removeTraineeFromBatch(userBatchProcessId: number): Promise<void> {
     try {
       console.log(`Attempting to remove trainee batch process ${userBatchProcessId}`);
