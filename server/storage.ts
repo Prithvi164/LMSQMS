@@ -2807,16 +2807,24 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Update the method to count enrolled users consistently
+  // Update the method to count only active trainees in the batch
   async getEnrolledCount(batchId: number): Promise<number> {
     try {
+      // Get all users assigned to this batch with category 'trainee' and status 'active'
       const result = await db
         .select({ count: sql<number>`count(*)::int` })
         .from(userBatchProcesses)
-        .where(eq(userBatchProcesses.batchId, batchId))
+        .innerJoin(users, eq(users.id, userBatchProcesses.userId))
+        .where(
+          and(
+            eq(userBatchProcesses.batchId, batchId),
+            eq(users.category, 'trainee'),
+            eq(userBatchProcesses.status, 'active')  // Only count active trainees
+          )
+        )
         .then(rows => rows[0].count);
 
-      console.log(`Enrolled count for batch ${batchId}:`, result);
+      console.log(`Active trainee count for batch ${batchId}:`, result);
       return result;
     } catch (error) {
       console.error('Error getting enrolled count:', error);
