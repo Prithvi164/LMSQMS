@@ -115,7 +115,15 @@ export function BatchesTab() {
     error
   } = useQuery<BatchWithRelations[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches`],
-    enabled: !!user?.organizationId
+    enabled: !!user?.organizationId,
+    onSuccess: (data) => {
+      console.log('DEBUG: Received batches data:', data.map(b => ({
+        id: b.id,
+        name: b.name,
+        enrolledCount: b.enrolledCount,
+        capacityLimit: b.capacityLimit
+      })));
+    }
   });
 
   const locations = Array.from(new Set(batches.map(batch => batch.location?.name).filter(Boolean) as string[]));
