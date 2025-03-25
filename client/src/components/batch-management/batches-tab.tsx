@@ -58,6 +58,7 @@ interface BatchWithRelations extends Omit<OrganizationBatch, 'processId' | 'loca
   locationId: number | null;
   lineOfBusinessId: number | null;
   trainerId: number | null;
+  userCount: number;
   location?: {
     id: number;
     name: string;
@@ -337,7 +338,7 @@ export function BatchesTab() {
                           { label: 'Process', value: batch.process?.name },
                           { label: 'Location', value: batch.location?.name },
                           { label: 'Trainer', value: batch.trainer?.fullName },
-                          { label: 'Capacity', value: batch.capacityLimit },
+                          { label: 'Capacity', value: `${batch.userCount} / ${batch.capacityLimit}` },
                           {
                             label: 'Timeline',
                             value: `${format(new Date(batch.startDate), 'MMM d, yyyy')} - ${format(new Date(batch.endDate), 'MMM d, yyyy')}`
@@ -589,7 +590,7 @@ export function BatchesTab() {
               <TableCell className="text-center">{batch.process?.name || '-'}</TableCell>
               <TableCell className="text-center">
                 <div className="font-medium">
-                  {batch.capacityLimit || '-'}
+                  {`${batch.userCount} / ${batch.capacityLimit}` || '-'}
                 </div>
               </TableCell>
               <TableCell className="text-center">

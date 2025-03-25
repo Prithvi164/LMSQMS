@@ -370,8 +370,8 @@ export function BatchDetailsPage() {
             <h3 className="font-medium">Batch Capacity</h3>
             <div className="grid gap-2">
               <div className="flex justify-between font-medium">
-                <span>Max Capacity</span>
-                <span>{batch.capacityLimit}</span>
+                <span>Capacity</span>
+                <span>{batch.userCount} / {batch.capacityLimit}</span>
               </div>
             </div>
           </div>
