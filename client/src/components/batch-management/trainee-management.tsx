@@ -29,18 +29,28 @@ import { useToast } from "@/hooks/use-toast";
 import { Edit, Trash2, ArrowRightLeft, Loader2 } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 
-// Updated type to match actual API response
+// Updated type to match actual API response structure
 type Trainee = {
-  id: number; // This is the user_batch_process.id (batch process ID)
+  id: number; // This is user_batch_process.id (batch process ID)
   userId: number; // This is the user's ID
   batchId: number;
   processId: number;
   status: string;
-  employeeId: string;
-  fullName: string;
-  email: string;
-  phoneNumber: string;
-  dateOfJoining: string;
+  joinedAt: string;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  user: {
+    id: number;
+    username: string;
+    fullName: string;
+    email: string;
+    employeeId: string;
+    category: string;
+    role: string;
+    phoneNumber?: string;
+    dateOfJoining?: string;
+  };
 };
 
 interface TraineeManagementProps {
@@ -221,11 +231,11 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
           <TableBody>
             {Array.isArray(trainees) && trainees.map((trainee: Trainee) => (
               <TableRow key={trainee.id}>
-                <TableCell>{trainee.fullName}</TableCell>
-                <TableCell>{trainee.employeeId}</TableCell>
-                <TableCell>{trainee.email}</TableCell>
-                <TableCell>{trainee.phoneNumber}</TableCell>
-                <TableCell>{formatDate(trainee.dateOfJoining)}</TableCell>
+                <TableCell>{trainee.user.fullName}</TableCell>
+                <TableCell>{trainee.user.employeeId}</TableCell>
+                <TableCell>{trainee.user.email}</TableCell>
+                <TableCell>{trainee.user.phoneNumber || 'N/A'}</TableCell>
+                <TableCell>{formatDate(trainee.user.dateOfJoining)}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Button
@@ -302,7 +312,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Select a batch to transfer {selectedTrainee?.fullName} to:
+              Select a batch to transfer {selectedTrainee?.user?.fullName} to:
             </p>
             <div className="space-y-2">
               {allBatches
