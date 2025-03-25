@@ -158,7 +158,7 @@ export interface IStorage {
   // Batch operations
   createBatch(batch: InsertOrganizationBatch): Promise<OrganizationBatch>;
   getBatch(id: number): Promise<OrganizationBatch | undefined>;
-  listBatches(organizationId: number): Promise<OrganizationBatch[]>;
+  listBatches(organizationId: number): Promise<(OrganizationBatch & { userCount: number })[]>;
   updateBatch(id: number, batch: Partial<InsertOrganizationBatch>): Promise<OrganizationBatch>;
   deleteBatch(id: number): Promise<void>;
   getLineOfBusinessesByLocation(organizationId: number, locationId: number): Promise<OrganizationLineOfBusiness[]>;
@@ -1493,7 +1493,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async listBatches(organizationId: number): Promise<OrganizationBatch[]> {
+  async listBatches(organizationId: number): Promise<(OrganizationBatch & { userCount: number })[]> {
     try {
       console.log(`Fetching batches for organization ${organizationId}`);
 
@@ -1546,9 +1546,26 @@ export class DatabaseStorage implements IStorage {
         )
         .where(eq(organizationBatches.organizationId, organizationId))
         .orderBy(desc(organizationBatches.createdAt));
+      
+      // Get user counts for each batch
+      const batchesWithUserCounts = await Promise.all(
+        batches.map(async (batch) => {
+          // Count users in this batch from user_batch_processes table
+          const userCountResult = await db
+            .select({ count: sql<number>`count(*)` })
+            .from(userBatchProcesses)
+            .where(eq(userBatchProcesses.batchId, batch.id));
+          
+          const userCount = userCountResult[0]?.count || 0;
+          
+          return {
+            ...batch,
+            userCount
+          };
+        })
+      );
 
-
-      return batches as OrganizationBatch[];
+      return batchesWithUserCounts as (OrganizationBatch & { userCount: number })[];
     } catch (error) {
       console.error('Error fetching batches:', error);
       throw error;
