@@ -83,8 +83,12 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
   const deleteTraineeMutation = useMutation({
     mutationFn: async (trainee: Trainee) => {
       console.log('Deleting trainee:', trainee);
+      // Fix for missing userId, use id if userId is not available
+      const traineeId = trainee.userId || trainee.id;
+      console.log('Using traineeId for deletion:', traineeId);
+      
       const response = await fetch(
-        `/api/organizations/${organizationId}/batches/${batchId}/trainees/${trainee.userId}`,
+        `/api/organizations/${organizationId}/batches/${batchId}/trainees/${traineeId}`,
         { method: "DELETE" }
       );
       if (!response.ok) {
