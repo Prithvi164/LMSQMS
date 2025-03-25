@@ -16,7 +16,6 @@ import {
   userBatchProcesses,
   organizationSettings,
   organizationHolidays,
-  traineeDeactivationRequests,
   type QuizResponse,
   type InsertQuizResponse,
   type User,
@@ -38,8 +37,6 @@ import {
   type InsertOrganizationLocation,
   type BatchPhaseChangeRequest,
   type InsertBatchPhaseChangeRequest,
-  type TraineeDeactivationRequest,
-  type InsertTraineeDeactivationRequest,
   type BatchTemplate,
   type InsertBatchTemplate,
   batchHistory,
@@ -196,13 +193,6 @@ export interface IStorage {
   updateUserBatchProcess(userId: number, oldBatchId: number, newBatchId: number): Promise<void>;
   removeUserFromBatch(userId: number, batchId: number): Promise<void>;
   removeTraineeFromBatch(userBatchProcessId: number): Promise<void>;
-  
-  // Trainee Deactivation operations
-  createTraineeDeactivationRequest(request: InsertTraineeDeactivationRequest): Promise<TraineeDeactivationRequest>;
-  getTraineeDeactivationRequest(id: number): Promise<TraineeDeactivationRequest | undefined>;
-  listTraineeDeactivationRequests(organizationId: number, status?: string): Promise<TraineeDeactivationRequest[]>;
-  updateTraineeDeactivationRequest(id: number, status: string, managerComments?: string): Promise<TraineeDeactivationRequest>;
-  approveTraineeDeactivation(requestId: number, managerComments?: string): Promise<TraineeDeactivationRequest>;
 
   // Phase change request operations
   createPhaseChangeRequest(request: InsertBatchPhaseChangeRequest): Promise<BatchPhaseChangeRequest>;
@@ -3183,132 +3173,6 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Trainee Deactivation Request operations
-  async createTraineeDeactivationRequest(request: InsertTraineeDeactivationRequest): Promise<TraineeDeactivationRequest> {
-    try {
-      const [newRequest] = await db
-        .insert(traineeDeactivationRequests)
-        .values({
-          ...request,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-        .returning() as TraineeDeactivationRequest[];
-      return newRequest;
-    } catch (error) {
-      console.error('Error creating trainee deactivation request:', error);
-      throw error;
-    }
-  }
-
-  async getTraineeDeactivationRequest(id: number): Promise<TraineeDeactivationRequest | undefined> {
-    try {
-      const [request] = await db
-        .select()
-        .from(traineeDeactivationRequests)
-        .where(eq(traineeDeactivationRequests.id, id)) as TraineeDeactivationRequest[];
-      return request;
-    } catch (error) {
-      console.error('Error fetching trainee deactivation request:', error);
-      throw error;
-    }
-  }
-
-  async listTraineeDeactivationRequests(organizationId: number, status?: string): Promise<TraineeDeactivationRequest[]> {
-    try {
-      let query = db
-        .select()
-        .from(traineeDeactivationRequests)
-        .where(eq(traineeDeactivationRequests.organizationId, organizationId));
-
-      if (status) {
-        query = query.where(eq(traineeDeactivationRequests.status, status));
-      }
-
-      return await query as TraineeDeactivationRequest[];
-    } catch (error) {
-      console.error('Error listing trainee deactivation requests:', error);
-      throw error;
-    }
-  }
-
-  async updateTraineeDeactivationRequest(id: number, status: string, managerComments?: string): Promise<TraineeDeactivationRequest> {
-    try {
-      const [updatedRequest] = await db
-        .update(traineeDeactivationRequests)
-        .set({
-          status,
-          managerComments,
-          updatedAt: new Date()
-        })
-        .where(eq(traineeDeactivationRequests.id, id))
-        .returning() as TraineeDeactivationRequest[];
-
-      if (!updatedRequest) {
-        throw new Error('Trainee deactivation request not found');
-      }
-
-      return updatedRequest;
-    } catch (error) {
-      console.error('Error updating trainee deactivation request:', error);
-      throw error;
-    }
-  }
-
-  async approveTraineeDeactivation(requestId: number, managerComments?: string): Promise<TraineeDeactivationRequest> {
-    try {
-      return await db.transaction(async (tx) => {
-        // First, get the request details
-        const [request] = await tx
-          .select()
-          .from(traineeDeactivationRequests)
-          .where(eq(traineeDeactivationRequests.id, requestId)) as TraineeDeactivationRequest[];
-
-        if (!request) {
-          throw new Error('Trainee deactivation request not found');
-        }
-
-        // Update the request status to approved
-        const [updatedRequest] = await tx
-          .update(traineeDeactivationRequests)
-          .set({
-            status: 'approved',
-            managerComments,
-            updatedAt: new Date()
-          })
-          .where(eq(traineeDeactivationRequests.id, requestId))
-          .returning() as TraineeDeactivationRequest[];
-
-        // Update the user batch status to inactive
-        await tx
-          .update(userBatchProcesses)
-          .set({
-            status: 'inactive',
-            updatedAt: new Date()
-          })
-          .where(and(
-            eq(userBatchProcesses.userId, request.userId),
-            eq(userBatchProcesses.batchId, request.batchId)
-          ));
-
-        // Create a batch history event for the deactivation
-        await tx
-          .insert(batchHistory)
-          .values({
-            batchId: request.batchId,
-            userId: request.managerId,
-            eventType: 'trainee_deactivated',
-            description: `Trainee (ID: ${request.userId}) was deactivated from the batch. Reason: ${request.reason}`,
-            createdAt: new Date()
-          });
-
-        return updatedRequest;
-      });
-    } catch (error) {
-      console.error('Error approving trainee deactivation:', error);
-      throw error;
-    }
-  }
 }
 
 export const storage = new DatabaseStorage();

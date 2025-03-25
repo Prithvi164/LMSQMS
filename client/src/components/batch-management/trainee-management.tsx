@@ -13,8 +13,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -27,12 +25,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Edit, Trash2, ArrowRightLeft, Loader2, UserX } from "lucide-react";
+import { Edit, Trash2, ArrowRightLeft, Loader2 } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
-import { Badge } from "@/components/ui/badge";
 
 // Updated type to match actual API response
 type Trainee = {
@@ -43,20 +38,6 @@ type Trainee = {
   email: string;
   phoneNumber: string;
   dateOfJoining: string;
-  status?: string;
-};
-
-type DeactivationRequest = {
-  id: number;
-  userId: number;
-  batchId: number;
-  requesterId: number;
-  managerId: number;
-  organizationId: number;
-  reason: string;
-  status: 'pending' | 'approved' | 'rejected';
-  requestDate: string;
-  approverComments?: string | null;
 };
 
 interface TraineeManagementProps {
@@ -70,8 +51,6 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedTrainee, setSelectedTrainee] = useState<Trainee | null>(null);
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
-  const [isDeactivateDialogOpen, setIsDeactivateDialogOpen] = useState(false);
-  const [deactivationReason, setDeactivationReason] = useState("");
 
   // Fetch trainees for the current batch
   const { data: trainees = [], isLoading, error } = useQuery({
@@ -82,12 +61,6 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
   // Fetch all other batches for transfer
   const { data: allBatches = [] } = useQuery({
     queryKey: [`/api/organizations/${organizationId}/batches`],
-    enabled: !!organizationId,
-  });
-
-  // Fetch existing deactivation requests
-  const { data: deactivationRequests = [] } = useQuery({
-    queryKey: [`/api/organizations/${organizationId}/trainee-deactivation-requests`],
     enabled: !!organizationId,
   });
 
@@ -200,56 +173,6 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
       });
     },
   });
-  
-  // Deactivation request mutation
-  const deactivateTraineeMutation = useMutation({
-    mutationFn: async ({ userId, reason }: { userId: number; reason: string }) => {
-      const response = await fetch(
-        `/api/organizations/${organizationId}/trainee-deactivation-requests`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId,
-            batchId,
-            reason,
-            organizationId
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to submit deactivation request");
-      }
-
-      return response.json();
-    },
-    onSuccess: () => {
-      // Invalidate deactivation requests
-      queryClient.invalidateQueries({
-        queryKey: [`/api/organizations/${organizationId}/trainee-deactivation-requests`]
-      });
-
-      // Close dialogs and reset state
-      setIsDeactivateDialogOpen(false);
-      setSelectedTrainee(null);
-      setDeactivationReason("");
-
-      toast({
-        title: "Success",
-        description: "Deactivation request submitted successfully",
-      });
-    },
-    onError: (error: Error) => {
-      console.error('Deactivation request error:', error);
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
 
   if (isLoading) {
     return (
@@ -323,16 +246,6 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                       }}
                     >
                       <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedTrainee(trainee);
-                        setIsDeactivateDialogOpen(true);
-                      }}
-                    >
-                      <UserX className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
@@ -417,76 +330,6 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                 ))}
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Deactivation Dialog */}
-      <Dialog open={isDeactivateDialogOpen} onOpenChange={setIsDeactivateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Request Trainee Deactivation</DialogTitle>
-            <DialogDescription>
-              This will submit a request to deactivate {selectedTrainee?.fullName} from the system.
-              Deactivation requires manager approval.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="deactivation-reason">Reason for deactivation</Label>
-              <Textarea
-                id="deactivation-reason"
-                value={deactivationReason}
-                onChange={(e) => setDeactivationReason(e.target.value)}
-                placeholder="Please provide a detailed reason for this deactivation request"
-                className="min-h-[100px]"
-              />
-            </div>
-
-            {/* Check if there's a pending request for this trainee */}
-            {selectedTrainee && deactivationRequests.some((req: DeactivationRequest) => 
-              req.userId === selectedTrainee.userId && req.status === 'pending'
-            ) && (
-              <div className="rounded-md bg-yellow-50 p-4 text-sm text-yellow-700">
-                <p className="font-medium">Note: There is already a pending deactivation request for this trainee.</p>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setIsDeactivateDialogOpen(false);
-                setDeactivationReason("");
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                if (selectedTrainee && deactivationReason.trim()) {
-                  deactivateTraineeMutation.mutate({
-                    userId: selectedTrainee.userId,
-                    reason: deactivationReason
-                  });
-                } else {
-                  toast({
-                    title: "Error",
-                    description: "Please provide a reason for deactivation",
-                    variant: "destructive",
-                  });
-                }
-              }}
-              disabled={deactivateTraineeMutation.isPending || !deactivationReason.trim()}
-            >
-              {deactivateTraineeMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...
-                </>
-              ) : (
-                "Submit Request"
-              )}
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
