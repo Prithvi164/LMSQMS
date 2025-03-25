@@ -772,7 +772,14 @@ export const userBatchStatusEnum = pgEnum('user_batch_status', [
   'active',
   'completed',
   'dropped',
-  'on_hold'
+  'on_hold',
+  'inactive'
+]);
+
+export const deactivationRequestStatusEnum = pgEnum('deactivation_request_status', [
+  'pending',
+  'approved',
+  'rejected'
 ]);
 
 export const userBatchProcesses = pgTable("user_batch_processes", {
@@ -810,7 +817,7 @@ export const insertUserBatchProcessSchema = createInsertSchema(userBatchProcesse
     userId: z.number().int().positive("User ID is required"),
     batchId: z.number().int().positive("Batch ID is required"),
     processId: z.number().int().positive("Process ID is required"),
-    status: z.enum(['active', 'completed', 'dropped', 'on_hold']).default('active'),
+    status: z.enum(['active', 'completed', 'dropped', 'on_hold', 'inactive']).default('active'),
     joinedAt: z.string().min(1, "Joined date is required"),
     completedAt: z.string().optional(),
   });
@@ -1170,7 +1177,84 @@ export const insertBatchPhaseChangeRequestSchema = createInsertSchema(batchPhase
 
 export type InsertBatchPhaseChangeRequest = z.infer<typeof insertBatchPhaseChangeRequestSchema>;
 
-export type {
+// Trainee deactivation requests table
+export const traineeDeactivationRequests = pgTable("trainee_deactivation_requests", {
+  id: serial("id").primaryKey(),
+  userBatchProcessId: integer("user_batch_process_id")
+    .references(() => userBatchProcesses.id)
+    .notNull(),
+  userId: integer("user_id")
+    .references(() => users.id)
+    .notNull(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id)
+    .notNull(),
+  requesterId: integer("requester_id")
+    .references(() => users.id)
+    .notNull(),
+  approverId: integer("approver_id")
+    .references(() => users.id)
+    .notNull(),
+  reason: text("reason").notNull(),
+  status: deactivationRequestStatusEnum("status").default('pending').notNull(),
+  approverComments: text("approver_comments"),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type TraineeDeactivationRequest = InferSelectModel<typeof traineeDeactivationRequests>;
+
+export const insertTraineeDeactivationRequestSchema = createInsertSchema(traineeDeactivationRequests)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    userBatchProcessId: z.number().int().positive("User batch process ID is required"),
+    userId: z.number().int().positive("User ID is required"),
+    batchId: z.number().int().positive("Batch ID is required"),
+    requesterId: z.number().int().positive("Requester ID is required"),
+    approverId: z.number().int().positive("Approver ID is required"),
+    reason: z.string().min(1, "Reason is required"),
+    status: z.enum(['pending', 'approved', 'rejected']).default('pending'),
+    approverComments: z.string().optional(),
+    organizationId: z.number().int().positive("Organization ID is required"),
+  });
+
+export type InsertTraineeDeactivationRequest = z.infer<typeof insertTraineeDeactivationRequestSchema>;
+
+export const traineeDeactivationRequestsRelations = relations(traineeDeactivationRequests, ({ one }) => ({
+  userBatchProcess: one(userBatchProcesses, {
+    fields: [traineeDeactivationRequests.userBatchProcessId],
+    references: [userBatchProcesses.id],
+  }),
+  user: one(users, {
+    fields: [traineeDeactivationRequests.userId],
+    references: [users.id],
+  }),
+  batch: one(organizationBatches, {
+    fields: [traineeDeactivationRequests.batchId],
+    references: [organizationBatches.id],
+  }),
+  requester: one(users, {
+    fields: [traineeDeactivationRequests.requesterId],
+    references: [users.id],
+  }),
+  approver: one(users, {
+    fields: [traineeDeactivationRequests.approverId],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [traineeDeactivationRequests.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
+export {
   Organization,
   OrganizationProcess,
   OrganizationLocation,
@@ -1218,7 +1302,9 @@ export type {
   InsertEvaluationParameter,
   InsertEvaluationSubReason,
   InsertEvaluationResult,
-  InsertEvaluationParameterResult
+  InsertEvaluationParameterResult,
+  TraineeDeactivationRequest,
+  InsertTraineeDeactivationRequest
 };
 
 // Add new enums for mock calls
