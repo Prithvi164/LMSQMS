@@ -551,7 +551,7 @@ export function BatchesTab() {
             <TableHead className="text-center">Location</TableHead>
             <TableHead className="text-center">Line of Business</TableHead>
             <TableHead className="text-center">Process</TableHead>
-            <TableHead className="text-center">Capacity/Enrolled</TableHead>
+            <TableHead className="text-center">Max Capacity</TableHead>
             <TableHead className="text-center">Status</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -595,21 +595,8 @@ export function BatchesTab() {
               <TableCell className="text-center">{batch.process?.name || '-'}</TableCell>
               <TableCell className="text-center">
                 <div className="font-medium">
-                  {batch.enrolledCount ?? 0} / {batch.capacityLimit || '-'}
+                  {batch.capacityLimit || '-'} (max)
                 </div>
-                {console.log('Batch enrollment debug:', {
-                  id: batch.id,
-                  name: batch.name,
-                  enrolledCount: batch.enrolledCount,
-                  capacityLimit: batch.capacityLimit,
-                  type: typeof batch.enrolledCount
-                })}
-                {batch.capacityLimit && (
-                  <Progress
-                    value={((batch.enrolledCount ?? 0) / (batch.capacityLimit || 1)) * 100}
-                    className="h-2 w-20 mx-auto"
-                  />
-                )}
               </TableCell>
               <TableCell className="text-center">
                 <Badge
