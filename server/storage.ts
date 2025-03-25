@@ -2816,7 +2816,7 @@ export class DatabaseStorage implements IStorage {
         .where(eq(userBatchProcesses.batchId, batchId))
         .then(rows => rows[0].count);
 
-      console.log(`Enrolled count for batch ${batchId}:`, result);
+      console.log(`[ENROLLED COUNT DEBUG] Batch ID ${batchId} has ${result} enrolled trainees`);
       return result;
     } catch (error) {
       console.error('Error getting enrolled count:', error);
