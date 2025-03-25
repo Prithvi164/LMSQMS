@@ -231,11 +231,11 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
           <TableBody>
             {Array.isArray(trainees) && trainees.map((trainee: Trainee) => (
               <TableRow key={trainee.id}>
-                <TableCell>{trainee.user.fullName}</TableCell>
-                <TableCell>{trainee.user.employeeId}</TableCell>
-                <TableCell>{trainee.user.email}</TableCell>
-                <TableCell>{trainee.user.phoneNumber || 'N/A'}</TableCell>
-                <TableCell>{formatDate(trainee.user.dateOfJoining)}</TableCell>
+                <TableCell>{trainee.user?.fullName || 'N/A'}</TableCell>
+                <TableCell>{trainee.user?.employeeId || 'N/A'}</TableCell>
+                <TableCell>{trainee.user?.email || 'N/A'}</TableCell>
+                <TableCell>{trainee.user?.phoneNumber || 'N/A'}</TableCell>
+                <TableCell>{trainee.user?.dateOfJoining ? formatDate(trainee.user.dateOfJoining) : 'N/A'}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Button
