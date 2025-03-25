@@ -3100,30 +3100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Helper function to get enrolled count for a batch
-  const getEnrolledCount = async (batchId: number) => {
-    // Get all users assigned to this batch with category 'trainee'
-    const batchTrainees = await db
-      .select({
-        userId: userBatchProcesses.userId,
-        category: users.category,
-        status: userBatchProcesses.status
-      })
-      .from(userBatchProcesses)
-      .innerJoin(users, eq(users.id, userBatchProcesses.userId))
-      .where(
-        and(
-          eq(userBatchProcesses.batchId, batchId),
-          eq(userBatchProcesses.status, 'active')  // Only count active trainees
-        )
-      );
-
-    console.log(`Batch ${batchId} has ${batchTrainees.length} trainees:`, 
-      batchTrainees.map(t => ({userId: t.userId, category: t.category, status: t.status})));
-    
-    // Return the count of enrolled trainees
-    return batchTrainees.length;
-  };
+  // Enrollment count functionality has been removed
 
   // Batch listing route with enrolled count
   app.get("/api/organizations/:orgId/batches", async (req, res) => {
@@ -3172,30 +3149,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         batches = batches.filter(batch => batch.status === status);
       }
 
-      // For each batch, enrich with location, process, line of business details, and enrolled count
+      // For each batch, enrich with location, process, line of business details
       const enrichedBatches = await Promise.all(batches.map(async (batch) => {
-        const [location, process, line_of_business, enrolledCount] = await Promise.all([
+        const [location, process, line_of_business] = await Promise.all([
           storage.getLocation(batch.locationId),
           storage.getProcess(batch.processId),
-          storage.getLineOfBusiness(batch.lineOfBusinessId),
-          getEnrolledCount(batch.id)
+          storage.getLineOfBusiness(batch.lineOfBusinessId)
         ]);
 
         return {
           ...batch,
           location,
           process,
-          line_of_business,
-          enrolledCount,
-          capacityRemaining: batch.capacityLimit - enrolledCount
+          line_of_business
         };
       }));
 
-      console.log(`Found ${enrichedBatches.length} batches with enrollment counts:`, 
+      console.log(`Found ${enrichedBatches.length} batches:`, 
         enrichedBatches.map(b => ({ 
           id: b.id, 
           name: b.name, 
-          enrolledCount: b.enrolledCount,
           capacityLimit: b.capacityLimit 
         }))
       );

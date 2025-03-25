@@ -646,45 +646,7 @@ export function BatchesTab() {
     </div>
   );
 
-  useEffect(() => {
-    console.log('Debug - API Response:', {
-      batches: batches.map(b => ({
-        id: b.id,
-        name: b.name,
-        batchCategory: b.batchCategory,
-        rawBatchCategory: JSON.stringify(b.batchCategory)
-      }))
-    });
-  }, [batches]);
-
-  useEffect(() => {
-    console.log('Debug - Category filter state:', {
-      selectedCategory,
-      allCategories: batches.map(b => ({
-        name: b.name,
-        category: b.batchCategory,
-        type: typeof b.batchCategory
-      }))
-    });
-  }, [selectedCategory, batches]);
-
-  useEffect(() => {
-    console.log('Debug - Batch Data:', {
-      allBatches: batches,
-      batchCategories: batches.map(b => ({
-        name: b.name,
-        category: b.batchCategory,
-        type: typeof b.batchCategory
-      }))
-    });
-  }, [batches]);
-
-  useEffect(() => {
-    console.log('Debug - Category Selection:', {
-      selectedCategory,
-      type: typeof selectedCategory
-    });
-  }, [selectedCategory]);
+  // All debug logging has been removed
 
   if (isLoading) {
     return (
