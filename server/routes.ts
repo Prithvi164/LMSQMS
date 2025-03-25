@@ -5484,8 +5484,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { batchId } = req.params;
       const { userId, reason } = req.body;
 
-      if (!userId || !reason) {
-        return res.status(400).json({ message: "User ID and reason are required" });
+      if (!userId) {
+        return res.status(400).json({ message: "User ID is required" });
       }
 
       // Get organization ID from user
@@ -5498,7 +5498,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         requesterId: req.user.id,
         managerId: req.user.id, // Initially, the requester is set as the manager
         organizationId,
-        reason,
+        reason: reason || '', // Make reason optional, provide empty string if not provided
         status: 'pending',
         requestDate: new Date()
       });
