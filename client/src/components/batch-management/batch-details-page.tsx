@@ -348,17 +348,9 @@ export function BatchDetailsPage() {
     );
   }
 
-  // Use API-provided enrolledCount if available, otherwise fall back to trainees length
-  const enrolledCount = batch.enrolledCount !== undefined ? batch.enrolledCount : trainees.length;
+  // Use trainees length directly since we get the filtered list from the API
+  const enrolledCount = trainees.length;
   const remainingCapacity = batch.capacityLimit - enrolledCount;
-  
-  console.log('DEBUG - Batch Details page:', {
-    batchId,
-    enrolledCount,
-    apiEnrolledCount: batch.enrolledCount,
-    fallbackEnrolledCount: trainees.length,
-    capacityLimit: batch.capacityLimit
-  });
 
   const canAccessPhaseRequests = user?.role === 'trainer' || user?.role === 'manager';
 

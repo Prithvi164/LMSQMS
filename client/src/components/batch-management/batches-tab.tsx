@@ -115,25 +115,7 @@ export function BatchesTab() {
     error
   } = useQuery<BatchWithRelations[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches`],
-    enabled: !!user?.organizationId,
-    onSuccess: (data) => {
-      console.log('DEBUG - API Response:', data);
-      // Detailed log for the first batch
-      if (data && data.length > 0) {
-        console.log('DEBUG - First batch details:', JSON.stringify(data[0]));
-        console.log('DEBUG - Enrolled count type:', typeof data[0].enrolledCount, 'Value:', data[0].enrolledCount);
-        
-        // Log all batches' enrolled counts to see if there's a pattern
-        const enrollmentDetails = data.map(b => ({
-          id: b.id,
-          name: b.name,
-          enrolledCount: b.enrolledCount,
-          capacityLimit: b.capacityLimit,
-          hasEnrolledCount: b.hasOwnProperty('enrolledCount')
-        }));
-        console.log('DEBUG - All batches enrollment details:', enrollmentDetails);
-      }
-    }
+    enabled: !!user?.organizationId
   });
 
   const locations = Array.from(new Set(batches.map(batch => batch.location?.name).filter(Boolean) as string[]));
@@ -608,15 +590,11 @@ export function BatchesTab() {
               <TableCell className="text-center">{batch.process?.name || '-'}</TableCell>
               <TableCell className="text-center">
                 <div className="font-medium">
-                  {batch.enrolledCount !== undefined && batch.enrolledCount !== null 
-                    ? batch.enrolledCount 
-                    : 0} / {batch.capacityLimit || '-'}
+                  {batch.enrolledCount || 0} / {batch.capacityLimit || '-'}
                 </div>
                 {batch.capacityLimit && (
                   <Progress
-                    value={((batch.enrolledCount !== undefined && batch.enrolledCount !== null 
-                    ? batch.enrolledCount 
-                    : 0) / (batch.capacityLimit || 1)) * 100}
+                    value={((batch.enrolledCount || 0) / (batch.capacityLimit || 1)) * 100}
                     className="h-2 w-20 mx-auto"
                   />
                 )}

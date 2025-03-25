@@ -207,14 +207,10 @@ export default function TraineeManagement() {
           <div className="mt-2">
             <div className="flex justify-between items-center mb-1">
               <span className="text-sm font-medium">Capacity</span>
-              <span className="text-sm">{batch.enrolledCount !== undefined && batch.enrolledCount !== null 
-                ? batch.enrolledCount 
-                : 0} / {batch.capacityLimit}</span>
+              <span className="text-sm">{batch.enrolledCount || 0} / {batch.capacityLimit}</span>
             </div>
             <Progress 
-              value={(batch.enrolledCount !== undefined && batch.enrolledCount !== null 
-                ? batch.enrolledCount 
-                : 0) / batch.capacityLimit * 100} 
+              value={(batch.enrolledCount || 0) / batch.capacityLimit * 100} 
               className="h-2 bg-muted/30"
             />
           </div>

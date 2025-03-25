@@ -2807,47 +2807,16 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Update the method to count only active trainees in the batch
+  // Update the method to count enrolled users consistently
   async getEnrolledCount(batchId: number): Promise<number> {
     try {
-      console.log(`DEBUG: Getting enrolled count for batch ${batchId}`);
-      
-      // First check all user batch processes for this batch
-      const allUserBatchProcesses = await db
-        .select()
-        .from(userBatchProcesses)
-        .where(eq(userBatchProcesses.batchId, batchId));
-      
-      console.log(`DEBUG: Total user batch processes for batch ${batchId}:`, allUserBatchProcesses.length);
-      
-      // Check active ones
-      const activeUserBatchProcesses = await db
-        .select()
-        .from(userBatchProcesses)
-        .where(
-          and(
-            eq(userBatchProcesses.batchId, batchId),
-            eq(userBatchProcesses.status, 'active')
-          )
-        );
-      
-      console.log(`DEBUG: Active user batch processes for batch ${batchId}:`, activeUserBatchProcesses.length);
-      
-      // Now get the final filtered count with user category
       const result = await db
         .select({ count: sql<number>`count(*)::int` })
         .from(userBatchProcesses)
-        .innerJoin(users, eq(users.id, userBatchProcesses.userId))
-        .where(
-          and(
-            eq(userBatchProcesses.batchId, batchId),
-            eq(users.category, 'trainee'),
-            eq(userBatchProcesses.status, 'active')  // Only count active trainees
-          )
-        )
+        .where(eq(userBatchProcesses.batchId, batchId))
         .then(rows => rows[0].count);
 
-      console.log(`DEBUG: Final active trainee count for batch ${batchId}:`, result);
+      console.log(`Enrolled count for batch ${batchId}:`, result);
       return result;
     } catch (error) {
       console.error('Error getting enrolled count:', error);
