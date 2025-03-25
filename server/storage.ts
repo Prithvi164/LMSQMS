@@ -1,4 +1,4 @@
-import { eq, inArray, sql, desc, and, or } from "drizzle-orm";
+import { eq, inArray, sql, desc, and, or, count } from "drizzle-orm";
 import { db } from "./db";
 import * as schema from "@shared/schema";
 import { batchStatusEnum } from "@shared/schema";
@@ -1853,6 +1853,7 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching trainees for batch ${batchId}`);
 
+      // Count only from user_batch_process table without joining with users
       const trainees = await db
         .select({
           id: userBatchProcesses.id,
@@ -1863,25 +1864,15 @@ export class DatabaseStorage implements IStorage {
           joinedAt: userBatchProcesses.joinedAt,
           completedAt: userBatchProcesses.completedAt,
           createdAt: userBatchProcesses.createdAt,
-          updatedAt: userBatchProcesses.updatedAt,
-          user: {
-            id: users.id,
-            username: users.username,
-            fullName: users.fullName,
-            email: users.email,
-            employeeId: users.employeeId,
-            category: users.category,
-            role: users.role
-          }
+          updatedAt: userBatchProcesses.updatedAt
         })
         .from(userBatchProcesses)
-        .leftJoin(users, eq(userBatchProcesses.userId, users.id))
-        .where(eq(userBatchProcesses.batchId, batchId)) as UserBatchProcess[]; // Removed category filter to match enrolledCount
+        .where(eq(userBatchProcesses.batchId, batchId)) as UserBatchProcess[];
 
-      console.log(`Found ${trainees.length} trainees in batch ${batchId}:`, trainees);
+      console.log(`[BATCH TRAINEES] Found ${trainees.length} entries for batch ${batchId}`);
       return trainees;
     } catch (error) {
-      console.error('Error fetching batch trainees:', error);
+      console.error("Error fetching batch trainees:", error);
       throw error;
     }
   }
@@ -2770,59 +2761,26 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  async getBatchTrainees(batchId: number): Promise<UserBatchProcess[]> {
-    try {
-      console.log(`Fetching trainees for batch ${batchId}`);
-
-      const trainees = await db
-        .select({
-          id: userBatchProcesses.id,
-          userId: userBatchProcesses.userId,
-          batchId: userBatchProcesses.batchId,
-          processId: userBatchProcesses.processId,
-          status: userBatchProcesses.status,
-          joinedAt: userBatchProcesses.joinedAt,
-          completedAt: userBatchProcesses.completedAt,
-          createdAt: userBatchProcesses.createdAt,
-          updatedAt: userBatchProcesses.updatedAt,
-          user: {
-            id: users.id,
-            username: users.username,
-            fullName: users.fullName,
-            email: users.email,
-            employeeId: users.employeeId,
-            category: users.category,
-            role: users.role
-          }
-        })
-        .from(userBatchProcesses)
-        .leftJoin(users, eq(userBatchProcesses.userId, users.id))
-        .where(eq(userBatchProcesses.batchId, batchId)) as UserBatchProcess[]; // Removed category filter to match enrolledCount
-
-      console.log(`Found ${trainees.length} trainees in batch ${batchId}:`, trainees);
-      return trainees;
-    } catch (error) {
-      console.error('Error fetching batch trainees:', error);
-      throw error;
-    }
-  }
-
-  // Fresh implementation of enrollment counting
+  // Duplicate method removed, see implementation at line 1852
+  /* 
+  Commented out duplicate getBatchTrainees method - using the implementation at line 1852 instead
+  */
+  
   async getEnrolledCount(batchId: number): Promise<number> {
     try {
-      // Count only active trainees in the batch
+      console.log(`Calculating enrollment count for batch ${batchId}`);
+      
+      // Simple direct count query from user_batch_processes
       const result = await db
-        .select({ count: sql<number>`count(*)::int` })
+        .select({ count: count() })
         .from(userBatchProcesses)
-        .innerJoin(users, eq(users.id, userBatchProcesses.userId))
         .where(
           and(
             eq(userBatchProcesses.batchId, batchId),
-            eq(users.category, 'trainee'),
             eq(userBatchProcesses.status, 'active')
           )
         )
-        .then(rows => rows[0].count);
+        .then(rows => Number(rows[0].count));
 
       console.log(`[ENROLLMENT COUNT] Batch ID ${batchId}: ${result} active trainees enrolled`);
       return result;
