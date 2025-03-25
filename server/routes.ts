@@ -1045,6 +1045,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         storage.listLocations(orgId),
       ]);
 
+      console.log(`Fetching locations - Got ${locations.length} locations for org ${orgId}:`, locations);
+
       // Ensure we have arrays
       const response = {
         locations: Array.isArray(locations) ? locations : [],
