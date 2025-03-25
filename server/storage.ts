@@ -1983,31 +1983,31 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  async removeTraineeFromBatch(userBatchProcessId: number): Promise<void> {
+  async removeTraineeFromBatch(traineeId: number): Promise<void> {
     try {
-      console.log(`Attempting to remove trainee batch process ${userBatchProcessId}`);
+      console.log(`Attempting to remove trainee ${traineeId} from batch`);
 
-      // First get the user_batch_process record to get userId
-      const [record] = await db
+      // Find all user batch processes for this user ID
+      const records = await db
         .select()
         .from(userBatchProcesses)
-        .where(eq(userBatchProcesses.id, userBatchProcessId));
+        .where(eq(userBatchProcesses.userId, traineeId));
 
-      if (!record) {
+      if (!records || records.length === 0) {
         throw new Error('Trainee not found in batch');
       }
 
-      const userId = record.userId;
-      console.log(`Found user ID ${userId} for batch process ${userBatchProcessId}`);
+      const userId = traineeId;
+      console.log(`Found ${records.length} batch processes for user ID ${userId}`);
 
       // Use a transaction to ensure all deletions succeed or none do
       await db.transaction(async (tx) => {
-        // 1. Delete from user_batch_processes
+        // 1. Delete from user_batch_processes for this user
         await tx
           .delete(userBatchProcesses)
-          .where(eq(userBatchProcesses.id, userBatchProcessId))
+          .where(eq(userBatchProcesses.userId, userId))
           .execute();
-        console.log(`Deleted user_batch_process record ${userBatchProcessId}`);
+        console.log(`Deleted user_batch_processes records for user ${userId}`);
 
         // 2. Delete from user_processes for this user
         await tx
