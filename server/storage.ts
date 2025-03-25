@@ -1988,12 +1988,17 @@ export class DatabaseStorage implements IStorage {
       console.log(`Attempting to remove trainee batch process ${userBatchProcessId}`);
 
       // First get the user_batch_process record to get userId
-      const [record] = await db
+      const results = await db
         .select()
         .from(userBatchProcesses)
         .where(eq(userBatchProcesses.id, userBatchProcessId));
+      
+      console.log(`Query results for userBatchProcessId ${userBatchProcessId}:`, results);
 
+      // Check if the record exists
+      const [record] = results;
       if (!record) {
+        console.error(`No user_batch_process found with ID ${userBatchProcessId}`);
         throw new Error('Trainee not found in batch');
       }
 
