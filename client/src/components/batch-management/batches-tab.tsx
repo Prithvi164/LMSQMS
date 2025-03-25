@@ -122,6 +122,16 @@ export function BatchesTab() {
       if (data && data.length > 0) {
         console.log('DEBUG - First batch details:', JSON.stringify(data[0]));
         console.log('DEBUG - Enrolled count type:', typeof data[0].enrolledCount, 'Value:', data[0].enrolledCount);
+        
+        // Log all batches' enrolled counts to see if there's a pattern
+        const enrollmentDetails = data.map(b => ({
+          id: b.id,
+          name: b.name,
+          enrolledCount: b.enrolledCount,
+          capacityLimit: b.capacityLimit,
+          hasEnrolledCount: b.hasOwnProperty('enrolledCount')
+        }));
+        console.log('DEBUG - All batches enrollment details:', enrollmentDetails);
       }
     }
   });
