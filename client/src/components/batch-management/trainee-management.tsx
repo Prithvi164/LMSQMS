@@ -221,11 +221,11 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
           <TableBody>
             {Array.isArray(trainees) && trainees.map((trainee: Trainee) => (
               <TableRow key={trainee.id}>
-                <TableCell>{trainee.user?.fullName || 'N/A'}</TableCell>
-                <TableCell>{trainee.user?.employeeId || 'N/A'}</TableCell>
-                <TableCell>{trainee.user?.email || 'N/A'}</TableCell>
-                <TableCell>{trainee.user?.phoneNumber || 'N/A'}</TableCell>
-                <TableCell>{trainee.user?.dateOfJoining ? formatDate(trainee.user.dateOfJoining) : 'N/A'}</TableCell>
+                <TableCell>{trainee.fullName || 'N/A'}</TableCell>
+                <TableCell>{trainee.employeeId || 'N/A'}</TableCell>
+                <TableCell>{trainee.email || 'N/A'}</TableCell>
+                <TableCell>{trainee.phoneNumber || 'N/A'}</TableCell>
+                <TableCell>{trainee.dateOfJoining ? formatDate(trainee.dateOfJoining) : 'N/A'}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <Button
@@ -302,7 +302,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Select a batch to transfer {selectedTrainee?.user?.fullName} to:
+              Select a batch to transfer {selectedTrainee?.fullName || 'this trainee'} to:
             </p>
             <div className="space-y-2">
               {allBatches
