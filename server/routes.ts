@@ -4241,10 +4241,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only manage trainees in your own organization" });
       }
 
-      console.log('Removing trainee:', traineeId, 'from batch:', batchId);
+      console.log('Removing trainee with batch process ID:', userBatchProcessId);
 
-      // Simply remove trainee from batch without modifying user status
-      await storage.removeTraineeFromBatch(traineeId);
+      // Remove trainee from batch and delete the user record
+      await storage.removeTraineeFromBatch(userBatchProcessId);
 
       console.log('Successfully removed trainee from batch');
       res.json({ message: "Trainee removed from batch successfully" });
@@ -4616,10 +4616,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only manage trainees in your own organization" });
       }
 
-      console.log('Removing trainee:', traineeId, 'from batch:', batchId);
+      console.log('Removing trainee with batch process ID:', userBatchProcessId);
 
-      // Simply remove trainee from batch without modifying user status
-      await storage.removeTraineeFromBatch(traineeId);
+      // Remove trainee from batch and delete the user record
+      await storage.removeTraineeFromBatch(userBatchProcessId);
 
       console.log('Successfully removed trainee from batch');
       res.json({ message: "Trainee removed from batch successfully" });
@@ -4991,10 +4991,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only manage trainees in your own organization" });
       }
 
-      console.log('Removing trainee:', traineeId, 'from batch:', batchId);
+      console.log('Removing trainee with batch process ID:', userBatchProcessId);
 
-      // Simply remove trainee from batch without modifying user status
-      await storage.removeTraineeFromBatch(traineeId);
+      // Remove trainee from batch and delete the user record
+      await storage.removeTraineeFromBatch(userBatchProcessId);
 
       console.log('Successfully removed trainee from batch');
       res.json({ message: "Trainee removed from batch successfully" });
