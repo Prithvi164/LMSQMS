@@ -3103,7 +3103,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Helper function to get enrolled count for a batch
   const getEnrolledCount = async (batchId: number) => {
     // Use the storage implementation to get enrolled count
-    return await storage.getEnrolledCount(batchId);
+    const count = await storage.getEnrolledCount(batchId);
+    console.log(`DEBUG: Batch ${batchId} has enrolled count: ${count}`);
+    return count;
   };
 
   // Batch listing route with enrolled count
