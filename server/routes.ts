@@ -3106,13 +3106,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const result = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(userBatchProcesses)
-      .where(
-        and(
-          eq(userBatchProcesses.batchId, batchId),
-          eq(userBatchProcesses.status, 'active')
-        )
-      )
+      .where(eq(userBatchProcesses.batchId, batchId))
       .then(rows => rows[0].count);
+    
+    console.log(`DEBUG - Raw enrolled count for batch ${batchId}:`, result);
       
     console.log(`Simplified enrolled count for batch ${batchId}:`, result);
     return result;
