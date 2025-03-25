@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Edit, Trash2, ArrowRightLeft, Loader2, UserX } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
@@ -328,6 +329,16 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                       size="sm"
                       onClick={() => {
                         setSelectedTrainee(trainee);
+                        setIsDeactivateDialogOpen(true);
+                      }}
+                    >
+                      <UserX className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedTrainee(trainee);
                         setIsDeleteDialogOpen(true);
                       }}
                     >
@@ -406,6 +417,76 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                 ))}
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Deactivation Dialog */}
+      <Dialog open={isDeactivateDialogOpen} onOpenChange={setIsDeactivateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request Trainee Deactivation</DialogTitle>
+            <DialogDescription>
+              This will submit a request to deactivate {selectedTrainee?.fullName} from the system.
+              Deactivation requires manager approval.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="deactivation-reason">Reason for deactivation</Label>
+              <Textarea
+                id="deactivation-reason"
+                value={deactivationReason}
+                onChange={(e) => setDeactivationReason(e.target.value)}
+                placeholder="Please provide a detailed reason for this deactivation request"
+                className="min-h-[100px]"
+              />
+            </div>
+
+            {/* Check if there's a pending request for this trainee */}
+            {selectedTrainee && deactivationRequests.some((req: DeactivationRequest) => 
+              req.userId === selectedTrainee.userId && req.status === 'pending'
+            ) && (
+              <div className="rounded-md bg-yellow-50 p-4 text-sm text-yellow-700">
+                <p className="font-medium">Note: There is already a pending deactivation request for this trainee.</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsDeactivateDialogOpen(false);
+                setDeactivationReason("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (selectedTrainee && deactivationReason.trim()) {
+                  deactivateTraineeMutation.mutate({
+                    userId: selectedTrainee.userId,
+                    reason: deactivationReason
+                  });
+                } else {
+                  toast({
+                    title: "Error",
+                    description: "Please provide a reason for deactivation",
+                    variant: "destructive",
+                  });
+                }
+              }}
+              disabled={deactivateTraineeMutation.isPending || !deactivationReason.trim()}
+            >
+              {deactivateTraineeMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...
+                </>
+              ) : (
+                "Submit Request"
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
