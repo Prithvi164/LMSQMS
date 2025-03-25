@@ -5473,5 +5473,143 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Trainee Deactivation Requests API Routes
+  // Create deactivation request
+  app.post("/api/batches/:batchId/trainee-deactivation-requests", async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const { batchId } = req.params;
+      const { userId, reason } = req.body;
+
+      if (!userId || !reason) {
+        return res.status(400).json({ message: "User ID and reason are required" });
+      }
+
+      // Get organization ID from user
+      const organizationId = req.user.organizationId;
+
+      // Create the deactivation request
+      const request = await storage.createTraineeDeactivationRequest({
+        userId,
+        batchId: parseInt(batchId),
+        requesterId: req.user.id,
+        managerId: req.user.id, // Initially, the requester is set as the manager
+        organizationId,
+        reason,
+        status: 'pending',
+        requestDate: new Date()
+      });
+
+      res.status(201).json(request);
+    } catch (error: any) {
+      console.error("Error creating trainee deactivation request:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // List deactivation requests for an organization
+  app.get("/api/organizations/:orgId/trainee-deactivation-requests", async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const { orgId } = req.params;
+      const { status } = req.query;
+
+      // Check if user has permission to view this organization's deactivation requests
+      if (req.user.organizationId !== parseInt(orgId) && !req.user.permissions.includes('view_all_organizations')) {
+        return res.status(403).json({ message: "Not authorized to view this organization's deactivation requests" });
+      }
+
+      const requests = await storage.listTraineeDeactivationRequests(
+        parseInt(orgId),
+        status as string | undefined
+      );
+
+      res.json(requests);
+    } catch (error: any) {
+      console.error("Error listing trainee deactivation requests:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Get a specific deactivation request
+  app.get("/api/trainee-deactivation-requests/:requestId", async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const { requestId } = req.params;
+      const request = await storage.getTraineeDeactivationRequest(parseInt(requestId));
+
+      if (!request) {
+        return res.status(404).json({ message: "Deactivation request not found" });
+      }
+
+      // Check if user has permission to view this deactivation request
+      if (req.user.organizationId !== request.organizationId && !req.user.permissions.includes('view_all_organizations')) {
+        return res.status(403).json({ message: "Not authorized to view this deactivation request" });
+      }
+
+      res.json(request);
+    } catch (error: any) {
+      console.error("Error getting trainee deactivation request:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Update deactivation request status (approve/reject)
+  app.patch("/api/trainee-deactivation-requests/:requestId", async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const { requestId } = req.params;
+      const { status, managerComments } = req.body;
+
+      if (!status || !['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ message: "Valid status (approved/rejected) is required" });
+      }
+
+      // Get the request to check permissions
+      const request = await storage.getTraineeDeactivationRequest(parseInt(requestId));
+      if (!request) {
+        return res.status(404).json({ message: "Deactivation request not found" });
+      }
+
+      // Check if user has permission to update this request
+      const isManager = req.user.permissions.includes('manage_trainees') || 
+                        req.user.permissions.includes('approve_trainee_changes');
+      
+      if (!isManager && req.user.id !== request.managerId) {
+        return res.status(403).json({ message: "Not authorized to update this deactivation request" });
+      }
+
+      let updatedRequest;
+      if (status === 'approved') {
+        // If approved, this will update the request and also deactivate the trainee
+        updatedRequest = await storage.approveTraineeDeactivation(parseInt(requestId), managerComments);
+      } else {
+        // If rejected, just update the request status
+        updatedRequest = await storage.updateTraineeDeactivationRequest(
+          parseInt(requestId),
+          status,
+          managerComments
+        );
+      }
+
+      res.json(updatedRequest);
+    } catch (error: any) {
+      console.error("Error updating trainee deactivation request:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
   return createServer(app);
 }
