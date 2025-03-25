@@ -3102,24 +3102,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Helper function to get enrolled count for a batch
   const getEnrolledCount = async (batchId: number) => {
-    // Get all users assigned to this batch, without filtering by category
-    const batchTrainees = await db
-      .select({
-        userId: userBatchProcesses.userId,
-        category: users.category,
-        status: userBatchProcesses.status
-      })
+    // Simply count all active users in the batch from user_batch_processes
+    const result = await db
+      .select({ count: sql<number>`count(*)::int` })
       .from(userBatchProcesses)
-      .innerJoin(users, eq(users.id, userBatchProcesses.userId))
       .where(
         and(
           eq(userBatchProcesses.batchId, batchId),
-          eq(userBatchProcesses.status, 'active')  // Only count active trainees
+          eq(userBatchProcesses.status, 'active')
         )
-      );
-
-    // Return the count of enrolled trainees
-    return batchTrainees.length;
+      )
+      .then(rows => rows[0].count);
+      
+    console.log(`Simplified enrolled count for batch ${batchId}:`, result);
+    return result;
   };
 
   // Batch listing route with enrolled count
