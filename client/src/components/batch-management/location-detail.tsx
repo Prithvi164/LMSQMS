@@ -97,21 +97,30 @@ export function LocationDetail() {
   });
 
   // Then fetch organization settings which includes locations
-  const { data: orgSettings, isLoading } = useQuery({
+  const { data: orgSettings, isLoading, error: settingsError } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/settings`],
     queryFn: async () => {
       if (!organization?.id) return null;
       console.log("Fetching settings for organization:", organization.id);
-      const res = await fetch(
-        `/api/organizations/${organization.id}/settings`
-      );
-      if (!res.ok) {
-        console.error("Failed to fetch organization settings:", res.status, res.statusText);
-        throw new Error("Failed to fetch organization settings");
+      try {
+        const res = await fetch(
+          `/api/organizations/${organization.id}/settings`
+        );
+        console.log("Organization settings response status:", res.status, res.statusText);
+        
+        if (!res.ok) {
+          console.error("Failed to fetch organization settings:", res.status, res.statusText);
+          throw new Error("Failed to fetch organization settings");
+        }
+        
+        const data = await res.json();
+        console.log("Organization settings API response:", data);
+        console.log("Organization settings locations array:", data.locations);
+        return data;
+      } catch (error) {
+        console.error("Error in settings fetch:", error);
+        throw error;
       }
-      const data = await res.json();
-      console.log("Organization settings API response:", data);
-      return data;
     },
     enabled: !!organization?.id,
   });
@@ -348,13 +357,27 @@ export function LocationDetail() {
   const locations = orgSettings?.locations || [];
   console.log("Raw locations array from API:", locations);
   console.log("Organization settings data:", orgSettings);
+  
+  // Log data types and structure for debugging
+  console.log("Locations data type:", Array.isArray(locations) ? "Array" : typeof locations);
+  if (Array.isArray(locations) && locations.length > 0) {
+    console.log("First location object structure:", locations[0]);
+    console.log("Location keys:", Object.keys(locations[0]));
+  } else {
+    console.log("No locations found or locations is not an array");
+  }
 
   // Filter locations based on search term
-  const filteredLocations = locations?.filter((location: any) =>
-    Object.values(location).some((value: any) =>
-      String(value).toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  ) || [];
+  const filteredLocations = locations?.filter((location: any) => {
+    try {
+      return Object.values(location).some((value: any) =>
+        String(value).toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    } catch (error) {
+      console.error("Error filtering locations:", error, location);
+      return false;
+    }
+  }) || [];
 
   // Calculate pagination with dynamic page size
   const totalPages = Math.ceil(filteredLocations.length / pageSize);

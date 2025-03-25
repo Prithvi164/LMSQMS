@@ -1023,7 +1023,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update organization settings route
   app.get("/api/organizations/:id/settings", async (req, res) => {
     console.log("GET /api/organizations/:id/settings - Request params:", req.params);
-    console.log("GET /api/organizations/:id/settings - Current user:", req.user);
+    console.log("GET /api/organizations/:id/settings - Current user:", req.user?.id, req.user?.organizationId);
 
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -1032,25 +1032,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const orgId = parseInt(req.params.id);
       if (!orgId) {
+        console.error("Invalid organization ID:", req.params.id);
         return res.status(400).json({ message: "Invalid organization ID" });
       }
 
       // Check if user belongs to the organization
       if (req.user.organizationId !== orgId) {
+        console.error(`User ${req.user.id} tried to access settings for org ${orgId} but belongs to org ${req.user.organizationId}`);
         return res.status(403).json({ message: "You can only view your own organization's settings" });
       }
 
+      console.log(`Starting to fetch locations for organization ${orgId}...`);
+      
       // Fetch all required data
-      const [locations] = await Promise.all([
-        storage.listLocations(orgId),
-      ]);
+      let locations;
+      try {
+        locations = await storage.listLocations(orgId);
+        console.log(`Fetching locations - Got ${locations.length} locations for org ${orgId}:`, locations);
+      } catch (locError: any) {
+        console.error(`Error fetching locations for org ${orgId}:`, locError);
+        locations = [];
+      }
 
-      console.log(`Fetching locations - Got ${locations.length} locations for org ${orgId}:`, locations);
-
-      // Ensure we have arrays
+      // Ensure we have arrays and check data types
       const response = {
         locations: Array.isArray(locations) ? locations : [],
+        organizationId: orgId
       };
+
+      // Validate locations before returning
+      if (response.locations.length === 0) {
+        console.log(`Warning: No locations found for organization ${orgId}`);
+      } else {
+        console.log(`Success: Found ${response.locations.length} locations for organization ${orgId}`);
+      }
 
       return res.json(response);
     } catch (err: any) {
