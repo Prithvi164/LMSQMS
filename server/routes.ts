@@ -3430,7 +3430,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             category: "trainee", // This is correct - category should be trainee
             processId: batch.processId,
             lineOfBusinessId: batch.lineOfBusinessId,
-            locationId: trainerLocationId, // Use trainer's location instead of batch location
+            locationId: batch.locationId, // Use batch location as requested
             managerId: trainerId, // Set the batch trainer as the reporting manager
             organizationId: orgId
           };
@@ -3463,7 +3463,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             processId: batch.processId,
             organizationId: orgId,
             lineOfBusinessId: batch.lineOfBusinessId,
-            locationId: trainerLocationId, // Use trainer's location instead of batch location
+            locationId: batch.locationId, // Use batch location as requested
             status: 'active',
             assignedAt: new Date()
           });
@@ -4306,7 +4306,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             processId: batch.processId,
             lineOfBusinessId: batch.lineOfBusinessId,
             locationId: batch.locationId,
-            trainerId: batch.trainerId,
+            managerId: batch.trainerId,
             organizationId: orgId,
             batchId: batchId
           };
