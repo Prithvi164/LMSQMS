@@ -250,7 +250,7 @@ export interface IStorage {
   // Add new methods for quiz responses
   createQuizResponse(response: InsertQuizResponse): Promise<QuizResponse>;
   getQuizResponses(quizAttemptId: number): Promise<QuizResponse[]>;
-  getEnrolledCount(batchId: number): Promise<number>;
+
   getQuiz(id: number): Promise<Quiz | undefined>;
 
   // Add new method for deleting quizzes by template ID
@@ -2807,22 +2807,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Update the method to count enrolled users consistently
-  async getEnrolledCount(batchId: number): Promise<number> {
-    try {
-      const result = await db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(userBatchProcesses)
-        .where(eq(userBatchProcesses.batchId, batchId))
-        .then(rows => rows[0].count);
 
-      console.log(`Enrolled count for batch ${batchId}:`, result);
-      return result;
-    } catch (error) {
-      console.error('Error getting enrolled count:', error);
-      throw error;
-    }
-  }
   async getQuiz(id: number): Promise<Quiz | undefined> {
     try {
       const [quiz] = await db
