@@ -223,7 +223,7 @@ export function LocationDetail() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/locations`] });
       toast({
         title: "Success",
         description: "Location updated successfully",
@@ -270,7 +270,7 @@ export function LocationDetail() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/settings`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/locations`] });
       toast({
         title: "Success",
         description: "Location deleted successfully",
@@ -330,7 +330,7 @@ export function LocationDetail() {
 
   const onCreateSuccess = () => {
     queryClient.invalidateQueries({
-      queryKey: [`/api/organizations/${organization?.id}/settings`],
+      queryKey: [`/api/organizations/${organization?.id}/locations`],
     });
     toast({
       title: "Success",
@@ -340,7 +340,7 @@ export function LocationDetail() {
     form.reset();
   };
 
-  const locations = orgSettings?.locations || [];
+  const locations = locationsData || [];
 
   // Filter locations based on search term
   const filteredLocations = locations?.filter((location: any) =>
