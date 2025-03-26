@@ -1045,11 +1045,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         storage.listLocations(orgId),
       ]);
 
+      console.log("Found locations:", JSON.stringify(locations));
+
       // Ensure we have arrays
       const response = {
         locations: Array.isArray(locations) ? locations : [],
       };
 
+      console.log("Response being sent:", JSON.stringify(response));
       return res.json(response);
     } catch (err: any) {
       console.error("Error fetching organization settings:", err);
