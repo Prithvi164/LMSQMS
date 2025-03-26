@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -67,17 +67,9 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
 
-  // Use the batchDetails to calculate capacity once data is loaded
-  const [traineeCount, setTraineeCount] = useState(0);
-  const [remainingCapacity, setRemainingCapacity] = useState(0);
-  
-  // Update counts when batch details are loaded
-  useEffect(() => {
-    if (batchDetails?.userCount !== undefined && batch.capacityLimit) {
-      setTraineeCount(batchDetails.userCount);
-      setRemainingCapacity(batch.capacityLimit - batchDetails.userCount);
-    }
-  }, [batchDetails, batch.capacityLimit]);
+  // Get current trainee count from batch's enrolledCount
+  const traineeCount = batch.enrolledCount || 0;
+  const remainingCapacity = (batch.capacityLimit || 0) - traineeCount;
 
   const { data: batchDetails } = useQuery({
     queryKey: [`/api/organizations/${batch.organizationId}/batches/${batch.id}`],

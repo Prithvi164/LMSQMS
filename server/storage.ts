@@ -1285,20 +1285,12 @@ export class DatabaseStorage implements IStorage {
   async listLocations(organizationId: number): Promise<OrganizationLocation[]> {
     try {
       console.log(`Fetching locations for organization ${organizationId}`);
-      
-      // Execute a direct SQL query to debug
-      const locationsRaw = await db.execute(
-        sql`SELECT * FROM organization_locations WHERE organization_id = ${organizationId}`
-      );
-      console.log('Raw SQL results:', JSON.stringify(locationsRaw));
-      
-      // Original query
       const locations = await db
         .select()
         .from(organizationLocations)
         .where(eq(organizationLocations.organizationId, organizationId)) as OrganizationLocation[];
 
-      console.log(`Found ${locations.length} locations from Drizzle ORM:`, JSON.stringify(locations));
+      console.log(`Found ${locations.length} locations`);
       return locations;
     } catch (error) {
       console.error('Error fetching locations:', error);
