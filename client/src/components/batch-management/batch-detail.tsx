@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProcessDetail } from "./process-detail";
@@ -18,15 +18,8 @@ interface BatchDetailProps {
 }
 
 export function BatchDetail({ onCreateBatch }: BatchDetailProps) {
-  // Use sessionStorage to persist the active tab between renders
-  const storedTab = sessionStorage.getItem("batchManagementActiveTab") || "batches";
-  const [activeTab, setActiveTab] = useState(storedTab);
+  const [activeTab, setActiveTab] = useState("batches");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  
-  // Save the active tab to sessionStorage whenever it changes
-  useEffect(() => {
-    sessionStorage.setItem("batchManagementActiveTab", activeTab);
-  }, [activeTab]);
 
   return (
     <div className="space-y-6">
