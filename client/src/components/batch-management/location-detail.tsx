@@ -96,15 +96,16 @@ export function LocationDetail() {
     enabled: !!user,
   });
 
-  // Then fetch organization settings which includes locations
-  const { data: orgSettings, isLoading } = useQuery({
-    queryKey: [`/api/organizations/${organization?.id}/settings`],
+  // Then fetch locations directly for the organization
+  const { data: locationsData, isLoading } = useQuery({
+    queryKey: [`/api/organizations/${organization?.id}/locations`],
     queryFn: async () => {
       if (!organization?.id) return null;
       const res = await fetch(
-        `/api/organizations/${organization.id}/settings`
+        `/api/organizations/${organization.id}/locations`
       );
-      if (!res.ok) throw new Error("Failed to fetch organization settings");
+      if (!res.ok) throw new Error("Failed to fetch locations");
+      console.log("Locations response:", await res.clone().text());
       return res.json();
     },
     enabled: !!organization?.id,
