@@ -7,10 +7,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft, Calendar as CalendarIcon } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft, Calendar as CalendarIcon, ArrowLeft, CalendarDays } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, isSameDay } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BatchTimeline } from "./batch-timeline";
 import { Calendar } from "@/components/ui/calendar";
@@ -478,10 +478,18 @@ export function BatchDetailsPage() {
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-semibold">Attendance Tracking</h2>
                 <div className="flex items-center gap-2">
+                  {!isSameDay(selectedDate, new Date()) && (
+                    <Alert variant="warning" className="py-1 px-3 flex items-center">
+                      <CalendarDays className="h-4 w-4 mr-2" />
+                      <AlertDescription className="m-0">
+                        Viewing attendance for a different date
+                      </AlertDescription>
+                    </Alert>
+                  )}
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
-                        variant="outline"
+                        variant={isSameDay(selectedDate, new Date()) ? "outline" : "default"}
                         className="flex items-center gap-2"
                       >
                         <CalendarIcon className="h-4 w-4" />
@@ -497,6 +505,16 @@ export function BatchDetailsPage() {
                       />
                     </PopoverContent>
                   </Popover>
+                  {!isSameDay(selectedDate, new Date()) && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => setSelectedDate(new Date())}
+                    >
+                      <ArrowLeft className="h-4 w-4 mr-1" />
+                      Today
+                    </Button>
+                  )}
                 </div>
               </div>
 
