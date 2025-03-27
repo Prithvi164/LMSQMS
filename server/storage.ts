@@ -1,4 +1,4 @@
-import { eq, inArray, sql, desc, and, or } from "drizzle-orm";
+import { eq, inArray, sql, desc, and, or, ne } from "drizzle-orm";
 import { db } from "./db";
 import * as schema from "@shared/schema";
 import { batchStatusEnum } from "@shared/schema";
@@ -1496,6 +1496,9 @@ export class DatabaseStorage implements IStorage {
   async listBatches(organizationId: number): Promise<(OrganizationBatch & { userCount: number })[]> {
     try {
       console.log(`Fetching batches for organization ${organizationId}`);
+      // Log the schema for debugging
+      console.log('Users schema:', Object.keys(users));
+      console.log('Trainer column name:', users.fullName.name);
 
       // Explicitly select and cast the batch_category field
       const batches = await db
@@ -1531,12 +1534,12 @@ export class DatabaseStorage implements IStorage {
           process: organizationProcesses,
           line_of_business: organizationLineOfBusinesses,
           trainer: {
-            id: trainer.id,
-            fullName: trainer.fullName
+            id: sql<number>`trainer.id`,
+            fullName: sql<string>`trainer.full_name`
           },
           manager: {
-            id: manager.id, 
-            fullName: manager.fullName
+            id: sql<number>`manager.id`, 
+            fullName: sql<string>`manager.full_name`
           }
         })
         .from(organizationBatches)
@@ -1558,7 +1561,10 @@ export class DatabaseStorage implements IStorage {
         )
         .leftJoin(
           users.as('manager'),
-          eq(sql<number>`trainer.manager_id`, sql<number>`manager.id`)
+          and(
+            ne(sql<number>`trainer.manager_id`, null),
+            eq(sql<number>`trainer.manager_id`, sql<number>`manager.id`)
+          )
         )
         .where(eq(organizationBatches.organizationId, organizationId))
         .orderBy(desc(organizationBatches.createdAt));
