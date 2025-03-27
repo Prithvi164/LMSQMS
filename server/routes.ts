@@ -5378,12 +5378,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get attendance status for each trainee
       const traineesWithAttendance = await Promise.all(
         trainees.map(async (trainee) => {
-          const attendance = await storage.getAttendanceRecord(trainee.userId, date);
+          const attendance = await storage.getAttendanceRecord(trainee.userId, date, batchId);
           const user = await storage.getUser(trainee.userId);
           
           return {
             id: trainee.userId,
             name: user?.fullName || 'Unknown',
+            email: user?.email || null,
+            employeeId: user?.employeeId || null,
+            phoneNumber: user?.phoneNumber || null,
+            dateOfJoining: user?.dateOfJoining || null,
+            dateOfBirth: user?.dateOfBirth || null,
+            batchStatus: trainee.status,
+            userSince: trainee.joinedAt,
+            batchProcessId: trainee.id,
             status: attendance?.status || null,
             lastUpdated: attendance?.updatedAt || null
           };

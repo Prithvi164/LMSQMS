@@ -31,13 +31,18 @@ import { format, isValid, parseISO } from "date-fns";
 
 // Updated type to match actual API response
 type Trainee = {
-  id: number;
-  userId: number;
-  employeeId: string;
-  fullName: string;
-  email: string;
-  phoneNumber: string;
-  dateOfJoining: string;
+  id: number; // This is the userId
+  name: string;
+  email: string | null;
+  employeeId: string | null;
+  phoneNumber: string | null;
+  dateOfJoining: string | null;
+  dateOfBirth: string | null;
+  batchStatus: string;
+  userSince: string;
+  batchProcessId: number;
+  status: string | null; // Attendance status
+  lastUpdated: string | null; // Attendance last updated
 };
 
 interface TraineeManagementProps {
@@ -218,10 +223,10 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
           <TableBody>
             {Array.isArray(trainees) && trainees.map((trainee: Trainee) => (
               <TableRow key={trainee.id}>
-                <TableCell>{trainee.fullName}</TableCell>
-                <TableCell>{trainee.employeeId}</TableCell>
-                <TableCell>{trainee.email}</TableCell>
-                <TableCell>{trainee.phoneNumber}</TableCell>
+                <TableCell>{trainee.name}</TableCell>
+                <TableCell>{trainee.employeeId || 'N/A'}</TableCell>
+                <TableCell>{trainee.email || 'N/A'}</TableCell>
+                <TableCell>{trainee.phoneNumber || 'N/A'}</TableCell>
                 <TableCell>{formatDate(trainee.dateOfJoining)}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
@@ -299,7 +304,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Select a batch to transfer {selectedTrainee?.fullName} to:
+              Select a batch to transfer {selectedTrainee?.name} to:
             </p>
             <div className="space-y-2">
               {allBatches
