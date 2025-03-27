@@ -1500,74 +1500,46 @@ export class DatabaseStorage implements IStorage {
       console.log('Users schema:', Object.keys(users));
       console.log('Trainer column name:', users.fullName.name);
 
-      // Explicitly select and cast the batch_category field
-      const batches = await db
-        .select({
-          id: organizationBatches.id,
-          name: organizationBatches.name,
-          batchCategory: sql<string>`${organizationBatches.batchCategory}::text`,
-          startDate: organizationBatches.startDate,
-          endDate: organizationBatches.endDate,
-          status: organizationBatches.status,
-          capacityLimit: organizationBatches.capacityLimit,
-          locationId: organizationBatches.locationId,
-          processId: organizationBatches.processId,
-          lineOfBusinessId: organizationBatches.lineOfBusinessId,
-          trainerId: organizationBatches.trainerId,
-          organizationId: organizationBatches.organizationId,
-          inductionStartDate: organizationBatches.inductionStartDate,
-          inductionEndDate: organizationBatches.inductionEndDate,
-          trainingStartDate: organizationBatches.trainingStartDate,
-          trainingEndDate: organizationBatches.trainingEndDate,
-          certificationStartDate: organizationBatches.certificationStartDate,
-          certificationEndDate: organizationBatches.certificationEndDate,
-          ojtStartDate: organizationBatches.ojtStartDate,
-          ojtEndDate: organizationBatches.ojtEndDate,
-          ojtCertificationStartDate: organizationBatches.ojtCertificationStartDate,
-          ojtCertificationEndDate: organizationBatches.ojtCertificationEndDate,
-          handoverToOpsDate: organizationBatches.handoverToOpsDate,
-          weeklyOffDays: organizationBatches.weeklyOffDays,
-          considerHolidays: organizationBatches.considerHolidays,
-          createdAt: organizationBatches.createdAt,
-          updatedAt: organizationBatches.updatedAt,
-          location: organizationLocations,
-          process: organizationProcesses,
-          line_of_business: organizationLineOfBusinesses,
-          trainer: {
-            id: sql<number>`trainer.id`,
-            fullName: sql<string>`trainer.full_name`
-          },
-          manager: {
-            id: sql<number>`manager.id`, 
-            fullName: sql<string>`manager.full_name`
-          }
-        })
-        .from(organizationBatches)
-        .leftJoin(
-          organizationLocations,
-          eq(organizationBatches.locationId, organizationLocations.id)
-        )
-        .leftJoin(
-          organizationProcesses,
-          eq(organizationBatches.processId, organizationProcesses.id)
-        )
-        .leftJoin(
-          organizationLineOfBusinesses,
-          eq(organizationBatches.lineOfBusinessId, organizationLineOfBusinesses.id)
-        )
-        .leftJoin(
-          users.as('trainer'),
-          eq(organizationBatches.trainerId, sql<number>`trainer.id`)
-        )
-        .leftJoin(
-          users.as('manager'),
-          and(
-            ne(sql<number>`trainer.manager_id`, null),
-            eq(sql<number>`trainer.manager_id`, sql<number>`manager.id`)
-          )
-        )
-        .where(eq(organizationBatches.organizationId, organizationId))
-        .orderBy(desc(organizationBatches.createdAt));
+      // Use raw SQL to handle complex joins with aliasing
+      const batches = await db.execute(sql`
+        SELECT 
+          b.id, b.name, b."batchCategory"::text as "batchCategory", 
+          b."startDate", b."endDate", b.status, b."capacityLimit",
+          b."locationId", b."processId", b."lineOfBusinessId", b."trainerId",
+          b."organizationId", b."inductionStartDate", b."inductionEndDate",
+          b."trainingStartDate", b."trainingEndDate", b."certificationStartDate",
+          b."certificationEndDate", b."ojtStartDate", b."ojtEndDate",
+          b."ojtCertificationStartDate", b."ojtCertificationEndDate",
+          b."handoverToOpsDate", b."weeklyOffDays", b."considerHolidays", 
+          b."createdAt", b."updatedAt",
+          
+          l.id as "location.id", l.name as "location.name", 
+          l.description as "location.description", l."organizationId" as "location.organizationId",
+          l."createdAt" as "location.createdAt",
+          
+          p.id as "process.id", p.name as "process.name", 
+          p.description as "process.description", p."organizationId" as "process.organizationId",
+          p."lineOfBusinessId" as "process.lineOfBusinessId",
+          p."createdAt" as "process.createdAt",
+          
+          lob.id as "line_of_business.id", lob.name as "line_of_business.name", 
+          lob.description as "line_of_business.description", 
+          lob."organizationId" as "line_of_business.organizationId",
+          lob."createdAt" as "line_of_business.createdAt",
+          
+          trainer.id as "trainer.id", trainer."fullName" as "trainer.fullName",
+          
+          manager.id as "manager.id", manager."fullName" as "manager.fullName"
+          
+        FROM "organization_batches" b
+        LEFT JOIN "organization_locations" l ON b."locationId" = l.id
+        LEFT JOIN "organization_processes" p ON b."processId" = p.id
+        LEFT JOIN "organization_line_of_businesses" lob ON b."lineOfBusinessId" = lob.id
+        LEFT JOIN "users" trainer ON b."trainerId" = trainer.id
+        LEFT JOIN "users" manager ON trainer."managerId" = manager.id
+        WHERE b."organizationId" = ${organizationId}
+        ORDER BY b."createdAt" DESC
+      `);
       
       // Get user counts for each batch
       const batchesWithUserCounts = await Promise.all(
