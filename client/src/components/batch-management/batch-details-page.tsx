@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BatchTimeline } from "./batch-timeline";
+import { ActualDatesForm } from "./actual-dates-form";
 import {
   Dialog,
   DialogContent,
@@ -393,6 +394,7 @@ export function BatchDetailsPage() {
           {canAccessPhaseRequests && (
             <TabsTrigger value="phase-requests">Phase Requests</TabsTrigger>
           )}
+          <TabsTrigger value="actual-dates">Actual Dates</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
 
@@ -643,6 +645,17 @@ export function BatchDetailsPage() {
             </Card>
           </TabsContent>
         )}
+        <TabsContent value="actual-dates" className="space-y-4">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">Actual Dates Management</h2>
+              </div>
+              {batch && <ActualDatesForm batch={batch} />}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="history" className="space-y-4">
           <Card>
             <CardContent className="p-6">

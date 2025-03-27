@@ -3860,6 +3860,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ message: error.message });
     }
   });
+  
+  // Update batch actual dates
+  app.patch("/api/organizations/:id/batches/:batchId/actual-dates", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.id);
+      const batchId = parseInt(req.params.batchId);
+
+      // Check if user belongs to the organization and has appropriate role (trainer or admin)
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only update batches in your own organization" });
+      }
+      
+      // Additional permission check: only trainers assigned to this batch, managers, or admins can update actual dates
+      if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+        const batch = await storage.getBatch(batchId);
+        if (!batch || batch.trainerId !== req.user.id) {
+          return res.status(403).json({ message: "You must be the assigned trainer, a manager, or an admin to update actual dates" });
+        }
+      }
+
+      const batch = await storage.getBatch(batchId);
+      if (!batch) {
+        return res.status(404).json({ message: "Batch not found" });
+      }
+
+      // Check if batch belongs to the organization
+      if (batch.organizationId !== orgId) {
+        return res.status(403).json({ message: "Batch not found in your organization" });
+      }
+
+      // Extract only the actual date fields from the request body to prevent updating other batch fields
+      const actualDateFields = [
+        'actualStartDate',
+        'actualEndDate',
+        'actualInductionStartDate',
+        'actualInductionEndDate',
+        'actualTrainingStartDate',
+        'actualTrainingEndDate',
+        'actualCertificationStartDate',
+        'actualCertificationEndDate',
+        'actualOjtStartDate',
+        'actualOjtEndDate',
+        'actualOjtCertificationStartDate',
+        'actualOjtCertificationEndDate',
+        'actualHandoverToOpsDate'
+      ];
+      
+      const updateData: Record<string, any> = {};
+      for (const field of actualDateFields) {
+        if (field in req.body) {
+          updateData[field] = req.body[field];
+        }
+      }
+      
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ message: "No actual date fields provided for update" });
+      }
+
+      console.log('Updating batch actual dates:', batchId, 'with data:', updateData);
+      const updatedBatch = await storage.updateBatch(batchId, updateData);
+
+      res.json(updatedBatch);
+    } catch (error: any) {
+      console.error("Batch actual dates update error:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
 
   // Delete batch route
   app.delete("/api/organizations/:id/batches/:batchId", async (req, res) => {
