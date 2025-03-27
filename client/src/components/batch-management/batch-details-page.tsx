@@ -319,7 +319,7 @@ export function BatchDetailsPage() {
       return { previousTrainees };
     },
     onSuccess: (data) => {
-      console.log("Updating cache with server data:", JSON.stringify(data));
+      console.log("Attendance marked successfully. Server response:", JSON.stringify(data));
       
       // Update the query cache for the current selected date with the server data
       queryClient.setQueryData(
@@ -327,13 +327,17 @@ export function BatchDetailsPage() {
         (oldTrainees: any[] | undefined) => {
           if (!oldTrainees) return oldTrainees;
           
+          console.log("Updating cached trainees with server data for trainee:", data.traineeId);
+          
+          // Create a completely new array to ensure React detects the change
           const updatedTrainees = oldTrainees.map(trainee => {
             if (trainee.id === data.traineeId) {
               const updatedTrainee = {
                 ...trainee,
                 status: data.status,
-                lastUpdated: data.updatedAt
+                lastUpdated: data.updatedAt || new Date().toISOString()
               };
+              console.log("Updated trainee in cache:", JSON.stringify(updatedTrainee));
               return updatedTrainee;
             }
             return trainee;
@@ -348,6 +352,7 @@ export function BatchDetailsPage() {
         queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate],
       });
       
+      // Show a toast notification
       toast({
         title: "Success",
         description: "Attendance marked successfully",
@@ -651,12 +656,35 @@ export function BatchDetailsPage() {
                             <Select
                               value={trainee.status || ''}
                               onValueChange={(value: AttendanceStatus) => {
-                                // Update the trainee status immediately in the UI before API call completes
+                                console.log("Status changed for trainee", trainee.id, "to", value);
+                                
+                                // Create a direct UI update for immediate feedback
                                 const now = new Date();
+                                
+                                // Update the trainee in the current list for immediate UI feedback
                                 trainee.status = value;
                                 trainee.lastUpdated = now.toISOString();
                                 
-                                // Then perform the actual mutation
+                                // Force a component re-render by updating a query cache copy
+                                queryClient.setQueryData(
+                                  [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate],
+                                  (oldTrainees: any[] | undefined) => {
+                                    if (!oldTrainees) return oldTrainees;
+                                    
+                                    return oldTrainees.map(t => {
+                                      if (t.id === trainee.id) {
+                                        return {
+                                          ...t,
+                                          status: value,
+                                          lastUpdated: now.toISOString()
+                                        };
+                                      }
+                                      return t;
+                                    });
+                                  }
+                                );
+                                
+                                // Then perform the actual mutation to save to the server
                                 updateAttendanceMutation.mutate({ traineeId: trainee.id, status: value });
                               }}
                             >
