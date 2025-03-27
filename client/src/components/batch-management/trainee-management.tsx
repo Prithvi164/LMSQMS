@@ -51,6 +51,12 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedTrainee, setSelectedTrainee] = useState<Trainee | null>(null);
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
+  
+  // Fetch batch details to get trainer info
+  const { data: batchDetails } = useQuery({
+    queryKey: [`/api/organizations/${organizationId}/batches/${batchId}`],
+    enabled: !!batchId && !!organizationId,
+  });
 
   // Fetch trainees for the current batch
   const { data: trainees = [], isLoading, error } = useQuery({
@@ -201,7 +207,14 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Batch Trainees</h2>
+      <div className="flex flex-col">
+        <h2 className="text-lg font-semibold">Batch Trainees</h2>
+        {batchDetails?.trainer && (
+          <p className="text-sm text-muted-foreground">
+            Trainer: <span className="font-medium">{batchDetails.trainer.fullName}</span>
+          </p>
+        )}
+      </div>
 
       <div className="rounded-md border">
         <Table>

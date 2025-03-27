@@ -393,6 +393,11 @@ export function BatchDetailsPage() {
           <p className="text-muted-foreground">
             {batch.location?.name} • {batch.process?.name}
           </p>
+          {batch.trainer && (
+            <p className="text-sm text-muted-foreground mt-1">
+              Assigned Trainer: <span className="font-medium">{batch.trainer.fullName}</span>
+            </p>
+          )}
         </div>
         <Badge variant="secondary" className="capitalize">
           {batch.status}
