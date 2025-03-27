@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { Router } from "express";
-import { insertUserSchema, users, userBatchProcesses, organizationProcesses, userProcesses, quizzes, insertMockCallScenarioSchema, insertMockCallAttemptSchema, mockCallScenarios, mockCallAttempts, batches, lineOfBusiness, insertOrganizationSettingsSchema, organizationSettings, insertOrganizationHolidaySchema, organizationHolidays } from "@shared/schema";
+import { insertUserSchema, users, userBatchProcesses, organizationProcesses, userProcesses, quizzes, insertMockCallScenarioSchema, insertMockCallAttemptSchema, mockCallScenarios, mockCallAttempts, organizationBatches, attendance, insertOrganizationSettingsSchema, organizationSettings, insertOrganizationHolidaySchema, organizationHolidays } from "@shared/schema";
 import { z } from "zod";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
@@ -3191,11 +3191,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const batchId = parseInt(req.params.batchId);
       const orgId = parseInt(req.params.orgId);
-      const today = new Date().toISOString().split('T')[0];
+      const date = req.query.date as string || new Date().toISOString().split('T')[0]; // Allow custom date or use today
+      
+      console.log('Fetching trainees for batch', batchId, 'for date', date);
+      
+      // First get the batch to determine its current phase
+      const batch = await db
+        .select()
+        .from(organizationBatches)
+        .where(eq(organizationBatches.id, batchId))
+        .limit(1);
+        
+      if (!batch || batch.length === 0) {
+        return res.status(404).json({ message: "Batch not found" });
+      }
+      
+      const batchPhase = batch[0].status;
+      console.log('Current batch phase:', batchPhase);
 
-      console.log('Fetching trainees for batch', batchId);
-
-      // Get all trainees assigned to this batch and their attendance for today
+      // Get all trainees assigned to this batch and their attendance for the specified date and phase
       const batchTrainees = await db
         .select({
           userId: userBatchProcesses.userId,
@@ -3220,7 +3234,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           and(
             eq(attendance.traineeId, userBatchProcesses.userId),
             eq(attendance.batchId, userBatchProcesses.batchId),
-            eq(attendance.date, today)
+            eq(attendance.date, date),
+            eq(attendance.phase, batchPhase)
           )
         )
         .where(

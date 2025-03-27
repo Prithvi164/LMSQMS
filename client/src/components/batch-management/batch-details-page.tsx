@@ -129,6 +129,10 @@ export function BatchDetailsPage() {
   const queryClient = useQueryClient();
   const [selectedTab, setSelectedTab] = useState("attendance");
   const currentDate = format(new Date(), "PPP");
+  
+  // Format current date as YYYY-MM-DD for API and initialize selectedDate state
+  const today = new Date().toISOString().split('T')[0];
+  const [selectedDate, setSelectedDate] = useState(today);
 
   // Initialize form
   const form = useForm({
@@ -147,7 +151,16 @@ export function BatchDetailsPage() {
   });
 
   const { data: trainees = [], isLoading: traineesLoading } = useQuery<any[]>({
-    queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`],
+    queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, selectedDate],
+    queryFn: async ({ queryKey }) => {
+      const [baseUrl, date] = queryKey;
+      const url = `${baseUrl}?date=${date}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Failed to fetch trainees');
+      }
+      return response.json();
+    },
     enabled: !!user?.organizationId && !!batchId && !!batch,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
@@ -184,7 +197,7 @@ export function BatchDetailsPage() {
         body: JSON.stringify({
           traineeId,
           status,
-          date: new Date().toISOString().split('T')[0],
+          date: selectedDate, // Use the selected date
           organizationId: user?.organizationId,
           batchId: parseInt(batchId!),
           phase: batch?.status,
@@ -206,7 +219,7 @@ export function BatchDetailsPage() {
       
       // Update the cache with the new attendance data
       queryClient.setQueryData(
-        [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`],
+        [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, selectedDate],
         (oldTrainees: any[] | undefined) => {
           if (!oldTrainees) return oldTrainees;
           
@@ -232,7 +245,7 @@ export function BatchDetailsPage() {
       
       // Also invalidate the query to ensure data is always fresh when navigating back
       queryClient.invalidateQueries({
-        queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`]
+        queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, selectedDate]
       });
       
       toast({
@@ -447,7 +460,19 @@ export function BatchDetailsPage() {
             <CardContent className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-semibold">Attendance Tracking</h2>
-                <p className="text-muted-foreground">{currentDate}</p>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="date" className="text-sm font-medium">Date:</label>
+                    <input 
+                      type="date" 
+                      id="date" 
+                      className="border rounded p-1 text-sm" 
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                    />
+                  </div>
+                  <p className="text-muted-foreground">{currentDate}</p>
+                </div>
               </div>
 
               {trainees && trainees.length > 0 ? (
