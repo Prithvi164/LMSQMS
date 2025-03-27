@@ -461,6 +461,7 @@ export const organizationBatches = pgTable("organization_batches", {
   lineOfBusinessId: integer("line_of_business_id")
     .references(() => organizationLineOfBusinesses.id)
     .notNull(),
+  // Planned phase dates
   inductionStartDate: date("induction_start_date").notNull(),
   inductionEndDate: date("induction_end_date"),
   trainingStartDate: date("training_start_date"),
@@ -472,6 +473,18 @@ export const organizationBatches = pgTable("organization_batches", {
   ojtCertificationStartDate: date("ojt_certification_start_date"),
   ojtCertificationEndDate: date("ojt_certification_end_date"),
   handoverToOpsDate: date("handover_to_ops_date"),
+  // Actual phase dates
+  actualInductionStartDate: date("actual_induction_start_date"),
+  actualInductionEndDate: date("actual_induction_end_date"),
+  actualTrainingStartDate: date("actual_training_start_date"),
+  actualTrainingEndDate: date("actual_training_end_date"),
+  actualCertificationStartDate: date("actual_certification_start_date"),
+  actualCertificationEndDate: date("actual_certification_end_date"),
+  actualOjtStartDate: date("actual_ojt_start_date"),
+  actualOjtEndDate: date("actual_ojt_end_date"),
+  actualOjtCertificationStartDate: date("actual_ojt_certification_start_date"),
+  actualOjtCertificationEndDate: date("actual_ojt_certification_end_date"),
+  actualHandoverToOpsDate: date("actual_handover_to_ops_date"),
   weeklyOffDays: text("weekly_off_days").array().default(['Saturday', 'Sunday']),
   considerHolidays: boolean("consider_holidays").default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
