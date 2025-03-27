@@ -3496,7 +3496,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Validate the status
-      const validStatuses = ['present', 'absent', 'late', 'leave'];
+      const validStatuses = ['present', 'absent', 'late', 'leave', 'half_day', 'public_holiday', 'weekly_off'];
       if (!validStatuses.includes(status)) {
         return res.status(400).json({ 
           message: "Invalid attendance status",
@@ -5262,9 +5262,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { status, date } = req.body;
 
       // Validate the status
-      const validStatuses = ['present', 'absent', 'late'];
+      const validStatuses = ['present', 'absent', 'late', 'leave', 'half_day', 'public_holiday', 'weekly_off'];
       if (!validStatuses.includes(status)) {
-        return res.status(400).json({ message: "Invalid attendance status" });
+        return res.status(400).json({ message: "Invalid attendance status", validStatuses });
       }
 
       // Save attendance record
