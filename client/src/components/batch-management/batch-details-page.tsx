@@ -220,7 +220,7 @@ export function BatchDetailsPage() {
       // Don't invalidate the query immediately, let's update the cache first
       // and remove the invalidation as it's causing the UI to flicker
       queryClient.setQueryData(
-        [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`],
+        [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate],
         (oldTrainees: any[] | undefined) => {
           if (!oldTrainees) return oldTrainees;
           
