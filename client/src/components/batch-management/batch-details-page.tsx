@@ -169,16 +169,21 @@ export function BatchDetailsPage() {
   const { data: trainees = [], isLoading: traineesLoading, refetch: refetchTrainees } = useQuery<any[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate],
     queryFn: async () => {
+      console.log(`Fetching attendance data for date: ${formattedDate}`);
       const response = await fetch(`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees?date=${formattedDate}`);
       if (!response.ok) {
         throw new Error('Failed to fetch trainees attendance data');
       }
-      return response.json();
+      const data = await response.json();
+      console.log(`Received ${data.length} trainees with attendance for ${formattedDate}:`, data);
+      return data;
     },
     enabled: !!user?.organizationId && !!batchId && !!batch,
     staleTime: 0, // Don't use stale data
     refetchOnMount: true, // Refetch when component mounts
     refetchOnWindowFocus: true, // Refetch when window gets focus
+    gcTime: Infinity, // Keep the data in cache indefinitely (cacheTime is renamed to gcTime in v5)
+    structuralSharing: false, // Always return a new reference to force re-renders
   });
   
   // Force refetch when component mounts or date changes
@@ -210,6 +215,8 @@ export function BatchDetailsPage() {
 
   const updateAttendanceMutation = useMutation({
     mutationFn: async ({ traineeId, status }: { traineeId: number; status: AttendanceStatus }) => {
+      console.log(`Marking attendance for trainee ${traineeId} as ${status} for date ${formattedDate}`);
+      
       const response = await fetch(`/api/attendance`, {
         method: 'POST',
         headers: {
@@ -264,6 +271,11 @@ export function BatchDetailsPage() {
           return updatedTrainees;
         }
       );
+      
+      // Always invalidate the queries to force a refetch 
+      queryClient.invalidateQueries({
+        queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate],
+      });
       
       toast({
         title: "Success",
@@ -479,7 +491,7 @@ export function BatchDetailsPage() {
                 <h2 className="text-xl font-semibold">Attendance Tracking</h2>
                 <div className="flex items-center gap-2">
                   {!isSameDay(selectedDate, new Date()) && (
-                    <Alert variant="warning" className="py-1 px-3 flex items-center">
+                    <Alert className="py-1 px-3 flex items-center bg-yellow-50 border-yellow-200 text-yellow-800">
                       <CalendarDays className="h-4 w-4 mr-2" />
                       <AlertDescription className="m-0">
                         Viewing attendance for a different date
