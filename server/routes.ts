@@ -3550,17 +3550,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.json(result);
     } catch (error: any) {
       console.error("Error saving attendance record:", error);
+      // Log error without trying to access variables that might be undefined
       console.error("Error details:", JSON.stringify({
         message: error.message,
-        stack: error.stack,
-        status, traineeId, date, batchId, phase
+        stack: error.stack
       }, null, 2));
       return res.status(500).json({ 
         message: "Failed to save attendance record",
-        error: error.message,
-        details: {
-          status, traineeId, date, batchId, phase
-        }
+        error: error.message
       });
     }
   });
