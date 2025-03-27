@@ -1,4 +1,4 @@
-import { eq, inArray, sql, desc, and, or, gte, lte } from "drizzle-orm";
+import { eq, inArray, sql, desc, and, or } from "drizzle-orm";
 import { db } from "./db";
 import * as schema from "@shared/schema";
 import { batchStatusEnum } from "@shared/schema";
@@ -16,10 +16,8 @@ import {
   userBatchProcesses,
   organizationSettings,
   organizationHolidays,
-  attendance,
   type QuizResponse,
   type InsertQuizResponse,
-  type InsertAttendance,
   type User,
   type InsertUser,
   type Organization,
@@ -94,10 +92,6 @@ export interface IStorage {
   updateUserPassword(email: string, hashedPassword: string): Promise<void>;
   deleteUser(id: number): Promise<void>;
   listUsers(organizationId: number): Promise<User[]>;
-  
-  // Attendance operations
-  createAttendanceRecord(record: InsertAttendance): Promise<any>;
-  getAttendanceRecord(traineeId: number, date: string, batchId?: number): Promise<any | null>;
 
   // Quiz template operations
   createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate>;
@@ -304,93 +298,6 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  // Attendance operations
-  async createAttendanceRecord(record: InsertAttendance): Promise<any> {
-    try {
-      console.log('Creating attendance record:', record);
-      
-      const [result] = await db
-        .insert(attendance)
-        .values({
-          ...record,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-        .onConflictDoUpdate({
-          target: [attendance.traineeId, attendance.date, attendance.batchId],
-          set: {
-            status: record.status,
-            phase: record.phase,
-            updatedAt: new Date()
-          }
-        })
-        .returning();
-      
-      return result;
-    } catch (error) {
-      console.error('Error creating attendance record:', error);
-      throw error;
-    }
-  }
-  
-  async getAttendanceRecord(traineeId: number, date: string, batchId?: number): Promise<any | null> {
-    try {
-      console.log(`Getting attendance for trainee ${traineeId} on ${date}${batchId ? ` in batch ${batchId}` : ''}`);
-      
-      let conditions = [
-        eq(attendance.traineeId, traineeId),
-        eq(attendance.date, date)
-      ];
-      
-      // Add batch ID to the query conditions if provided
-      if (batchId) {
-        conditions.push(eq(attendance.batchId, batchId));
-      }
-      
-      const [record] = await db
-        .select()
-        .from(attendance)
-        .where(and(...conditions));
-      
-      return record || null;
-    } catch (error) {
-      console.error('Error fetching attendance record:', error);
-      throw error;
-    }
-  }
-  
-  async listAttendanceRecords(traineeId: number, batchId: number, startDate?: string, endDate?: string): Promise<any[]> {
-    try {
-      console.log(`Getting attendance records for trainee ${traineeId} in batch ${batchId}`);
-      
-      let query = db
-        .select()
-        .from(attendance)
-        .where(
-          and(
-            eq(attendance.traineeId, traineeId),
-            eq(attendance.batchId, batchId)
-          )
-        );
-      
-      // Add date range if provided
-      if (startDate) {
-        query = query.where(gte(attendance.date, startDate));
-      }
-      
-      if (endDate) {
-        query = query.where(lte(attendance.date, endDate));
-      }
-      
-      // Order by date
-      const records = await query.orderBy(attendance.date);
-      
-      return records;
-    } catch (error) {
-      console.error('Error fetching attendance records:', error);
-      throw error;
-    }
-  }
   // Organization Settings operations
   async getOrganizationSettings(organizationId: number): Promise<OrganizationSettings | undefined> {
     try {

@@ -1046,12 +1046,7 @@ export const attendanceStatusEnum = pgEnum('attendance_status', [
   'present',
   'absent',
   'late',
-  'leave',
-  'half_day',
-  'public_holiday',
-  'paid_leave', 
-  'weekly_off',
-  'unpaid_leave'
+  'leave'
 ]);
 
 export const attendance = pgTable("attendance", {
@@ -1109,7 +1104,7 @@ export const insertAttendanceSchema = createInsertSchema(attendance)
     traineeId: z.number().int().positive("Trainee ID is required"),
     batchId: z.number().int().positive("Batch ID is required"),
     phase: z.enum(['induction', 'training', 'certification', 'ojt', 'ojt_certification']),
-    status: z.enum(['present', 'absent', 'late', 'leave', 'half_day', 'public_holiday', 'paid_leave', 'weekly_off', 'unpaid_leave']),
+    status: z.enum(['present', 'absent', 'late', 'leave']),
     date: z.string().min(1, "Date is required"),
     markedById: z.number().int().positive("Marker ID is required"),
     organizationId: z.number().int().positive("Organization ID is required"),

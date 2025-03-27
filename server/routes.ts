@@ -3233,23 +3233,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('Found trainees:', batchTrainees);
 
-      // Map to expected format - keep field names exactly as expected by the frontend
+      // Map to expected format
       const traineesWithDetails = batchTrainees.map((trainee) => ({
         id: trainee.userId,
-        fullName: trainee.user.fullName,
-        employeeId: trainee.user.employeeId,
-        email: trainee.user.email,
-        status: trainee.attendance?.status || 'Not Marked', // Ensure consistent "Not Marked" casing
+        status: trainee.attendance?.status || null,
         lastUpdated: trainee.attendance?.lastUpdated?.toISOString(),
-        // Keep original user object for compatibility
         user: trainee.user
       }));
 
-      console.log('================================');
-      console.log('DETAILED DEBUG: Trainees with attendance:');
-      console.log(JSON.stringify(traineesWithDetails, null, 2));
-      console.log('================================');
-      
+      console.log('Trainees with attendance details:', traineesWithDetails);
       res.json(traineesWithDetails);
     } catch (error: any) {
       console.error("Error fetching trainees:", error);
@@ -3504,7 +3496,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Validate the status
-      const validStatuses = ['present', 'absent', 'late', 'leave', 'half_day', 'public_holiday', 'paid_leave', 'weekly_off', 'unpaid_leave'];
+      const validStatuses = ['present', 'absent', 'late', 'leave'];
       if (!validStatuses.includes(status)) {
         return res.status(400).json({ 
           message: "Invalid attendance status",
@@ -5270,7 +5262,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { status, date } = req.body;
 
       // Validate the status
-      const validStatuses = ['present', 'absent', 'late', 'leave', 'half_day', 'public_holiday', 'paid_leave', 'weekly_off', 'unpaid_leave'];
+      const validStatuses = ['present', 'absent', 'late'];
       if (!validStatuses.includes(status)) {
         return res.status(400).json({ message: "Invalid attendance status" });
       }
@@ -5299,33 +5291,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const traineeId = parseInt(req.params.traineeId);
       const date = req.query.date as string;
-      const batchId = req.query.batchId ? parseInt(req.query.batchId as string) : undefined;
 
-      // Pass the batchId parameter to filter attendance by batch
-      const attendance = await storage.getAttendanceRecord(traineeId, date, batchId);
+      const attendance = await storage.getAttendanceRecord(traineeId, date);
       res.json(attendance);
     } catch (error: any) {
       console.error("Error fetching attendance:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-  
-  // Get attendance records for a trainee in a batch (with optional date range)
-  app.get("/api/batch/:batchId/trainee/:traineeId/attendance", async (req, res) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const traineeId = parseInt(req.params.traineeId);
-      const batchId = parseInt(req.params.batchId);
-      const startDate = req.query.startDate as string | undefined;
-      const endDate = req.query.endDate as string | undefined;
-
-      console.log(`Fetching attendance records for trainee ${traineeId} in batch ${batchId} from ${startDate || 'earliest'} to ${endDate || 'latest'}`);
-      
-      const records = await storage.listAttendanceRecords(traineeId, batchId, startDate, endDate);
-      res.json(records);
-    } catch (error: any) {
-      console.error("Error fetching attendance records:", error);
       res.status(500).json({ message: error.message });
     }
   });
@@ -5379,37 +5349,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get attendance status for each trainee
       const traineesWithAttendance = await Promise.all(
         trainees.map(async (trainee) => {
-          // Pass the batchId to properly filter attendance records
-          const attendance = await storage.getAttendanceRecord(trainee.userId, date, batchId);
+          const attendance = await storage.getAttendanceRecord(trainee.userId, date);
           const user = await storage.getUser(trainee.userId);
           
           return {
             id: trainee.userId,
-            fullName: user?.fullName || 'Unknown',
-            employeeId: user?.employeeId || 'No ID',
-            email: user?.email || 'No email',
-            status: attendance?.status || 'Not Marked',
-            lastUpdated: attendance?.updatedAt || null,
-            // Include full user object for compatibility with frontend
-            user: {
-              id: user?.id,
-              fullName: user?.fullName || 'Unknown',
-              employeeId: user?.employeeId || 'No ID',
-              email: user?.email || 'No email',
-              role: user?.role || 'trainee',
-              category: user?.category || 'trainee'
-            }
+            name: user?.fullName || 'Unknown',
+            status: attendance?.status || null,
+            lastUpdated: attendance?.updatedAt || null
           };
         })
       );
 
-      // Add very detailed logging
-      console.log('================================');
-      console.log('DETAILED DEBUG: Trainees with attendance:');
-      console.log(JSON.stringify(traineesWithAttendance, null, 2));
-      console.log('================================');
-      
-      // Send response
       res.json(traineesWithAttendance);
     } catch (error: any) {
       console.error("Error fetching trainees with attendance:", error);
