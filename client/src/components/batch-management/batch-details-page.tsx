@@ -185,32 +185,39 @@ export function BatchDetailsPage() {
         throw new Error(data.message || 'Failed to update attendance');
       }
 
-      return response.json();
+      const responseData = await response.json();
+      console.log("Attendance response data:", JSON.stringify(responseData));
+      return responseData;
     },
     onSuccess: (data) => {
-      // Update the trainees data in the cache directly with the response from server
+      console.log("Updating cache with data:", JSON.stringify(data));
+      
+      // Don't invalidate the query immediately, let's update the cache first
+      // and remove the invalidation as it's causing the UI to flicker
       queryClient.setQueryData(
         [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`],
         (oldTrainees: any[] | undefined) => {
           if (!oldTrainees) return oldTrainees;
           
-          return oldTrainees.map(trainee => {
+          console.log("Existing trainees data:", JSON.stringify(oldTrainees));
+          
+          const updatedTrainees = oldTrainees.map(trainee => {
             if (trainee.id === data.traineeId) {
-              return {
+              const updatedTrainee = {
                 ...trainee,
                 status: data.status,
                 lastUpdated: data.updatedAt
               };
+              console.log("Updated trainee data:", JSON.stringify(updatedTrainee));
+              return updatedTrainee;
             }
             return trainee;
           });
+          
+          console.log("New trainees data:", JSON.stringify(updatedTrainees));
+          return updatedTrainees;
         }
       );
-      
-      // Also invalidate the query to ensure data consistency
-      queryClient.invalidateQueries({
-        queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`]
-      });
       
       toast({
         title: "Success",
