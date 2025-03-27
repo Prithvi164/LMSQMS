@@ -2503,45 +2503,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         managerComments,
       });
 
-      // If approved, update the batch phase and record actual dates
+      // If approved, update the batch phase
       if (status === 'approved') {
-        const today = new Date();
-        
-        const updateFields: any = {
+        await storage.updateBatch(request.batchId, {
           status: request.requestedPhase,
-        };
-        
-        // Record actual end date for current phase
-        const currentPhase = request.currentPhase;
-        if (currentPhase === 'induction') {
-          updateFields.actualInductionEndDate = today;
-        } else if (currentPhase === 'training') {
-          updateFields.actualTrainingEndDate = today;
-        } else if (currentPhase === 'certification') {
-          updateFields.actualCertificationEndDate = today;
-        } else if (currentPhase === 'ojt') {
-          updateFields.actualOjtEndDate = today;
-        } else if (currentPhase === 'ojt_certification') {
-          updateFields.actualOjtCertificationEndDate = today;
-        }
-        
-        // Record actual start date for next phase
-        const nextPhase = request.requestedPhase;
-        if (nextPhase === 'induction') {
-          updateFields.actualInductionStartDate = today;
-        } else if (nextPhase === 'training') {
-          updateFields.actualTrainingStartDate = today;
-        } else if (nextPhase === 'certification') {
-          updateFields.actualCertificationStartDate = today;
-        } else if (nextPhase === 'ojt') {
-          updateFields.actualOjtStartDate = today;
-        } else if (nextPhase === 'ojt_certification') {
-          updateFields.actualOjtCertificationStartDate = today;
-        } else if (nextPhase === 'completed') {
-          updateFields.actualCompletionDate = today;
-        }
-        
-        await storage.updateBatch(request.batchId, updateFields);
+        });
       }
 
       res.json(updatedRequest);

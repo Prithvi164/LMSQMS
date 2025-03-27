@@ -461,7 +461,6 @@ export const organizationBatches = pgTable("organization_batches", {
   lineOfBusinessId: integer("line_of_business_id")
     .references(() => organizationLineOfBusinesses.id)
     .notNull(),
-  // Planned dates (set during batch creation)
   inductionStartDate: date("induction_start_date").notNull(),
   inductionEndDate: date("induction_end_date"),
   trainingStartDate: date("training_start_date"),
@@ -473,18 +472,6 @@ export const organizationBatches = pgTable("organization_batches", {
   ojtCertificationStartDate: date("ojt_certification_start_date"),
   ojtCertificationEndDate: date("ojt_certification_end_date"),
   handoverToOpsDate: date("handover_to_ops_date"),
-  // Actual dates (recorded when phases actually change)
-  actualInductionStartDate: date("actual_induction_start_date"),
-  actualInductionEndDate: date("actual_induction_end_date"), 
-  actualTrainingStartDate: date("actual_training_start_date"),
-  actualTrainingEndDate: date("actual_training_end_date"),
-  actualCertificationStartDate: date("actual_certification_start_date"),
-  actualCertificationEndDate: date("actual_certification_end_date"),
-  actualOjtStartDate: date("actual_ojt_start_date"),
-  actualOjtEndDate: date("actual_ojt_end_date"),
-  actualOjtCertificationStartDate: date("actual_ojt_certification_start_date"),
-  actualOjtCertificationEndDate: date("actual_ojt_certification_end_date"),
-  actualCompletionDate: date("actual_completion_date"),
   weeklyOffDays: text("weekly_off_days").array().default(['Saturday', 'Sunday']),
   considerHolidays: boolean("consider_holidays").default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -523,18 +510,6 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
     id: true,
     createdAt: true,
     updatedAt: true,
-    // Omit all actual date fields since they are set programmatically
-    actualInductionStartDate: true,
-    actualInductionEndDate: true, 
-    actualTrainingStartDate: true,
-    actualTrainingEndDate: true,
-    actualCertificationStartDate: true,
-    actualCertificationEndDate: true,
-    actualOjtStartDate: true,
-    actualOjtEndDate: true,
-    actualOjtCertificationStartDate: true,
-    actualOjtCertificationEndDate: true,
-    actualCompletionDate: true,
   })
   .extend({
     batchCategory: z.enum(['new_training', 'upskill']),
