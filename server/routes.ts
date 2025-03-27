@@ -5347,8 +5347,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     try {
-      const batchId = parseInt(req.params.batchId); 
-      const date = new Date().toISOString().split('T')[0]; // Get current date
+      const batchId = parseInt(req.params.batchId);
+      // Use the date from the query parameter, or default to today
+      const date = req.query.date ? String(req.query.date) : new Date().toISOString().split('T')[0];
+      
+      console.log('Fetching trainees with attendance for date:', date);
 
       const trainees = await storage.getBatchTrainees(batchId);
       
@@ -5360,13 +5363,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           return {
             id: trainee.userId,
-            name: user?.fullName || 'Unknown',
+            fullName: user?.fullName || 'Unknown',
+            employeeId: user?.employeeId || '',
             status: attendance?.status || null,
-            lastUpdated: attendance?.updatedAt || null
+            lastUpdated: attendance?.updatedAt || null,
+            user: {
+              id: user?.id || 0,
+              fullName: user?.fullName || 'Unknown',
+              employeeId: user?.employeeId || '',
+              email: user?.email || '',
+              role: user?.role || 'trainee',
+              category: user?.category || 'trainee'
+            }
           };
         })
       );
 
+      console.log('Returning trainees with attendance for date:', date);
       res.json(traineesWithAttendance);
     } catch (error: any) {
       console.error("Error fetching trainees with attendance:", error);
