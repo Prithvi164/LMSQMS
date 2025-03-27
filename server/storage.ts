@@ -1493,9 +1493,13 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async listBatches(organizationId: number): Promise<(OrganizationBatch & { userCount: number })[]> {
+  async listBatches(organizationId: number): Promise<(OrganizationBatch & { userCount: number, trainer?: { id: number, fullName: string } })[]> {
     try {
       console.log(`Fetching batches for organization ${organizationId}`);
+      
+      // Log users schema columns for debugging
+      console.log('Users schema:', Object.keys(users));
+      console.log('Trainer column name:', Object.keys(users).find(k => k.toLowerCase().includes('name')));
 
       // Explicitly select and cast the batch_category field
       const batches = await db
@@ -1530,6 +1534,10 @@ export class DatabaseStorage implements IStorage {
           location: organizationLocations,
           process: organizationProcesses,
           line_of_business: organizationLineOfBusinesses,
+          trainer: {
+            id: users.id,
+            fullName: users.fullName,
+          },
         })
         .from(organizationBatches)
         .leftJoin(
@@ -1543,6 +1551,10 @@ export class DatabaseStorage implements IStorage {
         .leftJoin(
           organizationLineOfBusinesses,
           eq(organizationBatches.lineOfBusinessId, organizationLineOfBusinesses.id)
+        )
+        .leftJoin(
+          users,
+          eq(organizationBatches.trainerId, users.id)
         )
         .where(eq(organizationBatches.organizationId, organizationId))
         .orderBy(desc(organizationBatches.createdAt));

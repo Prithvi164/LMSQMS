@@ -546,6 +546,7 @@ export function BatchesTab() {
             <TableHead className="text-center">Location</TableHead>
             <TableHead className="text-center">Line of Business</TableHead>
             <TableHead className="text-center">Process</TableHead>
+            <TableHead className="text-center">Trainer</TableHead>
             <TableHead className="text-center">Capacity</TableHead>
             <TableHead className="text-center">Status</TableHead>
             <TableHead className="text-right">Actions</TableHead>
@@ -588,6 +589,7 @@ export function BatchesTab() {
               <TableCell className="text-center">{batch.location?.name || '-'}</TableCell>
               <TableCell className="text-center">{batch.line_of_business?.name || '-'}</TableCell>
               <TableCell className="text-center">{batch.process?.name || '-'}</TableCell>
+              <TableCell className="text-center">{batch.trainer?.fullName || '-'}</TableCell>
               <TableCell className="text-center">
                 <div className="font-medium">
                   {`${batch.userCount} / ${batch.capacityLimit}` || '-'}
