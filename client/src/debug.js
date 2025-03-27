@@ -1,1 +1,1 @@
-console.log('Trainees data structure:', trainees);
+// Debug logs can be added here
