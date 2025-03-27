@@ -26,7 +26,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Edit, Trash2, ArrowRightLeft, Loader2 } from "lucide-react";
+import { usePermissions } from "@/hooks/use-permissions";
+import { Edit, Trash2, ArrowRightLeft, Loader2, ShieldAlert } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 
 // Updated type to match actual API response
@@ -40,6 +41,15 @@ type Trainee = {
   dateOfJoining: string;
 };
 
+// Type for batch
+interface Batch {
+  id: number;
+  name: string;
+  status: string;
+  startDate: string;
+  endDate: string;
+}
+
 interface TraineeManagementProps {
   batchId: number;
   organizationId: number;
@@ -48,18 +58,34 @@ interface TraineeManagementProps {
 export function TraineeManagement({ batchId, organizationId }: TraineeManagementProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermissions();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedTrainee, setSelectedTrainee] = useState<Trainee | null>(null);
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
+  
+  // Check permissions
+  const canManageBatches = hasPermission("manage_batches");
+  const canViewUsers = hasPermission("view_users");
+  const canEditUsers = hasPermission("edit_users");
+  
+  // If the user doesn't have permission to view users, show a message
+  if (!canViewUsers) {
+    return (
+      <div className="flex items-center justify-center py-8 text-destructive">
+        <ShieldAlert className="h-6 w-6 mr-2" />
+        <span>You don't have permission to view trainees</span>
+      </div>
+    );
+  }
 
   // Fetch trainees for the current batch
-  const { data: trainees = [], isLoading, error } = useQuery({
+  const { data: trainees = [], isLoading, error } = useQuery<Trainee[]>({
     queryKey: [`/api/organizations/${organizationId}/batches/${batchId}/trainees`],
     enabled: !!batchId && !!organizationId,
   });
 
   // Fetch all other batches for transfer
-  const { data: allBatches = [] } = useQuery({
+  const { data: allBatches = [] } = useQuery<Batch[]>({
     queryKey: [`/api/organizations/${organizationId}/batches`],
     enabled: !!organizationId,
   });
@@ -224,40 +250,47 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                 <TableCell>{trainee.phoneNumber}</TableCell>
                 <TableCell>{formatDate(trainee.dateOfJoining)}</TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedTrainee(trainee);
-                        setIsTransferDialogOpen(true);
-                      }}
-                    >
-                      <ArrowRightLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        toast({
-                          title: "Coming Soon",
-                          description: "Edit functionality will be available soon",
-                        });
-                      }}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedTrainee(trainee);
-                        setIsDeleteDialogOpen(true);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  {canManageBatches ? (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedTrainee(trainee);
+                          setIsTransferDialogOpen(true);
+                        }}
+                      >
+                        <ArrowRightLeft className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          toast({
+                            title: "Coming Soon",
+                            description: "Edit functionality will be available soon",
+                          });
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedTrainee(trainee);
+                          setIsDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center text-muted-foreground">
+                      <ShieldAlert className="h-4 w-4 mr-1" />
+                      <span className="text-xs">View only</span>
+                    </div>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
@@ -303,8 +336,8 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
             </p>
             <div className="space-y-2">
               {allBatches
-                .filter((batch: any) => batch.id !== batchId && batch.status === 'planned')
-                .map((batch: any) => (
+                .filter((batch: Batch) => batch.id !== batchId && batch.status === 'planned')
+                .map((batch: Batch) => (
                   <Button
                     key={batch.id}
                     variant="outline"
