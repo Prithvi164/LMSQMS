@@ -97,7 +97,7 @@ export interface IStorage {
   
   // Attendance operations
   createAttendanceRecord(record: InsertAttendance): Promise<any>;
-  getAttendanceRecord(traineeId: number, date: string): Promise<any | null>;
+  getAttendanceRecord(traineeId: number, date: string, batchId?: number): Promise<any | null>;
 
   // Quiz template operations
   createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate>;
@@ -333,19 +333,24 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async getAttendanceRecord(traineeId: number, date: string): Promise<any | null> {
+  async getAttendanceRecord(traineeId: number, date: string, batchId?: number): Promise<any | null> {
     try {
-      console.log(`Getting attendance for trainee ${traineeId} on ${date}`);
+      console.log(`Getting attendance for trainee ${traineeId} on ${date}${batchId ? ` in batch ${batchId}` : ''}`);
+      
+      let conditions = [
+        eq(attendance.traineeId, traineeId),
+        eq(attendance.date, date)
+      ];
+      
+      // Add batch ID to the query conditions if provided
+      if (batchId) {
+        conditions.push(eq(attendance.batchId, batchId));
+      }
       
       const [record] = await db
         .select()
         .from(attendance)
-        .where(
-          and(
-            eq(attendance.traineeId, traineeId),
-            eq(attendance.date, date)
-          )
-        );
+        .where(and(...conditions));
       
       return record || null;
     } catch (error) {

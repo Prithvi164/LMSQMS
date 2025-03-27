@@ -5291,8 +5291,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const traineeId = parseInt(req.params.traineeId);
       const date = req.query.date as string;
+      const batchId = req.query.batchId ? parseInt(req.query.batchId as string) : undefined;
 
-      const attendance = await storage.getAttendanceRecord(traineeId, date);
+      // Pass the batchId parameter to filter attendance by batch
+      const attendance = await storage.getAttendanceRecord(traineeId, date, batchId);
       res.json(attendance);
     } catch (error: any) {
       console.error("Error fetching attendance:", error);
@@ -5369,7 +5371,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get attendance status for each trainee
       const traineesWithAttendance = await Promise.all(
         trainees.map(async (trainee) => {
-          const attendance = await storage.getAttendanceRecord(trainee.userId, date);
+          // Pass the batchId to properly filter attendance records
+          const attendance = await storage.getAttendanceRecord(trainee.userId, date, batchId);
           const user = await storage.getUser(trainee.userId);
           
           return {
