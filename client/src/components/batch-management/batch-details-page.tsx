@@ -7,7 +7,19 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft } from "lucide-react";
+import { 
+  Loader2, 
+  CheckCircle, 
+  AlertCircle, 
+  Clock, 
+  ChevronLeft,
+  Calendar,
+  Timer,
+  CalendarHeart,
+  CalendarCheck,
+  CalendarOff,
+  CalendarX
+} from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -55,10 +67,15 @@ const statusColors = {
   present: 'text-green-500',
   absent: 'text-red-500',
   late: 'text-yellow-500',
-  leave: 'text-blue-500'
+  leave: 'text-blue-500',
+  half_day: 'text-amber-500',
+  public_holiday: 'text-purple-500',
+  paid_leave: 'text-cyan-500',
+  weekly_off: 'text-gray-500',
+  unpaid_leave: 'text-rose-500'
 } as const;
 
-type AttendanceStatus = 'present' | 'absent' | 'late' | 'leave';
+type AttendanceStatus = 'present' | 'absent' | 'late' | 'leave' | 'half_day' | 'public_holiday' | 'paid_leave' | 'weekly_off' | 'unpaid_leave';
 
 type Trainee = {
   id: number;
@@ -85,7 +102,17 @@ const getStatusIcon = (status: AttendanceStatus | null) => {
     case 'late':
       return <Clock className={`h-4 w-4 ${statusColors.late}`} />;
     case 'leave':
-      return <Clock className={`h-4 w-4 ${statusColors.leave}`} />;
+      return <Calendar className={`h-4 w-4 ${statusColors.leave}`} />;
+    case 'half_day':
+      return <Timer className={`h-4 w-4 ${statusColors.half_day}`} />;
+    case 'public_holiday':
+      return <CalendarHeart className={`h-4 w-4 ${statusColors.public_holiday}`} />;
+    case 'paid_leave':
+      return <CalendarCheck className={`h-4 w-4 ${statusColors.paid_leave}`} />;
+    case 'weekly_off':
+      return <CalendarOff className={`h-4 w-4 ${statusColors.weekly_off}`} />;
+    case 'unpaid_leave':
+      return <CalendarX className={`h-4 w-4 ${statusColors.unpaid_leave}`} />;
     default:
       return null;
   }
@@ -453,6 +480,11 @@ export function BatchDetailsPage() {
                                 <SelectItem value="absent" className={statusColors.absent}>Absent</SelectItem>
                                 <SelectItem value="late" className={statusColors.late}>Late</SelectItem>
                                 <SelectItem value="leave" className={statusColors.leave}>Leave</SelectItem>
+                                <SelectItem value="half_day" className={statusColors.half_day}>Half Day</SelectItem>
+                                <SelectItem value="public_holiday" className={statusColors.public_holiday}>Public Holiday</SelectItem>
+                                <SelectItem value="paid_leave" className={statusColors.paid_leave}>Paid Leave</SelectItem>
+                                <SelectItem value="weekly_off" className={statusColors.weekly_off}>Weekly Off</SelectItem>
+                                <SelectItem value="unpaid_leave" className={statusColors.unpaid_leave}>Unpaid Leave</SelectItem>
                               </SelectContent>
                             </Select>
                           </TableCell>
