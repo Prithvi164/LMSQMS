@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -134,8 +134,19 @@ export function BatchDetailsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedTab, setSelectedTab] = useState("attendance");
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  // Try to restore the previously selected date from localStorage 
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    const savedDate = localStorage.getItem(`batch_${batchId}_selected_date`);
+    return savedDate ? new Date(savedDate) : new Date();
+  });
   const currentDate = format(selectedDate, "PPP");
+
+  // Save selected date to localStorage whenever it changes
+  useEffect(() => {
+    if (batchId) {
+      localStorage.setItem(`batch_${batchId}_selected_date`, selectedDate.toISOString());
+    }
+  }, [selectedDate, batchId]);
 
   // Initialize form
   const form = useForm({
@@ -155,7 +166,7 @@ export function BatchDetailsPage() {
 
   const formattedDate = selectedDate.toISOString().split('T')[0];
   
-  const { data: trainees = [], isLoading: traineesLoading } = useQuery<any[]>({
+  const { data: trainees = [], isLoading: traineesLoading, refetch: refetchTrainees } = useQuery<any[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate],
     queryFn: async () => {
       const response = await fetch(`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees?date=${formattedDate}`);
@@ -165,7 +176,18 @@ export function BatchDetailsPage() {
       return response.json();
     },
     enabled: !!user?.organizationId && !!batchId && !!batch,
+    staleTime: 0, // Don't use stale data
+    refetchOnMount: true, // Refetch when component mounts
+    refetchOnWindowFocus: true, // Refetch when window gets focus
   });
+  
+  // Force refetch when component mounts or date changes
+  useEffect(() => {
+    if (user?.organizationId && batchId && batch) {
+      console.log("Refetching trainees attendance data for date:", formattedDate);
+      refetchTrainees();
+    }
+  }, [refetchTrainees, formattedDate, user?.organizationId, batchId, batch]);
 
   const { data: managers } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/users`],
