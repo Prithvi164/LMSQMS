@@ -63,7 +63,9 @@ type AttendanceStatus = 'present' | 'absent' | 'late' | 'leave';
 type Trainee = {
   id: number;
   status: string;
-  user: {
+  name: string;
+  employeeId?: string;
+  user?: {
     id: number;
     fullName: string;
     employeeId: string;
@@ -135,7 +137,7 @@ export function BatchDetailsPage() {
     enabled: !!user?.organizationId && !!batchId,
   });
 
-  const { data: trainees = [], isLoading: traineesLoading } = useQuery({
+  const { data: trainees = [], isLoading: traineesLoading } = useQuery<any[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`],
     enabled: !!user?.organizationId && !!batchId && !!batch,
   });
@@ -418,8 +420,8 @@ export function BatchDetailsPage() {
                   <TableBody>
                     {trainees.map((trainee: Trainee) => (
                       <TableRow key={trainee.id}>
-                        <TableCell>{trainee.user ? trainee.user.fullName : 'No name'}</TableCell>
-                        <TableCell>{trainee.user ? trainee.user.employeeId : 'No ID'}</TableCell>
+                        <TableCell>{trainee.user?.fullName || 'No name'}</TableCell>
+                        <TableCell>{trainee.user?.employeeId || 'No ID'}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             {getStatusIcon(trainee.status as AttendanceStatus)}
