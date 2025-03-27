@@ -501,17 +501,8 @@ export function BatchesTab() {
   };
 
   const handleBatchClick = (batch: BatchWithRelations) => {
-    // Only open the trainee management dialog if the user has permission to view users
-    if (hasPermission("view_users")) {
-      setSelectedBatchForDetails(batch);
-      setIsTraineeDialogOpen(true);
-    } else {
-      toast({
-        title: "Permission Denied",
-        description: "You don't have permission to view trainees",
-        variant: "destructive"
-      });
-    }
+    setSelectedBatchForDetails(batch);
+    setIsTraineeDialogOpen(true);
   };
 
   const renderBatchTable = (batchList: BatchWithRelations[]) => (
@@ -612,17 +603,15 @@ export function BatchesTab() {
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex items-center justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity action-buttons">
-                  {hasPermission("edit_users") && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleAddTraineeClick(batch)}
-                      className="h-8 w-8 p-0"
-                    >
-                      <UserPlus className="h-4 w-4" />
-                      <span className="sr-only">Add Trainee</span>
-                    </Button>
-                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleAddTraineeClick(batch)}
+                    className="h-8 w-8 p-0"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    <span className="sr-only">Add Trainee</span>
+                  </Button>
                   {canManageBatches && batch.status === 'planned' && (
                     <>
                       <Button
