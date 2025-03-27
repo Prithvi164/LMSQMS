@@ -3496,7 +3496,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Validate the status
-      const validStatuses = ['present', 'absent', 'late', 'leave'];
+      const validStatuses = ['present', 'absent', 'late', 'leave', 'half_day', 'public_holiday', 'paid_leave', 'weekly_off', 'unpaid_leave'];
       if (!validStatuses.includes(status)) {
         return res.status(400).json({ 
           message: "Invalid attendance status",
@@ -5262,7 +5262,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { status, date } = req.body;
 
       // Validate the status
-      const validStatuses = ['present', 'absent', 'late'];
+      const validStatuses = ['present', 'absent', 'late', 'leave', 'half_day', 'public_holiday', 'paid_leave', 'weekly_off', 'unpaid_leave'];
       if (!validStatuses.includes(status)) {
         return res.status(400).json({ message: "Invalid attendance status" });
       }
@@ -5296,6 +5296,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(attendance);
     } catch (error: any) {
       console.error("Error fetching attendance:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // Get attendance records for a trainee in a batch (with optional date range)
+  app.get("/api/batch/:batchId/trainee/:traineeId/attendance", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const traineeId = parseInt(req.params.traineeId);
+      const batchId = parseInt(req.params.batchId);
+      const startDate = req.query.startDate as string | undefined;
+      const endDate = req.query.endDate as string | undefined;
+
+      console.log(`Fetching attendance records for trainee ${traineeId} in batch ${batchId} from ${startDate || 'earliest'} to ${endDate || 'latest'}`);
+      
+      const records = await storage.listAttendanceRecords(traineeId, batchId, startDate, endDate);
+      res.json(records);
+    } catch (error: any) {
+      console.error("Error fetching attendance records:", error);
       res.status(500).json({ message: error.message });
     }
   });

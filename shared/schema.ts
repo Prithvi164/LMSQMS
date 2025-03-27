@@ -1049,7 +1049,7 @@ export const attendanceStatusEnum = pgEnum('attendance_status', [
   'leave',
   'half_day',
   'public_holiday',
-  'paid_leave',
+  'paid_leave', 
   'weekly_off',
   'unpaid_leave'
 ]);
