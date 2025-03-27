@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,13 +7,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft, Calendar as CalendarIcon, ArrowLeft, CalendarDays } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { format, isSameDay } from "date-fns";
+import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BatchTimeline } from "./batch-timeline";
-import { Calendar } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
@@ -23,11 +22,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   Form,
   FormControl,
@@ -134,40 +128,7 @@ export function BatchDetailsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedTab, setSelectedTab] = useState("attendance");
-  // Try to restore the previously selected date from localStorage 
-  const [selectedDate, setSelectedDate] = useState<Date>(() => {
-    const savedDate = localStorage.getItem(`batch_${batchId}_selected_date`);
-    console.log(`Initial load - retrieved date from localStorage: ${savedDate || "none found"}`);
-    return savedDate ? new Date(savedDate) : new Date();
-  });
-  const currentDate = format(selectedDate, "PPP");
-
-  // Custom wrapper for setSelectedDate that also updates localStorage
-  const updateSelectedDateAndRefetch = useCallback((date: Date) => {
-    console.log("Updating selected date to:", date.toISOString().split('T')[0]);
-    setSelectedDate(date);
-    
-    // Immediately update localStorage to ensure it's available when navigating away
-    if (batchId) {
-      const dateString = date.toISOString();
-      localStorage.setItem(`batch_${batchId}_selected_date`, dateString);
-      console.log(`Saved date to localStorage: batch_${batchId}_selected_date = ${dateString}`);
-
-      // Force a query invalidation and refetch for the new date
-      const formattedNewDate = date.toISOString().split('T')[0];
-      queryClient.invalidateQueries({
-        queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedNewDate],
-      });
-    }
-  }, [batchId, queryClient, user?.organizationId]);
-  
-  // Save selected date to localStorage whenever it changes
-  useEffect(() => {
-    if (batchId) {
-      localStorage.setItem(`batch_${batchId}_selected_date`, selectedDate.toISOString());
-      console.log(`Date changed - saved to localStorage: ${selectedDate.toISOString()}`);
-    }
-  }, [selectedDate, batchId]);
+  const currentDate = format(new Date(), "PPP");
 
   // Initialize form
   const form = useForm({
@@ -185,52 +146,10 @@ export function BatchDetailsPage() {
     enabled: !!user?.organizationId && !!batchId,
   });
 
-  const formattedDate = selectedDate.toISOString().split('T')[0];
-  
-  const { data: trainees = [], isLoading: traineesLoading, refetch: refetchTrainees } = useQuery<any[]>({
-    queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate],
-    queryFn: async () => {
-      console.log(`Fetching attendance data for date: ${formattedDate}`);
-      
-      // Always include the date parameter in the URL to ensure we get the correct data
-      const url = `/api/organizations/${user?.organizationId}/batches/${batchId}/trainees?date=${formattedDate}`;
-      console.log(`Making request to: ${url}`);
-      
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error('Failed to fetch trainees attendance data');
-      }
-      const data = await response.json();
-      console.log(`Received ${data.length} trainees with attendance for ${formattedDate}:`, data);
-      return data;
-    },
+  const { data: trainees = [], isLoading: traineesLoading } = useQuery<any[]>({
+    queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`],
     enabled: !!user?.organizationId && !!batchId && !!batch,
-    staleTime: 0, // Don't use stale data
-    refetchOnMount: true, // Refetch every time component mounts
-    refetchOnWindowFocus: true, // Refetch when window gets focus
-    gcTime: Infinity, // Keep the data in cache indefinitely (cacheTime is renamed to gcTime in v5)
-    structuralSharing: false, // Always return a new reference to force re-renders
   });
-  
-  // Force refetch when component mounts, date changes, or after navigation back to this page
-  useEffect(() => {
-    if (user?.organizationId && batchId && batch) {
-      console.log("Refetching trainees attendance data for date:", formattedDate);
-      
-      // Add a slight delay to ensure the query properly fetches data after navigation
-      const timer = setTimeout(() => {
-        // Invalidate the query first to ensure we don't use stale data
-        queryClient.invalidateQueries({
-          queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate],
-        });
-        
-        // Then force a refetch
-        refetchTrainees();
-      }, 100);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [refetchTrainees, formattedDate, user?.organizationId, batchId, batch, queryClient]);
 
   const { data: managers } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/users`],
@@ -253,8 +172,6 @@ export function BatchDetailsPage() {
 
   const updateAttendanceMutation = useMutation({
     mutationFn: async ({ traineeId, status }: { traineeId: number; status: AttendanceStatus }) => {
-      console.log(`Marking attendance for trainee ${traineeId} as ${status} for date ${formattedDate}`);
-      
       const response = await fetch(`/api/attendance`, {
         method: 'POST',
         headers: {
@@ -264,7 +181,7 @@ export function BatchDetailsPage() {
         body: JSON.stringify({
           traineeId,
           status,
-          date: formattedDate,
+          date: new Date().toISOString().split('T')[0],
           organizationId: user?.organizationId,
           batchId: parseInt(batchId!),
           phase: batch?.status,
@@ -281,102 +198,46 @@ export function BatchDetailsPage() {
       console.log("Attendance response data:", JSON.stringify(responseData));
       return responseData;
     },
-    // Add optimistic update functionality 
-    onMutate: async ({ traineeId, status }) => {
-      // Cancel any outgoing refetches to avoid overwriting our optimistic update
-      await queryClient.cancelQueries({ 
-        queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate] 
-      });
-      
-      // Save the previous state
-      const previousTrainees = queryClient.getQueryData(
-        [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate]
-      );
-      
-      // Perform an optimistic update to the cache
-      queryClient.setQueryData(
-        [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate],
-        (oldTrainees: any[] | undefined) => {
-          if (!oldTrainees) return oldTrainees;
-          
-          console.log("Optimistically updating trainees data");
-          
-          return oldTrainees.map(trainee => {
-            if (trainee.id === traineeId) {
-              const now = new Date();
-              return {
-                ...trainee,
-                status: status,
-                lastUpdated: now.toISOString()
-              };
-            }
-            return trainee;
-          });
-        }
-      );
-      
-      // Return the previous value in case we need to rollback
-      return { previousTrainees };
-    },
     onSuccess: (data) => {
-      console.log("Attendance marked successfully. Server response:", JSON.stringify(data));
+      console.log("Updating cache with data:", JSON.stringify(data));
       
-      // Update the query cache for the current selected date with the server data
+      // Don't invalidate the query immediately, let's update the cache first
+      // and remove the invalidation as it's causing the UI to flicker
       queryClient.setQueryData(
-        [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate],
+        [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`],
         (oldTrainees: any[] | undefined) => {
           if (!oldTrainees) return oldTrainees;
           
-          console.log("Updating cached trainees with server data for trainee:", data.traineeId);
+          console.log("Existing trainees data:", JSON.stringify(oldTrainees));
           
-          // Create a completely new array to ensure React detects the change
           const updatedTrainees = oldTrainees.map(trainee => {
             if (trainee.id === data.traineeId) {
               const updatedTrainee = {
                 ...trainee,
                 status: data.status,
-                lastUpdated: data.updatedAt || new Date().toISOString()
+                lastUpdated: data.updatedAt
               };
-              console.log("Updated trainee in cache:", JSON.stringify(updatedTrainee));
+              console.log("Updated trainee data:", JSON.stringify(updatedTrainee));
               return updatedTrainee;
             }
             return trainee;
           });
           
+          console.log("New trainees data:", JSON.stringify(updatedTrainees));
           return updatedTrainees;
         }
       );
       
-      // Always invalidate the queries to force a refetch to ensure data consistency
-      queryClient.invalidateQueries({
-        queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate],
-      });
-      
-      // Show a toast notification
       toast({
         title: "Success",
         description: "Attendance marked successfully",
       });
     },
-    onError: (error: Error, _, context: any) => {
-      // If there was an error, roll back to the previous state
-      if (context?.previousTrainees) {
-        queryClient.setQueryData(
-          [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate],
-          context.previousTrainees
-        );
-      }
-      
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Error",
         description: error.message,
-      });
-    },
-    onSettled: () => {
-      // Always refetch after success or error to ensure data consistency
-      queryClient.invalidateQueries({
-        queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate],
       });
     },
   });
@@ -579,45 +440,7 @@ export function BatchDetailsPage() {
             <CardContent className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-semibold">Attendance Tracking</h2>
-                <div className="flex items-center gap-2">
-                  {!isSameDay(selectedDate, new Date()) && (
-                    <Alert className="py-1 px-3 flex items-center bg-yellow-50 border-yellow-200 text-yellow-800">
-                      <CalendarDays className="h-4 w-4 mr-2" />
-                      <AlertDescription className="m-0">
-                        Viewing attendance for a different date
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant={isSameDay(selectedDate, new Date()) ? "outline" : "default"}
-                        className="flex items-center gap-2"
-                      >
-                        <CalendarIcon className="h-4 w-4" />
-                        <span>{currentDate}</span>
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="end">
-                      <Calendar
-                        mode="single"
-                        selected={selectedDate}
-                        onSelect={(date) => date && updateSelectedDateAndRefetch(date)}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  {!isSameDay(selectedDate, new Date()) && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => updateSelectedDateAndRefetch(new Date())}
-                    >
-                      <ArrowLeft className="h-4 w-4 mr-1" />
-                      Today
-                    </Button>
-                  )}
-                </div>
+                <p className="text-muted-foreground">{currentDate}</p>
               </div>
 
               {trainees && trainees.length > 0 ? (
@@ -655,38 +478,9 @@ export function BatchDetailsPage() {
                           <TableCell>
                             <Select
                               value={trainee.status || ''}
-                              onValueChange={(value: AttendanceStatus) => {
-                                console.log("Status changed for trainee", trainee.id, "to", value);
-                                
-                                // Create a direct UI update for immediate feedback
-                                const now = new Date();
-                                
-                                // Update the trainee in the current list for immediate UI feedback
-                                trainee.status = value;
-                                trainee.lastUpdated = now.toISOString();
-                                
-                                // Force a component re-render by updating a query cache copy
-                                queryClient.setQueryData(
-                                  [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate],
-                                  (oldTrainees: any[] | undefined) => {
-                                    if (!oldTrainees) return oldTrainees;
-                                    
-                                    return oldTrainees.map(t => {
-                                      if (t.id === trainee.id) {
-                                        return {
-                                          ...t,
-                                          status: value,
-                                          lastUpdated: now.toISOString()
-                                        };
-                                      }
-                                      return t;
-                                    });
-                                  }
-                                );
-                                
-                                // Then perform the actual mutation to save to the server
-                                updateAttendanceMutation.mutate({ traineeId: trainee.id, status: value });
-                              }}
+                              onValueChange={(value: AttendanceStatus) =>
+                                updateAttendanceMutation.mutate({ traineeId: trainee.id, status: value })
+                              }
                             >
                               <SelectTrigger className="w-[130px]">
                                 <SelectValue placeholder="Mark attendance" />

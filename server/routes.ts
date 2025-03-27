@@ -3191,12 +3191,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const batchId = parseInt(req.params.batchId);
       const orgId = parseInt(req.params.orgId);
-      // Use provided date or default to today
-      const date = req.query.date ? String(req.query.date) : new Date().toISOString().split('T')[0];
+      const today = new Date().toISOString().split('T')[0];
 
-      console.log('Fetching trainees for batch', batchId, 'for date', date);
+      console.log('Fetching trainees for batch', batchId);
 
-      // Get all trainees assigned to this batch and their attendance for the specified date
+      // Get all trainees assigned to this batch and their attendance for today
       const batchTrainees = await db
         .select({
           userId: userBatchProcesses.userId,
@@ -3221,7 +3220,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           and(
             eq(attendance.traineeId, userBatchProcesses.userId),
             eq(attendance.batchId, userBatchProcesses.batchId),
-            eq(attendance.date, date)
+            eq(attendance.date, today)
           )
         )
         .where(
@@ -5347,11 +5346,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
 
     try {
-      const batchId = parseInt(req.params.batchId);
-      // Use the date from the query parameter, or default to today
-      const date = req.query.date ? String(req.query.date) : new Date().toISOString().split('T')[0];
-      
-      console.log('Fetching trainees with attendance for date:', date);
+      const batchId = parseInt(req.params.batchId); 
+      const date = new Date().toISOString().split('T')[0]; // Get current date
 
       const trainees = await storage.getBatchTrainees(batchId);
       
@@ -5363,23 +5359,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           return {
             id: trainee.userId,
-            fullName: user?.fullName || 'Unknown',
-            employeeId: user?.employeeId || '',
+            name: user?.fullName || 'Unknown',
             status: attendance?.status || null,
-            lastUpdated: attendance?.updatedAt || null,
-            user: {
-              id: user?.id || 0,
-              fullName: user?.fullName || 'Unknown',
-              employeeId: user?.employeeId || '',
-              email: user?.email || '',
-              role: user?.role || 'trainee',
-              category: user?.category || 'trainee'
-            }
+            lastUpdated: attendance?.updatedAt || null
           };
         })
       );
 
-      console.log('Returning trainees with attendance for date:', date);
       res.json(traineesWithAttendance);
     } catch (error: any) {
       console.error("Error fetching trainees with attendance:", error);
