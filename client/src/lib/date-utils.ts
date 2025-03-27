@@ -1,4 +1,21 @@
-import { addDays, format } from 'date-fns';
+import { addDays, format, parseISO } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
+
+/**
+ * Format a date string to IST (Indian Standard Time) format
+ * @param dateString ISO date string
+ * @returns Formatted date string in IST
+ */
+export function formatToIST(dateString: string): string {
+  try {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return formatInTimeZone(date, 'Asia/Kolkata', 'yyyy-MM-dd');
+  } catch (error) {
+    console.error('Error formatting date to IST:', error);
+    return dateString || '';
+  }
+}
 
 export interface Holiday {
   date: string;
