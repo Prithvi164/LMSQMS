@@ -5377,13 +5377,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           return {
             id: trainee.userId,
-            name: user?.fullName || 'Unknown',
-            status: attendance?.status || null,
-            lastUpdated: attendance?.updatedAt || null
+            fullName: user?.fullName || 'Unknown',
+            employeeId: user?.employeeId || 'No ID',
+            email: user?.email || 'No email',
+            status: attendance?.status || 'Not Marked',
+            lastUpdated: attendance?.updatedAt || null,
+            user: {
+              fullName: user?.fullName || 'Unknown',
+              employeeId: user?.employeeId || 'No ID',
+              email: user?.email || 'No email',
+            }
           };
         })
       );
 
+      console.log('Trainees with attendance:', JSON.stringify(traineesWithAttendance.slice(0, 2), null, 2));
       res.json(traineesWithAttendance);
     } catch (error: any) {
       console.error("Error fetching trainees with attendance:", error);
