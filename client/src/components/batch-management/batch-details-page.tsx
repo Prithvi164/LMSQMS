@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -137,14 +137,35 @@ export function BatchDetailsPage() {
   // Try to restore the previously selected date from localStorage 
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
     const savedDate = localStorage.getItem(`batch_${batchId}_selected_date`);
+    console.log(`Initial load - retrieved date from localStorage: ${savedDate || "none found"}`);
     return savedDate ? new Date(savedDate) : new Date();
   });
   const currentDate = format(selectedDate, "PPP");
 
+  // Custom wrapper for setSelectedDate that also updates localStorage
+  const updateSelectedDateAndRefetch = useCallback((date: Date) => {
+    console.log("Updating selected date to:", date.toISOString().split('T')[0]);
+    setSelectedDate(date);
+    
+    // Immediately update localStorage to ensure it's available when navigating away
+    if (batchId) {
+      const dateString = date.toISOString();
+      localStorage.setItem(`batch_${batchId}_selected_date`, dateString);
+      console.log(`Saved date to localStorage: batch_${batchId}_selected_date = ${dateString}`);
+
+      // Force a query invalidation and refetch for the new date
+      const formattedNewDate = date.toISOString().split('T')[0];
+      queryClient.invalidateQueries({
+        queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedNewDate],
+      });
+    }
+  }, [batchId, queryClient, user?.organizationId]);
+  
   // Save selected date to localStorage whenever it changes
   useEffect(() => {
     if (batchId) {
       localStorage.setItem(`batch_${batchId}_selected_date`, selectedDate.toISOString());
+      console.log(`Date changed - saved to localStorage: ${selectedDate.toISOString()}`);
     }
   }, [selectedDate, batchId]);
 
@@ -170,7 +191,12 @@ export function BatchDetailsPage() {
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate],
     queryFn: async () => {
       console.log(`Fetching attendance data for date: ${formattedDate}`);
-      const response = await fetch(`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees?date=${formattedDate}`);
+      
+      // Always include the date parameter in the URL to ensure we get the correct data
+      const url = `/api/organizations/${user?.organizationId}/batches/${batchId}/trainees?date=${formattedDate}`;
+      console.log(`Making request to: ${url}`);
+      
+      const response = await fetch(url);
       if (!response.ok) {
         throw new Error('Failed to fetch trainees attendance data');
       }
@@ -180,19 +206,31 @@ export function BatchDetailsPage() {
     },
     enabled: !!user?.organizationId && !!batchId && !!batch,
     staleTime: 0, // Don't use stale data
-    refetchOnMount: true, // Refetch when component mounts
+    refetchOnMount: true, // Refetch every time component mounts
     refetchOnWindowFocus: true, // Refetch when window gets focus
     gcTime: Infinity, // Keep the data in cache indefinitely (cacheTime is renamed to gcTime in v5)
     structuralSharing: false, // Always return a new reference to force re-renders
   });
   
-  // Force refetch when component mounts or date changes
+  // Force refetch when component mounts, date changes, or after navigation back to this page
   useEffect(() => {
     if (user?.organizationId && batchId && batch) {
       console.log("Refetching trainees attendance data for date:", formattedDate);
-      refetchTrainees();
+      
+      // Add a slight delay to ensure the query properly fetches data after navigation
+      const timer = setTimeout(() => {
+        // Invalidate the query first to ensure we don't use stale data
+        queryClient.invalidateQueries({
+          queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate],
+        });
+        
+        // Then force a refetch
+        refetchTrainees();
+      }, 100);
+      
+      return () => clearTimeout(timer);
     }
-  }, [refetchTrainees, formattedDate, user?.organizationId, batchId, batch]);
+  }, [refetchTrainees, formattedDate, user?.organizationId, batchId, batch, queryClient]);
 
   const { data: managers } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/users`],
@@ -559,7 +597,7 @@ export function BatchDetailsPage() {
                       <Calendar
                         mode="single"
                         selected={selectedDate}
-                        onSelect={(date) => date && setSelectedDate(date)}
+                        onSelect={(date) => date && updateSelectedDateAndRefetch(date)}
                         initialFocus
                       />
                     </PopoverContent>
@@ -568,7 +606,7 @@ export function BatchDetailsPage() {
                     <Button 
                       variant="ghost" 
                       size="sm"
-                      onClick={() => setSelectedDate(new Date())}
+                      onClick={() => updateSelectedDateAndRefetch(new Date())}
                     >
                       <ArrowLeft className="h-4 w-4 mr-1" />
                       Today
