@@ -174,14 +174,28 @@ export default function TraineeManagement() {
   const ojtBatches = batchesByStatus['ojt'] || [];
   const completedBatches = batchesByStatus['completed'] || [];
 
-  // Optimized renderBatchCard function
+  // Track navigation loading state
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [navigatingBatchId, setNavigatingBatchId] = useState<number | null>(null);
+  
+  // Optimized renderBatchCard function with improved navigation handling
   const renderBatchCard = useCallback((batch: Batch) => (
     <Card
       key={batch.id}
-      className={`${selectedBatch === batch.id ? 'border-primary' : ''} cursor-pointer transition-all duration-200 ${PHASE_COLORS[batch.status as keyof typeof PHASE_COLORS]}`}
+      className={`${selectedBatch === batch.id ? 'border-primary' : ''} 
+                 ${navigatingBatchId === batch.id && isNavigating ? 'opacity-70' : ''} 
+                 cursor-pointer transition-all duration-200 
+                 ${PHASE_COLORS[batch.status as keyof typeof PHASE_COLORS]}`}
       onClick={() => {
         if (batch.status !== 'planned') {
-          window.location.href = `/batch-details/${batch.id}`;
+          // Show loading state
+          setIsNavigating(true);
+          setNavigatingBatchId(batch.id);
+          
+          // Use timeout to ensure the loading state renders before navigation
+          setTimeout(() => {
+            window.location.href = `/batch-details/${batch.id}`;
+          }, 100);
         } else {
           setSelectedBatch(batch.id);
         }
@@ -241,7 +255,7 @@ export default function TraineeManagement() {
         )}
       </CardContent>
     </Card>
-  ), [selectedBatch, startBatchMutation]);
+  ), [selectedBatch, startBatchMutation, isNavigating, navigatingBatchId]);
 
   const renderDrilldownControls = useCallback(() => (
     <div className="flex gap-4 mb-6">
