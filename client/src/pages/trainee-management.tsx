@@ -45,6 +45,12 @@ type Batch = {
     name: string;
   };
   capacityLimit: number;
+  trainer?: {
+    id: number;
+    fullName: string;
+    email?: string;
+    phoneNumber?: string;
+  } | null;
 };
 
 // Colors for charts
@@ -202,6 +208,10 @@ export default function TraineeManagement() {
           <p className="text-sm">
             <span className="font-medium">LOB:</span>{" "}
             {batch.line_of_business ? batch.line_of_business.name : "Not assigned"}
+          </p>
+          <p className="text-sm">
+            <span className="font-medium">Trainer:</span>{" "}
+            {batch.trainer ? batch.trainer.fullName : "Not assigned"}
           </p>
           <div className="mt-2">
             <div className="flex justify-between items-center mb-1">
