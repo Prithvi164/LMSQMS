@@ -839,9 +839,10 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                 )}
               </div>
               <div className="text-sm">
-                {format(range.start, 'MMM d, yyyy')}
+                {/* Format date without time to prevent timezone issues */}
+                {format(new Date(range.start.toISOString().substring(0, 10)), 'MMM d, yyyy')}
                 {' - '}
-                {format(range.end, 'MMM d, yyyy')}
+                {format(new Date(range.end.toISOString().substring(0, 10)), 'MMM d, yyyy')}
               </div>
             </div>
           );
