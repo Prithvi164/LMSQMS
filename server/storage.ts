@@ -1530,6 +1530,14 @@ export class DatabaseStorage implements IStorage {
           location: organizationLocations,
           process: organizationProcesses,
           line_of_business: organizationLineOfBusinesses,
+          trainer: {
+            id: trainer.id,
+            fullName: trainer.fullName
+          },
+          manager: {
+            id: manager.id, 
+            fullName: manager.fullName
+          }
         })
         .from(organizationBatches)
         .leftJoin(
@@ -1543,6 +1551,14 @@ export class DatabaseStorage implements IStorage {
         .leftJoin(
           organizationLineOfBusinesses,
           eq(organizationBatches.lineOfBusinessId, organizationLineOfBusinesses.id)
+        )
+        .leftJoin(
+          users.as('trainer'),
+          eq(organizationBatches.trainerId, sql<number>`trainer.id`)
+        )
+        .leftJoin(
+          users.as('manager'),
+          eq(sql<number>`trainer.manager_id`, sql<number>`manager.id`)
         )
         .where(eq(organizationBatches.organizationId, organizationId))
         .orderBy(desc(organizationBatches.createdAt));
