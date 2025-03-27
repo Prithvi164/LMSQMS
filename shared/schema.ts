@@ -461,7 +461,6 @@ export const organizationBatches = pgTable("organization_batches", {
   lineOfBusinessId: integer("line_of_business_id")
     .references(() => organizationLineOfBusinesses.id)
     .notNull(),
-  // Planned phase dates (existing)
   inductionStartDate: date("induction_start_date").notNull(),
   inductionEndDate: date("induction_end_date"),
   trainingStartDate: date("training_start_date"),
@@ -473,20 +472,6 @@ export const organizationBatches = pgTable("organization_batches", {
   ojtCertificationStartDate: date("ojt_certification_start_date"),
   ojtCertificationEndDate: date("ojt_certification_end_date"),
   handoverToOpsDate: date("handover_to_ops_date"),
-  // Actual phase dates (new)
-  actualStartDate: date("actual_start_date"),
-  actualEndDate: date("actual_end_date"),
-  actualInductionStartDate: date("actual_induction_start_date"),
-  actualInductionEndDate: date("actual_induction_end_date"),
-  actualTrainingStartDate: date("actual_training_start_date"),
-  actualTrainingEndDate: date("actual_training_end_date"),
-  actualCertificationStartDate: date("actual_certification_start_date"),
-  actualCertificationEndDate: date("actual_certification_end_date"),
-  actualOjtStartDate: date("actual_ojt_start_date"),
-  actualOjtEndDate: date("actual_ojt_end_date"),
-  actualOjtCertificationStartDate: date("actual_ojt_certification_start_date"),
-  actualOjtCertificationEndDate: date("actual_ojt_certification_end_date"),
-  actualHandoverToOpsDate: date("actual_handover_to_ops_date"),
   weeklyOffDays: text("weekly_off_days").array().default(['Saturday', 'Sunday']),
   considerHolidays: boolean("consider_holidays").default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -531,7 +516,6 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
     name: z.string().min(1, "Batch name is required"),
     startDate: z.string().min(1, "Start date is required"),
     endDate: z.string().min(1, "End date is required"),
-    // Planned phase dates
     inductionStartDate: z.string().min(1, "Induction Start date is required"),
     inductionEndDate: z.string().optional(),
     trainingStartDate: z.string().optional(),
@@ -543,21 +527,6 @@ export const insertOrganizationBatchSchema = createInsertSchema(organizationBatc
     ojtCertificationStartDate: z.string().optional(),
     ojtCertificationEndDate: z.string().optional(),
     handoverToOpsDate: z.string().optional(),
-    // Actual phase dates
-    actualStartDate: z.string().optional(),
-    actualEndDate: z.string().optional(),
-    actualInductionStartDate: z.string().optional(),
-    actualInductionEndDate: z.string().optional(),
-    actualTrainingStartDate: z.string().optional(),
-    actualTrainingEndDate: z.string().optional(),
-    actualCertificationStartDate: z.string().optional(),
-    actualCertificationEndDate: z.string().optional(),
-    actualOjtStartDate: z.string().optional(),
-    actualOjtEndDate: z.string().optional(),
-    actualOjtCertificationStartDate: z.string().optional(),
-    actualOjtCertificationEndDate: z.string().optional(),
-    actualHandoverToOpsDate: z.string().optional(),
-    // Other batch properties
     weeklyOffDays: z.array(z.string()).default(['Saturday', 'Sunday']),
     considerHolidays: z.boolean().default(true),
     capacityLimit: z.number().int().min(1, "Capacity must be at least 1"),
