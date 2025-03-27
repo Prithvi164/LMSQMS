@@ -55,10 +55,13 @@ const statusColors = {
   present: 'text-green-500',
   absent: 'text-red-500',
   late: 'text-yellow-500',
-  leave: 'text-blue-500'
+  leave: 'text-blue-500',
+  half_day: 'text-orange-500',
+  public_holiday: 'text-purple-500',
+  weekly_off: 'text-gray-500'
 } as const;
 
-type AttendanceStatus = 'present' | 'absent' | 'late' | 'leave';
+type AttendanceStatus = 'present' | 'absent' | 'late' | 'leave' | 'half_day' | 'public_holiday' | 'weekly_off';
 
 type Trainee = {
   id: number;
@@ -86,6 +89,12 @@ const getStatusIcon = (status: AttendanceStatus | null) => {
       return <Clock className={`h-4 w-4 ${statusColors.late}`} />;
     case 'leave':
       return <Clock className={`h-4 w-4 ${statusColors.leave}`} />;
+    case 'half_day':
+      return <Clock className={`h-4 w-4 ${statusColors.half_day}`} />;
+    case 'public_holiday':
+      return <AlertCircle className={`h-4 w-4 ${statusColors.public_holiday}`} />;
+    case 'weekly_off':
+      return <AlertCircle className={`h-4 w-4 ${statusColors.weekly_off}`} />;
     default:
       return null;
   }
@@ -481,6 +490,9 @@ export function BatchDetailsPage() {
                                 <SelectItem value="absent" className={statusColors.absent}>Absent</SelectItem>
                                 <SelectItem value="late" className={statusColors.late}>Late</SelectItem>
                                 <SelectItem value="leave" className={statusColors.leave}>Leave</SelectItem>
+                                <SelectItem value="half_day" className={statusColors.half_day}>Half Day</SelectItem>
+                                <SelectItem value="public_holiday" className={statusColors.public_holiday}>Public Holiday</SelectItem>
+                                <SelectItem value="weekly_off" className={statusColors.weekly_off}>Weekly Off</SelectItem>
                               </SelectContent>
                             </Select>
                           </TableCell>
