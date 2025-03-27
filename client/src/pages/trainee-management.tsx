@@ -181,7 +181,7 @@ export default function TraineeManagement() {
           <div>
             <h3 className="font-semibold text-lg">{batch.name}</h3>
             <p className="text-sm text-muted-foreground">
-              {batch.location.name} • {batch.process.name}
+              {batch.location ? batch.location.name : "No location"} • {batch.process ? batch.process.name : "No process"}
             </p>
           </div>
           <Badge
