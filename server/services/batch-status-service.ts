@@ -246,6 +246,107 @@ export const updateBatchStatuses = async () => {
       }
     }
     
+    // Check for batches in training phase with missing induction end dates
+    const batchesWithMissingEndDates = await db.query.organizationBatches.findMany({
+      where: and(
+        eq(organizationBatches.status, 'training'),
+        not(isNull(organizationBatches.actualTrainingStartDate)),
+        isNull(organizationBatches.actualInductionEndDate)
+      )
+    });
+    
+    for (const batch of batchesWithMissingEndDates) {
+      console.log(`Recording missing actual end date for batch ${batch.id} for previous phase induction`);
+      // Set the actual end date for the induction phase to match the actual start date of training
+      await db
+        .update(organizationBatches)
+        .set({ 
+          actualInductionEndDate: batch.actualTrainingStartDate,
+          updatedAt: new Date()
+        })
+        .where(eq(organizationBatches.id, batch.id));
+    }
+    
+    // Similar checks for other phase transitions
+    const batchesWithMissingCertEndDates = await db.query.organizationBatches.findMany({
+      where: and(
+        eq(organizationBatches.status, 'certification'),
+        not(isNull(organizationBatches.actualCertificationStartDate)),
+        isNull(organizationBatches.actualTrainingEndDate)
+      )
+    });
+    
+    for (const batch of batchesWithMissingCertEndDates) {
+      console.log(`Recording missing actual end date for batch ${batch.id} for previous phase training`);
+      await db
+        .update(organizationBatches)
+        .set({ 
+          actualTrainingEndDate: batch.actualCertificationStartDate,
+          updatedAt: new Date()
+        })
+        .where(eq(organizationBatches.id, batch.id));
+    }
+    
+    // OJT phase check
+    const batchesWithMissingOjtEndDates = await db.query.organizationBatches.findMany({
+      where: and(
+        eq(organizationBatches.status, 'ojt'),
+        not(isNull(organizationBatches.actualOjtStartDate)),
+        isNull(organizationBatches.actualCertificationEndDate)
+      )
+    });
+    
+    for (const batch of batchesWithMissingOjtEndDates) {
+      console.log(`Recording missing actual end date for batch ${batch.id} for previous phase certification`);
+      await db
+        .update(organizationBatches)
+        .set({ 
+          actualCertificationEndDate: batch.actualOjtStartDate,
+          updatedAt: new Date()
+        })
+        .where(eq(organizationBatches.id, batch.id));
+    }
+    
+    // OJT certification phase check
+    const batchesWithMissingOjtCertEndDates = await db.query.organizationBatches.findMany({
+      where: and(
+        eq(organizationBatches.status, 'ojt_certification'),
+        not(isNull(organizationBatches.actualOjtCertificationStartDate)),
+        isNull(organizationBatches.actualOjtEndDate)
+      )
+    });
+    
+    for (const batch of batchesWithMissingOjtCertEndDates) {
+      console.log(`Recording missing actual end date for batch ${batch.id} for previous phase ojt`);
+      await db
+        .update(organizationBatches)
+        .set({ 
+          actualOjtEndDate: batch.actualOjtCertificationStartDate,
+          updatedAt: new Date()
+        })
+        .where(eq(organizationBatches.id, batch.id));
+    }
+    
+    // Completed phase check
+    const batchesWithMissingCompletedDates = await db.query.organizationBatches.findMany({
+      where: and(
+        eq(organizationBatches.status, 'completed'),
+        not(isNull(organizationBatches.actualHandoverToOpsDate)),
+        isNull(organizationBatches.actualOjtCertificationEndDate)
+      )
+    });
+    
+    for (const batch of batchesWithMissingCompletedDates) {
+      console.log(`Recording missing actual end date for batch ${batch.id} for previous phase ojt_certification`);
+      await db
+        .update(organizationBatches)
+        .set({ 
+          actualOjtCertificationEndDate: batch.actualHandoverToOpsDate,
+          updatedAt: new Date()
+        })
+        .where(eq(organizationBatches.id, batch.id));
+    }
+    
     console.log('Batch status update check completed');
   } catch (error) {
     console.error('Error updating batch statuses:', error);
