@@ -418,8 +418,8 @@ export function BatchDetailsPage() {
                   <TableBody>
                     {trainees.map((trainee: Trainee) => (
                       <TableRow key={trainee.id}>
-                        <TableCell>{trainee.user.fullName}</TableCell>
-                        <TableCell>{trainee.user.employeeId}</TableCell>
+                        <TableCell>{trainee.user ? trainee.user.fullName : 'No name'}</TableCell>
+                        <TableCell>{trainee.user ? trainee.user.employeeId : 'No ID'}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             {getStatusIcon(trainee.status as AttendanceStatus)}
