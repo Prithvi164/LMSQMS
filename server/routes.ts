@@ -3163,11 +3163,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           break;
 
         case 'manager':
-        case 'team_lead':
-          console.log('Fetching batches for manager/team_lead:', req.user.id);
-          // Use the new method to get all batches in the reporting hierarchy
-          const statusFilter = ['planned', 'induction', 'training', 'certification', 'ojt', 'ojt_certification', 'completed'];
-          batches = await storage.getBatchesByReportingChain(req.user.id, orgId, statusFilter);
+          console.log('Fetching batches for manager:', req.user.id);
+          // Get all trainers reporting to this manager
+          const reportingTrainers = await storage.getReportingTrainers(req.user.id);
+          const trainerIds = reportingTrainers.map(trainer => trainer.id);
+          // Get batches for all reporting trainers
+          batches = await storage.listBatchesForTrainers(trainerIds);
           break;
 
         case 'admin':

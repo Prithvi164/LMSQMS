@@ -175,13 +175,6 @@ export interface IStorage {
     organizationId: number,
     statuses: typeof batchStatusEnum.enumValues[number][]
   ): Promise<OrganizationBatch[]>;
-  
-  // Add new method for getting batches for all trainers in a reporting chain
-  getBatchesByReportingChain(
-    managerId: number,
-    organizationId: number,
-    statuses: typeof batchStatusEnum.enumValues[number][]
-  ): Promise<OrganizationBatch[]>;
 
   // User Batch Process operations
   assignUserToBatch(userBatchProcess: InsertUserBatchProcess): Promise<UserBatchProcess>;
@@ -1834,76 +1827,6 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Failed to fetch trainer batches');
     }
   }
-  
-  // New method to get batches for all trainers in a reporting chain
-  async getBatchesByReportingChain(
-    managerId: number,
-    organizationId: number,
-    statuses: typeof batchStatusEnum.enumValues[number][]
-  ): Promise<OrganizationBatch[]> {
-    try {
-      console.log(`Fetching batches for manager ${managerId}'s entire reporting chain`);
-      
-      // First, get all trainers in the reporting chain
-      const reportingTrainers = await this.getReportingTrainers(managerId);
-      const trainerIds = reportingTrainers.map(trainer => trainer.id);
-      
-      // Add the manager's ID if they are also a trainer
-      const manager = await this.getUser(managerId);
-      if (manager && manager.role === 'trainer') {
-        trainerIds.push(managerId);
-      }
-      
-      console.log(`Found ${trainerIds.length} trainers in reporting chain:`, trainerIds);
-      
-      if (trainerIds.length === 0) {
-        return []; // No trainers in the reporting chain
-      }
-      
-      // Get batches for all trainers in the reporting chain
-      const batches = await db
-        .select({
-          id: organizationBatches.id,
-          name: organizationBatches.name,
-          batchCategory: sql<string>`${organizationBatches.batchCategory}::text`,
-          startDate: organizationBatches.startDate,
-          endDate: organizationBatches.endDate,
-          status: organizationBatches.status,
-          capacityLimit: organizationBatches.capacityLimit,
-          locationId: organizationBatches.locationId,
-          processId: organizationBatches.processId,
-          lineOfBusinessId: organizationBatches.lineOfBusinessId,
-          trainerId: organizationBatches.trainerId,
-          organizationId: organizationBatches.organizationId,
-          inductionStartDate: organizationBatches.inductionStartDate,
-          inductionEndDate: organizationBatches.inductionEndDate,
-          trainingStartDate: organizationBatches.trainingStartDate,
-          trainingEndDate: organizationBatches.trainingEndDate,
-          certificationStartDate: organizationBatches.certificationStartDate,
-          certificationEndDate: organizationBatches.certificationEndDate,
-          ojtStartDate: organizationBatches.ojtStartDate,
-          ojtEndDate: organizationBatches.ojtEndDate,
-          ojtCertificationStartDate: organizationBatches.ojtCertificationStartDate,
-          ojtCertificationEndDate: organizationBatches.ojtCertificationEndDate,
-          handoverToOpsDate: organizationBatches.handoverToOpsDate,
-          weeklyOffDays: organizationBatches.weeklyOffDays,
-          considerHolidays: organizationBatches.considerHolidays,
-          createdAt: organizationBatches.createdAt,
-          updatedAt: organizationBatches.updatedAt
-        })
-        .from(organizationBatches)
-        .where(inArray(organizationBatches.trainerId, trainerIds))
-        .where(eq(organizationBatches.organizationId, organizationId))
-        .where(sql`${organizationBatches.status}::text = ANY(${sql`ARRAY[${statuses.join(',')}]`}::text[])`)
-        .orderBy(desc(organizationBatches.startDate));
-      
-      console.log(`Found ${batches.length} batches across all reporting trainers`);
-      return batches as OrganizationBatch[];
-    } catch (error) {
-      console.error('Error fetching batches by reporting chain:', error);
-      throw new Error('Failed to fetch batches by reporting chain');
-    }
-  }
   // User Batch Process operations
   async assignUserToBatch(userBatchProcess: {
     userId: number;
@@ -2235,35 +2158,14 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Fetching trainers reporting to manager ${managerId}`);
 
-      // Get direct reporting trainers
-      const directTrainers = await db
+      const trainers = await db
         .select()
         .from(users)
         .where(eq(users.managerId, managerId))
         .where(eq(users.role, 'trainer')) as User[];
 
-      // Get all direct reports (not just trainers)
-      const allDirectReports = await db
-        .select()
-        .from(users)
-        .where(eq(users.managerId, managerId)) as User[];
-
-      // Recursively get all nested trainers from each direct report that's not a trainer
-      let allNestedTrainers: User[] = [];
-      
-      for (const report of allDirectReports) {
-        if (report.role !== 'trainer') {
-          // If this report is a manager/team_lead/etc, recursively get their trainers
-          const nestedTrainers = await this.getReportingTrainers(report.id);
-          allNestedTrainers = [...allNestedTrainers, ...nestedTrainers];
-        }
-      }
-
-      // Combine direct trainers with all nested trainers
-      const allTrainers = [...directTrainers, ...allNestedTrainers];
-      
-      console.log(`Found ${directTrainers.length} direct and ${allNestedTrainers.length} nested reporting trainers for manager ${managerId}`);
-      return allTrainers;
+      console.log(`Found ${trainers.length} reporting trainers`);
+      return trainers;
     } catch (error) {
       console.error('Error fetching reporting trainers:', error);
       throw new Error('Failed to fetch reporting trainers');
