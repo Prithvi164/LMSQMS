@@ -459,7 +459,6 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
 
   async function onSubmit(values: InsertOrganizationBatch) {
     try {
-      // Validate required fields
       if (!values.name) throw new Error('Batch name is required');
       if (!values.startDate) throw new Error('Batch start date is required');
       if (values.locationId === undefined) throw new Error('Location is required');
@@ -469,43 +468,12 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       if (values.capacityLimit === undefined) throw new Error('Capacity limit is required');
       if (values.batchCategory === undefined) throw new Error('Batch Category is required');
 
-      // Format all dates to ensure they are stored as date-only strings (YYYY-MM-DD)
-      // without time information
-      const formatDateValue = (dateValue: string | undefined): string | undefined => {
-        if (!dateValue) return undefined;
-        
-        // If the date already has the right format, return it as is
-        if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
-          return dateValue;
-        }
-        
-        // Otherwise, format it to YYYY-MM-DD
-        const date = new Date(dateValue);
-        if (isNaN(date.getTime())) return undefined;
-        
-        return format(date, 'yyyy-MM-dd');
-      };
 
-      // Format all date fields to ensure they are stored without time components
+      const currentStatus = determineBatchStatus(values);
       const formattedValues = {
         ...values,
-        status: determineBatchStatus(values),
-        startDate: formatDateValue(values.startDate),
-        endDate: formatDateValue(values.endDate),
-        inductionStartDate: formatDateValue(values.inductionStartDate),
-        inductionEndDate: formatDateValue(values.inductionEndDate),
-        trainingStartDate: formatDateValue(values.trainingStartDate),
-        trainingEndDate: formatDateValue(values.trainingEndDate),
-        certificationStartDate: formatDateValue(values.certificationStartDate),
-        certificationEndDate: formatDateValue(values.certificationEndDate),
-        ojtStartDate: formatDateValue(values.ojtStartDate),
-        ojtEndDate: formatDateValue(values.ojtEndDate),
-        ojtCertificationStartDate: formatDateValue(values.ojtCertificationStartDate),
-        ojtCertificationEndDate: formatDateValue(values.ojtCertificationEndDate),
-        handoverToOpsDate: formatDateValue(values.handoverToOpsDate),
+        status: currentStatus
       };
-
-      console.log('Submitting batch with formatted date values:', formattedValues);
 
       if (editMode) {
         await updateBatchMutation.mutateAsync(formattedValues);
@@ -839,10 +807,9 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                 )}
               </div>
               <div className="text-sm">
-                {/* Format date without time to prevent timezone issues */}
-                {format(new Date(range.start.toISOString().substring(0, 10)), 'MMM d, yyyy')}
+                {format(range.start, 'MMM d, yyyy')}
                 {' - '}
-                {format(new Date(range.end.toISOString().substring(0, 10)), 'MMM d, yyyy')}
+                {format(range.end, 'MMM d, yyyy')}
               </div>
             </div>
           );

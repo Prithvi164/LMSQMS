@@ -341,7 +341,7 @@ export function BatchesTab() {
                           { label: 'Capacity', value: `${batch.userCount} / ${batch.capacityLimit}` },
                           {
                             label: 'Timeline',
-                            value: `${format(new Date(batch.startDate.substring(0, 10)), 'MMM d, yyyy')} - ${format(new Date(batch.endDate.substring(0, 10)), 'MMM d, yyyy')}`
+                            value: `${format(new Date(batch.startDate), 'MMM d, yyyy')} - ${format(new Date(batch.endDate), 'MMM d, yyyy')}`
                           }
                         ].map(({ label, value }) => (
                           <div
@@ -566,8 +566,7 @@ export function BatchesTab() {
               }}
             >
               <TableCell className="font-medium text-center whitespace-nowrap">
-                {/* Format date without time component - use substring to handle cases with time components */}
-                {format(new Date(batch.startDate.substring(0, 10)), 'MMM d, yyyy')}
+                {format(new Date(batch.startDate), 'MMM d, yyyy')}
               </TableCell>
               <TableCell className="text-center">
                 <div className="font-semibold group-hover:text-primary transition-colors">

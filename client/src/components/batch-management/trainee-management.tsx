@@ -64,13 +64,11 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
     enabled: !!organizationId,
   });
 
-  // Helper function to safely format dates without time components
+  // Helper function to safely format dates
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return 'N/A';
-    // Parse only the date part (YYYY-MM-DD) to avoid timezone issues
-    const datePart = typeof dateString === 'string' ? dateString.substring(0, 10) : dateString;
-    const date = parseISO(datePart);
-    return isValid(date) ? format(date, 'MMM d, yyyy') : 'N/A';
+    const date = parseISO(dateString);
+    return isValid(date) ? format(date, 'PP') : 'N/A';
   };
 
   console.log('Debug - Trainees:', { 
