@@ -3233,15 +3233,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('Found trainees:', batchTrainees);
 
-      // Map to expected format
+      // Map to expected format - keep field names exactly as expected by the frontend
       const traineesWithDetails = batchTrainees.map((trainee) => ({
         id: trainee.userId,
-        status: trainee.attendance?.status || null,
+        fullName: trainee.user.fullName,
+        employeeId: trainee.user.employeeId,
+        email: trainee.user.email,
+        status: trainee.attendance?.status || 'Not Marked', // Ensure consistent "Not Marked" casing
         lastUpdated: trainee.attendance?.lastUpdated?.toISOString(),
+        // Keep original user object for compatibility
         user: trainee.user
       }));
 
-      console.log('Trainees with attendance details:', traineesWithDetails);
+      console.log('================================');
+      console.log('DETAILED DEBUG: Trainees with attendance:');
+      console.log(JSON.stringify(traineesWithDetails, null, 2));
+      console.log('================================');
+      
       res.json(traineesWithDetails);
     } catch (error: any) {
       console.error("Error fetching trainees:", error);
@@ -5382,16 +5390,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
             email: user?.email || 'No email',
             status: attendance?.status || 'Not Marked',
             lastUpdated: attendance?.updatedAt || null,
+            // Include full user object for compatibility with frontend
             user: {
+              id: user?.id,
               fullName: user?.fullName || 'Unknown',
               employeeId: user?.employeeId || 'No ID',
               email: user?.email || 'No email',
+              role: user?.role || 'trainee',
+              category: user?.category || 'trainee'
             }
           };
         })
       );
 
-      console.log('Trainees with attendance:', JSON.stringify(traineesWithAttendance.slice(0, 2), null, 2));
+      // Add very detailed logging
+      console.log('================================');
+      console.log('DETAILED DEBUG: Trainees with attendance:');
+      console.log(JSON.stringify(traineesWithAttendance, null, 2));
+      console.log('================================');
+      
+      // Send response
       res.json(traineesWithAttendance);
     } catch (error: any) {
       console.error("Error fetching trainees with attendance:", error);
