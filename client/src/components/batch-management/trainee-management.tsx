@@ -29,46 +29,16 @@ import { useToast } from "@/hooks/use-toast";
 import { Edit, Trash2, ArrowRightLeft, Loader2 } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 
-// Types to handle different API response formats
-type TraineeUser = {
-  username?: string;
-  fullName: string;
-  email: string | null;
-  employeeId: string | null;
-  phoneNumber: string | null;
-  userId?: number;
-}
-
-type TraineeDirectFormat = {
-  id: number; // This is the userId
-  name: string;
-  email: string | null;
-  employeeId: string | null;
-  phoneNumber: string | null;
-  dateOfJoining: string | null;
-  dateOfBirth: string | null;
-  batchStatus: string;
-  userSince: string;
-  batchProcessId: number;
-  status: string | null; // Attendance status
-  lastUpdated: string | null; // Attendance last updated
-};
-
-type TraineeNestedFormat = {
+// Updated type to match actual API response
+type Trainee = {
   id: number;
   userId: number;
-  batchId: number;
-  processId: number;
-  status: string;
-  joinedAt: string;
-  completedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-  user: TraineeUser | null;
+  employeeId: string;
+  fullName: string;
+  email: string;
+  phoneNumber: string;
+  dateOfJoining: string;
 };
-
-// Union type to handle both formats
-type Trainee = TraineeDirectFormat | TraineeNestedFormat;
 
 interface TraineeManagementProps {
   batchId: number;
@@ -106,8 +76,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
     isLoading, 
     error,
     sampleTrainee: trainees[0],
-    traineeCount: trainees.length,
-    sampleTraineeJSON: trainees[0] ? JSON.stringify(trainees[0], null, 2) : 'No trainees'
+    traineeCount: trainees.length 
   });
 
   // Delete trainee mutation - using user_batch_process.id
@@ -247,74 +216,51 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
             </TableRow>
           </TableHeader>
           <TableBody>
-            {Array.isArray(trainees) && trainees.map((trainee: any) => {
-              // Handle both data formats (direct properties or nested user object)
-              // First log the trainee data to understand the format
-              console.log('Processing trainee:', trainee);
-              
-              // Check if we have a nested user object format
-              const hasNestedUser = trainee.user && typeof trainee.user === 'object';
-              const hasDirectProperties = trainee.name !== undefined;
-              
-              // Extract trainee information
-              let traineeInfo = {
-                id: hasNestedUser ? trainee.id : (trainee.id || trainee.batchProcessId || 0),
-                name: hasNestedUser ? (trainee.user?.fullName || 'No Name') : (trainee.name || 'No Name'),
-                employeeId: hasNestedUser ? (trainee.user?.employeeId || 'No ID') : (trainee.employeeId || 'No ID'),
-                email: hasNestedUser ? (trainee.user?.email || 'N/A') : (trainee.email || 'N/A'),
-                phoneNumber: hasNestedUser ? (trainee.user?.phoneNumber || 'N/A') : (trainee.phoneNumber || 'N/A'),
-                joinedAt: hasNestedUser ? trainee.joinedAt : trainee.dateOfJoining,
-                status: trainee.status || 'Unknown'
-              };
-              
-              console.log('Extracted trainee info:', traineeInfo);
-
-              return (
-                <TableRow key={trainee.id || trainee.userId}>
-                  <TableCell>{traineeInfo.name}</TableCell>
-                  <TableCell>{traineeInfo.employeeId || 'N/A'}</TableCell>
-                  <TableCell>{traineeInfo.email || 'N/A'}</TableCell>
-                  <TableCell>{traineeInfo.phoneNumber || 'N/A'}</TableCell>
-                  <TableCell>{formatDate(traineeInfo.joinedAt)}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedTrainee(traineeInfo);
-                          setIsTransferDialogOpen(true);
-                        }}
-                      >
-                        <ArrowRightLeft className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          toast({
-                            title: "Coming Soon",
-                            description: "Edit functionality will be available soon",
-                          });
-                        }}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedTrainee(traineeInfo);
-                          setIsDeleteDialogOpen(true);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+            {Array.isArray(trainees) && trainees.map((trainee: Trainee) => (
+              <TableRow key={trainee.id}>
+                <TableCell>{trainee.fullName}</TableCell>
+                <TableCell>{trainee.employeeId}</TableCell>
+                <TableCell>{trainee.email}</TableCell>
+                <TableCell>{trainee.phoneNumber}</TableCell>
+                <TableCell>{formatDate(trainee.dateOfJoining)}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedTrainee(trainee);
+                        setIsTransferDialogOpen(true);
+                      }}
+                    >
+                      <ArrowRightLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        toast({
+                          title: "Coming Soon",
+                          description: "Edit functionality will be available soon",
+                        });
+                      }}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedTrainee(trainee);
+                        setIsDeleteDialogOpen(true);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       </div>
@@ -353,7 +299,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Select a batch to transfer {selectedTrainee ? selectedTrainee.name : 'this trainee'} to:
+              Select a batch to transfer {selectedTrainee?.fullName} to:
             </p>
             <div className="space-y-2">
               {allBatches

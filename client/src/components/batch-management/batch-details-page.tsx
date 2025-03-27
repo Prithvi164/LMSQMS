@@ -63,7 +63,9 @@ type AttendanceStatus = 'present' | 'absent' | 'late' | 'leave';
 type Trainee = {
   id: number;
   status: string;
-  user: {
+  name: string;
+  employeeId?: string;
+  user?: {
     id: number;
     fullName: string;
     employeeId: string;
@@ -135,7 +137,7 @@ export function BatchDetailsPage() {
     enabled: !!user?.organizationId && !!batchId,
   });
 
-  const { data: trainees = [], isLoading: traineesLoading } = useQuery({
+  const { data: trainees = [], isLoading: traineesLoading } = useQuery<any[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`],
     enabled: !!user?.organizationId && !!batchId && !!batch,
   });
@@ -416,41 +418,47 @@ export function BatchDetailsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {trainees.map((trainee: Trainee) => (
-                      <TableRow key={trainee.id}>
-                        <TableCell>{trainee.user ? trainee.user.fullName : 'No name'}</TableCell>
-                        <TableCell>{trainee.user ? trainee.user.employeeId : 'No ID'}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            {getStatusIcon(trainee.status as AttendanceStatus)}
-                            <span className={`capitalize ${statusColors[trainee.status as AttendanceStatus] || ''}`}>
-                              {trainee.status || 'Not marked'}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {trainee.lastUpdated ? format(new Date(trainee.lastUpdated), "hh:mm a") : '-'}
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={trainee.status || ''}
-                            onValueChange={(value: AttendanceStatus) =>
-                              updateAttendanceMutation.mutate({ traineeId: trainee.id, status: value })
-                            }
-                          >
-                            <SelectTrigger className="w-[130px]">
-                              <SelectValue placeholder="Mark attendance" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="present" className={statusColors.present}>Present</SelectItem>
-                              <SelectItem value="absent" className={statusColors.absent}>Absent</SelectItem>
-                              <SelectItem value="late" className={statusColors.late}>Late</SelectItem>
-                              <SelectItem value="leave" className={statusColors.leave}>Leave</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {trainees.map((trainee: any) => {
+                      return (
+                        <TableRow key={trainee.id}>
+                          <TableCell>
+                            {trainee.fullName || (trainee.user && trainee.user.fullName) || 'No name'}
+                          </TableCell>
+                          <TableCell>
+                            {trainee.employeeId || (trainee.user && trainee.user.employeeId) || 'No ID'}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {getStatusIcon(trainee.status as AttendanceStatus)}
+                              <span className={`capitalize ${statusColors[trainee.status as AttendanceStatus] || ''}`}>
+                                {trainee.status || 'Not marked'}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {trainee.lastUpdated ? format(new Date(trainee.lastUpdated), "hh:mm a") : '-'}
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={trainee.status || ''}
+                              onValueChange={(value: AttendanceStatus) =>
+                                updateAttendanceMutation.mutate({ traineeId: trainee.id, status: value })
+                              }
+                            >
+                              <SelectTrigger className="w-[130px]">
+                                <SelectValue placeholder="Mark attendance" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="present" className={statusColors.present}>Present</SelectItem>
+                                <SelectItem value="absent" className={statusColors.absent}>Absent</SelectItem>
+                                <SelectItem value="late" className={statusColors.late}>Late</SelectItem>
+                                <SelectItem value="leave" className={statusColors.leave}>Leave</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               ) : (

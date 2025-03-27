@@ -3522,17 +3522,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Create or update attendance record using the storage method
-      const result = await storage.createAttendanceRecord({
-        traineeId,
-        batchId,
-        date,
-        status,
-        organizationId: req.user.organizationId
-      });
-
-      // Note: We're not saving the phase in the new method, may need to update the schema and storage method
-      // if phase is important for attendance records
+      // Create or update attendance record
+      const [result] = await db
+        .insert(attendance)
+        .values({
+          traineeId,
+          status,
+          date,
+          batchId,
+          phase,
+          markedById: req.user.id,
+          organizationId: req.user.organizationId,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .onConflictDoUpdate({
+          target: [attendance.traineeId, attendance.date, attendance.batchId],
+          set: {
+            status,
+            phase,
+            updatedAt: new Date()
+          }
+        })
+        .returning();
 
       console.log('Attendance record saved:', result);
       return res.json(result);
@@ -5255,28 +5267,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid attendance status" });
       }
 
-      // Get the batch ID for this trainee (assuming trainee is in a batch)
-      const [userBatch] = await db
-        .select()
-        .from(userBatchProcesses)
-        .where(
-          and(
-            eq(userBatchProcesses.userId, traineeId),
-            eq(userBatchProcesses.status, 'active')
-          )
-        )
-        .limit(1);
-
-      if (!userBatch) {
-        return res.status(400).json({ message: "Trainee is not assigned to any active batch" });
-      }
-
       // Save attendance record
       const attendance = await storage.createAttendanceRecord({
         traineeId,
         status,
         date,
-        batchId: userBatch.batchId,
+        markedById: req.user.id,
         organizationId: req.user.organizationId
       });
 
@@ -5295,34 +5291,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const traineeId = parseInt(req.params.traineeId);
       const date = req.query.date as string;
-      const batchId = req.query.batchId ? parseInt(req.query.batchId as string) : undefined;
 
-      if (!batchId) {
-        // If no batch ID is provided, try to get the active batch for this trainee
-        const [userBatch] = await db
-          .select()
-          .from(userBatchProcesses)
-          .where(
-            and(
-              eq(userBatchProcesses.userId, traineeId),
-              eq(userBatchProcesses.status, 'active')
-            )
-          )
-          .limit(1);
-
-        if (userBatch) {
-          const attendance = await storage.getAttendanceRecord(traineeId, date, userBatch.batchId);
-          return res.json(attendance);
-        }
-
-        // No active batch found, try to get attendance without batch ID specified
-        const attendance = await storage.getAttendanceRecord(traineeId, date);
-        return res.json(attendance);
-      } else {
-        // Use the provided batch ID
-        const attendance = await storage.getAttendanceRecord(traineeId, date, batchId);
-        return res.json(attendance);
-      }
+      const attendance = await storage.getAttendanceRecord(traineeId, date);
+      res.json(attendance);
     } catch (error: any) {
       console.error("Error fetching attendance:", error);
       res.status(500).json({ message: error.message });
@@ -5378,20 +5349,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get attendance status for each trainee
       const traineesWithAttendance = await Promise.all(
         trainees.map(async (trainee) => {
-          const attendance = await storage.getAttendanceRecord(trainee.userId, date, batchId);
+          const attendance = await storage.getAttendanceRecord(trainee.userId, date);
           const user = await storage.getUser(trainee.userId);
           
           return {
             id: trainee.userId,
             name: user?.fullName || 'Unknown',
-            email: user?.email || null,
-            employeeId: user?.employeeId || null,
-            phoneNumber: user?.phoneNumber || null,
-            dateOfJoining: user?.dateOfJoining || null,
-            dateOfBirth: user?.dateOfBirth || null,
-            batchStatus: trainee.status,
-            userSince: trainee.joinedAt,
-            batchProcessId: trainee.id,
             status: attendance?.status || null,
             lastUpdated: attendance?.updatedAt || null
           };
