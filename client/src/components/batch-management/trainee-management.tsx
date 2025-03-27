@@ -36,6 +36,7 @@ type TraineeUser = {
   email: string | null;
   employeeId: string | null;
   phoneNumber: string | null;
+  userId?: number;
 }
 
 type TraineeDirectFormat = {
@@ -105,7 +106,8 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
     isLoading, 
     error,
     sampleTrainee: trainees[0],
-    traineeCount: trainees.length 
+    traineeCount: trainees.length,
+    sampleTraineeJSON: trainees[0] ? JSON.stringify(trainees[0], null, 2) : 'No trainees'
   });
 
   // Delete trainee mutation - using user_batch_process.id
@@ -247,25 +249,25 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
           <TableBody>
             {Array.isArray(trainees) && trainees.map((trainee: any) => {
               // Handle both data formats (direct properties or nested user object)
-              const traineeInfo = trainee.user 
-                ? { 
-                    id: trainee.userId, 
-                    name: trainee.user.fullName,
-                    employeeId: trainee.user.employeeId,
-                    email: trainee.user.email,
-                    phoneNumber: trainee.user.phoneNumber,
-                    joinedAt: trainee.joinedAt,
-                    status: trainee.status
-                  }
-                : {
-                    id: trainee.id || trainee.batchProcessId, 
-                    name: trainee.name || 'Unknown',
-                    employeeId: trainee.employeeId,
-                    email: trainee.email,
-                    phoneNumber: trainee.phoneNumber,
-                    dateOfJoining: trainee.dateOfJoining,
-                    status: trainee.status
-                  }; // Use trainee directly if it has the properties directly
+              // First log the trainee data to understand the format
+              console.log('Processing trainee:', trainee);
+              
+              // Check if we have a nested user object format
+              const hasNestedUser = trainee.user && typeof trainee.user === 'object';
+              const hasDirectProperties = trainee.name !== undefined;
+              
+              // Extract trainee information
+              let traineeInfo = {
+                id: hasNestedUser ? trainee.id : (trainee.id || trainee.batchProcessId || 0),
+                name: hasNestedUser ? (trainee.user?.fullName || 'No Name') : (trainee.name || 'No Name'),
+                employeeId: hasNestedUser ? (trainee.user?.employeeId || 'No ID') : (trainee.employeeId || 'No ID'),
+                email: hasNestedUser ? (trainee.user?.email || 'N/A') : (trainee.email || 'N/A'),
+                phoneNumber: hasNestedUser ? (trainee.user?.phoneNumber || 'N/A') : (trainee.phoneNumber || 'N/A'),
+                joinedAt: hasNestedUser ? trainee.joinedAt : trainee.dateOfJoining,
+                status: trainee.status || 'Unknown'
+              };
+              
+              console.log('Extracted trainee info:', traineeInfo);
 
               return (
                 <TableRow key={trainee.id || trainee.userId}>
@@ -273,7 +275,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                   <TableCell>{traineeInfo.employeeId || 'N/A'}</TableCell>
                   <TableCell>{traineeInfo.email || 'N/A'}</TableCell>
                   <TableCell>{traineeInfo.phoneNumber || 'N/A'}</TableCell>
-                  <TableCell>{formatDate(traineeInfo.dateOfJoining || traineeInfo.joinedAt)}</TableCell>
+                  <TableCell>{formatDate(traineeInfo.joinedAt)}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Button
@@ -351,7 +353,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Select a batch to transfer {selectedTrainee?.name || 'this trainee'} to:
+              Select a batch to transfer {selectedTrainee ? selectedTrainee.name : 'this trainee'} to:
             </p>
             <div className="space-y-2">
               {allBatches
