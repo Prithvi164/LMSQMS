@@ -6,7 +6,6 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { User, Organization, OrganizationLocation, UserProcess, OrganizationLineOfBusiness, OrganizationProcess } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { formatToIST } from "@/lib/date-utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -229,38 +228,6 @@ export function UserManagement() {
         };
       });
 
-      // Third sheet with batch details - simpler version to avoid any potential errors
-      const batchesDataToExport = Array.isArray(batches) ? batches.map((batch: any) => {
-        const formatDate = (date: string) => {
-          if (!date) return 'N/A';
-          try {
-            const d = new Date(date);
-            return d.toISOString().split('T')[0]; // Simple format to YYYY-MM-DD
-          } catch (e) {
-            return 'N/A';
-          }
-        };
-        
-        return {
-          'Batch ID': batch.id || 'N/A',
-          'Batch Name': batch.name || 'N/A',
-          'Status': batch.status || 'N/A',
-          'Capacity Limit': batch.capacityLimit || 'N/A',
-          'Location': batch.location?.name || 'N/A',
-          'Process': batch.process?.name || 'N/A',
-          'Line of Business': batch.line_of_business?.name || 'N/A',
-          'Start Date': formatDate(batch.startDate),
-          'Planned Induction Start': formatDate(batch.inductionStartDate),
-          'Planned Induction End': formatDate(batch.inductionEndDate),
-          'Planned Training Start': formatDate(batch.trainingStartDate),
-          'Planned Training End': formatDate(batch.trainingEndDate),
-          'Actual Induction Start': formatDate(batch.actual_induction_start_date),
-          'Actual Induction End': formatDate(batch.actual_induction_end_date),
-          'Actual Training Start': formatDate(batch.actual_training_start_date),
-          'Actual Training End': formatDate(batch.actual_training_end_date)
-        };
-      }) : [];
-
       // Create workbook and add the user details sheet
       const wb = XLSX.utils.book_new();
       const wsUsers = XLSX.utils.json_to_sheet(usersDataToExport);
@@ -270,17 +237,13 @@ export function UserManagement() {
       const wsProcesses = XLSX.utils.json_to_sheet(processDataToExport);
       XLSX.utils.book_append_sheet(wb, wsProcesses, "User Processes");
       
-      // Add the batch details sheet
-      const wsBatches = XLSX.utils.json_to_sheet(batchesDataToExport);
-      XLSX.utils.book_append_sheet(wb, wsBatches, "Batches");
-      
       // Save the file
       XLSX.writeFile(wb, `users_export_${new Date().toISOString().split('T')[0]}.xlsx`);
       
       // Show success toast
       toast({
         title: "Export Successful",
-        description: "User details, process information, and batch details have been exported to Excel.",
+        description: "User details and process information have been exported to Excel.",
       });
     } catch (error) {
       console.error("Error exporting to Excel:", error);
@@ -483,12 +446,6 @@ export function UserManagement() {
   // Add a separate dedicated query for locations to ensure they load properly
   const { data: locations = [] } = useQuery<OrganizationLocation[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/locations`],
-    enabled: !!user?.organizationId,
-  });
-
-  // Add query for batches
-  const { data: batches = [] } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/batches`],
     enabled: !!user?.organizationId,
   });
 
