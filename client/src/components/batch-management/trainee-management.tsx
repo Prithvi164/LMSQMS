@@ -29,8 +29,16 @@ import { useToast } from "@/hooks/use-toast";
 import { Edit, Trash2, ArrowRightLeft, Loader2 } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 
-// Updated type to match actual API response
-type Trainee = {
+// Types to handle different API response formats
+type TraineeUser = {
+  username?: string;
+  fullName: string;
+  email: string | null;
+  employeeId: string | null;
+  phoneNumber: string | null;
+}
+
+type TraineeDirectFormat = {
   id: number; // This is the userId
   name: string;
   email: string | null;
@@ -44,6 +52,22 @@ type Trainee = {
   status: string | null; // Attendance status
   lastUpdated: string | null; // Attendance last updated
 };
+
+type TraineeNestedFormat = {
+  id: number;
+  userId: number;
+  batchId: number;
+  processId: number;
+  status: string;
+  joinedAt: string;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  user: TraineeUser | null;
+};
+
+// Union type to handle both formats
+type Trainee = TraineeDirectFormat | TraineeNestedFormat;
 
 interface TraineeManagementProps {
   batchId: number;
@@ -221,51 +245,74 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
             </TableRow>
           </TableHeader>
           <TableBody>
-            {Array.isArray(trainees) && trainees.map((trainee: Trainee) => (
-              <TableRow key={trainee.id}>
-                <TableCell>{trainee.name}</TableCell>
-                <TableCell>{trainee.employeeId || 'N/A'}</TableCell>
-                <TableCell>{trainee.email || 'N/A'}</TableCell>
-                <TableCell>{trainee.phoneNumber || 'N/A'}</TableCell>
-                <TableCell>{formatDate(trainee.dateOfJoining)}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedTrainee(trainee);
-                        setIsTransferDialogOpen(true);
-                      }}
-                    >
-                      <ArrowRightLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        toast({
-                          title: "Coming Soon",
-                          description: "Edit functionality will be available soon",
-                        });
-                      }}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedTrainee(trainee);
-                        setIsDeleteDialogOpen(true);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
+            {Array.isArray(trainees) && trainees.map((trainee: any) => {
+              // Handle both data formats (direct properties or nested user object)
+              const traineeInfo = trainee.user 
+                ? { 
+                    id: trainee.userId, 
+                    name: trainee.user.fullName,
+                    employeeId: trainee.user.employeeId,
+                    email: trainee.user.email,
+                    phoneNumber: trainee.user.phoneNumber,
+                    joinedAt: trainee.joinedAt,
+                    status: trainee.status
+                  }
+                : {
+                    id: trainee.id || trainee.batchProcessId, 
+                    name: trainee.name || 'Unknown',
+                    employeeId: trainee.employeeId,
+                    email: trainee.email,
+                    phoneNumber: trainee.phoneNumber,
+                    dateOfJoining: trainee.dateOfJoining,
+                    status: trainee.status
+                  }; // Use trainee directly if it has the properties directly
+
+              return (
+                <TableRow key={trainee.id || trainee.userId}>
+                  <TableCell>{traineeInfo.name}</TableCell>
+                  <TableCell>{traineeInfo.employeeId || 'N/A'}</TableCell>
+                  <TableCell>{traineeInfo.email || 'N/A'}</TableCell>
+                  <TableCell>{traineeInfo.phoneNumber || 'N/A'}</TableCell>
+                  <TableCell>{formatDate(traineeInfo.dateOfJoining || traineeInfo.joinedAt)}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedTrainee(traineeInfo);
+                          setIsTransferDialogOpen(true);
+                        }}
+                      >
+                        <ArrowRightLeft className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          toast({
+                            title: "Coming Soon",
+                            description: "Edit functionality will be available soon",
+                          });
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedTrainee(traineeInfo);
+                          setIsDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>
@@ -304,7 +351,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Select a batch to transfer {selectedTrainee?.name} to:
+              Select a batch to transfer {selectedTrainee?.name || 'this trainee'} to:
             </p>
             <div className="space-y-2">
               {allBatches
