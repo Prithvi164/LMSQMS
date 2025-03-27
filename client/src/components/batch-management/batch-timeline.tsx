@@ -16,7 +16,7 @@ type TimelineEvent = {
   };
 };
 
-export function BatchTimeline({ batchId }: { batchId: string }) {
+export function BatchTimeline({ batchId }: { batchId: string | undefined }) {
   const { user } = useAuth();
 
   const { data: events = [], isLoading, error } = useQuery<TimelineEvent[]>({

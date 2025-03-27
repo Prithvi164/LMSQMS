@@ -54,10 +54,34 @@ interface DateRange {
   status: 'induction' | 'training' | 'certification' | 'ojt' | 'ojt-certification';
 }
 
+// Flexible batch type for compatibility with BatchWithRelations
+type FlexibleBatch = {
+  id: number;
+  name: string;
+  organizationId: number;
+  processId: number | null;
+  locationId: number | null;
+  lineOfBusinessId: number | null;
+  trainerId: number | null;
+  capacityLimit?: number;
+  inductionStartDate?: string;
+  inductionEndDate?: string;
+  trainingStartDate?: string;
+  trainingEndDate?: string;
+  certificationStartDate?: string;
+  certificationEndDate?: string;
+  ojtStartDate?: string;
+  ojtEndDate?: string;
+  ojtCertificationStartDate?: string;
+  ojtCertificationEndDate?: string;
+  status?: string;
+  // Add other necessary fields
+};
+
 // Update CreateBatchFormProps interface
 interface CreateBatchFormProps {
   editMode?: boolean;
-  batchData?: OrganizationBatch;
+  batchData?: OrganizationBatch | FlexibleBatch;
   onSuccess?: () => void;
 }
 

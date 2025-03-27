@@ -52,12 +52,39 @@ import { Progress } from "@/components/ui/progress"; // Import Progress componen
 import { useLocation } from "wouter";
 import { TraineeManagement } from "./trainee-management";
 
-// Extended type with relations for batch display
-interface BatchWithRelations extends Omit<OrganizationBatch, 'processId' | 'locationId' | 'lineOfBusinessId' | 'trainerId'> {
+// Generic batch interface
+interface BatchInterface {
+  id: number;
+  name: string;
+  organizationId: number;
   processId: number | null;
   locationId: number | null;
   lineOfBusinessId: number | null;
   trainerId: number | null;
+  capacityLimit?: number;
+  enrolledCount?: number;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
+  inductionStartDate?: string;
+  inductionEndDate?: string;
+  trainingStartDate?: string;
+  trainingEndDate?: string;
+  certificationStartDate?: string;
+  certificationEndDate?: string;
+  ojtStartDate?: string;
+  ojtEndDate?: string;
+  ojtCertificationStartDate?: string;
+  ojtCertificationEndDate?: string;
+  handoverToOpsDate?: string;
+  batchCategory?: 'new_training' | 'upskill';
+  weeklyOffDays?: string[];
+  considerHolidays?: boolean | null;
+  createdAt?: Date;
+}
+
+// Extended type with relations for batch display
+interface BatchWithRelations extends BatchInterface {
   userCount: number;
   location?: {
     id: number;
@@ -123,16 +150,45 @@ export function BatchesTab() {
   const processes = Array.from(new Set(batches.map(batch => batch.process?.name).filter(Boolean) as string[]));
   const statuses = Array.from(new Set(batches.map(batch => batch.status)));
 
+  // Apply role-based permissions for batch filtering
+  const roleBatchFilter = (batch: BatchWithRelations) => {
+    // Owner/Admin can see all batches
+    if (user?.role === 'owner' || user?.role === 'admin') {
+      return true;
+    }
+    
+    // Trainers can only see their assigned batches
+    if (user?.role === 'trainer') {
+      return batch.trainerId === user.id;
+    }
+    
+    // Managers can see batches where they are the manager or batches assigned to trainers that report to them
+    if (user?.role === 'manager') {
+      // Direct assignment to manager
+      if (batch.trainerId === user.id) {
+        return true;
+      }
+      
+      // If the batch has a trainer, check if that trainer reports to this manager
+      if (batch.trainer && batch.trainer.id) {
+        // To properly implement this, we would need to query user data to check if the trainer reports to this manager
+        // Since we don't have that data readily available, we'll make a simplifying assumption:
+        // Managers can see all batches with trainers for now
+        return true;
+      }
+    }
+    
+    // For other roles, show batches based on general permissions
+    return hasPermission("view_batches");
+  };
+
   const filteredBatches = batches.filter(batch => {
-    if (selectedCategory === 'upskill') {
-      console.log('Filtering upskill batch:', {
-        name: batch.name,
-        batchCategory: batch.batchCategory,
-        selectedCategory: selectedCategory,
-        match: selectedCategory === null || batch.batchCategory === selectedCategory
-      });
+    // First apply role-based permissions filter
+    if (!roleBatchFilter(batch)) {
+      return false;
     }
 
+    // Then apply user-selected filters
     return (
       (searchQuery === '' ||
         batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

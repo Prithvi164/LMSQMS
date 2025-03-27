@@ -25,17 +25,15 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
-import type { OrganizationBatch } from "@shared/schema";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useMutation } from "@tanstack/react-query";
 
-// Updated trainee data submission type
+// Updated trainee data submission schema
 const addTraineeSchema = z.object({
   username: z.string()
     .min(3, "Username must be at least 3 characters")
@@ -57,8 +55,30 @@ const addTraineeSchema = z.object({
   role: z.enum(['manager', 'team_lead', 'quality_analyst', 'trainer', 'advisor']).default('advisor'),
 });
 
+// Batch interface that's flexible enough to handle different batch format types
+interface BatchInterface {
+  id: number;
+  name: string;
+  organizationId: number;
+  processId: number | null;
+  locationId: number | null;
+  lineOfBusinessId: number | null;
+  trainerId: number | null;
+  capacityLimit?: number;
+  enrolledCount?: number;
+}
+
+type BatchDetailsType = {
+  trainer?: { fullName: string } | null;
+  location?: { name: string } | null;
+  lineOfBusiness?: { name: string } | null;
+  process?: { name: string } | null;
+  enrolledCount?: number;
+  capacityLimit?: number;
+};
+
 type AddTraineeFormProps = {
-  batch: OrganizationBatch;
+  batch: BatchInterface;
   onSuccess: () => void;
 };
 
@@ -67,14 +87,16 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
 
-  // Get current trainee count from batch's enrolledCount
-  const traineeCount = batch.enrolledCount || 0;
-  const remainingCapacity = (batch.capacityLimit || 0) - traineeCount;
-
-  const { data: batchDetails } = useQuery({
+  // Fetch the batch details
+  const { data: batchDetails = {} as BatchDetailsType } = useQuery({
     queryKey: [`/api/organizations/${batch.organizationId}/batches/${batch.id}`],
     enabled: !!batch.id,
   });
+
+  // Get trainee count and capacity from either batch object or query result
+  const traineeCount = batch.enrolledCount ?? batchDetails?.enrolledCount ?? 0;
+  const capacityLimit = batch.capacityLimit ?? batchDetails?.capacityLimit ?? 0;
+  const remainingCapacity = capacityLimit - traineeCount;
 
   const form = useForm<z.infer<typeof addTraineeSchema>>({
     resolver: zodResolver(addTraineeSchema),
@@ -157,12 +179,6 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
     try {
       setIsSubmitting(true);
 
-      console.log('Uploading file:', {
-        name: file.name,
-        size: file.size,
-        type: file.type
-      });
-
       const response = await fetch(
         `/api/organizations/${batch.organizationId}/batches/${batch.id}/trainees/bulk`,
         {
@@ -222,10 +238,8 @@ export function AddTraineeForm({ batch, onSuccess }: AddTraineeFormProps) {
     }
   };
 
-
   return (
     <div className="max-h-[70vh] overflow-y-auto px-4">
-
       <div className="flex justify-end mb-4">
         <Button
           variant="outline"

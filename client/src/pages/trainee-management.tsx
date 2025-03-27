@@ -158,8 +158,40 @@ export default function TraineeManagement() {
     return format(dateIST, "PPP");
   };
 
+  // Filter batches based on user role
+  const filterBatchesByRole = useCallback((batchList: Batch[]) => {
+    if (!user) return [];
+    
+    // Admins and owners can see all batches
+    if (user.role === 'admin' || user.role === 'owner') {
+      return batchList;
+    }
+    
+    // Trainers can only see their assigned batches
+    if (user.role === 'trainer') {
+      return batchList.filter(batch => batch.trainer?.id === user.id);
+    }
+    
+    // Managers can see batches they're the trainer for OR batches assigned to trainers who report to them
+    if (user.role === 'manager') {
+      // Direct assignment to manager
+      const directBatches = batchList.filter(batch => batch.trainer?.id === user.id);
+      
+      // Plus any batches assigned to trainers reporting to this manager
+      // This would require a backend query to get trainer-manager relationships
+      // For now, we'll use a simplified approach: managers can see all batches
+      return batchList;
+    }
+    
+    // For all other roles, just return all batches (or implement more specific logic if needed)
+    return batchList;
+  }, [user]);
+  
+  // Apply role filtering then group by status
+  const filteredBatches = filterBatchesByRole(batches);
+  
   // Group batches by status
-  const batchesByStatus = batches.reduce((acc, batch) => {
+  const batchesByStatus = filteredBatches.reduce((acc, batch) => {
     if (!acc[batch.status]) {
       acc[batch.status] = [];
     }

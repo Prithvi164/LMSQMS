@@ -263,8 +263,25 @@ export function BatchDetailsPage() {
     enabled: !!user?.id && user?.role === 'manager',
   });
 
-  const phaseRequests = user?.role === 'trainer' ? trainerRequests :
-                       user?.role === 'manager' ? managerRequests : [];
+  // Define a type for phase requests
+  type PhaseRequest = {
+    id: number;
+    trainerId: number;
+    managerId: number;
+    currentPhase: string;
+    requestedPhase: string;
+    status: string;
+    trainer?: {
+      fullName: string;
+    };
+  };
+  
+  // Initialize phase requests with proper typing
+  const phaseRequests: PhaseRequest[] = user?.role === 'trainer' 
+    ? (trainerRequests as PhaseRequest[] || []) 
+    : user?.role === 'manager' 
+      ? (managerRequests as PhaseRequest[] || []) 
+      : [];
 
   const updateAttendanceMutation = useMutation({
     mutationFn: async ({ traineeId, status }: { traineeId: number; status: AttendanceStatus }) => {
