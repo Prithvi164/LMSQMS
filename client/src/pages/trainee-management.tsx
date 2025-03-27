@@ -201,7 +201,7 @@ export default function TraineeManagement() {
           </p>
           <p className="text-sm">
             <span className="font-medium">LOB:</span>{" "}
-            {batch.line_of_business.name}
+            {batch.line_of_business ? batch.line_of_business.name : "N/A"}
           </p>
           <div className="mt-2">
             <div className="flex justify-between items-center mb-1">
