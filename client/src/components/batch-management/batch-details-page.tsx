@@ -149,6 +149,9 @@ export function BatchDetailsPage() {
   const { data: trainees = [], isLoading: traineesLoading } = useQuery<any[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`],
     enabled: !!user?.organizationId && !!batchId && !!batch,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    staleTime: 0 // Always refetch the data
   });
 
   const { data: managers } = useQuery({
@@ -201,8 +204,7 @@ export function BatchDetailsPage() {
     onSuccess: (data) => {
       console.log("Updating cache with data:", JSON.stringify(data));
       
-      // Don't invalidate the query immediately, let's update the cache first
-      // and remove the invalidation as it's causing the UI to flicker
+      // Update the cache with the new attendance data
       queryClient.setQueryData(
         [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`],
         (oldTrainees: any[] | undefined) => {
@@ -227,6 +229,11 @@ export function BatchDetailsPage() {
           return updatedTrainees;
         }
       );
+      
+      // Also invalidate the query to ensure data is always fresh when navigating back
+      queryClient.invalidateQueries({
+        queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`]
+      });
       
       toast({
         title: "Success",
