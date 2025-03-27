@@ -217,8 +217,7 @@ export function BatchDetailsPage() {
     onSuccess: (data) => {
       console.log("Updating cache with data:", JSON.stringify(data));
       
-      // Don't invalidate the query immediately, let's update the cache first
-      // and remove the invalidation as it's causing the UI to flicker
+      // Update the query cache for the current selected date
       queryClient.setQueryData(
         [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate],
         (oldTrainees: any[] | undefined) => {
