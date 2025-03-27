@@ -3191,11 +3191,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const batchId = parseInt(req.params.batchId);
       const orgId = parseInt(req.params.orgId);
-      const today = new Date().toISOString().split('T')[0];
+      // Use provided date or default to today
+      const date = req.query.date ? String(req.query.date) : new Date().toISOString().split('T')[0];
 
-      console.log('Fetching trainees for batch', batchId);
+      console.log('Fetching trainees for batch', batchId, 'for date', date);
 
-      // Get all trainees assigned to this batch and their attendance for today
+      // Get all trainees assigned to this batch and their attendance for the specified date
       const batchTrainees = await db
         .select({
           userId: userBatchProcesses.userId,
@@ -3220,7 +3221,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           and(
             eq(attendance.traineeId, userBatchProcesses.userId),
             eq(attendance.batchId, userBatchProcesses.batchId),
-            eq(attendance.date, today)
+            eq(attendance.date, date)
           )
         )
         .where(

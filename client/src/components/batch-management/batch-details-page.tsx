@@ -7,12 +7,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft, Calendar as CalendarIcon } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BatchTimeline } from "./batch-timeline";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Form,
   FormControl,
@@ -128,7 +134,8 @@ export function BatchDetailsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedTab, setSelectedTab] = useState("attendance");
-  const currentDate = format(new Date(), "PPP");
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const currentDate = format(selectedDate, "PPP");
 
   // Initialize form
   const form = useForm({
@@ -146,8 +153,17 @@ export function BatchDetailsPage() {
     enabled: !!user?.organizationId && !!batchId,
   });
 
+  const formattedDate = selectedDate.toISOString().split('T')[0];
+  
   const { data: trainees = [], isLoading: traineesLoading } = useQuery<any[]>({
-    queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`],
+    queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate],
+    queryFn: async () => {
+      const response = await fetch(`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees?date=${formattedDate}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch trainees attendance data');
+      }
+      return response.json();
+    },
     enabled: !!user?.organizationId && !!batchId && !!batch,
   });
 
@@ -181,7 +197,7 @@ export function BatchDetailsPage() {
         body: JSON.stringify({
           traineeId,
           status,
-          date: new Date().toISOString().split('T')[0],
+          date: formattedDate,
           organizationId: user?.organizationId,
           batchId: parseInt(batchId!),
           phase: batch?.status,
@@ -440,7 +456,27 @@ export function BatchDetailsPage() {
             <CardContent className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-semibold">Attendance Tracking</h2>
-                <p className="text-muted-foreground">{currentDate}</p>
+                <div className="flex items-center gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-2"
+                      >
+                        <CalendarIcon className="h-4 w-4" />
+                        <span>{currentDate}</span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="end">
+                      <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={(date) => date && setSelectedDate(date)}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
 
               {trainees && trainees.length > 0 ? (
