@@ -217,35 +217,11 @@ export function BatchDetailsPage() {
     onSuccess: (data) => {
       console.log("Updating cache with data:", JSON.stringify(data));
       
-      // Update the cache with the new attendance data
-      queryClient.setQueryData(
-        [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, selectedDate],
-        (oldTrainees: any[] | undefined) => {
-          if (!oldTrainees) return oldTrainees;
-          
-          console.log("Existing trainees data:", JSON.stringify(oldTrainees));
-          
-          const updatedTrainees = oldTrainees.map(trainee => {
-            if (trainee.id === data.traineeId) {
-              const updatedTrainee = {
-                ...trainee,
-                status: data.status,
-                lastUpdated: data.updatedAt
-              };
-              console.log("Updated trainee data:", JSON.stringify(updatedTrainee));
-              return updatedTrainee;
-            }
-            return trainee;
-          });
-          
-          console.log("New trainees data:", JSON.stringify(updatedTrainees));
-          return updatedTrainees;
-        }
-      );
-      
-      // Also invalidate the query to ensure data is always fresh when navigating back
+      // First, immediately refetch the data to ensure the UI is updated
       queryClient.invalidateQueries({
-        queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, selectedDate]
+        queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, selectedDate],
+        refetchType: 'active',
+        exact: true
       });
       
       toast({
