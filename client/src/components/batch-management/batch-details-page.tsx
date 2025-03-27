@@ -187,10 +187,31 @@ export function BatchDetailsPage() {
 
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Update the trainees data in the cache directly with the response from server
+      queryClient.setQueryData(
+        [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`],
+        (oldTrainees: any[] | undefined) => {
+          if (!oldTrainees) return oldTrainees;
+          
+          return oldTrainees.map(trainee => {
+            if (trainee.id === data.traineeId) {
+              return {
+                ...trainee,
+                status: data.status,
+                lastUpdated: data.updatedAt
+              };
+            }
+            return trainee;
+          });
+        }
+      );
+      
+      // Also invalidate the query to ensure data consistency
       queryClient.invalidateQueries({
         queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`]
       });
+      
       toast({
         title: "Success",
         description: "Attendance marked successfully",
