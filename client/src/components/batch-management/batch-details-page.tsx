@@ -243,16 +243,51 @@ export function BatchDetailsPage() {
       console.log("Attendance response data:", JSON.stringify(responseData));
       return responseData;
     },
-    onSuccess: (data) => {
-      console.log("Updating cache with data:", JSON.stringify(data));
+    // Add optimistic update functionality 
+    onMutate: async ({ traineeId, status }) => {
+      // Cancel any outgoing refetches to avoid overwriting our optimistic update
+      await queryClient.cancelQueries({ 
+        queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate] 
+      });
       
-      // Update the query cache for the current selected date
+      // Save the previous state
+      const previousTrainees = queryClient.getQueryData(
+        [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate]
+      );
+      
+      // Perform an optimistic update to the cache
       queryClient.setQueryData(
         [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate],
         (oldTrainees: any[] | undefined) => {
           if (!oldTrainees) return oldTrainees;
           
-          console.log("Existing trainees data:", JSON.stringify(oldTrainees));
+          console.log("Optimistically updating trainees data");
+          
+          return oldTrainees.map(trainee => {
+            if (trainee.id === traineeId) {
+              const now = new Date();
+              return {
+                ...trainee,
+                status: status,
+                lastUpdated: now.toISOString()
+              };
+            }
+            return trainee;
+          });
+        }
+      );
+      
+      // Return the previous value in case we need to rollback
+      return { previousTrainees };
+    },
+    onSuccess: (data) => {
+      console.log("Updating cache with server data:", JSON.stringify(data));
+      
+      // Update the query cache for the current selected date with the server data
+      queryClient.setQueryData(
+        [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate],
+        (oldTrainees: any[] | undefined) => {
+          if (!oldTrainees) return oldTrainees;
           
           const updatedTrainees = oldTrainees.map(trainee => {
             if (trainee.id === data.traineeId) {
@@ -261,18 +296,16 @@ export function BatchDetailsPage() {
                 status: data.status,
                 lastUpdated: data.updatedAt
               };
-              console.log("Updated trainee data:", JSON.stringify(updatedTrainee));
               return updatedTrainee;
             }
             return trainee;
           });
           
-          console.log("New trainees data:", JSON.stringify(updatedTrainees));
           return updatedTrainees;
         }
       );
       
-      // Always invalidate the queries to force a refetch 
+      // Always invalidate the queries to force a refetch to ensure data consistency
       queryClient.invalidateQueries({
         queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate],
       });
@@ -282,11 +315,25 @@ export function BatchDetailsPage() {
         description: "Attendance marked successfully",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _, context: any) => {
+      // If there was an error, roll back to the previous state
+      if (context?.previousTrainees) {
+        queryClient.setQueryData(
+          [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate],
+          context.previousTrainees
+        );
+      }
+      
       toast({
         variant: "destructive",
         title: "Error",
         description: error.message,
+      });
+    },
+    onSettled: () => {
+      // Always refetch after success or error to ensure data consistency
+      queryClient.invalidateQueries({
+        queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}/trainees`, formattedDate],
       });
     },
   });
@@ -565,9 +612,15 @@ export function BatchDetailsPage() {
                           <TableCell>
                             <Select
                               value={trainee.status || ''}
-                              onValueChange={(value: AttendanceStatus) =>
-                                updateAttendanceMutation.mutate({ traineeId: trainee.id, status: value })
-                              }
+                              onValueChange={(value: AttendanceStatus) => {
+                                // Update the trainee status immediately in the UI before API call completes
+                                const now = new Date();
+                                trainee.status = value;
+                                trainee.lastUpdated = now.toISOString();
+                                
+                                // Then perform the actual mutation
+                                updateAttendanceMutation.mutate({ traineeId: trainee.id, status: value });
+                              }}
                             >
                               <SelectTrigger className="w-[130px]">
                                 <SelectValue placeholder="Mark attendance" />
