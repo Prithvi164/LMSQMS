@@ -518,37 +518,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const organizationId = parseInt(req.params.organizationId);
       const batchId = parseInt(req.params.batchId);
+      const date = req.query.date as string || new Date().toISOString().split('T')[0]; // Use query param or default to today
       
       if (organizationId !== req.user.organizationId) {
         return res.status(403).json({ message: "Forbidden" });
       }
 
-      // Get batch enrollments and join with users table to get trainee details
-      const trainees = await db.query.userBatchProcesses.findMany({
-        where: and(
-          eq(userBatchProcesses.batchId, batchId),
-          eq(userBatchProcesses.status, 'active')
-        ),
-        with: {
-          user: {
-            columns: {
-              id: true,
-              fullName: true,
-              employeeId: true,
-              email: true
-            }
-          }
-        }
+      // Get the batch to determine its current phase
+      const batch = await db.query.organizationBatches.findFirst({
+        where: eq(organizationBatches.id, batchId)
       });
 
-      // Format the response to match the expected structure  
-      const formattedTrainees = trainees.map(enrollment => ({
-        id: enrollment.userId,
-        fullName: enrollment.user.fullName,
-        employeeId: enrollment.user.employeeId,
-        email: enrollment.user.email
+      if (!batch) {
+        return res.status(404).json({ message: "Batch not found" });
+      }
+
+      const batchPhase = batch.status;
+      console.log('Current batch phase:', batchPhase);
+      console.log('Fetching attendance for date:', date);
+
+      // Get all trainees assigned to this batch and their attendance for the specified date and phase
+      const batchTrainees = await db
+        .select({
+          userId: userBatchProcesses.userId,
+          status: userBatchProcesses.status,
+          user: {
+            id: users.id,
+            fullName: users.fullName,
+            employeeId: users.employeeId,
+            email: users.email,
+            role: users.role
+          },
+          attendance: {
+            status: attendance.status,
+            lastUpdated: attendance.updatedAt
+          }
+        })
+        .from(userBatchProcesses)
+        .innerJoin(users, eq(users.id, userBatchProcesses.userId))
+        .leftJoin(
+          attendance,
+          and(
+            eq(attendance.traineeId, userBatchProcesses.userId),
+            eq(attendance.batchId, userBatchProcesses.batchId),
+            eq(attendance.date, date),
+            eq(attendance.phase, batchPhase)
+          )
+        )
+        .where(
+          and(
+            eq(userBatchProcesses.batchId, batchId),
+            eq(userBatchProcesses.status, 'active')
+          )
+        );
+
+      console.log('Found trainees:', batchTrainees.length);
+
+      // Map to expected format
+      const formattedTrainees = batchTrainees.map((trainee) => ({
+        id: trainee.userId,
+        status: trainee.attendance?.status || null,
+        lastUpdated: trainee.attendance?.lastUpdated?.toISOString(),
+        fullName: trainee.user.fullName,
+        employeeId: trainee.user.employeeId,
+        email: trainee.user.email,
+        user: trainee.user
       }));
 
+      console.log('Response:', JSON.stringify(formattedTrainees.slice(0, 2)));
       res.json(formattedTrainees);
     } catch (error: any) {
       console.error("Error fetching batch trainees:", error);
