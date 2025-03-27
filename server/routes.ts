@@ -20,6 +20,7 @@ import { eq, and, sql, inArray } from "drizzle-orm";
 import { toIST, formatIST, toUTCStorage, formatISTDateOnly } from './utils/timezone';
 import { attendance } from "@shared/schema";
 import type { User } from "@shared/schema";
+import { updateBatchStatuses } from './services/batch-status-service';
 
 // Type definitions for user updates
 type AllowedSelfUpdateFields = Pick<User, "fullName" | "email" | "phoneNumber" | "locationId" | "dateOfBirth" | "education">;
@@ -4042,6 +4043,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error fetching trainer batches:", error);
       res.status(500).json({ message: "Failed to fetch trainer batches" });
+    }
+  });
+  
+  // Test route for batch phase transition
+  app.get("/api/test-batch-status-update", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (req.user.role !== 'owner' && req.user.role !== 'admin') {
+      return res.status(403).json({ message: "Only owners and admins can run this test" });
+    }
+    
+    try {
+      console.log('Starting manual batch status update test...');
+      
+      // Get current state of batches before update
+      const orgId = req.user.organizationId;
+      const batchesBeforeUpdate = await storage.listBatches(orgId);
+      
+      // Run the update function
+      await updateBatchStatuses();
+      
+      // Get batches after update
+      const batchesAfterUpdate = await storage.listBatches(orgId);
+      
+      // Identify batches that were updated
+      const updatedBatches = [];
+      
+      for (const beforeBatch of batchesBeforeUpdate) {
+        const afterBatch = batchesAfterUpdate.find(b => b.id === beforeBatch.id);
+        
+        if (afterBatch && beforeBatch.status !== afterBatch.status) {
+          updatedBatches.push({
+            id: beforeBatch.id,
+            name: beforeBatch.name,
+            previousStatus: beforeBatch.status,
+            newStatus: afterBatch.status,
+            transitionDate: new Date().toISOString()
+          });
+        }
+      }
+      
+      res.json({
+        message: 'Batch status update test completed',
+        totalBatches: batchesBeforeUpdate.length,
+        updatedBatches: updatedBatches,
+        details: 'Check server logs for more details about the update process'
+      });
+    } catch (error: any) {
+      console.error("Error in batch status update test:", error);
+      res.status(500).json({ 
+        message: "Failed to run batch status update test", 
+        error: error.message 
+      });
     }
   });
 
