@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft, Info } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -468,11 +468,148 @@ export function BatchDetailsPage() {
           <Card>
             <CardContent className="p-6">
               <h2 className="text-xl font-semibold mb-4">Training Schedule</h2>
-              <Alert>
-                <AlertDescription>
-                  Training planner interface will be implemented here.
-                </AlertDescription>
-              </Alert>
+              
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-medium mb-3">Batch Timeline</h3>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Phase</TableHead>
+                        <TableHead>Planned Start</TableHead>
+                        <TableHead>Planned End</TableHead>
+                        <TableHead>Actual Start</TableHead>
+                        <TableHead>Actual End</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {/* Induction Phase */}
+                      <TableRow>
+                        <TableCell className="font-medium">Induction</TableCell>
+                        <TableCell>{batch.inductionStartDate ? new Date(batch.inductionStartDate).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell>{batch.inductionEndDate ? new Date(batch.inductionEndDate).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell>{batch.actualInductionStartDate ? new Date(batch.actualInductionStartDate).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell>{batch.actualInductionEndDate ? new Date(batch.actualInductionEndDate).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={batch.status === 'induction' ? 'default' : 
+                                   (batch.actualInductionEndDate ? 'default' : 'secondary')}
+                            className={batch.actualInductionEndDate ? 'bg-green-500 hover:bg-green-600' : ''}
+                          >
+                            {batch.status === 'induction' ? 'Current' : 
+                             (batch.actualInductionEndDate ? 'Completed' : 'Pending')}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                      
+                      {/* Training Phase */}
+                      <TableRow>
+                        <TableCell className="font-medium">Training</TableCell>
+                        <TableCell>{batch.trainingStartDate ? new Date(batch.trainingStartDate).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell>{batch.trainingEndDate ? new Date(batch.trainingEndDate).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell>{batch.actualTrainingStartDate ? new Date(batch.actualTrainingStartDate).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell>{batch.actualTrainingEndDate ? new Date(batch.actualTrainingEndDate).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={batch.status === 'training' ? 'default' : 
+                                   (batch.actualTrainingEndDate ? 'default' : 'secondary')}
+                            className={batch.actualTrainingEndDate ? 'bg-green-500 hover:bg-green-600' : ''}
+                          >
+                            {batch.status === 'training' ? 'Current' : 
+                             (batch.actualTrainingEndDate ? 'Completed' : 'Pending')}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                      
+                      {/* Certification Phase */}
+                      <TableRow>
+                        <TableCell className="font-medium">Certification</TableCell>
+                        <TableCell>{batch.certificationStartDate ? new Date(batch.certificationStartDate).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell>{batch.certificationEndDate ? new Date(batch.certificationEndDate).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell>{batch.actualCertificationStartDate ? new Date(batch.actualCertificationStartDate).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell>{batch.actualCertificationEndDate ? new Date(batch.actualCertificationEndDate).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={batch.status === 'certification' ? 'default' : 
+                                   (batch.actualCertificationEndDate ? 'default' : 'secondary')}
+                            className={batch.actualCertificationEndDate ? 'bg-green-500 hover:bg-green-600' : ''}
+                          >
+                            {batch.status === 'certification' ? 'Current' : 
+                             (batch.actualCertificationEndDate ? 'Completed' : 'Pending')}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                      
+                      {/* OJT Phase */}
+                      <TableRow>
+                        <TableCell className="font-medium">OJT</TableCell>
+                        <TableCell>{batch.ojtStartDate ? new Date(batch.ojtStartDate).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell>{batch.ojtEndDate ? new Date(batch.ojtEndDate).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell>{batch.actualOjtStartDate ? new Date(batch.actualOjtStartDate).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell>{batch.actualOjtEndDate ? new Date(batch.actualOjtEndDate).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={batch.status === 'ojt' ? 'default' : 
+                                   (batch.actualOjtEndDate ? 'default' : 'secondary')}
+                            className={batch.actualOjtEndDate ? 'bg-green-500 hover:bg-green-600' : ''}
+                          >
+                            {batch.status === 'ojt' ? 'Current' : 
+                             (batch.actualOjtEndDate ? 'Completed' : 'Pending')}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                      
+                      {/* OJT Certification Phase */}
+                      <TableRow>
+                        <TableCell className="font-medium">OJT Certification</TableCell>
+                        <TableCell>{batch.ojtCertificationStartDate ? new Date(batch.ojtCertificationStartDate).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell>{batch.ojtCertificationEndDate ? new Date(batch.ojtCertificationEndDate).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell>{batch.actualOjtCertificationStartDate ? new Date(batch.actualOjtCertificationStartDate).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell>{batch.actualOjtCertificationEndDate ? new Date(batch.actualOjtCertificationEndDate).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={batch.status === 'ojt_certification' ? 'default' : 
+                                   (batch.actualOjtCertificationEndDate ? 'default' : 'secondary')}
+                            className={batch.actualOjtCertificationEndDate ? 'bg-green-500 hover:bg-green-600' : ''}
+                          >
+                            {batch.status === 'ojt_certification' ? 'Current' : 
+                             (batch.actualOjtCertificationEndDate ? 'Completed' : 'Pending')}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                      
+                      {/* Completion */}
+                      <TableRow>
+                        <TableCell className="font-medium">Completion</TableCell>
+                        <TableCell>{batch.handoverToOpsDate ? new Date(batch.handoverToOpsDate).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell>-</TableCell>
+                        <TableCell>{batch.actualCompletionDate ? new Date(batch.actualCompletionDate).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell>-</TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={batch.status === 'completed' ? 'default' : 'secondary'}
+                            className={batch.status === 'completed' ? 'bg-green-500 hover:bg-green-600' : ''}
+                          >
+                            {batch.status === 'completed' ? 'Completed' : 'Pending'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+                
+                <div className="bg-accent/30 p-4 rounded-md">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <Info className="h-5 w-5" />
+                    <h4 className="font-semibold">Training Phase Information</h4>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    The table above shows both the <span className="font-medium">planned</span> and <span className="font-medium">actual</span> dates for each training phase. 
+                    When a phase changes, the system automatically records the actual start and end dates to help track timeline deviations.
+                  </p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
