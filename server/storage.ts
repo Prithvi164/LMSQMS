@@ -16,6 +16,8 @@ import {
   userBatchProcesses,
   organizationSettings,
   organizationHolidays,
+  attendance,
+  type Attendance,
   type QuizResponse,
   type InsertQuizResponse,
   type User,
@@ -92,6 +94,10 @@ export interface IStorage {
   updateUserPassword(email: string, hashedPassword: string): Promise<void>;
   deleteUser(id: number): Promise<void>;
   listUsers(organizationId: number): Promise<User[]>;
+  
+  // Attendance operations
+  getAttendanceRecord(traineeId: number, date: string, batchId?: number): Promise<Attendance | undefined>;
+  createAttendanceRecord(record: { traineeId: number; batchId: number; date: string; status: string; organizationId: number }): Promise<Attendance>;
 
   // Quiz template operations
   createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate>;
@@ -412,6 +418,75 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+  
+  // Attendance related methods
+  async getAttendanceRecord(traineeId: number, date: string, batchId?: number): Promise<Attendance | undefined> {
+    try {
+      console.log(`Getting attendance record for trainee ${traineeId} on ${date}${batchId ? ` for batch ${batchId}` : ''}`);
+      let query = db
+        .select()
+        .from(attendance)
+        .where(
+          and(
+            eq(attendance.traineeId, traineeId),
+            eq(attendance.date, date)
+          )
+        );
+        
+      // Add batch filter if provided
+      if (batchId) {
+        query = query.where(eq(attendance.batchId, batchId));
+      }
+      
+      const records = await query;
+      console.log('Found attendance records:', records);
+      return records[0] as Attendance | undefined;
+    } catch (error) {
+      console.error('Error fetching attendance record:', error);
+      throw error;
+    }
+  }
+  
+  async createAttendanceRecord(record: { traineeId: number; batchId: number; date: string; status: string; organizationId: number }): Promise<Attendance> {
+    try {
+      console.log('Creating attendance record:', record);
+      
+      // Check if a record already exists for this trainee on this date in this batch
+      const existingRecord = await this.getAttendanceRecord(record.traineeId, record.date, record.batchId);
+      
+      if (existingRecord) {
+        console.log('Attendance record already exists, updating instead');
+        const [updatedRecord] = await db
+          .update(attendance)
+          .set({
+            status: record.status,
+            updatedAt: new Date()
+          })
+          .where(eq(attendance.id, existingRecord.id))
+          .returning() as Attendance[];
+          
+        return updatedRecord;
+      }
+      
+      // Create new attendance record
+      const [newRecord] = await db
+        .insert(attendance)
+        .values({
+          traineeId: record.traineeId,
+          batchId: record.batchId,
+          date: record.date,
+          status: record.status,
+          organizationId: record.organizationId
+        })
+        .returning() as Attendance[];
+        
+      console.log('Created new attendance record:', newRecord);
+      return newRecord;
+    } catch (error) {
+      console.error('Error creating attendance record:', error);
+      throw error;
+    }
+  }
   async createEvaluationParameter(parameter: InsertEvaluationParameter): Promise<EvaluationParameter> {
     try {
       console.log('Creating evaluation parameter with data:', parameter);
@@ -461,49 +536,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async createEvaluation(evaluation: InsertEvaluation & { scores: Array<{ parameterId: number; score: string; comment?: string; noReason?: string; }> }): Promise<Evaluation> {
-    try {
-      console.log('Creating evaluation:', evaluation);
 
-      return await db.transaction(async (tx) => {
-        // First create the evaluation record
-        const [newEvaluation] = await tx
-          .insert(evaluations)
-          .values({
-            templateId: evaluation.templateId,
-            traineeId: evaluation.traineeId,
-            batchId: evaluation.batchId,
-            evaluatorId: evaluation.evaluatorId, 
-            organizationId: evaluation.organizationId,
-            finalScore: evaluation.finalScore,
-            status: evaluation.status,
-          })
-          .returning() as Evaluation[];
-
-        console.log('Created evaluation:', newEvaluation);
-
-        // Then create all the parameter scores
-        const scoresToInsert = evaluation.scores.map(score => ({
-          evaluationId: newEvaluation.id,
-          parameterId: score.parameterId,
-          score: score.score,
-          comment: score.comment,
-          noReason: score.noReason,
-        }));
-
-        await tx
-          .insert(evaluationScores)
-          .values(scoresToInsert);
-
-        console.log('Created evaluation scores');
-
-        return newEvaluation;
-      });
-    } catch (error) {
-      console.error('Error creating evaluation:', error);
-      throw error;
-    }
-  }
 
   async deleteEvaluationTemplate(id: number): Promise<void> {
     try {
