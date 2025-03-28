@@ -282,7 +282,9 @@ export default function TraineeManagement() {
           </p>
           <p className="text-sm">
             <span className="font-medium">Trainer:</span>{" "}
-            {batch.trainer ? batch.trainer.fullName : "Not assigned"}
+            {batch.trainer ? batch.trainer.fullName : (
+              <span className="text-muted-foreground italic">Assign a trainer in batch settings</span>
+            )}
           </p>
           <div className="mt-2">
             <div className="flex justify-between items-center mb-1">

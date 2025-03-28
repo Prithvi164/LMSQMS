@@ -713,7 +713,11 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
                     <dd className="font-medium">{formatDate(batch.endDate)}</dd>
                     
                     <dt className="text-muted-foreground">Trainer</dt>
-                    <dd className="font-medium">{batch.trainer?.fullName || 'Not assigned'}</dd>
+                    <dd className="font-medium">
+                      {batch.trainer ? batch.trainer.fullName : (
+                        <span className="text-muted-foreground italic">Assign a trainer in batch settings</span>
+                      )}
+                    </dd>
                   </dl>
                 </CardContent>
               </Card>
