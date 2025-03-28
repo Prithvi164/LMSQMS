@@ -12,9 +12,6 @@ function debugLog(message: string) {
   }
 }
 
-// Flag to track if routes have been registered
-let routesRegistered = false;
-
 debugLog("Starting server initialization");
 
 const app = express();
@@ -105,16 +102,6 @@ debugLog("Health check route added");
     app.set("env", "development");
     debugLog(`Environment set to: ${app.get("env")}`);
 
-    // Special test route to verify API connectivity
-    app.get("/api-health", (_req, res) => {
-      res.json({ 
-        status: "ok", 
-        message: "API server is operational",
-        timestamp: new Date().toISOString() 
-      });
-    });
-    
-    // Set up different middlewares based on environment
     if (app.get("env") === "development") {
       debugLog("Setting up Vite middleware for development");
       await setupVite(app, server);
@@ -129,8 +116,7 @@ debugLog("Health check route added");
     const tryPort = async (port: number): Promise<number> => {
       try {
         await new Promise((resolve, reject) => {
-          // Binding to 0.0.0.0 to make the server accessible from outside
-          server.listen(port, '0.0.0.0')
+          server.listen(port)
             .once('error', reject)
             .once('listening', resolve);
         });

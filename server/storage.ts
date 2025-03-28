@@ -16,9 +16,6 @@ import {
   userBatchProcesses,
   organizationSettings,
   organizationHolidays,
-  traineeProgress,
-  assessments,
-  refresherSessions,
   type QuizResponse,
   type InsertQuizResponse,
   type User,
@@ -81,13 +78,7 @@ import {
   type Evaluation,
   type InsertEvaluation,
   type EvaluationScore,
-  type InsertEvaluationScore,
-  type TraineeProgress,
-  type InsertTraineeProgress,
-  type Assessment,
-  type InsertAssessment,
-  type RefresherSession,
-  type InsertRefresherSession
+  type InsertEvaluationScore
 } from "@shared/schema";
 
 // Add to IStorage interface
@@ -108,25 +99,6 @@ export interface IStorage {
   deleteQuizTemplate(id: number): Promise<void>;
   getQuizTemplate(id: number): Promise<QuizTemplate | undefined>;
   updateQuizTemplate(id: number, template: Partial<InsertQuizTemplate>): Promise<QuizTemplate>;
-  
-  // Trainee Progress tracking operations
-  createTraineeProgress(progress: InsertTraineeProgress): Promise<TraineeProgress>;
-  getTraineeProgress(traineeId: number, batchId: number): Promise<TraineeProgress | undefined>;
-  updateTraineeProgress(traineeId: number, batchId: number, updates: Partial<InsertTraineeProgress>): Promise<TraineeProgress>;
-  listTraineeProgressByBatch(batchId: number): Promise<TraineeProgress[]>;
-  
-  // Assessment operations
-  createAssessment(assessment: InsertAssessment): Promise<Assessment>;
-  getAssessment(id: number): Promise<Assessment | undefined>;
-  getAssessmentsByTrainee(traineeId: number, batchId: number, type?: string): Promise<Assessment[]>;
-  getLatestAssessment(traineeId: number, batchId: number, type: string): Promise<Assessment | undefined>;
-  
-  // Refresher Session operations
-  createRefresherSession(session: InsertRefresherSession): Promise<RefresherSession>;
-  getRefresherSession(id: number): Promise<RefresherSession | undefined>;
-  updateRefresherSession(id: number, updates: Partial<InsertRefresherSession>): Promise<RefresherSession>;
-  getRefresherSessionsByTrainee(traineeId: number, batchId: number): Promise<RefresherSession[]>;
-  completeRefresherSession(id: number): Promise<RefresherSession>;
 
   // User Process operations
   assignProcessesToUser(processes: InsertUserProcess[]): Promise<UserProcess[]>;
@@ -323,29 +295,6 @@ export interface IStorage {
   createOrganizationHoliday(holiday: InsertOrganizationHoliday): Promise<OrganizationHoliday>;
   updateOrganizationHoliday(id: number, holiday: Partial<InsertOrganizationHoliday>): Promise<OrganizationHoliday>;
   deleteOrganizationHoliday(id: number): Promise<void>;
-
-  // Trainee Progress Tracking operations
-  createTraineeProgress(progress: InsertTraineeProgress): Promise<TraineeProgress>;
-  getTraineeProgress(traineeId: number, batchId: number): Promise<TraineeProgress | undefined>;
-  updateTraineeProgress(
-    traineeId: number,
-    batchId: number,
-    updates: Partial<InsertTraineeProgress>
-  ): Promise<TraineeProgress>;
-  listTraineeProgressByBatch(batchId: number): Promise<TraineeProgress[]>;
-  
-  // Assessment operations
-  createAssessment(assessment: InsertAssessment): Promise<Assessment>;
-  getAssessment(id: number): Promise<Assessment | undefined>;
-  getAssessmentsByTrainee(traineeId: number, batchId: number, type?: string): Promise<Assessment[]>;
-  getLatestAssessment(traineeId: number, batchId: number, type: string): Promise<Assessment | undefined>;
-  
-  // Refresher Session operations
-  createRefresherSession(session: InsertRefresherSession): Promise<RefresherSession>;
-  getRefresherSession(id: number): Promise<RefresherSession | undefined>;
-  updateRefresherSession(id: number, updates: Partial<InsertRefresherSession>): Promise<RefresherSession>;
-  getRefresherSessionsByTrainee(traineeId: number, batchId: number): Promise<RefresherSession[]>;
-  completeRefresherSession(id: number): Promise<RefresherSession>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -463,257 +412,98 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  
-
-
-  // Trainee Progress Tracking operations
-  async createTraineeProgress(progress: InsertTraineeProgress): Promise<TraineeProgress> {
+  async createEvaluationParameter(parameter: InsertEvaluationParameter): Promise<EvaluationParameter> {
     try {
-      console.log('Creating trainee progress record:', progress);
-      const [newProgress] = await db
-        .insert(traineeProgress)
-        .values(progress)
-        .returning() as TraineeProgress[];
-      return newProgress;
-    } catch (error) {
-      console.error('Error creating trainee progress:', error);
-      throw error;
-    }
-  }
-
-  async getTraineeProgress(traineeId: number, batchId: number): Promise<TraineeProgress | undefined> {
-    try {
-      const [progress] = await db
-        .select()
-        .from(traineeProgress)
-        .where(
-          and(
-            eq(traineeProgress.traineeId, traineeId),
-            eq(traineeProgress.batchId, batchId)
-          )
-        ) as TraineeProgress[];
-      return progress;
-    } catch (error) {
-      console.error('Error fetching trainee progress:', error);
-      throw error;
-    }
-  }
-
-  async updateTraineeProgress(
-    traineeId: number,
-    batchId: number,
-    updates: Partial<InsertTraineeProgress>
-  ): Promise<TraineeProgress> {
-    try {
-      console.log('Updating trainee progress:', traineeId, batchId, updates);
+      console.log('Creating evaluation parameter with data:', parameter);
       
-      const [updatedProgress] = await db
-        .update(traineeProgress)
-        .set({
-          ...updates,
-          updatedAt: new Date()
-        })
-        .where(
-          and(
-            eq(traineeProgress.traineeId, traineeId),
-            eq(traineeProgress.batchId, batchId)
-          )
-        )
-        .returning() as TraineeProgress[];
+      // Ensure noReasons is an array before inserting
+      const parameterData = {
+        ...parameter,
+        noReasons: Array.isArray(parameter.noReasons) ? parameter.noReasons : [],
+      };
 
-      if (!updatedProgress) {
-        throw new Error('Trainee progress record not found');
-      }
+      const [newParameter] = await db
+        .insert(evaluationParameters)
+        .values(parameterData)
+        .returning() as EvaluationParameter[];
 
-      return updatedProgress;
+      console.log('Created parameter:', newParameter);
+      return newParameter;
     } catch (error) {
-      console.error('Error updating trainee progress:', error);
+      console.error('Error creating evaluation parameter:', error);
       throw error;
     }
   }
 
-  async listTraineeProgressByBatch(batchId: number): Promise<TraineeProgress[]> {
+  async updateEvaluationParameter(id: number, parameter: Partial<InsertEvaluationParameter>): Promise<EvaluationParameter> {
     try {
-      const progressRecords = await db
-        .select()
-        .from(traineeProgress)
-        .where(eq(traineeProgress.batchId, batchId)) as TraineeProgress[];
-      return progressRecords;
+      console.log('Updating evaluation parameter:', id, parameter);
+
+      // Ensure noReasons is an array if provided
+      const updateData = {
+        ...parameter,
+        noReasons: parameter.noReasons ? 
+          (Array.isArray(parameter.noReasons) ? parameter.noReasons : []) : 
+          undefined,
+      };
+
+      const [updatedParameter] = await db
+        .update(evaluationParameters)
+        .set(updateData)
+        .where(eq(evaluationParameters.id, id))
+        .returning() as EvaluationParameter[];
+
+      console.log('Updated parameter:', updatedParameter);
+      return updatedParameter;
     } catch (error) {
-      console.error('Error listing trainee progress by batch:', error);
+      console.error('Error updating evaluation parameter:', error);
       throw error;
     }
   }
-  
-  // Assessment operations
-  async createAssessment(assessment: InsertAssessment): Promise<Assessment> {
+
+  async createEvaluation(evaluation: InsertEvaluation & { scores: Array<{ parameterId: number; score: string; comment?: string; noReason?: string; }> }): Promise<Evaluation> {
     try {
-      console.log('Creating assessment record:', assessment);
-      const [newAssessment] = await db
-        .insert(assessments)
-        .values(assessment)
-        .returning() as Assessment[];
-      return newAssessment;
+      console.log('Creating evaluation:', evaluation);
+
+      return await db.transaction(async (tx) => {
+        // First create the evaluation record
+        const [newEvaluation] = await tx
+          .insert(evaluations)
+          .values({
+            templateId: evaluation.templateId,
+            traineeId: evaluation.traineeId,
+            batchId: evaluation.batchId,
+            evaluatorId: evaluation.evaluatorId, 
+            organizationId: evaluation.organizationId,
+            finalScore: evaluation.finalScore,
+            status: evaluation.status,
+          })
+          .returning() as Evaluation[];
+
+        console.log('Created evaluation:', newEvaluation);
+
+        // Then create all the parameter scores
+        const scoresToInsert = evaluation.scores.map(score => ({
+          evaluationId: newEvaluation.id,
+          parameterId: score.parameterId,
+          score: score.score,
+          comment: score.comment,
+          noReason: score.noReason,
+        }));
+
+        await tx
+          .insert(evaluationScores)
+          .values(scoresToInsert);
+
+        console.log('Created evaluation scores');
+
+        return newEvaluation;
+      });
     } catch (error) {
-      console.error('Error creating assessment:', error);
+      console.error('Error creating evaluation:', error);
       throw error;
     }
   }
-
-  async getAssessment(id: number): Promise<Assessment | undefined> {
-    try {
-      const [assessment] = await db
-        .select()
-        .from(assessments)
-        .where(eq(assessments.id, id)) as Assessment[];
-      return assessment;
-    } catch (error) {
-      console.error('Error fetching assessment:', error);
-      throw error;
-    }
-  }
-
-  async getAssessmentsByTrainee(traineeId: number, batchId: number, type?: string): Promise<Assessment[]> {
-    try {
-      let query = db
-        .select()
-        .from(assessments)
-        .where(
-          and(
-            eq(assessments.traineeId, traineeId),
-            eq(assessments.batchId, batchId)
-          )
-        );
-
-      if (type) {
-        query = query.where(eq(assessments.type, type));
-      }
-
-      const traineeAssessments = await query.orderBy(desc(assessments.assessmentDate)) as Assessment[];
-      return traineeAssessments;
-    } catch (error) {
-      console.error('Error fetching trainee assessments:', error);
-      throw error;
-    }
-  }
-
-  async getLatestAssessment(traineeId: number, batchId: number, type: string): Promise<Assessment | undefined> {
-    try {
-      const [assessment] = await db
-        .select()
-        .from(assessments)
-        .where(
-          and(
-            eq(assessments.traineeId, traineeId),
-            eq(assessments.batchId, batchId),
-            eq(assessments.type, type)
-          )
-        )
-        .orderBy(desc(assessments.assessmentDate))
-        .limit(1) as Assessment[];
-      return assessment;
-    } catch (error) {
-      console.error('Error fetching latest assessment:', error);
-      throw error;
-    }
-  }
-  
-  // Refresher Session operations
-  async createRefresherSession(session: InsertRefresherSession): Promise<RefresherSession> {
-    try {
-      console.log('Creating refresher session:', session);
-      const [newSession] = await db
-        .insert(refresherSessions)
-        .values(session)
-        .returning() as RefresherSession[];
-      return newSession;
-    } catch (error) {
-      console.error('Error creating refresher session:', error);
-      throw error;
-    }
-  }
-
-  async getRefresherSession(id: number): Promise<RefresherSession | undefined> {
-    try {
-      const [session] = await db
-        .select()
-        .from(refresherSessions)
-        .where(eq(refresherSessions.id, id)) as RefresherSession[];
-      return session;
-    } catch (error) {
-      console.error('Error fetching refresher session:', error);
-      throw error;
-    }
-  }
-
-  async updateRefresherSession(id: number, updates: Partial<InsertRefresherSession>): Promise<RefresherSession> {
-    try {
-      console.log('Updating refresher session:', id, updates);
-      
-      const [updatedSession] = await db
-        .update(refresherSessions)
-        .set({
-          ...updates,
-          updatedAt: new Date()
-        })
-        .where(eq(refresherSessions.id, id))
-        .returning() as RefresherSession[];
-
-      if (!updatedSession) {
-        throw new Error('Refresher session not found');
-      }
-
-      return updatedSession;
-    } catch (error) {
-      console.error('Error updating refresher session:', error);
-      throw error;
-    }
-  }
-
-  async getRefresherSessionsByTrainee(traineeId: number, batchId: number): Promise<RefresherSession[]> {
-    try {
-      const sessions = await db
-        .select()
-        .from(refresherSessions)
-        .where(
-          and(
-            eq(refresherSessions.traineeId, traineeId),
-            eq(refresherSessions.batchId, batchId)
-          )
-        )
-        .orderBy(desc(refresherSessions.startDate)) as RefresherSession[];
-      return sessions;
-    } catch (error) {
-      console.error('Error fetching trainee refresher sessions:', error);
-      throw error;
-    }
-  }
-
-  async completeRefresherSession(id: number): Promise<RefresherSession> {
-    try {
-      const [completedSession] = await db
-        .update(refresherSessions)
-        .set({
-          completed: true,
-          endDate: new Date(),
-          updatedAt: new Date()
-        })
-        .where(eq(refresherSessions.id, id))
-        .returning() as RefresherSession[];
-
-      if (!completedSession) {
-        throw new Error('Refresher session not found');
-      }
-
-      return completedSession;
-    } catch (error) {
-      console.error('Error completing refresher session:', error);
-      throw error;
-    }
-  }
-
-
-
 
   async deleteEvaluationTemplate(id: number): Promise<void> {
     try {
@@ -1384,6 +1174,32 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getUserProcesses(userId: number): Promise<UserProcess[]> {
+    try {
+      const processes = await db
+        .select({
+          id: userProcesses.id,
+          userId: userProcesses.userId,
+          processId: userProcesses.processId,
+          organizationId: userProcesses.organizationId,
+          status: userProcesses.status,
+          assignedAt: userProcesses.assignedAt,
+          completedAt: userProcesses.completedAt,
+          processName: organizationProcesses.name,
+        })
+        .from(userProcesses)
+        .leftJoin(
+          organizationProcesses,
+          eq(userProcesses.processId, organizationProcesses.id)
+        )
+        .where(eq(userProcesses.userId, userId)) as UserProcess[];
+
+      return processes;
+    } catch (error) {
+      console.error('Error fetching user processes:', error);
+      throw new Error('Failed to fetch user processes');
+    }
+  }
 
   async removeUserProcess(userId: number, processId: number): Promise<void> {
     try {
@@ -3341,13 +3157,49 @@ export class DatabaseStorage implements IStorage {
 
   async getEvaluationParameter(id: number): Promise<EvaluationParameter | undefined> {
     try {
-      const parameter = await db
+      const [parameter] = await db
         .select()
         .from(evaluationParameters)
-        .where(eq(evaluationParameters.id, id));
-      return parameter[0];
+        .where(eq(evaluationParameters.id, id)) as EvaluationParameter[];
+
+      return parameter;
     } catch (error) {
-      console.error("Error getting evaluation parameter:", error);
+      console.error('Error fetching evaluation parameter:', error);
+      throw error;
+    }
+  }
+
+  async updateEvaluationPillar(id: number, pillar: Partial<InsertEvaluationPillar>): Promise<EvaluationPillar> {
+    try {
+      const [updatedPillar] = await db
+        .update(evaluationPillars)
+        .set({
+          ...pillar,
+          updatedAt: new Date()
+        })
+        .where(eq(evaluationPillars.id, id))
+        .returning() as EvaluationPillar[];
+
+      return updatedPillar;
+    } catch (error) {
+      console.error('Error updating evaluation pillar:', error);
+      throw error;
+    }
+  }
+
+  async deleteEvaluationPillar(id: number): Promise<void> {
+    try {
+      // Delete all parameters associated with this pillar first
+      await db
+        .delete(evaluationParameters)
+        .where(eq(evaluationParameters.pillarId, id));
+
+      // Then delete the pillar
+      await db
+        .delete(evaluationPillars)
+        .where(eq(evaluationPillars.id, id));
+    } catch (error) {
+      console.error('Error deleting evaluation pillar:', error);
       throw error;
     }
   }
