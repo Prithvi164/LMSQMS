@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Edit, Trash2, ArrowRightLeft, Loader2 } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
+import { isSubordinate, getAllSubordinates } from "@/lib/hierarchy-utils";
 
 // Updated type to match actual API response
 type Trainee = {
@@ -52,8 +53,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
   const [selectedTrainee, setSelectedTrainee] = useState<Trainee | null>(null);
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   
-  // Import the hierarchy utility functions
-  const { isSubordinate, getAllSubordinates } = require('@/lib/hierarchy-utils');
+  // Use hierarchy utility functions for permission checks
   
   // Define User type
   type User = {

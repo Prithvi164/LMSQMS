@@ -28,6 +28,7 @@ import {
 } from 'recharts';
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { isSubordinate, getAllSubordinates } from "@/lib/hierarchy-utils";
 
 // Type for batch data
 type Batch = {
@@ -165,8 +166,7 @@ export default function TraineeManagement() {
     staleTime: 5 * 60 * 1000, // 5 minutes cache
   });
 
-  // Import the hierarchy utility function for filtering
-  const { isSubordinate, getAllSubordinates } = require('@/lib/hierarchy-utils');
+  // Use hierarchy utility functions for permission checks
 
   // Filter batches based on user role and reporting hierarchy
   const filterBatchesByRole = useCallback((batchList: Batch[]) => {
