@@ -1295,10 +1295,8 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
                         field.onChange(date ? format(date, 'yyyy-MM-dd') : '');
                       }}
                       disabled={(date) => {
-                        // Don't allow selecting dates in the past
-                        if (date < new Date()) return true;
-                        
-                        // Check if date is a non-working day (weekly off or holiday)
+                        // Only check if the date is a non-working day (weekly off or holiday)
+                        // We're now allowing past dates to be selected
                         return isNonWorkingDay(
                           date,
                           form.getValues('weeklyOffDays') || ['Saturday', 'Sunday'],
