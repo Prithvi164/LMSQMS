@@ -26,9 +26,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Edit, Trash2, ArrowRightLeft, Loader2 } from "lucide-react";
+import { Edit, Trash2, ArrowRightLeft, Loader2, BarChart } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 import { isSubordinate, getAllSubordinates } from "@/lib/hierarchy-utils";
+import { TraineeProgressVisualization } from "./trainee-progress-visualization";
 
 // Updated type to match actual API response
 type Trainee = {
@@ -52,6 +53,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedTrainee, setSelectedTrainee] = useState<Trainee | null>(null);
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
+  const [isProgressDialogOpen, setIsProgressDialogOpen] = useState(false);
   
   // Use hierarchy utility functions for permission checks
   
@@ -374,8 +376,20 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                       size="sm"
                       onClick={() => {
                         setSelectedTrainee(trainee);
+                        setIsProgressDialogOpen(true);
+                      }}
+                      title="View Training Progress"
+                    >
+                      <BarChart className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedTrainee(trainee);
                         setIsTransferDialogOpen(true);
                       }}
+                      title="Transfer to Another Batch"
                     >
                       <ArrowRightLeft className="h-4 w-4" />
                     </Button>
@@ -388,6 +402,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                           description: "Edit functionality will be available soon",
                         });
                       }}
+                      title="Edit Trainee Details"
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
@@ -398,6 +413,7 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                         setSelectedTrainee(trainee);
                         setIsDeleteDialogOpen(true);
                       }}
+                      title="Remove from Batch"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -474,6 +490,21 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
                 ))}
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Progress Visualization Dialog */}
+      <Dialog open={isProgressDialogOpen} onOpenChange={setIsProgressDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Trainee Progress: {selectedTrainee?.fullName}</DialogTitle>
+          </DialogHeader>
+          {selectedTrainee && (
+            <TraineeProgressVisualization 
+              traineeId={selectedTrainee.id} 
+              batchId={batchId} 
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>

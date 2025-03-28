@@ -102,6 +102,14 @@ debugLog("Health check route added");
     app.set("env", "development");
     debugLog(`Environment set to: ${app.get("env")}`);
 
+    // Add middleware to exclude API routes from Vite handling
+    app.use((req, res, next) => {
+      if (req.path.startsWith('/api')) {
+        return next('route'); // Skip Vite middleware for API routes
+      }
+      next();
+    });
+
     if (app.get("env") === "development") {
       debugLog("Setting up Vite middleware for development");
       await setupVite(app, server);
@@ -116,7 +124,8 @@ debugLog("Health check route added");
     const tryPort = async (port: number): Promise<number> => {
       try {
         await new Promise((resolve, reject) => {
-          server.listen(port)
+          // Binding to 0.0.0.0 to make the server accessible from outside
+          server.listen(port, '0.0.0.0')
             .once('error', reject)
             .once('listening', resolve);
         });
