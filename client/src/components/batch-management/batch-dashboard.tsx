@@ -448,29 +448,29 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
         {/* Overall Progress Card */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Overall Progress</CardTitle>
+            <CardTitle className="text-lg font-semibold">Overall Progress</CardTitle>
             <CardDescription>From {formatDate(batch.startDate)} to {formatDate(batch.endDate)}</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">{batchMetrics?.overallProgress || 0}% Complete</span>
+                <span className="text-base font-medium">{batchMetrics?.overallProgress || 0}% Complete</span>
                 <span className="text-sm text-muted-foreground">
                   {batchMetrics?.daysCompleted || 0} of {batchMetrics?.totalDays || 0} days
                 </span>
               </div>
-              <Progress value={batchMetrics?.overallProgress || 0} className="h-2" />
+              <Progress value={batchMetrics?.overallProgress || 0} className="h-2.5 bg-gray-100" />
               
-              <div className="grid grid-cols-2 gap-2 mt-4">
-                <div className="border rounded p-2 text-center">
-                  <p className="text-xs text-muted-foreground">Completed</p>
-                  <p className="text-xl font-bold">{batchMetrics?.daysCompleted || 0}</p>
-                  <p className="text-xs">Days</p>
+              <div className="grid grid-cols-2 gap-px mt-4 border rounded overflow-hidden">
+                <div className="bg-white p-4 text-center">
+                  <p className="text-base font-medium mb-1">Completed</p>
+                  <p className="text-3xl font-bold">{batchMetrics?.daysCompleted || 0}</p>
+                  <p className="text-sm text-muted-foreground">Days</p>
                 </div>
-                <div className="border rounded p-2 text-center">
-                  <p className="text-xs text-muted-foreground">Remaining</p>
-                  <p className="text-xl font-bold">{batchMetrics?.daysRemaining || 0}</p>
-                  <p className="text-xs">Days</p>
+                <div className="bg-white p-4 text-center">
+                  <p className="text-base font-medium mb-1">Remaining</p>
+                  <p className="text-3xl font-bold">{batchMetrics?.daysRemaining || 0}</p>
+                  <p className="text-sm text-muted-foreground">Days</p>
                 </div>
               </div>
             </div>
@@ -480,37 +480,37 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
         {/* Current Phase Progress */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Current Phase</CardTitle>
+            <CardTitle className="text-lg font-semibold">Current Phase</CardTitle>
             <CardDescription>
               {formatPhaseName(batchMetrics?.currentPhase || 'planned')} Phase
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">{batchMetrics?.currentPhaseProgress || 0}% Complete</span>
-                <Badge variant={phaseVariant}>{formatPhaseName(batchMetrics?.currentPhase || 'planned')}</Badge>
+                <span className="text-base font-medium">{batchMetrics?.currentPhaseProgress || 0}% Complete</span>
+                <Badge variant={phaseVariant} className="capitalize">
+                  {formatPhaseName(batchMetrics?.currentPhase || 'planned')}
+                </Badge>
               </div>
-              <Progress value={batchMetrics?.currentPhaseProgress || 0} className="h-2" />
+              <Progress value={batchMetrics?.currentPhaseProgress || 0} className="h-2.5 bg-gray-100" />
               
               <div className="mt-4">
                 {batchMetrics?.currentPhase === 'planned' ? (
-                  <div className="flex items-center justify-center h-[72px] border rounded">
+                  <div className="flex items-center justify-center h-[80px] border rounded">
                     <p className="text-sm text-muted-foreground">Batch not yet started</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="text-center border rounded p-2">
-                      <Calendar className="h-4 w-4 mx-auto mb-1" />
-                      <p className="text-xs text-muted-foreground">Start Date</p>
-                      <p className="text-sm font-medium">
+                  <div className="grid grid-cols-2 gap-px border rounded overflow-hidden">
+                    <div className="bg-white p-4 text-center">
+                      <p className="text-base font-medium mb-1">Start Date</p>
+                      <p className="text-lg font-bold">
                         {formatDate(getCurrentPhaseStartDate(batch))}
                       </p>
                     </div>
-                    <div className="text-center border rounded p-2">
-                      <Calendar className="h-4 w-4 mx-auto mb-1" />
-                      <p className="text-xs text-muted-foreground">End Date</p>
-                      <p className="text-sm font-medium">
+                    <div className="bg-white p-4 text-center">
+                      <p className="text-base font-medium mb-1">End Date</p>
+                      <p className="text-lg font-bold">
                         {formatDate(getCurrentPhaseEndDate(batch))}
                       </p>
                     </div>
@@ -524,7 +524,7 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
         {/* Attendance Overview */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Attendance Overview</CardTitle>
+            <CardTitle className="text-lg font-semibold">Attendance Overview</CardTitle>
             <CardDescription>Current batch attendance statistics</CardDescription>
           </CardHeader>
           <CardContent>
@@ -535,44 +535,44 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
             ) : (
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Attendance Rate</span>
-                  <span className="text-sm font-medium">
+                  <span className="text-base font-medium">Attendance Rate</span>
+                  <span className="text-base font-medium">
                     {batchMetrics?.attendanceOverview.attendanceRate || 0}%
                   </span>
                 </div>
                 <Progress 
                   value={batchMetrics?.attendanceOverview.attendanceRate || 0} 
-                  className="h-2"
+                  className="h-2.5 bg-gray-100"
                 />
                 
-                <div className="grid grid-cols-4 gap-2 text-center text-xs">
-                  <div>
-                    <div className="h-8 w-8 mx-auto rounded-full bg-green-100 flex items-center justify-center">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
+                <div className="grid grid-cols-4 gap-2 mt-2 border rounded p-3">
+                  <div className="text-center">
+                    <div className="h-10 w-10 mx-auto rounded-full bg-green-100 flex items-center justify-center">
+                      <CheckCircle className="h-5 w-5 text-green-600" />
                     </div>
-                    <p className="mt-1">{batchMetrics?.attendanceOverview.presentCount || 0}</p>
-                    <p className="text-muted-foreground">Present</p>
+                    <p className="mt-2 text-lg font-semibold">{batchMetrics?.attendanceOverview.presentCount || 0}</p>
+                    <p className="text-sm text-muted-foreground">Present</p>
                   </div>
-                  <div>
-                    <div className="h-8 w-8 mx-auto rounded-full bg-red-100 flex items-center justify-center">
-                      <AlertCircle className="h-4 w-4 text-red-600" />
+                  <div className="text-center">
+                    <div className="h-10 w-10 mx-auto rounded-full bg-red-100 flex items-center justify-center">
+                      <AlertCircle className="h-5 w-5 text-red-600" />
                     </div>
-                    <p className="mt-1">{batchMetrics?.attendanceOverview.absentCount || 0}</p>
-                    <p className="text-muted-foreground">Absent</p>
+                    <p className="mt-2 text-lg font-semibold">{batchMetrics?.attendanceOverview.absentCount || 0}</p>
+                    <p className="text-sm text-muted-foreground">Absent</p>
                   </div>
-                  <div>
-                    <div className="h-8 w-8 mx-auto rounded-full bg-yellow-100 flex items-center justify-center">
-                      <Clock className="h-4 w-4 text-yellow-600" />
+                  <div className="text-center">
+                    <div className="h-10 w-10 mx-auto rounded-full bg-yellow-100 flex items-center justify-center">
+                      <Clock className="h-5 w-5 text-yellow-600" />
                     </div>
-                    <p className="mt-1">{batchMetrics?.attendanceOverview.lateCount || 0}</p>
-                    <p className="text-muted-foreground">Late</p>
+                    <p className="mt-2 text-lg font-semibold">{batchMetrics?.attendanceOverview.lateCount || 0}</p>
+                    <p className="text-sm text-muted-foreground">Late</p>
                   </div>
-                  <div>
-                    <div className="h-8 w-8 mx-auto rounded-full bg-blue-100 flex items-center justify-center">
-                      <Calendar className="h-4 w-4 text-blue-600" />
+                  <div className="text-center">
+                    <div className="h-10 w-10 mx-auto rounded-full bg-blue-100 flex items-center justify-center">
+                      <Calendar className="h-5 w-5 text-blue-600" />
                     </div>
-                    <p className="mt-1">{batchMetrics?.attendanceOverview.leaveCount || 0}</p>
-                    <p className="text-muted-foreground">Leave</p>
+                    <p className="mt-2 text-lg font-semibold">{batchMetrics?.attendanceOverview.leaveCount || 0}</p>
+                    <p className="text-sm text-muted-foreground">Leave</p>
                   </div>
                 </div>
               </div>
