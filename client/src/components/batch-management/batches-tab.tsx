@@ -110,6 +110,7 @@ export function BatchesTab() {
   const { hasPermission } = usePermissions();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -758,6 +759,18 @@ export function BatchesTab() {
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex items-center justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity action-buttons">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/batch-dashboard/${batch.id}`);
+                    }}
+                    className="h-8 w-8 p-0 hover:text-blue-600"
+                  >
+                    <Eye className="h-4 w-4" />
+                    <span className="sr-only">View Dashboard</span>
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"
