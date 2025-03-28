@@ -1479,12 +1479,48 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getBatch(id: number): Promise<OrganizationBatch | undefined> {
+  async getBatch(id: number): Promise<OrganizationBatch & { trainer?: { id: number, fullName: string } } | undefined> {
     try {
       const [batch] = await db
-        .select()
+        .select({
+          id: organizationBatches.id,
+          name: organizationBatches.name,
+          batchCategory: organizationBatches.batchCategory,
+          startDate: organizationBatches.startDate,
+          endDate: organizationBatches.endDate,
+          status: organizationBatches.status,
+          capacityLimit: organizationBatches.capacityLimit,
+          locationId: organizationBatches.locationId,
+          processId: organizationBatches.processId,
+          lineOfBusinessId: organizationBatches.lineOfBusinessId,
+          trainerId: organizationBatches.trainerId,
+          organizationId: organizationBatches.organizationId,
+          inductionStartDate: organizationBatches.inductionStartDate,
+          inductionEndDate: organizationBatches.inductionEndDate,
+          trainingStartDate: organizationBatches.trainingStartDate,
+          trainingEndDate: organizationBatches.trainingEndDate,
+          certificationStartDate: organizationBatches.certificationStartDate,
+          certificationEndDate: organizationBatches.certificationEndDate,
+          ojtStartDate: organizationBatches.ojtStartDate,
+          ojtEndDate: organizationBatches.ojtEndDate,
+          ojtCertificationStartDate: organizationBatches.ojtCertificationStartDate,
+          ojtCertificationEndDate: organizationBatches.ojtCertificationEndDate,
+          handoverToOpsDate: organizationBatches.handoverToOpsDate,
+          weeklyOffDays: organizationBatches.weeklyOffDays,
+          considerHolidays: organizationBatches.considerHolidays,
+          createdAt: organizationBatches.createdAt,
+          updatedAt: organizationBatches.updatedAt,
+          trainer: {
+            id: users.id,
+            fullName: users.fullName,
+          },
+        })
         .from(organizationBatches)
-        .where(eq(organizationBatches.id, id)) as OrganizationBatch[];
+        .leftJoin(
+          users,
+          eq(organizationBatches.trainerId, users.id)
+        )
+        .where(eq(organizationBatches.id, id));
 
       return batch;
     } catch (error) {

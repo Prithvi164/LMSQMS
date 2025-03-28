@@ -2836,15 +2836,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get additional batch details
-      const [location, process] = await Promise.all([
+      const [location, process, lineOfBusiness] = await Promise.all([
         storage.getLocation(batch.locationId),
-        storage.getProcess(batch.processId)
+        storage.getProcess(batch.processId),
+        batch.lineOfBusinessId ? storage.getLineOfBusiness(batch.lineOfBusinessId) : null,
       ]);
 
+      // The batch already contains the trainer info from getBatch
       const batchWithDetails = {
         ...batch,
         location,
-        process
+        process,
+        line_of_business: lineOfBusiness
       };
 
       console.log('Successfully fetched batch details:', { 
