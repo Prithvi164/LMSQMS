@@ -160,20 +160,50 @@ export function BatchesTab() {
   const processes = Array.from(new Set(batches.map(batch => batch.process?.name).filter(Boolean) as string[]));
   const statuses = Array.from(new Set(batches.map(batch => batch.status)));
 
-  // Calculate subordinates for the current user
+  // Calculate subordinates for the current user with detailed debug logging
   const userSubordinates = useMemo(() => {
     if (!user || !allUsers || allUsers.length === 0) {
+      console.warn('Cannot calculate subordinates - missing user or allUsers data');
       return [];
     }
     
+    console.log('HIERARCHY DEBUG - Current user:', {
+      id: user.id,
+      name: user.fullName || user.username,
+      role: user.role,
+      managerId: user.managerId
+    });
+    
+    console.log('HIERARCHY DEBUG - All users reporting relationships:', 
+      allUsers.map(u => ({
+        id: u.id,
+        name: u.fullName || u.username,
+        role: u.role,
+        reportsTo: u.managerId
+      }))
+    );
+    
     // For roles other than manager, return empty array
     if (user.role !== 'manager' && user.role !== 'admin' && user.role !== 'owner') {
+      console.log('HIERARCHY DEBUG - User is not a manager/admin/owner, no subordinates');
       return [];
     }
     
     // Get all subordinates using hierarchy utils
     try {
-      return getAllSubordinates(user.id, allUsers);
+      // Get direct reports first for clearer debugging
+      const directReports = allUsers.filter(u => u.managerId === user.id);
+      console.log('HIERARCHY DEBUG - Direct reports:', 
+        directReports.map(u => ({ id: u.id, name: u.fullName || u.username, role: u.role }))
+      );
+      
+      // Get all subordinates (direct + indirect)
+      const allSubs = getAllSubordinates(user.id, allUsers);
+      console.log('HIERARCHY DEBUG - All subordinates (including indirect):', 
+        allSubs.map(u => ({ id: u.id, name: u.fullName || u.username, role: u.role }))
+      );
+      
+      return allSubs;
     } catch (error) {
       console.error('Error calculating subordinates:', error);
       return [];
@@ -183,50 +213,71 @@ export function BatchesTab() {
   // Debug logging for reporting hierarchy
   useEffect(() => {
     if (userSubordinates.length > 0) {
-      console.log('Current user reporting chain:', {
-        userId: user?.id,
-        userName: user?.fullName || user?.username,
-        role: user?.role,
-        subordinatesCount: userSubordinates.length,
-        subordinateTrainers: userSubordinates
+      console.log('HIERARCHY DEBUG - Trainer subordinates:', 
+        userSubordinates
           .filter(u => u.role === 'trainer')
-          .map(u => ({ id: u.id, name: u.fullName || u.username }))
-      });
+          .map(u => ({ 
+            id: u.id, 
+            name: u.fullName || u.username,
+            managerId: u.managerId 
+          }))
+      );
+    } else {
+      console.warn('HIERARCHY DEBUG - No subordinates found for current user');
     }
   }, [userSubordinates, user]);
 
   // Apply role-based permissions for batch filtering
   const roleBatchFilter = (batch: BatchWithRelations) => {
+    if (!user) return false;
+    
     // Owner/Admin can see all batches
-    if (user?.role === 'owner' || user?.role === 'admin') {
+    if (user.role === 'owner' || user.role === 'admin') {
       return true;
     }
     
     // Trainers can only see their assigned batches
-    if (user?.role === 'trainer') {
+    if (user.role === 'trainer') {
       return batch.trainerId === user.id;
     }
     
     // Managers can see batches where they are the manager or batches assigned to trainers that report to them
-    if (user?.role === 'manager') {
+    if (user.role === 'manager') {
       // Direct assignment to manager
       if (batch.trainerId === user.id) {
+        console.log(`BATCH FILTER - Manager ${user.fullName} has direct access to batch ${batch.name} (ID: ${batch.id}) as trainer`);
         return true;
       }
       
       // If the batch has a trainer, check if that trainer reports to this manager
-      if (batch.trainer && batch.trainer.id && batch.trainerId) {
-        // Check if this trainer is in our subordinates list
-        const isSubordinate = userSubordinates.some(subordinate => subordinate.id === batch.trainerId);
+      if (batch.trainerId) {
+        // Check if the trainer is a direct report
+        const isDirectReport = allUsers.some(u => 
+          u.id === batch.trainerId && u.managerId === user.id
+        );
         
-        // Debug logging for reporting hierarchy validation
-        console.log(`Batch visibility check for trainer ${batch.trainer.fullName} (ID: ${batch.trainerId}):`, {
-          isSubordinate,
-          batchId: batch.id,
-          batchName: batch.name
-        });
+        if (isDirectReport) {
+          console.log(`BATCH FILTER - Batch ${batch.name} (ID: ${batch.id}) visible to ${user.fullName} because trainer is a direct report`);
+          return true;
+        }
         
-        return isSubordinate;
+        // Check if the trainer is a subordinate (direct or indirect)
+        if (batch.trainer && allUsers.length > 0) {
+          // Use isSubordinate function to check reporting relationship
+          const isSubordinate = isSubordinate(user.id, batch.trainerId, allUsers);
+          
+          // Log detailed information
+          console.log(`BATCH FILTER - Checking if trainer ${batch.trainer.fullName} (ID: ${batch.trainerId}) reports to manager ${user.fullName} (ID: ${user.id}):`, {
+            isSubordinate,
+            batchId: batch.id,
+            batchName: batch.name
+          });
+          
+          return isSubordinate;
+        }
+        
+        console.log(`BATCH FILTER - Cannot determine if trainer for batch ${batch.name} (ID: ${batch.id}) reports to ${user.fullName}`);
+        return false;
       }
     }
     
