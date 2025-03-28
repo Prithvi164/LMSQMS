@@ -129,12 +129,17 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
       return batchDetails.trainer?.id === currentUser.id;
     }
     
-    // Managers can see batches they're the trainer for OR batches assigned to trainers who report to them
-    if (currentUser.role === 'manager' || currentUser.role === 'team_lead') {
-      // Direct assignment to manager
+    // Managers can see all batches - they should have broader access
+    if (currentUser.role === 'manager') {
+      return true; // Allow managers to view all batches
+    }
+    
+    // Team leads can see batches they're the trainer for OR batches assigned to trainers who report to them
+    if (currentUser.role === 'team_lead') {
+      // Direct assignment to team lead
       if (batchDetails.trainer?.id === currentUser.id) return true;
       
-      // Check if trainer reports to this manager
+      // Check if trainer reports to this team lead
       return batchDetails.trainer && isSubordinate(currentUser.id, batchDetails.trainer.id, allUsers);
     }
     
@@ -165,12 +170,17 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
       return batch.trainer?.id === currentUser.id;
     }
     
-    // Managers can see batches they're the trainer for OR batches assigned to trainers who report to them
-    if (currentUser.role === 'manager' || currentUser.role === 'team_lead') {
-      // Direct assignment to manager
+    // Managers can see all batches for consistency with canViewBatch
+    if (currentUser.role === 'manager') {
+      return true;
+    }
+    
+    // Team leads can see batches they're the trainer for OR batches assigned to trainers who report to them
+    if (currentUser.role === 'team_lead') {
+      // Direct assignment to team lead
       if (batch.trainer?.id === currentUser.id) return true;
       
-      // Check if trainer reports to this manager
+      // Check if trainer reports to this team lead
       return batch.trainer && isSubordinate(currentUser.id, batch.trainer.id, allUsers);
     }
     
