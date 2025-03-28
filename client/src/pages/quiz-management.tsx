@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,7 +13,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
-import type { Question, QuizTemplate } from "@shared/schema";
+import type { Question, QuizTemplate, OrganizationBatch } from "@shared/schema";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -66,6 +66,7 @@ const quizTemplateSchema = z.object({
   categoryDistribution: z.record(z.string(), z.number()).optional(),
   difficultyDistribution: z.record(z.string(), z.number()).optional(),
   processId: z.number().min(1, "Process is required"),
+  batchId: z.number().optional(),
 });
 
 // Define all types after schemas
@@ -101,6 +102,12 @@ export function QuizManagement() {
   // Update process query with proper typing
   const { data: processes = [], isLoading: processesLoading } = useQuery<Process[]>({
     queryKey: ['/api/processes'],
+    enabled: !!user?.organizationId
+  });
+  
+  // Add query for batches
+  const { data: batches = [], isLoading: batchesLoading } = useQuery<OrganizationBatch[]>({
+    queryKey: [`/api/organizations/${user?.organizationId}/batches`],
     enabled: !!user?.organizationId
   });
 
@@ -568,6 +575,7 @@ export function QuizManagement() {
       shuffleQuestions: template.shuffleQuestions,
       shuffleOptions: template.shuffleOptions,
       processId: template.processId,
+      batchId: template.batchId,
       categoryDistribution: template.categoryDistribution || {},
       difficultyDistribution: template.difficultyDistribution || {},
     });
@@ -1071,6 +1079,44 @@ export function QuizManagement() {
                                       )}
                                     </SelectContent>
                                   </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={templateForm.control}
+                              name="batchId"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Batch (Optional)</FormLabel>
+                                  <Select
+                                    onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)}
+                                    defaultValue={field.value?.toString() || ""}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder={batchesLoading ? "Loading..." : "Select a batch"} />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="">No batch (available to all)</SelectItem>
+                                      {batchesLoading ? (
+                                        <SelectItem value="" disabled>Loading batches...</SelectItem>
+                                      ) : batches.length > 0 ? (
+                                        batches.map((batch) => (
+                                          <SelectItem key={batch.id} value={batch.id.toString()}>
+                                            {batch.name}
+                                          </SelectItem>
+                                        ))
+                                      ) : (
+                                        <SelectItem value="" disabled>No batches available</SelectItem>
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormDescription>
+                                    If selected, this quiz template will only be available to trainees in this batch.
+                                  </FormDescription>
                                   <FormMessage />
                                 </FormItem>
                               )}

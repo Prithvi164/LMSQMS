@@ -22,6 +22,41 @@ import { attendance } from "@shared/schema";
 import type { User } from "@shared/schema";
 import { updateBatchStatuses } from './services/batch-status-service';
 
+// Helper function to check if a user has access to a specific batch or its template
+async function userHasBatchAccess(userId: number, batchId: number | null | undefined): Promise<boolean> {
+  if (!batchId) return true; // If no batch ID is specified, access is granted
+  
+  try {
+    // Check if user is assigned to this batch directly
+    const userBatch = await db.query.userBatchProcesses.findFirst({
+      where: and(
+        eq(userBatchProcesses.userId, userId),
+        eq(userBatchProcesses.batchId, batchId)
+      )
+    });
+    
+    if (userBatch) return true;
+    
+    // Check if user has admin access (is a trainer)
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+      columns: {
+        role: true
+      }
+    });
+    
+    // Trainers and admins have access to all batches
+    if (user && (user.role === 'admin' || user.role === 'trainer')) {
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error checking batch access:', error);
+    return false;
+  }
+}
+
 // Type definitions for user updates
 type AllowedSelfUpdateFields = Pick<User, "fullName" | "email" | "phoneNumber" | "locationId" | "dateOfBirth" | "education">;
 type AllowedUpdateFields = {
@@ -2238,9 +2273,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const processId = req.query.processId ? parseInt(req.query.processId as string) : undefined;
       console.log('Process ID filter:', processId);
       
+      // Get all templates
       const templates = await storage.listQuizTemplates(req.user.organizationId, processId);
       console.log(`Retrieved ${templates.length} quiz templates`);
-      res.json(templates);
+      
+      // Filter templates based on user's batch access
+      const filteredTemplates = [];
+      for (const template of templates) {
+        // If template has a batchId, check if user has access to that batch
+        if (template.batchId) {
+          const hasAccess = await userHasBatchAccess(req.user.id, template.batchId);
+          if (hasAccess) {
+            filteredTemplates.push(template);
+          }
+        } else {
+          // Templates without batchId are accessible to all
+          filteredTemplates.push(template);
+        }
+      }
+      
+      console.log(`Filtered to ${filteredTemplates.length} accessible quiz templates`);
+      res.json(filteredTemplates);
     } catch (error: any) {
       console.error("Error fetching quiz templates:", error);
       res.status(500).json({ message: error.message });
@@ -2332,6 +2385,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Verify organization access
       if (template.organizationId !== req.user.organizationId) {
         return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Check batch access if template has a batch ID
+      if (template.batchId) {
+        const hasBatchAccess = await userHasBatchAccess(req.user.id, template.batchId);
+        if (!hasBatchAccess) {
+          return res.status(403).json({ message: "You do not have access to this batch's quiz templates" });
+        }
       }
 
       // Get random questions based on template configuration

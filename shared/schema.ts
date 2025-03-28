@@ -115,6 +115,8 @@ export const quizTemplates = pgTable("quiz_templates", {
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id),
   createdBy: integer("created_by")
     .references(() => users.id)
     .notNull(),
@@ -228,6 +230,7 @@ export const insertQuizTemplateSchema = createInsertSchema(quizTemplates)
     difficultyDistribution: z.record(z.string(), z.number()).optional(),
     processId: z.number().int().positive("Process is required"),
     organizationId: z.number().int().positive("Organization is required"),
+    batchId: z.number().int().positive("Batch is required").optional(),
     createdBy: z.number().int().positive("Creator is required"),
     questions: z.array(z.number()).min(1, "At least one question is required"),
   });
@@ -317,6 +320,10 @@ export const quizTemplatesRelations = relations(quizTemplates, ({ one }) => ({
   creator: one(users, {
     fields: [quizTemplates.createdBy],
     references: [users.id],
+  }),
+  batch: one(organizationBatches, {
+    fields: [quizTemplates.batchId],
+    references: [organizationBatches.id],
   }),
 }));
 
