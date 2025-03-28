@@ -2243,8 +2243,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('Creating quiz template with data:', req.body);
 
+      // Process the batch ID - convert "none" to null
+      let batchId = req.body.batchId;
+      if (batchId === "none" || batchId === "") {
+        batchId = null;
+        console.log('Setting batchId to null (template available to all)');
+      } else if (batchId) {
+        // If batchId is provided (not "none"), convert to number
+        batchId = parseInt(batchId);
+        
+        // Verify the batch exists
+        const batch = await storage.getBatch(batchId);
+        if (!batch) {
+          return res.status(404).json({ message: "Batch not found" });
+        }
+        
+        // Verify the batch belongs to the user's organization
+        if (batch.organizationId !== req.user.organizationId) {
+          return res.status(403).json({ message: "Access denied to this batch" });
+        }
+        console.log(`Template will be restricted to batch ID: ${batchId}`);
+      }
+
       const templateData = {
         ...req.body,
+        batchId,
         organizationId: req.user.organizationId,
         createdBy: req.user.id
       };
@@ -2350,10 +2373,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (template.organizationId !== req.user.organizationId) {
         return res.status(403).json({ message: "Access denied" });
       }
+      
+      // Check batch access if template has a batch ID
+      if (template.batchId) {
+        const hasBatchAccess = await userHasBatchAccess(req.user.id, template.batchId);
+        if (!hasBatchAccess) {
+          return res.status(403).json({ message: "You do not have access to this batch's quiz templates" });
+        }
+      }
+      
+      // Process the batch ID - convert "none" to null
+      let batchId = req.body.batchId;
+      if (batchId === "none" || batchId === "") {
+        batchId = null;
+        console.log('Setting batchId to null (template available to all)');
+      } else if (batchId) {
+        // If batchId is provided (not "none"), convert to number
+        batchId = parseInt(batchId);
+        
+        // Verify the batch exists
+        const batch = await storage.getBatch(batchId);
+        if (!batch) {
+          return res.status(404).json({ message: "Batch not found" });
+        }
+        
+        // Verify the batch belongs to the user's organization
+        if (batch.organizationId !== req.user.organizationId) {
+          return res.status(403).json({ message: "Access denied to this batch" });
+        }
+        console.log(`Template will be restricted to batch ID: ${batchId}`);
+      }
 
       // Update the template
       const updatedTemplate = await storage.updateQuizTemplate(templateId, {
         ...req.body,
+        batchId,
         organizationId: req.user.organizationId // Ensure organization ID cannot be changed
       });
 
@@ -2465,6 +2519,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Verify organization ownership
       if (template.organizationId !== req.user.organizationId) {
         return res.status(403).json({ message: "You can only delete templates from your organization" });
+      }
+      
+      // Check batch access if template has a batch ID
+      if (template.batchId) {
+        const hasBatchAccess = await userHasBatchAccess(req.user.id, template.batchId);
+        if (!hasBatchAccess) {
+          return res.status(403).json({ message: "You do not have access to this batch's quiz templates" });
+        }
       }
 
       // First delete all quizzes associated with this template

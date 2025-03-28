@@ -66,7 +66,7 @@ const quizTemplateSchema = z.object({
   categoryDistribution: z.record(z.string(), z.number()).optional(),
   difficultyDistribution: z.record(z.string(), z.number()).optional(),
   processId: z.number().min(1, "Process is required"),
-  batchId: z.number().optional(),
+  batchId: z.union([z.number(), z.literal("none")]).optional(),
 });
 
 // Define all types after schemas
@@ -302,6 +302,10 @@ export function QuizManagement() {
     }
 
     try {
+      // Process batch ID - we've already set an appropriate value in the dropdown
+      // The server will convert "none" to null
+      console.log(`Template batch ID: ${data.batchId || 'none'}`);
+      
       if (editingTemplate) {
         // Update existing template
         await updateTemplateMutation.mutateAsync({
@@ -312,7 +316,7 @@ export function QuizManagement() {
           },
         });
       } else {
-        // Create new template (existing logic)
+        // Create new template
         const templateData = {
           ...data,
           organizationId: user.organizationId,
@@ -1084,15 +1088,16 @@ export function QuizManagement() {
                               )}
                             />
 
+                            {/* Batch selection field */}
                             <FormField
                               control={templateForm.control}
                               name="batchId"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Batch (Optional)</FormLabel>
+                                  <FormLabel>Restrict to Batch (Optional)</FormLabel>
                                   <Select
-                                    onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)}
-                                    defaultValue={field.value?.toString() || ""}
+                                    onValueChange={(value) => field.onChange(value === "none" ? "none" : parseInt(value))}
+                                    defaultValue={field.value?.toString() || "none"}
                                   >
                                     <FormControl>
                                       <SelectTrigger>
@@ -1100,9 +1105,9 @@ export function QuizManagement() {
                                       </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                      <SelectItem value="">No batch (available to all)</SelectItem>
+                                      <SelectItem value="none">No batch restriction (Available to all)</SelectItem>
                                       {batchesLoading ? (
-                                        <SelectItem value="" disabled>Loading batches...</SelectItem>
+                                        <SelectItem value="loading" disabled>Loading batches...</SelectItem>
                                       ) : batches.length > 0 ? (
                                         batches.map((batch) => (
                                           <SelectItem key={batch.id} value={batch.id.toString()}>
@@ -1110,17 +1115,19 @@ export function QuizManagement() {
                                           </SelectItem>
                                         ))
                                       ) : (
-                                        <SelectItem value="" disabled>No batches available</SelectItem>
+                                        <SelectItem value="na" disabled>No batches available</SelectItem>
                                       )}
                                     </SelectContent>
                                   </Select>
                                   <FormDescription>
-                                    If selected, this quiz template will only be available to trainees in this batch.
+                                    If selected, only trainees in this batch will be able to access this quiz template.
                                   </FormDescription>
                                   <FormMessage />
                                 </FormItem>
                               )}
                             />
+
+
 
                             <FormField
                               control={templateForm.control}
