@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, addDays, isSunday, isWithinInterval, isSameDay } from "date-fns";
-import { getAllSubordinates, getReportingChainUsers } from "@/lib/hierarchy-utils";
+import { getAllSubordinates, getReportingChainUsers, isSubordinate } from "@/lib/hierarchy-utils";
 import { calculatePhaseDates, calculateWorkingDays, Holiday, isNonWorkingDay } from "@/lib/date-utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -315,6 +315,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       name: u.fullName, 
       role: u.role,
       locationId: u.locationId,
+      managerId: u.managerId, // Add managerId for debugging
       selected: selectedLocation
     })));
     
@@ -326,24 +327,49 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       );
     }
     
-    // For other roles, get all users who report to the current user (direct or indirect)
-    const subordinates = getAllSubordinates(user.id, allUsers);
+    // For other roles like managers, strictly ensure hierarchical relationships
+    
+    // Collect all users in the current user's reporting chain
+    const strictSubordinates = getAllSubordinates(user.id, allUsers);
+    
+    console.log('STRICT HIERARCHY CHECK - Current user:', {
+      id: user.id,
+      name: user.fullName,
+      role: user.role
+    });
+    
+    // Extra validation step: double-check each trainer to ensure they are actual subordinates
+    const validatedSubordinates = allUsers.filter(potentialTrainer => {
+      if (potentialTrainer.role !== 'trainer') return false;
+      
+      // Verify this trainer is a subordinate by checking the reporting chain
+      const isValidSubordinate = isSubordinate(user.id, potentialTrainer.id, allUsers);
+      
+      console.log(`Hierarchy validation for trainer ${potentialTrainer.fullName} (ID: ${potentialTrainer.id}):`, {
+        isSubordinate: isValidSubordinate,
+        managerId: potentialTrainer.managerId
+      });
+      
+      return isValidSubordinate;
+    });
     
     // Include the current user in the list if they are a trainer
     const eligibleUsers = user.role === 'trainer' ? [user] : [];
     
-    // Add all subordinates with trainer role
+    // Add all validated subordinates with trainer role
     const trainersInHierarchy = [
       ...eligibleUsers,
-      ...subordinates.filter(u => u.role === 'trainer')
+      ...validatedSubordinates
     ];
     
     // Log trainer info for debugging
-    console.log('Current user:', user?.id, user?.username, user?.role, 'location:', user?.locationId);
-    console.log('Subordinates:', subordinates.map(u => ({ id: u.id, name: u.fullName, role: u.role, locationId: u.locationId })));
-    console.log('Trainer subordinates:', subordinates.filter(u => u.role === 'trainer')
-      .map(u => ({ id: u.id, name: u.fullName, locationId: u.locationId })));
-    console.log('Selected location:', selectedLocation);
+    console.log('STRICT HIERARCHY - Validated subordinates:', validatedSubordinates.map(u => ({ 
+      id: u.id, 
+      name: u.fullName, 
+      role: u.role,
+      locationId: u.locationId,
+      managerId: u.managerId
+    })));
     
     // Filter trainers for the selected location - this is important!
     // This ensures we only see trainers that are assigned to the location we're creating the batch for
