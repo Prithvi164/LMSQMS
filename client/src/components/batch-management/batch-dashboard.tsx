@@ -584,6 +584,9 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
       {/* Detailed Content Tabs */}
       <Card>
         <CardHeader className="pb-0">
+          <h3 className="text-lg font-medium">Batch Details</h3>
+        </CardHeader>
+        <CardContent className="pt-6">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList>
               <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -592,11 +595,9 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
               <TabsTrigger value="attendance">Attendance</TabsTrigger>
               <TabsTrigger value="timeline">Timeline</TabsTrigger>
             </TabsList>
-          </Tabs>
-        </CardHeader>
-        <CardContent className="pt-6">
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-4">
+            
+            {/* Overview Tab */}
+            <TabsContent value="overview" className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Batch Details */}
               <Card>
@@ -906,6 +907,7 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
           <TabsContent value="timeline">
             <BatchTimeline batchId={batchId.toString()} />
           </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </div>
