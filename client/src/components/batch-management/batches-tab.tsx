@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
+import { isSubordinate, getAllSubordinates } from "@/lib/hierarchy-utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Search, Loader2, Plus, Trash2, Edit, Eye, Calendar as CalendarIcon, List, ArrowUpDown, Filter, UserPlus } from "lucide-react";
@@ -136,6 +137,15 @@ export function BatchesTab() {
 
   const canManageBatches = hasPermission("manage_batches");
 
+  // Query to get all users for hierarchy checking
+  const {
+    data: allUsers = [],
+    isLoading: isLoadingUsers
+  } = useQuery<User[]>({
+    queryKey: [`/api/organizations/${user?.organizationId}/users`],
+    enabled: !!user?.organizationId
+  });
+
   const {
     data: batches = [],
     isLoading,
@@ -149,6 +159,41 @@ export function BatchesTab() {
   const lineOfBusinesses = Array.from(new Set(batches.map(batch => batch.line_of_business?.name).filter(Boolean) as string[]));
   const processes = Array.from(new Set(batches.map(batch => batch.process?.name).filter(Boolean) as string[]));
   const statuses = Array.from(new Set(batches.map(batch => batch.status)));
+
+  // Calculate subordinates for the current user
+  const userSubordinates = useMemo(() => {
+    if (!user || !allUsers || allUsers.length === 0) {
+      return [];
+    }
+    
+    // For roles other than manager, return empty array
+    if (user.role !== 'manager' && user.role !== 'admin' && user.role !== 'owner') {
+      return [];
+    }
+    
+    // Get all subordinates using hierarchy utils
+    try {
+      return getAllSubordinates(user.id, allUsers);
+    } catch (error) {
+      console.error('Error calculating subordinates:', error);
+      return [];
+    }
+  }, [user, allUsers]);
+  
+  // Debug logging for reporting hierarchy
+  useEffect(() => {
+    if (userSubordinates.length > 0) {
+      console.log('Current user reporting chain:', {
+        userId: user?.id,
+        userName: user?.fullName || user?.username,
+        role: user?.role,
+        subordinatesCount: userSubordinates.length,
+        subordinateTrainers: userSubordinates
+          .filter(u => u.role === 'trainer')
+          .map(u => ({ id: u.id, name: u.fullName || u.username }))
+      });
+    }
+  }, [userSubordinates, user]);
 
   // Apply role-based permissions for batch filtering
   const roleBatchFilter = (batch: BatchWithRelations) => {
@@ -170,11 +215,18 @@ export function BatchesTab() {
       }
       
       // If the batch has a trainer, check if that trainer reports to this manager
-      if (batch.trainer && batch.trainer.id) {
-        // To properly implement this, we would need to query user data to check if the trainer reports to this manager
-        // Since we don't have that data readily available, we'll make a simplifying assumption:
-        // Managers can see all batches with trainers for now
-        return true;
+      if (batch.trainer && batch.trainer.id && batch.trainerId) {
+        // Check if this trainer is in our subordinates list
+        const isSubordinate = userSubordinates.some(subordinate => subordinate.id === batch.trainerId);
+        
+        // Debug logging for reporting hierarchy validation
+        console.log(`Batch visibility check for trainer ${batch.trainer.fullName} (ID: ${batch.trainerId}):`, {
+          isSubordinate,
+          batchId: batch.id,
+          batchName: batch.name
+        });
+        
+        return isSubordinate;
       }
     }
     
