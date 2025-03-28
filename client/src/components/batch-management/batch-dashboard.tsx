@@ -766,8 +766,8 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
                               {trainee.email}
                             </TableCell>
                             <TableCell className="text-right">
-                              <Badge variant="outline">
-                                {trainee.attendanceRate || 85}%
+                              <Badge variant={trainee.status === 'present' ? 'default' : 'outline'}>
+                                {trainee.status === 'present' ? '100' : trainee.status === 'absent' ? '0' : trainee.status === 'late' ? '50' : '0'}%
                               </Badge>
                             </TableCell>
                           </TableRow>
