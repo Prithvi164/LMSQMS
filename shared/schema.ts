@@ -788,6 +788,30 @@ export const userBatchStatusEnum = pgEnum('user_batch_status', [
   'on_hold'
 ]);
 
+export const assessmentTypeEnum = pgEnum('assessment_type', [
+  'written',
+  'certification',
+  'ojt_certification'
+]);
+
+export const assessmentStatusEnum = pgEnum('assessment_status', [
+  'pending',
+  'pass',
+  'fail',
+  'in_refresher'
+]);
+
+export const traineePhaseEnum = pgEnum('trainee_phase', [
+  'training',
+  'written_assessment',
+  'refresher_training', 
+  'certification',
+  'ojt',
+  'ojt_certification', 
+  'production',
+  'completed'
+]);
+
 export const userBatchProcesses = pgTable("user_batch_processes", {
   id: serial("id").primaryKey(),
   userId: integer("user_id")
@@ -1219,6 +1243,12 @@ export type {
   InsertQuizResponse,
   Quiz,
   InsertQuiz,
+  TraineeProgress,
+  Assessment,
+  RefresherSession,
+  InsertTraineeProgress,
+  InsertAssessment,
+  InsertRefresherSession,
   MockCallScenario,
   MockCallAttempt,
   InsertMockCallScenario,
@@ -1839,5 +1869,219 @@ export const evaluationScoresRelations = relations(evaluationScores, ({ one }) =
   parameter: one(evaluationParameters, {
     fields: [evaluationScores.parameterId],
     references: [evaluationParameters.id],
+  }),
+}));
+
+// Trainee Progress Tracking Tables
+
+export const traineeProgress = pgTable("trainee_progress", {
+  id: serial("id").primaryKey(),
+  traineeId: integer("trainee_id")
+    .references(() => users.id)
+    .notNull(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id)
+    .notNull(),
+  currentPhase: traineePhaseEnum("current_phase").default('training').notNull(),
+  phaseStatus: assessmentStatusEnum("phase_status").default('pending').notNull(),
+  nextPhase: traineePhaseEnum("next_phase").default('written_assessment').notNull(),
+  trainingStartDate: date("training_start_date").notNull(),
+  writtenAssessmentDate: date("written_assessment_date"),
+  refresherStartDate: date("refresher_start_date"),
+  certificationDate: date("certification_date"),
+  ojtStartDate: date("ojt_start_date"),
+  ojtCertificationDate: date("ojt_certification_date"),
+  productionDate: date("production_date"),
+  completionDate: date("completion_date"),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    // Ensure only one progress record per trainee per batch
+    unq: unique().on(table.traineeId, table.batchId),
+  };
+});
+
+export const assessments = pgTable("assessments", {
+  id: serial("id").primaryKey(),
+  traineeId: integer("trainee_id")
+    .references(() => users.id)
+    .notNull(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id)
+    .notNull(),
+  type: assessmentTypeEnum("type").notNull(),
+  score: integer("score").notNull(),
+  passingScore: integer("passing_score").notNull(),
+  passed: boolean("passed").notNull(),
+  attemptNumber: integer("attempt_number").default(1).notNull(),
+  quizAttemptId: integer("quiz_attempt_id")
+    .references(() => quizAttempts.id),
+  evaluationResultId: integer("evaluation_result_id")
+    .references(() => evaluationResults.id),
+  assessmentDate: date("assessment_date").notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const refresherSessions = pgTable("refresher_sessions", {
+  id: serial("id").primaryKey(),
+  traineeId: integer("trainee_id")
+    .references(() => users.id)
+    .notNull(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id)
+    .notNull(),
+  phaseBeforeRefresher: traineePhaseEnum("phase_before_refresher").notNull(),
+  assessmentId: integer("assessment_id")
+    .references(() => assessments.id)
+    .notNull(),
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date"),
+  trainerNotes: text("trainer_notes"),
+  recommendedFocus: text("recommended_focus"),
+  completed: boolean("completed").default(false).notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Progress tracking types
+export type TraineeProgress = InferSelectModel<typeof traineeProgress>;
+export type Assessment = InferSelectModel<typeof assessments>;
+export type RefresherSession = InferSelectModel<typeof refresherSessions>;
+
+// Progress tracking insert schemas
+export const insertTraineeProgressSchema = createInsertSchema(traineeProgress)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    traineeId: z.number().int().positive("Trainee ID is required"),
+    batchId: z.number().int().positive("Batch ID is required"),
+    currentPhase: z.enum(['training', 'written_assessment', 'refresher_training', 'certification', 'ojt', 'ojt_certification', 'production', 'completed']).default('training'),
+    phaseStatus: z.enum(['pending', 'pass', 'fail', 'in_refresher']).default('pending'),
+    nextPhase: z.enum(['training', 'written_assessment', 'refresher_training', 'certification', 'ojt', 'ojt_certification', 'production', 'completed']).default('written_assessment'),
+    trainingStartDate: z.string().min(1, "Training start date is required"),
+    writtenAssessmentDate: z.string().optional(),
+    refresherStartDate: z.string().optional(),
+    certificationDate: z.string().optional(),
+    ojtStartDate: z.string().optional(),
+    ojtCertificationDate: z.string().optional(),
+    productionDate: z.string().optional(),
+    completionDate: z.string().optional(),
+    organizationId: z.number().int().positive("Organization ID is required"),
+  });
+
+export const insertAssessmentSchema = createInsertSchema(assessments)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    traineeId: z.number().int().positive("Trainee ID is required"),
+    batchId: z.number().int().positive("Batch ID is required"),
+    type: z.enum(['written', 'certification', 'ojt_certification']),
+    score: z.number().int().min(0).max(100),
+    passingScore: z.number().int().min(0).max(100),
+    passed: z.boolean(),
+    attemptNumber: z.number().int().min(1),
+    quizAttemptId: z.number().int().positive("Quiz attempt ID is required").optional(),
+    evaluationResultId: z.number().int().positive("Evaluation result ID is required").optional(),
+    assessmentDate: z.string().min(1, "Assessment date is required"),
+    organizationId: z.number().int().positive("Organization ID is required"),
+  });
+
+export const insertRefresherSessionSchema = createInsertSchema(refresherSessions)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    traineeId: z.number().int().positive("Trainee ID is required"),
+    batchId: z.number().int().positive("Batch ID is required"),
+    phaseBeforeRefresher: z.enum(['training', 'written_assessment', 'refresher_training', 'certification', 'ojt', 'ojt_certification', 'production', 'completed']),
+    assessmentId: z.number().int().positive("Assessment ID is required"),
+    startDate: z.string().min(1, "Start date is required"),
+    endDate: z.string().optional(),
+    trainerNotes: z.string().optional(),
+    recommendedFocus: z.string().optional(),
+    completed: z.boolean().default(false),
+    organizationId: z.number().int().positive("Organization ID is required"),
+  });
+
+export type InsertTraineeProgress = z.infer<typeof insertTraineeProgressSchema>;
+export type InsertAssessment = z.infer<typeof insertAssessmentSchema>; 
+export type InsertRefresherSession = z.infer<typeof insertRefresherSessionSchema>;
+
+// Progress tracking relations
+export const traineeProgressRelations = relations(traineeProgress, ({ one, many }) => ({
+  trainee: one(users, {
+    fields: [traineeProgress.traineeId],
+    references: [users.id],
+  }),
+  batch: one(organizationBatches, {
+    fields: [traineeProgress.batchId],
+    references: [organizationBatches.id],
+  }),
+  organization: one(organizations, {
+    fields: [traineeProgress.organizationId],
+    references: [organizations.id],
+  }),
+  assessments: many(assessments),
+  refresherSessions: many(refresherSessions),
+}));
+
+export const assessmentsRelations = relations(assessments, ({ one }) => ({
+  trainee: one(users, {
+    fields: [assessments.traineeId],
+    references: [users.id],
+  }),
+  batch: one(organizationBatches, {
+    fields: [assessments.batchId],
+    references: [organizationBatches.id],
+  }),
+  organization: one(organizations, {
+    fields: [assessments.organizationId],
+    references: [organizations.id],
+  }),
+  quizAttempt: one(quizAttempts, {
+    fields: [assessments.quizAttemptId],
+    references: [quizAttempts.id],
+  }),
+  evaluationResult: one(evaluationResults, {
+    fields: [assessments.evaluationResultId],
+    references: [evaluationResults.id],
+  }),
+}));
+
+export const refresherSessionsRelations = relations(refresherSessions, ({ one }) => ({
+  trainee: one(users, {
+    fields: [refresherSessions.traineeId],
+    references: [users.id],
+  }),
+  batch: one(organizationBatches, {
+    fields: [refresherSessions.batchId],
+    references: [organizationBatches.id],
+  }),
+  organization: one(organizations, {
+    fields: [refresherSessions.organizationId],
+    references: [organizations.id],
+  }),
+  assessment: one(assessments, {
+    fields: [refresherSessions.assessmentId],
+    references: [assessments.id],
   }),
 }));
