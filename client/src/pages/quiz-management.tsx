@@ -585,7 +585,7 @@ export function QuizManagement() {
     });
   };
 
-  // Update the generateQuizMutation to remove the redirect
+  // Update the generateQuizMutation to provide better feedback
   const generateQuizMutation = useMutation({
     mutationFn: async (templateId: number) => {
       const response = await fetch(`/api/quiz-templates/${templateId}/generate`, {
@@ -594,7 +594,6 @@ export function QuizManagement() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          processId: 13, // Ensure process ID is explicitly set
           status: 'active'
         })
       });
@@ -604,12 +603,31 @@ export function QuizManagement() {
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Store the newly generated quiz ID
+      const generatedQuizId = data.id;
+      
       queryClient.invalidateQueries({ queryKey: ['/api/quizzes'] });
       toast({
         title: "Success",
-        description: "Quiz has been generated and is now available to trainees",
+        description: (
+          <div className="flex flex-col gap-2">
+            <p>Quiz #{generatedQuizId} has been generated and is now available to trainees</p>
+            <a 
+              href={`/quizzes/${generatedQuizId}`} 
+              className="text-blue-500 underline hover:text-blue-700 font-medium"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View this quiz
+            </a>
+          </div>
+        ),
+        duration: 10000, // Show for 10 seconds to give user time to click the link
       });
+      
+      // Also invalidate the quiz templates to refresh any stats or indicators
+      queryClient.invalidateQueries({ queryKey: ['/api/quiz-templates'] });
     },
     onError: (error: Error) => {
       toast({
