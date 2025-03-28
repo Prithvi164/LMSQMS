@@ -54,8 +54,8 @@ interface DateRange {
   status: 'induction' | 'training' | 'certification' | 'ojt' | 'ojt-certification';
 }
 
-// Flexible batch type for compatibility with BatchWithRelations
-type FlexibleBatch = {
+// Define a comprehensive BatchInterface to handle all batch-related components
+interface BatchInterface {
   id: number;
   name: string;
   organizationId: number;
@@ -64,6 +64,10 @@ type FlexibleBatch = {
   lineOfBusinessId: number | null;
   trainerId: number | null;
   capacityLimit?: number;
+  enrolledCount?: number;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
   inductionStartDate?: string;
   inductionEndDate?: string;
   trainingStartDate?: string;
@@ -74,14 +78,31 @@ type FlexibleBatch = {
   ojtEndDate?: string;
   ojtCertificationStartDate?: string;
   ojtCertificationEndDate?: string;
-  status?: string;
-  // Add other necessary fields
-};
+  handoverToOpsDate?: string;
+  // Actual dates
+  actualInductionStartDate?: string | null;
+  actualInductionEndDate?: string | null;
+  actualTrainingStartDate?: string | null;
+  actualTrainingEndDate?: string | null;
+  actualCertificationStartDate?: string | null;
+  actualCertificationEndDate?: string | null;
+  actualOjtStartDate?: string | null;
+  actualOjtEndDate?: string | null;
+  actualOjtCertificationStartDate?: string | null;
+  actualOjtCertificationEndDate?: string | null;
+  actualHandoverToOpsDate?: string | null;
+  // Additional fields
+  batchCategory?: 'new_training' | 'upskill';
+  weeklyOffDays?: string[];
+  considerHolidays?: boolean | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
 
 // Update CreateBatchFormProps interface
 interface CreateBatchFormProps {
   editMode?: boolean;
-  batchData?: OrganizationBatch | FlexibleBatch;
+  batchData?: OrganizationBatch | BatchInterface;
   onSuccess?: () => void;
 }
 
@@ -144,7 +165,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
   const form = useForm<InsertOrganizationBatch>({
     resolver: zodResolver(insertOrganizationBatchSchema),
     defaultValues: editMode && batchData ? {
-      ...batchData,
+      ...batchData as any, // Cast to any to handle flexible batch properties
       startDate: batchData.startDate ? format(new Date(batchData.startDate), 'yyyy-MM-dd') : '',
       endDate: batchData.endDate ? format(new Date(batchData.endDate), 'yyyy-MM-dd') : '',
       inductionStartDate: batchData.inductionStartDate ? format(new Date(batchData.inductionStartDate), 'yyyy-MM-dd') : '',
@@ -164,10 +185,10 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       processId: batchData.processId || undefined,
       trainerId: batchData.trainerId || undefined,
       capacityLimit: batchData.capacityLimit,
-      batchCategory: batchData.batchCategory,
+      batchCategory: (batchData.batchCategory as 'new_training' | 'upskill') || 'new_training',
       weeklyOffDays: batchData.weeklyOffDays || ['Saturday', 'Sunday'],
       considerHolidays: batchData.considerHolidays !== null ? batchData.considerHolidays : true,
-      status: batchData.status
+      status: batchData.status as 'planned' | 'induction' | 'training' | 'certification' | 'ojt' | 'ojt_certification' | 'completed'
     } : {
       status: 'planned',
       organizationId: user?.organizationId || undefined,
@@ -496,7 +517,7 @@ export function CreateBatchForm({ editMode = false, batchData, onSuccess }: Crea
       const currentStatus = determineBatchStatus(values);
       const formattedValues = {
         ...values,
-        status: currentStatus
+        status: currentStatus as 'planned' | 'induction' | 'training' | 'certification' | 'ojt' | 'ojt_certification' | 'completed'
       };
 
       if (editMode) {
