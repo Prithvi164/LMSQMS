@@ -252,6 +252,7 @@ export interface IStorage {
   getQuizResponses(quizAttemptId: number): Promise<QuizResponse[]>;
 
   getQuiz(id: number): Promise<Quiz | undefined>;
+  getQuizzesByTemplateId(templateId: number): Promise<Quiz[]>;
 
   // Add new method for deleting quizzes by template ID
   deleteQuizzesByTemplateId(templateId: number): Promise<void>;
@@ -2664,6 +2665,23 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+  
+  async getQuizzesByTemplateId(templateId: number): Promise<Quiz[]> {
+    try {
+      // Query all quizzes that were generated from a specific template
+      const results = await db
+        .select()
+        .from(quizzes)
+        .where(eq(quizzes.templateId, templateId))
+        .orderBy(desc(quizzes.startTime)) as Quiz[];
+        
+      console.log(`Found ${results.length} quizzes for template ${templateId}`);
+      return results;
+    } catch (error) {
+      console.error('Error fetching quizzes by template:', error);
+      throw new Error(`Failed to fetch quizzes: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
 
   async getQuizWithQuestions(id: number): Promise<Quiz | undefined> {
     try {
@@ -2883,6 +2901,19 @@ export class DatabaseStorage implements IStorage {
       return quiz;
     } catch (error) {
       console.error('Error fetching quiz:', error);
+      throw error;
+    }
+  }
+  
+  async getQuizzesByTemplateId(templateId: number): Promise<Quiz[]> {
+    try {
+      const quizList = await db
+        .select()
+        .from(quizzes)
+        .where(eq(quizzes.templateId, templateId)) as Quiz[];
+      return quizList;
+    } catch (error) {
+      console.error('Error fetching quizzes by template ID:', error);
       throw error;
     }
   }

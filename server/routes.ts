@@ -2541,6 +2541,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message || "Failed to delete quiz template" });
     }
   });
+  
+  // Get quizzes generated from a template
+  app.get("/api/quiz-templates/:id/quizzes", async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const templateId = parseInt(req.params.id);
+      if (isNaN(templateId)) {
+        return res.status(400).json({ message: "Invalid template ID" });
+      }
+
+      // Get the template
+      const template = await storage.getQuizTemplate(templateId);
+      if (!template) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+
+      // Verify organization access
+      if (template.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Check batch access if template has a batch ID
+      if (template.batchId) {
+        const hasBatchAccess = await userHasBatchAccess(req.user.id, template.batchId);
+        if (!hasBatchAccess) {
+          return res.status(403).json({ message: "You do not have access to this batch's quiz templates" });
+        }
+      }
+
+      // Get all quizzes generated from this template
+      const quizzes = await storage.getQuizzesByTemplateId(templateId);
+      
+      res.json(quizzes);
+    } catch (error: any) {
+      console.error("Error getting quizzes by template:", error);
+      res.status(500).json({ message: error.message || "Failed to get quizzes for template" });
+    }
+  });
 
   // Get quiz for taking
   app.get("/api/quizzes/:id", async (req, res) => {
