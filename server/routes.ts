@@ -82,6 +82,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
 
   // User routes - Add logging for debugging
+  // Public test endpoint - doesn't require authentication
+  app.get("/api/test", async (req, res) => {
+    res.status(200).json({ 
+      message: "API test endpoint working correctly",
+      timestamp: new Date().toISOString(),
+      success: true
+    });
+  });
+
+  // Special testing endpoint that verifies both API access and auth status
+  app.get("/api/auth-status", (req, res) => {
+    res.status(200).json({
+      authenticated: !!req.user,
+      timestamp: new Date().toISOString(),
+      userId: req.user?.id,
+      userRole: req.user?.role,
+      requestPath: req.path
+    });
+  });
+
   app.get("/api/user", (req, res) => {
     console.log("GET /api/user - Current user:", req.user);
     if (!req.user) {

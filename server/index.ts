@@ -12,6 +12,9 @@ function debugLog(message: string) {
   }
 }
 
+// Flag to track if routes have been registered
+let routesRegistered = false;
+
 debugLog("Starting server initialization");
 
 const app = express();
@@ -102,14 +105,16 @@ debugLog("Health check route added");
     app.set("env", "development");
     debugLog(`Environment set to: ${app.get("env")}`);
 
-    // Add middleware to exclude API routes from Vite handling
-    app.use((req, res, next) => {
-      if (req.path.startsWith('/api')) {
-        return next('route'); // Skip Vite middleware for API routes
-      }
-      next();
+    // Special test route to verify API connectivity
+    app.get("/api-health", (_req, res) => {
+      res.json({ 
+        status: "ok", 
+        message: "API server is operational",
+        timestamp: new Date().toISOString() 
+      });
     });
-
+    
+    // Set up different middlewares based on environment
     if (app.get("env") === "development") {
       debugLog("Setting up Vite middleware for development");
       await setupVite(app, server);
