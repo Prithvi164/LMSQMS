@@ -302,6 +302,27 @@ const calculateBatchMetrics = (batch: Batch, trainees: Trainee[] = []): BatchMet
   const currentPhaseObj = phases.find(p => p.name.toLowerCase() === currentPhase.replace('_', ' '));
   const currentPhaseProgress = currentPhaseObj?.progress || 0;
   
+  // Calculate individual trainee progress based on the phase progress
+  const traineesWithProgress = trainees.map(trainee => {
+    // Calculate trainee's progress based on batch progress and attendance
+    const attendanceWeight = 0.4; // 40% of progress is based on attendance
+    const phaseWeight = 0.6; // 60% of progress is based on phase completion
+    
+    // Calculate attendance score (100% for present, 50% for late, 0% for absent/leave)
+    const attendanceScore = trainee.status === 'present' ? 100 :
+                           trainee.status === 'late' ? 50 : 0;
+    
+    // Calculate overall progress as weighted sum of attendance and phase progress
+    const calculatedProgress = Math.round(
+      (attendanceScore * attendanceWeight) + (currentPhaseProgress * phaseWeight)
+    );
+    
+    return {
+      ...trainee,
+      overallProgress: calculatedProgress
+    };
+  });
+  
   // Calculate attendance statistics from actual trainee data
   const attendanceStats = {
     presentCount: 0,
@@ -413,6 +434,32 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
   
   // Calculate batch metrics if batch data is available
   const batchMetrics = batch ? calculateBatchMetrics(batch, trainees) : null;
+  
+  // Get trainees with progress calculations
+  const traineesWithProgress = trainees.map(trainee => {
+    // If batch metrics is not available, provide a default calculation
+    if (!batchMetrics) {
+      return trainee;
+    }
+    
+    // Calculate trainee's progress based on batch progress and attendance
+    const attendanceWeight = 0.4; // 40% of progress is based on attendance
+    const phaseWeight = 0.6; // 60% of progress is based on phase completion
+    
+    // Calculate attendance score (100% for present, 50% for late, 0% for absent/leave)
+    const attendanceScore = trainee.status === 'present' ? 100 :
+                           trainee.status === 'late' ? 50 : 0;
+    
+    // Calculate overall progress as weighted sum of attendance and phase progress
+    const calculatedProgress = Math.round(
+      (attendanceScore * attendanceWeight) + (batchMetrics.currentPhaseProgress * phaseWeight)
+    );
+    
+    return {
+      ...trainee,
+      overallProgress: calculatedProgress
+    };
+  });
   
   if (batchLoading) {
     return <DashboardSkeleton />;
@@ -751,7 +798,7 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {trainees.slice(0, 5).map((trainee) => (
+                        {traineesWithProgress.slice(0, 5).map((trainee) => (
                           <TableRow key={trainee.id}>
                             <TableCell className="flex items-center gap-2">
                               <Avatar className="h-8 w-8">
@@ -767,7 +814,7 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
                             </TableCell>
                             <TableCell className="text-right">
                               <Badge variant={trainee.status === 'present' ? 'default' : 'outline'}>
-                                {trainee.status === 'present' ? '100' : trainee.status === 'absent' ? '0' : trainee.status === 'late' ? '50' : '0'}%
+                                {trainee.overallProgress}%
                               </Badge>
                             </TableCell>
                           </TableRow>
@@ -827,7 +874,7 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {trainees.map((trainee) => (
+                        {traineesWithProgress.map((trainee) => (
                           <TableRow key={trainee.id}>
                             <TableCell className="flex items-center gap-2">
                               <Avatar className="h-8 w-8">
@@ -846,11 +893,11 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-2">
                                 <Progress 
-                                  value={trainee.overallProgress || 60} 
+                                  value={trainee.overallProgress} 
                                   className="h-2 w-16" 
                                 />
                                 <span className="text-sm">
-                                  {trainee.overallProgress || 60}%
+                                  {trainee.overallProgress}%
                                 </span>
                               </div>
                             </TableCell>
