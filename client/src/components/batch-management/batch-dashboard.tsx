@@ -271,7 +271,7 @@ const generatePhaseData = (batch: Batch): Phase[] => {
 };
 
 // Calculate overall batch metrics
-const calculateBatchMetrics = (batch: Batch): BatchMetrics => {
+const calculateBatchMetrics = (batch: Batch, trainees: Trainee[] = []): BatchMetrics => {
   const today = new Date();
   const startDate = new Date(batch.startDate);
   const endDate = new Date(batch.endDate);
@@ -302,15 +302,44 @@ const calculateBatchMetrics = (batch: Batch): BatchMetrics => {
   const currentPhaseObj = phases.find(p => p.name.toLowerCase() === currentPhase.replace('_', ' '));
   const currentPhaseProgress = currentPhaseObj?.progress || 0;
   
-  // Create mock attendance data (this would come from the API in a real scenario)
+  // Calculate attendance statistics from actual trainee data
+  const attendanceStats = {
+    presentCount: 0,
+    absentCount: 0,
+    lateCount: 0,
+    leaveCount: 0,
+    totalCount: trainees.length,
+    attendanceRate: 0
+  };
+  
+  // Process attendance from trainees array
+  trainees.forEach(trainee => {
+    const status = trainee.status?.toLowerCase() || '';
+    if (status === 'present') {
+      attendanceStats.presentCount++;
+    } else if (status === 'absent') {
+      attendanceStats.absentCount++;
+    } else if (status === 'late') {
+      attendanceStats.lateCount++;
+    } else if (status === 'leave') {
+      attendanceStats.leaveCount++;
+    }
+  });
+  
+  // Calculate attendance rate
+  if (attendanceStats.totalCount > 0) {
+    attendanceStats.attendanceRate = Math.round((attendanceStats.presentCount / attendanceStats.totalCount) * 100);
+  }
+  
+  // Create attendance overview with calculated data
   const attendanceOverview = {
     totalDays: daysCompleted,
     completedDays: daysCompleted,
-    presentCount: Math.round(daysCompleted * 0.85), // Mocked - would come from API
-    absentCount: Math.round(daysCompleted * 0.05), // Mocked - would come from API
-    lateCount: Math.round(daysCompleted * 0.07), // Mocked - would come from API
-    leaveCount: Math.round(daysCompleted * 0.03), // Mocked - would come from API
-    attendanceRate: 85 // Mocked - would come from API
+    presentCount: attendanceStats.presentCount,
+    absentCount: attendanceStats.absentCount,
+    lateCount: attendanceStats.lateCount,
+    leaveCount: attendanceStats.leaveCount,
+    attendanceRate: attendanceStats.attendanceRate
   };
   
   return {
@@ -380,8 +409,10 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
     enabled: !!user?.organizationId && !!batchId && !!batch,
   });
   
+  // Remove duplicate function as it's now implemented in calculateBatchMetrics
+  
   // Calculate batch metrics if batch data is available
-  const batchMetrics = batch ? calculateBatchMetrics(batch) : null;
+  const batchMetrics = batch ? calculateBatchMetrics(batch, trainees) : null;
   
   if (batchLoading) {
     return <DashboardSkeleton />;
