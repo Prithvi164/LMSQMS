@@ -262,18 +262,18 @@ export function BatchesTab() {
         }
         
         // Check if the trainer is a subordinate (direct or indirect)
-        if (batch.trainer && allUsers.length > 0) {
-          // Use isSubordinate function to check reporting relationship
-          const isSubordinate = isSubordinate(user.id, batch.trainerId, allUsers);
+        if (batch.trainer && allUsers.length > 0 && batch.trainerId) {
+          // Use the imported isSubordinate function to check reporting relationship
+          const checkSubordinate = isSubordinate(user.id, batch.trainerId, allUsers);
           
           // Log detailed information
           console.log(`BATCH FILTER - Checking if trainer ${batch.trainer.fullName} (ID: ${batch.trainerId}) reports to manager ${user.fullName} (ID: ${user.id}):`, {
-            isSubordinate,
+            isSubordinate: checkSubordinate,
             batchId: batch.id,
             batchName: batch.name
           });
           
-          return isSubordinate;
+          return checkSubordinate;
         }
         
         console.log(`BATCH FILTER - Cannot determine if trainer for batch ${batch.name} (ID: ${batch.id}) reports to ${user.fullName}`);
