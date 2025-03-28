@@ -158,7 +158,17 @@ export default function TraineeManagement() {
     return format(dateIST, "PPP");
   };
 
-  // Filter batches based on user role
+  // Get all users for applying reporting hierarchy filters
+  const { data: allUsers = [] } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/users`],
+    enabled: !!user?.organizationId,
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
+  });
+
+  // Import the hierarchy utility function for filtering
+  const { isSubordinate, getAllSubordinates } = require('@/lib/hierarchy-utils');
+
+  // Filter batches based on user role and reporting hierarchy
   const filterBatchesByRole = useCallback((batchList: Batch[]) => {
     if (!user) return [];
     
@@ -173,19 +183,29 @@ export default function TraineeManagement() {
     }
     
     // Managers can see batches they're the trainer for OR batches assigned to trainers who report to them
-    if (user.role === 'manager') {
+    if (user.role === 'manager' || user.role === 'team_lead') {
       // Direct assignment to manager
       const directBatches = batchList.filter(batch => batch.trainer?.id === user.id);
       
-      // Plus any batches assigned to trainers reporting to this manager
-      // This would require a backend query to get trainer-manager relationships
-      // For now, we'll use a simplified approach: managers can see all batches
-      return batchList;
+      // Get all trainers who report to this manager (direct and indirect)
+      const subordinateTrainers = allUsers.filter(u => 
+        (u.role === 'trainer' || u.role === 'team_lead') && 
+        isSubordinate(user.id, u.id, allUsers)
+      );
+      
+      // Get all batches assigned to these trainers
+      const subordinateBatches = batchList.filter(batch => 
+        batch.trainer && 
+        subordinateTrainers.some(trainer => trainer.id === batch.trainer?.id)
+      );
+      
+      // Combine direct and subordinate batches
+      return [...directBatches, ...subordinateBatches];
     }
     
     // For all other roles, just return all batches (or implement more specific logic if needed)
     return batchList;
-  }, [user]);
+  }, [user, allUsers]);
   
   // Apply role filtering then group by status
   const filteredBatches = filterBatchesByRole(batches);

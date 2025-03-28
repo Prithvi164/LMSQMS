@@ -52,22 +52,129 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
   const [selectedTrainee, setSelectedTrainee] = useState<Trainee | null>(null);
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   
+  // Import the hierarchy utility functions
+  const { isSubordinate, getAllSubordinates } = require('@/lib/hierarchy-utils');
+  
+  // Define User type
+  type User = {
+    id: number;
+    username?: string;
+    fullName?: string;
+    employeeId?: string;
+    role: 'owner' | 'admin' | 'manager' | 'team_lead' | 'quality_analyst' | 'trainer' | 'advisor' | 'trainee';
+    managerId?: number | null;
+    email?: string;
+    phoneNumber?: string;
+    dateOfJoining?: string;
+    organizationId?: number;
+    processId?: number;
+    status?: string;
+  };
+  
+  // Get user for hierarchy checks
+  const { data: currentUser } = useQuery<User>({
+    queryKey: ['/api/user'],
+  });
+  
+  // Get all users for hierarchy checks
+  const { data: allUsers = [] } = useQuery<User[]>({
+    queryKey: [`/api/organizations/${organizationId}/users`],
+    enabled: !!organizationId,
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
+  });
+  
+  // Define Batch type
+  type Batch = {
+    id: number;
+    name: string;
+    startDate: string;
+    endDate?: string;
+    status: string;
+    location?: {
+      id: number;
+      name: string;
+    };
+    process?: {
+      id: number;
+      name: string;
+    };
+    line_of_business?: {
+      id: number;
+      name: string;
+    };
+    capacityLimit: number;
+    trainer?: {
+      id: number;
+      fullName: string;
+      email?: string;
+      phoneNumber?: string;
+    } | null;
+  };
+  
   // Fetch batch details to get trainer info
-  const { data: batchDetails } = useQuery({
+  const { data: batchDetails } = useQuery<Batch>({
     queryKey: [`/api/organizations/${organizationId}/batches/${batchId}`],
     enabled: !!batchId && !!organizationId,
   });
 
+  // Check if the current user can view this batch based on hierarchy
+  const canViewBatch = () => {
+    if (!currentUser || !batchDetails || !allUsers.length) return false;
+    
+    // Admins and owners can see all batches
+    if (currentUser.role === 'admin' || currentUser.role === 'owner') return true;
+    
+    // Trainers can only see their assigned batches
+    if (currentUser.role === 'trainer') {
+      return batchDetails.trainer?.id === currentUser.id;
+    }
+    
+    // Managers can see batches they're the trainer for OR batches assigned to trainers who report to them
+    if (currentUser.role === 'manager' || currentUser.role === 'team_lead') {
+      // Direct assignment to manager
+      if (batchDetails.trainer?.id === currentUser.id) return true;
+      
+      // Check if trainer reports to this manager
+      return batchDetails.trainer && isSubordinate(currentUser.id, batchDetails.trainer.id, allUsers);
+    }
+    
+    return false;
+  };
+
   // Fetch trainees for the current batch
-  const { data: trainees = [], isLoading, error } = useQuery({
+  const { data: trainees = [], isLoading, error } = useQuery<Trainee[]>({
     queryKey: [`/api/organizations/${organizationId}/batches/${batchId}/trainees`],
-    enabled: !!batchId && !!organizationId,
+    enabled: !!batchId && !!organizationId && canViewBatch(),
   });
 
-  // Fetch all other batches for transfer
-  const { data: allBatches = [] } = useQuery({
+  // Fetch all other batches for transfer (filtered by hierarchy)
+  const { data: allBatchesRaw = [] } = useQuery<Batch[]>({
     queryKey: [`/api/organizations/${organizationId}/batches`],
     enabled: !!organizationId,
+  });
+  
+  // Filter batches for transfers based on reporting hierarchy
+  const allBatches = allBatchesRaw.filter((batch: Batch) => {
+    if (!currentUser) return false;
+    
+    // Admins and owners can see all batches
+    if (currentUser.role === 'admin' || currentUser.role === 'owner') return true;
+    
+    // Trainers can only see their assigned batches
+    if (currentUser.role === 'trainer') {
+      return batch.trainer?.id === currentUser.id;
+    }
+    
+    // Managers can see batches they're the trainer for OR batches assigned to trainers who report to them
+    if (currentUser.role === 'manager' || currentUser.role === 'team_lead') {
+      // Direct assignment to manager
+      if (batch.trainer?.id === currentUser.id) return true;
+      
+      // Check if trainer reports to this manager
+      return batch.trainer && isSubordinate(currentUser.id, batch.trainer.id, allUsers);
+    }
+    
+    return false;
   });
 
   // Helper function to safely format dates
@@ -77,12 +184,13 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
     return isValid(date) ? format(date, 'PP') : 'N/A';
   };
 
+  // Debug logging with proper type handling
   console.log('Debug - Trainees:', { 
     trainees, 
     isLoading, 
     error,
-    sampleTrainee: trainees[0],
-    traineeCount: trainees.length 
+    sampleTrainee: Array.isArray(trainees) && trainees.length > 0 ? trainees[0] : null,
+    traineeCount: Array.isArray(trainees) ? trainees.length : 0 
   });
 
   // Delete trainee mutation - using user_batch_process.id
@@ -179,6 +287,19 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
       });
     },
   });
+
+  // Check if the user has permission to view this batch
+  if (batchDetails && currentUser && !canViewBatch()) {
+    return (
+      <div className="text-center py-8 text-destructive">
+        <div className="mb-2 text-lg font-semibold">Access Denied</div>
+        <p>You don't have permission to view trainees in this batch.</p>
+        <p className="text-sm text-muted-foreground mt-2">
+          This batch is assigned to a trainer who is not in your reporting hierarchy.
+        </p>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -316,8 +437,8 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
             </p>
             <div className="space-y-2">
               {allBatches
-                .filter((batch: any) => batch.id !== batchId && batch.status === 'planned')
-                .map((batch: any) => (
+                .filter((batch: Batch) => batch.id !== batchId && batch.status === 'planned')
+                .map((batch: Batch) => (
                   <Button
                     key={batch.id}
                     variant="outline"
