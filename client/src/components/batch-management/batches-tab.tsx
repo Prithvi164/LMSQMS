@@ -233,12 +233,15 @@ export function BatchesTab() {
     
     // Owner/Admin can see all batches
     if (user.role === 'owner' || user.role === 'admin') {
+      console.log(`BATCH FILTER - User ${user.fullName} (${user.role}) has full access to batch ${batch.name} (ID: ${batch.id})`);
       return true;
     }
     
     // Trainers can only see their assigned batches
     if (user.role === 'trainer') {
-      return batch.trainerId === user.id;
+      const hasAccess = batch.trainerId === user.id;
+      console.log(`BATCH FILTER - Trainer ${user.fullName} checking access to batch ${batch.name} (ID: ${batch.id}): ${hasAccess ? 'GRANTED' : 'DENIED'}`);
+      return hasAccess;
     }
     
     // Managers can see batches where they are the manager or batches assigned to trainers that report to them
@@ -249,40 +252,28 @@ export function BatchesTab() {
         return true;
       }
       
-      // If the batch has a trainer, check if that trainer reports to this manager
+      // If the batch has a trainer, check if that trainer reports DIRECTLY to this manager
       if (batch.trainerId) {
-        // Check if the trainer is a direct report
+        // STRICT CHECK: Only direct reports can be seen
         const isDirectReport = allUsers.some(u => 
           u.id === batch.trainerId && u.managerId === user.id
         );
         
-        if (isDirectReport) {
-          console.log(`BATCH FILTER - Batch ${batch.name} (ID: ${batch.id}) visible to ${user.fullName} because trainer is a direct report`);
-          return true;
-        }
+        const trainerName = batch.trainer?.fullName || `Trainer ID: ${batch.trainerId}`;
         
-        // Check if the trainer is a subordinate (direct or indirect)
-        if (batch.trainer && allUsers.length > 0 && batch.trainerId) {
-          // Use the imported isSubordinate function to check reporting relationship
-          const checkSubordinate = isSubordinate(user.id, batch.trainerId, allUsers);
-          
-          // Log detailed information
-          console.log(`BATCH FILTER - Checking if trainer ${batch.trainer.fullName} (ID: ${batch.trainerId}) reports to manager ${user.fullName} (ID: ${user.id}):`, {
-            isSubordinate: checkSubordinate,
-            batchId: batch.id,
-            batchName: batch.name
-          });
-          
-          return checkSubordinate;
-        }
+        console.log(`BATCH FILTER - Manager ${user.fullName} (ID: ${user.id}) checking access to batch ${batch.name} (ID: ${batch.id}) assigned to ${trainerName}: ${isDirectReport ? 'GRANTED' : 'DENIED'}`);
         
-        console.log(`BATCH FILTER - Cannot determine if trainer for batch ${batch.name} (ID: ${batch.id}) reports to ${user.fullName}`);
-        return false;
+        return isDirectReport;
       }
+      
+      console.log(`BATCH FILTER - Cannot determine trainer for batch ${batch.name} (ID: ${batch.id})`);
+      return false;
     }
     
     // For other roles, show batches based on general permissions
-    return hasPermission("view_batches");
+    const hasAccess = hasPermission("view_batches");
+    console.log(`BATCH FILTER - User ${user.fullName} (${user.role}) checking access to batch ${batch.name} (ID: ${batch.id}) based on permissions: ${hasAccess ? 'GRANTED' : 'DENIED'}`);
+    return hasAccess;
   };
 
   const filteredBatches = batches.filter(batch => {
@@ -295,14 +286,14 @@ export function BatchesTab() {
     return (
       (searchQuery === '' ||
         batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        batch.status.toLowerCase().includes(searchQuery.toLowerCase())) &&
+        (batch.status?.toLowerCase() || '').includes(searchQuery.toLowerCase())) &&
       (selectedCategory === null || batch.batchCategory === selectedCategory) &&
       (selectedStatus === null || batch.status === selectedStatus) &&
       (selectedLocation === null || batch.location?.name === selectedLocation) &&
       (selectedLineOfBusiness === null || batch.line_of_business?.name === selectedLineOfBusiness) &&
       (selectedProcess === null || batch.process?.name === selectedProcess) &&
-      (!dateRange.from || new Date(batch.startDate) >= dateRange.from) &&
-      (!dateRange.to || new Date(batch.startDate) <= dateRange.to)
+      (!dateRange.from || (batch.startDate && new Date(batch.startDate) >= dateRange.from)) &&
+      (!dateRange.to || (batch.startDate && new Date(batch.startDate) <= dateRange.to))
     );
   });
 
@@ -486,9 +477,9 @@ export function BatchesTab() {
                       </div>
                       <Badge
                         variant="secondary"
-                        className={`${getStatusColor(batch.status)} transition-all hover:scale-105`}
+                        className={`${getStatusColor(batch.status || 'planned')} transition-all hover:scale-105`}
                       >
-                        {batch.status.charAt(0).toUpperCase() + batch.status.slice(1)}
+                        {batch.status ? batch.status.charAt(0).toUpperCase() + batch.status.slice(1) : 'Planned'}
                       </Badge>
                     </div>
                     <div className="grid grid-cols-2 gap-3 text-sm">
@@ -500,7 +491,9 @@ export function BatchesTab() {
                           { label: 'Capacity', value: `${batch.userCount} / ${batch.capacityLimit}` },
                           {
                             label: 'Timeline',
-                            value: `${format(new Date(batch.startDate), 'MMM d, yyyy')} - ${format(new Date(batch.endDate), 'MMM d, yyyy')}`
+                            value: batch.startDate && batch.endDate ? 
+                              `${format(new Date(batch.startDate), 'MMM d, yyyy')} - ${format(new Date(batch.endDate), 'MMM d, yyyy')}` :
+                              'Not set'
                           }
                         ].map(({ label, value }) => (
                           <div
@@ -556,9 +549,9 @@ export function BatchesTab() {
                         <span className="text-sm font-medium">{batch.name}</span>
                         <Badge
                           variant="secondary"
-                          className={getStatusColor(batch.status)}
+                          className={getStatusColor(batch.status || 'planned')}
                         >
-                          {batch.status.charAt(0).toUpperCase() + batch.status.slice(1)}
+                          {batch.status ? batch.status.charAt(0).toUpperCase() + batch.status.slice(1) : 'Planned'}
                         </Badge>
                       </div>
                     ))}
@@ -591,8 +584,8 @@ export function BatchesTab() {
           bValue = b.process?.name ?? '';
           break;
         case 'startDate':
-          aValue = new Date(a.startDate).getTime();
-          bValue = new Date(b.startDate).getTime();
+          aValue = a.startDate ? new Date(a.startDate).getTime() : 0;
+          bValue = b.startDate ? new Date(b.startDate).getTime() : 0;
           break;
         case 'batchCategory':
           aValue = a.batchCategory ?? '';
@@ -628,6 +621,7 @@ export function BatchesTab() {
 
   const getBatchesForDate = (date: Date) => {
     return filteredBatches.filter(batch => {
+      if (!batch.startDate || !batch.endDate) return false;
       const startDate = new Date(batch.startDate);
       const endDate = new Date(batch.endDate);
       return date >= startDate && date <= endDate;
@@ -726,7 +720,7 @@ export function BatchesTab() {
               }}
             >
               <TableCell className="font-medium text-center whitespace-nowrap">
-                {format(new Date(batch.startDate), 'MMM d, yyyy')}
+                {batch.startDate ? format(new Date(batch.startDate), 'MMM d, yyyy') : 'Not set'}
               </TableCell>
               <TableCell className="text-center">
                 <div className="font-semibold group-hover:text-primary transition-colors">
@@ -757,9 +751,9 @@ export function BatchesTab() {
               <TableCell className="text-center">
                 <Badge
                   variant="secondary"
-                  className={`${getStatusColor(batch.status)} px-2 py-1 inline-flex justify-center`}
+                  className={`${getStatusColor(batch.status || 'planned')} px-2 py-1 inline-flex justify-center`}
                 >
-                  {batch.status.charAt(0).toUpperCase() + batch.status.slice(1)}
+                  {batch.status ? batch.status.charAt(0).toUpperCase() + batch.status.slice(1) : 'Planned'}
                 </Badge>
               </TableCell>
               <TableCell className="text-right">
@@ -867,7 +861,7 @@ export function BatchesTab() {
               <SelectItem value="all">All Statuses</SelectItem>
               {statuses.map((status) => (
                 <SelectItem key={status} value={status}>
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                  {status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown'}
                 </SelectItem>
               ))}
             </SelectContent>
