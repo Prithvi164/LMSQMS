@@ -586,7 +586,7 @@ export function QuizManagement() {
     });
   };
 
-  // Update the generateQuizMutation to provide better feedback and handle existing quizzes
+  // Update the generateQuizMutation to provide better feedback
   const generateQuizMutation = useMutation({
     mutationFn: async (templateId: number) => {
       const response = await fetch(`/api/quiz-templates/${templateId}/generate`, {
@@ -598,45 +598,14 @@ export function QuizManagement() {
           status: 'active'
         })
       });
-      
-      const data = await response.json();
-      
       if (!response.ok) {
-        // Check for conflict status (409) which means user already has an active quiz
-        if (response.status === 409 && data.quizId) {
-          return {
-            existingQuiz: true,
-            ...data
-          };
-        }
-        throw new Error(data.message || 'Failed to generate quiz');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to generate quiz');
       }
-      return data;
+      return response.json();
     },
     onSuccess: (data) => {
-      // Check if this is an existing quiz notification
-      if (data.existingQuiz) {
-        toast({
-          title: "Active Quiz Already Exists",
-          description: (
-            <div className="flex flex-col gap-2">
-              <p>You already have an active quiz (#{data.quizId}) from this template.</p>
-              <a 
-                href={`/quizzes/${data.quizId}`} 
-                className="text-blue-500 underline hover:text-blue-700 font-medium"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                View existing quiz
-              </a>
-            </div>
-          ),
-          duration: 10000, // Show for 10 seconds to give user time to click the link
-        });
-        return;
-      }
-      
-      // This is a newly generated quiz
+      // Store the newly generated quiz ID
       const generatedQuizId = data.id;
       
       queryClient.invalidateQueries({ queryKey: ['/api/quizzes'] });

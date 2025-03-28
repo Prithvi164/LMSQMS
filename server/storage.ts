@@ -99,7 +99,6 @@ export interface IStorage {
   deleteQuizTemplate(id: number): Promise<void>;
   getQuizTemplate(id: number): Promise<QuizTemplate | undefined>;
   updateQuizTemplate(id: number, template: Partial<InsertQuizTemplate>): Promise<QuizTemplate>;
-  getUserActiveQuizByTemplate(userId: number, templateId: number): Promise<Quiz | undefined>;
 
   // User Process operations
   assignProcessesToUser(processes: InsertUserProcess[]): Promise<UserProcess[]>;
@@ -245,7 +244,6 @@ export interface IStorage {
   // Quiz operations
   createQuiz(quiz: InsertQuiz): Promise<Quiz>;
   getQuizWithQuestions(id: number): Promise<Quiz | undefined>;
-  getUserActiveQuizByTemplate(userId: number, templateId: number): Promise<Quiz | undefined>;
   createQuizAttempt(attempt: InsertQuizAttempt): Promise<QuizAttempt>;
   getQuizAttempt(id: number): Promise<QuizAttempt | undefined>;
 
@@ -2885,28 +2883,6 @@ export class DatabaseStorage implements IStorage {
       return quiz;
     } catch (error) {
       console.error('Error fetching quiz:', error);
-      throw error;
-    }
-  }
-
-  async getUserActiveQuizByTemplate(userId: number, templateId: number): Promise<Quiz | undefined> {
-    try {
-      // Get all active quizzes for the template where the user is the creator
-      const [quiz] = await db
-        .select()
-        .from(quizzes)
-        .where(
-          and(
-            eq(quizzes.templateId, templateId),
-            eq(quizzes.createdBy, userId),
-            eq(quizzes.status, 'active')
-          )
-        ) as Quiz[];
-      
-      console.log(`Checked for active quiz for user ${userId} and template ${templateId}: ${quiz ? 'Found' : 'Not found'}`);
-      return quiz;
-    } catch (error) {
-      console.error("Error in getUserActiveQuizByTemplate:", error);
       throw error;
     }
   }
