@@ -18,7 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, Loader2, PlayCircle, Edit } from "lucide-react";
+import { Pencil, Trash2, Loader2, PlayCircle, Edit, Eye } from "lucide-react";
 
 // Process filter form schema
 const filterFormSchema = z.object({
@@ -475,6 +475,7 @@ export function QuizManagement() {
   // Add state for tracking selected questions preview
   const [previewQuestions, setPreviewQuestions] = useState<Question[]>([]);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
 
   // Add state for tracking unique categories from questions
   const categories = useMemo(() => {
@@ -561,7 +562,7 @@ export function QuizManagement() {
   });
 
   // Add query for quiz templates
-  const { data: quizTemplates = [], isLoading: templatesLoading } = useQuery({
+  const { data: quizTemplates = [], isLoading: templatesLoading } = useQuery<QuizTemplate[]>({
     queryKey: ['/api/quiz-templates', selectedTemplateProcessId !== 'all' ? parseInt(selectedTemplateProcessId) : null],
     enabled: !!user?.organizationId
   });
@@ -1384,7 +1385,7 @@ export function QuizManagement() {
                 <p>No quiz templates found for the selected process.</p>
               ) : (
                 <div className="grid gap-4">
-                  {quizTemplates.map((template: any) => (
+                  {quizTemplates.map((template: QuizTemplate) => (
                     <div key={template.id} className="border rounded-lg p-4">
                       <div className="flex items-center justify-between">
                         <div>
@@ -1412,6 +1413,31 @@ export function QuizManagement() {
                               <PlayCircle className="h-4 w-4" />
                             )}
                             <span className="ml-2">Generate Quiz</span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setIsPreviewLoading(true);
+                              // Prepare the template data for preview
+                              const previewData: QuizTemplateFormValues = {
+                                name: template.name,
+                                questionCount: template.questionCount,
+                                categoryDistribution: template.categoryDistribution || {},
+                                difficultyDistribution: template.difficultyDistribution || {},
+                                processId: template.processId,
+                                timeLimit: template.timeLimit,
+                                passingScore: template.passingScore,
+                                shuffleQuestions: template.shuffleQuestions,
+                                shuffleOptions: template.shuffleOptions
+                              };
+                              previewRandomQuestions(previewData);
+                              // Open the preview dialog
+                              setIsPreviewDialogOpen(true);
+                            }}
+                          >
+                            <Eye className="h-4 w-4" />
+                            <span className="ml-2">Preview</span>
                           </Button>
                           <Button
                             variant="ghost"
@@ -1506,6 +1532,108 @@ export function QuizManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Preview Questions Dialog */}
+      <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
+        <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Quiz Preview</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            {isPreviewLoading ? (
+              <div className="flex items-center justify-center p-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-2">Loading questions...</span>
+              </div>
+            ) : previewQuestions.length > 0 ? (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h4 className="font-medium">Sample Questions ({previewQuestions.length})</h4>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      // Get the template data from the last preview and refresh
+                      const lastTemplateData: QuizTemplateFormValues = {
+                        name: "Preview Refresh",
+                        questionCount: previewQuestions.length,
+                        categoryDistribution: previewQuestions.reduce((acc, q) => {
+                          acc[q.category] = (acc[q.category] || 0) + 1;
+                          return acc;
+                        }, {} as Record<string, number>),
+                        difficultyDistribution: previewQuestions.reduce((acc, q) => {
+                          const key = q.difficultyLevel.toString();
+                          acc[key] = (acc[key] || 0) + 1;
+                          return acc;
+                        }, {} as Record<string, number>),
+                        processId: previewQuestions[0]?.processId,
+                        timeLimit: 10,
+                        passingScore: 70,
+                        shuffleQuestions: true,
+                        shuffleOptions: true
+                      };
+                      previewRandomQuestions(lastTemplateData);
+                    }}
+                  >
+                    <Loader2 className="h-4 w-4 mr-2" />
+                    Refresh Preview
+                  </Button>
+                </div>
+                <div className="space-y-4">
+                  {previewQuestions.map((question, index) => (
+                    <Card key={question.id} className="p-4">
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <div className="flex gap-2">
+                            <Badge>{question.category}</Badge>
+                            <Badge variant="outline">Difficulty: {question.difficultyLevel}</Badge>
+                          </div>
+                          <Badge variant="secondary">Question {index + 1}</Badge>
+                        </div>
+                        <h4 className="font-medium">{question.question}</h4>
+                        
+                        {question.type === 'multiple_choice' && question.options && (
+                          <div className="grid gap-2 mt-2">
+                            {question.options.map((option, optIndex) => (
+                              <div 
+                                key={optIndex}
+                                className={`p-2 border rounded ${option === question.correctAnswer ? 'border-green-500 bg-green-50' : 'border-gray-200'}`}
+                              >
+                                {option} {option === question.correctAnswer && <span className="text-green-600 ml-2">(Correct)</span>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {question.type === 'true_false' && (
+                          <div className="grid gap-2 mt-2">
+                            <div className={`p-2 border rounded ${question.correctAnswer === 'true' ? 'border-green-500 bg-green-50' : 'border-gray-200'}`}>
+                              True {question.correctAnswer === 'true' && <span className="text-green-600 ml-2">(Correct)</span>}
+                            </div>
+                            <div className={`p-2 border rounded ${question.correctAnswer === 'false' ? 'border-green-500 bg-green-50' : 'border-gray-200'}`}>
+                              False {question.correctAnswer === 'false' && <span className="text-green-600 ml-2">(Correct)</span>}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {question.explanation && (
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            <strong>Explanation:</strong> {question.explanation}
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="p-8 text-center">
+                <p className="text-muted-foreground">No preview questions available. Try modifying the template settings.</p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
