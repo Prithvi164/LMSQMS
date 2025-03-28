@@ -2549,7 +2549,8 @@ export class DatabaseStorage implements IStorage {
         .insert(quizTemplates)
         .values(template)
         .returning();
-      returnnewTemplate;    } catch (error) {
+      return newTemplate;    
+    } catch (error) {
       console.error('Error creating quiz template:', error);
       throw error;
     }
