@@ -2449,6 +2449,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Check if user already has an active quiz from this template
+      const existingQuiz = await storage.getUserActiveQuizByTemplate(req.user.id, templateId);
+      if (existingQuiz) {
+        return res.status(409).json({ 
+          message: "You already have an active quiz from this template", 
+          quizId: existingQuiz.id,
+          existingQuiz: existingQuiz
+        });
+      }
+
       // Get random questions based on template configuration
       const questions = await storage.getRandomQuestions(
         req.user.organizationId,
