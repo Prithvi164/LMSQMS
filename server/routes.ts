@@ -37,7 +37,7 @@ async function userHasBatchAccess(userId: number, batchId: number | null | undef
     
     if (userBatch) return true;
     
-    // Check if user has admin access (is a trainer)
+    // Check if user has admin/owner/trainer access
     const user = await db.query.users.findFirst({
       where: eq(users.id, userId),
       columns: {
@@ -45,8 +45,8 @@ async function userHasBatchAccess(userId: number, batchId: number | null | undef
       }
     });
     
-    // Trainers and admins have access to all batches
-    if (user && (user.role === 'admin' || user.role === 'trainer')) {
+    // Owners, trainers and admins have access to all batches
+    if (user && (user.role === 'admin' || user.role === 'trainer' || user.role === 'owner')) {
       return true;
     }
     
