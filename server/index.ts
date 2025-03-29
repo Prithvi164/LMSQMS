@@ -98,8 +98,9 @@ debugLog("Health check route added");
     });
     debugLog("Error handling middleware setup complete");
 
-    // Set development mode explicitly
-    app.set("env", "development");
+    // Detect environment
+    const nodeEnv = process.env.NODE_ENV || "development";
+    app.set("env", nodeEnv);
     debugLog(`Environment set to: ${app.get("env")}`);
 
     if (app.get("env") === "development") {
@@ -112,28 +113,45 @@ debugLog("Health check route added");
       debugLog("Static file serving setup complete");
     }
 
-    // Try different ports if the default one is in use
-    const tryPort = async (port: number): Promise<number> => {
-      try {
-        await new Promise((resolve, reject) => {
-          server.listen(port)
-            .once('error', reject)
-            .once('listening', resolve);
+    // Setup server listening
+    const startListening = async (): Promise<number> => {
+      // In production environments (like Replit deployment), always use the provided PORT
+      if (app.get("env") !== "development") {
+        const port = parseInt(process.env.PORT || '8080');
+        debugLog(`Using production port: ${port}`);
+        await new Promise<void>((resolve) => {
+          server.listen(port, '0.0.0.0', () => {
+            debugLog(`Server listening on port ${port} in production mode`);
+            resolve();
+          });
         });
         return port;
-      } catch (error: any) {
-        if (error.code === 'EADDRINUSE' && port < 5010) {
-          debugLog(`Port ${port} in use, trying ${port + 1}`);
-          return tryPort(port + 1);
+      } 
+      
+      // Development mode - try different ports if needed
+      const tryPort = async (port: number): Promise<number> => {
+        try {
+          await new Promise((resolve, reject) => {
+            server.listen(port, '0.0.0.0')
+              .once('error', reject)
+              .once('listening', resolve);
+          });
+          return port;
+        } catch (error: any) {
+          if (error.code === 'EADDRINUSE' && port < 5010) {
+            debugLog(`Port ${port} in use, trying ${port + 1}`);
+            return tryPort(port + 1);
+          }
+          throw error;
         }
-        throw error;
-      }
+      };
+
+      const startPort = parseInt(process.env.PORT || '5001');
+      debugLog(`Attempting to start server on port ${startPort}`);
+      return tryPort(startPort);
     };
 
-    const startPort = parseInt(process.env.PORT || '5001');
-    debugLog(`Attempting to start server on port ${startPort}`);
-
-    const port = await tryPort(startPort);
+    const port = await startListening();
     log(`Server running in ${app.get("env")} mode`);
     log(`API and client being served on port ${port}`);
     debugLog("Server started successfully");
