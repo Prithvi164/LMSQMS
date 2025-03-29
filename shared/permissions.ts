@@ -9,8 +9,6 @@ export const defaultPermissions = {
     'edit_users',
     'delete_users',
     'upload_users',
-    'manage_courses',
-    'manage_learning_paths',
     'manage_organization',
     'manage_performance',
     'export_reports'
@@ -18,8 +16,6 @@ export const defaultPermissions = {
   manager: [
     'view_users',
     'edit_users',
-    'manage_courses',
-    'view_learning_paths',
     'view_organization',
     'manage_performance',
     'manage_processes',
@@ -28,29 +24,21 @@ export const defaultPermissions = {
   team_lead: [
     'view_users',
     'edit_users',
-    'view_courses',
-    'view_learning_paths',
     'manage_performance',
     'view_organization'
   ],
   qualityassurance: [
     'view_users',
-    'view_courses',
-    'view_learning_paths',
     'manage_performance',
     'export_reports',
     'view_organization'
   ],
   trainer: [
     'view_users',
-    'manage_courses',
-    'view_learning_paths',
     'view_performance'
   ],
   advisor: [
     'view_users',
-    'view_courses',
-    'view_learning_paths',
     'view_performance',
     'export_reports'
   ]
