@@ -37,22 +37,75 @@ async function userHasBatchAccess(userId: number, batchId: number | null | undef
     
     if (userBatch) return true;
     
-    // Check if user has admin/owner/trainer access
-    const user = await db.query.users.findFirst({
-      where: eq(users.id, userId),
+    // Get the batch to check trainer assignment and reporting hierarchy
+    const batch = await db.query.organizationBatches.findFirst({
+      where: eq(organizationBatches.id, batchId),
       columns: {
-        role: true
+        trainerId: true
       }
     });
     
-    // Owners, trainers and admins have access to all batches
-    if (user && (user.role === 'admin' || user.role === 'trainer' || user.role === 'owner')) {
+    if (!batch) return false;
+    
+    // Get the current user's details
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+      columns: {
+        id: true,
+        role: true,
+        organizationId: true
+      }
+    });
+    
+    if (!user) return false;
+    
+    // Owner and admin roles have access to all batches
+    if (user.role === 'owner' || user.role === 'admin') {
       return true;
+    }
+    
+    // If user is the trainer assigned to this batch
+    if (batch.trainerId === userId) {
+      return true;
+    }
+    
+    // For trainers and managers, implement hierarchy-based access
+    if (user.role === 'trainer' || user.role === 'manager' || user.role === 'team_lead') {
+      // If batch has no trainer, deny access (rare case)
+      if (!batch.trainerId) return false;
+      
+      // For hierarchy check, we need to determine if the batch's trainer reports to this user
+      const isSubordinate = await checkReportingHierarchy(userId, batch.trainerId);
+      return isSubordinate;
     }
     
     return false;
   } catch (error) {
     console.error('Error checking batch access:', error);
+    return false;
+  }
+}
+
+// Helper function to check if userB reports to userA in the reporting hierarchy
+async function checkReportingHierarchy(userAId: number, userBId: number): Promise<boolean> {
+  if (userAId === userBId) return true; // Same user
+  
+  try {
+    // Get userB to find their manager
+    const userB = await db.query.users.findFirst({
+      where: eq(users.id, userBId),
+      columns: {
+        managerId: true
+      }
+    });
+    
+    if (!userB || userB.managerId === null) return false;
+    if (userB.managerId === userAId) return true;
+    
+    // Recursive check up the chain
+    return await checkReportingHierarchy(userAId, userB.managerId);
+  } catch (error) {
+    console.error('Error checking reporting hierarchy:', error);
     return false;
   }
 }
