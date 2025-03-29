@@ -419,6 +419,9 @@ export function OrganizationTree() {
   const [groupByDepartment, setGroupByDepartment] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [viewMode, setViewMode] = useState<'full' | 'myHierarchy'>('full');
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
@@ -440,16 +443,41 @@ export function OrganizationTree() {
   // Reset zoom function
   const resetZoom = () => {
     setZoomLevel(1);
+    setPosition({ x: 0, y: 0 });
   };
 
   // View top of organization
   const viewFullOrg = () => {
     setViewMode('full');
+    setPosition({ x: 0, y: 0 });
   };
 
   // View my reporting hierarchy
   const viewMyHierarchy = () => {
     setViewMode('myHierarchy');
+    setPosition({ x: 0, y: 0 });
+  };
+  
+  // Handle mouse down for drag
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button === 0) { // Left mouse button
+      setIsDragging(true);
+      setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+    }
+  };
+  
+  // Handle mouse move for drag
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging) {
+      const newX = e.clientX - dragStart.x;
+      const newY = e.clientY - dragStart.y;
+      setPosition({ x: newX, y: newY });
+    }
+  };
+  
+  // Handle mouse up to end drag
+  const handleMouseUp = () => {
+    setIsDragging(false);
   };
   
   // Scroll to center when zoom changes
@@ -566,9 +594,13 @@ export function OrganizationTree() {
       </div>
       
       <div 
-        className="bg-muted/30 rounded-lg p-6 overflow-auto" 
+        className={`bg-muted/30 rounded-lg p-6 overflow-auto ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
         style={{ minHeight: '400px', maxHeight: '70vh' }}
         ref={chartContainerRef}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
       >
         {/* Zoom controls */}
         <div className="fixed bottom-6 right-6 flex flex-col gap-2 z-10">
@@ -586,7 +618,7 @@ export function OrganizationTree() {
         <div 
           className="flex justify-center min-w-max pb-6 transition-transform duration-300"
           style={{
-            transform: `scale(${zoomLevel})`,
+            transform: `translate(${position.x}px, ${position.y}px) scale(${zoomLevel})`,
             transformOrigin: 'center top',
           }}
         >
