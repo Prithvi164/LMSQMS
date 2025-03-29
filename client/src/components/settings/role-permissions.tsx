@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -21,11 +21,17 @@ export function RolePermissions() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [selectedRole, setSelectedRole] = useState<string>(roleEnum.enumValues[1]); // Start with 'admin'
+  const [currentRolePermissions, setCurrentRolePermissions] = useState<string[]>([]);
 
   const { data: rolePermissions, isLoading } = useQuery<RolePermission[]>({
     queryKey: ["/api/permissions"],
     enabled: !!user,
     staleTime: 0, // Always fetch fresh data
+    onSuccess: (data) => {
+      // When permissions data is fetched, update the current role permissions
+      const permissions = data?.find((rp) => rp.role === selectedRole)?.permissions || [];
+      setCurrentRolePermissions(permissions);
+    }
   });
 
   // Filter out owner and trainee from role selection
@@ -142,19 +148,31 @@ export function RolePermissions() {
     return permissions;
   }, [rolePermissions]);
 
+  // Update current permissions when selected role changes
+  useEffect(() => {
+    if (rolePermissions) {
+      const permissions = rolePermissions.find((rp) => rp.role === selectedRole)?.permissions || [];
+      setCurrentRolePermissions(permissions);
+    }
+  }, [selectedRole, rolePermissions]);
+
   const handlePermissionToggle = useCallback((permission: string) => {
-    const currentPermissions = getPermissionsForRole(selectedRole);
-    const newPermissions = currentPermissions.includes(permission)
-      ? currentPermissions.filter((p: string) => p !== permission)
-      : [...currentPermissions, permission];
+    // Use the local state instead of the callback to get permissions
+    const newPermissions = currentRolePermissions.includes(permission)
+      ? currentRolePermissions.filter((p: string) => p !== permission)
+      : [...currentRolePermissions, permission];
 
     console.log('Toggling permission:', permission, 'New permissions list:', newPermissions);
+    
+    // Update local state immediately for a responsive UI
+    setCurrentRolePermissions(newPermissions);
 
+    // Then send the update to the server
     updatePermissionMutation.mutate({
       role: selectedRole,
       permissions: newPermissions,
     });
-  }, [selectedRole, getPermissionsForRole, updatePermissionMutation]);
+  }, [selectedRole, currentRolePermissions, updatePermissionMutation]);
 
   const filterPermissions = (permissions: string[]) => {
     // Filter out course related permissions
@@ -257,9 +275,7 @@ export function RolePermissions() {
                                   </p>
                                 </div>
                                 <Switch
-                                  checked={getPermissionsForRole(selectedRole).includes(
-                                    permission
-                                  )}
+                                  checked={currentRolePermissions.includes(permission)}
                                   onCheckedChange={() => handlePermissionToggle(permission)}
                                   disabled={
                                     selectedRole === 'owner' && user?.role !== 'owner' ||
