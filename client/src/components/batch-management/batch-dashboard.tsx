@@ -412,116 +412,122 @@ const PhaseProgressCard = ({ phase }: { phase: Phase }) => {
 
 // Generate PDF report from batch data
 const generateBatchInsightPDF = (batch: Batch, trainees: Trainee[], batchMetrics: BatchMetrics | null) => {
-  // Create a new PDF document
-  const doc = new jsPDF();
-  
-  // Add the title
-  doc.setFontSize(20);
-  doc.setTextColor(0, 0, 100);
-  doc.text(`Batch Insight Report: ${batch.name}`, 15, 15);
-  
-  // Add batch details section
-  doc.setFontSize(14);
-  doc.setTextColor(0, 0, 0);
-  doc.text("Batch Details", 15, 30);
-  
-  // Batch details table
-  let yPos = 35;
-  
-  // Batch details table
-  const batchDetailsTable = autoTable(doc, {
-    startY: yPos,
-    head: [["Property", "Value"]],
-    body: [
-      ["Batch Name", batch.name],
-      ["Status", formatPhaseName(batch.status)],
-      ["Process", batch.process?.name || "Not assigned"],
-      ["Location", batch.location?.name || "Not assigned"],
-      ["Business Line", batch.lineOfBusiness?.name || "Not assigned"],
-      ["Capacity", `${trainees.length} / ${batch.capacityLimit}`],
-      ["Start Date", formatDate(batch.startDate)],
-      ["End Date", formatDate(batch.endDate)],
-      ["Trainer", batch.trainer?.fullName || "Not assigned"]
-    ]
-  });
-  
-  // Get the Y position after the table
-  yPos = (batchDetailsTable as any).finalY + 15;
-  
-  // Overall progress section
-  if (batchMetrics) {
+  try {
+    // Create a new PDF document
+    const doc = new jsPDF();
+    
+    // Add the title
+    doc.setFontSize(20);
+    doc.setTextColor(0, 0, 100);
+    doc.text(`Batch Insight Report: ${batch.name}`, 15, 15);
+    
+    // Fixed positions for each section with sufficient spacing
+    let currentY = 35;
+    
+    // Add batch details section
     doc.setFontSize(14);
-    doc.text("Overall Progress", 15, yPos);
+    doc.setTextColor(0, 0, 0);
+    doc.text("Batch Details", 15, 30);
     
-    const progressTable = autoTable(doc, {
-      startY: yPos + 5,
-      head: [["Metric", "Value"]],
-      body: [
-        ["Progress", `${batchMetrics.overallProgress}%`],
-        ["Current Phase", formatPhaseName(batchMetrics.currentPhase)],
-        ["Phase Progress", `${batchMetrics.currentPhaseProgress}%`],
-        ["Days Completed", `${batchMetrics.daysCompleted}`],
-        ["Days Remaining", `${batchMetrics.daysRemaining}`],
-        ["Total Days", `${batchMetrics.totalDays}`]
-      ]
-    });
-    
-    // Update Y position
-    yPos = (progressTable as any).finalY + 15;
-  }
-  
-  // Attendance overview section
-  if (batchMetrics && batchMetrics.attendanceOverview.totalDays > 0) {
-    doc.setFontSize(14);
-    doc.text("Attendance Overview", 15, yPos);
-    
-    const attendanceTable = autoTable(doc, {
-      startY: yPos + 5,
-      head: [["Metric", "Value"]],
-      body: [
-        ["Attendance Rate", `${batchMetrics.attendanceOverview.attendanceRate}%`],
-        ["Present Count", `${batchMetrics.attendanceOverview.presentCount}`],
-        ["Absent Count", `${batchMetrics.attendanceOverview.absentCount}`],
-        ["Late Count", `${batchMetrics.attendanceOverview.lateCount}`],
-        ["Leave Count", `${batchMetrics.attendanceOverview.leaveCount}`]
-      ]
-    });
-    
-    // Update Y position
-    yPos = (attendanceTable as any).finalY + 15;
-  }
-  
-  // Trainees section
-  if (trainees.length > 0) {
-    doc.setFontSize(14);
-    doc.text("Trainees", 15, yPos);
-    
-    // Transform trainees data for the table
-    const traineeData = trainees.map(trainee => [
-      trainee.fullName,
-      trainee.employeeId,
-      trainee.email,
-      trainee.overallProgress ? `${trainee.overallProgress}%` : "N/A",
-      trainee.status
-    ]);
-    
+    // Batch details table
     autoTable(doc, {
-      startY: yPos + 5,
-      head: [["Name", "Employee ID", "Email", "Progress", "Status"]],
-      body: traineeData
+      startY: currentY,
+      head: [["Property", "Value"]],
+      body: [
+        ["Batch Name", batch.name],
+        ["Status", formatPhaseName(batch.status)],
+        ["Process", batch.process?.name || "Not assigned"],
+        ["Location", batch.location?.name || "Not assigned"],
+        ["Business Line", batch.lineOfBusiness?.name || "Not assigned"],
+        ["Capacity", `${trainees.length} / ${batch.capacityLimit}`],
+        ["Start Date", formatDate(batch.startDate)],
+        ["End Date", formatDate(batch.endDate)],
+        ["Trainer", batch.trainer?.fullName || "Not assigned"]
+      ],
+      didDrawPage: (data) => {
+        currentY = data.cursor.y + 15;
+      }
     });
+    
+    // Overall progress section
+    if (batchMetrics) {
+      doc.setFontSize(14);
+      doc.text("Overall Progress", 15, currentY);
+      
+      autoTable(doc, {
+        startY: currentY + 5,
+        head: [["Metric", "Value"]],
+        body: [
+          ["Progress", `${batchMetrics.overallProgress}%`],
+          ["Current Phase", formatPhaseName(batchMetrics.currentPhase)],
+          ["Phase Progress", `${batchMetrics.currentPhaseProgress}%`],
+          ["Days Completed", `${batchMetrics.daysCompleted}`],
+          ["Days Remaining", `${batchMetrics.daysRemaining}`],
+          ["Total Days", `${batchMetrics.totalDays}`]
+        ],
+        didDrawPage: (data) => {
+          currentY = data.cursor.y + 15;
+        }
+      });
+    }
+    
+    // Attendance overview section
+    if (batchMetrics && batchMetrics.attendanceOverview.totalDays > 0) {
+      doc.setFontSize(14);
+      doc.text("Attendance Overview", 15, currentY);
+      
+      autoTable(doc, {
+        startY: currentY + 5,
+        head: [["Metric", "Value"]],
+        body: [
+          ["Attendance Rate", `${batchMetrics.attendanceOverview.attendanceRate}%`],
+          ["Present Count", `${batchMetrics.attendanceOverview.presentCount}`],
+          ["Absent Count", `${batchMetrics.attendanceOverview.absentCount}`],
+          ["Late Count", `${batchMetrics.attendanceOverview.lateCount}`],
+          ["Leave Count", `${batchMetrics.attendanceOverview.leaveCount}`]
+        ],
+        didDrawPage: (data) => {
+          currentY = data.cursor.y + 15;
+        }
+      });
+    }
+    
+    // Trainees section
+    if (trainees.length > 0) {
+      doc.setFontSize(14);
+      doc.text("Trainees", 15, currentY);
+      
+      // Transform trainees data for the table
+      const traineeData = trainees.map(trainee => [
+        trainee.fullName,
+        trainee.employeeId,
+        trainee.email,
+        trainee.overallProgress ? `${trainee.overallProgress}%` : "N/A",
+        trainee.status
+      ]);
+      
+      autoTable(doc, {
+        startY: currentY + 5,
+        head: [["Name", "Employee ID", "Email", "Progress", "Status"]],
+        body: traineeData
+      });
+    }
+    
+    // Add report generation details at the footer
+    const currentDate = new Date().toLocaleString();
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Report generated on ${currentDate}`, 15, doc.internal.pageSize.height - 10);
+    
+    // Save the PDF with sanitized filename to avoid potential errors
+    const safeFileName = batch.name.replace(/[^a-z0-9]/gi, '_');
+    doc.save(`batch_insight_${safeFileName}_${new Date().toISOString().split('T')[0]}.pdf`);
+    
+    return true;
+  } catch (error) {
+    console.error("PDF generation error:", error);
+    throw error;
   }
-  
-  // Add report generation details at the footer
-  const currentDate = new Date().toLocaleString();
-  doc.setFontSize(10);
-  doc.setTextColor(100, 100, 100);
-  doc.text(`Report generated on ${currentDate}`, 15, doc.internal.pageSize.height - 10);
-  
-  // Save the PDF
-  doc.save(`batch_insight_${batch.name}_${new Date().toISOString().split('T')[0]}.pdf`);
-  
-  return true;
 };
 
 // Main batch dashboard component
