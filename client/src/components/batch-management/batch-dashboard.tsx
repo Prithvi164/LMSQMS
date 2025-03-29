@@ -445,15 +445,15 @@ const generateBatchInsightPDF = (batch: Batch, trainees: Trainee[], batchMetrics
         ["Trainer", batch.trainer?.fullName || "Not assigned"]
       ],
       didDrawPage: (data) => {
-        currentY = data.cursor.y + 15;
+        currentY = data.cursor?.y ? data.cursor.y + 15 : currentY + 10;
       }
     });
     
-    // Overall progress section
+    // Overall progress section - always include this
+    doc.setFontSize(14);
+    doc.text("Overall Progress", 15, currentY);
+    
     if (batchMetrics) {
-      doc.setFontSize(14);
-      doc.text("Overall Progress", 15, currentY);
-      
       autoTable(doc, {
         startY: currentY + 5,
         head: [["Metric", "Value"]],
@@ -466,16 +466,64 @@ const generateBatchInsightPDF = (batch: Batch, trainees: Trainee[], batchMetrics
           ["Total Days", `${batchMetrics.totalDays}`]
         ],
         didDrawPage: (data) => {
-          currentY = data.cursor.y + 15;
+          currentY = data.cursor?.y ? data.cursor.y + 15 : currentY + 10;
+        }
+      });
+    } else {
+      autoTable(doc, {
+        startY: currentY + 5,
+        head: [["Metric", "Value"]],
+        body: [
+          ["Progress", "0%"],
+          ["Current Phase", "N/A"],
+          ["Phase Progress", "0%"],
+          ["Days Completed", "0"],
+          ["Days Remaining", "0"],
+          ["Total Days", "0"]
+        ],
+        didDrawPage: (data) => {
+          currentY = data.cursor?.y ? data.cursor.y + 15 : currentY + 10;
         }
       });
     }
     
-    // Attendance overview section
-    if (batchMetrics && batchMetrics.attendanceOverview.totalDays > 0) {
-      doc.setFontSize(14);
-      doc.text("Attendance Overview", 15, currentY);
+    // Training Phases section - always include this
+    doc.setFontSize(14);
+    doc.text("Training Phases", 15, currentY);
+    
+    if (batchMetrics && batchMetrics.phases && batchMetrics.phases.length > 0) {
+      const phasesData = batchMetrics.phases.map(phase => [
+        phase.name,
+        formatDate(phase.startDate),
+        formatDate(phase.endDate),
+        `${phase.progress}%`,
+        phase.status.charAt(0).toUpperCase() + phase.status.slice(1)
+      ]);
       
+      autoTable(doc, {
+        startY: currentY + 5,
+        head: [["Phase", "Start Date", "End Date", "Progress", "Status"]],
+        body: phasesData,
+        didDrawPage: (data) => {
+          currentY = data.cursor?.y ? data.cursor.y + 15 : currentY + 10;
+        }
+      });
+    } else {
+      autoTable(doc, {
+        startY: currentY + 5,
+        head: [["Phase", "Start Date", "End Date", "Progress", "Status"]],
+        body: [["No phases configured yet", "", "", "", ""]],
+        didDrawPage: (data) => {
+          currentY = data.cursor?.y ? data.cursor.y + 15 : currentY + 10;
+        }
+      });
+    }
+    
+    // Attendance overview section - always include this
+    doc.setFontSize(14);
+    doc.text("Attendance Overview", 15, currentY);
+    
+    if (batchMetrics && batchMetrics.attendanceOverview.totalDays > 0) {
       autoTable(doc, {
         startY: currentY + 5,
         head: [["Metric", "Value"]],
@@ -487,16 +535,25 @@ const generateBatchInsightPDF = (batch: Batch, trainees: Trainee[], batchMetrics
           ["Leave Count", `${batchMetrics.attendanceOverview.leaveCount}`]
         ],
         didDrawPage: (data) => {
-          currentY = data.cursor.y + 15;
+          currentY = data.cursor?.y ? data.cursor.y + 15 : currentY + 10;
+        }
+      });
+    } else {
+      autoTable(doc, {
+        startY: currentY + 5,
+        head: [["Metric", "Value"]],
+        body: [["No attendance data available yet", ""]],
+        didDrawPage: (data) => {
+          currentY = data.cursor?.y ? data.cursor.y + 15 : currentY + 10;
         }
       });
     }
     
-    // Trainees section
+    // Trainees section - always include this
+    doc.setFontSize(14);
+    doc.text("Trainees", 15, currentY);
+    
     if (trainees.length > 0) {
-      doc.setFontSize(14);
-      doc.text("Trainees", 15, currentY);
-      
       // Transform trainees data for the table
       const traineeData = trainees.map(trainee => [
         trainee.fullName,
@@ -509,7 +566,19 @@ const generateBatchInsightPDF = (batch: Batch, trainees: Trainee[], batchMetrics
       autoTable(doc, {
         startY: currentY + 5,
         head: [["Name", "Employee ID", "Email", "Progress", "Status"]],
-        body: traineeData
+        body: traineeData,
+        didDrawPage: (data) => {
+          currentY = data.cursor?.y ? data.cursor.y + 15 : currentY + 10;
+        }
+      });
+    } else {
+      autoTable(doc, {
+        startY: currentY + 5,
+        head: [["Name", "Employee ID", "Email", "Progress", "Status"]],
+        body: [["No trainees added to this batch yet", "", "", "", ""]],
+        didDrawPage: (data) => {
+          currentY = data.cursor?.y ? data.cursor.y + 15 : currentY + 10;
+        }
       });
     }
     
