@@ -34,11 +34,43 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { AttendanceBreakdown } from "./attendance-breakdown";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 // Type definitions
 type BatchPhase = 'planned' | 'induction' | 'training' | 'certification' | 'ojt' | 'ojt_certification' | 'completed';
+
+type DailyAttendance = {
+  date: string;
+  presentCount: number;
+  absentCount: number;
+  lateCount: number;
+  leaveCount: number;
+  attendanceRate: number;
+  totalTrainees: number;
+};
+
+type PhaseAttendance = {
+  phase: string;
+  presentCount: number;
+  absentCount: number;
+  lateCount: number;
+  leaveCount: number;
+  attendanceRate: number;
+  totalDays: number;
+  totalRecords: number;
+};
+
+type TraineeAttendance = {
+  traineeId: number;
+  traineeName: string;
+  presentCount: number;
+  absentCount: number;
+  lateCount: number;
+  leaveCount: number;
+  attendanceRate: number;
+};
 
 type BatchAttendanceOverview = {
   totalDays: number;
@@ -48,6 +80,9 @@ type BatchAttendanceOverview = {
   lateCount: number;
   leaveCount: number;
   attendanceRate: number;
+  dailyAttendance: DailyAttendance[];
+  phaseAttendance: PhaseAttendance[];
+  traineeAttendance: TraineeAttendance[];
 };
 
 type Trainee = {
@@ -214,14 +249,15 @@ const formatDate = (dateString?: string): string => {
 
 // Generate phase data based on batch information
 const generatePhaseData = (batch: Batch): Phase[] => {
-  const today = new Date();
+  const currentDate = new Date();
   const phases: Phase[] = [];
   
   // Helper to create phase objects
   const createPhase = (
     name: string, 
     startDate?: string, 
-    endDate?: string
+    endDate?: string,
+    now: Date = currentDate
   ): Phase | null => {
     if (!startDate || !endDate) return null;
     
@@ -233,15 +269,15 @@ const generatePhaseData = (batch: Batch): Phase[] => {
     let progress = 0;
     let daysCompleted = 0;
     
-    if (isBefore(today, start)) {
+    if (isBefore(now, start)) {
       status = 'upcoming';
-    } else if (isAfter(today, end)) {
+    } else if (isAfter(now, end)) {
       status = 'completed';
       progress = 100;
       daysCompleted = totalDays;
     } else {
       status = 'active';
-      daysCompleted = differenceInDays(today, start) + 1;
+      daysCompleted = differenceInDays(now, start) + 1;
       progress = Math.min(Math.round((daysCompleted / totalDays) * 100), 100);
     }
     
@@ -277,7 +313,7 @@ const generatePhaseData = (batch: Batch): Phase[] => {
 
 // Calculate overall batch metrics
 const calculateBatchMetrics = (batch: Batch, trainees: Trainee[] = []): BatchMetrics => {
-  const today = new Date();
+  const currentDate = new Date();
   const startDate = new Date(batch.startDate);
   const endDate = new Date(batch.endDate);
   const totalDays = differenceInDays(endDate, startDate) + 1;
@@ -285,16 +321,16 @@ const calculateBatchMetrics = (batch: Batch, trainees: Trainee[] = []): BatchMet
   let daysCompleted = 0;
   let daysRemaining = 0;
   
-  if (isBefore(today, startDate)) {
+  if (isBefore(currentDate, startDate)) {
     // Batch hasn't started yet
     daysRemaining = totalDays;
-  } else if (isAfter(today, endDate)) {
+  } else if (isAfter(currentDate, endDate)) {
     // Batch has ended
     daysCompleted = totalDays;
   } else {
     // Batch is in progress
-    daysCompleted = differenceInDays(today, startDate) + 1;
-    daysRemaining = differenceInDays(endDate, today);
+    daysCompleted = differenceInDays(currentDate, startDate) + 1;
+    daysRemaining = differenceInDays(endDate, currentDate);
   }
   
   const overallProgress = Math.min(Math.round((daysCompleted / totalDays) * 100), 100);
@@ -357,6 +393,106 @@ const calculateBatchMetrics = (batch: Batch, trainees: Trainee[] = []): BatchMet
     attendanceStats.attendanceRate = Math.round((attendanceStats.presentCount / attendanceStats.totalCount) * 100);
   }
   
+  // Mock data for daily attendance (this should be replaced with real data from API)
+  const dailyAttendance: DailyAttendance[] = [];
+  
+  // For demo purposes, generate some sample daily attendance data for the last 7 days
+  // In a real implementation, this would come from the attendance API
+  for (let i = 0; i < Math.min(7, daysCompleted); i++) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    
+    // Create random but realistic attendance data
+    const totalTrainees = trainees.length || 10;
+    const presentCount = Math.round(totalTrainees * (0.7 + Math.random() * 0.3)); // 70-100% present
+    const absentCount = Math.round((totalTrainees - presentCount) * 0.7);
+    const lateCount = Math.round((totalTrainees - presentCount - absentCount) * 0.5);
+    const leaveCount = totalTrainees - presentCount - absentCount - lateCount;
+    
+    dailyAttendance.push({
+      date: format(date, 'yyyy-MM-dd'),
+      presentCount,
+      absentCount,
+      lateCount,
+      leaveCount,
+      attendanceRate: Math.round((presentCount / totalTrainees) * 100),
+      totalTrainees
+    });
+  }
+  
+  // Phase-wise attendance (mock data)
+  const phaseAttendance: PhaseAttendance[] = [];
+  
+  // Generate phase-wise attendance statistics
+  phases.forEach(phase => {
+    // Skip phases that haven't started yet
+    if (phase.status === 'upcoming') return;
+    
+    const totalRecords = phase.status === 'completed' 
+      ? phase.totalDays * trainees.length 
+      : phase.daysCompleted * trainees.length;
+    
+    // Realistic attendance numbers based on phase type
+    let attendanceRate: number;
+    switch(phase.name.toLowerCase()) {
+      case 'induction':
+        attendanceRate = 90 + Math.round(Math.random() * 10); // 90-100%
+        break;
+      case 'training':
+        attendanceRate = 80 + Math.round(Math.random() * 15); // 80-95%
+        break;
+      case 'certification':
+        attendanceRate = 85 + Math.round(Math.random() * 15); // 85-100%
+        break;
+      case 'ojt':
+        attendanceRate = 75 + Math.round(Math.random() * 20); // 75-95%
+        break;
+      default:
+        attendanceRate = 80 + Math.round(Math.random() * 15); // 80-95%
+    }
+    
+    const presentCount = Math.round((totalRecords * attendanceRate) / 100);
+    const absentCount = Math.round((totalRecords - presentCount) * 0.6);
+    const lateCount = Math.round((totalRecords - presentCount - absentCount) * 0.7);
+    const leaveCount = totalRecords - presentCount - absentCount - lateCount;
+    
+    phaseAttendance.push({
+      phase: phase.name,
+      presentCount,
+      absentCount,
+      lateCount,
+      leaveCount,
+      attendanceRate,
+      totalDays: phase.status === 'completed' ? phase.totalDays : phase.daysCompleted,
+      totalRecords
+    });
+  });
+  
+  // Trainee-wise attendance (mock data)
+  const traineeAttendance: TraineeAttendance[] = trainees.map(trainee => {
+    // Generate semi-random but realistic attendance statistics for each trainee
+    const seed = trainee.id % 100; // Use ID as a seed for consistency
+    const attendanceRate = 70 + Math.round((seed % 30)); // 70-99% attendance rate
+    
+    const totalDays = daysCompleted || 1; // Avoid division by zero
+    const totalRecords = totalDays;
+    
+    const presentCount = Math.round((totalRecords * attendanceRate) / 100);
+    const absentCount = Math.round((totalRecords - presentCount) * 0.6);
+    const lateCount = Math.round((totalRecords - presentCount - absentCount) * 0.7);
+    const leaveCount = totalRecords - presentCount - absentCount - lateCount;
+    
+    return {
+      traineeId: trainee.id,
+      traineeName: trainee.fullName,
+      presentCount,
+      absentCount,
+      lateCount,
+      leaveCount,
+      attendanceRate
+    };
+  });
+  
   // Create attendance overview with calculated data
   const attendanceOverview = {
     totalDays: daysCompleted,
@@ -365,7 +501,10 @@ const calculateBatchMetrics = (batch: Batch, trainees: Trainee[] = []): BatchMet
     absentCount: attendanceStats.absentCount,
     lateCount: attendanceStats.lateCount,
     leaveCount: attendanceStats.leaveCount,
-    attendanceRate: attendanceStats.attendanceRate
+    attendanceRate: attendanceStats.attendanceRate,
+    dailyAttendance,
+    phaseAttendance,
+    traineeAttendance
   };
   
   return {
@@ -1196,13 +1335,14 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
           
           {/* Attendance Tab */}
           <TabsContent value="attendance">
-            <div className="text-center py-12">
-              <LineChart className="mx-auto h-12 w-12 opacity-20 mb-2" />
-              <p className="text-muted-foreground">Detailed attendance view will be implemented soon.</p>
-              <p className="text-sm text-muted-foreground">
-                This tab will show attendance records, trends and analytics.
-              </p>
-            </div>
+            {batchMetrics ? (
+              <AttendanceBreakdown attendanceData={batchMetrics.attendanceOverview} />
+            ) : (
+              <div className="text-center py-12">
+                <Loader2 className="mx-auto h-12 w-12 animate-spin opacity-20 mb-2" />
+                <p className="text-muted-foreground">Loading attendance data...</p>
+              </div>
+            )}
           </TabsContent>
           
           {/* Timeline Tab */}
