@@ -13,7 +13,10 @@ import {
   ZoomOut, 
   Users, 
   ChevronUp, 
-  RotateCcw 
+  RotateCcw,
+  Briefcase,
+  Calendar,
+  GraduationCap
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import type { User } from "@shared/schema";
@@ -89,11 +92,24 @@ interface UserCardProps {
   color?: string;
   department?: string;
   location?: string;
+  processName?: string;
+  batchInfo?: {
+    name: string;
+    status: string;
+  } | null;
   reportCount?: number;
 }
 
 // User Card Component
-const UserCard = ({ user, color, department = "", location = "", reportCount = 0 }: UserCardProps) => {
+const UserCard = ({ 
+  user, 
+  color, 
+  department = "", 
+  location = "", 
+  processName = "", 
+  batchInfo = null, 
+  reportCount = 0 
+}: UserCardProps) => {
   const avatarColor = color || getAvatarColor(user.fullName || user.username);
   const roleColor = user.role === "owner" ? "bg-primary" : 
                    user.role === "admin" ? "bg-indigo-600" : 
@@ -102,7 +118,7 @@ const UserCard = ({ user, color, department = "", location = "", reportCount = 0
                    "bg-blue-600";
   
   return (
-    <Card className="min-w-[240px] max-w-[240px] shadow-lg hover:shadow-xl transition-all p-0 overflow-hidden border-2 border-muted">
+    <Card className="min-w-[260px] max-w-[260px] shadow-lg hover:shadow-xl transition-all p-0 overflow-hidden border-2 border-muted">
       {/* Colored header based on role */}
       <div className={`${roleColor} h-2 w-full`}></div>
       
@@ -126,22 +142,40 @@ const UserCard = ({ user, color, department = "", location = "", reportCount = 0
           </Badge>
         </div>
         
-        {(location || department) && (
-          <div className="text-xs text-muted-foreground space-y-2 bg-muted/20 p-2 rounded-md">
-            {department && (
-              <div className="flex items-center justify-center gap-1">
-                <Building className="h-3 w-3 text-primary/70" />
-                <span className="truncate font-medium">{department}</span>
-              </div>
-            )}
-            {location && (
-              <div className="flex items-center justify-center gap-1">
-                <Map className="h-3 w-3 text-primary/70" />
-                <span className="truncate font-medium">{location}</span>
-              </div>
-            )}
-          </div>
-        )}
+        <div className="text-xs text-muted-foreground space-y-2 bg-muted/20 p-2 rounded-md">
+          {department && (
+            <div className="flex items-center justify-center gap-1">
+              <Building className="h-3 w-3 text-primary/70" />
+              <span className="truncate font-medium">{department}</span>
+            </div>
+          )}
+          {location && (
+            <div className="flex items-center justify-center gap-1">
+              <Map className="h-3 w-3 text-primary/70" />
+              <span className="truncate font-medium">{location}</span>
+            </div>
+          )}
+          {processName && (
+            <div className="flex items-center justify-center gap-1">
+              <Briefcase className="h-3 w-3 text-primary/70" />
+              <span className="truncate font-medium">{processName}</span>
+            </div>
+          )}
+          {batchInfo && (
+            <div className="flex items-center justify-center gap-1">
+              <GraduationCap className="h-3 w-3 text-primary/70" />
+              <span className="truncate font-medium">
+                {batchInfo.name} 
+                <span className={`ml-1 inline-block w-2 h-2 rounded-full ${
+                  batchInfo.status === 'active' ? 'bg-green-500' : 
+                  batchInfo.status === 'completed' ? 'bg-blue-500' : 
+                  batchInfo.status === 'on_hold' ? 'bg-amber-500' : 
+                  'bg-gray-500'
+                }`}></span>
+              </span>
+            </div>
+          )}
+        </div>
         
         {reportCount > 0 && (
           <div className="mt-3 pt-2 border-t border-border flex justify-center">
@@ -172,12 +206,73 @@ const OrgNode = ({ node, level }: OrgNodeProps) => {
     enabled: !!currentUser?.organizationId,
   });
   
+  // Get processes from the API
+  const { data: processes = [] } = useQuery<{ id: number; name: string; }[]>({
+    queryKey: ["/api/organizations", currentUser?.organizationId, "processes"],
+    enabled: !!currentUser?.organizationId,
+  });
+  
+  // Get user process assignments
+  const { data: userProcesses = [] } = useQuery<{ userId: number; processId: number; }[]>({
+    queryKey: ["/api/users/processes"],
+    enabled: !!currentUser?.id,
+  });
+  
+  // Get batch information
+  const { data: batches = [] } = useQuery<{ 
+    id: number; 
+    name: string; 
+    status: string;
+    processId: number;
+  }[]>({
+    queryKey: ["/api/organizations", currentUser?.organizationId, "batches"],
+    enabled: !!currentUser?.organizationId,
+  });
+  
+  // Get user batch assignments
+  const { data: userBatches = [] } = useQuery<{ 
+    userId: number; 
+    batchId: number;
+    processId: number;
+    status: string;
+  }[]>({
+    queryKey: ["/api/users/batches"],
+    enabled: !!currentUser?.id,
+  });
+  
   // Function to get location name based on locationId
   const getLocationName = (user: User): string => {
     if (!user.locationId) return "";
     
     const location = locations.find(loc => loc.id === user.locationId);
     return location ? location.name : "";
+  };
+  
+  // Function to get process name for a user
+  const getProcessName = (user: User): string => {
+    // Find the user's process assignment
+    const userProcess = userProcesses.find(up => up.userId === user.id);
+    if (!userProcess) return "";
+    
+    // Find the process details
+    const process = processes.find(p => p.id === userProcess.processId);
+    return process ? process.name : "";
+  };
+  
+  // Function to get batch information for a user
+  const getBatchInfo = (user: User) => {
+    // Find the user's batch assignment
+    const userBatch = userBatches.find(ub => ub.userId === user.id);
+    if (!userBatch) return null;
+    
+    // Find the batch details
+    const batch = batches.find(b => b.id === userBatch.batchId);
+    if (!batch) return null;
+    
+    return {
+      name: batch.name,
+      status: batch.status
+    };
   };
   
   return (
@@ -190,6 +285,10 @@ const OrgNode = ({ node, level }: OrgNodeProps) => {
           department={node.user.role === "trainee" ? "Training" : node.user.role === "trainer" ? "Training" : "Management"}
           // Pass location information or empty string
           location={getLocationName(node.user)}
+          // Pass process information
+          processName={getProcessName(node.user)}
+          // Pass batch information
+          batchInfo={getBatchInfo(node.user)}
           reportCount={node.children.length}
         />
       </div>
