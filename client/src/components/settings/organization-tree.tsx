@@ -3,6 +3,10 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Search, UserPlus, Building, Map, Home } from "lucide-react";
+import { useState } from "react";
 import type { User } from "@shared/schema";
 
 // Helper function to get initials from name
@@ -12,6 +16,32 @@ const getInitials = (name: string) => {
     .map(part => part[0])
     .join('')
     .toUpperCase();
+};
+
+// Helper function to get a random color based on name
+const getAvatarColor = (name: string) => {
+  const colors = [
+    'bg-blue-500',
+    'bg-indigo-500',
+    'bg-purple-500',
+    'bg-pink-500',
+    'bg-red-500',
+    'bg-orange-500',
+    'bg-yellow-500',
+    'bg-green-500',
+    'bg-teal-500',
+    'bg-cyan-500'
+  ];
+  
+  // Generate a hash from the name
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  
+  // Use the hash to select a color
+  const index = Math.abs(hash) % colors.length;
+  return colors[index];
 };
 
 interface TreeNode {
@@ -30,68 +60,123 @@ const buildOrgTree = (users: User[], rootUserId: number | null = null): TreeNode
   }));
 };
 
-interface TreeNodeProps {
-  node: TreeNode;
-  isLast: boolean;
-  level?: number;
+interface UserCardProps {
+  user: User;
+  color?: string;
+  department?: string;
+  location?: string;
+  reportCount?: number;
 }
 
-// Tree Node Component
-const TreeNode = ({ node, isLast, level = 0 }: TreeNodeProps) => {
-  const paddingLeft = level * 40;
-
+// User Card Component
+const UserCard = ({ user, color, department = "", location = "", reportCount = 0 }: UserCardProps) => {
+  const avatarColor = color || getAvatarColor(user.fullName || user.username);
+  
   return (
-    <div className="relative">
-      <div
-        className="absolute border-l-2 border-dashed border-muted h-full left-6"
-        style={{ 
-          display: level > 0 ? 'block' : 'none',
-          marginLeft: paddingLeft 
-        }}
-      />
-
-      <div className="relative flex items-center py-2" style={{ paddingLeft: paddingLeft + (level > 0 ? 24 : 0) }}>
-        {level > 0 && (
-          <div 
-            className="absolute border-t-2 border-dashed border-muted w-6 left-0"
-            style={{ marginLeft: paddingLeft }}
-          />
-        )}
-
-        <Card className="flex items-center p-2 gap-3 min-w-[300px]">
-          <Avatar className="h-10 w-10">
-            <AvatarFallback>
-              {getInitials(node.user.fullName || node.user.username)}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <div className="font-medium">{node.user.fullName || node.user.username}</div>
-            <div className="text-sm text-muted-foreground flex items-center gap-2">
-              <Badge variant="outline" className="capitalize">
-                {node.user.role}
-              </Badge>
-              {node.user.employeeId && (
-                <span className="text-xs">ID: {node.user.employeeId}</span>
-              )}
-            </div>
-          </div>
-        </Card>
+    <Card className="min-w-[240px] max-w-[240px] shadow-md hover:shadow-lg transition-shadow p-3">
+      <div className="flex flex-col items-center text-center mb-2">
+        <Avatar className={`h-14 w-14 ${avatarColor} text-white mb-2`}>
+          <AvatarFallback className="text-lg">
+            {getInitials(user.fullName || user.username)}
+          </AvatarFallback>
+        </Avatar>
+        <div className="font-semibold truncate w-full">{user.fullName || user.username}</div>
+        <div className="text-sm text-muted-foreground truncate w-full">
+          {user.title || (user.role && user.role.replace(/_/g, " "))}
+        </div>
       </div>
+      
+      <div className="flex justify-center mb-2">
+        <Badge variant={user.role === "owner" ? "default" : "outline"} className="capitalize">
+          {user.role}
+        </Badge>
+      </div>
+      
+      {(location || department) && (
+        <div className="text-xs text-muted-foreground space-y-1">
+          {location && (
+            <div className="flex items-center justify-center gap-1">
+              <Map className="h-3 w-3" />
+              <span className="truncate">{location}</span>
+            </div>
+          )}
+          {department && (
+            <div className="flex items-center justify-center gap-1">
+              <Building className="h-3 w-3" />
+              <span className="truncate">{department}</span>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {reportCount > 0 && (
+        <div className="mt-2 pt-2 border-t border-border flex justify-center">
+          <Badge variant="secondary" className="text-xs">
+            {reportCount} direct {reportCount === 1 ? 'report' : 'reports'}
+          </Badge>
+        </div>
+      )}
+    </Card>
+  );
+};
 
-      {node.children.map((child, index) => (
-        <TreeNode
-          key={child.user.id}
-          node={child}
-          isLast={index === node.children.length - 1}
-          level={level + 1}
+interface OrgNodeProps {
+  node: TreeNode;
+  level: number;
+}
+
+// Organization Node Component for horizontal tree
+const OrgNode = ({ node, level }: OrgNodeProps) => {
+  const isRoot = level === 0;
+  const hasChildren = node.children.length > 0;
+  
+  return (
+    <div className="flex flex-col items-center">
+      {/* User card */}
+      <div className="mb-6">
+        <UserCard 
+          user={node.user}
+          department={node.user.department} 
+          location={node.user.location}
+          reportCount={node.children.length}
         />
-      ))}
+      </div>
+      
+      {/* Connector line to children */}
+      {hasChildren && (
+        <div className="w-px h-8 bg-border" />
+      )}
+      
+      {/* Children */}
+      {hasChildren && (
+        <div className="relative">
+          {/* Horizontal connecting line */}
+          <div className="absolute left-1/2 -translate-x-1/2 -top-4 h-4 w-px bg-border" />
+          
+          {/* Horizontal line above children */}
+          <div className={`absolute h-px bg-border ${node.children.length > 1 ? 'left-0 right-0' : 'w-0'}`} style={{ top: '-4px' }} />
+          
+          <div className="flex gap-6 mt-4">
+            {node.children.map((child, index) => (
+              <div key={child.user.id} className="relative">
+                {/* Vertical connecting line to parent */}
+                {node.children.length > 1 && index > 0 && (
+                  <div className="absolute left-1/2 -translate-x-1/2 -top-4 h-4 w-px bg-border" />
+                )}
+                <OrgNode node={child} level={level + 1} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export function OrganizationTree() {
   const { user } = useAuth();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [groupByDepartment, setGroupByDepartment] = useState(false);
 
   const { data: users = [], isLoading } = useQuery<User[]>({
     queryKey: ["/api/users"],
@@ -99,7 +184,12 @@ export function OrganizationTree() {
   });
 
   if (isLoading) {
-    return <div>Loading organization structure...</div>;
+    return (
+      <div className="p-4">
+        <div className="h-8 w-64 bg-muted animate-pulse rounded mb-6" />
+        <div className="h-40 w-full bg-muted animate-pulse rounded-lg" />
+      </div>
+    );
   }
 
   // Find the root user (owner or highest level manager)
@@ -112,17 +202,54 @@ export function OrganizationTree() {
   }];
 
   return (
-    <div className="p-4 space-y-6">
-      <h2 className="text-2xl font-bold">Organization Structure</h2>
-      <div className="overflow-x-auto">
-        <div className="min-w-[800px]">
-          {orgTree.map((node, index) => (
-            <TreeNode
-              key={node.user.id}
-              node={node}
-              isLast={index === orgTree.length - 1}
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <h2 className="text-2xl font-bold">Organization Structure</h2>
+        
+        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+          <div className="relative flex-1 sm:w-64">
+            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Search Employee" 
+              className="pl-8"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
-          ))}
+          </div>
+          
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="flex items-center gap-1">
+              <Home className="h-4 w-4" />
+              <span className="hidden sm:inline">My Department</span>
+            </Button>
+            
+            <Button variant="outline" size="sm" className="flex items-center gap-1">
+              <UserPlus className="h-4 w-4" />
+              <span className="hidden sm:inline">Add Employee</span>
+            </Button>
+            
+            <div className="flex items-center gap-2 ml-2">
+              <span className="text-sm text-muted-foreground whitespace-nowrap">Group by dept</span>
+              <div 
+                className={`h-5 w-10 rounded-full p-0.5 cursor-pointer transition-colors ${groupByDepartment ? 'bg-primary' : 'bg-muted'}`}
+                onClick={() => setGroupByDepartment(!groupByDepartment)}
+              >
+                <div 
+                  className={`h-4 w-4 rounded-full bg-white transform transition-transform ${groupByDepartment ? 'translate-x-5' : 'translate-x-0'}`}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div className="bg-muted/30 rounded-lg p-6 overflow-auto">
+        <div className="flex justify-center min-w-max pb-6">
+          <div className="org-chart">
+            {orgTree.map((node) => (
+              <OrgNode key={node.user.id} node={node} level={0} />
+            ))}
+          </div>
         </div>
       </div>
     </div>
