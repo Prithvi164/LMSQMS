@@ -114,6 +114,22 @@ const defaultWidgets: WidgetConfig[] = [
     size: "large",
     chartType: "line",
     position: { x: 0, y: 1 }
+  },
+  {
+    id: "widget-3",
+    type: "performance-distribution",
+    title: "Performance Distribution",
+    size: "medium",
+    chartType: "bar",
+    position: { x: 1, y: 0 }
+  },
+  {
+    id: "widget-4",
+    type: "phase-completion",
+    title: "Phase Completion Progress",
+    size: "medium",
+    chartType: "bar",
+    position: { x: 1, y: 1 }
   }
 ];
 

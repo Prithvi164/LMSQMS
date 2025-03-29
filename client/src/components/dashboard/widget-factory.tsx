@@ -1,4 +1,7 @@
 import { AttendanceOverviewWidget } from "./attendance-overview-widget";
+import { AttendanceTrendsWidget } from "./attendance-trends-widget";
+import { PerformanceDistributionWidget } from "./performance-distribution-widget";
+import { PhaseCompletionWidget } from "./phase-completion-widget";
 import { WidgetConfig, WidgetType } from "./dashboard-configuration";
 
 type WidgetFactoryProps = {
@@ -23,36 +26,33 @@ export function WidgetFactory({ config, batchIds, className }: WidgetFactoryProp
       );
       
     case "attendance-trends":
-      // Temporary placeholder until we implement this widget
       return (
-        <div className={`p-6 rounded-lg border shadow-sm ${className}`}>
-          <h3 className="text-lg font-medium mb-2">{title}</h3>
-          <div className="h-[250px] flex items-center justify-center bg-muted rounded">
-            <span className="text-muted-foreground">Attendance Trends Widget (Coming Soon)</span>
-          </div>
-        </div>
+        <AttendanceTrendsWidget 
+          title={title} 
+          chartType={chartType || "line"}
+          batchIds={batchIds}
+          className={className}
+        />
       );
       
     case "performance-distribution":
-      // Temporary placeholder until we implement this widget
       return (
-        <div className={`p-6 rounded-lg border shadow-sm ${className}`}>
-          <h3 className="text-lg font-medium mb-2">{title}</h3>
-          <div className="h-[250px] flex items-center justify-center bg-muted rounded">
-            <span className="text-muted-foreground">Performance Distribution Widget (Coming Soon)</span>
-          </div>
-        </div>
+        <PerformanceDistributionWidget 
+          title={title} 
+          chartType={chartType || "bar"}
+          batchIds={batchIds}
+          className={className}
+        />
       );
       
     case "phase-completion":
-      // Temporary placeholder until we implement this widget
       return (
-        <div className={`p-6 rounded-lg border shadow-sm ${className}`}>
-          <h3 className="text-lg font-medium mb-2">{title}</h3>
-          <div className="h-[250px] flex items-center justify-center bg-muted rounded">
-            <span className="text-muted-foreground">Phase Completion Widget (Coming Soon)</span>
-          </div>
-        </div>
+        <PhaseCompletionWidget 
+          title={title} 
+          chartType={chartType || "bar"}
+          batchIds={batchIds}
+          className={className}
+        />
       );
       
     default:
