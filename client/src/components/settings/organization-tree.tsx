@@ -286,37 +286,39 @@ const OrgNode = ({ node, level }: OrgNodeProps) => {
   
   // Function to get process name for a user from their assigned processes
   const getProcessName = (user: User): string => {
-    // First try to find user's process with name directly from enhanced API
+    // First check if the user has any processes assigned
     if (userProcesses.length > 0) {
-      const userProcess = userProcesses.find(up => up.userId === user.id);
+      // Get all processes assigned to this user (there might be multiple)
+      const userProcessList = userProcesses.filter(up => up.userId === user.id);
       
-      // Use the process name directly from our enhanced API response
-      if (userProcess?.processName) {
-        return userProcess.processName;
-      }
-      
-      // Fallback to old way if name isn't in the response
-      if (userProcess && processes.length > 0) {
-        const process = processes.find(p => p.id === userProcess.processId);
-        if (process?.name) {
-          return process.name;
+      // If user has at least one process assigned
+      if (userProcessList.length > 0) {
+        // Use the first process name directly from our enhanced API response
+        if (userProcessList[0]?.processName) {
+          return userProcessList[0].processName;
+        }
+        
+        // Fallback to old way if name isn't in the response
+        if (userProcessList[0] && processes.length > 0) {
+          const process = processes.find(p => p.id === userProcessList[0].processId);
+          if (process?.name) {
+            return process.name;
+          }
         }
       }
     }
     
-    // Based on the role, provide fallback names
-    if (user.role === "manager" || user.role === "admin") {
-      return "Complaint Resolution";
-    }
-    
-    // Fallback display names based on role
+    // Based on the role, provide role-specific default processes
+    if (user.role === "owner") return "Organization Management";
+    if (user.role === "admin") return "Complaint Resolution";
+    if (user.role === "manager") return "Team Management";
+    if (user.role === "team_lead") return "Team Leadership";
     if (user.role === "trainer") return "Training Process";
     if (user.role === "trainee") return "Learning Process";
     if (user.role === "quality_analyst") return "QA Process";
-    if (user.role === "admin") return "Administrative Process";
-    if (user.role === "manager") return "Management Process";
+    if (user.role === "advisor") return "Customer Support";
     
-    return "";
+    return "General Process";
   };
   
   // Function to get batch information for a user based on their batch assignment
