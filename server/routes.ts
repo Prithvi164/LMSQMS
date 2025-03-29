@@ -1298,6 +1298,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message || 'Failed to fetch user batch processes' });
     }
   });
+  
+  // Get all users with their location data - for organization tree visualization
+  app.get("/api/user-locations", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
+    
+    try {
+      // Get all locations in the organization
+      const locations = await storage.listLocations(req.user.organizationId);
+      console.log('Fetching locations for organization', req.user.organizationId);
+      console.log('Found', locations.length, 'locations');
+      
+      // Get all users in the organization
+      const users = await storage.listUsers(req.user.organizationId);
+      
+      // Map users with their location data
+      const usersWithLocationData = users.map(user => {
+        // Find the location for this user
+        const location = locations.find(loc => loc.id === user.locationId);
+        
+        return {
+          userId: user.id,
+          locationId: user.locationId,
+          locationName: location ? location.name : null
+        };
+      });
+      
+      res.json(usersWithLocationData);
+    } catch (error: any) {
+      console.error('Error fetching user locations:', error);
+      res.status(500).json({ message: error.message || 'Failed to fetch user locations' });
+    }
+  });
 
   // Bulk user creation endpoint
   app.post("/api/users/bulk", async (req, res) => {

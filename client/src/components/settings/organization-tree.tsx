@@ -255,12 +255,33 @@ const OrgNode = ({ node, level }: OrgNodeProps) => {
     enabled: !!currentUser,
   });
   
+  // Get user locations data from our dedicated endpoint
+  const { data: userLocations = [] } = useQuery<{
+    userId: number;
+    locationId: number | null;
+    locationName: string | null;
+  }[]>({
+    queryKey: ["/api/user-locations"],
+    enabled: !!currentUser,
+  });
+  
   // Function to get location name based on locationId
   const getLocationName = (user: User): string => {
-    if (!user.locationId) return "";
+    // First try to get location name from our dedicated user locations API
+    const userLocation = userLocations.find(ul => ul.userId === user.id);
+    if (userLocation?.locationName) {
+      return userLocation.locationName;
+    }
     
-    const location = locations.find(loc => loc.id === user.locationId);
-    return location?.name || "Headquarters";
+    // Fallback to using the locations API
+    if (user.locationId) {
+      const location = locations.find(loc => loc.id === user.locationId);
+      if (location?.name) {
+        return location.name;
+      }
+    }
+    
+    return "Headquarters";
   };
   
   // Function to get process name for a user from their assigned processes
