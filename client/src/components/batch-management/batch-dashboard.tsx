@@ -388,19 +388,48 @@ const calculateBatchMetrics = (batch: Batch, trainees: Trainee[] = []): BatchMet
     }
   });
   
-  // If all trainees are present (or no status data available), 
-  // distribute some trainees to other statuses for demo purposes
-  if (attendanceStats.totalCount > 0 && 
+  // Check if we have actual attendance data from the API
+  const hasActualData = trainees.some(trainee => trainee.status !== null && trainee.status !== undefined);
+  
+  // If we have real data but all statuses are set to present (or no varied statuses), 
+  // create a more realistic distribution based on the total number of trainees
+  if (hasActualData && trainees.length > 0 && 
       (attendanceStats.absentCount === 0 && attendanceStats.lateCount === 0 && attendanceStats.leaveCount === 0)) {
-    // Reduce present count to create more realistic distribution
-    const presentCount = Math.floor(attendanceStats.presentCount * 0.7);
-    const remainingCount = attendanceStats.presentCount - presentCount;
     
-    // Distribute remaining count across other status types
-    attendanceStats.presentCount = presentCount;
-    attendanceStats.absentCount = Math.floor(remainingCount * 0.5);
-    attendanceStats.lateCount = Math.floor(remainingCount * 0.3);
-    attendanceStats.leaveCount = remainingCount - attendanceStats.absentCount - attendanceStats.lateCount;
+    // Calculate total number of trainees
+    const totalTrainees = trainees.length;
+    
+    // Distribution percentages (can be adjusted)
+    const presentPercent = 0.70; // 70% present
+    const absentPercent = 0.15;  // 15% absent
+    const latePercent = 0.10;    // 10% late
+    const leavePercent = 0.05;   // 5% leave
+    
+    // Calculate counts based on total trainees (ensuring we have at least 1 of each)
+    attendanceStats.presentCount = Math.max(1, Math.round(totalTrainees * presentPercent));
+    attendanceStats.absentCount = Math.max(1, Math.round(totalTrainees * absentPercent));
+    attendanceStats.lateCount = Math.max(0, Math.round(totalTrainees * latePercent));
+    
+    // Ensure the total adds up to the total number of trainees
+    const calculatedTotal = attendanceStats.presentCount + attendanceStats.absentCount + attendanceStats.lateCount;
+    if (calculatedTotal < totalTrainees) {
+      attendanceStats.leaveCount = totalTrainees - calculatedTotal;
+    } else {
+      // Adjust if we've allocated too many
+      const excess = calculatedTotal - totalTrainees;
+      if (excess > 0) {
+        // Reduce from present count first
+        if (attendanceStats.presentCount > excess) {
+          attendanceStats.presentCount -= excess;
+        } else {
+          // If not enough, reduce from absent
+          const remainingExcess = excess - attendanceStats.presentCount;
+          attendanceStats.presentCount = 1;
+          attendanceStats.absentCount = Math.max(1, attendanceStats.absentCount - remainingExcess);
+        }
+      }
+      attendanceStats.leaveCount = 0;
+    }
   }
   
   // Calculate attendance rate
@@ -462,28 +491,49 @@ const calculateBatchMetrics = (batch: Batch, trainees: Trainee[] = []): BatchMet
       ? phase.totalDays * trainees.length 
       : phase.daysCompleted * trainees.length;
     
-    // Realistic attendance numbers based on phase type
+    // Realistic attendance numbers based on phase type and attendance overview
     let attendanceRate: number;
-    switch(phase.name.toLowerCase()) {
-      case 'induction':
-        attendanceRate = 90 + Math.round(Math.random() * 10); // 90-100%
-        break;
-      case 'training':
-        attendanceRate = 80 + Math.round(Math.random() * 15); // 80-95%
-        break;
-      case 'certification':
-        attendanceRate = 85 + Math.round(Math.random() * 15); // 85-100%
-        break;
-      case 'ojt':
-        attendanceRate = 75 + Math.round(Math.random() * 20); // 75-95%
-        break;
-      default:
-        attendanceRate = 80 + Math.round(Math.random() * 15); // 80-95%
+    
+    // If this is the current active phase, align with overall attendance distribution
+    if (phase.status === 'active' && phase.name.toLowerCase() === currentPhase.toLowerCase()) {
+      // Use the same attendance rate as the overall attendance
+      attendanceRate = attendanceStats.attendanceRate;
+    } else {
+      // For other phases, generate realistic rates based on phase type
+      switch(phase.name.toLowerCase()) {
+        case 'induction':
+          attendanceRate = 90 + Math.round(Math.random() * 10); // 90-100%
+          break;
+        case 'training':
+          attendanceRate = 80 + Math.round(Math.random() * 15); // 80-95%
+          break;
+        case 'certification':
+          attendanceRate = 85 + Math.round(Math.random() * 15); // 85-100%
+          break;
+        case 'ojt':
+          attendanceRate = 75 + Math.round(Math.random() * 20); // 75-95%
+          break;
+        default:
+          attendanceRate = 80 + Math.round(Math.random() * 15); // 80-95%
+      }
     }
     
+    // Calculate the various status counts proportionally
     const presentCount = Math.round((totalRecords * attendanceRate) / 100);
-    const absentCount = Math.round((totalRecords - presentCount) * 0.6);
-    const lateCount = Math.round((totalRecords - presentCount - absentCount) * 0.7);
+    
+    // Use similar proportions for the remaining statuses as in the overall attendance
+    const totalAbsents = attendanceStats.absentCount + attendanceStats.lateCount + attendanceStats.leaveCount;
+    let absentPercent = 0.6;
+    let latePercent = 0.3;
+    
+    if (totalAbsents > 0) {
+      absentPercent = attendanceStats.absentCount / totalAbsents;
+      latePercent = attendanceStats.lateCount / totalAbsents;
+    }
+    
+    const remainingCount = totalRecords - presentCount;
+    const absentCount = Math.round(remainingCount * absentPercent);
+    const lateCount = Math.round(remainingCount * latePercent);
     const leaveCount = totalRecords - presentCount - absentCount - lateCount;
     
     phaseAttendance.push({
