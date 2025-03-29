@@ -5,26 +5,15 @@ import {
   CheckCircle, 
   Clock, 
   GraduationCap,
-  LayoutDashboard,
-  Settings,
-  Save,
-  Plus,
   ArrowRight
 } from "lucide-react";
 import { StatsCard } from "@/components/ui/stats-card";
 import { CourseCard } from "@/components/course-card";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
-import { DashboardConfiguration } from "@/components/dashboard/dashboard-configuration";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Course, UserProgress } from "@shared/schema";
-import { useAuth } from "@/hooks/use-auth";
 
 export default function Dashboard() {
-  const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState("overview");
-  
   const {
     data: courses = [],
     isLoading: coursesLoading
@@ -45,83 +34,59 @@ export default function Dashboard() {
   const inProgressCourses = new Set(progress.map(p => p.courseId)).size - completedCourses;
   const totalHours = courses.reduce((acc, course) => acc + course.duration / 60, 0);
 
-  // Fetch batches for the user's organization
-  const { data: batches = [] } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/batches`],
-    enabled: !!user?.organizationId,
-  });
-
   return (
     <div className="p-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">Welcome back!</h1>
         <p className="text-muted-foreground">
-          Monitor training progress and batch insights
+          Track your progress and continue your learning journey
         </p>
       </div>
-      
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="batch-insights">Batch Insights</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="overview" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <StatsCard
-              title="Completed Courses"
-              value={completedCourses}
-              icon={<CheckCircle className="h-4 w-4 text-green-500" />}
-            />
-            <StatsCard
-              title="In Progress"
-              value={inProgressCourses}
-              icon={<Clock className="h-4 w-4 text-blue-500" />}
-            />
-            <StatsCard
-              title="Total Courses"
-              value={courses.length}
-              icon={<BookOpen className="h-4 w-4 text-purple-500" />}
-            />
-            <StatsCard
-              title="Training Hours"
-              value={totalHours.toFixed(1)}
-              icon={<GraduationCap className="h-4 w-4 text-orange-500" />}
-            />
-          </div>
 
-          <h2 className="text-xl font-semibold mb-4">Continue Learning</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {loading ? (
-              <p>Loading...</p>
-            ) : (
-              courses.slice(0, 3).map(course => {
-                const courseProgress = progress.find(p => p.courseId === course.id);
-                const progressPercent = courseProgress 
-                  ? courseProgress.completed ? 100 : 50 
-                  : 0;
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <StatsCard
+          title="Completed Courses"
+          value={completedCourses}
+          icon={<CheckCircle className="h-4 w-4 text-green-500" />}
+        />
+        <StatsCard
+          title="In Progress"
+          value={inProgressCourses}
+          icon={<Clock className="h-4 w-4 text-blue-500" />}
+        />
+        <StatsCard
+          title="Total Courses"
+          value={courses.length}
+          icon={<BookOpen className="h-4 w-4 text-purple-500" />}
+        />
+        <StatsCard
+          title="Training Hours"
+          value={totalHours.toFixed(1)}
+          icon={<GraduationCap className="h-4 w-4 text-orange-500" />}
+        />
+      </div>
 
-                return (
-                  <CourseCard 
-                    key={course.id} 
-                    course={course}
-                    progress={progressPercent}
-                  />
-                );
-              })
-            )}
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="batch-insights">
-          <Card className="border-none shadow-none">
-            <CardContent className="p-0">
-              {/* Customizable batch insights dashboard */}
-              <DashboardConfiguration />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      <h2 className="text-xl font-semibold mb-4">Continue Learning</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {loading ? (
+          <p>Loading...</p>
+        ) : (
+          courses.slice(0, 3).map(course => {
+            const courseProgress = progress.find(p => p.courseId === course.id);
+            const progressPercent = courseProgress 
+              ? courseProgress.completed ? 100 : 50 
+              : 0;
+
+            return (
+              <CourseCard 
+                key={course.id} 
+                course={course}
+                progress={progressPercent}
+              />
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }
