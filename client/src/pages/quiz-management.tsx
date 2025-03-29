@@ -615,7 +615,7 @@ export function QuizManagement() {
           <div className="flex flex-col gap-2">
             <p>Quiz #{generatedQuizId} has been generated and is now available to trainees</p>
             <a 
-              href={`/quizzes/${generatedQuizId}`} 
+              href={`/quiz/${generatedQuizId}`} 
               className="text-blue-500 underline hover:text-blue-700 font-medium"
               target="_blank"
               rel="noopener noreferrer"
