@@ -14,7 +14,7 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Check, FileSpreadsheet, Upload, Download } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { usePermissions } from "@/hooks/use-permissions"; // Add permissions hook
+import { usePermissions, PermissionGuard } from "@/hooks/use-permissions"; // Add permissions hook
 import * as XLSX from "xlsx";
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "@/components/ui/table";
 
