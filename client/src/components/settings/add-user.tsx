@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,6 +54,14 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
   const [openLocation, setOpenLocation] = useState(false);
   const [bulkUploadData, setBulkUploadData] = useState<BulkUserUpload[]>([]);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
+  
+  // Reset bulk upload UI if permission is revoked
+  useEffect(() => {
+    if (!hasPermission("upload_users")) {
+      setShowBulkUpload(false);
+      setBulkUploadData([]);
+    }
+  }, [hasPermission]);
 
   const [newUserData, setNewUserData] = useState({
     username: "",
@@ -601,23 +609,27 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
             <CardDescription>Create new user account</CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={downloadTemplate}
-            >
-              Download Template
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setShowBulkUpload(!showBulkUpload)}
-            >
-              Bulk Upload
-            </Button>
+            {hasPermission("upload_users") && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={downloadTemplate}
+                >
+                  Download Template
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowBulkUpload(!showBulkUpload)}
+                >
+                  Bulk Upload
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        {showBulkUpload && (
+        {showBulkUpload && hasPermission("upload_users") && (
           <div className="space-y-4 mb-6">
             <div>
               <h3 className="text-base font-medium mb-2">Bulk Upload Users</h3>
