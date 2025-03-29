@@ -391,11 +391,10 @@ const calculateBatchMetrics = (batch: Batch, trainees: Trainee[] = []): BatchMet
   // Check if we have actual attendance data from the API
   const hasActualData = trainees.some(trainee => trainee.status !== null && trainee.status !== undefined);
   
-  // If we have real data but all statuses are set to present (or no varied statuses), 
-  // create a more realistic distribution based on the total number of trainees
-  if (hasActualData && trainees.length > 0 && 
-      (attendanceStats.absentCount === 0 && attendanceStats.lateCount === 0 && attendanceStats.leaveCount === 0)) {
-    
+  // If there's no actual data, create a realistic distribution
+  // but if there is real data, respect it and don't modify the counts
+  if (!hasActualData && trainees.length > 0) {
+    // For demo purposes only - when there's no real data
     // Calculate total number of trainees
     const totalTrainees = trainees.length;
     
@@ -548,49 +547,85 @@ const calculateBatchMetrics = (batch: Batch, trainees: Trainee[] = []): BatchMet
     });
   });
   
-  // Trainee-wise attendance (mock data)
+  // Trainee-wise attendance
   const traineeAttendance: TraineeAttendance[] = trainees.map((trainee, index) => {
-    // We'll have a mix of high performers, average performers, and problematic attendees
-    // This gives a more realistic distribution with a few trainees having attendance issues
-    
     // Get total training days so far
     const totalDays = daysCompleted || 1; // Avoid division by zero
     const totalRecords = totalDays;
     
-    // Use trainee ID as a seed for consistency, but ensure we have a mix
-    const category = index % 5; // 0 = excellent, 1-3 = good, 4 = problematic
+    // If the trainee has real attendance data, use it
+    // Otherwise, generate mock attendance data (for demo purposes)
+    let presentCount, absentCount, lateCount, leaveCount, attendanceRate;
     
-    let attendanceRate: number;
-    
-    // Create variable attendance profiles
-    if (category === 0) {
-      // Excellent performers - 95-100% attendance
-      attendanceRate = 95 + Math.round(Math.random() * 5); 
-    } else if (category === 4) {
-      // Problematic performers - 60-75% attendance 
-      attendanceRate = 60 + Math.round(Math.random() * 15);
+    if (hasActualData && trainee.status) {
+      // Use real data for this trainee (most likely all present based on the logs)
+      // The trainee's status determines their current day's status
+      if (trainee.status === 'present') {
+        presentCount = totalRecords;
+        absentCount = 0;
+        lateCount = 0;
+        leaveCount = 0;
+        attendanceRate = 100;
+      } else if (trainee.status === 'absent') {
+        presentCount = totalRecords - 1;
+        absentCount = 1;
+        lateCount = 0;
+        leaveCount = 0;
+        attendanceRate = Math.round((presentCount / totalRecords) * 100);
+      } else if (trainee.status === 'late') {
+        presentCount = totalRecords - 1; 
+        absentCount = 0;
+        lateCount = 1;
+        leaveCount = 0;
+        attendanceRate = Math.round(((presentCount + (lateCount * 0.5)) / totalRecords) * 100);
+      } else if (trainee.status === 'leave') {
+        presentCount = totalRecords - 1;
+        absentCount = 0;
+        lateCount = 0;
+        leaveCount = 1;
+        attendanceRate = Math.round((presentCount / totalRecords) * 100);
+      } else {
+        // No status provided, assume present
+        presentCount = totalRecords;
+        absentCount = 0;
+        lateCount = 0;
+        leaveCount = 0;
+        attendanceRate = 100;
+      }
     } else {
-      // Average performers - 75-95% attendance
-      attendanceRate = 75 + Math.round(Math.random() * 20);
-    }
-    
-    // Calculate counts for each attendance status
-    const presentCount = Math.round((totalRecords * attendanceRate) / 100);
-    
-    // More problematic trainees have more absences than lates/leaves
-    const remainingCount = totalRecords - presentCount;
-    let absentCount, lateCount, leaveCount;
-    
-    if (category === 4) {
-      // Problematic trainees have mostly absences
-      absentCount = Math.ceil(remainingCount * 0.7);
-      lateCount = Math.floor(remainingCount * 0.2);
-      leaveCount = remainingCount - absentCount - lateCount;
-    } else {
-      // Regular trainees have a mix with fewer absences
-      absentCount = Math.floor(remainingCount * 0.4);
-      lateCount = Math.ceil(remainingCount * 0.4);
-      leaveCount = remainingCount - absentCount - lateCount;
+      // Generate mock data for demo purposes
+      // Use trainee ID as a seed for consistency, but ensure we have a mix
+      const category = index % 5; // 0 = excellent, 1-3 = good, 4 = problematic
+      
+      // Create variable attendance profiles
+      if (category === 0) {
+        // Excellent performers - 95-100% attendance
+        attendanceRate = 95 + Math.round(Math.random() * 5); 
+      } else if (category === 4) {
+        // Problematic performers - 60-75% attendance 
+        attendanceRate = 60 + Math.round(Math.random() * 15);
+      } else {
+        // Average performers - 75-95% attendance
+        attendanceRate = 75 + Math.round(Math.random() * 20);
+      }
+      
+      // Calculate counts for each attendance status
+      presentCount = Math.round((totalRecords * attendanceRate) / 100);
+      
+      // More problematic trainees have more absences than lates/leaves
+      const remainingCount = totalRecords - presentCount;
+      
+      if (category === 4) {
+        // Problematic trainees have mostly absences
+        absentCount = Math.ceil(remainingCount * 0.7);
+        lateCount = Math.floor(remainingCount * 0.2);
+        leaveCount = remainingCount - absentCount - lateCount;
+      } else {
+        // Regular trainees have a mix with fewer absences
+        absentCount = Math.floor(remainingCount * 0.4);
+        lateCount = Math.ceil(remainingCount * 0.4);
+        leaveCount = remainingCount - absentCount - lateCount;
+      }
     }
     
     return {
