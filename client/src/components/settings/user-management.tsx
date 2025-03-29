@@ -525,7 +525,9 @@ export function UserManagement() {
     }, [editUser.processes, processes]);
 
     // Determine if the current user can edit this user
-    const canEdit = user?.role === "owner" || (user?.role === "admin" && editUser.role !== "admin");
+    // Check both the user's role hierarchy AND their edit_users permission
+    const hasEditPermission = hasPermission("edit_users");
+    const canEdit = (user?.role === "owner" || (user?.role === "admin" && editUser.role !== "admin")) && hasEditPermission;
 
     if (!canEdit) {
       return (
