@@ -629,95 +629,97 @@ export function AddUser({ users, user, organization, potentialManagers }: AddUse
         </div>
       </CardHeader>
       <CardContent>
-        {showBulkUpload && hasPermission("upload_users") && (
-          <div className="space-y-4 mb-6">
-            <div>
-              <h3 className="text-base font-medium mb-2">Bulk Upload Users</h3>
-              <p className="text-sm text-muted-foreground mb-2">Upload multiple users using an Excel file</p>
-              <div className="mb-4 bg-muted p-3 rounded-md text-sm">
-                <p className="font-medium mb-1">Role Hierarchy Requirements</p>
-                <p className="text-muted-foreground">Users can only report to managers with appropriate roles according to the hierarchy:</p>
-                <ul className="list-disc list-inside text-muted-foreground pl-2 space-y-1 mt-1">
-                  <li>Owners don't report to anyone</li>
-                  <li>Admins can only report to Owners</li>
-                  <li>Managers can report to Owners or Admins</li>
-                  <li>Team Leads can report to Owners, Admins, or Managers</li>
-                  <li>Quality Analysts and Trainers can report to Owners, Admins, Managers, or Team Leads</li>
-                  <li>Advisors can report to any higher role</li>
-                </ul>
-                <p className="text-muted-foreground mt-2"><strong>Important:</strong> You can only assign managers who are within your own reporting chain. For example, if you are a Team Lead, you can only assign users to report to yourself or your upline managers.</p>
-                <p className="text-muted-foreground mt-2">The downloaded template includes detailed guidance in the "Role Hierarchy" sheet.</p>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="flex-1">
-                  <Label htmlFor="file-upload">Select Excel File</Label>
-                  <div className="flex gap-2 mt-1">
-                    <Input
-                      id="file-upload"
-                      type="file"
-                      accept=".xlsx,.xls"
-                      onChange={handleFileUpload}
-                      className="flex-1"
-                    />
-                    <Button
-                      onClick={() => bulkUploadMutation.mutate(bulkUploadData)}
-                      disabled={bulkUploadData.length === 0 || bulkUploadMutation.isPending}
-                    >
-                      {bulkUploadMutation.isPending ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          Uploading...
-                        </>
-                      ) : (
-                        "Upload Users"
-                      )}
-                    </Button>
+        {showBulkUpload && (
+          <PermissionGuard permission="upload_users">
+            <div className="space-y-4 mb-6">
+              <div>
+                <h3 className="text-base font-medium mb-2">Bulk Upload Users</h3>
+                <p className="text-sm text-muted-foreground mb-2">Upload multiple users using an Excel file</p>
+                <div className="mb-4 bg-muted p-3 rounded-md text-sm">
+                  <p className="font-medium mb-1">Role Hierarchy Requirements</p>
+                  <p className="text-muted-foreground">Users can only report to managers with appropriate roles according to the hierarchy:</p>
+                  <ul className="list-disc list-inside text-muted-foreground pl-2 space-y-1 mt-1">
+                    <li>Owners don't report to anyone</li>
+                    <li>Admins can only report to Owners</li>
+                    <li>Managers can report to Owners or Admins</li>
+                    <li>Team Leads can report to Owners, Admins, or Managers</li>
+                    <li>Quality Analysts and Trainers can report to Owners, Admins, Managers, or Team Leads</li>
+                    <li>Advisors can report to any higher role</li>
+                  </ul>
+                  <p className="text-muted-foreground mt-2"><strong>Important:</strong> You can only assign managers who are within your own reporting chain. For example, if you are a Team Lead, you can only assign users to report to yourself or your upline managers.</p>
+                  <p className="text-muted-foreground mt-2">The downloaded template includes detailed guidance in the "Role Hierarchy" sheet.</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <Label htmlFor="file-upload">Select Excel File</Label>
+                    <div className="flex gap-2 mt-1">
+                      <Input
+                        id="file-upload"
+                        type="file"
+                        accept=".xlsx,.xls"
+                        onChange={handleFileUpload}
+                        className="flex-1"
+                      />
+                      <Button
+                        onClick={() => bulkUploadMutation.mutate(bulkUploadData)}
+                        disabled={bulkUploadData.length === 0 || bulkUploadMutation.isPending}
+                      >
+                        {bulkUploadMutation.isPending ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Uploading...
+                          </>
+                        ) : (
+                          "Upload Users"
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {bulkUploadData.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium">Preview: {bulkUploadData.length} users</h4>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setBulkUploadData([])}
-                  >
-                    Clear
-                  </Button>
-                </div>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Username</TableHead>
-                      <TableHead>Full Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Line of Business</TableHead>
-                      <TableHead>Process</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {bulkUploadData.map((user, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{user.username}</TableCell>
-                        <TableCell>{user.fullName}</TableCell>
-                        <TableCell>{user.email}</TableCell>
-                        <TableCell>{user.role}</TableCell>
-                        <TableCell>{user.location}</TableCell>
-                        <TableCell>{user.lineOfBusiness}</TableCell>
-                        <TableCell>{user.process}</TableCell>
+              {bulkUploadData.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium">Preview: {bulkUploadData.length} users</h4>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setBulkUploadData([])}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Username</TableHead>
+                        <TableHead>Full Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Location</TableHead>
+                        <TableHead>Line of Business</TableHead>
+                        <TableHead>Process</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </div>
+                    </TableHeader>
+                    <TableBody>
+                      {bulkUploadData.map((user, index) => (
+                        <TableRow key={index}>
+                          <TableCell>{user.username}</TableCell>
+                          <TableCell>{user.fullName}</TableCell>
+                          <TableCell>{user.email}</TableCell>
+                          <TableCell>{user.role}</TableCell>
+                          <TableCell>{user.location}</TableCell>
+                          <TableCell>{user.lineOfBusiness}</TableCell>
+                          <TableCell>{user.process}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+          </PermissionGuard>
         )}
 
         <form

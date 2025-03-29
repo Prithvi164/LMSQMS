@@ -28,8 +28,8 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
     if (user.role === 'owner') return true;
 
     // Log permission check for debugging
-    console.log('Checking permission:', permission, 'for role:', user.role, 
-                'Has permission:', rolePermissions.permissions.includes(permission));
+    // console.log('Checking permission:', permission, 'for role:', user.role, 
+    //             'Has permission:', rolePermissions.permissions.includes(permission));
 
     return rolePermissions.permissions.includes(permission);
   };
