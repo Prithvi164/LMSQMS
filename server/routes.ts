@@ -1242,6 +1242,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message });
     }
   });
+  
+  // Get all user processes for an organization - for organization tree visualization
+  app.get("/api/user-processes", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
+    
+    try {
+      // Get all users in the organization
+      const users = await storage.listUsers(req.user.organizationId);
+      
+      // Collect all user processes
+      const allUserProcesses = [];
+      for (const user of users) {
+        try {
+          const userProcesses = await storage.getUserProcesses(user.id);
+          allUserProcesses.push(...userProcesses);
+        } catch (err) {
+          console.warn(`Couldn't fetch processes for user ${user.id}:`, err);
+          // Continue with next user
+        }
+      }
+      
+      res.json(allUserProcesses);
+    } catch (error: any) {
+      console.error('Error fetching user processes:', error);
+      res.status(500).json({ message: error.message || 'Failed to fetch user processes' });
+    }
+  });
+  
+  // Get all user batch processes for an organization - for organization tree visualization
+  app.get("/api/user-batch-processes", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user.organizationId) return res.status(400).json({ message: "No organization ID found" });
+    
+    try {
+      // Get all users in the organization
+      const users = await storage.listUsers(req.user.organizationId);
+      
+      // Collect all user batch processes
+      const allUserBatchProcesses = [];
+      for (const user of users) {
+        try {
+          const userBatchProcesses = await storage.getUserBatchProcesses(user.id);
+          allUserBatchProcesses.push(...userBatchProcesses);
+        } catch (err) {
+          console.warn(`Couldn't fetch batch processes for user ${user.id}:`, err);
+          // Continue with next user
+        }
+      }
+      
+      res.json(allUserBatchProcesses);
+    } catch (error: any) {
+      console.error('Error fetching user batch processes:', error);
+      res.status(500).json({ message: error.message || 'Failed to fetch user batch processes' });
+    }
+  });
 
   // Bulk user creation endpoint
   app.post("/api/users/bulk", async (req, res) => {

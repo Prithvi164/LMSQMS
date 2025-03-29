@@ -232,6 +232,29 @@ const OrgNode = ({ node, level }: OrgNodeProps) => {
     enabled: !!currentUser?.organizationId,
   });
   
+  // Get all user processes (user to process mappings) with process name
+  const { data: userProcesses = [] } = useQuery<{ 
+    userId: number; 
+    processId: number;
+    processName?: string; // Added process name from our enhanced API
+  }[]>({
+    queryKey: ["/api/user-processes"],
+    enabled: !!currentUser,
+  });
+  
+  // Get user batch associations with batch name and process name
+  const { data: userBatchProcesses = [] } = useQuery<{
+    userId: number;
+    batchId: number;
+    processId: number;
+    status: string;
+    batchName?: string; // Added batch name from our enhanced API
+    processName?: string; // Added process name from our enhanced API
+  }[]>({
+    queryKey: ["/api/user-batch-processes"],
+    enabled: !!currentUser,
+  });
+  
   // Function to get location name based on locationId
   const getLocationName = (user: User): string => {
     if (!user.locationId) return "";
@@ -240,34 +263,29 @@ const OrgNode = ({ node, level }: OrgNodeProps) => {
     return location?.name || "Headquarters";
   };
   
-  // Function to get process name for a user
+  // Function to get process name for a user from their assigned processes
   const getProcessName = (user: User): string => {
-    // Real lookup based on processes data if available
-    if (processes && processes.length > 0) {
-      // Find a process that matches user's role
-      if (user.role === "trainer") {
-        const trainingProcess = processes.find(p => 
-          p.name?.toLowerCase().includes("train") || 
-          p.name?.toLowerCase().includes("learning") ||
-          p.name?.toLowerCase().includes("education")
-        );
-        return trainingProcess?.name || "Training Process";
-      } else if (user.role === "trainee") {
-        // Try to get a real process from data
-        const learningProcess = processes.find(p => 
-          p.name?.toLowerCase().includes("learn") || 
-          p.name?.toLowerCase().includes("course") ||
-          p.name?.toLowerCase().includes("training")
-        );
-        return learningProcess?.name || "Learning Process";
-      } else if (user.role === "quality_analyst") {
-        const qaProcess = processes.find(p => 
-          p.name?.toLowerCase().includes("qa") || 
-          p.name?.toLowerCase().includes("quality") ||
-          p.name?.toLowerCase().includes("assurance")
-        );
-        return qaProcess?.name || "Quality Assurance Process";
+    // First try to find user's process with name directly from enhanced API
+    if (userProcesses.length > 0) {
+      const userProcess = userProcesses.find(up => up.userId === user.id);
+      
+      // Use the process name directly from our enhanced API response
+      if (userProcess?.processName) {
+        return userProcess.processName;
       }
+      
+      // Fallback to old way if name isn't in the response
+      if (userProcess && processes.length > 0) {
+        const process = processes.find(p => p.id === userProcess.processId);
+        if (process?.name) {
+          return process.name;
+        }
+      }
+    }
+    
+    // Based on the role, provide fallback names
+    if (user.role === "manager" || user.role === "admin") {
+      return "Complaint Resolution";
     }
     
     // Fallback display names based on role
@@ -280,24 +298,39 @@ const OrgNode = ({ node, level }: OrgNodeProps) => {
     return "";
   };
   
-  // Function to get batch information for a user
+  // Function to get batch information for a user based on their batch assignment
   const getBatchInfo = (user: User) => {
-    // Only show batch info for trainees and trainers
-    if (user.role === "trainee" || user.role === "trainer") {
-      // Try to use real batch data if available
-      if (batches && batches.length > 0) {
-        const activeBatch = batches.find(b => b.status === "active");
-        if (activeBatch) {
+    // Find user's batch assignment from the userBatchProcesses data
+    if (userBatchProcesses.length > 0) {
+      const userBatch = userBatchProcesses.find(ubp => ubp.userId === user.id);
+      
+      if (userBatch) {
+        // Use the batch name directly from our enhanced API response
+        if (userBatch.batchName) {
           return {
-            name: activeBatch.name || "Training Batch",
-            status: activeBatch.status || "active"
+            name: userBatch.batchName,
+            status: userBatch.status || "active"
           };
         }
+        
+        // Fallback to old way using batches data
+        if (batches.length > 0) {
+          const batch = batches.find(b => b.id === userBatch.batchId);
+          if (batch) {
+            return {
+              name: batch.name,
+              status: userBatch.status || "active"
+            };
+          }
+        }
       }
-      
+    }
+    
+    // Only show generic batch info for trainees and trainers if no specific batch found
+    if (user.role === "trainee" || user.role === "trainer") {
       // Fallback for trainees/trainers with role-specific names
       return {
-        name: user.role === "trainee" ? "Current Training Batch" : "Trainer Batch",
+        name: user.role === "trainee" ? "Learning Batch" : "Training Batch",
         status: "active"
       };
     }

@@ -1904,8 +1904,26 @@ export class DatabaseStorage implements IStorage {
   async getUserBatchProcesses(userId: number): Promise<UserBatchProcess[]> {
     try {
       const processes = await db
-        .select()
+        .select({
+          id: userBatchProcesses.id,
+          userId: userBatchProcesses.userId,
+          batchId: userBatchProcesses.batchId,
+          processId: userBatchProcesses.processId,
+          status: userBatchProcesses.status,
+          joinedAt: userBatchProcesses.joinedAt,
+          completedAt: userBatchProcesses.completedAt,
+          batchName: organizationBatches.name, 
+          processName: organizationProcesses.name,
+        })
         .from(userBatchProcesses)
+        .leftJoin(
+          organizationBatches,
+          eq(userBatchProcesses.batchId, organizationBatches.id)
+        )
+        .leftJoin(
+          organizationProcesses,
+          eq(userBatchProcesses.processId, organizationProcesses.id)
+        )
         .where(eq(userBatchProcesses.userId, userId)) as UserBatchProcess[];
 
       return processes;
