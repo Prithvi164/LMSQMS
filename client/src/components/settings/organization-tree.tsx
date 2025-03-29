@@ -5,8 +5,17 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, UserPlus, Building, Map, Home } from "lucide-react";
-import { useState } from "react";
+import { 
+  Search, 
+  Building, 
+  Map, 
+  ZoomIn, 
+  ZoomOut, 
+  Users, 
+  ChevronUp, 
+  RotateCcw 
+} from "lucide-react";
+import { useState, useRef, useEffect } from "react";
 import type { User } from "@shared/schema";
 
 // Helper function to get initials from name
@@ -60,6 +69,20 @@ const buildOrgTree = (users: User[], rootUserId: number | null = null): TreeNode
   }));
 };
 
+// Find a user's reporting hierarchy
+const findUserHierarchy = (
+  userId: number, 
+  allUsers: User[]
+): TreeNode | null => {
+  const currentUser = allUsers.find(u => u.id === userId);
+  if (!currentUser) return null;
+  
+  return {
+    user: currentUser,
+    children: buildOrgTree(allUsers, currentUser.id)
+  };
+};
+
 interface UserCardProps {
   user: User;
   color?: string;
@@ -82,7 +105,7 @@ const UserCard = ({ user, color, department = "", location = "", reportCount = 0
         </Avatar>
         <div className="font-semibold truncate w-full">{user.fullName || user.username}</div>
         <div className="text-sm text-muted-foreground truncate w-full">
-          {user.title || (user.role && user.role.replace(/_/g, " "))}
+          {user.role && user.role.replace(/_/g, " ")}
         </div>
       </div>
       
@@ -130,14 +153,23 @@ const OrgNode = ({ node, level }: OrgNodeProps) => {
   const isRoot = level === 0;
   const hasChildren = node.children.length > 0;
   
+  // Get the location name based on locationId if available
+  const getLocationName = (user: User): string => {
+    // For demonstration, we could try to find the location name based on locationId
+    // In a real implementation, we would fetch the location data from the API
+    return user.locationId ? `Location ID: ${user.locationId}` : "";
+  };
+  
   return (
     <div className="flex flex-col items-center">
       {/* User card */}
       <div className="mb-6">
         <UserCard 
           user={node.user}
-          department={node.user.department} 
-          location={node.user.location}
+          // Use a safe way to pass department data
+          department={node.user.role === "trainee" ? "Training" : node.user.role === "trainer" ? "Training" : "Management"}
+          // Pass location information or empty string
+          location={getLocationName(node.user)}
           reportCount={node.children.length}
         />
       </div>
@@ -177,11 +209,65 @@ export function OrganizationTree() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [groupByDepartment, setGroupByDepartment] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [viewMode, setViewMode] = useState<'full' | 'myHierarchy'>('full');
+  
+  const chartContainerRef = useRef<HTMLDivElement>(null);
 
   const { data: users = [], isLoading } = useQuery<User[]>({
     queryKey: ["/api/users"],
     enabled: !!user,
   });
+
+  // Zoom in function
+  const zoomIn = () => {
+    setZoomLevel(prev => Math.min(prev + 0.1, 2));
+  };
+
+  // Zoom out function
+  const zoomOut = () => {
+    setZoomLevel(prev => Math.max(prev - 0.1, 0.5));
+  };
+
+  // Reset zoom function
+  const resetZoom = () => {
+    setZoomLevel(1);
+  };
+
+  // View top of organization
+  const viewFullOrg = () => {
+    setViewMode('full');
+  };
+
+  // View my reporting hierarchy
+  const viewMyHierarchy = () => {
+    setViewMode('myHierarchy');
+  };
+  
+  // Scroll to center when zoom changes
+  useEffect(() => {
+    if (chartContainerRef.current) {
+      const container = chartContainerRef.current;
+      const scrollToCenter = () => {
+        // Get the container dimensions
+        const containerWidth = container.offsetWidth;
+        const containerHeight = container.offsetHeight;
+        
+        // Get the content dimensions
+        const contentWidth = container.scrollWidth;
+        const contentHeight = container.scrollHeight;
+        
+        // Calculate the center point
+        const scrollLeft = (contentWidth - containerWidth) / 2;
+        const scrollTop = (contentHeight - containerHeight) / 2;
+        
+        // Scroll to center
+        container.scrollTo(scrollLeft, scrollTop);
+      };
+      
+      scrollToCenter();
+    }
+  }, [zoomLevel, viewMode]);
 
   if (isLoading) {
     return (
@@ -196,10 +282,26 @@ export function OrganizationTree() {
   const rootUser = users.find(u => u.role === "owner");
   if (!rootUser) return <div>No organization structure found</div>;
 
-  const orgTree = [{
-    user: rootUser,
-    children: buildOrgTree(users, rootUser.id)
-  }];
+  // Build the appropriate tree based on view mode
+  let displayTree: TreeNode[] = [];
+  
+  if (viewMode === 'full') {
+    displayTree = [{
+      user: rootUser,
+      children: buildOrgTree(users, rootUser.id)
+    }];
+  } else if (viewMode === 'myHierarchy' && user) {
+    const myHierarchy = findUserHierarchy(user.id, users);
+    if (myHierarchy) {
+      displayTree = [myHierarchy];
+    } else {
+      // Fallback to full org if user's hierarchy not found
+      displayTree = [{
+        user: rootUser,
+        children: buildOrgTree(users, rootUser.id)
+      }];
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -218,14 +320,26 @@ export function OrganizationTree() {
           </div>
           
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="flex items-center gap-1">
-              <Home className="h-4 w-4" />
-              <span className="hidden sm:inline">My Department</span>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex items-center gap-1" 
+              onClick={viewFullOrg}
+              disabled={viewMode === 'full'}
+            >
+              <ChevronUp className="h-4 w-4" />
+              <span className="hidden sm:inline">Top of Org</span>
             </Button>
             
-            <Button variant="outline" size="sm" className="flex items-center gap-1">
-              <UserPlus className="h-4 w-4" />
-              <span className="hidden sm:inline">Add Employee</span>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex items-center gap-1"
+              onClick={viewMyHierarchy}
+              disabled={viewMode === 'myHierarchy'}
+            >
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">My Hierarchy</span>
             </Button>
             
             <div className="flex items-center gap-2 ml-2">
@@ -243,10 +357,33 @@ export function OrganizationTree() {
         </div>
       </div>
       
-      <div className="bg-muted/30 rounded-lg p-6 overflow-auto">
-        <div className="flex justify-center min-w-max pb-6">
+      <div 
+        className="bg-muted/30 rounded-lg p-6 overflow-auto" 
+        style={{ minHeight: '400px', maxHeight: '70vh' }}
+        ref={chartContainerRef}
+      >
+        {/* Zoom controls */}
+        <div className="fixed bottom-6 right-6 flex flex-col gap-2 z-10">
+          <Button size="icon" variant="outline" onClick={zoomIn} className="rounded-full bg-background">
+            <ZoomIn size={18} />
+          </Button>
+          <Button size="icon" variant="outline" onClick={zoomOut} className="rounded-full bg-background">
+            <ZoomOut size={18} />
+          </Button>
+          <Button size="icon" variant="outline" onClick={resetZoom} className="rounded-full bg-background">
+            <RotateCcw size={18} />
+          </Button>
+        </div>
+        
+        <div 
+          className="flex justify-center min-w-max pb-6 transition-transform duration-300"
+          style={{
+            transform: `scale(${zoomLevel})`,
+            transformOrigin: 'center top',
+          }}
+        >
           <div className="org-chart">
-            {orgTree.map((node) => (
+            {displayTree.map((node) => (
               <OrgNode key={node.user.id} node={node} level={0} />
             ))}
           </div>
