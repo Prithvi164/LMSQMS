@@ -464,6 +464,7 @@ export function UserManagement() {
   // Check for user management permissions
   const canManageUsers = hasPermission("manage_users");
   const canViewUsers = hasPermission("view_users");
+  const canDeleteUsers = hasPermission("delete_users");
 
   // If user can't even view users, show restricted access message
   if (!canViewUsers) {
@@ -1158,6 +1159,7 @@ export function UserManagement() {
                             getLocationName={getLocationName}
                             getProcessNames={getUserProcesses}
                             canManageUsers={canManageUsers}
+                            canDeleteUsers={canDeleteUsers}
                             editUserComponent={(user) => <EditUserDialog user={user} />}
                             toggleUserStatus={toggleUserStatus}
                             handleDeleteClick={handleDeleteClick}
@@ -1179,6 +1181,7 @@ export function UserManagement() {
                           getLocationName={getLocationName}
                           getProcessNames={getUserProcesses}
                           canManageUsers={canManageUsers}
+                          canDeleteUsers={canDeleteUsers}
                           editUserComponent={(user) => <EditUserDialog user={user} />}
                           toggleUserStatus={toggleUserStatus}
                           handleDeleteClick={handleDeleteClick}

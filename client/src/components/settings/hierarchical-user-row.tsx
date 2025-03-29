@@ -18,6 +18,7 @@ interface HierarchicalUserRowProps {
   getLocationName: (locationId: number | null) => string;
   getProcessNames: (userId: number) => string;
   canManageUsers: boolean;
+  canDeleteUsers: boolean;
   editUserComponent: (user: User) => React.ReactNode;
   toggleUserStatus: (userId: number, currentStatus: boolean, userRole: string) => void;
   handleDeleteClick: (user: User) => void;
@@ -34,6 +35,7 @@ export const HierarchicalUserRow: React.FC<HierarchicalUserRowProps> = ({
   getLocationName,
   getProcessNames,
   canManageUsers,
+  canDeleteUsers,
   editUserComponent,
   toggleUserStatus,
   handleDeleteClick,
@@ -147,7 +149,7 @@ export const HierarchicalUserRow: React.FC<HierarchicalUserRowProps> = ({
           <TableCell className="text-right">
             <div className="flex justify-end gap-2">
               {editUserComponent(user)}
-              {user.role !== "owner" && (
+              {user.role !== "owner" && canDeleteUsers && (
                 <Button
                   variant="outline"
                   size="icon"
@@ -175,6 +177,7 @@ export const HierarchicalUserRow: React.FC<HierarchicalUserRowProps> = ({
           getLocationName={getLocationName}
           getProcessNames={getProcessNames}
           canManageUsers={canManageUsers}
+          canDeleteUsers={canDeleteUsers}
           editUserComponent={editUserComponent}
           toggleUserStatus={toggleUserStatus}
           handleDeleteClick={handleDeleteClick}
