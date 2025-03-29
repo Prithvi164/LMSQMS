@@ -183,6 +183,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { username, password, organizationName, ...userData } = req.body;
 
+      // Prevent using admin role during initial registration
+      // First user in organization can be owner, subsequent users should be set to a non-privileged role
+      if (userData.role?.toLowerCase() === 'admin') {
+        return res.status(403).json({
+          message: "Creating admin users directly through registration is not allowed. Please use the user management interface."
+        });
+      }
+
       // Check if organization exists
       let organization = await storage.getOrganizationByName(organizationName);
 
@@ -1254,6 +1262,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!Array.isArray(users) || users.length === 0) {
         return res.status(400).json({ message: "Invalid users data" });
       }
+      
+      // Check if any users being created are admin users
+      const adminUsers = users.filter(user => user.role?.toLowerCase() === 'admin');
+      
+      if (adminUsers.length > 0) {
+        // Get the user's permissions
+        const userPermissions = await storage.getRolePermissions(req.user.organizationId, req.user.role);
+        const permissions = userPermissions?.permissions || [];
+        
+        // Check if user has create_admin permission
+        if (!permissions.includes('create_admin') && req.user.role !== 'owner') {
+          return res.status(403).json({
+            message: "You don't have permission to create admin users. The 'create_admin' permission is required."
+          });
+        }
+      }
 
       // Start a transaction
       await db.transaction(async (tx) => {
@@ -1437,6 +1461,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           message: "Line of Business ID is required when assigning processes"
         });
+      }
+
+      // Check if user is trying to create an admin account
+      if (userData.role?.toLowerCase() === 'admin') {
+        // Get the user's permissions
+        const userPermissions = await storage.getRolePermissions(req.user.organizationId, req.user.role);
+        const permissions = userPermissions?.permissions || [];
+        
+        // Check if user has create_admin permission
+        if (!permissions.includes('create_admin') && req.user.role !== 'owner') {
+          return res.status(403).json({
+            message: "You don't have permission to create admin users. The 'create_admin' permission is required."
+          });
+        }
       }
 
       // Hash the password before creating the user
@@ -1633,6 +1671,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Prevent assigning owner role
       if (updateData.role === 'owner') {
         return res.status(403).json({ message: "Cannot assign owner role through update" });
+      }
+      
+      // Check if user is trying to change role to admin
+      if (updateData.role?.toLowerCase() === 'admin' && userToUpdate.role !== 'admin') {
+        // If the user is not an owner, check if they have the create_admin permission
+        if (req.user.role !== 'owner') {
+          // Get the user's permissions
+          const userPermissions = await storage.getRolePermissions(req.user.organizationId, req.user.role);
+          const permissions = userPermissions?.permissions || [];
+          
+          // Check if user has create_admin permission
+          if (!permissions.includes('create_admin')) {
+            return res.status(403).json({
+              message: "You don't have permission to assign admin role. The 'create_admin' permission is required."
+            });
+          }
+        }
       }
 
       // Check if the user is updating their own profile
