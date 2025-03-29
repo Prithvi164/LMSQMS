@@ -153,7 +153,7 @@ const UserCard = ({
           
           {/* Location - More Prominent */}
           {location && (
-            <div className="flex items-center gap-2 bg-blue-100 dark:bg-blue-900/30 py-1.5 px-2 rounded text-sm border-l-4 border-blue-500">
+            <div className="flex items-center gap-2 bg-blue-100 dark:bg-blue-900/30 py-1.5 px-2 rounded-md text-sm border-l-4 border-blue-500 shadow-sm">
               <Map className="h-4 w-4 text-blue-600 dark:text-blue-400" />
               <span className="truncate font-medium">{location}</span>
             </div>
@@ -161,7 +161,7 @@ const UserCard = ({
           
           {/* Process Name - More Prominent */}
           {processName && (
-            <div className="flex items-center gap-2 bg-emerald-100 dark:bg-emerald-900/30 py-1.5 px-2 rounded text-sm border-l-4 border-emerald-500">
+            <div className="flex items-center gap-2 bg-emerald-100 dark:bg-emerald-900/30 py-1.5 px-2 rounded-md text-sm border-l-4 border-emerald-500 shadow-sm mt-2">
               <Briefcase className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               <span className="truncate font-medium">{processName}</span>
             </div>
@@ -169,7 +169,7 @@ const UserCard = ({
           
           {/* Batch Info - More Prominent */}
           {batchInfo && (
-            <div className="flex items-center gap-2 bg-amber-100 dark:bg-amber-900/30 py-1.5 px-2 rounded text-sm border-l-4 border-amber-500">
+            <div className="flex items-center gap-2 bg-amber-100 dark:bg-amber-900/30 py-1.5 px-2 rounded-md text-sm border-l-4 border-amber-500 shadow-sm mt-2">
               <GraduationCap className="h-4 w-4 text-amber-600 dark:text-amber-400" />
               <div className="flex items-center justify-between w-full">
                 <span className="truncate font-medium">{batchInfo.name}</span>
