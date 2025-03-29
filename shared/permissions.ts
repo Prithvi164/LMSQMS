@@ -2,7 +2,7 @@ import { permissionEnum } from './schema';
 
 // Define default permissions for each role
 export const defaultPermissions = {
-  owner: permissionEnum.enumValues, // Owner gets all permissions
+  owner: permissionEnum.enumValues.filter(p => p !== 'create_admin'), // Owner gets all permissions except create_admin
   admin: [
     'manage_users',
     'view_users',

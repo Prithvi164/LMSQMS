@@ -64,7 +64,6 @@ export function RolePermissions() {
       manage_batches: "Create, edit, and delete training batches",
 
       // Create Section
-      create_admin: "Create new administrator accounts",
       create_location: "Add new location entries",
       create_process: "Set up new workflow processes",
 
