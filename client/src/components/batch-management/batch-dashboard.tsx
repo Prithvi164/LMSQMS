@@ -808,7 +808,7 @@ const generateBatchInsightPDF = (batch: Batch, trainees: Trainee[], batchMetrics
     doc.setFontSize(14);
     doc.text("Attendance Overview", 15, currentY);
     
-    if (batchMetrics && batchMetrics.attendanceOverview.totalDays > 0) {
+    if (batchMetrics && batchMetrics.attendanceOverview && batchMetrics.attendanceOverview.totalDays > 0) {
       autoTable(doc, {
         startY: currentY + 5,
         head: [["Metric", "Value"]],
@@ -876,8 +876,6 @@ const generateBatchInsightPDF = (batch: Batch, trainees: Trainee[], batchMetrics
     // Save the PDF with sanitized filename to avoid potential errors
     const safeFileName = batch.name.replace(/[^a-z0-9]/gi, '_');
     doc.save(`batch_insight_${safeFileName}_${new Date().toISOString().split('T')[0]}.pdf`);
-    
-    return true;
   } catch (error) {
     console.error("PDF generation error:", error);
     throw error;
@@ -1004,12 +1002,11 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
             className="gap-1"
             onClick={() => {
               try {
-                if (generateBatchInsightPDF(batch, traineesWithProgress, batchMetrics)) {
-                  toast({
-                    title: "PDF Generated Successfully",
-                    description: "Batch insight report has been downloaded.",
-                  });
-                }
+                generateBatchInsightPDF(batch, traineesWithProgress, batchMetrics);
+                toast({
+                  title: "PDF Generated Successfully",
+                  description: "Batch insight report has been downloaded.",
+                });
               } catch (error) {
                 console.error("Error generating PDF:", error);
                 toast({

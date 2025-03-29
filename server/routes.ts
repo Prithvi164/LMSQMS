@@ -5665,6 +5665,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message });
     }
   });
+      
+  // Get aggregated attendance overview stats for the dashboard
+  app.get("/api/organizations/:orgId/attendance/overview", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      
+      // Check if user belongs to the organization
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "You can only view attendance data in your own organization" });
+      }
+      
+      // Parse batch IDs if provided
+      let batchIds: number[] | undefined;
+      if (req.query.batchIds) {
+        try {
+          batchIds = JSON.parse(req.query.batchIds as string);
+          if (!Array.isArray(batchIds)) {
+            batchIds = undefined;
+          }
+        } catch (e) {
+          console.error('Error parsing batchIds:', e);
+        }
+      }
+      
+      // Parse date range if provided
+      let dateRange: { from: string; to: string } | undefined;
+      if (req.query.dateFrom && req.query.dateTo) {
+        dateRange = {
+          from: req.query.dateFrom as string,
+          to: req.query.dateTo as string
+        };
+      }
+      
+      // Get attendance overview data
+      const overviewData = await storage.getBatchAttendanceOverview(orgId, {
+        batchIds,
+        dateRange
+      });
+      
+      res.json(overviewData);
+    } catch (error: any) {
+      console.error("Error fetching attendance overview:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch attendance overview" });
+    }
+  });
 
   // Add question routes
   app.post("/api/questions", async (req, res) => {

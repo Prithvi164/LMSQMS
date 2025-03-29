@@ -1,7 +1,7 @@
-import { eq, inArray, sql, desc, and, or } from "drizzle-orm";
+import { eq, inArray, sql, desc, and, or, isNotNull, count, gt, gte, lte, between } from "drizzle-orm";
 import { db } from "./db";
 import * as schema from "@shared/schema";
-import { batchStatusEnum } from "@shared/schema";
+import { batchStatusEnum, attendance } from "@shared/schema";
 import {
   users,
   organizations,
@@ -296,6 +296,28 @@ export interface IStorage {
   createOrganizationHoliday(holiday: InsertOrganizationHoliday): Promise<OrganizationHoliday>;
   updateOrganizationHoliday(id: number, holiday: Partial<InsertOrganizationHoliday>): Promise<OrganizationHoliday>;
   deleteOrganizationHoliday(id: number): Promise<void>;
+  
+  // Attendance operations
+  createAttendanceRecord(attendanceData: { 
+    traineeId: number;
+    status: string;
+    date: string;
+    markedById: number;
+    organizationId: number;
+    batchId?: number;
+    phase?: string;
+  }): Promise<any>;
+  getAttendanceRecord(traineeId: number, date: string): Promise<any>;
+  getBatchAttendanceOverview(organizationId: number, options?: { 
+    batchIds?: number[];
+    dateRange?: { from: string; to: string };
+  }): Promise<{ 
+    presentCount: number;
+    absentCount: number;
+    lateCount: number;
+    leaveCount: number;
+    attendanceRate: number;
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3283,6 +3305,174 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // Attendance operations
+  async createAttendanceRecord(attendanceData: {
+    traineeId: number;
+    status: string;
+    date: string;
+    markedById: number;
+    organizationId: number;
+    batchId?: number;
+    phase?: string;
+  }): Promise<any> {
+    try {
+      console.log('Creating attendance record:', attendanceData);
+
+      // Get batch ID if not provided
+      let batchId = attendanceData.batchId;
+      let phase = attendanceData.phase;
+
+      if (!batchId) {
+        // Get trainee's active batch
+        const userBatches = await db
+          .select()
+          .from(userBatchProcesses)
+          .where(and(
+            eq(userBatchProcesses.userId, attendanceData.traineeId),
+            eq(userBatchProcesses.status, 'active')
+          ));
+
+        if (userBatches.length === 0) {
+          throw new Error('Trainee is not assigned to any active batch');
+        }
+
+        const batch = await this.getBatch(userBatches[0].batchId);
+        if (!batch) {
+          throw new Error('Batch not found');
+        }
+
+        batchId = batch.id;
+        phase = batch.status;
+      }
+
+      // Check for existing record
+      const existingRecords = await db
+        .select()
+        .from(attendance)
+        .where(and(
+          eq(attendance.traineeId, attendanceData.traineeId),
+          eq(attendance.date, attendanceData.date),
+          eq(attendance.batchId, batchId as number)
+        ));
+
+      if (existingRecords.length > 0) {
+        // Update existing record
+        const [updatedRecord] = await db
+          .update(attendance)
+          .set({
+            status: attendanceData.status as any,
+            markedById: attendanceData.markedById,
+            updatedAt: new Date()
+          })
+          .where(eq(attendance.id, existingRecords[0].id))
+          .returning();
+
+        console.log('Updated attendance record:', updatedRecord);
+        return updatedRecord;
+      }
+
+      // Create new record
+      const [newRecord] = await db
+        .insert(attendance)
+        .values({
+          traineeId: attendanceData.traineeId,
+          batchId: batchId as number,
+          phase: phase as any,
+          status: attendanceData.status as any,
+          date: attendanceData.date,
+          markedById: attendanceData.markedById,
+          organizationId: attendanceData.organizationId
+        })
+        .returning();
+
+      console.log('Created attendance record:', newRecord);
+      return newRecord;
+    } catch (error) {
+      console.error('Error creating attendance record:', error);
+      throw error;
+    }
+  }
+
+  async getAttendanceRecord(traineeId: number, date: string): Promise<any> {
+    try {
+      console.log(`Fetching attendance for trainee ${traineeId} on ${date}`);
+      
+      const records = await db
+        .select()
+        .from(attendance)
+        .where(and(
+          eq(attendance.traineeId, traineeId),
+          eq(attendance.date, date)
+        ));
+
+      // Return the first record found, or null if none exist
+      return records.length > 0 ? records[0] : null;
+    } catch (error) {
+      console.error('Error fetching attendance record:', error);
+      throw error;
+    }
+  }
+
+  async getBatchAttendanceOverview(organizationId: number, options?: { 
+    batchIds?: number[]; 
+    dateRange?: { from: string; to: string };
+  }): Promise<{ 
+    presentCount: number;
+    absentCount: number;
+    lateCount: number;
+    leaveCount: number;
+    attendanceRate: number;
+  }> {
+    try {
+      console.log('Fetching attendance overview with options:', options);
+      
+      // Execute the query and get all attendance records
+      let query = db
+        .select()
+        .from(attendance)
+        .where(eq(attendance.organizationId, organizationId));
+      
+      // Add batch filter if provided
+      if (options?.batchIds && options.batchIds.length > 0) {
+        query = query.where(inArray(attendance.batchId, options.batchIds));
+      }
+      
+      // Add date range filter if provided
+      if (options?.dateRange) {
+        query = query.where(
+          and(
+            gte(attendance.date, options.dateRange.from),
+            lte(attendance.date, options.dateRange.to)
+          )
+        );
+      }
+      
+      const records = await query;
+      
+      // Count occurrences by status
+      const presentCount = records.filter(r => r.status === 'present').length;
+      const absentCount = records.filter(r => r.status === 'absent').length;
+      const lateCount = records.filter(r => r.status === 'late').length;
+      const leaveCount = records.filter(r => r.status === 'leave').length;
+      
+      // Calculate attendance rate
+      const totalCount = presentCount + absentCount + lateCount + leaveCount;
+      const attendanceRate = totalCount > 0 
+        ? Math.round((presentCount / totalCount) * 100) 
+        : 0;
+      
+      return {
+        presentCount,
+        absentCount,
+        lateCount,
+        leaveCount,
+        attendanceRate
+      };
+    } catch (error) {
+      console.error('Error getting attendance overview:', error);
+      throw error;
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();
