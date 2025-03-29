@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import type { User } from "@shared/schema";
-import Draggable from "react-draggable";
 
 // Helper function to get initials from name
 const getInitials = (name: string) => {
@@ -209,8 +208,6 @@ const OrgNode = ({ node, level }: OrgNodeProps) => {
   const { user: currentUser } = useAuth();
   const isRoot = level === 0;
   const hasChildren = node.children.length > 0;
-  // State to track node position
-  const [position, setPosition] = useState({ x: 0, y: 0 });
   
   // Get the location information from the API using React Query
   const { data: locations = [] } = useQuery<{ id: number; name: string; }[]>({
@@ -364,34 +361,23 @@ const OrgNode = ({ node, level }: OrgNodeProps) => {
     return null;
   };
   
-  // Handler for dragging
-  const onDragStop = (_e: any, data: { x: number, y: number }) => {
-    setPosition({ x: data.x, y: data.y });
-  };
-
   return (
     <div className="flex flex-col items-center">
-      {/* User card with draggable functionality */}
-      <Draggable
-        position={position}
-        onStop={onDragStop}
-        bounds={{ top: -1000, left: -1000, right: 1000, bottom: 1000 }}
-      >
-        <div className="mb-6 cursor-move">
-          <UserCard 
-            user={node.user}
-            // Use a safe way to pass department data
-            department={node.user.role === "trainee" ? "Training" : node.user.role === "trainer" ? "Training" : "Management"}
-            // Pass location information or empty string
-            location={getLocationName(node.user)}
-            // Pass process information
-            processName={getProcessName(node.user)}
-            // Pass batch information
-            batchInfo={getBatchInfo(node.user)}
-            reportCount={node.children.length}
-          />
-        </div>
-      </Draggable>
+      {/* User card */}
+      <div className="mb-6">
+        <UserCard 
+          user={node.user}
+          // Use a safe way to pass department data
+          department={node.user.role === "trainee" ? "Training" : node.user.role === "trainer" ? "Training" : "Management"}
+          // Pass location information or empty string
+          location={getLocationName(node.user)}
+          // Pass process information
+          processName={getProcessName(node.user)}
+          // Pass batch information
+          batchInfo={getBatchInfo(node.user)}
+          reportCount={node.children.length}
+        />
+      </div>
       
       {/* Connector line to children */}
       {hasChildren && (
