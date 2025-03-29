@@ -106,8 +106,21 @@ export function RolePermissions() {
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Force a refetch of the data instead of just invalidating
+      queryClient.setQueryData(["/api/permissions"], (oldData: any) => {
+        if (!oldData) return oldData;
+        return oldData.map((rp: any) => 
+          rp.role === data.role ? data : rp
+        );
+      });
+      
+      // Also invalidate to ensure fresh data on next fetch
       queryClient.invalidateQueries({ queryKey: ["/api/permissions"] });
+      
+      // Also invalidate the specific role permissions
+      queryClient.invalidateQueries({ queryKey: [`/api/permissions/${data.role}`] });
+      
       toast({
         title: "Permissions updated",
         description: "Role permissions have been updated successfully.",
