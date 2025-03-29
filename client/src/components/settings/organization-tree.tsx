@@ -12,7 +12,8 @@ import {
   ZoomIn, 
   ZoomOut, 
   Users, 
-  ChevronUp, 
+  ChevronUp,
+  ChevronDown,
   RotateCcw,
   Briefcase,
   Calendar,
@@ -98,6 +99,8 @@ interface UserCardProps {
     status: string;
   } | null;
   reportCount?: number;
+  onClick?: () => void;
+  expanded?: boolean;
 }
 
 // User Card Component
@@ -108,7 +111,9 @@ const UserCard = ({
   location = "", 
   processName = "", 
   batchInfo = null, 
-  reportCount = 0 
+  reportCount = 0,
+  onClick,
+  expanded = false
 }: UserCardProps) => {
   const avatarColor = color || getAvatarColor(user.fullName || user.username);
   const roleColor = user.role === "owner" ? "bg-primary" : 
@@ -118,7 +123,7 @@ const UserCard = ({
                    "bg-blue-600";
   
   return (
-    <Card className="min-w-[260px] max-w-[260px] shadow-lg hover:shadow-xl transition-all p-0 overflow-hidden border-2 border-muted">
+    <Card className={`min-w-[260px] max-w-[260px] shadow-lg hover:shadow-xl transition-all p-0 overflow-hidden border-2 ${expanded ? 'border-primary' : 'border-muted'}`}>
       {/* Colored header based on role */}
       <div className={`${roleColor} h-2 w-full`}></div>
       
@@ -188,8 +193,20 @@ const UserCard = ({
         
         {reportCount > 0 && (
           <div className="mt-3 pt-2 border-t border-border flex justify-center">
-            <Badge variant="secondary" className="text-xs px-2 py-1 bg-muted/50 hover:bg-muted">
+            <Badge 
+              variant="secondary" 
+              className="text-xs px-2 py-1 bg-muted/50 hover:bg-muted cursor-pointer transition-colors flex items-center gap-1"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (typeof onClick === 'function') onClick();
+              }}
+            >
               {reportCount} direct {reportCount === 1 ? 'report' : 'reports'}
+              {onClick && (
+                <ChevronDown 
+                  className={`h-3 w-3 ml-1 transition-transform ${expanded ? 'rotate-180' : ''}`} 
+                />
+              )}
             </Badge>
           </div>
         )}
@@ -208,6 +225,7 @@ const OrgNode = ({ node, level }: OrgNodeProps) => {
   const { user: currentUser } = useAuth();
   const isRoot = level === 0;
   const hasChildren = node.children.length > 0;
+  const [expanded, setExpanded] = useState<boolean>(false);
   
   // Get the location information from the API using React Query
   const { data: locations = [] } = useQuery<{ id: number; name: string; }[]>({
@@ -376,16 +394,18 @@ const OrgNode = ({ node, level }: OrgNodeProps) => {
           // Pass batch information
           batchInfo={getBatchInfo(node.user)}
           reportCount={node.children.length}
+          onClick={() => setExpanded(!expanded)}
+          expanded={expanded}
         />
       </div>
       
-      {/* Connector line to children */}
-      {hasChildren && (
+      {/* Connector line to children - only show when expanded */}
+      {hasChildren && expanded && (
         <div className="w-[2px] h-10 bg-primary/30" />
       )}
       
-      {/* Children */}
-      {hasChildren && (
+      {/* Children - only show when expanded */}
+      {hasChildren && expanded && (
         <div className="relative">
           {/* Horizontal connecting line */}
           <div className="absolute left-1/2 -translate-x-1/2 -top-6 h-6 w-[2px] bg-primary/30" />
