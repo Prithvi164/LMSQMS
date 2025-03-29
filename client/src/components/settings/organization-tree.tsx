@@ -29,17 +29,18 @@ const getInitials = (name: string) => {
 
 // Helper function to get a random color based on name
 const getAvatarColor = (name: string) => {
+  // Using darker, more vibrant colors for better visibility
   const colors = [
-    'bg-blue-500',
-    'bg-indigo-500',
-    'bg-purple-500',
-    'bg-pink-500',
-    'bg-red-500',
-    'bg-orange-500',
-    'bg-yellow-500',
-    'bg-green-500',
-    'bg-teal-500',
-    'bg-cyan-500'
+    'bg-blue-600',
+    'bg-indigo-600',
+    'bg-purple-600',
+    'bg-pink-600',
+    'bg-red-600',
+    'bg-orange-600',
+    'bg-yellow-600',
+    'bg-emerald-600',
+    'bg-teal-600',
+    'bg-cyan-600'
   ];
   
   // Generate a hash from the name
@@ -94,51 +95,62 @@ interface UserCardProps {
 // User Card Component
 const UserCard = ({ user, color, department = "", location = "", reportCount = 0 }: UserCardProps) => {
   const avatarColor = color || getAvatarColor(user.fullName || user.username);
+  const roleColor = user.role === "owner" ? "bg-primary" : 
+                   user.role === "admin" ? "bg-indigo-600" : 
+                   user.role === "manager" ? "bg-emerald-600" : 
+                   user.role === "trainer" ? "bg-orange-600" : 
+                   "bg-blue-600";
   
   return (
-    <Card className="min-w-[240px] max-w-[240px] shadow-md hover:shadow-lg transition-shadow p-3">
-      <div className="flex flex-col items-center text-center mb-2">
-        <Avatar className={`h-14 w-14 ${avatarColor} text-white mb-2`}>
-          <AvatarFallback className="text-lg">
-            {getInitials(user.fullName || user.username)}
-          </AvatarFallback>
-        </Avatar>
-        <div className="font-semibold truncate w-full">{user.fullName || user.username}</div>
-        <div className="text-sm text-muted-foreground truncate w-full">
-          {user.role && user.role.replace(/_/g, " ")}
+    <Card className="min-w-[240px] max-w-[240px] shadow-lg hover:shadow-xl transition-all p-0 overflow-hidden border-2 border-muted">
+      {/* Colored header based on role */}
+      <div className={`${roleColor} h-2 w-full`}></div>
+      
+      <div className="p-4">
+        <div className="flex flex-col items-center text-center mb-3">
+          <Avatar className={`h-16 w-16 ${avatarColor} text-white mb-3 ring-4 ring-background shadow-md`}>
+            <AvatarFallback className="text-xl font-bold">
+              {getInitials(user.fullName || user.username)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="font-bold text-base truncate w-full">{user.fullName || user.username}</div>
+          <div className="text-sm text-muted-foreground truncate w-full mt-1">
+            {user.role && user.role.replace(/_/g, " ")}
+          </div>
         </div>
-      </div>
-      
-      <div className="flex justify-center mb-2">
-        <Badge variant={user.role === "owner" ? "default" : "outline"} className="capitalize">
-          {user.role}
-        </Badge>
-      </div>
-      
-      {(location || department) && (
-        <div className="text-xs text-muted-foreground space-y-1">
-          {location && (
-            <div className="flex items-center justify-center gap-1">
-              <Map className="h-3 w-3" />
-              <span className="truncate">{location}</span>
-            </div>
-          )}
-          {department && (
-            <div className="flex items-center justify-center gap-1">
-              <Building className="h-3 w-3" />
-              <span className="truncate">{department}</span>
-            </div>
-          )}
-        </div>
-      )}
-      
-      {reportCount > 0 && (
-        <div className="mt-2 pt-2 border-t border-border flex justify-center">
-          <Badge variant="secondary" className="text-xs">
-            {reportCount} direct {reportCount === 1 ? 'report' : 'reports'}
+        
+        <div className="flex justify-center mb-3">
+          <Badge variant={user.role === "owner" ? "default" : "outline"} 
+                 className={`capitalize ${user.role === "owner" ? "bg-primary-600" : ""} px-3 py-1`}>
+            {user.role}
           </Badge>
         </div>
-      )}
+        
+        {(location || department) && (
+          <div className="text-xs text-muted-foreground space-y-2 bg-muted/20 p-2 rounded-md">
+            {department && (
+              <div className="flex items-center justify-center gap-1">
+                <Building className="h-3 w-3 text-primary/70" />
+                <span className="truncate font-medium">{department}</span>
+              </div>
+            )}
+            {location && (
+              <div className="flex items-center justify-center gap-1">
+                <Map className="h-3 w-3 text-primary/70" />
+                <span className="truncate font-medium">{location}</span>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {reportCount > 0 && (
+          <div className="mt-3 pt-2 border-t border-border flex justify-center">
+            <Badge variant="secondary" className="text-xs px-2 py-1 bg-muted/50 hover:bg-muted">
+              {reportCount} direct {reportCount === 1 ? 'report' : 'reports'}
+            </Badge>
+          </div>
+        )}
+      </div>
     </Card>
   );
 };
@@ -150,14 +162,22 @@ interface OrgNodeProps {
 
 // Organization Node Component for horizontal tree
 const OrgNode = ({ node, level }: OrgNodeProps) => {
+  const { user: currentUser } = useAuth();
   const isRoot = level === 0;
   const hasChildren = node.children.length > 0;
   
-  // Get the location name based on locationId if available
+  // Get the location information from the API using React Query
+  const { data: locations = [] } = useQuery<{ id: number; name: string; }[]>({
+    queryKey: ["/api/organizations", currentUser?.organizationId, "locations"],
+    enabled: !!currentUser?.organizationId,
+  });
+  
+  // Function to get location name based on locationId
   const getLocationName = (user: User): string => {
-    // For demonstration, we could try to find the location name based on locationId
-    // In a real implementation, we would fetch the location data from the API
-    return user.locationId ? `Location ID: ${user.locationId}` : "";
+    if (!user.locationId) return "";
+    
+    const location = locations.find(loc => loc.id === user.locationId);
+    return location ? location.name : "";
   };
   
   return (
@@ -176,24 +196,27 @@ const OrgNode = ({ node, level }: OrgNodeProps) => {
       
       {/* Connector line to children */}
       {hasChildren && (
-        <div className="w-px h-8 bg-border" />
+        <div className="w-[2px] h-10 bg-primary/30" />
       )}
       
       {/* Children */}
       {hasChildren && (
         <div className="relative">
           {/* Horizontal connecting line */}
-          <div className="absolute left-1/2 -translate-x-1/2 -top-4 h-4 w-px bg-border" />
+          <div className="absolute left-1/2 -translate-x-1/2 -top-6 h-6 w-[2px] bg-primary/30" />
           
           {/* Horizontal line above children */}
-          <div className={`absolute h-px bg-border ${node.children.length > 1 ? 'left-0 right-0' : 'w-0'}`} style={{ top: '-4px' }} />
+          <div 
+            className={`absolute h-[2px] bg-primary/30 ${node.children.length > 1 ? 'left-0 right-0' : 'w-0'}`} 
+            style={{ top: '-6px' }} 
+          />
           
-          <div className="flex gap-6 mt-4">
+          <div className="flex gap-8 mt-4">
             {node.children.map((child, index) => (
               <div key={child.user.id} className="relative">
                 {/* Vertical connecting line to parent */}
                 {node.children.length > 1 && index > 0 && (
-                  <div className="absolute left-1/2 -translate-x-1/2 -top-4 h-4 w-px bg-border" />
+                  <div className="absolute left-1/2 -translate-x-1/2 -top-6 h-6 w-[2px] bg-primary/30" />
                 )}
                 <OrgNode node={child} level={level + 1} />
               </div>
