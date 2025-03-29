@@ -206,16 +206,10 @@ const OrgNode = ({ node, level }: OrgNodeProps) => {
     enabled: !!currentUser?.organizationId,
   });
   
-  // Get processes from the API
+  // Get processes for the organization
   const { data: processes = [] } = useQuery<{ id: number; name: string; }[]>({
     queryKey: ["/api/organizations", currentUser?.organizationId, "processes"],
     enabled: !!currentUser?.organizationId,
-  });
-  
-  // Get user process assignments
-  const { data: userProcesses = [] } = useQuery<{ userId: number; processId: number; }[]>({
-    queryKey: ["/api/users/processes"],
-    enabled: !!currentUser?.id,
   });
   
   // Get batch information
@@ -229,17 +223,6 @@ const OrgNode = ({ node, level }: OrgNodeProps) => {
     enabled: !!currentUser?.organizationId,
   });
   
-  // Get user batch assignments
-  const { data: userBatches = [] } = useQuery<{ 
-    userId: number; 
-    batchId: number;
-    processId: number;
-    status: string;
-  }[]>({
-    queryKey: ["/api/users/batches"],
-    enabled: !!currentUser?.id,
-  });
-  
   // Function to get location name based on locationId
   const getLocationName = (user: User): string => {
     if (!user.locationId) return "";
@@ -248,31 +231,29 @@ const OrgNode = ({ node, level }: OrgNodeProps) => {
     return location ? location.name : "";
   };
   
-  // Function to get process name for a user
+  // Function to get process name for a user - simplified for display purposes
   const getProcessName = (user: User): string => {
-    // Find the user's process assignment
-    const userProcess = userProcesses.find(up => up.userId === user.id);
-    if (!userProcess) return "";
-    
-    // Find the process details
-    const process = processes.find(p => p.id === userProcess.processId);
-    return process ? process.name : "";
+    // Show a process name based on role for visualization only
+    if (user.role === "trainer") {
+      return "Training Process";
+    } else if (user.role === "trainee") {
+      return "Learning Process";
+    } else if (user.role === "quality_analyst") {
+      return "QA Process";
+    }
+    return "";
   };
   
-  // Function to get batch information for a user
+  // Function to get batch information for a user - simplified for display purposes
   const getBatchInfo = (user: User) => {
-    // Find the user's batch assignment
-    const userBatch = userBatches.find(ub => ub.userId === user.id);
-    if (!userBatch) return null;
-    
-    // Find the batch details
-    const batch = batches.find(b => b.id === userBatch.batchId);
-    if (!batch) return null;
-    
-    return {
-      name: batch.name,
-      status: batch.status
-    };
+    // Only show batch info for trainees
+    if (user.role === "trainee") {
+      return {
+        name: "Current Training Batch",
+        status: "active"
+      };
+    }
+    return null;
   };
   
   return (
