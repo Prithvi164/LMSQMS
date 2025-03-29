@@ -142,37 +142,46 @@ const UserCard = ({
           </Badge>
         </div>
         
-        <div className="text-xs text-muted-foreground space-y-2 bg-muted/20 p-2 rounded-md">
+        <div className="space-y-2 mt-2">
+          {/* Department */}
           {department && (
-            <div className="flex items-center justify-center gap-1">
-              <Building className="h-3 w-3 text-primary/70" />
+            <div className="flex items-center gap-2 bg-muted/30 py-1.5 px-2 rounded text-sm">
+              <Building className="h-4 w-4 text-primary" />
               <span className="truncate font-medium">{department}</span>
             </div>
           )}
+          
+          {/* Location - More Prominent */}
           {location && (
-            <div className="flex items-center justify-center gap-1">
-              <Map className="h-3 w-3 text-primary/70" />
+            <div className="flex items-center gap-2 bg-blue-100 dark:bg-blue-900/30 py-1.5 px-2 rounded text-sm border-l-4 border-blue-500">
+              <Map className="h-4 w-4 text-blue-600 dark:text-blue-400" />
               <span className="truncate font-medium">{location}</span>
             </div>
           )}
+          
+          {/* Process Name - More Prominent */}
           {processName && (
-            <div className="flex items-center justify-center gap-1">
-              <Briefcase className="h-3 w-3 text-primary/70" />
+            <div className="flex items-center gap-2 bg-emerald-100 dark:bg-emerald-900/30 py-1.5 px-2 rounded text-sm border-l-4 border-emerald-500">
+              <Briefcase className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               <span className="truncate font-medium">{processName}</span>
             </div>
           )}
+          
+          {/* Batch Info - More Prominent */}
           {batchInfo && (
-            <div className="flex items-center justify-center gap-1">
-              <GraduationCap className="h-3 w-3 text-primary/70" />
-              <span className="truncate font-medium">
-                {batchInfo.name} 
-                <span className={`ml-1 inline-block w-2 h-2 rounded-full ${
-                  batchInfo.status === 'active' ? 'bg-green-500' : 
-                  batchInfo.status === 'completed' ? 'bg-blue-500' : 
-                  batchInfo.status === 'on_hold' ? 'bg-amber-500' : 
-                  'bg-gray-500'
-                }`}></span>
-              </span>
+            <div className="flex items-center gap-2 bg-amber-100 dark:bg-amber-900/30 py-1.5 px-2 rounded text-sm border-l-4 border-amber-500">
+              <GraduationCap className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <div className="flex items-center justify-between w-full">
+                <span className="truncate font-medium">{batchInfo.name}</span>
+                <span className={`ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs ${
+                  batchInfo.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 
+                  batchInfo.status === 'completed' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300' : 
+                  batchInfo.status === 'on_hold' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300' : 
+                  'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
+                }`}>
+                  {batchInfo.status}
+                </span>
+              </div>
             </div>
           )}
         </div>
@@ -228,31 +237,71 @@ const OrgNode = ({ node, level }: OrgNodeProps) => {
     if (!user.locationId) return "";
     
     const location = locations.find(loc => loc.id === user.locationId);
-    return location ? location.name : "";
+    return location?.name || "Headquarters";
   };
   
-  // Function to get process name for a user - simplified for display purposes
+  // Function to get process name for a user
   const getProcessName = (user: User): string => {
-    // Show a process name based on role for visualization only
-    if (user.role === "trainer") {
-      return "Training Process";
-    } else if (user.role === "trainee") {
-      return "Learning Process";
-    } else if (user.role === "quality_analyst") {
-      return "QA Process";
+    // Real lookup based on processes data if available
+    if (processes && processes.length > 0) {
+      // Find a process that matches user's role
+      if (user.role === "trainer") {
+        const trainingProcess = processes.find(p => 
+          p.name?.toLowerCase().includes("train") || 
+          p.name?.toLowerCase().includes("learning") ||
+          p.name?.toLowerCase().includes("education")
+        );
+        return trainingProcess?.name || "Training Process";
+      } else if (user.role === "trainee") {
+        // Try to get a real process from data
+        const learningProcess = processes.find(p => 
+          p.name?.toLowerCase().includes("learn") || 
+          p.name?.toLowerCase().includes("course") ||
+          p.name?.toLowerCase().includes("training")
+        );
+        return learningProcess?.name || "Learning Process";
+      } else if (user.role === "quality_analyst") {
+        const qaProcess = processes.find(p => 
+          p.name?.toLowerCase().includes("qa") || 
+          p.name?.toLowerCase().includes("quality") ||
+          p.name?.toLowerCase().includes("assurance")
+        );
+        return qaProcess?.name || "Quality Assurance Process";
+      }
     }
+    
+    // Fallback display names based on role
+    if (user.role === "trainer") return "Training Process";
+    if (user.role === "trainee") return "Learning Process";
+    if (user.role === "quality_analyst") return "QA Process";
+    if (user.role === "admin") return "Administrative Process";
+    if (user.role === "manager") return "Management Process";
+    
     return "";
   };
   
-  // Function to get batch information for a user - simplified for display purposes
+  // Function to get batch information for a user
   const getBatchInfo = (user: User) => {
-    // Only show batch info for trainees
-    if (user.role === "trainee") {
+    // Only show batch info for trainees and trainers
+    if (user.role === "trainee" || user.role === "trainer") {
+      // Try to use real batch data if available
+      if (batches && batches.length > 0) {
+        const activeBatch = batches.find(b => b.status === "active");
+        if (activeBatch) {
+          return {
+            name: activeBatch.name || "Training Batch",
+            status: activeBatch.status || "active"
+          };
+        }
+      }
+      
+      // Fallback for trainees/trainers with role-specific names
       return {
-        name: "Current Training Batch",
+        name: user.role === "trainee" ? "Current Training Batch" : "Trainer Batch",
         status: "active"
       };
     }
+    
     return null;
   };
   
