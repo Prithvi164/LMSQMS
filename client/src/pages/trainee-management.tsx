@@ -1091,11 +1091,37 @@ export default function TraineeManagement() {
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Assessments:</span>
-                            <span className="font-medium">0</span>
+                            <span className="font-medium">{batch.assessmentCount || '0'}</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Certifications:</span>
-                            <span className="font-medium">0</span>
+                            <span className="font-medium">{batch.certificationCount || '0'}</span>
+                          </div>
+                        </div>
+                        
+                        {/* Assessment Results Summary */}
+                        <div className="mt-4 pt-4 border-t border-border/30">
+                          <h4 className="text-sm font-medium mb-2 flex items-center">
+                            <Award className="h-4 w-4 mr-1 text-amber-500" />
+                            Assessment Results
+                          </h4>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="bg-green-50 dark:bg-green-900/20 rounded p-2 text-center">
+                              <div className="text-xs text-muted-foreground">Passed</div>
+                              <div className="text-green-600 dark:text-green-400 font-medium text-lg">
+                                {selectedBatch && selectedBatch.id === batch.id 
+                                  ? quizAttempts.filter(attempt => attempt.isPassed).length
+                                  : 0}
+                              </div>
+                            </div>
+                            <div className="bg-red-50 dark:bg-red-900/20 rounded p-2 text-center">
+                              <div className="text-xs text-muted-foreground">Failed</div>
+                              <div className="text-red-600 dark:text-red-400 font-medium text-lg">
+                                {selectedBatch && selectedBatch.id === batch.id 
+                                  ? quizAttempts.filter(attempt => !attempt.isPassed).length
+                                  : 0}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
