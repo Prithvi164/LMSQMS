@@ -5781,6 +5781,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Quiz results for a batch
+  app.get("/api/organizations/:orgId/batches/:batchId/quiz-results", async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const batchId = parseInt(req.params.batchId);
+      
+      if (isNaN(orgId) || isNaN(batchId)) {
+        return res.status(400).json({ message: "Invalid organization ID or batch ID" });
+      }
+      
+      // Verify organization access
+      if (orgId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Verify batch access
+      const batch = await storage.getBatch(batchId);
+      if (!batch) {
+        return res.status(404).json({ message: "Batch not found" });
+      }
+      
+      if (batch.organizationId !== orgId) {
+        return res.status(403).json({ message: "Batch does not belong to this organization" });
+      }
+      
+      // Get quiz results for the batch
+      const results = await storage.getQuizResultsByBatch(batchId);
+      res.json(results);
+    } catch (error: any) {
+      console.error("Error fetching batch quiz results:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch batch quiz results" });
+    }
+  });
+  
+  // Quiz results for a user
+  app.get("/api/organizations/:orgId/users/:userId/quiz-results", async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const userId = parseInt(req.params.userId);
+      
+      if (isNaN(orgId) || isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid organization ID or user ID" });
+      }
+      
+      // Verify organization access
+      if (orgId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Verify user exists and belongs to the organization
+      const userToCheck = await storage.getUserById(userId);
+      if (!userToCheck) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      if (userToCheck.organizationId !== orgId) {
+        return res.status(403).json({ message: "User does not belong to this organization" });
+      }
+      
+      // Get quiz results for the user
+      const results = await storage.getQuizResultsByUser(userId);
+      res.json(results);
+    } catch (error: any) {
+      console.error("Error fetching user quiz results:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch user quiz results" });
+    }
+  });
+
   // Mock Call Scenario Routes
   app.post("/api/mock-call-scenarios", async (req, res) => {
     if (!req.user || !req.user.organizationId) {

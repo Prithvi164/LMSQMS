@@ -17,7 +17,8 @@ import {
   RotateCcw,
   Briefcase,
   Calendar,
-  GraduationCap
+  GraduationCap,
+  FileText
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import type { User } from "@shared/schema";
@@ -101,6 +102,14 @@ interface UserCardProps {
   reportCount?: number;
   onClick?: () => void;
   expanded?: boolean;
+  quizResults?: {
+    quizId: number;
+    quizName: string;
+    score: number;
+    passingScore: number;
+    status: 'pass' | 'fail';
+    completedAt: string;
+  }[];
 }
 
 // User Card Component
@@ -113,7 +122,8 @@ const UserCard = ({
   batchInfo = null, 
   reportCount = 0,
   onClick,
-  expanded = false
+  expanded = false,
+  quizResults = []
 }: UserCardProps) => {
   const avatarColor = color || getAvatarColor(user.fullName || user.username);
   const roleColor = user.role === "owner" ? "bg-primary" : 
@@ -186,6 +196,32 @@ const UserCard = ({
                 }`}>
                   {batchInfo.status}
                 </span>
+              </div>
+            </div>
+          )}
+
+          {/* Quiz Results - Only show for trainees */}
+          {user.role === 'trainee' && quizResults.length > 0 && (
+            <div className="mt-2 space-y-2">
+              <div className="flex items-center gap-2 bg-purple-100 dark:bg-purple-900/30 py-1.5 px-2 rounded-md text-sm border-l-4 border-purple-500 shadow-sm">
+                <FileText className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                <span className="font-medium">Quiz Results</span>
+              </div>
+              
+              <div className="space-y-1 max-h-36 overflow-y-auto px-1 py-1 bg-background/50 rounded">
+                {quizResults.map((result, idx) => (
+                  <div key={idx} className="flex items-center justify-between text-xs border-b pb-1 last:border-b-0">
+                    <span className="truncate max-w-[60%]" title={result.quizName}>
+                      {result.quizName.length > 15 ? `${result.quizName.substring(0, 15)}...` : result.quizName}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className="font-semibold">{result.score}%</span>
+                      <Badge variant={result.status === 'pass' ? 'success' : 'destructive'} className="text-[10px] px-1">
+                        {result.status === 'pass' ? 'PASS' : 'FAIL'}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -281,6 +317,22 @@ const OrgNode = ({ node, level }: OrgNodeProps) => {
   }[]>({
     queryKey: ["/api/user-locations"],
     enabled: !!currentUser,
+  });
+  
+  // Get quiz results data for trainees
+  const { data: quizResults = [] } = useQuery<{
+    userId: number;
+    quizResults: {
+      quizId: number;
+      quizName: string;
+      score: number;
+      passingScore: number;
+      status: 'pass' | 'fail';
+      completedAt: string;
+    }[];
+  }[]>({
+    queryKey: ["/api/users/quiz-results"],
+    enabled: !!currentUser && (node.user.role === 'trainee' || level === 0),
   });
   
   // Function to get location name based on locationId
@@ -393,6 +445,8 @@ const OrgNode = ({ node, level }: OrgNodeProps) => {
           processName={getProcessName(node.user)}
           // Pass batch information
           batchInfo={getBatchInfo(node.user)}
+          // Pass quiz results for this user
+          quizResults={quizResults.find(qr => qr.userId === node.user.id)?.quizResults || []}
           reportCount={node.children.length}
           onClick={() => setExpanded(!expanded)}
           expanded={expanded}
