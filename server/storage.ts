@@ -2596,17 +2596,52 @@ export class DatabaseStorage implements IStorage {
         );
         
         console.log('Processed questions array:', processedQuestions);
+        
+        // Create a proper PostgreSQL-compatible array structure
+        const questions = JSON.stringify(processedQuestions);
+        console.log('Final processed array for DB:', questions);
+        
+        // Create a new template object with the processed array
         template = {
           ...template,
           questions: processedQuestions
         };
       }
       
-      const [newTemplate] = await db
-        .insert(quizTemplates)
-        .values(template)
-        .returning();
-      return newTemplate;    
+      try {
+        // First try direct insertion with Drizzle ORM
+        const [newTemplate] = await db
+          .insert(quizTemplates)
+          .values(template)
+          .returning();
+        return newTemplate;
+      } catch (innerError) {
+        console.error('Direct insertion failed. Error:', innerError);
+        console.log('Attempting insertion with custom SQL for questions array...');
+        
+        // Create a copy of the template without the questions field
+        const { questions, ...templateWithoutQuestions } = template;
+        
+        // Insert template with separate SQL for questions array
+        const questionsJson = JSON.stringify(template.questions);
+        
+        // Format SQL with explicit cast to JSONB
+        const [newTemplate] = await db.execute(`
+          INSERT INTO quiz_templates (
+            ${Object.keys(templateWithoutQuestions).join(', ')},
+            questions
+          ) VALUES (
+            ${Object.keys(templateWithoutQuestions).map((_, i) => `$${i + 1}`).join(', ')},
+            $${Object.keys(templateWithoutQuestions).length + 1}::jsonb
+          )
+          RETURNING *
+        `, [
+          ...Object.values(templateWithoutQuestions),
+          questionsJson
+        ]);
+        
+        return newTemplate;
+      }
     } catch (error) {
       console.error('Error creating quiz template:', error);
       throw error;
@@ -2658,27 +2693,92 @@ export class DatabaseStorage implements IStorage {
         );
         
         console.log('Processed questions array in update:', processedQuestions);
+        
+        // Create a proper PostgreSQL-compatible array structure
+        const questions = JSON.stringify(processedQuestions);
+        console.log('Final processed array for DB (update):', questions);
+        
         template = {
           ...template,
           questions: processedQuestions
         };
       }
 
-      const [updatedTemplate] = await db
-        .update(quizTemplates)
-        .set({
-          ...template,
-          updatedAt: new Date()
-        })
-        .where(eq(quizTemplates.id, id))
-        .returning() as QuizTemplate[];
+      try {
+        // First try direct update with Drizzle ORM
+        const [updatedTemplate] = await db
+          .update(quizTemplates)
+          .set({
+            ...template,
+            updatedAt: new Date()
+          })
+          .where(eq(quizTemplates.id, id))
+          .returning() as QuizTemplate[];
 
-      if (!updatedTemplate) {
-        throw new Error('Quiz template not found');
+        if (!updatedTemplate) {
+          throw new Error('Quiz template not found');
+        }
+
+        console.log('Successfully updated quiz template:', updatedTemplate);
+        return updatedTemplate;
+      } catch (innerError) {
+        console.error('Direct update failed. Error:', innerError);
+        console.log('Attempting update with custom SQL for questions array...');
+        
+        // Get the existing template
+        const [existingTemplate] = await db
+          .select()
+          .from(quizTemplates)
+          .where(eq(quizTemplates.id, id));
+        
+        if (!existingTemplate) {
+          throw new Error('Quiz template not found');
+        }
+        
+        // Create copies without the questions field
+        const { questions, ...templateWithoutQuestions } = template;
+        
+        // Only continue with custom SQL if questions array exists
+        if (questions) {
+          // Format questions for PostgreSQL
+          const questionsJson = JSON.stringify(questions);
+          
+          // Update with explicit JSONB cast
+          const [updatedTemplate] = await db.execute(`
+            UPDATE quiz_templates 
+            SET 
+              ${Object.keys(templateWithoutQuestions).map(key => `${key} = $${key}`).join(', ')}
+              ${Object.keys(templateWithoutQuestions).length > 0 ? ',' : ''} 
+              questions = $questions::jsonb,
+              updated_at = NOW()
+            WHERE id = $id
+            RETURNING *
+          `, {
+            ...templateWithoutQuestions,
+            questions: questionsJson,
+            id
+          });
+          
+          console.log('Successfully updated quiz template with custom SQL:', updatedTemplate);
+          return updatedTemplate;
+        }
+        
+        // If we don't have questions to update, just update the other fields
+        const [updatedTemplate] = await db.execute(`
+          UPDATE quiz_templates 
+          SET 
+            ${Object.keys(templateWithoutQuestions).map(key => `${key} = $${key}`).join(', ')},
+            updated_at = NOW()
+          WHERE id = $id
+          RETURNING *
+        `, {
+          ...templateWithoutQuestions,
+          id
+        });
+        
+        console.log('Successfully updated quiz template with custom SQL (no questions update):', updatedTemplate);
+        return updatedTemplate;
       }
-
-      console.log('Successfully updated quiz template:', updatedTemplate);
-      return updatedTemplate;
     } catch (error) {
       console.error('Error updating quiz template:', error);
       throw error;
@@ -2719,19 +2819,76 @@ export class DatabaseStorage implements IStorage {
       if (!quiz.questions || quiz.questions.length === 0) {
         throw new Error('Quiz must have at least one question');
       }
-
-      const [newQuiz] = await db
-        .insert(quizzes)
-        .values({
+      
+      // Ensure questions are properly formatted for PostgreSQL
+      if (quiz.questions && Array.isArray(quiz.questions)) {
+        console.log('Original quiz questions array:', quiz.questions);
+        
+        // Make sure each question is a number type
+        const processedQuestions = quiz.questions.map(id => 
+          typeof id === 'string' ? parseInt(id) : id
+        );
+        
+        console.log('Processed quiz questions array:', processedQuestions);
+        
+        // Create a proper PostgreSQL-compatible array structure
+        const questionsJson = JSON.stringify(processedQuestions);
+        console.log('Final quiz questions array for DB:', questionsJson);
+        
+        quiz = {
           ...quiz,
-          status: 'active',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-        .returning() as Quiz[];
+          questions: processedQuestions
+        };
+      }
 
-      console.log('Successfully created quiz:', newQuiz);
-      return newQuiz;
+      try {
+        // First try direct insertion with Drizzle ORM
+        const [newQuiz] = await db
+          .insert(quizzes)
+          .values({
+            ...quiz,
+            status: 'active',
+            createdAt: new Date(),
+            updatedAt: new Date()
+          })
+          .returning() as Quiz[];
+
+        console.log('Successfully created quiz:', newQuiz);
+        return newQuiz;
+      } catch (innerError) {
+        console.error('Direct quiz insertion failed. Error:', innerError);
+        console.log('Attempting insertion with custom SQL for questions array...');
+        
+        // Create a copy of the quiz without the questions field
+        const { questions, ...quizWithoutQuestions } = quiz;
+        
+        // Format questions for PostgreSQL
+        const questionsJson = JSON.stringify(quiz.questions);
+        
+        // Format SQL with explicit cast to JSONB
+        const [newQuiz] = await db.execute(`
+          INSERT INTO quizzes (
+            ${Object.keys(quizWithoutQuestions).join(', ')},
+            questions,
+            status,
+            created_at,
+            updated_at
+          ) VALUES (
+            ${Object.keys(quizWithoutQuestions).map((_, i) => `$${i + 1}`).join(', ')},
+            $${Object.keys(quizWithoutQuestions).length + 1}::jsonb,
+            'active',
+            NOW(),
+            NOW()
+          )
+          RETURNING *
+        `, [
+          ...Object.values(quizWithoutQuestions),
+          questionsJson
+        ]);
+        
+        console.log('Successfully created quiz with custom SQL:', newQuiz);
+        return newQuiz;
+      }
     } catch (error) {
       console.error('Error creating quiz:', error);
       throw error;
