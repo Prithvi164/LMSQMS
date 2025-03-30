@@ -895,6 +895,260 @@ export default function TraineeManagement() {
               </CardContent>
             </Card>
             
+            {/* Trainee Assessment Results Tab */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center">
+                  <Award className="h-5 w-5 mr-2" />
+                  Trainee Assessment Results
+                </CardTitle>
+                <CardDescription>
+                  View assessment results for trainees in the training phase
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="recent">
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="recent">Recent Assessments</TabsTrigger>
+                    <TabsTrigger value="failed">Failed Assessments</TabsTrigger>
+                    <TabsTrigger value="passed">Passed Assessments</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="recent" className="space-y-4">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Trainee</TableHead>
+                          <TableHead>Assessment</TableHead>
+                          <TableHead>Score</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Completion Date</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedBatch ? (
+                          <>
+                            {isLoadingQuizAttempts ? (
+                              <TableRow>
+                                <TableCell colSpan={6} className="text-center py-4">
+                                  <div className="flex justify-center items-center space-x-2">
+                                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                    <span className="text-muted-foreground">Loading assessment data...</span>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ) : quizAttempts.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={6} className="text-center py-4">
+                                  <p className="text-muted-foreground">No assessment data available for this batch</p>
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              quizAttempts.map((attempt) => (
+                                <TableRow key={attempt.id}>
+                                  <TableCell className="font-medium">{attempt.user?.fullName || 'Unknown User'}</TableCell>
+                                  <TableCell>{attempt.quiz?.name || 'Unnamed Assessment'}</TableCell>
+                                  <TableCell>{attempt.score}%</TableCell>
+                                  <TableCell>
+                                    <Badge className={attempt.isPassed ? 
+                                      "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-800/20 dark:text-green-400" : 
+                                      "bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-800/20 dark:text-red-400"
+                                    }>
+                                      {attempt.isPassed ? 'Passed' : 'Failed'}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>{new Date(attempt.completedAt).toLocaleDateString()}</TableCell>
+                                  <TableCell>
+                                    <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon">
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem>
+                                      <Eye className="h-4 w-4 mr-2" />
+                                      View Details
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem>
+                                      <RefreshCcw className="h-4 w-4 mr-2" />
+                                      Schedule Refresher
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem>
+                                      <Clock className="h-4 w-4 mr-2" />
+                                      Reschedule Assessment
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                            </TableRow>
+                            ))
+                            )}
+                          </>
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
+                              Select a batch to view trainee assessment results
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TabsContent>
+                  
+                  <TabsContent value="failed" className="space-y-4">
+                    <div className="flex justify-between mb-4">
+                      <div>
+                        <h3 className="text-sm font-medium">Failed Assessments</h3>
+                        <p className="text-sm text-muted-foreground">Trainees who need additional training</p>
+                      </div>
+                      <Button variant="outline" size="sm">
+                        <RefreshCcw className="h-4 w-4 mr-2" />
+                        Schedule Group Refresher
+                      </Button>
+                    </div>
+                    
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>
+                            <div className="flex items-center space-x-2">
+                              <Checkbox id="select-all" />
+                              <label htmlFor="select-all">Trainee</label>
+                            </div>
+                          </TableHead>
+                          <TableHead>Assessment</TableHead>
+                          <TableHead>Score</TableHead>
+                          <TableHead>Attempts</TableHead>
+                          <TableHead>Last Attempt</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedBatch ? (
+                          <>
+                            {isLoadingQuizAttempts ? (
+                              <TableRow>
+                                <TableCell colSpan={6} className="text-center py-4">
+                                  <div className="flex justify-center items-center space-x-2">
+                                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                    <span className="text-muted-foreground">Loading assessment data...</span>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              quizAttempts.filter(attempt => !attempt.isPassed).map((attempt, index) => (
+                                <TableRow key={attempt.id}>
+                                  <TableCell>
+                                    <div className="flex items-center space-x-2">
+                                      <Checkbox id={`select-failed-${index}`} />
+                                      <label htmlFor={`select-failed-${index}`} className="font-medium">
+                                        {attempt.user?.fullName || 'Unknown User'}
+                                      </label>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>{attempt.quiz?.name || 'Unnamed Assessment'}</TableCell>
+                                  <TableCell>{attempt.score}%</TableCell>
+                                  <TableCell>1</TableCell>
+                                  <TableCell>{new Date(attempt.completedAt).toLocaleDateString()}</TableCell>
+                                  <TableCell>
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon">
+                                          <MoreVertical className="h-4 w-4" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end">
+                                        <DropdownMenuItem>
+                                          <Eye className="h-4 w-4 mr-2" />
+                                          View Details
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem>
+                                          <RefreshCcw className="h-4 w-4 mr-2" />
+                                          Schedule Refresher
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem>
+                                          <Clock className="h-4 w-4 mr-2" />
+                                          Reschedule Assessment
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            )}
+                          </>
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
+                              Select a batch to view failed assessments
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TabsContent>
+                  
+                  <TabsContent value="passed" className="space-y-4">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Trainee</TableHead>
+                          <TableHead>Assessment</TableHead>
+                          <TableHead>Score</TableHead>
+                          <TableHead>Completion Date</TableHead>
+                          <TableHead>Certificate</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedBatch ? (
+                          <>
+                            {isLoadingQuizAttempts ? (
+                              <TableRow>
+                                <TableCell colSpan={6} className="text-center py-4">
+                                  <div className="flex justify-center items-center space-x-2">
+                                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                    <span className="text-muted-foreground">Loading assessment data...</span>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              quizAttempts.filter(attempt => attempt.isPassed).map((attempt) => (
+                                <TableRow key={attempt.id}>
+                                  <TableCell className="font-medium">{attempt.user?.fullName || 'Unknown User'}</TableCell>
+                                  <TableCell>{attempt.quiz?.name || 'Unnamed Assessment'}</TableCell>
+                                  <TableCell>{attempt.score}%</TableCell>
+                                  <TableCell>{new Date(attempt.completedAt).toLocaleDateString()}</TableCell>
+                                  <TableCell>
+                                    <Button variant="ghost" size="sm">
+                                      <Download className="h-4 w-4 mr-2" />
+                                      Certificate
+                                    </Button>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Button variant="ghost" size="icon">
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            )}
+                          </>
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
+                              Select a batch to view passed assessments
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
             
             {trainingBatches.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
