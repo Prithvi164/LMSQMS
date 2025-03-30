@@ -7,7 +7,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft, ClipboardCheck } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft, ClipboardCheck, Plus, Book, Pencil } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -47,9 +48,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Textarea
-} from "@/components/ui/textarea";
 
 const statusColors = {
   present: 'text-green-500',
@@ -261,6 +259,12 @@ export function BatchDetailsPage() {
   const { data: managerRequests } = useQuery({
     queryKey: [`/api/managers/${user?.id}/phase-change-requests`],
     enabled: !!user?.id && user?.role === 'manager',
+  });
+
+  // Fetch quiz templates
+  const { data: quizTemplates = [], isLoading: quizTemplatesLoading } = useQuery({
+    queryKey: [`/api/quiz-templates`],
+    enabled: !!user?.organizationId && selectedTab === 'assessments',
   });
 
   // Define a type for phase requests
@@ -661,12 +665,130 @@ export function BatchDetailsPage() {
                     </CardContent>
                   </Card>
                 </div>
-                <div className="mt-6">
-                  <Alert className="bg-blue-50 text-blue-800 border-blue-200">
-                    <AlertDescription>
-                      Assessment and certification management features will be implemented here. Trainers can track progress, schedule assessments, and manage certification requirements.
-                    </AlertDescription>
-                  </Alert>
+                {/* Quiz Templates Section */}
+                <div className="mt-8">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Quiz Templates</h3>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button size="sm" className="flex items-center gap-1">
+                          <Plus className="h-4 w-4" />
+                          Create Template
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-[500px]">
+                        <DialogHeader>
+                          <DialogTitle>Create New Quiz Template</DialogTitle>
+                          <DialogDescription>
+                            Create a quiz template that can be assigned to trainees for assessment purposes.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <label htmlFor="name" className="text-right text-sm font-medium">
+                              Name
+                            </label>
+                            <input
+                              id="name"
+                              className="col-span-3 flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                              placeholder="Enter quiz name"
+                            />
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <label htmlFor="description" className="text-right text-sm font-medium">
+                              Description
+                            </label>
+                            <Textarea
+                              id="description"
+                              className="col-span-3"
+                              placeholder="Enter quiz description"
+                            />
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <label htmlFor="timeLimit" className="text-right text-sm font-medium">
+                              Time Limit (min)
+                            </label>
+                            <input
+                              id="timeLimit"
+                              type="number"
+                              className="col-span-3 flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                              placeholder="30"
+                              min="1"
+                            />
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <label htmlFor="passingScore" className="text-right text-sm font-medium">
+                              Passing Score (%)
+                            </label>
+                            <input
+                              id="passingScore"
+                              type="number"
+                              className="col-span-3 flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                              placeholder="70"
+                              min="1"
+                              max="100"
+                            />
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button type="submit">Create Template</Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                  
+                  {quizTemplatesLoading ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-12 w-full" />
+                      <Skeleton className="h-12 w-full" />
+                      <Skeleton className="h-12 w-full" />
+                    </div>
+                  ) : quizTemplates.length > 0 ? (
+                    <div className="overflow-hidden rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Process</TableHead>
+                            <TableHead>Questions</TableHead>
+                            <TableHead>Time Limit</TableHead>
+                            <TableHead>Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {quizTemplates.map((template: any) => (
+                            <TableRow key={template.id}>
+                              <TableCell className="font-medium">{template.name}</TableCell>
+                              <TableCell>{template.processName || 'General'}</TableCell>
+                              <TableCell>{template.questionCount || '0'}</TableCell>
+                              <TableCell>{template.timeLimit} min</TableCell>
+                              <TableCell>
+                                <div className="flex gap-2">
+                                  <Button size="sm" variant="outline" className="h-8 px-2">
+                                    <Book className="h-4 w-4" />
+                                    <span className="sr-only">View</span>
+                                  </Button>
+                                  <Button size="sm" variant="outline" className="h-8 px-2">
+                                    <Pencil className="h-4 w-4" />
+                                    <span className="sr-only">Edit</span>
+                                  </Button>
+                                  <Button size="sm" variant="default" className="h-8">
+                                    Assign
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <Alert>
+                      <AlertDescription>
+                        No quiz templates found. Create a new template to get started.
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
               </CardContent>
             </Card>
