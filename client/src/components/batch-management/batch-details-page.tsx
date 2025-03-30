@@ -7,12 +7,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft, Award } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BatchTimeline } from "./batch-timeline";
+import { BatchQuizAttempts } from "./batch-quiz-attempts";
 import {
   Dialog,
   DialogContent,
@@ -276,6 +277,24 @@ export function BatchDetailsPage() {
     };
   };
   
+  // Type for quiz attempts
+  type QuizAttempt = {
+    id: number;
+    userId: number;
+    score: number;
+    completedAt: string;
+    isPassed: boolean;
+    user?: {
+      fullName: string;
+    };
+    quiz?: {
+      id: number;
+      name: string | null;
+      description: string | null;
+      passingScore: number | null;
+    };
+  };
+  
   // Initialize phase requests with proper typing
   const phaseRequests: PhaseRequest[] = user?.role === 'trainer' 
     ? (trainerRequests as PhaseRequest[] || []) 
@@ -527,6 +546,7 @@ export function BatchDetailsPage() {
         <TabsList>
           <TabsTrigger value="attendance">Attendance</TabsTrigger>
           <TabsTrigger value="training-plan">Training Planner</TabsTrigger>
+          <TabsTrigger value="assessments">Assessment Results</TabsTrigger>
           {canAccessPhaseRequests && (
             <TabsTrigger value="phase-requests">Phase Requests</TabsTrigger>
           )}
@@ -631,6 +651,52 @@ export function BatchDetailsPage() {
                   Training planner interface will be implemented here.
                 </AlertDescription>
               </Alert>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="assessments" className="space-y-4">
+          <Card>
+            <CardContent className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Trainee Assessment Results</h2>
+              
+              <Tabs defaultValue="recent" className="w-full">
+                <TabsList className="mb-4">
+                  <TabsTrigger value="recent">Recent Assessments</TabsTrigger>
+                  <TabsTrigger value="passed">Passed Assessments</TabsTrigger>
+                  <TabsTrigger value="failed">Failed Assessments</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="recent">
+                  {batchId && user?.organizationId && (
+                    <BatchQuizAttempts 
+                      batchId={parseInt(batchId)} 
+                      organizationId={user.organizationId} 
+                      filter="all" 
+                    />
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="passed">
+                  {batchId && user?.organizationId && (
+                    <BatchQuizAttempts 
+                      batchId={parseInt(batchId)} 
+                      organizationId={user.organizationId} 
+                      filter="passed" 
+                    />
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="failed">
+                  {batchId && user?.organizationId && (
+                    <BatchQuizAttempts 
+                      batchId={parseInt(batchId)} 
+                      organizationId={user.organizationId} 
+                      filter="failed" 
+                    />
+                  )}
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
         </TabsContent>
