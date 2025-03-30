@@ -312,7 +312,17 @@ const generatePhaseData = (batch: Batch): Phase[] => {
 };
 
 // Calculate overall batch metrics
-const calculateBatchMetrics = (batch: Batch, trainees: Trainee[] = []): BatchMetrics => {
+const calculateBatchMetrics = (
+  batch: Batch, 
+  trainees: Trainee[] = [], 
+  historicalAttendance?: {
+    presentCount: number;
+    absentCount: number;
+    lateCount: number;
+    leaveCount: number;
+    attendanceRate: number;
+  }
+): BatchMetrics => {
   const currentDate = new Date();
   const startDate = new Date(batch.startDate);
   const endDate = new Date(batch.endDate);
@@ -531,15 +541,32 @@ const calculateBatchMetrics = (batch: Batch, trainees: Trainee[] = []): BatchMet
     };
   });
   
-  // Create attendance overview with calculated data
-  const attendanceOverview = {
-    totalDays: daysCompleted,
-    completedDays: daysCompleted,
+  // Use historical attendance data if available, otherwise use today's data
+  const finalAttendanceStats = historicalAttendance ? {
+    presentCount: historicalAttendance.presentCount,
+    absentCount: historicalAttendance.absentCount,
+    lateCount: historicalAttendance.lateCount,
+    leaveCount: historicalAttendance.leaveCount,
+    attendanceRate: historicalAttendance.attendanceRate
+  } : {
     presentCount: attendanceStats.presentCount,
     absentCount: attendanceStats.absentCount,
     lateCount: attendanceStats.lateCount,
     leaveCount: attendanceStats.leaveCount,
-    attendanceRate: attendanceStats.attendanceRate,
+    attendanceRate: attendanceStats.attendanceRate
+  };
+  
+  console.log('Using attendance data:', historicalAttendance ? 'Historical (all time)' : 'Today only', finalAttendanceStats);
+  
+  // Create attendance overview with the appropriate data
+  const attendanceOverview = {
+    totalDays: daysCompleted,
+    completedDays: daysCompleted,
+    presentCount: finalAttendanceStats.presentCount,
+    absentCount: finalAttendanceStats.absentCount,
+    lateCount: finalAttendanceStats.lateCount,
+    leaveCount: finalAttendanceStats.leaveCount,
+    attendanceRate: finalAttendanceStats.attendanceRate,
     dailyAttendance,
     phaseAttendance,
     traineeAttendance
@@ -799,10 +826,26 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
     enabled: !!user?.organizationId && !!batchId && !!batch,
   });
   
+  // Fetch historical attendance data from the API for overall attendance calculation
+  const {
+    data: historicalAttendance,
+    isLoading: attendanceLoading
+  } = useQuery<{
+    presentCount: number;
+    absentCount: number;
+    lateCount: number;
+    leaveCount: number;
+    attendanceRate: number;
+  }>({
+    queryKey: [`/api/organizations/${user?.organizationId}/attendance/overview`, { batchIds: [batchId] }],
+    enabled: !!user?.organizationId && !!batchId,
+  });
+  
   // Remove duplicate function as it's now implemented in calculateBatchMetrics
   
   // Calculate batch metrics if batch data is available
-  const batchMetrics = batch ? calculateBatchMetrics(batch, trainees) : null;
+  // Pass historical attendance data if available
+  const batchMetrics = batch ? calculateBatchMetrics(batch, trainees, historicalAttendance) : null;
   
   // Get trainees with progress calculations
   const traineesWithProgress = trainees.map(trainee => {
