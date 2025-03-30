@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Users, CalendarDays, CheckCircle2, ClipboardCheck, Loader2, BarChart, ChevronDown, ChevronRight } from "lucide-react";
+import { Bell, Users, CalendarDays, CheckCircle2, ClipboardCheck, Loader2, BarChart, ChevronDown, ChevronRight, GraduationCap, LineChart as LineChartIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, addHours, addMinutes } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -47,6 +47,8 @@ type Batch = {
   };
   capacityLimit: number;
   userCount?: number;
+  assessmentCount?: number;
+  certificationCount?: number;
   trainer?: {
     id: number;
     fullName: string;
@@ -733,6 +735,61 @@ export default function TraineeManagement() {
                 Create Assessment
               </Button>
             </div>
+            
+            {/* Assessment Insights Card */}
+            <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 border-blue-100 dark:border-blue-800">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base text-blue-800 dark:text-blue-300 flex items-center">
+                  <LineChartIcon className="h-5 w-5 mr-2 text-blue-600 dark:text-blue-400" />
+                  Assessment Insights
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-white dark:bg-slate-900 rounded-md p-4 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="bg-green-100 dark:bg-green-900/30 p-2 rounded-full mr-3">
+                          <ClipboardCheck className="h-5 w-5 text-green-600 dark:text-green-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Total Assessments</p>
+                          <h4 className="text-2xl font-bold">{trainingBatches.reduce((sum, batch) => sum + (batch.assessmentCount || 0), 0)}</h4>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white dark:bg-slate-900 rounded-md p-4 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="bg-purple-100 dark:bg-purple-900/30 p-2 rounded-full mr-3">
+                          <GraduationCap className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Certifications</p>
+                          <h4 className="text-2xl font-bold">{trainingBatches.reduce((sum, batch) => sum + (batch.certificationCount || 0), 0)}</h4>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white dark:bg-slate-900 rounded-md p-4 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="bg-amber-100 dark:bg-amber-900/30 p-2 rounded-full mr-3">
+                          <Users className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Trainees</p>
+                          <h4 className="text-2xl font-bold">{trainingBatches.reduce((sum, batch) => sum + (batch.userCount || 0), 0)}</h4>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
             
             {trainingBatches.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
