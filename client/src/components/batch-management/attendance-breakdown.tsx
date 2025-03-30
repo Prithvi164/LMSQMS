@@ -492,6 +492,9 @@ export function AttendanceBreakdown({
           {/* Overall attendance tab */}
           <TabsContent value="overall">
             <div className="space-y-6">
+              <p className="text-xs text-slate-500 italic mb-3">
+                Showing overall attendance statistics for the entire training period
+              </p>
               <div>
                 <div className="flex justify-between items-center">
                   <span className="text-base font-medium">Overall Attendance Rate</span>
@@ -505,6 +508,9 @@ export function AttendanceBreakdown({
                 />
                 <p className="text-xs text-muted-foreground mt-2">
                   {attendanceData.completedDays} days completed out of {attendanceData.totalDays} total training days
+                </p>
+                <p className="text-xs text-slate-500 italic mt-1">
+                  Showing cumulative attendance data for the selected batch from batch start date to current date
                 </p>
               </div>
               
@@ -764,6 +770,9 @@ export function AttendanceBreakdown({
           <TabsContent value="daily">
             {attendanceData.dailyAttendance.length > 0 ? (
               <div className="space-y-6">
+                <p className="text-xs text-slate-500 italic mb-3">
+                  Showing day-by-day attendance breakdown for the selected batch
+                </p>
                 <ChartControls onChangeChartType={setChartType} />
                 
                 {/* Daily attendance chart */}
@@ -867,6 +876,9 @@ export function AttendanceBreakdown({
           <TabsContent value="phase">
             {attendanceData.phaseAttendance.length > 0 ? (
               <div className="space-y-6">
+                <p className="text-xs text-slate-500 italic mb-3">
+                  Showing phase-wise attendance breakdown for the selected batch
+                </p>
                 <ChartControls onChangeChartType={setChartType} />
                 
                 {/* Phase attendance chart */}
@@ -970,6 +982,9 @@ export function AttendanceBreakdown({
           <TabsContent value="trainee">
             {attendanceData.traineeAttendance.length > 0 ? (
               <div className="space-y-6">
+                <p className="text-xs text-slate-500 italic mb-3">
+                  Showing trainee-by-trainee attendance breakdown for the selected batch
+                </p>
                 <div className="flex flex-wrap gap-2 justify-between items-center">
                   <div className="flex gap-2">
                     <div className="relative w-full max-w-sm">
