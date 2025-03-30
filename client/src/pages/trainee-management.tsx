@@ -648,10 +648,13 @@ export default function TraineeManagement() {
             <BarChart className="h-4 w-4" />
             Progress {selectedBatch && <Badge variant="outline" className="ml-2">Batch Selected</Badge>}
           </TabsTrigger>
-          <TabsTrigger value="assessments-certifications" className="flex items-center gap-2">
-            <Award className="h-4 w-4" />
-            Assessments & Certifications
-          </TabsTrigger>
+          {/* Only show Assessments & Certifications tab when there's a training batch */}
+          {trainingBatches.length > 0 && (
+            <TabsTrigger value="assessments" className="flex items-center gap-2">
+              <ClipboardCheck className="h-4 w-4" />
+              Assessments & Certifications
+            </TabsTrigger>
+          )}
           <TabsTrigger value="notifications" className="flex items-center gap-2">
             <Bell className="h-4 w-4" />
             Notifications
@@ -721,8 +724,6 @@ export default function TraineeManagement() {
                 </AlertDescription>
               </Alert>
             )}
-
-            {/* Removed Assessments & Certifications section - Now available as a dedicated tab */}
           </div>
         </TabsContent>
 
@@ -740,9 +741,21 @@ export default function TraineeManagement() {
             </Alert>
           )}
         </TabsContent>
-        
-        <TabsContent value="assessments-certifications">
+
+
+
+        <TabsContent value="assessments">
           <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold">Assessments & Certifications</h2>
+              <div className="flex gap-2">
+                <Button variant="outline">
+                  <RefreshCcw className="h-4 w-4 mr-2" />
+                  Schedule Refresher
+                </Button>
+              </div>
+            </div>
+            
             {/* Assessment Insights Card */}
             <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 border-blue-100 dark:border-blue-800">
               <CardHeader className="pb-2">
