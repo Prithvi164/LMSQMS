@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft, ClipboardCheck } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -526,9 +526,6 @@ export function BatchDetailsPage() {
       <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="attendance">Attendance</TabsTrigger>
-          {batch.status === 'training' && (
-            <TabsTrigger value="assessments">Assessments & Certifications</TabsTrigger>
-          )}
           <TabsTrigger value="training-plan">Training Planner</TabsTrigger>
           {canAccessPhaseRequests && (
             <TabsTrigger value="phase-requests">Phase Requests</TabsTrigger>
@@ -624,54 +621,6 @@ export function BatchDetailsPage() {
             </CardContent>
           </Card>
         </TabsContent>
-
-        {batch.status === 'training' && (
-          <TabsContent value="assessments" className="space-y-4">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-semibold">Assessments & Certifications</h2>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <Card className="bg-white shadow-sm border">
-                    <CardContent className="p-5 flex flex-col items-center">
-                      <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center mb-3">
-                        <ClipboardCheck className="h-6 w-6 text-blue-600" />
-                      </div>
-                      <h3 className="text-xl font-semibold mb-1">5</h3>
-                      <p className="text-gray-600 text-center">Pending Assessments</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="bg-white shadow-sm border">
-                    <CardContent className="p-5 flex flex-col items-center">
-                      <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center mb-3">
-                        <CheckCircle className="h-6 w-6 text-green-600" />
-                      </div>
-                      <h3 className="text-xl font-semibold mb-1">3</h3>
-                      <p className="text-gray-600 text-center">Completed Certifications</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="bg-white shadow-sm border">
-                    <CardContent className="p-5 flex flex-col items-center">
-                      <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center mb-3">
-                        <AlertCircle className="h-6 w-6 text-amber-600" />
-                      </div>
-                      <h3 className="text-xl font-semibold mb-1">75%</h3>
-                      <p className="text-gray-600 text-center">Average Assessment Score</p>
-                    </CardContent>
-                  </Card>
-                </div>
-                <div className="mt-6">
-                  <Alert className="bg-blue-50 text-blue-800 border-blue-200">
-                    <AlertDescription>
-                      Assessment and certification management features will be implemented here. Trainers can track progress, schedule assessments, and manage certification requirements.
-                    </AlertDescription>
-                  </Alert>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        )}
 
         <TabsContent value="training-plan" className="space-y-4">
           <Card>
