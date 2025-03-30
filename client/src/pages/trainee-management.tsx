@@ -811,59 +811,6 @@ export default function TraineeManagement() {
               </CardContent>
             </Card>
             
-            {/* Batch Cards for Assessment Results */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-              {trainingBatches.map((batch) => (
-                <Card key={`assessment-batch-${batch.id}`} className="overflow-hidden hover:shadow-md transition-shadow duration-200">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base">{batch.name}</CardTitle>
-                    <div className="flex justify-between text-sm text-muted-foreground">
-                      <span>{batch.location?.name}</span>
-                      <span>{batch.process?.name}</span>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pb-2">
-                    <div className="grid grid-cols-1 gap-4">
-                      {/* Assessment Results Summary */}
-                      <div>
-                        <h4 className="text-sm font-medium mb-2 flex items-center">
-                          <Award className="h-4 w-4 mr-1 text-amber-500" />
-                          Assessment Results
-                        </h4>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="bg-green-50 dark:bg-green-900/20 rounded p-2 text-center">
-                            <div className="text-xs text-muted-foreground">Passed</div>
-                            <div className="text-green-600 dark:text-green-400 font-medium text-lg">
-                              {selectedBatch && selectedBatch.id === batch.id 
-                                ? quizAttempts.filter(attempt => attempt.isPassed).length
-                                : 0}
-                            </div>
-                          </div>
-                          <div className="bg-red-50 dark:bg-red-900/20 rounded p-2 text-center">
-                            <div className="text-xs text-muted-foreground">Failed</div>
-                            <div className="text-red-600 dark:text-red-400 font-medium text-lg">
-                              {selectedBatch && selectedBatch.id === batch.id 
-                                ? quizAttempts.filter(attempt => !attempt.isPassed).length
-                                : 0}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                  <div className="border-t p-4 bg-muted/20">
-                    <Button 
-                      variant="outline" 
-                      className="w-full"
-                      onClick={() => setSelectedBatch(batch)}
-                    >
-                      View Assessments
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-            </div>
-            
             {/* Trainee Assessment Results Tab */}
             <Card>
               <CardHeader className="pb-2">
@@ -872,9 +819,7 @@ export default function TraineeManagement() {
                   Trainee Assessment Results
                 </CardTitle>
                 <CardDescription>
-                  {selectedBatch 
-                    ? `Viewing results for ${selectedBatch.name}`
-                    : "Select a batch to view assessment results for trainees"}
+                  View assessment results for trainees in the training phase
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -1146,37 +1091,11 @@ export default function TraineeManagement() {
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Assessments:</span>
-                            <span className="font-medium">{batch.assessmentCount || '0'}</span>
+                            <span className="font-medium">0</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Certifications:</span>
-                            <span className="font-medium">{batch.certificationCount || '0'}</span>
-                          </div>
-                        </div>
-                        
-                        {/* Assessment Results Summary */}
-                        <div className="mt-4 pt-4 border-t border-border/30">
-                          <h4 className="text-sm font-medium mb-2 flex items-center">
-                            <Award className="h-4 w-4 mr-1 text-amber-500" />
-                            Assessment Results
-                          </h4>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="bg-green-50 dark:bg-green-900/20 rounded p-2 text-center">
-                              <div className="text-xs text-muted-foreground">Passed</div>
-                              <div className="text-green-600 dark:text-green-400 font-medium text-lg">
-                                {selectedBatch && selectedBatch.id === batch.id 
-                                  ? quizAttempts.filter(attempt => attempt.isPassed).length
-                                  : 0}
-                              </div>
-                            </div>
-                            <div className="bg-red-50 dark:bg-red-900/20 rounded p-2 text-center">
-                              <div className="text-xs text-muted-foreground">Failed</div>
-                              <div className="text-red-600 dark:text-red-400 font-medium text-lg">
-                                {selectedBatch && selectedBatch.id === batch.id 
-                                  ? quizAttempts.filter(attempt => !attempt.isPassed).length
-                                  : 0}
-                              </div>
-                            </div>
+                            <span className="font-medium">0</span>
                           </div>
                         </div>
                       </div>
