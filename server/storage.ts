@@ -180,6 +180,7 @@ export interface IStorage {
   assignUserToBatch(userBatchProcess: InsertUserBatchProcess): Promise<UserBatchProcess>;
   getUserBatchProcesses(userId: number): Promise<UserBatchProcess[]>;
   getBatchTrainees(batchId: number): Promise<UserBatchProcess[]>;
+  getBatchTrainee(batchId: number, userId: number): Promise<UserBatchProcess | null>;
   updateUserBatchStatus(
     userId: number,
     batchId: number,
@@ -3536,6 +3537,73 @@ export class DatabaseStorage implements IStorage {
       };
     } catch (error) {
       console.error('Error getting attendance overview:', error);
+      throw error;
+    }
+  }
+
+  async getBatchTrainee(batchId: number, userId: number): Promise<UserBatchProcess | null> {
+    try {
+      console.log(`Fetching trainee ${userId} for batch ${batchId}`);
+
+      const [trainee] = await db
+        .select({
+          id: userBatchProcesses.id,
+          userId: userBatchProcesses.userId,
+          batchId: userBatchProcesses.batchId,
+          processId: userBatchProcesses.processId,
+          status: userBatchProcesses.status,
+          joinedAt: userBatchProcesses.joinedAt,
+          completedAt: userBatchProcesses.completedAt,
+          batchName: batch.name,
+          processName: organizationProcesses.name,
+        })
+        .from(userBatchProcesses)
+        .leftJoin(
+          batch,
+          eq(userBatchProcesses.batchId, batch.id)
+        )
+        .leftJoin(
+          organizationProcesses,
+          eq(userBatchProcesses.processId, organizationProcesses.id)
+        )
+        .where(
+          and(
+            eq(userBatchProcesses.batchId, batchId),
+            eq(userBatchProcesses.userId, userId)
+          )
+        ) as any[];
+
+      return trainee || null;
+    } catch (error) {
+      console.error(`Error fetching trainee ${userId} for batch ${batchId}:`, error);
+      throw error;
+    }
+  }
+
+  async createBatchEvent(event: {
+    organizationId: number;
+    batchId: number;
+    userId: number;
+    eventType: "phase_change" | "status_update" | "milestone" | "note";
+    description: string;
+    date: string;
+    previousValue?: string;
+    newValue?: string;
+  }): Promise<any> {
+    try {
+      console.log('Creating batch event:', event);
+      
+      const [newEvent] = await db
+        .insert(batchHistory)
+        .values({
+          ...event,
+          createdAt: new Date()
+        })
+        .returning() as any[];
+        
+      return newEvent;
+    } catch (error) {
+      console.error('Error creating batch event:', error);
       throw error;
     }
   }

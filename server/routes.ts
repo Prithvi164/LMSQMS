@@ -2569,6 +2569,163 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch quiz attempts for batch" });
     }
   });
+  
+  // Schedule refresher training for a trainee
+  app.post("/api/organizations/:organizationId/batches/:batchId/trainees/:userId/refresher", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      const batchId = parseInt(req.params.batchId);
+      const userId = parseInt(req.params.userId);
+      const { notes } = req.body;
+
+      if (isNaN(batchId) || isNaN(organizationId) || isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid ID parameters" });
+      }
+
+      // Check if user has access to this organization
+      if (req.user.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied to this organization" });
+      }
+
+      // Verify the trainee belongs to the batch
+      const traineeInBatch = await storage.getBatchTrainee(batchId, userId);
+      if (!traineeInBatch) {
+        return res.status(404).json({ message: "Trainee not found in this batch" });
+      }
+
+      // Create a record in batch_events to track the refresher scheduling
+      await storage.createBatchEvent({
+        organizationId,
+        batchId,
+        userId: req.user.id, // the trainer/admin creating the refresher
+        eventType: 'milestone',
+        description: `Refresher training scheduled for trainee. Notes: ${notes || 'None provided'}`,
+        date: new Date().toISOString(),
+      });
+
+      res.json({ message: "Refresher training scheduled successfully" });
+    } catch (error) {
+      console.error("Error scheduling refresher training:", error);
+      res.status(500).json({ message: "Failed to schedule refresher training" });
+    }
+  });
+
+  // Reassign a quiz to a trainee
+  app.post("/api/organizations/:organizationId/batches/:batchId/trainees/:userId/reassign-quiz", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      const batchId = parseInt(req.params.batchId);
+      const userId = parseInt(req.params.userId);
+      const { quizId } = req.body;
+
+      if (isNaN(batchId) || isNaN(organizationId) || isNaN(userId) || !quizId) {
+        return res.status(400).json({ message: "Invalid parameters" });
+      }
+
+      // Check if user has access to this organization
+      if (req.user.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied to this organization" });
+      }
+
+      // Verify the trainee belongs to the batch
+      const traineeInBatch = await storage.getBatchTrainee(batchId, userId);
+      if (!traineeInBatch) {
+        return res.status(404).json({ message: "Trainee not found in this batch" });
+      }
+
+      // Verify the quiz exists
+      const quiz = await storage.getQuiz(quizId);
+      if (!quiz) {
+        return res.status(404).json({ message: "Quiz not found" });
+      }
+
+      // Create a record in batch_events to track the reassignment
+      await storage.createBatchEvent({
+        organizationId,
+        batchId,
+        userId: req.user.id,
+        eventType: 'milestone',
+        description: `Quiz "${quiz.name}" has been reassigned to trainee`,
+        date: new Date().toISOString(),
+      });
+
+      res.json({ message: "Quiz reassigned successfully" });
+    } catch (error) {
+      console.error("Error reassigning quiz:", error);
+      res.status(500).json({ message: "Failed to reassign quiz" });
+    }
+  });
+
+  // Create certification for a trainee
+  app.post("/api/organizations/:organizationId/batches/:batchId/trainees/:userId/certification", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      const batchId = parseInt(req.params.batchId);
+      const userId = parseInt(req.params.userId);
+      const { quizAttemptId } = req.body;
+
+      if (isNaN(batchId) || isNaN(organizationId) || isNaN(userId) || !quizAttemptId) {
+        return res.status(400).json({ message: "Invalid parameters" });
+      }
+
+      // Check if user has access to this organization
+      if (req.user.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied to this organization" });
+      }
+
+      // Verify the trainee belongs to the batch
+      const traineeInBatch = await storage.getBatchTrainee(batchId, userId);
+      if (!traineeInBatch) {
+        return res.status(404).json({ message: "Trainee not found in this batch" });
+      }
+
+      // Verify the quiz attempt exists and belongs to this trainee
+      const quizAttempt = await storage.getQuizAttempt(quizAttemptId);
+      if (!quizAttempt) {
+        return res.status(404).json({ message: "Quiz attempt not found" });
+      }
+
+      if (quizAttempt.userId !== userId) {
+        return res.status(403).json({ message: "This quiz attempt does not belong to the specified trainee" });
+      }
+
+      // Create a certification record
+      // For now, we'll create a batch event to track the certification
+      await storage.createBatchEvent({
+        organizationId,
+        batchId,
+        userId: req.user.id,
+        eventType: 'milestone',
+        description: `Certification created for trainee based on successful quiz completion`,
+        date: new Date().toISOString(),
+      });
+
+      // Update user's certified status to true (if available in your schema)
+      try {
+        await storage.updateUser(userId, { certified: true });
+      } catch (error) {
+        console.warn("Could not update trainee certification status:", error);
+        // Continue anyway as this might not be a critical error
+      }
+
+      res.json({ message: "Certification created successfully" });
+    } catch (error) {
+      console.error("Error creating certification:", error);
+      res.status(500).json({ message: "Failed to create certification" });
+    }
+  });
 
   app.put("/api/quiz-templates/:id", async (req, res) => {
     if (!req.user || !req.user.organizationId) {

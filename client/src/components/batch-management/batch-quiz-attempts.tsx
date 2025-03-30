@@ -1,18 +1,46 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/use-permissions";
+
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
+  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Award, XCircle, Clock } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Loader2, CheckCircle, XCircle, Award, RefreshCw, FileQuestion } from "lucide-react";
 
 type QuizAttempt = {
   id: number;
@@ -38,112 +66,405 @@ type BatchQuizAttemptsProps = {
 };
 
 export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuizAttemptsProps) {
-  const [page, setPage] = useState(1);
-  const limit = 10;
+  const { toast } = useToast();
+  const { can } = usePermissions();
+  const [activeTab, setActiveTab] = useState<"all" | "passed" | "failed">(filter || "all");
+  
+  // For modal states
+  const [refresherDialogOpen, setRefresherDialogOpen] = useState(false);
+  const [refresherNotes, setRefresherNotes] = useState("");
+  const [selectedTraineeId, setSelectedTraineeId] = useState<number | null>(null);
+  
+  const [reassignDialogOpen, setReassignDialogOpen] = useState(false);
+  const [selectedQuizId, setSelectedQuizId] = useState<number | null>(null);
+  
+  const [certificationDialogOpen, setCertificationDialogOpen] = useState(false);
+  const [selectedQuizAttemptId, setSelectedQuizAttemptId] = useState<number | null>(null);
 
-  const { data: attempts, isLoading, error } = useQuery<QuizAttempt[]>({
-    queryKey: [
-      `/api/organizations/${organizationId}/batches/${batchId}/quiz-attempts`,
-      filter
-    ],
-    queryFn: async ({ queryKey }) => {
-      const [baseUrl, filterType] = queryKey;
-      
-      let url = `${baseUrl}?page=${page}&limit=${limit}`;
-      // The server now handles the status filtering
-      if (filterType === 'passed') {
-        url += '&status=passed';
-      } else if (filterType === 'failed') {
-        url += '&status=failed';
-      }
-      
-      console.log("Fetching quiz attempts with URL:", url);
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error('Failed to fetch quiz attempts');
-      }
-      return response.json();
-    },
-    enabled: !!organizationId && !!batchId,
+  // Fetch quizzes for reassignment
+  const { data: quizzes } = useQuery({
+    queryKey: [`/api/organizations/${organizationId}/quizzes`],
+    enabled: reassignDialogOpen
   });
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className="flex items-center space-x-4">
-            <Skeleton className="h-12 w-12 rounded-full" />
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-[250px]" />
-              <Skeleton className="h-4 w-[200px]" />
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
+  // Fetch quiz attempts
+  const { data: quizAttempts, isLoading } = useQuery({
+    queryKey: [
+      `/api/organizations/${organizationId}/batches/${batchId}/quiz-attempts`,
+      activeTab !== "all" ? { status: activeTab } : undefined,
+    ],
+  });
 
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertDescription>
-          Failed to load quiz attempts. Please try again.
-        </AlertDescription>
-      </Alert>
-    );
-  }
+  // Mutation for scheduling refresher training
+  const scheduleRefresherMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedTraineeId) return;
+      
+      return apiRequest(
+        `/api/organizations/${organizationId}/batches/${batchId}/trainees/${selectedTraineeId}/refresher`,
+        {
+          method: "POST",
+          body: JSON.stringify({ notes: refresherNotes }),
+        }
+      );
+    },
+    onSuccess: () => {
+      toast({
+        title: "Refresher Scheduled",
+        description: "Refresher training has been scheduled successfully",
+      });
+      setRefresherDialogOpen(false);
+      setRefresherNotes("");
+      setSelectedTraineeId(null);
+      // Refresh batch events if needed
+      queryClient.invalidateQueries({ queryKey: [`/api/batches/${batchId}/events`] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to schedule refresher training",
+        variant: "destructive",
+      });
+    },
+  });
 
-  if (!attempts || attempts.length === 0) {
-    return (
-      <Alert>
-        <AlertDescription>
-          No {filter === 'passed' ? 'passed' : filter === 'failed' ? 'failed' : ''} quiz attempts found for this batch.
-        </AlertDescription>
-      </Alert>
-    );
-  }
+  // Mutation for reassigning quiz
+  const reassignQuizMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedTraineeId || !selectedQuizId) return;
+      
+      return apiRequest(
+        `/api/organizations/${organizationId}/batches/${batchId}/trainees/${selectedTraineeId}/reassign-quiz`,
+        {
+          method: "POST",
+          body: JSON.stringify({ quizId: selectedQuizId }),
+        }
+      );
+    },
+    onSuccess: () => {
+      toast({
+        title: "Quiz Reassigned",
+        description: "Quiz has been reassigned to the trainee",
+      });
+      setReassignDialogOpen(false);
+      setSelectedQuizId(null);
+      setSelectedTraineeId(null);
+      // Refresh relevant data
+      queryClient.invalidateQueries({ queryKey: [`/api/batches/${batchId}/events`] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to reassign quiz",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation for creating certification
+  const createCertificationMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedTraineeId || !selectedQuizAttemptId) return;
+      
+      return apiRequest(
+        `/api/organizations/${organizationId}/batches/${batchId}/trainees/${selectedTraineeId}/certification`,
+        {
+          method: "POST",
+          body: JSON.stringify({ quizAttemptId: selectedQuizAttemptId }),
+        }
+      );
+    },
+    onSuccess: () => {
+      toast({
+        title: "Certification Created",
+        description: "Certification has been created successfully",
+      });
+      setCertificationDialogOpen(false);
+      setSelectedQuizAttemptId(null);
+      setSelectedTraineeId(null);
+      // Refresh relevant data
+      queryClient.invalidateQueries({ queryKey: [`/api/batches/${batchId}/events`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organizationId}/batches/${batchId}/trainees`] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to create certification",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handler for refresher dialog
+  const handleRefresherClick = (traineeId: number) => {
+    setSelectedTraineeId(traineeId);
+    setRefresherDialogOpen(true);
+  };
+
+  // Handler for reassign dialog
+  const handleReassignClick = (traineeId: number) => {
+    setSelectedTraineeId(traineeId);
+    setReassignDialogOpen(true);
+  };
+
+  // Handler for certification dialog
+  const handleCertificationClick = (traineeId: number, quizAttemptId: number) => {
+    setSelectedTraineeId(traineeId);
+    setSelectedQuizAttemptId(quizAttemptId);
+    setCertificationDialogOpen(true);
+  };
 
   return (
-    <div className="space-y-4">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Trainee</TableHead>
-            <TableHead>Quiz Name</TableHead>
-            <TableHead>Score</TableHead>
-            <TableHead>Passing Score</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Completed On</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {attempts.map((attempt) => (
-            <TableRow key={attempt.id}>
-              <TableCell>{attempt.user?.fullName || "Unknown Trainee"}</TableCell>
-              <TableCell>{attempt.quiz?.name || "Unnamed Quiz"}</TableCell>
-              <TableCell>{attempt.score}%</TableCell>
-              <TableCell>{attempt.quiz?.passingScore || "-"}%</TableCell>
-              <TableCell>
-                {attempt.isPassed ? (
-                  <Badge className="bg-green-500 flex items-center">
-                    <Award className="mr-1 h-3 w-3" />
-                    Passed
-                  </Badge>
-                ) : (
-                  <Badge variant="destructive" className="flex items-center">
-                    <XCircle className="mr-1 h-3 w-3" />
-                    Failed
-                  </Badge>
-                )}
-              </TableCell>
-              <TableCell className="flex items-center">
-                <Clock className="mr-1 h-3 w-3" />
-                {format(new Date(attempt.completedAt), "dd MMM yyyy, hh:mm a")}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <Card className="w-full">
+      <CardHeader>
+        <CardTitle>Trainee Assessment Results</CardTitle>
+        <CardDescription>
+          View quiz attempts and manage trainee progress
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)}>
+          <TabsList className="mb-4">
+            <TabsTrigger value="all">Recent Assessments</TabsTrigger>
+            <TabsTrigger value="passed">Passed Assessments</TabsTrigger>
+            <TabsTrigger value="failed">Failed Assessments</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value={activeTab}>
+            {isLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : quizAttempts && quizAttempts.length > 0 ? (
+              <Table>
+                <TableCaption>
+                  {activeTab === "all" 
+                    ? "All recent assessment attempts" 
+                    : activeTab === "passed" 
+                      ? "Assessments with passing scores" 
+                      : "Assessments with failing scores"}
+                </TableCaption>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Trainee</TableHead>
+                    <TableHead>Quiz</TableHead>
+                    <TableHead>Score</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {quizAttempts.map((attempt: QuizAttempt) => (
+                    <TableRow key={attempt.id}>
+                      <TableCell className="font-medium">
+                        {attempt.user?.fullName || `User ${attempt.userId}`}
+                      </TableCell>
+                      <TableCell>{attempt.quiz?.name || "Unknown Quiz"}</TableCell>
+                      <TableCell>
+                        {attempt.score}%
+                        {attempt.quiz?.passingScore && (
+                          <span className="text-xs text-muted-foreground ml-1">
+                            (Passing: {attempt.quiz.passingScore}%)
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {new Date(attempt.completedAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        {attempt.isPassed ? (
+                          <Badge className="bg-green-500">Passed</Badge>
+                        ) : (
+                          <Badge variant="destructive">Failed</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {!attempt.isPassed ? (
+                          <div className="flex justify-end space-x-2">
+                            {can("manage_batches") && (
+                              <>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleRefresherClick(attempt.userId)}
+                                >
+                                  <RefreshCw className="h-4 w-4 mr-1" />
+                                  Refresher
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleReassignClick(attempt.userId)}
+                                >
+                                  <FileQuestion className="h-4 w-4 mr-1" />
+                                  Reassign
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex justify-end">
+                            {can("manage_batches") && (
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleCertificationClick(attempt.userId, attempt.id)}
+                              >
+                                <Award className="h-4 w-4 mr-1" />
+                                Certify
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No quiz attempts found for this filter
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+
+      {/* Refresher Training Dialog */}
+      <Dialog open={refresherDialogOpen} onOpenChange={setRefresherDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Schedule Refresher Training</DialogTitle>
+            <DialogDescription>
+              Add notes about what specific areas need focus during the refresher
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Textarea
+              id="refresherNotes"
+              placeholder="Notes for the refresher training..."
+              value={refresherNotes}
+              onChange={(e) => setRefresherNotes(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setRefresherDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="button" 
+              onClick={() => scheduleRefresherMutation.mutate()}
+              disabled={scheduleRefresherMutation.isPending}
+            >
+              {scheduleRefresherMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Scheduling...
+                </>
+              ) : (
+                "Schedule Refresher"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reassign Quiz Dialog */}
+      <Dialog open={reassignDialogOpen} onOpenChange={setReassignDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reassign Quiz</DialogTitle>
+            <DialogDescription>
+              Select a quiz to reassign to the trainee
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Select 
+              onValueChange={(value) => setSelectedQuizId(Number(value))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a quiz to reassign" />
+              </SelectTrigger>
+              <SelectContent>
+                {quizzes?.map((quiz: any) => (
+                  <SelectItem key={quiz.id} value={quiz.id.toString()}>
+                    {quiz.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setReassignDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="button" 
+              onClick={() => reassignQuizMutation.mutate()}
+              disabled={reassignQuizMutation.isPending || !selectedQuizId}
+            >
+              {reassignQuizMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Reassigning...
+                </>
+              ) : (
+                "Reassign Quiz"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Certification Dialog */}
+      <Dialog open={certificationDialogOpen} onOpenChange={setCertificationDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create Certification</DialogTitle>
+            <DialogDescription>
+              Create a certification based on the passed assessment
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-center py-6">
+            <Award className="h-16 w-16 text-primary" />
+          </div>
+          <p className="text-center text-sm text-muted-foreground">
+            This will create an official certification for the trainee and mark them as certified in the system.
+          </p>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setCertificationDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="button" 
+              onClick={() => createCertificationMutation.mutate()}
+              disabled={createCertificationMutation.isPending}
+            >
+              {createCertificationMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create Certification"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
   );
 }
