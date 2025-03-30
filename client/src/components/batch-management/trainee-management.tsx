@@ -26,9 +26,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Edit, Trash2, ArrowRightLeft, Loader2 } from "lucide-react";
+import { Edit, Trash2, ArrowRightLeft, Loader2, ClipboardCheck } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 import { isSubordinate, getAllSubordinates } from "@/lib/hierarchy-utils";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from "@/components/ui/tabs";
 
 // Updated type to match actual API response
 type Trainee = {
@@ -347,67 +353,166 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
         )}
       </div>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Employee ID</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Phone</TableHead>
-              <TableHead>Date of Joining</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {Array.isArray(trainees) && trainees.map((trainee: Trainee) => (
-              <TableRow key={trainee.id}>
-                <TableCell>{trainee.fullName}</TableCell>
-                <TableCell>{trainee.employeeId}</TableCell>
-                <TableCell>{trainee.email}</TableCell>
-                <TableCell>{trainee.phoneNumber}</TableCell>
-                <TableCell>{formatDate(trainee.dateOfJoining)}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedTrainee(trainee);
-                        setIsTransferDialogOpen(true);
-                      }}
-                    >
-                      <ArrowRightLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        toast({
-                          title: "Coming Soon",
-                          description: "Edit functionality will be available soon",
-                        });
-                      }}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedTrainee(trainee);
-                        setIsDeleteDialogOpen(true);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
+      {/* Add tabs interface when batch is in training phase */}
+      {batchDetails?.status === 'training' ? (
+        <Tabs defaultValue="trainees" className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="trainees">Trainees</TabsTrigger>
+            <TabsTrigger value="assessments">Assessments & Certifications</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="trainees" className="space-y-4">
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Employee ID</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Date of Joining</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Array.isArray(trainees) && trainees.map((trainee: Trainee) => (
+                    <TableRow key={trainee.id}>
+                      <TableCell>{trainee.fullName}</TableCell>
+                      <TableCell>{trainee.employeeId}</TableCell>
+                      <TableCell>{trainee.email}</TableCell>
+                      <TableCell>{trainee.phoneNumber}</TableCell>
+                      <TableCell>{formatDate(trainee.dateOfJoining)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedTrainee(trainee);
+                              setIsTransferDialogOpen(true);
+                            }}
+                          >
+                            <ArrowRightLeft className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              toast({
+                                title: "Coming Soon",
+                                description: "Edit functionality will be available soon",
+                              });
+                            }}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedTrainee(trainee);
+                              setIsDeleteDialogOpen(true);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="assessments" className="space-y-4">
+            <div className="flex flex-col gap-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-medium">Trainee Assessments</h3>
+                <Button variant="outline" size="sm">
+                  <ClipboardCheck className="h-4 w-4 mr-2" />
+                  Create Assessment
+                </Button>
+              </div>
+              
+              <div className="bg-muted/40 rounded-md p-8 text-center">
+                <ClipboardCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">No Assessments Available</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Create assessments to evaluate trainee progress and certify their skills.
+                </p>
+                <Button>
+                  <ClipboardCheck className="h-4 w-4 mr-2" />
+                  Create First Assessment
+                </Button>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+      ) : (
+        // Show regular view for non-training batches
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Employee ID</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead>Date of Joining</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {Array.isArray(trainees) && trainees.map((trainee: Trainee) => (
+                <TableRow key={trainee.id}>
+                  <TableCell>{trainee.fullName}</TableCell>
+                  <TableCell>{trainee.employeeId}</TableCell>
+                  <TableCell>{trainee.email}</TableCell>
+                  <TableCell>{trainee.phoneNumber}</TableCell>
+                  <TableCell>{formatDate(trainee.dateOfJoining)}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedTrainee(trainee);
+                          setIsTransferDialogOpen(true);
+                        }}
+                      >
+                        <ArrowRightLeft className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          toast({
+                            title: "Coming Soon",
+                            description: "Edit functionality will be available soon",
+                          });
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedTrainee(trainee);
+                          setIsDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
