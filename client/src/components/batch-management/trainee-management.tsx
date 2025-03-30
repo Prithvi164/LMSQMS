@@ -81,6 +81,9 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedTrainee, setSelectedTrainee] = useState<Trainee | null>(null);
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
+  // State for quiz creation dialog
+  const [isCreateQuizOpen, setIsCreateQuizOpen] = useState(false);
+  const [selectedTrainees, setSelectedTrainees] = useState<number[]>([]);
   
   // Use hierarchy utility functions for permission checks
   
@@ -357,18 +360,6 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
     );
   }
 
-  if (!trainees || trainees.length === 0) {
-    return (
-      <div className="text-center py-8 text-muted-foreground">
-        No trainees found in this batch.
-      </div>
-    );
-  }
-
-  // State for quiz creation dialog
-  const [isCreateQuizOpen, setIsCreateQuizOpen] = useState(false);
-  const [selectedTrainees, setSelectedTrainees] = useState<number[]>([]);
-  
   // Check if batch is in training phase - assessments only available during training
   const isTrainingPhase = batchDetails?.status === 'training';
   
@@ -401,6 +392,14 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
     queryKey: [`/api/organizations/${organizationId}/batches/${batchId}/assessments`],
     enabled: !!batchId && !!organizationId && isTrainingPhase,
   });
+
+  if (!trainees || trainees.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        No trainees found in this batch.
+      </div>
+    );
+  }
   
   // Extract passing and failing trainees
   const getPassingTrainees = () => {
