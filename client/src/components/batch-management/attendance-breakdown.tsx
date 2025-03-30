@@ -503,6 +503,9 @@ export function AttendanceBreakdown({
                   value={attendanceData.attendanceRate} 
                   className="h-2.5 bg-gray-100 mt-2"
                 />
+                <p className="text-xs text-muted-foreground mt-2">
+                  {attendanceData.completedDays} days completed out of {attendanceData.totalDays} total training days
+                </p>
               </div>
               
               {/* Overall attendance cards with drill-down dialogs */}
@@ -748,7 +751,7 @@ export function AttendanceBreakdown({
                   ) : (
                     <div className="mt-4">
                       <p className="text-sm text-muted-foreground mb-2">
-                        {attendanceData.completedDays} days completed out of {attendanceData.totalDays} total training days
+                        Overall attendance statistics for all batch phases
                       </p>
                     </div>
                   )}
