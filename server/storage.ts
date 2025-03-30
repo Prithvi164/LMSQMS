@@ -2625,10 +2625,32 @@ export class DatabaseStorage implements IStorage {
         // Insert template with separate SQL for questions array
         const questionsJson = JSON.stringify(template.questions);
         
+        // Create a mapping from JavaScript camelCase to DB snake_case for column names
+        const columnMapping = {
+          name: "name",
+          description: "description",
+          timeLimit: "time_limit", 
+          passingScore: "passing_score",
+          shuffleQuestions: "shuffle_questions",
+          shuffleOptions: "shuffle_options",
+          questionCount: "question_count",
+          categoryDistribution: "category_distribution",
+          difficultyDistribution: "difficulty_distribution",
+          processId: "process_id",
+          organizationId: "organization_id",
+          batchId: "batch_id",
+          createdBy: "created_by",
+          createdAt: "created_at",
+          updatedAt: "updated_at"
+        };
+        
+        // Convert JavaScript property names to DB column names
+        const dbColumnNames = Object.keys(templateWithoutQuestions).map(key => columnMapping[key] || key);
+        
         // Format SQL with explicit cast to JSONB
         const [newTemplate] = await db.execute(`
           INSERT INTO quiz_templates (
-            ${Object.keys(templateWithoutQuestions).join(', ')},
+            ${dbColumnNames.join(', ')},
             questions
           ) VALUES (
             ${Object.keys(templateWithoutQuestions).map((_, i) => `$${i + 1}`).join(', ')},
@@ -2743,11 +2765,35 @@ export class DatabaseStorage implements IStorage {
           // Format questions for PostgreSQL
           const questionsJson = JSON.stringify(questions);
           
+          // Create a mapping from JavaScript camelCase to DB snake_case for column names
+          const columnMapping = {
+            name: "name",
+            description: "description",
+            timeLimit: "time_limit", 
+            passingScore: "passing_score",
+            shuffleQuestions: "shuffle_questions",
+            shuffleOptions: "shuffle_options",
+            questionCount: "question_count",
+            categoryDistribution: "category_distribution",
+            difficultyDistribution: "difficulty_distribution",
+            processId: "process_id",
+            organizationId: "organization_id",
+            batchId: "batch_id",
+            createdBy: "created_by",
+            createdAt: "created_at",
+            updatedAt: "updated_at"
+          };
+          
+          // Create the SET clause with proper column names
+          const setClause = Object.keys(templateWithoutQuestions)
+            .map(key => `${columnMapping[key] || key} = $${key}`)
+            .join(', ');
+          
           // Update with explicit JSONB cast
           const [updatedTemplate] = await db.execute(`
             UPDATE quiz_templates 
             SET 
-              ${Object.keys(templateWithoutQuestions).map(key => `${key} = $${key}`).join(', ')}
+              ${setClause}
               ${Object.keys(templateWithoutQuestions).length > 0 ? ',' : ''} 
               questions = $questions::jsonb,
               updated_at = NOW()
@@ -2763,11 +2809,35 @@ export class DatabaseStorage implements IStorage {
           return updatedTemplate;
         }
         
+        // Create a mapping from JavaScript camelCase to DB snake_case for column names
+        const columnMapping = {
+          name: "name",
+          description: "description",
+          timeLimit: "time_limit", 
+          passingScore: "passing_score",
+          shuffleQuestions: "shuffle_questions",
+          shuffleOptions: "shuffle_options",
+          questionCount: "question_count",
+          categoryDistribution: "category_distribution",
+          difficultyDistribution: "difficulty_distribution",
+          processId: "process_id",
+          organizationId: "organization_id",
+          batchId: "batch_id",
+          createdBy: "created_by",
+          createdAt: "created_at",
+          updatedAt: "updated_at"
+        };
+        
+        // Create the SET clause with proper column names
+        const setClause = Object.keys(templateWithoutQuestions)
+          .map(key => `${columnMapping[key] || key} = $${key}`)
+          .join(', ');
+          
         // If we don't have questions to update, just update the other fields
         const [updatedTemplate] = await db.execute(`
           UPDATE quiz_templates 
           SET 
-            ${Object.keys(templateWithoutQuestions).map(key => `${key} = $${key}`).join(', ')},
+            ${setClause},
             updated_at = NOW()
           WHERE id = $id
           RETURNING *
@@ -2865,10 +2935,31 @@ export class DatabaseStorage implements IStorage {
         // Format questions for PostgreSQL
         const questionsJson = JSON.stringify(quiz.questions);
         
+        // Create a mapping from JavaScript camelCase to DB snake_case for column names
+        const columnMapping = {
+          name: "name",
+          description: "description",
+          timeLimit: "time_limit", 
+          passingScore: "passing_score",
+          questions: "questions",
+          templateId: "template_id",
+          organizationId: "organization_id",
+          createdBy: "created_by",
+          processId: "process_id",
+          status: "status",
+          startTime: "start_time",
+          endTime: "end_time",
+          createdAt: "created_at",
+          updatedAt: "updated_at"
+        };
+        
+        // Convert JavaScript property names to DB column names
+        const dbColumnNames = Object.keys(quizWithoutQuestions).map(key => columnMapping[key] || key);
+        
         // Format SQL with explicit cast to JSONB
         const [newQuiz] = await db.execute(`
           INSERT INTO quizzes (
-            ${Object.keys(quizWithoutQuestions).join(', ')},
+            ${dbColumnNames.join(', ')},
             questions,
             status,
             created_at,
