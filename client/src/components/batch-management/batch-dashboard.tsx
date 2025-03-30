@@ -807,6 +807,9 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
   const [activeTab, setActiveTab] = useState<string>("overview");
   const { toast } = useToast();
   
+  // State for batch filtering in attendance breakdown
+  const [selectedBatchId, setSelectedBatchId] = useState<number | null>(Number(batchId));
+  
   // Fetch batch data
   const { 
     data: batch, 
@@ -815,6 +818,15 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
   } = useQuery<Batch>({
     queryKey: [`/api/organizations/${user?.organizationId}/batches/${batchId}`],
     enabled: !!user?.organizationId && !!batchId,
+  });
+  
+  // Fetch all batches for the organization (for batch filter dropdown)
+  const { 
+    data: batchesData = [], 
+    isLoading: batchesLoading 
+  } = useQuery<{id: number, name: string}[]>({
+    queryKey: [`/api/organizations/${user?.organizationId}/batches`],
+    enabled: !!user?.organizationId,
   });
   
   // Fetch batch trainees data
@@ -829,7 +841,8 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
   // Fetch historical attendance data from the API for overall attendance calculation
   const {
     data: historicalAttendance,
-    isLoading: attendanceLoading
+    isLoading: attendanceLoading,
+    refetch: refetchAttendance
   } = useQuery<{
     presentCount: number;
     absentCount: number;
@@ -837,9 +850,17 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
     leaveCount: number;
     attendanceRate: number;
   }>({
-    queryKey: [`/api/organizations/${user?.organizationId}/attendance/overview`, { batchIds: [batchId] }],
-    enabled: !!user?.organizationId && !!batchId,
+    queryKey: [`/api/organizations/${user?.organizationId}/attendance/overview`, 
+      { batchIds: selectedBatchId ? [selectedBatchId] : undefined }],
+    enabled: !!user?.organizationId,
   });
+  
+  // Handle batch selection in the attendance breakdown
+  const handleBatchSelect = useCallback((batchId: number | null) => {
+    setSelectedBatchId(batchId);
+    // Refetch attendance data when batch filter changes
+    refetchAttendance();
+  }, [refetchAttendance]);
   
   // Remove duplicate function as it's now implemented in calculateBatchMetrics
   
@@ -1435,7 +1456,12 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
           {/* Attendance Tab */}
           <TabsContent value="attendance">
             {batchMetrics ? (
-              <AttendanceBreakdown attendanceData={batchMetrics.attendanceOverview} />
+              <AttendanceBreakdown 
+                attendanceData={batchMetrics.attendanceOverview}
+                batches={batchesData}
+                onBatchSelect={handleBatchSelect}
+                selectedBatchId={selectedBatchId}
+              />
             ) : (
               <div className="text-center py-12">
                 <Loader2 className="mx-auto h-12 w-12 animate-spin opacity-20 mb-2" />
