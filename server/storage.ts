@@ -2586,6 +2586,22 @@ export class DatabaseStorage implements IStorage {
   // Quiz template operations
   async createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate> {
     try {
+      // Convert questions array explicitly to ensure it's properly formatted
+      if (template.questions && Array.isArray(template.questions)) {
+        console.log('Original questions array:', template.questions);
+        
+        // Make sure each question is a number type
+        const processedQuestions = template.questions.map(id => 
+          typeof id === 'string' ? parseInt(id) : id
+        );
+        
+        console.log('Processed questions array:', processedQuestions);
+        template = {
+          ...template,
+          questions: processedQuestions
+        };
+      }
+      
       const [newTemplate] = await db
         .insert(quizTemplates)
         .values(template)
@@ -2631,6 +2647,22 @@ export class DatabaseStorage implements IStorage {
   async updateQuizTemplate(id: number, template: Partial<InsertQuizTemplate>): Promise<QuizTemplate> {
     try {
       console.log(`Updating quiz template with ID: ${id}`, template);
+      
+      // Process the questions array if it exists
+      if (template.questions && Array.isArray(template.questions)) {
+        console.log('Original questions array in update:', template.questions);
+        
+        // Make sure each question is a number type
+        const processedQuestions = template.questions.map(id => 
+          typeof id === 'string' ? parseInt(id) : id
+        );
+        
+        console.log('Processed questions array in update:', processedQuestions);
+        template = {
+          ...template,
+          questions: processedQuestions
+        };
+      }
 
       const [updatedTemplate] = await db
         .update(quizTemplates)
