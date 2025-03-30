@@ -8,7 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft, ClipboardCheck, Plus, Book, Pencil } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft, ClipboardCheck, Plus, Book, Pencil, Edit, PlayCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -29,6 +31,8 @@ import {
   FormField,
   FormItem,
   FormLabel,
+  FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -48,6 +52,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import type { Question, QuizTemplate } from "@shared/schema";
 
 const statusColors = {
   present: 'text-green-500',
@@ -173,11 +179,49 @@ const LoadingSkeleton = () => (
   </div>
 );
 
+// Quiz template schema
+const quizTemplateSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  description: z.string().optional(),
+  timeLimit: z.number().int().min(1, "Time limit is required"),
+  questionCount: z.number().int().min(1, "Question count is required"),
+  passingScore: z.number().int().min(0).max(100, "Passing score must be between 0 and 100"),
+  shuffleQuestions: z.boolean().default(false),
+  shuffleOptions: z.boolean().default(false),
+  categoryDistribution: z.record(z.string(), z.number()).optional(),
+  difficultyDistribution: z.record(z.string(), z.number()).optional(),
+  processId: z.number().min(1, "Process is required"),
+  batchId: z.union([z.number(), z.literal("none")]).optional(),
+});
+
+// Phase change form schema
 const phaseChangeFormSchema = z.object({
   requestedPhase: z.enum(['induction', 'training', 'certification', 'ojt', 'ojt_certification']),
   justification: z.string().min(1, "Justification is required"),
   managerId: z.string().min(1, "Manager is required"),
 });
+
+// Define types after schemas
+type QuizTemplateFormValues = z.infer<typeof quizTemplateSchema>;
+
+type QuizTemplate = {
+  id: number;
+  name: string;
+  description?: string;
+  timeLimit: number;
+  questionCount: number;
+  passingScore: number;
+  shuffleQuestions: boolean;
+  shuffleOptions: boolean;
+  categoryDistribution?: Record<string, number>;
+  difficultyDistribution?: Record<string, number>;
+  organizationId: number;
+  processId: number;
+  status: string;
+  batchId?: number;
+  createdAt?: Date;
+  updatedAt?: Date;
+};
 
 export function BatchDetailsPage() {
   const { batchId } = useParams();
@@ -187,12 +231,15 @@ export function BatchDetailsPage() {
   const queryClient = useQueryClient();
   const [selectedTab, setSelectedTab] = useState("attendance");
   const currentDate = format(new Date(), "PPP");
+  const [isAddTemplateOpen, setIsAddTemplateOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<QuizTemplate | null>(null);
+  const [previewQuestions, setPreviewQuestions] = useState<any[]>([]);
   
   // Format current date as YYYY-MM-DD for API and initialize selectedDate state
   const today = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState(today);
 
-  // Initialize form
+  // Initialize phase change form
   const form = useForm({
     resolver: zodResolver(phaseChangeFormSchema),
     defaultValues: {
@@ -200,6 +247,20 @@ export function BatchDetailsPage() {
       justification: "",
       managerId: "",
     },
+  });
+  
+  // Initialize quiz template form
+  const templateForm = useForm<QuizTemplateFormValues>({
+    resolver: zodResolver(quizTemplateSchema),
+    defaultValues: {
+      timeLimit: 10,
+      questionCount: 10,
+      passingScore: 70,
+      shuffleQuestions: false,
+      shuffleOptions: false,
+      processId: undefined,
+      batchId: parseInt(batchId || "0"),
+    }
   });
 
   // Define the Batch type to fix type errors
@@ -286,6 +347,61 @@ export function BatchDetailsPage() {
     : user?.role === 'manager' 
       ? (managerRequests as PhaseRequest[] || []) 
       : [];
+      
+  // Fetch processes for template form
+  const { data: processes = [] } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/processes`],
+    enabled: !!user?.organizationId && selectedTab === 'assessments',
+  });
+  
+  // Create quiz template mutation
+  const createQuizTemplateMutation = useMutation({
+    mutationFn: async (data: QuizTemplateFormValues) => {
+      const response = await fetch(`/api/quiz-templates`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...data,
+          organizationId: user?.organizationId,
+          batchId: parseInt(batchId!),
+          status: 'active',
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create quiz template');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/quiz-templates`] 
+      });
+      toast({
+        title: "Success",
+        description: "Quiz template created successfully",
+      });
+      templateForm.reset();
+      setIsAddTemplateOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to create quiz template",
+      });
+    },
+  });
+  
+  // Handle quiz template form submission
+  const handleTemplateSubmit = (data: QuizTemplateFormValues) => {
+    console.log('Submitting quiz template:', data);
+    createQuizTemplateMutation.mutate(data);
+  };
 
   const updateAttendanceMutation = useMutation({
     mutationFn: async ({ traineeId, status }: { traineeId: number; status: AttendanceStatus }) => {
