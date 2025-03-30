@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { 
@@ -856,11 +856,11 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
   });
   
   // Handle batch selection in the attendance breakdown
-  const handleBatchSelect = useCallback((batchId: number | null) => {
+  const handleBatchSelect = (batchId: number | null) => {
     setSelectedBatchId(batchId);
     // Refetch attendance data when batch filter changes
     refetchAttendance();
-  }, [refetchAttendance]);
+  };
   
   // Remove duplicate function as it's now implemented in calculateBatchMetrics
   
