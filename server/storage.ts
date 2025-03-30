@@ -2722,37 +2722,6 @@ export class DatabaseStorage implements IStorage {
       throw new Error(`Failed to fetch quizzes: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
-  
-  async getQuizzesByBatchId(batchId: number): Promise<Quiz[]> {
-    try {
-      // First, find all templates that were created for this batch
-      const templates = await db
-        .select()
-        .from(quizTemplates)
-        .where(eq(quizTemplates.batchId, batchId))
-        .orderBy(desc(quizTemplates.createdAt));
-      
-      // Then get all quizzes generated from those templates
-      if (templates.length === 0) {
-        console.log(`No quiz templates found for batch ${batchId}`);
-        return [];
-      }
-      
-      const templateIds = templates.map(t => t.id);
-      
-      const allQuizzes = await db
-        .select()
-        .from(quizzes)
-        .where(inArray(quizzes.templateId, templateIds))
-        .orderBy(desc(quizzes.startTime)) as Quiz[];
-      
-      console.log(`Found ${allQuizzes.length} quizzes for batch ${batchId}`);
-      return allQuizzes;
-    } catch (error) {
-      console.error('Error fetching quizzes by batch:', error);
-      throw new Error(`Failed to fetch batch quizzes: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
 
   async getQuizWithQuestions(id: number): Promise<Quiz | undefined> {
     try {
@@ -2923,57 +2892,6 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error fetching quiz responses:', error);
       throw error;
-    }
-  }
-  
-  async getQuizAttemptsByQuizId(quizId: number): Promise<QuizAttempt[]> {
-    try {
-      console.log(`Fetching quiz attempts for quiz ID: ${quizId}`);
-      const attempts = await db
-        .select({
-          id: quizAttempts.id,
-          quizId: quizAttempts.quizId,
-          userId: quizAttempts.userId,
-          score: quizAttempts.score,
-          completedAt: quizAttempts.completedAt,
-          createdAt: quizAttempts.createdAt
-        })
-        .from(quizAttempts)
-        .where(eq(quizAttempts.quizId, quizId))
-        .orderBy(desc(quizAttempts.completedAt)) as QuizAttempt[];
-        
-      console.log(`Found ${attempts.length} attempts for quiz ID ${quizId}`);
-      
-      // Get user information for each attempt
-      const enhancedAttempts = await Promise.all(attempts.map(async (attempt) => {
-        const user = await this.getUserById(attempt.userId);
-        return {
-          ...attempt,
-          userFullName: user?.fullName || null
-        };
-      }));
-      
-      return enhancedAttempts;
-    } catch (error) {
-      console.error('Error fetching quiz attempts:', error);
-      throw error;
-    }
-  }
-  
-  async getUserById(userId: number): Promise<{ id: number; fullName: string } | null> {
-    try {
-      const [user] = await db
-        .select({
-          id: users.id,
-          fullName: users.fullName
-        })
-        .from(users)
-        .where(eq(users.id, userId));
-        
-      return user || null;
-    } catch (error) {
-      console.error(`Error fetching user with ID ${userId}:`, error);
-      return null;
     }
   }
   async getBatchTrainees(batchId: number): Promise<UserBatchProcess[]> {
