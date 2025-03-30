@@ -813,48 +813,14 @@ export default function TraineeManagement() {
                             <span className="font-medium">0</span>
                           </div>
                         </div>
-                        
-                        {/* Quiz Templates Section */}
-                        <div className="mt-4 pt-4 border-t border-border">
-                          <div className="flex justify-between items-center mb-3">
-                            <h4 className="text-sm font-medium flex items-center">
-                              <ClipboardCheck className="h-4 w-4 mr-1.5 text-blue-500" />
-                              Quiz Templates
-                            </h4>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="h-7 px-2 text-xs"
-                              onClick={() => {
-                                window.location.href = `/quiz-management?batchId=${batch.id}&action=template`;
-                              }}
-                            >
-                              <span className="mr-1">+</span> Add Template
-                            </Button>
-                          </div>
-                          <div className="bg-muted/30 rounded-md p-3 space-y-2">
-                            {/* This would be a list of quiz templates - showing empty state for now */}
-                            <div className="text-xs text-center text-muted-foreground py-2">
-                              No quiz templates available
-                            </div>
-                            {/* We'll add actual quiz template list items here later */}
-                          </div>
-                        </div>
                       </div>
                       
                       <div className="border-t p-4 bg-muted/20">
-                        <div className="grid grid-cols-2 gap-2">
-                          <Button variant="outline" className="w-full" onClick={() => {
-                            window.location.href = `/batch-details/${batch.id}`;
-                          }}>
-                            Manage Assessments
-                          </Button>
-                          <Button variant="outline" className="w-full" onClick={() => {
-                            window.location.href = `/quiz-management?batchId=${batch.id}`;
-                          }}>
-                            Create Quiz
-                          </Button>
-                        </div>
+                        <Button variant="outline" className="w-full" onClick={() => {
+                          window.location.href = `/batch-details/${batch.id}`;
+                        }}>
+                          Manage Assessments
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
