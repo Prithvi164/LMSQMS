@@ -2684,6 +2684,145 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Assign a quiz template to specific trainees
+  app.post("/api/quiz-templates/:id/assign-trainees", async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const templateId = parseInt(req.params.id);
+      if (isNaN(templateId)) {
+        return res.status(400).json({ message: "Invalid template ID" });
+      }
+
+      const { traineeIds } = req.body;
+      if (!traineeIds || !Array.isArray(traineeIds) || traineeIds.length === 0) {
+        return res.status(400).json({ message: "No trainees specified" });
+      }
+
+      // Get the template to verify ownership and access
+      const template = await storage.getQuizTemplate(templateId);
+      if (!template) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+
+      // Verify organization access
+      if (template.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Check batch access if template has a batch ID
+      if (template.batchId) {
+        const hasBatchAccess = await userHasBatchAccess(req.user.id, template.batchId);
+        if (!hasBatchAccess) {
+          return res.status(403).json({ message: "You do not have access to this batch's quiz templates" });
+        }
+      }
+
+      // Verify all trainees exist and belong to the same organization
+      const assignments = [];
+      for (const traineeId of traineeIds) {
+        // Generate a quiz for each trainee from the template
+        // Get random questions based on template configuration
+        const questions = await storage.getRandomQuestions(
+          req.user.organizationId,
+          {
+            count: template.questionCount,
+            categoryDistribution: template.categoryDistribution,
+            difficultyDistribution: template.difficultyDistribution,
+            processId: template.processId
+          }
+        );
+
+        if (questions.length < template.questionCount) {
+          return res.status(400).json({ 
+            message: "Not enough questions available to generate quizzes for trainees"
+          });
+        }
+
+        // Create a personalized quiz instance for this trainee
+        const quiz = await storage.createQuiz({
+          name: template.name,
+          description: template.description,
+          timeLimit: template.timeLimit,
+          passingScore: template.passingScore,
+          questions: questions.map(q => q.id),
+          templateId: template.id,
+          organizationId: req.user.organizationId,
+          createdBy: req.user.id,
+          processId: template.processId,
+          status: 'assigned', // Start as assigned
+          userId: traineeId, // Assign to this specific trainee
+          batchId: template.batchId // Inherit batch restriction
+        });
+
+        assignments.push(quiz);
+      }
+
+      res.status(200).json({ 
+        message: 'Quiz assigned successfully to ' + assignments.length + ' trainees',
+        assignedQuizzes: assignments.length
+      });
+    } catch (error: any) {
+      console.error("Error assigning quiz to trainees:", error);
+      res.status(500).json({ message: error.message || "Failed to assign quiz to trainees" });
+    }
+  });
+
+  // Get assessments by batch ID
+  app.get("/api/organizations/:orgId/batches/:batchId/assessments", async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const orgId = parseInt(req.params.orgId);
+      const batchId = parseInt(req.params.batchId);
+
+      if (isNaN(orgId) || isNaN(batchId)) {
+        return res.status(400).json({ message: "Invalid organization ID or batch ID" });
+      }
+
+      // Verify organization access
+      if (req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Check if the user has access to this batch
+      const hasBatchAccess = await userHasBatchAccess(req.user.id, batchId);
+      if (!hasBatchAccess) {
+        return res.status(403).json({ message: "You don't have access to this batch" });
+      }
+
+      // Get all quizzes for this batch
+      const quizzes = await storage.getQuizzesByBatchId(batchId);
+      
+      // Get quiz attempts for each quiz
+      const enhancedQuizzes = await Promise.all(quizzes.map(async (quiz) => {
+        const attempts = await storage.getQuizAttemptsByQuizId(quiz.id);
+        
+        // Get user information for each quiz
+        let userFullName = null;
+        if (quiz.userId) {
+          const user = await storage.getUserById(quiz.userId);
+          userFullName = user?.fullName || null;
+        }
+        
+        return {
+          ...quiz,
+          attempts,
+          userFullName
+        };
+      }));
+      
+      res.json(enhancedQuizzes);
+    } catch (error: any) {
+      console.error("Error fetching batch assessments:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch assessments" });
+    }
+  });
+
   // Get quizzes generated from a template
   app.get("/api/quiz-templates/:id/quizzes", async (req, res) => {
     if (!req.user || !req.user.organizationId) {
