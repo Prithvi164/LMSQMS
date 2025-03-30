@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Users, CalendarDays, CheckCircle2, Loader2, BarChart, ChevronDown, ChevronRight } from "lucide-react";
+import { Bell, Users, CalendarDays, CheckCircle2, ClipboardCheck, Loader2, BarChart, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, addHours, addMinutes } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -46,6 +46,7 @@ type Batch = {
     name: string;
   };
   capacityLimit: number;
+  userCount?: number;
   trainer?: {
     id: number;
     fullName: string;
@@ -621,6 +622,13 @@ export default function TraineeManagement() {
             <CalendarDays className="h-4 w-4" />
             Attendance
           </TabsTrigger>
+          {/* Only show Assessments & Certifications tab when there's a training batch */}
+          {trainingBatches.length > 0 && (
+            <TabsTrigger value="assessments" className="flex items-center gap-2">
+              <ClipboardCheck className="h-4 w-4" />
+              Assessments & Certifications
+            </TabsTrigger>
+          )}
           <TabsTrigger value="notifications" className="flex items-center gap-2">
             <Bell className="h-4 w-4" />
             Notifications
@@ -716,6 +724,73 @@ export default function TraineeManagement() {
           </Alert>
         </TabsContent>
 
+        <TabsContent value="assessments">
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold">Assessments & Certifications</h2>
+              <Button>
+                <ClipboardCheck className="h-4 w-4 mr-2" />
+                Create Assessment
+              </Button>
+            </div>
+            
+            {trainingBatches.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {trainingBatches.map(batch => (
+                  <Card key={batch.id} className="overflow-hidden">
+                    <CardContent className="p-0">
+                      <div className="p-6 space-y-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="font-semibold">{batch.name}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              {batch.location ? batch.location.name : "No location"} • {batch.process ? batch.process.name : "No process"}
+                            </p>
+                          </div>
+                          <Badge className="bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-800/20 dark:text-green-400">
+                            Training
+                          </Badge>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span>Trainees:</span>
+                            <span className="font-medium">{batch.userCount || '0'}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>Assessments:</span>
+                            <span className="font-medium">0</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>Certifications:</span>
+                            <span className="font-medium">0</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="border-t p-4 bg-muted/20">
+                        <Button variant="outline" className="w-full" onClick={() => {
+                          window.location.href = `/batch-details/${batch.id}`;
+                        }}>
+                          Manage Assessments
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-muted/40 rounded-md p-8 text-center">
+                <ClipboardCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">No Active Training Batches</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Assessments & Certifications are available for batches in the training phase.
+                </p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+        
         <TabsContent value="notifications">
           <Alert>
             <AlertDescription>
