@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Users, CalendarDays, CheckCircle2, ClipboardCheck, Loader2, BarChart, ChevronDown, ChevronRight, GraduationCap, LineChart as LineChartIcon } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Bell, Users, CalendarDays, CheckCircle2, ClipboardCheck, Loader2, BarChart, ChevronDown, ChevronRight, 
+         GraduationCap, LineChart as LineChartIcon, FolderOpen, ClipboardList, Plus, Eye, Pencil, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, addHours, addMinutes } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -232,6 +234,7 @@ export default function TraineeManagement() {
   // Track navigation loading state
   const [isNavigating, setIsNavigating] = useState(false);
   const [navigatingBatchId, setNavigatingBatchId] = useState<number | null>(null);
+  const [selectedBatchIdForTemplates, setSelectedBatchIdForTemplates] = useState<number | null>(null);
   
   // Optimized renderBatchCard function with improved navigation handling
   const renderBatchCard = useCallback((batch: Batch) => (
@@ -720,10 +723,6 @@ export default function TraineeManagement() {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-semibold">Assessments & Certifications</h2>
-              <Button>
-                <ClipboardCheck className="h-4 w-4 mr-2" />
-                Create Assessment
-              </Button>
             </div>
             
             {/* Assessment Insights Card */}
@@ -782,50 +781,211 @@ export default function TraineeManagement() {
             </Card>
             
             {trainingBatches.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {trainingBatches.map(batch => (
-                  <Card key={batch.id} className="overflow-hidden">
-                    <CardContent className="p-0">
-                      <div className="p-6 space-y-4">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h3 className="font-semibold">{batch.name}</h3>
-                            <p className="text-sm text-muted-foreground">
-                              {batch.location ? batch.location.name : "No location"} • {batch.process ? batch.process.name : "No process"}
-                            </p>
+              <Tabs defaultValue="batches" className="space-y-4">
+                <TabsList>
+                  <TabsTrigger value="batches" className="flex items-center gap-2">
+                    <FolderOpen className="h-4 w-4" />
+                    Training Batches
+                  </TabsTrigger>
+                  <TabsTrigger value="quiz-templates" className="flex items-center gap-2">
+                    <ClipboardList className="h-4 w-4" />
+                    Quiz Templates
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="batches">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {trainingBatches.map(batch => (
+                      <Card key={batch.id} className="overflow-hidden">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-lg">{batch.name}</CardTitle>
+                          <CardDescription>
+                            {formatToIST(batch.startDate)} - {formatToIST(batch.endDate || batch.startDate)}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                          <div className="p-4 space-y-4">
+                            <div className="flex justify-between items-center">
+                              <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
+                                Training
+                              </Badge>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <div className="flex justify-between text-sm">
+                                <span>Trainees:</span>
+                                <span className="font-medium">{batch.userCount || '0'}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span>Assessments:</span>
+                                <span className="font-medium">{batch.assessmentCount || '0'}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span>Certifications:</span>
+                                <span className="font-medium">{batch.certificationCount || '0'}</span>
+                              </div>
+                            </div>
                           </div>
-                          <Badge className="bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-800/20 dark:text-green-400">
-                            Training
-                          </Badge>
+                          
+                          <div className="border-t p-4 bg-muted/20">
+                            <Button variant="outline" className="w-full" onClick={() => {
+                              const quizTemplatesTab = document.querySelector('[value="quiz-templates"]') as HTMLElement;
+                              if (quizTemplatesTab) quizTemplatesTab.click();
+                              // Set selected batch ID for filtering templates
+                              setSelectedBatchIdForTemplates(batch.id);
+                            }}>
+                              Manage Assessments
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="quiz-templates">
+                  <Card>
+                    <CardHeader>
+                      <div className="flex justify-between items-center">
+                        <CardTitle>Quiz Templates</CardTitle>
+                        <Button onClick={() => {
+                          window.location.href = "/quiz-management?tab=templates";
+                        }}>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Create Template
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-col gap-4">
+                        {/* Batch filter */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                          <div>
+                            <Label>Filter by Batch</Label>
+                            <Select 
+                              value={selectedBatchIdForTemplates ? selectedBatchIdForTemplates.toString() : "all"}
+                              onValueChange={(value) => {
+                                if (value === "all") {
+                                  setSelectedBatchIdForTemplates(null);
+                                } else {
+                                  setSelectedBatchIdForTemplates(parseInt(value));
+                                }
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="All Batches" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Batches</SelectItem>
+                                {trainingBatches.map((batch) => (
+                                  <SelectItem key={batch.id} value={batch.id.toString()}>
+                                    {batch.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
                         
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span>Trainees:</span>
-                            <span className="font-medium">{batch.userCount || '0'}</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span>Assessments:</span>
-                            <span className="font-medium">0</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span>Certifications:</span>
-                            <span className="font-medium">0</span>
-                          </div>
+                        {/* Quiz Templates List */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                          <Card>
+                            <CardHeader>
+                              <CardTitle className="text-lg">Billing Knowledge Test</CardTitle>
+                              <CardDescription>Basic billing procedures assessment</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="space-y-2">
+                                <div className="flex justify-between text-sm">
+                                  <span>Questions:</span>
+                                  <span className="font-medium">15</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span>Time Limit:</span>
+                                  <span className="font-medium">30 mins</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span>Passing Score:</span>
+                                  <span className="font-medium">70%</span>
+                                </div>
+                              </div>
+                            </CardContent>
+                            <CardFooter className="flex justify-between">
+                              <Button variant="outline" size="sm">
+                                <Eye className="h-4 w-4 mr-1" />
+                                Preview
+                              </Button>
+                              <Button variant="default" size="sm">
+                                <Pencil className="h-4 w-4 mr-1" />
+                                Edit
+                              </Button>
+                            </CardFooter>
+                          </Card>
+                          
+                          <Card>
+                            <CardHeader>
+                              <CardTitle className="text-lg">Customer Service Certification</CardTitle>
+                              <CardDescription>Advanced customer service assessment</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="space-y-2">
+                                <div className="flex justify-between text-sm">
+                                  <span>Questions:</span>
+                                  <span className="font-medium">25</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span>Time Limit:</span>
+                                  <span className="font-medium">45 mins</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span>Passing Score:</span>
+                                  <span className="font-medium">75%</span>
+                                </div>
+                              </div>
+                            </CardContent>
+                            <CardFooter className="flex justify-between">
+                              <Button variant="outline" size="sm">
+                                <Eye className="h-4 w-4 mr-1" />
+                                Preview
+                              </Button>
+                              <Button variant="default" size="sm">
+                                <Pencil className="h-4 w-4 mr-1" />
+                                Edit
+                              </Button>
+                            </CardFooter>
+                          </Card>
+                          
+                          {/* Add Template Card */}
+                          <Card className="border-dashed flex flex-col items-center justify-center p-6 h-full">
+                            <div className="text-center">
+                              <Plus className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                              <h3 className="text-lg font-medium mb-2">Create New Template</h3>
+                              <p className="text-sm text-muted-foreground mb-4">
+                                Create custom quiz templates for your training needs
+                              </p>
+                              <Button onClick={() => {
+                                window.location.href = "/quiz-management?tab=templates";
+                              }}>
+                                <Plus className="h-4 w-4 mr-2" />
+                                New Template
+                              </Button>
+                            </div>
+                          </Card>
                         </div>
-                      </div>
-                      
-                      <div className="border-t p-4 bg-muted/20">
-                        <Button variant="outline" className="w-full" onClick={() => {
-                          window.location.href = `/quiz-management?batchId=${batch.id}&tab=templates`;
-                        }}>
-                          Manage Assessments
-                        </Button>
+                        
+                        <div className="flex justify-end mt-4">
+                          <Button variant="outline" onClick={() => {
+                            window.location.href = "/quiz-management";
+                          }}>
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            Advanced Quiz Management
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
-                ))}
-              </div>
+                </TabsContent>
+              </Tabs>
             ) : (
               <div className="bg-muted/40 rounded-md p-8 text-center">
                 <ClipboardCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
