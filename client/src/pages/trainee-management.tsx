@@ -753,10 +753,6 @@ export default function TraineeManagement() {
                   <RefreshCcw className="h-4 w-4 mr-2" />
                   Schedule Refresher
                 </Button>
-                <Button>
-                  <ClipboardCheck className="h-4 w-4 mr-2" />
-                  Create Assessment
-                </Button>
               </div>
             </div>
             
