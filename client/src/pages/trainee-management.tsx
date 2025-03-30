@@ -817,7 +817,7 @@ export default function TraineeManagement() {
                       
                       <div className="border-t p-4 bg-muted/20">
                         <Button variant="outline" className="w-full" onClick={() => {
-                          window.location.href = `/batch-details/${batch.id}`;
+                          window.location.href = `/quiz-management?batchId=${batch.id}&tab=templates`;
                         }}>
                           Manage Assessments
                         </Button>

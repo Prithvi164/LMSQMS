@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, Loader2, PlayCircle, Edit, Eye } from "lucide-react";
+import { Pencil, Trash2, Loader2, PlayCircle, Edit, Eye, ArrowLeft } from "lucide-react";
+import { Link } from "wouter";
 
 // Process filter form schema
 const filterFormSchema = z.object({
@@ -27,7 +28,8 @@ const filterFormSchema = z.object({
 
 // Add templateFilterFormSchema
 const templateFilterFormSchema = z.object({
-  processId: z.string().default("all")
+  processId: z.string().default("all"),
+  batchId: z.string().optional()
 });
 
 // Process type definitions
@@ -554,16 +556,47 @@ export function QuizManagement() {
   const [selectedTemplateProcessId, setSelectedTemplateProcessId] = useState<string>("all");
 
   // Add form for template filter
+  // Get batch ID from URL if available
+  const urlParams = new URLSearchParams(window.location.search);
+  const batchIdFromUrl = urlParams.get("batchId");
+  
   const templateFilterForm = useForm<TemplateFilterFormValues>({
     resolver: zodResolver(templateFilterFormSchema),
     defaultValues: {
-      processId: "all"
+      processId: "all",
+      batchId: batchIdFromUrl || undefined
     }
   });
 
+  // Get batch ID filter from form
+  const selectedBatchId = templateFilterForm.watch("batchId");
+  
   // Add query for quiz templates
   const { data: quizTemplates = [], isLoading: templatesLoading } = useQuery<QuizTemplate[]>({
-    queryKey: ['/api/quiz-templates', selectedTemplateProcessId !== 'all' ? parseInt(selectedTemplateProcessId) : null],
+    queryKey: [
+      '/api/quiz-templates', 
+      selectedTemplateProcessId !== 'all' ? parseInt(selectedTemplateProcessId) : null,
+      selectedBatchId ? parseInt(selectedBatchId) : null
+    ],
+    queryFn: async ({ queryKey }) => {
+      const processId = queryKey[1];
+      const batchId = queryKey[2];
+      
+      const url = new URL('/api/quiz-templates', window.location.origin);
+      if (processId) {
+        url.searchParams.append('processId', processId.toString());
+      }
+      if (batchId) {
+        url.searchParams.append('batchId', batchId.toString());
+      }
+      
+      console.log(`[Quiz Management] Fetching templates: ${url.toString()}`);
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Failed to fetch quiz templates');
+      }
+      return response.json();
+    },
     enabled: !!user?.organizationId
   });
 
@@ -643,7 +676,7 @@ export function QuizManagement() {
     <div className="container mx-auto py-6">
       <h1 className="text-2xl font-bold mb-6">Quiz Management</h1>
 
-      <Tabs defaultValue="questions">
+      <Tabs defaultValue={urlParams.get("tab") || "questions"}>
         <TabsList>
           <TabsTrigger value="questions">Question Bank</TabsTrigger>
           <TabsTrigger value="templates">Quiz Templates</TabsTrigger>
@@ -1052,6 +1085,41 @@ export function QuizManagement() {
                       )}
                     />
                   </div>
+
+                  {/* Batch Dropdown Filter */}
+                  <div className="flex-1">
+                    <FormField
+                      control={templateFilterForm.control}
+                      name="batchId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Filter by Batch</FormLabel>
+                          <Select
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                            }}
+                            value={field.value || ""}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="All Batches" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="">All Batches</SelectItem>
+                              {batches.map((batch) => (
+                                <SelectItem key={batch.id} value={batch.id.toString()}>
+                                  {batch.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
                   <div className="flex items-end">
                     <Dialog open={isAddTemplateOpen || editingTemplate !== null} onOpenChange={(open) => {
                       setIsAddTemplateOpen(open);
