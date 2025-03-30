@@ -2407,14 +2407,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`Template will be restricted to batch ID: ${batchId}`);
       }
 
-      // Ensure questions array is properly formatted for PostgreSQL
-      let questions = req.body.questions;
-      if (questions && Array.isArray(questions)) {
-        // Make sure the array is processed correctly for PostgreSQL
-        console.log('Processing questions array before fix:', questions);
-        // No need to manually process - Drizzle ORM will handle the conversion
-      }
-      
       const templateData = {
         ...req.body,
         batchId,

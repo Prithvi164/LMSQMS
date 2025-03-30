@@ -2586,84 +2586,11 @@ export class DatabaseStorage implements IStorage {
   // Quiz template operations
   async createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate> {
     try {
-      // Convert questions array explicitly to ensure it's properly formatted
-      if (template.questions && Array.isArray(template.questions)) {
-        console.log('Original questions array:', template.questions);
-        
-        // Make sure each question is a number type
-        const processedQuestions = template.questions.map(id => 
-          typeof id === 'string' ? parseInt(id) : id
-        );
-        
-        console.log('Processed questions array:', processedQuestions);
-        
-        // Create a proper PostgreSQL-compatible array structure
-        const questions = JSON.stringify(processedQuestions);
-        console.log('Final processed array for DB:', questions);
-        
-        // Create a new template object with the processed array
-        template = {
-          ...template,
-          questions: processedQuestions
-        };
-      }
-      
-      try {
-        // First try direct insertion with Drizzle ORM
-        const [newTemplate] = await db
-          .insert(quizTemplates)
-          .values(template)
-          .returning();
-        return newTemplate;
-      } catch (innerError) {
-        console.error('Direct insertion failed. Error:', innerError);
-        console.log('Attempting insertion with custom SQL for questions array...');
-        
-        // Create a copy of the template without the questions field
-        const { questions, ...templateWithoutQuestions } = template;
-        
-        // Insert template with separate SQL for questions array
-        const questionsJson = JSON.stringify(template.questions);
-        
-        // Create a mapping from JavaScript camelCase to DB snake_case for column names
-        const columnMapping = {
-          name: "name",
-          description: "description",
-          timeLimit: "time_limit", 
-          passingScore: "passing_score",
-          shuffleQuestions: "shuffle_questions",
-          shuffleOptions: "shuffle_options",
-          questionCount: "question_count",
-          categoryDistribution: "category_distribution",
-          difficultyDistribution: "difficulty_distribution",
-          processId: "process_id",
-          organizationId: "organization_id",
-          batchId: "batch_id",
-          createdBy: "created_by",
-          createdAt: "created_at",
-          updatedAt: "updated_at"
-        };
-        
-        // Convert JavaScript property names to DB column names
-        const dbColumnNames = Object.keys(templateWithoutQuestions).map(key => columnMapping[key] || key);
-        
-        // Format SQL with explicit cast to JSONB
-        const [newTemplate] = await db.execute(`
-          INSERT INTO quiz_templates (
-            ${dbColumnNames.join(', ')},
-            questions
-          ) VALUES (
-            ${Object.keys(templateWithoutQuestions).map((_, i) => `$${i + 1}`).join(', ')},
-            $${Object.keys(templateWithoutQuestions).length + 1}::jsonb
-          )
-          RETURNING *
-        `, [
-          ...Object.values(templateWithoutQuestions),
-          questionsJson
-        ]);
-        
-        return newTemplate;
-      }
+      const [newTemplate] = await db
+        .insert(quizTemplates)
+        .values(template)
+        .returning();
+      return newTemplate;    
     } catch (error) {
       console.error('Error creating quiz template:', error);
       throw error;
@@ -2704,151 +2631,22 @@ export class DatabaseStorage implements IStorage {
   async updateQuizTemplate(id: number, template: Partial<InsertQuizTemplate>): Promise<QuizTemplate> {
     try {
       console.log(`Updating quiz template with ID: ${id}`, template);
-      
-      // Process the questions array if it exists
-      if (template.questions && Array.isArray(template.questions)) {
-        console.log('Original questions array in update:', template.questions);
-        
-        // Make sure each question is a number type
-        const processedQuestions = template.questions.map(id => 
-          typeof id === 'string' ? parseInt(id) : id
-        );
-        
-        console.log('Processed questions array in update:', processedQuestions);
-        
-        // Create a proper PostgreSQL-compatible array structure
-        const questions = JSON.stringify(processedQuestions);
-        console.log('Final processed array for DB (update):', questions);
-        
-        template = {
+
+      const [updatedTemplate] = await db
+        .update(quizTemplates)
+        .set({
           ...template,
-          questions: processedQuestions
-        };
+          updatedAt: new Date()
+        })
+        .where(eq(quizTemplates.id, id))
+        .returning() as QuizTemplate[];
+
+      if (!updatedTemplate) {
+        throw new Error('Quiz template not found');
       }
 
-      try {
-        // First try direct update with Drizzle ORM
-        const [updatedTemplate] = await db
-          .update(quizTemplates)
-          .set({
-            ...template,
-            updatedAt: new Date()
-          })
-          .where(eq(quizTemplates.id, id))
-          .returning() as QuizTemplate[];
-
-        if (!updatedTemplate) {
-          throw new Error('Quiz template not found');
-        }
-
-        console.log('Successfully updated quiz template:', updatedTemplate);
-        return updatedTemplate;
-      } catch (innerError) {
-        console.error('Direct update failed. Error:', innerError);
-        console.log('Attempting update with custom SQL for questions array...');
-        
-        // Get the existing template
-        const [existingTemplate] = await db
-          .select()
-          .from(quizTemplates)
-          .where(eq(quizTemplates.id, id));
-        
-        if (!existingTemplate) {
-          throw new Error('Quiz template not found');
-        }
-        
-        // Create copies without the questions field
-        const { questions, ...templateWithoutQuestions } = template;
-        
-        // Only continue with custom SQL if questions array exists
-        if (questions) {
-          // Format questions for PostgreSQL
-          const questionsJson = JSON.stringify(questions);
-          
-          // Create a mapping from JavaScript camelCase to DB snake_case for column names
-          const columnMapping = {
-            name: "name",
-            description: "description",
-            timeLimit: "time_limit", 
-            passingScore: "passing_score",
-            shuffleQuestions: "shuffle_questions",
-            shuffleOptions: "shuffle_options",
-            questionCount: "question_count",
-            categoryDistribution: "category_distribution",
-            difficultyDistribution: "difficulty_distribution",
-            processId: "process_id",
-            organizationId: "organization_id",
-            batchId: "batch_id",
-            createdBy: "created_by",
-            createdAt: "created_at",
-            updatedAt: "updated_at"
-          };
-          
-          // Create the SET clause with proper column names
-          const setClause = Object.keys(templateWithoutQuestions)
-            .map(key => `${columnMapping[key] || key} = $${key}`)
-            .join(', ');
-          
-          // Update with explicit JSONB cast
-          const [updatedTemplate] = await db.execute(`
-            UPDATE quiz_templates 
-            SET 
-              ${setClause}
-              ${Object.keys(templateWithoutQuestions).length > 0 ? ',' : ''} 
-              questions = $questions::jsonb,
-              updated_at = NOW()
-            WHERE id = $id
-            RETURNING *
-          `, {
-            ...templateWithoutQuestions,
-            questions: questionsJson,
-            id
-          });
-          
-          console.log('Successfully updated quiz template with custom SQL:', updatedTemplate);
-          return updatedTemplate;
-        }
-        
-        // Create a mapping from JavaScript camelCase to DB snake_case for column names
-        const columnMapping = {
-          name: "name",
-          description: "description",
-          timeLimit: "time_limit", 
-          passingScore: "passing_score",
-          shuffleQuestions: "shuffle_questions",
-          shuffleOptions: "shuffle_options",
-          questionCount: "question_count",
-          categoryDistribution: "category_distribution",
-          difficultyDistribution: "difficulty_distribution",
-          processId: "process_id",
-          organizationId: "organization_id",
-          batchId: "batch_id",
-          createdBy: "created_by",
-          createdAt: "created_at",
-          updatedAt: "updated_at"
-        };
-        
-        // Create the SET clause with proper column names
-        const setClause = Object.keys(templateWithoutQuestions)
-          .map(key => `${columnMapping[key] || key} = $${key}`)
-          .join(', ');
-          
-        // If we don't have questions to update, just update the other fields
-        const [updatedTemplate] = await db.execute(`
-          UPDATE quiz_templates 
-          SET 
-            ${setClause},
-            updated_at = NOW()
-          WHERE id = $id
-          RETURNING *
-        `, {
-          ...templateWithoutQuestions,
-          id
-        });
-        
-        console.log('Successfully updated quiz template with custom SQL (no questions update):', updatedTemplate);
-        return updatedTemplate;
-      }
+      console.log('Successfully updated quiz template:', updatedTemplate);
+      return updatedTemplate;
     } catch (error) {
       console.error('Error updating quiz template:', error);
       throw error;
@@ -2889,97 +2687,19 @@ export class DatabaseStorage implements IStorage {
       if (!quiz.questions || quiz.questions.length === 0) {
         throw new Error('Quiz must have at least one question');
       }
-      
-      // Ensure questions are properly formatted for PostgreSQL
-      if (quiz.questions && Array.isArray(quiz.questions)) {
-        console.log('Original quiz questions array:', quiz.questions);
-        
-        // Make sure each question is a number type
-        const processedQuestions = quiz.questions.map(id => 
-          typeof id === 'string' ? parseInt(id) : id
-        );
-        
-        console.log('Processed quiz questions array:', processedQuestions);
-        
-        // Create a proper PostgreSQL-compatible array structure
-        const questionsJson = JSON.stringify(processedQuestions);
-        console.log('Final quiz questions array for DB:', questionsJson);
-        
-        quiz = {
+
+      const [newQuiz] = await db
+        .insert(quizzes)
+        .values({
           ...quiz,
-          questions: processedQuestions
-        };
-      }
+          status: 'active',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning() as Quiz[];
 
-      try {
-        // First try direct insertion with Drizzle ORM
-        const [newQuiz] = await db
-          .insert(quizzes)
-          .values({
-            ...quiz,
-            status: 'active',
-            createdAt: new Date(),
-            updatedAt: new Date()
-          })
-          .returning() as Quiz[];
-
-        console.log('Successfully created quiz:', newQuiz);
-        return newQuiz;
-      } catch (innerError) {
-        console.error('Direct quiz insertion failed. Error:', innerError);
-        console.log('Attempting insertion with custom SQL for questions array...');
-        
-        // Create a copy of the quiz without the questions field
-        const { questions, ...quizWithoutQuestions } = quiz;
-        
-        // Format questions for PostgreSQL
-        const questionsJson = JSON.stringify(quiz.questions);
-        
-        // Create a mapping from JavaScript camelCase to DB snake_case for column names
-        const columnMapping = {
-          name: "name",
-          description: "description",
-          timeLimit: "time_limit", 
-          passingScore: "passing_score",
-          questions: "questions",
-          templateId: "template_id",
-          organizationId: "organization_id",
-          createdBy: "created_by",
-          processId: "process_id",
-          status: "status",
-          startTime: "start_time",
-          endTime: "end_time",
-          createdAt: "created_at",
-          updatedAt: "updated_at"
-        };
-        
-        // Convert JavaScript property names to DB column names
-        const dbColumnNames = Object.keys(quizWithoutQuestions).map(key => columnMapping[key] || key);
-        
-        // Format SQL with explicit cast to JSONB
-        const [newQuiz] = await db.execute(`
-          INSERT INTO quizzes (
-            ${dbColumnNames.join(', ')},
-            questions,
-            status,
-            created_at,
-            updated_at
-          ) VALUES (
-            ${Object.keys(quizWithoutQuestions).map((_, i) => `$${i + 1}`).join(', ')},
-            $${Object.keys(quizWithoutQuestions).length + 1}::jsonb,
-            'active',
-            NOW(),
-            NOW()
-          )
-          RETURNING *
-        `, [
-          ...Object.values(quizWithoutQuestions),
-          questionsJson
-        ]);
-        
-        console.log('Successfully created quiz with custom SQL:', newQuiz);
-        return newQuiz;
-      }
+      console.log('Successfully created quiz:', newQuiz);
+      return newQuiz;
     } catch (error) {
       console.error('Error creating quiz:', error);
       throw error;
