@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { 
   AlertCircle, 
   Calendar, 
-  CheckCircle,
+  CheckCircle, 
   ChevronRight, 
   Clock, 
   Download,
@@ -35,7 +35,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { AttendanceBreakdown } from "./attendance-breakdown";
-import { QuizResultsDisplay } from "@/components/quiz/quiz-results-display";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -1152,7 +1151,6 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
               <TabsTrigger value="trainees">Trainees</TabsTrigger>
               <TabsTrigger value="phases">Phases</TabsTrigger>
               <TabsTrigger value="attendance">Attendance</TabsTrigger>
-              <TabsTrigger value="quiz-results">Quiz Results</TabsTrigger>
               <TabsTrigger value="timeline">Timeline</TabsTrigger>
             </TabsList>
             
@@ -1464,26 +1462,6 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
               <div className="text-center py-12">
                 <Loader2 className="mx-auto h-12 w-12 animate-spin opacity-20 mb-2" />
                 <p className="text-muted-foreground">Loading attendance data...</p>
-              </div>
-            )}
-          </TabsContent>
-          
-          {/* Quiz Results Tab */}
-          <TabsContent value="quiz-results">
-            {batchLoading ? (
-              <LoadingPlaceholder />
-            ) : (
-              <div className="space-y-4">
-                {/* Import and use the QuizResultsDisplay component */}
-                {batch && (
-                  <div className="quiz-results-container">
-                    <QuizResultsDisplay 
-                      batchId={batch.id}
-                      organizationId={user?.organizationId || 0}
-                      showTitle={true}
-                    />
-                  </div>
-                )}
               </div>
             )}
           </TabsContent>
