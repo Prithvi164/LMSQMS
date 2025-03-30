@@ -856,10 +856,30 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
   }>({
     queryKey: [`/api/organizations/${user?.organizationId}/attendance/overview`, { batchIds: [batchId] }],
     enabled: !!user?.organizationId && !!batchId,
+    queryFn: async ({ queryKey }) => {
+      const orgId = user?.organizationId;
+      // Ensure batchId is correctly sent as a query parameter
+      const response = await fetch(`/api/organizations/${orgId}/attendance/overview?batchIds=${JSON.stringify([batchId])}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch attendance data');
+      }
+      
+      return response.json();
+    }
   });
   
   // Log the historical attendance data to verify it's correctly filtered by batch
   console.log('Historical attendance data for batch ID', batchId, ':', historicalAttendance);
+  
+  // Clear debugging log for what we should expect
+  if (historicalAttendance) {
+    console.log('ATTENDANCE DATA CHECK - BATCH ID:', batchId);
+    console.log('Present count should be 13 (9 from day 1, 4 from day 2):', historicalAttendance.presentCount);
+    console.log('Absent count should be 7 (1 from day 1, 6 from day 2):', historicalAttendance.absentCount);
+    console.log('Late count:', historicalAttendance.lateCount);
+    console.log('Leave count:', historicalAttendance.leaveCount);
+  }
   
   // Remove duplicate function as it's now implemented in calculateBatchMetrics
   

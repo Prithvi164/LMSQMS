@@ -495,6 +495,13 @@ export function AttendanceBreakdown({
               <p className="text-xs text-slate-500 italic mb-3">
                 Showing overall attendance statistics for the entire training period
               </p>
+              {/* Debug info for attendance data */}
+              <p className="text-xs text-slate-400 italic bg-gray-50 p-2 rounded">
+                Present: {attendanceData.presentCount} | 
+                Absent: {attendanceData.absentCount} | 
+                Late: {attendanceData.lateCount} | 
+                Leave: {attendanceData.leaveCount}
+              </p>
               <div>
                 <div className="flex justify-between items-center">
                   <span className="text-base font-medium">Overall Attendance Rate</span>
