@@ -422,20 +422,15 @@ const calculateBatchMetrics = (batch: Batch, trainees: Trainee[] = []): BatchMet
     hasActualData
   });
   
-  // Daily attendance should use real data from API
-  // For now, we'll just use the actual attendance stats for today
-  // and create minimal entries for reporting purposes
+  // Daily attendance - only using actual data from the database
+  // We'll only show today's attendance since that's what we have from the API
   const dailyAttendance: DailyAttendance[] = [];
   
   // Create an entry for today using the actual attendance data
   const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
+  const totalTrainees = trainees.length || 0;
   
-  // For today, use the calculated statistics from the actual database
-  const totalTrainees = trainees.length || 10;
-  
-  // Create today's entry with actual data
+  // Only display real data from the database for today
   dailyAttendance.push({
     date: format(today, 'yyyy-MM-dd'),
     presentCount: attendanceStats.presentCount,
@@ -446,42 +441,22 @@ const calculateBatchMetrics = (batch: Batch, trainees: Trainee[] = []): BatchMet
     totalTrainees
   });
   
-  // Only add yesterday's entry if we have more than one day completed
-  if (daysCompleted > 1) {
-    // For yesterday, we don't have the data yet from API
-    // so we'll use actual database numbers for consistency
-    // This would ideally be replaced with a proper API call to get historical data
-    const yesterdaysData = {
-      date: format(yesterday, 'yyyy-MM-dd'),
-      presentCount: 8, // These numbers are from the screenshot you shared
-      absentCount: 1,
-      lateCount: 0,
-      leaveCount: 1,
-      attendanceRate: 80, // 80% attendance rate
-      totalTrainees
-    };
-    
-    dailyAttendance.push(yesterdaysData);
-  }
+  // Note: For historical data, we would need an API endpoint that returns
+  // attendance data for previous days. Since we don't have that, we'll only
+  // show the current day's attendance data.
   
-  console.log('Daily attendance data:', dailyAttendance);
+  console.log('Real daily attendance data:', dailyAttendance);
   
-  // Phase-wise attendance using actual data from current phase
+  // Phase-wise attendance using only actual data from the database
   const phaseAttendance: PhaseAttendance[] = [];
   
-  // Generate phase-wise attendance statistics from actual data
+  // Only use the current active phase with real data from the database
   phases.forEach(phase => {
-    // Skip phases that haven't started yet
-    if (phase.status === 'upcoming') return;
-    
-    const totalRecords = phase.status === 'completed' 
-      ? phase.totalDays * trainees.length 
-      : phase.daysCompleted * trainees.length;
-    
-    // If this is the current active phase, use actual attendance data from database
+    // Only show the current active phase since that's what we have real data for
     if (phase.status === 'active' && phase.name.toLowerCase() === currentPhase.toLowerCase()) {
-      // For the current active phase, use the real attendance data from trainees array
-      // This matches the current day's attendance data
+      const totalRecords = phase.daysCompleted * trainees.length;
+      
+      // Use real attendance data from the database
       phaseAttendance.push({
         phase: phase.name,
         presentCount: attendanceStats.presentCount,
@@ -489,115 +464,59 @@ const calculateBatchMetrics = (batch: Batch, trainees: Trainee[] = []): BatchMet
         lateCount: attendanceStats.lateCount,
         leaveCount: attendanceStats.leaveCount,
         attendanceRate: attendanceStats.attendanceRate,
-        totalDays: phase.status === 'completed' ? phase.totalDays : phase.daysCompleted,
-        totalRecords
-      });
-    } else if (phase.status === 'completed') {
-      // For completed phases, we would want to use historical data
-      // Since we don't have that API yet, we'll use some realistic values
-      // In a real implementation, this would come from a historical attendance API
-      
-      // Calculate realistic numbers based on your screenshot data
-      const attendanceRate = 90; // From the actual data we've seen
-      const presentCount = Math.round(totalRecords * (attendanceRate / 100));
-      const absentCount = totalRecords - presentCount;
-      const lateCount = 0;
-      const leaveCount = 0;
-      
-      phaseAttendance.push({
-        phase: phase.name,
-        presentCount,
-        absentCount,
-        lateCount,
-        leaveCount,
-        attendanceRate,
-        totalDays: phase.status === 'completed' ? phase.totalDays : phase.daysCompleted,
-        totalRecords
+        totalDays: phase.daysCompleted,
+        totalRecords: totalRecords > 0 ? totalRecords : 1 // Avoid division by zero
       });
     }
+    
+    // Note: For completed phases, we would need an API endpoint that returns
+    // historical attendance data. Since we don't have that, we'll only show
+    // the current active phase with real data.
   });
   
   console.log('Phase attendance data:', phaseAttendance);
   
-  // Trainee-wise attendance
-  const traineeAttendance: TraineeAttendance[] = trainees.map((trainee, index) => {
+  // Trainee-wise attendance - Using only real data, no mock data
+  const traineeAttendance: TraineeAttendance[] = trainees.map((trainee) => {
     // Get total training days so far
     const totalDays = daysCompleted || 1; // Avoid division by zero
-    const totalRecords = totalDays;
     
-    // If the trainee has real attendance data, use it
-    // Otherwise, generate mock attendance data (for demo purposes)
-    let presentCount, absentCount, lateCount, leaveCount, attendanceRate;
+    // Only use actual data from the database
+    let presentCount = 0;
+    let absentCount = 0;
+    let lateCount = 0;
+    let leaveCount = 0;
+    let attendanceRate = 0;
     
-    if (hasActualData && trainee.status) {
-      // Use real data for this trainee (most likely all present based on the logs)
-      // The trainee's status determines their current day's status
-      if (trainee.status === 'present') {
-        presentCount = totalRecords;
-        absentCount = 0;
-        lateCount = 0;
-        leaveCount = 0;
-        attendanceRate = 100;
-      } else if (trainee.status === 'absent') {
-        presentCount = totalRecords - 1;
+    // If the trainee has attendance data for today, use it
+    if (trainee.status) {
+      const status = trainee.status.toLowerCase();
+      if (status === 'present') {
+        presentCount = 1;
+      } else if (status === 'absent') {
         absentCount = 1;
-        lateCount = 0;
-        leaveCount = 0;
-        attendanceRate = Math.round((presentCount / totalRecords) * 100);
-      } else if (trainee.status === 'late') {
-        presentCount = totalRecords - 1; 
-        absentCount = 0;
+      } else if (status === 'late') {
         lateCount = 1;
-        leaveCount = 0;
-        attendanceRate = Math.round(((presentCount + (lateCount * 0.5)) / totalRecords) * 100);
-      } else if (trainee.status === 'leave') {
-        presentCount = totalRecords - 1;
-        absentCount = 0;
-        lateCount = 0;
+      } else if (status === 'leave') {
         leaveCount = 1;
-        attendanceRate = Math.round((presentCount / totalRecords) * 100);
+      }
+      
+      // Calculate attendance rate
+      if (status === 'present') {
+        attendanceRate = 100; // 100% for present
+      } else if (status === 'late') {
+        attendanceRate = 50;  // 50% for late
       } else {
-        // No status provided, assume present
-        presentCount = totalRecords;
-        absentCount = 0;
-        lateCount = 0;
-        leaveCount = 0;
-        attendanceRate = 100;
+        attendanceRate = 0;   // 0% for absent or leave
       }
     } else {
-      // Generate mock data for demo purposes
-      // Use trainee ID as a seed for consistency, but ensure we have a mix
-      const category = index % 5; // 0 = excellent, 1-3 = good, 4 = problematic
-      
-      // Create variable attendance profiles
-      if (category === 0) {
-        // Excellent performers - 95-100% attendance
-        attendanceRate = 95 + Math.round(Math.random() * 5); 
-      } else if (category === 4) {
-        // Problematic performers - 60-75% attendance 
-        attendanceRate = 60 + Math.round(Math.random() * 15);
-      } else {
-        // Average performers - 75-95% attendance
-        attendanceRate = 75 + Math.round(Math.random() * 20);
-      }
-      
-      // Calculate counts for each attendance status
-      presentCount = Math.round((totalRecords * attendanceRate) / 100);
-      
-      // More problematic trainees have more absences than lates/leaves
-      const remainingCount = totalRecords - presentCount;
-      
-      if (category === 4) {
-        // Problematic trainees have mostly absences
-        absentCount = Math.ceil(remainingCount * 0.7);
-        lateCount = Math.floor(remainingCount * 0.2);
-        leaveCount = remainingCount - absentCount - lateCount;
-      } else {
-        // Regular trainees have a mix with fewer absences
-        absentCount = Math.floor(remainingCount * 0.4);
-        lateCount = Math.ceil(remainingCount * 0.4);
-        leaveCount = remainingCount - absentCount - lateCount;
-      }
+      // No data available - we'll set everything to 0 rather than using mock data
+      // This ensures all data shown is real data from the database
+      presentCount = 0;
+      absentCount = 0;
+      lateCount = 0;
+      leaveCount = 0;
+      attendanceRate = 0;
     }
     
     return {
@@ -607,7 +526,8 @@ const calculateBatchMetrics = (batch: Batch, trainees: Trainee[] = []): BatchMet
       absentCount,
       lateCount,
       leaveCount,
-      attendanceRate
+      attendanceRate,
+      hasData: !!trainee.status // Flag to indicate if we have real data
     };
   });
   
@@ -644,8 +564,7 @@ const PhaseProgressCard = ({ phase }: { phase: Phase }) => {
       <div className="flex justify-between items-center">
         <h3 className="font-medium">{phase.name}</h3>
         <Badge 
-          variant={phase.status === 'active' ? 'default' : 
-                 phase.status === 'completed' ? 'outline' : 'outline'}
+          variant={phase.status === 'active' ? 'default' : 'outline'}
           className={phase.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : ''}
         >
           {phase.status.charAt(0).toUpperCase() + phase.status.slice(1)}
