@@ -1091,35 +1091,12 @@ export default function TraineeManagement() {
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Assessments:</span>
-                            <span className="font-medium">{batch.assessmentCount || '0'}</span>
+                            <span className="font-medium">0</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Certifications:</span>
-                            <span className="font-medium">{batch.certificationCount || '0'}</span>
+                            <span className="font-medium">0</span>
                           </div>
-                          
-                          {selectedBatch === batch.id && quizAttempts.length > 0 && (
-                            <div className="mt-3 pt-3 border-t">
-                              <div className="flex justify-between text-sm mb-2">
-                                <span className="font-medium">Assessment Results</span>
-                                <span>{quizAttempts.length} attempts</span>
-                              </div>
-                              <div className="flex justify-between text-sm">
-                                <span className="text-green-600">
-                                  Passed: {quizAttempts.filter(attempt => attempt.isPassed).length}
-                                </span>
-                                <span className="text-red-600">
-                                  Failed: {quizAttempts.filter(attempt => !attempt.isPassed).length}
-                                </span>
-                              </div>
-                              <div className="mt-2">
-                                <Progress
-                                  value={quizAttempts.length ? (quizAttempts.filter(attempt => attempt.isPassed).length / quizAttempts.length * 100) : 0}
-                                  className="h-2"
-                                />
-                              </div>
-                            </div>
-                          )}
                         </div>
                       </div>
                       
