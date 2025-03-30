@@ -476,14 +476,14 @@ export function AttendanceBreakdown({
           {/* Batch filter dropdown */}
           {batches && batches.length > 0 && onBatchSelect && (
             <Select 
-              value={selectedBatchId?.toString() || ""} 
-              onValueChange={(value) => onBatchSelect(value ? parseInt(value) : null)}
+              value={selectedBatchId?.toString() || "all"} 
+              onValueChange={(value) => onBatchSelect(value === "all" ? null : parseInt(value))}
             >
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Filter by batch" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Batches</SelectItem>
+                <SelectItem value="all">All Batches</SelectItem>
                 {batches.map(batch => (
                   <SelectItem key={batch.id} value={batch.id.toString()}>
                     {batch.name}
