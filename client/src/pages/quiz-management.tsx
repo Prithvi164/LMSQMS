@@ -775,7 +775,7 @@ export function QuizManagement() {
                                     </FormControl>
                                     <SelectContent>
                                       {processesLoading ? (
-                                        <SelectItem value="" disabled>Loading processes...</SelectItem>
+                                        <SelectItem value="loading" disabled>Loading processes...</SelectItem>
                                       ) : processes.length > 0 ? (
                                         processes.map((process) => (
                                           <SelectItem key={process.id} value={process.id.toString()}>
@@ -783,7 +783,7 @@ export function QuizManagement() {
                                           </SelectItem>
                                         ))
                                       ) : (
-                                        <SelectItem value="" disabled>No processes available</SelectItem>
+                                        <SelectItem value="loading" disabled>No processes available</SelectItem>
                                       )}
                                     </SelectContent>
                                   </Select>
@@ -1106,7 +1106,7 @@ export function QuizManagement() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="">All Batches</SelectItem>
+                              <SelectItem value="all">All Batches</SelectItem>
                               {batches.map((batch) => (
                                 <SelectItem key={batch.id} value={batch.id.toString()}>
                                   {batch.name}
@@ -1158,7 +1158,7 @@ export function QuizManagement() {
                                     </FormControl>
                                     <SelectContent>
                                       {processesLoading ? (
-                                        <SelectItem value="" disabled>Loading processes...</SelectItem>
+                                        <SelectItem value="loading" disabled>Loading processes...</SelectItem>
                                       ) : processes.length > 0 ? (
                                         processes.map((process) => (
                                           <SelectItem key={process.id} value={process.id.toString()}>
@@ -1166,7 +1166,7 @@ export function QuizManagement() {
                                           </SelectItem>
                                         ))
                                       ) : (
-                                        <SelectItem value="" disabled>No processes available</SelectItem>
+                                        <SelectItem value="loading" disabled>No processes available</SelectItem>
                                       )}
                                     </SelectContent>
                                   </Select>
