@@ -75,20 +75,11 @@ type TraineeAttendance = {
 type BatchAttendanceOverview = {
   totalDays: number;
   completedDays: number;
-  // Historical/cumulative attendance counts
   presentCount: number;
   absentCount: number;
   lateCount: number;
   leaveCount: number;
   attendanceRate: number;
-  // Today's attendance data
-  todayAttendance: {
-    presentCount: number;
-    absentCount: number;
-    lateCount: number;
-    leaveCount: number;
-    attendanceRate: number;
-  };
   dailyAttendance: DailyAttendance[];
   phaseAttendance: PhaseAttendance[];
   traineeAttendance: TraineeAttendance[];
@@ -550,9 +541,14 @@ const calculateBatchMetrics = (
     };
   });
   
-  // We need to properly handle both current day and historical attendance
-  // Today's (current day) attendance stats - used for "Today's Attendance" section
-  const todayAttendanceStats = {
+  // Use historical attendance data if available, otherwise use today's data
+  const finalAttendanceStats = historicalAttendance ? {
+    presentCount: historicalAttendance.presentCount,
+    absentCount: historicalAttendance.absentCount,
+    lateCount: historicalAttendance.lateCount,
+    leaveCount: historicalAttendance.leaveCount,
+    attendanceRate: historicalAttendance.attendanceRate
+  } : {
     presentCount: attendanceStats.presentCount,
     absentCount: attendanceStats.absentCount,
     lateCount: attendanceStats.lateCount,
@@ -560,36 +556,17 @@ const calculateBatchMetrics = (
     attendanceRate: attendanceStats.attendanceRate
   };
   
-  // Historical (cumulative) attendance stats - used for "Overall" section
-  const historicalAttendanceStats = historicalAttendance ? {
-    presentCount: historicalAttendance.presentCount,
-    absentCount: historicalAttendance.absentCount,
-    lateCount: historicalAttendance.lateCount,
-    leaveCount: historicalAttendance.leaveCount,
-    attendanceRate: historicalAttendance.attendanceRate
-  } : todayAttendanceStats; // Fallback to today's data if historical not available
+  console.log('Using attendance data:', historicalAttendance ? 'Historical (all time)' : 'Today only', finalAttendanceStats);
   
-  console.log('Today\'s attendance data:', todayAttendanceStats);
-  console.log('Historical attendance data:', historicalAttendanceStats);
-  
-  // Create attendance overview with clearly separated current and historical data
+  // Create attendance overview with the appropriate data
   const attendanceOverview = {
     totalDays: daysCompleted,
     completedDays: daysCompleted,
-    // For overall stats, use the historical/cumulative data
-    presentCount: historicalAttendanceStats.presentCount,
-    absentCount: historicalAttendanceStats.absentCount,
-    lateCount: historicalAttendanceStats.lateCount,
-    leaveCount: historicalAttendanceStats.leaveCount,
-    attendanceRate: historicalAttendanceStats.attendanceRate,
-    // For current day's attendance tracking
-    todayAttendance: {
-      presentCount: todayAttendanceStats.presentCount,
-      absentCount: todayAttendanceStats.absentCount,
-      lateCount: todayAttendanceStats.lateCount,
-      leaveCount: todayAttendanceStats.leaveCount,
-      attendanceRate: todayAttendanceStats.attendanceRate,
-    },
+    presentCount: finalAttendanceStats.presentCount,
+    absentCount: finalAttendanceStats.absentCount,
+    lateCount: finalAttendanceStats.lateCount,
+    leaveCount: finalAttendanceStats.leaveCount,
+    attendanceRate: finalAttendanceStats.attendanceRate,
     dailyAttendance,
     phaseAttendance,
     traineeAttendance
@@ -745,53 +722,20 @@ const generateBatchInsightPDF = (batch: Batch, trainees: Trainee[], batchMetrics
       });
     }
     
-    // Today's Attendance overview section
+    // Attendance overview section - always include this
     doc.setFontSize(14);
-    doc.text("Today's Attendance", 15, currentY);
-    
-    if (batchMetrics && batchMetrics.attendanceOverview && batchMetrics.attendanceOverview.todayAttendance) {
-      autoTable(doc, {
-        startY: currentY + 5,
-        head: [["Metric", "Value"]],
-        body: [
-          ["Date", format(new Date(), 'MMM d, yyyy')],
-          ["Today's Attendance Rate", `${batchMetrics.attendanceOverview.todayAttendance.attendanceRate}%`],
-          ["Present Today", `${batchMetrics.attendanceOverview.todayAttendance.presentCount}`],
-          ["Absent Today", `${batchMetrics.attendanceOverview.todayAttendance.absentCount}`],
-          ["Late Today", `${batchMetrics.attendanceOverview.todayAttendance.lateCount}`],
-          ["Leave Today", `${batchMetrics.attendanceOverview.todayAttendance.leaveCount}`]
-        ],
-        didDrawPage: (data) => {
-          currentY = data.cursor?.y ? data.cursor.y + 15 : currentY + 10;
-        }
-      });
-    } else {
-      autoTable(doc, {
-        startY: currentY + 5,
-        head: [["Metric", "Value"]],
-        body: [["No attendance data available for today", ""]],
-        didDrawPage: (data) => {
-          currentY = data.cursor?.y ? data.cursor.y + 15 : currentY + 10;
-        }
-      });
-    }
-    
-    // Historical Attendance overview section
-    doc.setFontSize(14);
-    doc.text("Overall Attendance (Cumulative)", 15, currentY);
+    doc.text("Attendance Overview", 15, currentY);
     
     if (batchMetrics && batchMetrics.attendanceOverview && batchMetrics.attendanceOverview.totalDays > 0) {
       autoTable(doc, {
         startY: currentY + 5,
         head: [["Metric", "Value"]],
         body: [
-          ["Overall Attendance Rate", `${batchMetrics.attendanceOverview.attendanceRate}%`],
-          ["Total Present Count", `${batchMetrics.attendanceOverview.presentCount}`],
-          ["Total Absent Count", `${batchMetrics.attendanceOverview.absentCount}`],
-          ["Total Late Count", `${batchMetrics.attendanceOverview.lateCount}`],
-          ["Total Leave Count", `${batchMetrics.attendanceOverview.leaveCount}`],
-          ["Training Days Completed", `${batchMetrics.attendanceOverview.completedDays}`],
-          ["Total Training Days", `${batchMetrics.attendanceOverview.totalDays}`]
+          ["Attendance Rate", `${batchMetrics.attendanceOverview.attendanceRate}%`],
+          ["Present Count", `${batchMetrics.attendanceOverview.presentCount}`],
+          ["Absent Count", `${batchMetrics.attendanceOverview.absentCount}`],
+          ["Late Count", `${batchMetrics.attendanceOverview.lateCount}`],
+          ["Leave Count", `${batchMetrics.attendanceOverview.leaveCount}`]
         ],
         didDrawPage: (data) => {
           currentY = data.cursor?.y ? data.cursor.y + 15 : currentY + 10;
@@ -801,7 +745,7 @@ const generateBatchInsightPDF = (batch: Batch, trainees: Trainee[], batchMetrics
       autoTable(doc, {
         startY: currentY + 5,
         head: [["Metric", "Value"]],
-        body: [["No historical attendance data available yet", ""]],
+        body: [["No attendance data available yet", ""]],
         didDrawPage: (data) => {
           currentY = data.cursor?.y ? data.cursor.y + 15 : currentY + 10;
         }
