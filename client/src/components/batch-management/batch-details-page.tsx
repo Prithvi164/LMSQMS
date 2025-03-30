@@ -7,10 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft, ClipboardCheck, Plus, Book, Pencil, Edit, PlayCircle } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, Clock, ChevronLeft, ClipboardCheck } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -31,8 +28,6 @@ import {
   FormField,
   FormItem,
   FormLabel,
-  FormMessage,
-  FormDescription,
 } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -52,8 +47,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import type { Question, QuizTemplate } from "@shared/schema";
+import {
+  Textarea
+} from "@/components/ui/textarea";
 
 const statusColors = {
   present: 'text-green-500',
@@ -179,49 +175,11 @@ const LoadingSkeleton = () => (
   </div>
 );
 
-// Quiz template schema
-const quizTemplateSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  description: z.string().optional(),
-  timeLimit: z.number().int().min(1, "Time limit is required"),
-  questionCount: z.number().int().min(1, "Question count is required"),
-  passingScore: z.number().int().min(0).max(100, "Passing score must be between 0 and 100"),
-  shuffleQuestions: z.boolean().default(false),
-  shuffleOptions: z.boolean().default(false),
-  categoryDistribution: z.record(z.string(), z.number()).optional(),
-  difficultyDistribution: z.record(z.string(), z.number()).optional(),
-  processId: z.number().min(1, "Process is required"),
-  batchId: z.union([z.number(), z.literal("none")]).optional(),
-});
-
-// Phase change form schema
 const phaseChangeFormSchema = z.object({
   requestedPhase: z.enum(['induction', 'training', 'certification', 'ojt', 'ojt_certification']),
   justification: z.string().min(1, "Justification is required"),
   managerId: z.string().min(1, "Manager is required"),
 });
-
-// Define types after schemas
-type QuizTemplateFormValues = z.infer<typeof quizTemplateSchema>;
-
-type QuizTemplate = {
-  id: number;
-  name: string;
-  description?: string;
-  timeLimit: number;
-  questionCount: number;
-  passingScore: number;
-  shuffleQuestions: boolean;
-  shuffleOptions: boolean;
-  categoryDistribution?: Record<string, number>;
-  difficultyDistribution?: Record<string, number>;
-  organizationId: number;
-  processId: number;
-  status: string;
-  batchId?: number;
-  createdAt?: Date;
-  updatedAt?: Date;
-};
 
 export function BatchDetailsPage() {
   const { batchId } = useParams();
@@ -231,15 +189,12 @@ export function BatchDetailsPage() {
   const queryClient = useQueryClient();
   const [selectedTab, setSelectedTab] = useState("attendance");
   const currentDate = format(new Date(), "PPP");
-  const [isAddTemplateOpen, setIsAddTemplateOpen] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<QuizTemplate | null>(null);
-  const [previewQuestions, setPreviewQuestions] = useState<any[]>([]);
   
   // Format current date as YYYY-MM-DD for API and initialize selectedDate state
   const today = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState(today);
 
-  // Initialize phase change form
+  // Initialize form
   const form = useForm({
     resolver: zodResolver(phaseChangeFormSchema),
     defaultValues: {
@@ -247,20 +202,6 @@ export function BatchDetailsPage() {
       justification: "",
       managerId: "",
     },
-  });
-  
-  // Initialize quiz template form
-  const templateForm = useForm<QuizTemplateFormValues>({
-    resolver: zodResolver(quizTemplateSchema),
-    defaultValues: {
-      timeLimit: 10,
-      questionCount: 10,
-      passingScore: 70,
-      shuffleQuestions: false,
-      shuffleOptions: false,
-      processId: undefined,
-      batchId: parseInt(batchId || "0"),
-    }
   });
 
   // Define the Batch type to fix type errors
@@ -322,12 +263,6 @@ export function BatchDetailsPage() {
     enabled: !!user?.id && user?.role === 'manager',
   });
 
-  // Fetch quiz templates
-  const { data: quizTemplates = [], isLoading: quizTemplatesLoading } = useQuery({
-    queryKey: [`/api/quiz-templates`],
-    enabled: !!user?.organizationId && selectedTab === 'assessments',
-  });
-
   // Define a type for phase requests
   type PhaseRequest = {
     id: number;
@@ -347,61 +282,6 @@ export function BatchDetailsPage() {
     : user?.role === 'manager' 
       ? (managerRequests as PhaseRequest[] || []) 
       : [];
-      
-  // Fetch processes for template form
-  const { data: processes = [] } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/processes`],
-    enabled: !!user?.organizationId && selectedTab === 'assessments',
-  });
-  
-  // Create quiz template mutation
-  const createQuizTemplateMutation = useMutation({
-    mutationFn: async (data: QuizTemplateFormValues) => {
-      const response = await fetch(`/api/quiz-templates`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...data,
-          organizationId: user?.organizationId,
-          batchId: parseInt(batchId!),
-          status: 'active',
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create quiz template');
-      }
-
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ 
-        queryKey: [`/api/quiz-templates`] 
-      });
-      toast({
-        title: "Success",
-        description: "Quiz template created successfully",
-      });
-      templateForm.reset();
-      setIsAddTemplateOpen(false);
-    },
-    onError: (error: Error) => {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to create quiz template",
-      });
-    },
-  });
-  
-  // Handle quiz template form submission
-  const handleTemplateSubmit = (data: QuizTemplateFormValues) => {
-    console.log('Submitting quiz template:', data);
-    createQuizTemplateMutation.mutate(data);
-  };
 
   const updateAttendanceMutation = useMutation({
     mutationFn: async ({ traineeId, status }: { traineeId: number; status: AttendanceStatus }) => {
@@ -781,130 +661,12 @@ export function BatchDetailsPage() {
                     </CardContent>
                   </Card>
                 </div>
-                {/* Quiz Templates Section */}
-                <div className="mt-8">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold">Quiz Templates</h3>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button size="sm" className="flex items-center gap-1">
-                          <Plus className="h-4 w-4" />
-                          Create Template
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-[500px]">
-                        <DialogHeader>
-                          <DialogTitle>Create New Quiz Template</DialogTitle>
-                          <DialogDescription>
-                            Create a quiz template that can be assigned to trainees for assessment purposes.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                          <div className="grid grid-cols-4 items-center gap-4">
-                            <label htmlFor="name" className="text-right text-sm font-medium">
-                              Name
-                            </label>
-                            <input
-                              id="name"
-                              className="col-span-3 flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-                              placeholder="Enter quiz name"
-                            />
-                          </div>
-                          <div className="grid grid-cols-4 items-center gap-4">
-                            <label htmlFor="description" className="text-right text-sm font-medium">
-                              Description
-                            </label>
-                            <Textarea
-                              id="description"
-                              className="col-span-3"
-                              placeholder="Enter quiz description"
-                            />
-                          </div>
-                          <div className="grid grid-cols-4 items-center gap-4">
-                            <label htmlFor="timeLimit" className="text-right text-sm font-medium">
-                              Time Limit (min)
-                            </label>
-                            <input
-                              id="timeLimit"
-                              type="number"
-                              className="col-span-3 flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-                              placeholder="30"
-                              min="1"
-                            />
-                          </div>
-                          <div className="grid grid-cols-4 items-center gap-4">
-                            <label htmlFor="passingScore" className="text-right text-sm font-medium">
-                              Passing Score (%)
-                            </label>
-                            <input
-                              id="passingScore"
-                              type="number"
-                              className="col-span-3 flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-                              placeholder="70"
-                              min="1"
-                              max="100"
-                            />
-                          </div>
-                        </div>
-                        <DialogFooter>
-                          <Button type="submit">Create Template</Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                  
-                  {quizTemplatesLoading ? (
-                    <div className="space-y-2">
-                      <Skeleton className="h-12 w-full" />
-                      <Skeleton className="h-12 w-full" />
-                      <Skeleton className="h-12 w-full" />
-                    </div>
-                  ) : quizTemplates.length > 0 ? (
-                    <div className="overflow-hidden rounded-md border">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Process</TableHead>
-                            <TableHead>Questions</TableHead>
-                            <TableHead>Time Limit</TableHead>
-                            <TableHead>Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {quizTemplates.map((template: any) => (
-                            <TableRow key={template.id}>
-                              <TableCell className="font-medium">{template.name}</TableCell>
-                              <TableCell>{template.processName || 'General'}</TableCell>
-                              <TableCell>{template.questionCount || '0'}</TableCell>
-                              <TableCell>{template.timeLimit} min</TableCell>
-                              <TableCell>
-                                <div className="flex gap-2">
-                                  <Button size="sm" variant="outline" className="h-8 px-2">
-                                    <Book className="h-4 w-4" />
-                                    <span className="sr-only">View</span>
-                                  </Button>
-                                  <Button size="sm" variant="outline" className="h-8 px-2">
-                                    <Pencil className="h-4 w-4" />
-                                    <span className="sr-only">Edit</span>
-                                  </Button>
-                                  <Button size="sm" variant="default" className="h-8">
-                                    Assign
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  ) : (
-                    <Alert>
-                      <AlertDescription>
-                        No quiz templates found. Create a new template to get started.
-                      </AlertDescription>
-                    </Alert>
-                  )}
+                <div className="mt-6">
+                  <Alert className="bg-blue-50 text-blue-800 border-blue-200">
+                    <AlertDescription>
+                      Assessment and certification management features will be implemented here. Trainers can track progress, schedule assessments, and manage certification requirements.
+                    </AlertDescription>
+                  </Alert>
                 </div>
               </CardContent>
             </Card>
