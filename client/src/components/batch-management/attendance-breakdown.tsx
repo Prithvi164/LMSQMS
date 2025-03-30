@@ -132,22 +132,10 @@ function AttendanceDetailDialog({
   );
 }
 
-// Define type for batch
-type Batch = {
-  id: number;
-  name: string;
-};
-
 export function AttendanceBreakdown({ 
-  attendanceData,
-  batches,
-  onBatchSelect,
-  selectedBatchId
+  attendanceData 
 }: { 
-  attendanceData: BatchAttendanceOverview;
-  batches?: Batch[];
-  onBatchSelect?: (batchId: number | null) => void;
-  selectedBatchId?: number | null;
+  attendanceData: BatchAttendanceOverview 
 }) {
   const [breakdownTab, setBreakdownTab] = useState("overall");
   
@@ -472,34 +460,12 @@ export function AttendanceBreakdown({
           <CardDescription>Interactive attendance analytics and drill-down</CardDescription>
         </div>
         
-        <div className="flex flex-col gap-3 sm:flex-row items-end">
-          {/* Batch filter dropdown */}
-          {batches && batches.length > 0 && onBatchSelect && (
-            <Select 
-              value={selectedBatchId?.toString() || "all"} 
-              onValueChange={(value) => onBatchSelect(value === "all" ? null : parseInt(value))}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by batch" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Batches</SelectItem>
-                {batches.map(batch => (
-                  <SelectItem key={batch.id} value={batch.id.toString()}>
-                    {batch.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          
-          {/* Legend badges */}
-          <div className="flex gap-2 flex-wrap justify-end">
-            <Badge className="bg-green-100 text-green-800 hover:bg-green-200">Present</Badge>
-            <Badge className="bg-red-100 text-red-800 hover:bg-red-200">Absent</Badge>
-            <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200">Late</Badge>
-            <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">Leave</Badge>
-          </div>
+        {/* Legend badges */}
+        <div className="flex gap-2 flex-wrap justify-end">
+          <Badge className="bg-green-100 text-green-800 hover:bg-green-200">Present</Badge>
+          <Badge className="bg-red-100 text-red-800 hover:bg-red-200">Absent</Badge>
+          <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200">Late</Badge>
+          <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">Leave</Badge>
         </div>
       </CardHeader>
       <CardContent>
