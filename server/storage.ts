@@ -246,6 +246,7 @@ export interface IStorage {
   getQuizWithQuestions(id: number): Promise<Quiz | undefined>;
   createQuizAttempt(attempt: InsertQuizAttempt): Promise<QuizAttempt>;
   getQuizAttempt(id: number): Promise<QuizAttempt | undefined>;
+  getBatchQuizAttempts(batchId: number): Promise<QuizAttempt[]>;
 
   // Add new methods for quiz responses
   createQuizResponse(response: InsertQuizResponse): Promise<QuizResponse>;
@@ -2812,6 +2813,70 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("Error in getQuizAttempt:", error);
       throw new Error("Failed to fetch quiz attempt");
+    }
+  }
+
+  async getBatchQuizAttempts(batchId: number): Promise<QuizAttempt[]> {
+    try {
+      console.log("Fetching quiz attempts for batch ID:", batchId);
+
+      // First, get the users (trainees) associated with this batch
+      const batchTrainees = await db
+        .select({ 
+          userId: userBatchProcesses.userId 
+        })
+        .from(userBatchProcesses)
+        .where(eq(userBatchProcesses.batchId, batchId));
+
+      if (!batchTrainees.length) {
+        console.log("No trainees found for batch ID:", batchId);
+        return [];
+      }
+
+      const traineeIds = batchTrainees.map(trainee => trainee.userId);
+      console.log("Found trainee IDs:", traineeIds);
+
+      // Now get quiz attempts for these users
+      const attempts = await db
+        .select({
+          id: quizAttempts.id,
+          userId: quizAttempts.userId,
+          score: quizAttempts.score,
+          completedAt: quizAttempts.completedAt,
+          quizId: quizAttempts.quizId,
+          quizName: quizzes.name,
+          quizDescription: quizzes.description,
+          userName: users.fullName,
+          passingScore: quizzes.passingScore
+        })
+        .from(quizAttempts)
+        .leftJoin(quizzes, eq(quizAttempts.quizId, quizzes.id))
+        .leftJoin(users, eq(quizAttempts.userId, users.id))
+        .where(inArray(quizAttempts.userId, traineeIds))
+        .orderBy(desc(quizAttempts.completedAt));
+
+      console.log(`Found ${attempts.length} quiz attempts for batch ${batchId}`);
+
+      // Transform the results to match the expected format
+      return attempts.map(attempt => ({
+        id: attempt.id,
+        userId: attempt.userId,
+        score: attempt.score,
+        completedAt: attempt.completedAt.toISOString(),
+        isPassed: attempt.score >= attempt.passingScore,
+        quiz: {
+          id: attempt.quizId,
+          name: attempt.quizName,
+          description: attempt.quizDescription,
+          passingScore: attempt.passingScore
+        },
+        user: {
+          fullName: attempt.userName
+        }
+      }));
+    } catch (error) {
+      console.error("Error in getBatchQuizAttempts:", error);
+      throw new Error("Failed to fetch quiz attempts for batch");
     }
   }
 

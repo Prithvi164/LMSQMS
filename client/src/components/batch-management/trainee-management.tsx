@@ -26,7 +26,18 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Edit, Trash2, ArrowRightLeft, Loader2, ClipboardCheck } from "lucide-react";
+import { 
+  Edit, 
+  Trash2, 
+  ArrowRightLeft, 
+  Loader2, 
+  ClipboardCheck, 
+  RefreshCcw, 
+  CheckCircle, 
+  XCircle, 
+  FileText, 
+  BarChart 
+} from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 import { isSubordinate, getAllSubordinates } from "@/lib/hierarchy-utils";
 import {
@@ -35,6 +46,14 @@ import {
   TabsList,
   TabsTrigger
 } from "@/components/ui/tabs";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 // Updated type to match actual API response
 type Trainee = {
@@ -45,6 +64,27 @@ type Trainee = {
   email: string;
   phoneNumber: string;
   dateOfJoining: string;
+};
+
+// Type for quiz attempts
+type QuizAttempt = {
+  id: number;
+  userId: number;
+  quizId: number;
+  score: number;
+  completedAt: string;
+  isPassed: boolean;
+  user?: {
+    id: number;
+    fullName: string;
+    employeeId?: string;
+  };
+  quiz?: {
+    id: number;
+    name: string;
+    description?: string | null;
+    passingScore: number;
+  };
 };
 
 interface TraineeManagementProps {
@@ -156,6 +196,12 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
   const { data: trainees = [], isLoading, error } = useQuery<Trainee[]>({
     queryKey: [`/api/organizations/${organizationId}/batches/${batchId}/trainees`],
     enabled: !!batchId && !!organizationId && canViewBatch(),
+  });
+
+  // Fetch quiz attempts for trainees in this batch
+  const { data: quizAttempts = [], isLoading: isLoadingAttempts } = useQuery<QuizAttempt[]>({
+    queryKey: [`/api/organizations/${organizationId}/batches/${batchId}/quiz-attempts`],
+    enabled: !!batchId && !!organizationId && canViewBatch() && batchDetails?.status === 'training',
   });
 
   // Fetch all other batches for transfer (filtered by hierarchy)

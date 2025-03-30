@@ -2494,6 +2494,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/batches/:batchId/quiz-attempts", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const batchId = parseInt(req.params.batchId);
+      console.log("Fetching quiz attempts for batch:", batchId);
+
+      if (isNaN(batchId)) {
+        return res.status(400).json({ message: "Invalid batch ID" });
+      }
+
+      const attempts = await storage.getBatchQuizAttempts(batchId);
+      console.log(`Retrieved ${attempts.length} quiz attempts for batch ${batchId}`);
+      res.json(attempts);
+    } catch (error) {
+      console.error("Error fetching batch quiz attempts:", error);
+      res.status(500).json({ message: "Failed to fetch quiz attempts for batch" });
+    }
+  });
+  
+  // Get quiz attempts for a specific batch within an organization
+  app.get("/api/organizations/:organizationId/batches/:batchId/quiz-attempts", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const organizationId = parseInt(req.params.organizationId);
+      const batchId = parseInt(req.params.batchId);
+      console.log("Fetching quiz attempts for organization", organizationId, "batch:", batchId);
+
+      if (isNaN(batchId) || isNaN(organizationId)) {
+        return res.status(400).json({ message: "Invalid ID parameters" });
+      }
+      
+      // Check if user has access to this organization
+      if (req.user.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied to this organization" });
+      }
+
+      const attempts = await storage.getBatchQuizAttempts(batchId);
+      console.log(`Retrieved ${attempts.length} quiz attempts for batch ${batchId}`);
+
+      res.json(attempts);
+    } catch (error) {
+      console.error("Error fetching batch quiz attempts:", error);
+      res.status(500).json({ message: "Failed to fetch quiz attempts for batch" });
+    }
+  });
+
   app.put("/api/quiz-templates/:id", async (req, res) => {
     if (!req.user || !req.user.organizationId) {
       return res.status(401).json({ message: "Unauthorized" });
