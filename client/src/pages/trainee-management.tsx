@@ -720,10 +720,16 @@ export default function TraineeManagement() {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-semibold">Assessments & Certifications</h2>
-              <Button>
-                <ClipboardCheck className="h-4 w-4 mr-2" />
-                Create Assessment
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline">
+                  <RefreshCcw className="h-4 w-4 mr-2" />
+                  Schedule Refresher
+                </Button>
+                <Button>
+                  <ClipboardCheck className="h-4 w-4 mr-2" />
+                  Create Assessment
+                </Button>
+              </div>
             </div>
             
             {/* Assessment Insights Card */}
@@ -778,6 +784,279 @@ export default function TraineeManagement() {
                     </div>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+            
+            {/* Trainee Assessment Results Tab */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center">
+                  <Award className="h-5 w-5 mr-2" />
+                  Trainee Assessment Results
+                </CardTitle>
+                <CardDescription>
+                  View assessment results for trainees in the training phase
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="recent">
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="recent">Recent Assessments</TabsTrigger>
+                    <TabsTrigger value="failed">Failed Assessments</TabsTrigger>
+                    <TabsTrigger value="passed">Passed Assessments</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="recent" className="space-y-4">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Trainee</TableHead>
+                          <TableHead>Assessment</TableHead>
+                          <TableHead>Score</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Completion Date</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedBatch ? (
+                          <>
+                            <TableRow>
+                              <TableCell className="font-medium">Sanjay Mehra</TableCell>
+                              <TableCell>Billing Assessment</TableCell>
+                              <TableCell>78%</TableCell>
+                              <TableCell>
+                                <Badge className="bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-800/20 dark:text-green-400">
+                                  Passed
+                                </Badge>
+                              </TableCell>
+                              <TableCell>2025-03-28</TableCell>
+                              <TableCell>
+                                <Button variant="ghost" size="icon">
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium">Pooja Shah</TableCell>
+                              <TableCell>Billing Assessment</TableCell>
+                              <TableCell>62%</TableCell>
+                              <TableCell>
+                                <Badge className="bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-800/20 dark:text-red-400">
+                                  Failed
+                                </Badge>
+                              </TableCell>
+                              <TableCell>2025-03-28</TableCell>
+                              <TableCell>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon">
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem>
+                                      <Eye className="h-4 w-4 mr-2" />
+                                      View Details
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem>
+                                      <RefreshCcw className="h-4 w-4 mr-2" />
+                                      Schedule Refresher
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem>
+                                      <Clock className="h-4 w-4 mr-2" />
+                                      Reschedule Assessment
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                            </TableRow>
+                          </>
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
+                              Select a batch to view trainee assessment results
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TabsContent>
+                  
+                  <TabsContent value="failed" className="space-y-4">
+                    <div className="flex justify-between mb-4">
+                      <div>
+                        <h3 className="text-sm font-medium">Failed Assessments</h3>
+                        <p className="text-sm text-muted-foreground">Trainees who need additional training</p>
+                      </div>
+                      <Button variant="outline" size="sm">
+                        <RefreshCcw className="h-4 w-4 mr-2" />
+                        Schedule Group Refresher
+                      </Button>
+                    </div>
+                    
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>
+                            <div className="flex items-center space-x-2">
+                              <Checkbox id="select-all" />
+                              <label htmlFor="select-all">Trainee</label>
+                            </div>
+                          </TableHead>
+                          <TableHead>Assessment</TableHead>
+                          <TableHead>Score</TableHead>
+                          <TableHead>Attempts</TableHead>
+                          <TableHead>Last Attempt</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedBatch ? (
+                          <>
+                            <TableRow>
+                              <TableCell>
+                                <div className="flex items-center space-x-2">
+                                  <Checkbox id="select-1" />
+                                  <label htmlFor="select-1" className="font-medium">Pooja Shah</label>
+                                </div>
+                              </TableCell>
+                              <TableCell>Billing Assessment</TableCell>
+                              <TableCell>62%</TableCell>
+                              <TableCell>1</TableCell>
+                              <TableCell>2025-03-28</TableCell>
+                              <TableCell>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon">
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem>
+                                      <Eye className="h-4 w-4 mr-2" />
+                                      View Details
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem>
+                                      <RefreshCcw className="h-4 w-4 mr-2" />
+                                      Schedule Refresher
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem>
+                                      <Clock className="h-4 w-4 mr-2" />
+                                      Reschedule Assessment
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell>
+                                <div className="flex items-center space-x-2">
+                                  <Checkbox id="select-2" />
+                                  <label htmlFor="select-2" className="font-medium">Manish Gupta</label>
+                                </div>
+                              </TableCell>
+                              <TableCell>Payment Processing</TableCell>
+                              <TableCell>58%</TableCell>
+                              <TableCell>2</TableCell>
+                              <TableCell>2025-03-27</TableCell>
+                              <TableCell>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon">
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem>
+                                      <Eye className="h-4 w-4 mr-2" />
+                                      View Details
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem>
+                                      <RefreshCcw className="h-4 w-4 mr-2" />
+                                      Schedule Refresher
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem>
+                                      <Clock className="h-4 w-4 mr-2" />
+                                      Reschedule Assessment
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                            </TableRow>
+                          </>
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
+                              Select a batch to view failed assessments
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TabsContent>
+                  
+                  <TabsContent value="passed" className="space-y-4">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Trainee</TableHead>
+                          <TableHead>Assessment</TableHead>
+                          <TableHead>Score</TableHead>
+                          <TableHead>Completion Date</TableHead>
+                          <TableHead>Certificate</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedBatch ? (
+                          <>
+                            <TableRow>
+                              <TableCell className="font-medium">Sanjay Mehra</TableCell>
+                              <TableCell>Billing Assessment</TableCell>
+                              <TableCell>78%</TableCell>
+                              <TableCell>2025-03-28</TableCell>
+                              <TableCell>
+                                <Button variant="ghost" size="sm">
+                                  <Download className="h-4 w-4 mr-2" />
+                                  Certificate
+                                </Button>
+                              </TableCell>
+                              <TableCell>
+                                <Button variant="ghost" size="icon">
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium">Ravi Yadav</TableCell>
+                              <TableCell>Billing Assessment</TableCell>
+                              <TableCell>82%</TableCell>
+                              <TableCell>2025-03-26</TableCell>
+                              <TableCell>
+                                <Button variant="ghost" size="sm">
+                                  <Download className="h-4 w-4 mr-2" />
+                                  Certificate
+                                </Button>
+                              </TableCell>
+                              <TableCell>
+                                <Button variant="ghost" size="icon">
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          </>
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
+                              Select a batch to view passed assessments
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
             
