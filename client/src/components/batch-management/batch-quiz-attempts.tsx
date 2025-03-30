@@ -50,12 +50,14 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
       const [baseUrl, filterType] = queryKey;
       
       let url = `${baseUrl}?page=${page}&limit=${limit}`;
+      // The server now handles the status filtering
       if (filterType === 'passed') {
         url += '&status=passed';
       } else if (filterType === 'failed') {
         url += '&status=failed';
       }
       
+      console.log("Fetching quiz attempts with URL:", url);
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error('Failed to fetch quiz attempts');

@@ -2846,6 +2846,7 @@ export class DatabaseStorage implements IStorage {
           quizId: quizAttempts.quizId,
           quizName: quizzes.name,
           quizDescription: quizzes.description,
+          passingScore: quizzes.passingScore,
           userName: users.fullName,
           passingScore: quizzes.passingScore
         })

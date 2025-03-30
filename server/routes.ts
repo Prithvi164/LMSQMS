@@ -2525,7 +2525,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const organizationId = parseInt(req.params.organizationId);
       const batchId = parseInt(req.params.batchId);
-      console.log("Fetching quiz attempts for organization", organizationId, "batch:", batchId);
+      const status = req.query.status as string | undefined;
+      
+      console.log("Fetching quiz attempts for organization", organizationId, "batch:", batchId, "status filter:", status);
 
       if (isNaN(batchId) || isNaN(organizationId)) {
         return res.status(400).json({ message: "Invalid ID parameters" });
@@ -2538,8 +2540,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const attempts = await storage.getBatchQuizAttempts(batchId);
       console.log(`Retrieved ${attempts.length} quiz attempts for batch ${batchId}`);
+      
+      // Filter attempts based on passed/failed status if requested
+      let filteredAttempts = attempts;
+      if (status === 'passed') {
+        filteredAttempts = attempts.filter(attempt => {
+          // Make sure both quiz and passingScore exist before comparing
+          if (attempt.quiz && attempt.quiz.passingScore) {
+            return attempt.score >= attempt.quiz.passingScore;
+          }
+          return false; // If no passing score available, consider it failed
+        });
+        console.log(`Filtered to ${filteredAttempts.length} passed attempts`);
+      } else if (status === 'failed') {
+        filteredAttempts = attempts.filter(attempt => {
+          // Make sure both quiz and passingScore exist before comparing
+          if (attempt.quiz && attempt.quiz.passingScore) {
+            return attempt.score < attempt.quiz.passingScore;
+          }
+          return true; // If no passing score available, consider it failed
+        });
+        console.log(`Filtered to ${filteredAttempts.length} failed attempts`);
+      }
 
-      res.json(attempts);
+      res.json(filteredAttempts);
     } catch (error) {
       console.error("Error fetching batch quiz attempts:", error);
       res.status(500).json({ message: "Failed to fetch quiz attempts for batch" });
