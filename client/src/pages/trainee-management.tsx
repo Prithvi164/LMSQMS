@@ -620,10 +620,6 @@ export default function TraineeManagement() {
             <BarChart className="h-4 w-4" />
             Progress {selectedBatch && <Badge variant="outline" className="ml-2">Batch Selected</Badge>}
           </TabsTrigger>
-          <TabsTrigger value="attendance" className="flex items-center gap-2">
-            <CalendarDays className="h-4 w-4" />
-            Attendance
-          </TabsTrigger>
           {/* Only show Assessments & Certifications tab when there's a training batch */}
           {trainingBatches.length > 0 && (
             <TabsTrigger value="assessments" className="flex items-center gap-2">
@@ -718,13 +714,7 @@ export default function TraineeManagement() {
           )}
         </TabsContent>
 
-        <TabsContent value="attendance">
-          <Alert>
-            <AlertDescription>
-              Attendance tracking functionality will be implemented here.
-            </AlertDescription>
-          </Alert>
-        </TabsContent>
+
 
         <TabsContent value="assessments">
           <div className="space-y-6">
