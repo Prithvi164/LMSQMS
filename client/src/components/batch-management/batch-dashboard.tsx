@@ -1039,56 +1039,78 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-lg font-semibold">Attendance Overview</CardTitle>
-            <CardDescription>Current batch attendance statistics</CardDescription>
+            <CardDescription>Current date attendance statistics</CardDescription>
           </CardHeader>
           <CardContent>
-            {batchMetrics?.attendanceOverview.totalDays === 0 ? (
+            {!trainees.length ? (
               <div className="flex items-center justify-center h-[104px] border rounded">
                 <p className="text-sm text-muted-foreground">No attendance data yet</p>
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-base font-medium">Attendance Rate</span>
-                  <span className="text-base font-medium">
-                    {batchMetrics?.attendanceOverview.attendanceRate || 0}%
-                  </span>
-                </div>
-                <Progress 
-                  value={batchMetrics?.attendanceOverview.attendanceRate || 0} 
-                  className="h-2.5 bg-gray-100"
-                />
-                
-                <div className="grid grid-cols-4 gap-2 mt-2 border rounded p-3">
-                  <div className="text-center">
-                    <div className="h-10 w-10 mx-auto rounded-full bg-green-100 flex items-center justify-center">
-                      <CheckCircle className="h-5 w-5 text-green-600" />
-                    </div>
-                    <p className="mt-2 text-lg font-semibold">{batchMetrics?.attendanceOverview.presentCount || 0}</p>
-                    <p className="text-sm text-muted-foreground">Present</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="h-10 w-10 mx-auto rounded-full bg-red-100 flex items-center justify-center">
-                      <AlertCircle className="h-5 w-5 text-red-600" />
-                    </div>
-                    <p className="mt-2 text-lg font-semibold">{batchMetrics?.attendanceOverview.absentCount || 0}</p>
-                    <p className="text-sm text-muted-foreground">Absent</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="h-10 w-10 mx-auto rounded-full bg-yellow-100 flex items-center justify-center">
-                      <Clock className="h-5 w-5 text-yellow-600" />
-                    </div>
-                    <p className="mt-2 text-lg font-semibold">{batchMetrics?.attendanceOverview.lateCount || 0}</p>
-                    <p className="text-sm text-muted-foreground">Late</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="h-10 w-10 mx-auto rounded-full bg-blue-100 flex items-center justify-center">
-                      <Calendar className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <p className="mt-2 text-lg font-semibold">{batchMetrics?.attendanceOverview.leaveCount || 0}</p>
-                    <p className="text-sm text-muted-foreground">Leave</p>
-                  </div>
-                </div>
+                {/* Calculate current day's attendance rate from the trainees array */}
+                {(() => {
+                  // Count today's attendance based on trainees array
+                  const todayStats = {
+                    presentCount: trainees.filter(t => t.status === 'present').length,
+                    absentCount: trainees.filter(t => t.status === 'absent').length,
+                    lateCount: trainees.filter(t => t.status === 'late').length,
+                    leaveCount: trainees.filter(t => t.status === 'leave').length,
+                    totalCount: trainees.length
+                  };
+                  
+                  // Calculate attendance rate for today
+                  const attendeesCount = todayStats.presentCount + (todayStats.lateCount * 0.5);
+                  const todayRate = todayStats.totalCount > 0 
+                    ? Math.round((attendeesCount / todayStats.totalCount) * 100)
+                    : 0;
+                  
+                  return (
+                    <>
+                      <div className="flex justify-between items-center">
+                        <span className="text-base font-medium">Attendance Rate</span>
+                        <span className="text-base font-medium">
+                          {todayRate}%
+                        </span>
+                      </div>
+                      <Progress 
+                        value={todayRate} 
+                        className="h-2.5 bg-gray-100"
+                      />
+                      
+                      <div className="grid grid-cols-4 gap-2 mt-2 border rounded p-3">
+                        <div className="text-center">
+                          <div className="h-10 w-10 mx-auto rounded-full bg-green-100 flex items-center justify-center">
+                            <CheckCircle className="h-5 w-5 text-green-600" />
+                          </div>
+                          <p className="mt-2 text-lg font-semibold">{todayStats.presentCount}</p>
+                          <p className="text-sm text-muted-foreground">Present</p>
+                        </div>
+                        <div className="text-center">
+                          <div className="h-10 w-10 mx-auto rounded-full bg-red-100 flex items-center justify-center">
+                            <AlertCircle className="h-5 w-5 text-red-600" />
+                          </div>
+                          <p className="mt-2 text-lg font-semibold">{todayStats.absentCount}</p>
+                          <p className="text-sm text-muted-foreground">Absent</p>
+                        </div>
+                        <div className="text-center">
+                          <div className="h-10 w-10 mx-auto rounded-full bg-yellow-100 flex items-center justify-center">
+                            <Clock className="h-5 w-5 text-yellow-600" />
+                          </div>
+                          <p className="mt-2 text-lg font-semibold">{todayStats.lateCount}</p>
+                          <p className="text-sm text-muted-foreground">Late</p>
+                        </div>
+                        <div className="text-center">
+                          <div className="h-10 w-10 mx-auto rounded-full bg-blue-100 flex items-center justify-center">
+                            <Calendar className="h-5 w-5 text-blue-600" />
+                          </div>
+                          <p className="mt-2 text-lg font-semibold">{todayStats.leaveCount}</p>
+                          <p className="text-sm text-muted-foreground">Leave</p>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             )}
           </CardContent>
