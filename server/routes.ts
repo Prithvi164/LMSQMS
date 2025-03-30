@@ -5788,31 +5788,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     try {
+      console.log("Fetching quiz results for batch - API endpoint");
       const orgId = parseInt(req.params.orgId);
       const batchId = parseInt(req.params.batchId);
       
+      console.log(`Parameters: orgId=${orgId}, batchId=${batchId}`);
+      
       if (isNaN(orgId) || isNaN(batchId)) {
+        console.log("Invalid orgId or batchId");
         return res.status(400).json({ message: "Invalid organization ID or batch ID" });
       }
       
       // Verify organization access
       if (orgId !== req.user.organizationId) {
+        console.log(`Organization ID mismatch: ${orgId} vs ${req.user.organizationId}`);
         return res.status(403).json({ message: "Access denied" });
       }
       
       // Verify batch access
+      console.log("Fetching batch details");
       const batch = await storage.getBatch(batchId);
       if (!batch) {
+        console.log(`Batch ${batchId} not found`);
         return res.status(404).json({ message: "Batch not found" });
       }
       
       if (batch.organizationId !== orgId) {
+        console.log(`Batch organization mismatch: ${batch.organizationId} vs ${orgId}`);
         return res.status(403).json({ message: "Batch does not belong to this organization" });
       }
       
       // Get quiz results for the batch
-      const results = await storage.getQuizResultsByBatch(batchId);
-      res.json(results);
+      console.log(`Calling storage.getQuizResultsByBatch(${batchId})`);
+      try {
+        const results = await storage.getQuizResultsByBatch(batchId);
+        console.log(`Got quiz results: ${results.length} trainee results`);
+        res.json(results);
+      } catch (innerError: any) {
+        console.error("Error in getQuizResultsByBatch:", innerError);
+        res.status(500).json({ message: "Internal server error in quiz results" });
+      }
     } catch (error: any) {
       console.error("Error fetching batch quiz results:", error);
       res.status(500).json({ message: error.message || "Failed to fetch batch quiz results" });
@@ -5854,6 +5869,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error fetching user quiz results:", error);
       res.status(500).json({ message: error.message || "Failed to fetch user quiz results" });
+    }
+  });
+  
+  // Quiz results for all users in an organization
+  app.get("/api/organizations/:orgId/users/quiz-results", async (req, res) => {
+    if (!req.user || !req.user.organizationId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      console.log("Fetching quiz results for all users in organization - API endpoint");
+      const orgId = parseInt(req.params.orgId);
+      
+      if (isNaN(orgId)) {
+        console.log("Invalid orgId");
+        return res.status(400).json({ message: "Invalid organization ID" });
+      }
+      
+      // Verify organization access
+      if (orgId !== req.user.organizationId) {
+        console.log(`Organization ID mismatch: ${orgId} vs ${req.user.organizationId}`);
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Get all users in the organization
+      const users = await storage.getUsers(orgId);
+      if (!users || users.length === 0) {
+        return res.json([]);
+      }
+      
+      // Create an array to hold all user quiz results
+      const allResults = [];
+      
+      // Get quiz results for each user
+      for (const user of users) {
+        try {
+          const userResults = await storage.getQuizResultsByUser(user.id);
+          if (userResults && userResults.length > 0) {
+            allResults.push({
+              userId: user.id,
+              quizResults: userResults
+            });
+          }
+        } catch (userError) {
+          console.error(`Error fetching quiz results for user ${user.id}:`, userError);
+          // Continue with other users even if one fails
+        }
+      }
+      
+      res.json(allResults);
+    } catch (error: any) {
+      console.error("Error fetching all users quiz results:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch all users quiz results" });
     }
   });
 

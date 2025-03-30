@@ -331,8 +331,8 @@ const OrgNode = ({ node, level }: OrgNodeProps) => {
       completedAt: string;
     }[];
   }[]>({
-    queryKey: ["/api/users/quiz-results"],
-    enabled: !!currentUser && (node.user.role === 'trainee' || level === 0),
+    queryKey: [`/api/organizations/${currentUser?.organizationId}/users/quiz-results`],
+    enabled: !!currentUser?.organizationId && (node.user.role === 'trainee' || level === 0),
   });
   
   // Function to get location name based on locationId

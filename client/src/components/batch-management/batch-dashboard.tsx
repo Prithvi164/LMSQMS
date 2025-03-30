@@ -1479,7 +1479,7 @@ export function BatchDashboard({ batchId }: { batchId: number | string }) {
                   <div className="quiz-results-container">
                     <QuizResultsDisplay 
                       batchId={batch.id}
-                      organizationId={Number(batch.organizationId || 0)}
+                      organizationId={user?.organizationId || 0}
                       showTitle={true}
                     />
                   </div>
