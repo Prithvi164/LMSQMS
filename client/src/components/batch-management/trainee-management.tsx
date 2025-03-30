@@ -70,6 +70,30 @@ type Trainee = {
   dateOfJoining: string;
 };
 
+// Quiz and quiz attempt types
+type QuizAttempt = {
+  id: number;
+  userId: number;
+  quizId: number;
+  score: number;
+  completedAt: string;
+  userFullName?: string;
+};
+
+type Quiz = {
+  id: number;
+  name: string;
+  description?: string;
+  templateId: number;
+  status: 'assigned' | 'active' | 'completed';
+  passingScore: number;
+  startTime?: string;
+  endTime?: string;
+  userId?: number;
+  userFullName?: string;
+  attempts?: QuizAttempt[];
+};
+
 interface TraineeManagementProps {
   batchId: number;
   organizationId: number;
@@ -87,20 +111,28 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
   
   // Use hierarchy utility functions for permission checks
   
-  // Define User type
+  // Define User type to match schema definition
   type User = {
     id: number;
-    username?: string;
-    fullName?: string;
-    employeeId?: string;
+    username: string;
+    password: string;
+    fullName: string;
+    employeeId: string;
     role: 'owner' | 'admin' | 'manager' | 'team_lead' | 'quality_analyst' | 'trainer' | 'advisor' | 'trainee';
-    managerId?: number | null;
-    email?: string;
-    phoneNumber?: string;
-    dateOfJoining?: string;
-    organizationId?: number;
-    processId?: number;
-    status?: string;
+    category: 'active' | 'trainee';
+    locationId: number | null;
+    email: string;
+    education: string | null;
+    dateOfJoining: string | null;
+    phoneNumber: string | null;
+    dateOfBirth: string | null;
+    lastWorkingDay: string | null;
+    organizationId: number | null;
+    managerId: number | null;
+    active: boolean;
+    certified: boolean;
+    createdAt: Date;
+    onboardingCompleted: boolean;
   };
   
   // Get user for hierarchy checks
@@ -362,30 +394,6 @@ export function TraineeManagement({ batchId, organizationId }: TraineeManagement
 
   // Check if batch is in training phase - assessments only available during training
   const isTrainingPhase = batchDetails?.status === 'training';
-  
-  // Define assessment quiz types
-  type QuizAttempt = {
-    id: number;
-    userId: number;
-    quizId: number;
-    score: number;
-    completedAt: string;
-    userFullName?: string;
-  };
-  
-  type Quiz = {
-    id: number;
-    name: string;
-    description?: string;
-    templateId: number;
-    status: 'assigned' | 'active' | 'completed';
-    passingScore: number;
-    startTime?: string;
-    endTime?: string;
-    userId?: number;
-    userFullName?: string;
-    attempts?: QuizAttempt[];
-  };
   
   // Fetch assessments for this batch
   const { data: assessments = [], isLoading: isLoadingAssessments } = useQuery<Quiz[]>({
