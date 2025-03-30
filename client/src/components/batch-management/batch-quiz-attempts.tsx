@@ -67,7 +67,7 @@ type BatchQuizAttemptsProps = {
 
 export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuizAttemptsProps) {
   const { toast } = useToast();
-  const { can } = usePermissions();
+  const { hasPermission } = usePermissions();
   const [activeTab, setActiveTab] = useState<"all" | "passed" | "failed">(filter || "all");
   
   // For modal states
@@ -282,7 +282,7 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
                       <TableCell className="text-right">
                         {!attempt.isPassed ? (
                           <div className="flex justify-end space-x-2">
-                            {can("manage_batches") && (
+                            {hasPermission("manage_batches") && (
                               <>
                                 <Button 
                                   variant="outline" 
@@ -305,7 +305,7 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
                           </div>
                         ) : (
                           <div className="flex justify-end">
-                            {can("manage_batches") && (
+                            {hasPermission("manage_batches") && (
                               <Button 
                                 variant="outline" 
                                 size="sm"
