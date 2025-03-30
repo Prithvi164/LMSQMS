@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Users, CalendarDays, CheckCircle2, ClipboardCheck, Loader2, BarChart, ChevronDown, ChevronRight, GraduationCap, LineChart as LineChartIcon } from "lucide-react";
+import { Bell, Users, CalendarDays, CheckCircle2, ClipboardCheck, Loader2, BarChart, ChevronDown, ChevronRight, GraduationCap, LayoutDashboard, LineChart as LineChartIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, addHours, addMinutes } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -730,10 +730,19 @@ export default function TraineeManagement() {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-semibold">Assessments & Certifications</h2>
-              <Button>
-                <ClipboardCheck className="h-4 w-4 mr-2" />
-                Create Assessment
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => window.location.href = "/assessment-dashboard"}
+                >
+                  <LayoutDashboard className="h-4 w-4 mr-2" />
+                  View Dashboard
+                </Button>
+                <Button>
+                  <ClipboardCheck className="h-4 w-4 mr-2" />
+                  Create Assessment
+                </Button>
+              </div>
             </div>
             
             {/* Assessment Insights Card */}
