@@ -16,6 +16,9 @@ import {
   userBatchProcesses,
   organizationSettings,
   organizationHolidays,
+  audioFiles,
+  audioFileAllocations,
+  audioFileBatchAllocations,
   type QuizResponse,
   type InsertQuizResponse,
   type User,
@@ -39,6 +42,12 @@ import {
   type InsertBatchPhaseChangeRequest,
   type BatchTemplate,
   type InsertBatchTemplate,
+  type AudioFile,
+  type InsertAudioFile,
+  type AudioFileAllocation,
+  type InsertAudioFileAllocation,
+  type AudioFileBatchAllocation,
+  type InsertAudioFileBatchAllocation,
   batchHistory,
   type BatchHistory,
   type InsertBatchHistory,
@@ -92,6 +101,52 @@ export interface IStorage {
   updateUserPassword(email: string, hashedPassword: string): Promise<void>;
   deleteUser(id: number): Promise<void>;
   listUsers(organizationId: number): Promise<User[]>;
+  
+  // Audio file operations
+  createAudioFile(file: InsertAudioFile): Promise<AudioFile>;
+  getAudioFile(id: number): Promise<AudioFile | undefined>;
+  listAudioFiles(organizationId: number, filters?: {
+    status?: string;
+    language?: string;
+    version?: string;
+    processId?: number;
+    batchId?: number;
+    duration?: { min?: number; max?: number };
+  }): Promise<AudioFile[]>;
+  updateAudioFile(id: number, file: Partial<InsertAudioFile>): Promise<AudioFile>;
+  deleteAudioFile(id: number): Promise<void>;
+  
+  // Audio file allocation operations
+  createAudioFileAllocation(allocation: InsertAudioFileAllocation): Promise<AudioFileAllocation>;
+  getAudioFileAllocation(id: number): Promise<AudioFileAllocation | undefined>;
+  listAudioFileAllocations(filters: {
+    organizationId: number;
+    qualityAnalystId?: number;
+    audioFileId?: number;
+    status?: string;
+  }): Promise<AudioFileAllocation[]>;
+  updateAudioFileAllocation(id: number, allocation: Partial<InsertAudioFileAllocation>): Promise<AudioFileAllocation>;
+  getQualityAnalystsForAllocation(organizationId: number): Promise<User[]>;
+  
+  // Audio file batch allocation operations
+  createAudioFileBatchAllocation(batchAllocation: {
+    name: string;
+    description?: string;
+    organizationId: number;
+    allocatedBy: number;
+    dueDate?: Date;
+    audioFileIds: number[];
+    qualityAnalysts: { id: number; count: number }[];
+    filters?: {
+      language?: string[];
+      version?: string[];
+      processId?: number[];
+      duration?: { min?: number; max?: number };
+    };
+  }): Promise<{
+    batchAllocation: AudioFileBatchAllocation;
+    allocations: AudioFileAllocation[];
+  }>;
 
   // Quiz template operations
   createQuizTemplate(template: InsertQuizTemplate): Promise<QuizTemplate>;
@@ -320,9 +375,442 @@ export interface IStorage {
     leaveCount: number;
     attendanceRate: number;
   }>;
+  
+  // Audio File operations
+  createAudioFile(file: InsertAudioFile): Promise<AudioFile>;
+  getAudioFile(id: number): Promise<AudioFile | undefined>;
+  listAudioFiles(organizationId: number, filters?: {
+    status?: string;
+    language?: string;
+    version?: string;
+    processId?: number;
+    batchId?: number;
+    duration?: { min?: number; max?: number };
+  }): Promise<AudioFile[]>;
+  updateAudioFile(id: number, file: Partial<InsertAudioFile>): Promise<AudioFile>;
+  deleteAudioFile(id: number): Promise<void>;
+  
+  // Audio File Allocation operations
+  createAudioFileAllocation(allocation: InsertAudioFileAllocation): Promise<AudioFileAllocation>;
+  getAudioFileAllocation(id: number): Promise<AudioFileAllocation | undefined>;
+  listAudioFileAllocations(filters: {
+    organizationId: number;
+    qualityAnalystId?: number;
+    audioFileId?: number;
+    status?: string;
+  }): Promise<AudioFileAllocation[]>;
+  updateAudioFileAllocation(id: number, allocation: Partial<InsertAudioFileAllocation>): Promise<AudioFileAllocation>;
+  getQualityAnalystsForAllocation(organizationId: number): Promise<User[]>;
+  createAudioFileBatchAllocation(batchAllocation: {
+    name: string;
+    description?: string;
+    organizationId: number;
+    allocatedBy: number;
+    dueDate?: Date;
+    audioFileIds: number[];
+    qualityAnalysts: { id: number; count: number }[];
+    filters?: {
+      language?: string[];
+      version?: string[];
+      processId?: number[];
+      duration?: { min?: number; max?: number };
+    };
+  }): Promise<{
+    batchAllocation: AudioFileBatchAllocation;
+    allocations: AudioFileAllocation[];
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
+  // Audio File operations
+  async createAudioFile(file: InsertAudioFile): Promise<AudioFile> {
+    try {
+      const [newFile] = await db
+        .insert(audioFiles)
+        .values(file)
+        .returning() as AudioFile[];
+      return newFile;
+    } catch (error) {
+      console.error('Error creating audio file:', error);
+      throw error;
+    }
+  }
+
+  async getAudioFile(id: number): Promise<AudioFile | undefined> {
+    try {
+      const [audioFile] = await db
+        .select()
+        .from(audioFiles)
+        .where(eq(audioFiles.id, id)) as AudioFile[];
+      return audioFile;
+    } catch (error) {
+      console.error('Error getting audio file:', error);
+      throw error;
+    }
+  }
+
+  async listAudioFiles(organizationId: number, filters?: {
+    status?: string;
+    language?: string;
+    version?: string;
+    processId?: number;
+    batchId?: number;
+    duration?: { min?: number; max?: number };
+  }): Promise<AudioFile[]> {
+    try {
+      let query = db
+        .select()
+        .from(audioFiles)
+        .where(eq(audioFiles.organizationId, organizationId));
+
+      // Apply filters if provided
+      if (filters) {
+        if (filters.status) {
+          query = query.where(eq(audioFiles.status, filters.status as any));
+        }
+        if (filters.language) {
+          query = query.where(eq(audioFiles.language, filters.language as any));
+        }
+        if (filters.version) {
+          query = query.where(eq(audioFiles.version, filters.version));
+        }
+        if (filters.processId) {
+          query = query.where(eq(audioFiles.processId, filters.processId));
+        }
+        if (filters.batchId) {
+          query = query.where(eq(audioFiles.batchId, filters.batchId));
+        }
+        if (filters.duration) {
+          if (filters.duration.min !== undefined) {
+            query = query.where(gte(audioFiles.duration, filters.duration.min));
+          }
+          if (filters.duration.max !== undefined) {
+            query = query.where(lte(audioFiles.duration, filters.duration.max));
+          }
+        }
+      }
+
+      const files = await query as AudioFile[];
+      return files;
+    } catch (error) {
+      console.error('Error listing audio files:', error);
+      throw error;
+    }
+  }
+
+  async updateAudioFile(id: number, file: Partial<InsertAudioFile>): Promise<AudioFile> {
+    try {
+      const [updatedFile] = await db
+        .update(audioFiles)
+        .set({
+          ...file,
+          updatedAt: new Date()
+        })
+        .where(eq(audioFiles.id, id))
+        .returning() as AudioFile[];
+      
+      if (!updatedFile) {
+        throw new Error('Audio file not found');
+      }
+      
+      return updatedFile;
+    } catch (error) {
+      console.error('Error updating audio file:', error);
+      throw error;
+    }
+  }
+
+  async deleteAudioFile(id: number): Promise<void> {
+    try {
+      await db
+        .delete(audioFiles)
+        .where(eq(audioFiles.id, id));
+    } catch (error) {
+      console.error('Error deleting audio file:', error);
+      throw error;
+    }
+  }
+
+  // Audio File Allocation operations
+  async createAudioFileAllocation(allocation: InsertAudioFileAllocation): Promise<AudioFileAllocation> {
+    try {
+      const [newAllocation] = await db
+        .insert(audioFileAllocations)
+        .values(allocation)
+        .returning() as AudioFileAllocation[];
+
+      // Update the audio file status to 'allocated'
+      await db
+        .update(audioFiles)
+        .set({
+          status: 'allocated',
+          updatedAt: new Date()
+        })
+        .where(eq(audioFiles.id, allocation.audioFileId));
+
+      return newAllocation;
+    } catch (error) {
+      console.error('Error creating audio file allocation:', error);
+      throw error;
+    }
+  }
+
+  async getAudioFileAllocation(id: number): Promise<AudioFileAllocation | undefined> {
+    try {
+      const [allocation] = await db
+        .select()
+        .from(audioFileAllocations)
+        .where(eq(audioFileAllocations.id, id)) as AudioFileAllocation[];
+      return allocation;
+    } catch (error) {
+      console.error('Error getting audio file allocation:', error);
+      throw error;
+    }
+  }
+
+  async listAudioFileAllocations(filters: {
+    organizationId: number;
+    qualityAnalystId?: number;
+    audioFileId?: number;
+    status?: string;
+  }): Promise<AudioFileAllocation[]> {
+    try {
+      let query = db
+        .select()
+        .from(audioFileAllocations)
+        .where(eq(audioFileAllocations.organizationId, filters.organizationId));
+
+      if (filters.qualityAnalystId) {
+        query = query.where(eq(audioFileAllocations.qualityAnalystId, filters.qualityAnalystId));
+      }
+      if (filters.audioFileId) {
+        query = query.where(eq(audioFileAllocations.audioFileId, filters.audioFileId));
+      }
+      if (filters.status) {
+        query = query.where(eq(audioFileAllocations.status, filters.status as any));
+      }
+
+      const allocations = await query as AudioFileAllocation[];
+      return allocations;
+    } catch (error) {
+      console.error('Error listing audio file allocations:', error);
+      throw error;
+    }
+  }
+
+  async updateAudioFileAllocation(id: number, allocation: Partial<InsertAudioFileAllocation>): Promise<AudioFileAllocation> {
+    try {
+      const [updatedAllocation] = await db
+        .update(audioFileAllocations)
+        .set({
+          ...allocation,
+          updatedAt: new Date()
+        })
+        .where(eq(audioFileAllocations.id, id))
+        .returning() as AudioFileAllocation[];
+
+      if (!updatedAllocation) {
+        throw new Error('Audio file allocation not found');
+      }
+
+      // If status is changed to 'evaluated', update the audio file status too
+      if (allocation.status === 'evaluated') {
+        await db
+          .update(audioFiles)
+          .set({
+            status: 'evaluated',
+            updatedAt: new Date()
+          })
+          .where(eq(audioFiles.id, updatedAllocation.audioFileId));
+      }
+
+      return updatedAllocation;
+    } catch (error) {
+      console.error('Error updating audio file allocation:', error);
+      throw error;
+    }
+  }
+
+  async getQualityAnalystsForAllocation(organizationId: number): Promise<User[]> {
+    try {
+      const qualityAnalysts = await db
+        .select()
+        .from(users)
+        .where(and(
+          eq(users.organizationId, organizationId),
+          eq(users.role, 'quality_analyst'),
+          eq(users.active, true)
+        )) as User[];
+      
+      return qualityAnalysts;
+    } catch (error) {
+      console.error('Error getting quality analysts:', error);
+      throw error;
+    }
+  }
+
+  async createAudioFileBatchAllocation(batchAllocation: {
+    name: string;
+    description?: string;
+    organizationId: number;
+    allocatedBy: number;
+    dueDate?: Date;
+    audioFileIds: number[];
+    qualityAnalysts: { id: number; count: number }[];
+    filters?: {
+      language?: string[];
+      version?: string[];
+      processId?: number[];
+      duration?: { min?: number; max?: number };
+    };
+  }): Promise<{
+    batchAllocation: AudioFileBatchAllocation;
+    allocations: AudioFileAllocation[];
+  }> {
+    try {
+      // Start transaction
+      return await db.transaction(async (tx) => {
+        // Create batch allocation record
+        const [newBatchAllocation] = await tx
+          .insert(audioFileBatchAllocations)
+          .values({
+            name: batchAllocation.name,
+            description: batchAllocation.description,
+            organizationId: batchAllocation.organizationId,
+            allocatedBy: batchAllocation.allocatedBy,
+            dueDate: batchAllocation.dueDate,
+            status: 'allocated',
+          })
+          .returning() as AudioFileBatchAllocation[];
+
+        let audioFilesToAllocate: AudioFile[] = [];
+
+        // If specific file IDs are provided
+        if (batchAllocation.audioFileIds && batchAllocation.audioFileIds.length > 0) {
+          audioFilesToAllocate = await tx
+            .select()
+            .from(audioFiles)
+            .where(and(
+              eq(audioFiles.organizationId, batchAllocation.organizationId),
+              eq(audioFiles.status, 'pending'),
+              inArray(audioFiles.id, batchAllocation.audioFileIds)
+            )) as AudioFile[];
+        } 
+        // Otherwise, apply filters to find files
+        else if (batchAllocation.filters) {
+          let query = tx
+            .select()
+            .from(audioFiles)
+            .where(and(
+              eq(audioFiles.organizationId, batchAllocation.organizationId),
+              eq(audioFiles.status, 'pending')
+            ));
+
+          const filters = batchAllocation.filters;
+          
+          if (filters.language && filters.language.length > 0) {
+            query = query.where(inArray(audioFiles.language, filters.language as any[]));
+          }
+          
+          if (filters.version && filters.version.length > 0) {
+            query = query.where(inArray(audioFiles.version, filters.version));
+          }
+          
+          if (filters.processId && filters.processId.length > 0) {
+            query = query.where(inArray(audioFiles.processId, filters.processId));
+          }
+          
+          if (filters.duration) {
+            if (filters.duration.min !== undefined) {
+              query = query.where(gte(audioFiles.duration, filters.duration.min));
+            }
+            if (filters.duration.max !== undefined) {
+              query = query.where(lte(audioFiles.duration, filters.duration.max));
+            }
+          }
+          
+          audioFilesToAllocate = await query as AudioFile[];
+        }
+
+        if (audioFilesToAllocate.length === 0) {
+          throw new Error('No audio files available for allocation based on criteria');
+        }
+
+        // Prepare allocation
+        const qualityAnalysts = batchAllocation.qualityAnalysts;
+        const totalQACount = qualityAnalysts.reduce((sum, qa) => sum + qa.count, 0);
+
+        // Sort QAs by count (descending) to prioritize those who should receive more files
+        qualityAnalysts.sort((a, b) => b.count - a.count);
+
+        // Calculate how many files each QA should get
+        const qaAllocationMap = new Map<number, number>();
+        let remainingFiles = audioFilesToAllocate.length;
+        
+        // First pass: assign minimum files based on proportions
+        for (const qa of qualityAnalysts) {
+          const proportion = qa.count / totalQACount;
+          const filesForQA = Math.floor(audioFilesToAllocate.length * proportion);
+          qaAllocationMap.set(qa.id, filesForQA);
+          remainingFiles -= filesForQA;
+        }
+        
+        // Second pass: distribute remaining files to QAs who should get more
+        let qaIndex = 0;
+        while (remainingFiles > 0) {
+          const qaId = qualityAnalysts[qaIndex].id;
+          qaAllocationMap.set(qaId, (qaAllocationMap.get(qaId) || 0) + 1);
+          remainingFiles--;
+          qaIndex = (qaIndex + 1) % qualityAnalysts.length;
+        }
+
+        // Create allocation records
+        const allocations: AudioFileAllocation[] = [];
+        let currentQAIndex = 0;
+        let currentFileIndex = 0;
+        
+        for (const [qaId, fileCount] of qaAllocationMap.entries()) {
+          for (let i = 0; i < fileCount; i++) {
+            if (currentFileIndex >= audioFilesToAllocate.length) break;
+            
+            const audioFile = audioFilesToAllocate[currentFileIndex++];
+            
+            const [allocation] = await tx
+              .insert(audioFileAllocations)
+              .values({
+                audioFileId: audioFile.id,
+                qualityAnalystId: qaId,
+                dueDate: batchAllocation.dueDate,
+                status: 'allocated',
+                allocatedBy: batchAllocation.allocatedBy,
+                organizationId: batchAllocation.organizationId,
+              })
+              .returning() as AudioFileAllocation[];
+            
+            allocations.push(allocation);
+            
+            // Update audio file status
+            await tx
+              .update(audioFiles)
+              .set({
+                status: 'allocated',
+                updatedAt: new Date()
+              })
+              .where(eq(audioFiles.id, audioFile.id));
+          }
+        }
+
+        return {
+          batchAllocation: newBatchAllocation,
+          allocations
+        };
+      });
+    } catch (error) {
+      console.error('Error creating audio file batch allocation:', error);
+      throw error;
+    }
+  }
+
   // Organization Settings operations
   async getOrganizationSettings(organizationId: number): Promise<OrganizationSettings | undefined> {
     try {

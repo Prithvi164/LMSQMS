@@ -18,7 +18,9 @@ import { QuizResultsPage } from "@/pages/quiz-results";
 import { MyQuizzesPage } from "@/pages/my-quizzes";
 import MockCallScenarios from "@/pages/mock-call-scenarios";
 import EvaluationTemplates from "@/pages/evaluation-templates";
-import ConductEvaluation from "@/pages/conduct-evaluation"; 
+import AudioFileManagement from "@/pages/audio-file-management";
+import AudioFileAllocation from "@/pages/audio-file-allocation";
+import ConductEvaluation from "@/pages/conduct-evaluation";
 import { ProtectedRoute } from "./lib/protected-route";
 import { SidebarNav } from "./components/sidebar-nav";
 import { UserProfile } from "./components/user-profile";
@@ -69,6 +71,8 @@ function Router() {
           <ProtectedRoute path="/mock-call-scenarios" component={MockCallScenarios} />
           <ProtectedRoute path="/evaluation-templates" component={EvaluationTemplates} />
           <ProtectedRoute path="/conduct-evaluation" component={ConductEvaluation} /> 
+          <ProtectedRoute path="/audio-file-management" component={AudioFileManagement} />
+          <ProtectedRoute path="/audio-file-allocation" component={AudioFileAllocation} />
           <Route component={NotFound} />
         </Switch>
       </main>

@@ -75,6 +75,101 @@ export const featureTypeEnum = pgEnum('feature_type', [
   'BOTH'
 ]);
 
+// Audio file related enums
+export const audioFileStatusEnum = pgEnum('audio_file_status', [
+  'pending',
+  'allocated',
+  'evaluated',
+  'archived'
+]);
+
+export const audioLanguageEnum = pgEnum('audio_language', [
+  'english',
+  'spanish',
+  'french',
+  'hindi',
+  'other'
+]);
+
+// Audio files management
+export const audioFiles = pgTable("audio_files", {
+  id: serial("id").primaryKey(),
+  filename: text("filename").notNull(),
+  originalFilename: text("original_filename").notNull(),
+  fileUrl: text("file_url").notNull(),
+  fileSize: integer("file_size").notNull(), // in bytes
+  duration: integer("duration").notNull(), // in seconds
+  language: audioLanguageEnum("language").notNull(),
+  version: text("version").notNull(),
+  callMetrics: jsonb("call_metrics").$type<{
+    callDate: string;
+    callId: string;
+    callType: string;
+    agentId?: string;
+    customerSatisfaction?: number;
+    handleTime?: number;
+    [key: string]: any; // For additional metrics
+  }>(),
+  status: audioFileStatusEnum("status").default('pending').notNull(),
+  uploadedBy: integer("uploaded_by")
+    .references(() => users.id)
+    .notNull(),
+  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
+  processId: integer("process_id")
+    .references(() => organizationProcesses.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  batchId: integer("batch_id")
+    .references(() => organizationBatches.id),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Audio file allocation to quality analysts
+export const audioFileAllocations = pgTable("audio_file_allocations", {
+  id: serial("id").primaryKey(),
+  audioFileId: integer("audio_file_id")
+    .references(() => audioFiles.id)
+    .notNull(),
+  qualityAnalystId: integer("quality_analyst_id")
+    .references(() => users.id)
+    .notNull(),
+  allocationDate: timestamp("allocation_date").defaultNow().notNull(),
+  dueDate: timestamp("due_date"),
+  completedDate: timestamp("completed_date"),
+  status: audioFileStatusEnum("status").default('allocated').notNull(),
+  allocatedBy: integer("allocated_by")
+    .references(() => users.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  evaluationId: integer("evaluation_id")
+    .references(() => evaluations.id),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Audio file batch allocation
+export const audioFileBatchAllocations = pgTable("audio_file_batch_allocations", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  status: audioFileStatusEnum("status").default('allocated').notNull(),
+  allocationDate: timestamp("allocation_date").defaultNow().notNull(),
+  allocatedBy: integer("allocated_by")
+    .references(() => users.id)
+    .notNull(),
+  organizationId: integer("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  dueDate: timestamp("due_date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Quiz-related tables
 export const questions = pgTable("questions", {
   id: serial("id").primaryKey(),
@@ -400,6 +495,133 @@ export const batchTemplates = pgTable("batch_templates", {
 });
 
 export type BatchTemplate = InferSelectModel<typeof batchTemplates>;
+export type AudioFile = InferSelectModel<typeof audioFiles>;
+export type AudioFileAllocation = InferSelectModel<typeof audioFileAllocations>;
+export type AudioFileBatchAllocation = InferSelectModel<typeof audioFileBatchAllocations>;
+
+// Audio file schemas
+export const insertAudioFileSchema = createInsertSchema(audioFiles)
+  .omit({
+    id: true,
+    uploadedAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    filename: z.string().min(1, "Filename is required"),
+    originalFilename: z.string().min(1, "Original filename is required"),
+    fileUrl: z.string().url("File URL must be a valid URL"),
+    fileSize: z.number().int().positive("File size must be positive"),
+    duration: z.number().int().positive("Duration must be positive"),
+    language: z.enum(['english', 'spanish', 'french', 'hindi', 'other']),
+    version: z.string().min(1, "Version is required"),
+    callMetrics: z.object({
+      callDate: z.string(),
+      callId: z.string(),
+      callType: z.string(),
+      agentId: z.string().optional(),
+      customerSatisfaction: z.number().min(0).max(10).optional(),
+      handleTime: z.number().optional(),
+    }).optional(),
+    status: z.enum(['pending', 'allocated', 'evaluated', 'archived']).default('pending'),
+    uploadedBy: z.number().int().positive("Uploader is required"),
+    processId: z.number().int().positive("Process is required"),
+    organizationId: z.number().int().positive("Organization is required"),
+    batchId: z.number().int().positive("Batch is required").optional(),
+  });
+
+export const insertAudioFileAllocationSchema = createInsertSchema(audioFileAllocations)
+  .omit({
+    id: true,
+    allocationDate: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    audioFileId: z.number().int().positive("Audio file is required"),
+    qualityAnalystId: z.number().int().positive("Quality analyst is required"),
+    dueDate: z.date().optional(),
+    completedDate: z.date().optional(),
+    status: z.enum(['pending', 'allocated', 'evaluated', 'archived']).default('allocated'),
+    allocatedBy: z.number().int().positive("Allocator is required"),
+    organizationId: z.number().int().positive("Organization is required"),
+    evaluationId: z.number().int().positive("Evaluation is required").optional(),
+    notes: z.string().optional(),
+  });
+
+export const insertAudioFileBatchAllocationSchema = createInsertSchema(audioFileBatchAllocations)
+  .omit({
+    id: true,
+    allocationDate: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    name: z.string().min(1, "Batch name is required"),
+    description: z.string().optional(),
+    status: z.enum(['pending', 'allocated', 'evaluated', 'archived']).default('allocated'),
+    allocatedBy: z.number().int().positive("Allocator is required"),
+    organizationId: z.number().int().positive("Organization is required"),
+    dueDate: z.date().optional(),
+  });
+
+export type InsertAudioFile = z.infer<typeof insertAudioFileSchema>;
+export type InsertAudioFileAllocation = z.infer<typeof insertAudioFileAllocationSchema>;
+export type InsertAudioFileBatchAllocation = z.infer<typeof insertAudioFileBatchAllocationSchema>;
+
+// Audio file relations
+export const audioFilesRelations = relations(audioFiles, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [audioFiles.organizationId],
+    references: [organizations.id],
+  }),
+  process: one(organizationProcesses, {
+    fields: [audioFiles.processId],
+    references: [organizationProcesses.id],
+  }),
+  uploader: one(users, {
+    fields: [audioFiles.uploadedBy],
+    references: [users.id],
+  }),
+  batch: one(organizationBatches, {
+    fields: [audioFiles.batchId],
+    references: [organizationBatches.id],
+  }),
+  allocations: many(audioFileAllocations),
+}));
+
+export const audioFileAllocationsRelations = relations(audioFileAllocations, ({ one }) => ({
+  audioFile: one(audioFiles, {
+    fields: [audioFileAllocations.audioFileId],
+    references: [audioFiles.id],
+  }),
+  qualityAnalyst: one(users, {
+    fields: [audioFileAllocations.qualityAnalystId],
+    references: [users.id],
+  }),
+  allocator: one(users, {
+    fields: [audioFileAllocations.allocatedBy],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [audioFileAllocations.organizationId],
+    references: [organizations.id],
+  }),
+  evaluation: one(evaluations, {
+    fields: [audioFileAllocations.evaluationId],
+    references: [evaluations.id],
+  }),
+}));
+
+export const audioFileBatchAllocationsRelations = relations(audioFileBatchAllocations, ({ one }) => ({
+  allocator: one(users, {
+    fields: [audioFileBatchAllocations.allocatedBy],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [audioFileBatchAllocations.organizationId],
+    references: [organizations.id],
+  }),
+}));
 
 // Add template schema validation
 export const insertBatchTemplateSchema = createInsertSchema(batchTemplates)

@@ -6189,6 +6189,295 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ message: error.message });
     }
   });
+  
+  // Audio file routes
+  app.post("/api/audio-files", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const audioFileData = {
+        ...req.body,
+        organizationId: req.user.organizationId,
+        uploadedBy: req.user.id,
+        status: 'pending' // Initial status is always pending
+      };
+      
+      const audioFile = await storage.createAudioFile(audioFileData);
+      res.status(201).json(audioFile);
+    } catch (error: any) {
+      console.error("Error creating audio file:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+  
+  app.get("/api/organizations/:organizationId/audio-files", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const orgId = parseInt(req.params.organizationId);
+      if (!orgId || req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Extract filter parameters
+      const filters = {
+        status: req.query.status as string | undefined,
+        language: req.query.language as string | undefined,
+        version: req.query.version as string | undefined,
+        processId: req.query.processId ? parseInt(req.query.processId as string) : undefined,
+        batchId: req.query.batchId ? parseInt(req.query.batchId as string) : undefined,
+        duration: undefined as { min?: number; max?: number } | undefined
+      };
+      
+      // Parse duration filter if provided
+      if (req.query.minDuration || req.query.maxDuration) {
+        filters.duration = {
+          min: req.query.minDuration ? parseInt(req.query.minDuration as string) : undefined,
+          max: req.query.maxDuration ? parseInt(req.query.maxDuration as string) : undefined
+        };
+      }
+      
+      const audioFiles = await storage.listAudioFiles(orgId, filters);
+      res.json(audioFiles);
+    } catch (error: any) {
+      console.error("Error fetching audio files:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  app.get("/api/audio-files/:id", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const audioFileId = parseInt(req.params.id);
+      const audioFile = await storage.getAudioFile(audioFileId);
+      
+      if (!audioFile) {
+        return res.status(404).json({ message: "Audio file not found" });
+      }
+      
+      // Check organization access
+      if (audioFile.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      res.json(audioFile);
+    } catch (error: any) {
+      console.error("Error fetching audio file:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  app.patch("/api/audio-files/:id", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const audioFileId = parseInt(req.params.id);
+      const audioFile = await storage.getAudioFile(audioFileId);
+      
+      if (!audioFile) {
+        return res.status(404).json({ message: "Audio file not found" });
+      }
+      
+      // Check organization access
+      if (audioFile.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const updatedFile = await storage.updateAudioFile(audioFileId, req.body);
+      res.json(updatedFile);
+    } catch (error: any) {
+      console.error("Error updating audio file:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+  
+  app.delete("/api/audio-files/:id", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const audioFileId = parseInt(req.params.id);
+      const audioFile = await storage.getAudioFile(audioFileId);
+      
+      if (!audioFile) {
+        return res.status(404).json({ message: "Audio file not found" });
+      }
+      
+      // Check organization access
+      if (audioFile.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Only allow deletion if file is pending
+      if (audioFile.status !== 'pending') {
+        return res.status(400).json({ 
+          message: "Only pending audio files can be deleted" 
+        });
+      }
+      
+      await storage.deleteAudioFile(audioFileId);
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting audio file:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // Audio file allocation routes
+  app.post("/api/audio-file-allocations", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const allocationData = {
+        ...req.body,
+        organizationId: req.user.organizationId,
+        allocatedBy: req.user.id,
+        status: 'allocated' // Initial status is always allocated
+      };
+      
+      const allocation = await storage.createAudioFileAllocation(allocationData);
+      res.status(201).json(allocation);
+    } catch (error: any) {
+      console.error("Error creating audio file allocation:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+  
+  app.get("/api/organizations/:organizationId/audio-file-allocations", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const orgId = parseInt(req.params.organizationId);
+      if (!orgId || req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Extract filter parameters
+      const filters = {
+        organizationId: orgId,
+        qualityAnalystId: req.query.qualityAnalystId ? parseInt(req.query.qualityAnalystId as string) : undefined,
+        audioFileId: req.query.audioFileId ? parseInt(req.query.audioFileId as string) : undefined,
+        status: req.query.status as string | undefined
+      };
+      
+      const allocations = await storage.listAudioFileAllocations(filters);
+      res.json(allocations);
+    } catch (error: any) {
+      console.error("Error fetching audio file allocations:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  app.get("/api/audio-file-allocations/:id", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const allocationId = parseInt(req.params.id);
+      const allocation = await storage.getAudioFileAllocation(allocationId);
+      
+      if (!allocation) {
+        return res.status(404).json({ message: "Allocation not found" });
+      }
+      
+      // Check organization access
+      if (allocation.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      res.json(allocation);
+    } catch (error: any) {
+      console.error("Error fetching audio file allocation:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  app.patch("/api/audio-file-allocations/:id", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const allocationId = parseInt(req.params.id);
+      const allocation = await storage.getAudioFileAllocation(allocationId);
+      
+      if (!allocation) {
+        return res.status(404).json({ message: "Allocation not found" });
+      }
+      
+      // Only allow the assigned quality analyst or admin/manager to update
+      if (allocation.qualityAnalystId !== req.user.id && 
+          !['admin', 'manager'].includes(req.user.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const updatedAllocation = await storage.updateAudioFileAllocation(allocationId, req.body);
+      res.json(updatedAllocation);
+    } catch (error: any) {
+      console.error("Error updating audio file allocation:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+  
+  app.get("/api/organizations/:organizationId/quality-analysts", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const orgId = parseInt(req.params.organizationId);
+      if (!orgId || req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const qualityAnalysts = await storage.getQualityAnalystsForAllocation(orgId);
+      res.json(qualityAnalysts);
+    } catch (error: any) {
+      console.error("Error fetching quality analysts:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // Batch allocation endpoint
+  app.post("/api/audio-file-batch-allocations", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const { 
+        name, 
+        description, 
+        dueDate, 
+        audioFileIds, 
+        qualityAnalysts, 
+        filters 
+      } = req.body;
+      
+      // Validate input
+      if ((!audioFileIds || !audioFileIds.length) && !filters) {
+        return res.status(400).json({ 
+          message: "Either audioFileIds or filters must be provided" 
+        });
+      }
+      
+      if (!qualityAnalysts || !qualityAnalysts.length) {
+        return res.status(400).json({ 
+          message: "At least one quality analyst must be specified" 
+        });
+      }
+      
+      const batchAllocationData = {
+        name,
+        description,
+        organizationId: req.user.organizationId,
+        allocatedBy: req.user.id,
+        dueDate: dueDate ? new Date(dueDate) : undefined,
+        audioFileIds: audioFileIds || [],
+        qualityAnalysts,
+        filters
+      };
+      
+      const result = await storage.createAudioFileBatchAllocation(batchAllocationData);
+      res.status(201).json(result);
+    } catch (error: any) {
+      console.error("Error creating batch allocation:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
 
   return createServer(app);
 }
