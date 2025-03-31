@@ -6287,7 +6287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         call_date: callDate, // Add the call_date field
         callMetrics: parsedCallMetrics,
         organizationId: parseInt(organizationId) || req.user.organizationId,
-        processId: parseInt(processId) || (req.user.processId || null),
+        processId: parseInt(processId) || req.user.processId || 1,  // Make sure we have a valid process ID, default to 1 if not available
         uploadedBy: req.user.id,
         status: 'pending', // Initial status is always pending
         uploadedAt: new Date(),
@@ -6303,8 +6303,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Delete the physical file if database insertion failed
       if (req.file && req.file.path) {
         try {
-          const fs = require('fs');
-          fs.unlinkSync(req.file.path);
+          import('fs').then(fs => {
+            fs.unlinkSync(req.file.path);
+          }).catch(unlinkError => {
+            console.error("Failed to delete file after upload error:", unlinkError);
+          });
         } catch (unlinkError) {
           console.error("Failed to delete file after upload error:", unlinkError);
         }

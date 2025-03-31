@@ -142,13 +142,15 @@ const AudioFileManagement = () => {
       return;
     }
 
+    // Process ID check has been removed - server will handle the default process ID if needed
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('language', fileData.language);
     formData.append('version', fileData.version);
     formData.append('callMetrics', JSON.stringify(fileData.callMetrics));
     formData.append('organizationId', user?.organizationId.toString() || '');
-    formData.append('processId', user?.processId?.toString() || '');
+    formData.append('processId', user?.processId?.toString() || '1');
     
     uploadFileMutation.mutate(formData);
   };
