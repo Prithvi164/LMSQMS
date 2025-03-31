@@ -32,6 +32,7 @@ export const batchStatusEnum = pgEnum('batch_status', [
 ]);
 
 export const userCategoryTypeEnum = pgEnum('user_category_type', ['active', 'trainee']);
+export const featureTypeEnum = pgEnum('feature_type', ['LMS', 'QMS', 'BOTH']);
 export const roleEnum = pgEnum('role', [
   'owner',
   'admin',
@@ -694,6 +695,7 @@ export const users = pgTable("users", {
   employeeId: text("employee_id").notNull().unique(),
   role: roleEnum("role").notNull(),
   category: userCategoryTypeEnum("category").default('trainee').notNull(),
+  featureType: featureTypeEnum("feature_type").default('BOTH').notNull(),
   locationId: integer("location_id").references(() => organizationLocations.id),
   email: text("email").notNull(),
   education: text("education"),
@@ -955,6 +957,7 @@ export const insertUserSchema = createInsertSchema(users)
     active: z.boolean().default(true),
     category: z.enum(['active', 'trainee']).default('trainee'),
     role: z.enum(['owner', 'admin', 'manager', 'team_lead', 'quality_analyst', 'trainer', 'advisor', 'trainee']).default('trainee'),
+    featureType: z.enum(['LMS', 'QMS', 'BOTH']).default('BOTH'),
   });
 
 export const insertRolePermissionSchema = createInsertSchema(rolePermissions).omit({

@@ -4,6 +4,7 @@ import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { PermissionsProvider } from "@/hooks/use-permissions";
+import { FeaturesProvider } from "@/hooks/use-features";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import Dashboard from "@/pages/dashboard";
@@ -53,22 +54,25 @@ function Router() {
         )}
         <Switch>
           <Route path="/auth" component={AuthPage} />
-          <ProtectedRoute path="/" component={Dashboard} />
+          <ProtectedRoute path="/" component={Dashboard} requiredFeature="DASHBOARD" />
 
-          <ProtectedRoute path="/trainee-management" component={TraineeManagement} />
-          <ProtectedRoute path="/performance" component={Performance} />
-          <ProtectedRoute path="/settings" component={Settings} />
-          <ProtectedRoute path="/batch-management" component={() => <BatchDetail onCreateBatch={() => {}} />} />
-          <ProtectedRoute path="/batch-monitoring" component={BatchMonitoringPage} />
-          <ProtectedRoute path="/batch-details/:batchId" component={BatchDetailsPage} />
-          <ProtectedRoute path="/batch-dashboard/:batchId" component={BatchDashboardPage} />
-          <ProtectedRoute path="/quiz-management" component={QuizManagement} />
-          <ProtectedRoute path="/my-quizzes" component={MyQuizzesPage} />
-          <ProtectedRoute path="/quiz/:quizId" component={QuizTakingPage} />
-          <ProtectedRoute path="/quiz-results/:attemptId" component={QuizResultsPage} />
-          <ProtectedRoute path="/mock-call-scenarios" component={MockCallScenarios} />
-          <ProtectedRoute path="/evaluation-templates" component={EvaluationTemplates} />
-          <ProtectedRoute path="/conduct-evaluation" component={ConductEvaluation} /> 
+          {/* LMS Features */}
+          <ProtectedRoute path="/trainee-management" component={TraineeManagement} requiredFeature="TRAINEE_MANAGEMENT" />
+          <ProtectedRoute path="/performance" component={Performance} requiredFeature="DASHBOARD" />
+          <ProtectedRoute path="/settings" component={Settings} requiredFeature="SETTINGS" />
+          <ProtectedRoute path="/batch-management" component={() => <BatchDetail onCreateBatch={() => {}} />} requiredFeature="BATCH_MANAGEMENT" />
+          <ProtectedRoute path="/batch-monitoring" component={BatchMonitoringPage} requiredFeature="BATCH_MONITORING" />
+          <ProtectedRoute path="/batch-details/:batchId" component={BatchDetailsPage} requiredFeature="BATCH_MANAGEMENT" />
+          <ProtectedRoute path="/batch-dashboard/:batchId" component={BatchDashboardPage} requiredFeature="BATCH_MANAGEMENT" />
+          <ProtectedRoute path="/quiz-management" component={QuizManagement} requiredFeature="QUIZ_MANAGEMENT" />
+          <ProtectedRoute path="/my-quizzes" component={MyQuizzesPage} requiredFeature="MY_QUIZZES" />
+          <ProtectedRoute path="/quiz/:quizId" component={QuizTakingPage} requiredFeature="MY_QUIZZES" />
+          <ProtectedRoute path="/quiz-results/:attemptId" component={QuizResultsPage} requiredFeature="MY_QUIZZES" />
+          
+          {/* QMS Features */}
+          <ProtectedRoute path="/mock-call-scenarios" component={MockCallScenarios} requiredFeature="MOCK_CALL_SCENARIOS" />
+          <ProtectedRoute path="/evaluation-templates" component={EvaluationTemplates} requiredFeature="EVALUATION_TEMPLATES" />
+          <ProtectedRoute path="/conduct-evaluation" component={ConductEvaluation} requiredFeature="CONDUCT_EVALUATION" /> 
           <Route component={NotFound} />
         </Switch>
       </main>
@@ -81,8 +85,10 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <PermissionsProvider>
-          <Router />
-          <Toaster />
+          <FeaturesProvider>
+            <Router />
+            <Toaster />
+          </FeaturesProvider>
         </PermissionsProvider>
       </AuthProvider>
     </QueryClientProvider>
