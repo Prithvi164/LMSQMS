@@ -13,6 +13,7 @@ import { batchStatusEnum } from "@shared/schema";
 import { permissionEnum } from '@shared/schema';
 import multer from 'multer';
 import * as XLSX from 'xlsx';
+import { mkdirSync, existsSync } from 'fs';
 import { db } from './db';
 import { join } from 'path';
 import express from 'express';
@@ -150,6 +151,7 @@ function excelSerialDateToJSDate(serial: number): string {
   return `${year}-${month}-${day}`;
 }
 
+// Configure multer for XLSX file uploads
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
@@ -161,6 +163,38 @@ const upload = multer({
     } else {
       // Pass null as first argument since the second argument false indicates reject
       cb(null, false);
+    }
+  },
+});
+
+// Configure multer for audio file uploads
+const audioUploadsDir = join(process.cwd(), 'public', 'uploads', 'audio');
+if (!existsSync(audioUploadsDir)) {
+  mkdirSync(audioUploadsDir, { recursive: true });
+}
+
+const audioUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, audioUploadsDir);
+    },
+    filename: (req, file, cb) => {
+      // Generate a unique filename with timestamp and original extension
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const ext = file.originalname.split('.').pop();
+      cb(null, `${uniqueSuffix}.${ext}`);
+    }
+  }),
+  limits: {
+    fileSize: 20 * 1024 * 1024, // 20MB limit for audio files
+  },
+  fileFilter: (req, file, cb) => {
+    // Allow common audio formats
+    const allowedTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/webm'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only MP3, WAV, OGG, and WEBM audio files are allowed.'), false);
     }
   },
 });
@@ -6191,6 +6225,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Audio file routes
+  // Configure multer for file uploads
+  // Configure audio uploads directory in public folder for web access
+  const audioUploadsDir = join(process.cwd(), 'public', 'uploads', 'audio');
+  
+  // Create uploads directory if it doesn't exist
+  if (!existsSync(audioUploadsDir)) {
+    mkdirSync(audioUploadsDir, { recursive: true });
+  }
+  
+  // Configure multer disk storage for audio files
+  const audioUpload = multer({
+    storage: multer.diskStorage({
+      destination: (req, file, cb) => {
+        cb(null, audioUploadsDir);
+      },
+      filename: (req, file, cb) => {
+        // Generate a unique filename with timestamp and original extension
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = file.originalname.split('.').pop();
+        cb(null, `${uniqueSuffix}.${ext}`);
+      }
+    }),
+    limits: {
+      fileSize: 20 * 1024 * 1024, // 20MB limit for audio files
+    },
+    fileFilter: (req, file, cb) => {
+      // Allow common audio formats
+      const allowedTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/webm'];
+      if (allowedTypes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error('Invalid file type. Only MP3, WAV, OGG, and WEBM audio files are allowed.'), false);
+      }
+    },
+  });
+  
+  // File upload endpoint
+  app.post("/api/audio-files/upload", audioUpload.single('file'), async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.file) return res.status(400).json({ message: "No file provided" });
+    
+    try {
+      const { language, version, callMetrics, organizationId, processId } = req.body;
+      
+      // Prepare audio file data for database
+      const audioFileData = {
+        filename: req.file.filename,
+        originalFilename: req.file.originalname,
+        fileUrl: `/uploads/audio/${req.file.filename}`,
+        fileSize: req.file.size,
+        duration: 0, // This would ideally be calculated from the audio file
+        language: language || 'english',
+        version: version || '',
+        callMetrics: callMetrics ? JSON.parse(callMetrics) : {},
+        organizationId: parseInt(organizationId) || req.user.organizationId,
+        processId: parseInt(processId) || (req.user.processId || null),
+        uploadedBy: req.user.id,
+        status: 'pending', // Initial status is always pending
+        uploadedAt: new Date(),
+        batchId: null // By default, not associated with any batch
+      };
+      
+      // Create the audio file record in the database
+      const audioFile = await storage.createAudioFile(audioFileData);
+      res.status(201).json(audioFile);
+    } catch (error: any) {
+      console.error("Error uploading audio file:", error);
+      
+      // Delete the physical file if database insertion failed
+      if (req.file && req.file.path) {
+        try {
+          const fs = require('fs');
+          fs.unlinkSync(req.file.path);
+        } catch (unlinkError) {
+          console.error("Failed to delete file after upload error:", unlinkError);
+        }
+      }
+      
+      res.status(400).json({ message: error.message });
+    }
+  });
+  
+  // Create audio file (without file upload)
   app.post("/api/audio-files", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
     

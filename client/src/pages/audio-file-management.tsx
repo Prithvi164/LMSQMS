@@ -64,7 +64,7 @@ const AudioFileManagement = () => {
   // Upload file mutation
   const uploadFileMutation = useMutation({
     mutationFn: async (formData: FormData) => {
-      return apiRequest('/api/audio-files', {
+      return apiRequest('/api/audio-files/upload', {
         method: 'POST',
         body: formData,
       });
