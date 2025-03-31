@@ -658,43 +658,13 @@ export function BatchDetailsPage() {
         <TabsContent value="assessments" className="space-y-4">
           <Card>
             <CardContent className="p-6">
-              <Tabs defaultValue="recent" className="w-full">
-                <TabsList className="mb-4">
-                  <TabsTrigger value="recent">Recent Assessments</TabsTrigger>
-                  <TabsTrigger value="passed">Passed Assessments</TabsTrigger>
-                  <TabsTrigger value="failed">Failed Assessments</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="recent">
-                  {batchId && user?.organizationId && (
-                    <BatchQuizAttempts 
-                      batchId={parseInt(batchId)} 
-                      organizationId={user.organizationId} 
-                      filter="all" 
-                    />
-                  )}
-                </TabsContent>
-                
-                <TabsContent value="passed">
-                  {batchId && user?.organizationId && (
-                    <BatchQuizAttempts 
-                      batchId={parseInt(batchId)} 
-                      organizationId={user.organizationId} 
-                      filter="passed" 
-                    />
-                  )}
-                </TabsContent>
-                
-                <TabsContent value="failed">
-                  {batchId && user?.organizationId && (
-                    <BatchQuizAttempts 
-                      batchId={parseInt(batchId)} 
-                      organizationId={user.organizationId} 
-                      filter="failed" 
-                    />
-                  )}
-                </TabsContent>
-              </Tabs>
+              {batchId && user?.organizationId && (
+                <BatchQuizAttempts 
+                  batchId={parseInt(batchId)} 
+                  organizationId={user.organizationId} 
+                  filter="all" 
+                />
+              )}
             </CardContent>
           </Card>
         </TabsContent>
