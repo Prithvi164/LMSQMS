@@ -6278,25 +6278,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get the organization ID from the request or the user
       const orgId = parseInt(organizationId) || req.user.organizationId;
       
-      // Get the process ID from the request, the user, or find a valid one
-      let validProcessId;
+      // Get the process ID from the request, the user, or use a default
+      let processIdToUse;
       if (processId) {
-        validProcessId = parseInt(processId);
+        processIdToUse = parseInt(processId);
       } else if (req.user.processId) {
-        validProcessId = req.user.processId;
+        processIdToUse = req.user.processId;
       } else {
-        // If no process ID provided, find the first valid process for this organization
+        // Try to find a process, but don't require it to be valid
         const processes = await storage.listProcesses(orgId);
         if (processes && processes.length > 0) {
-          validProcessId = processes[0].id;
+          processIdToUse = processes[0].id;
         } else {
-          return res.status(400).json({ message: "No valid process found for this organization. Please create a process first." });
+          // Use a default value if no process is found
+          processIdToUse = 0;
         }
-      }
-      
-      // Make sure we found a valid process ID
-      if (!validProcessId) {
-        return res.status(400).json({ message: "No valid process found. Please specify a process ID or create a process first." });
       }
       
       // Prepare audio file data for database
@@ -6311,7 +6307,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         call_date: callDate, // Add the call_date field
         callMetrics: parsedCallMetrics,
         organizationId: orgId,
-        processId: validProcessId, // We now verify this is a valid process ID
+        processId: processIdToUse, // Using the process ID or default value
         uploadedBy: req.user.id,
         status: 'pending', // Initial status is always pending
         uploadedAt: new Date(),
@@ -6349,14 +6345,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Extract and ensure a call_date is provided (use callMetrics if available)
       const callDate = req.body.callMetrics?.callDate || req.body.call_date || new Date().toISOString().split('T')[0];
       
-      // Check if we have a valid process ID
+      // Get the process ID from the request, the user, or use a default
       const processId = req.body.processId || req.user.processId;
       if (!processId) {
         const processes = await storage.listProcesses(req.user.organizationId);
         if (processes && processes.length > 0) {
           req.body.processId = processes[0].id;
         } else {
-          return res.status(400).json({ message: "No valid process found for this organization. Please create a process first." });
+          // Use a default value if no process is found
+          req.body.processId = 0;
         }
       }
       

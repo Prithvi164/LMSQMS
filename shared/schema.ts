@@ -117,7 +117,6 @@ export const audioFiles = pgTable("audio_files", {
     .notNull(),
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
   processId: integer("process_id")
-    .references(() => organizationProcesses.id)
     .notNull(),
   organizationId: integer("organization_id")
     .references(() => organizations.id)
@@ -575,10 +574,6 @@ export const audioFilesRelations = relations(audioFiles, ({ one, many }) => ({
   organization: one(organizations, {
     fields: [audioFiles.organizationId],
     references: [organizations.id],
-  }),
-  process: one(organizationProcesses, {
-    fields: [audioFiles.processId],
-    references: [organizationProcesses.id],
   }),
   uploader: one(users, {
     fields: [audioFiles.uploadedBy],
