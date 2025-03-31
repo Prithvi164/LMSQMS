@@ -101,6 +101,7 @@ export const audioFiles = pgTable("audio_files", {
   duration: integer("duration").notNull(), // in seconds
   language: audioLanguageEnum("language").notNull(),
   version: text("version").notNull(),
+  call_date: date("call_date").notNull(), // Added call_date field to match database schema
   callMetrics: jsonb("call_metrics").$type<{
     callDate: string;
     callId: string;
@@ -514,6 +515,9 @@ export const insertAudioFileSchema = createInsertSchema(audioFiles)
     duration: z.number().int().positive("Duration must be positive"),
     language: z.enum(['english', 'spanish', 'french', 'hindi', 'other']),
     version: z.string().min(1, "Version is required"),
+    call_date: z.string().refine(val => {
+      return !!val.match(/^\d{4}-\d{2}-\d{2}$/);
+    }, { message: "Call date must be in YYYY-MM-DD format" }),
     callMetrics: z.object({
       callDate: z.string(),
       callId: z.string(),
