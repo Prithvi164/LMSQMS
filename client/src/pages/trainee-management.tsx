@@ -931,18 +931,7 @@ export default function TraineeManagement() {
                         </div>
                       </div>
                       
-                      {/* Assessment Results section */}
-                      <div className="border-t pt-4 px-6 pb-2">
-                        <div className="flex items-center mb-2">
-                          <Award className="h-5 w-5 mr-2 text-primary" />
-                          <h4 className="font-medium">Trainee Assessment Results</h4>
-                        </div>
-                        <BatchQuizAttempts 
-                          organizationId={user?.organizationId || 0} 
-                          batchId={batch.id} 
-                          filter="all" 
-                        />
-                      </div>
+                      {/* Removed duplicate Assessment Results section */}
                       
                       <div className="border-t p-4 bg-muted/20">
                         <Button variant="outline" className="w-full" onClick={() => {
