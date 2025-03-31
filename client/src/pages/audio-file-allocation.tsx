@@ -68,13 +68,13 @@ const AudioFileAllocation = () => {
 
   // Query for fetching available audio files for allocation
   const { data: audioFiles, isLoading: loadingAudioFiles, refetch: refetchAudioFiles } = useQuery({
-    queryKey: ['/api/audio-files/available', user?.organizationId, filters],
+    queryKey: ['/api/organizations/' + user?.organizationId + '/audio-files', filters],
     enabled: !!user?.organizationId,
   });
 
   // Query for fetching allocations
   const { data: allocations, isLoading: loadingAllocations, refetch: refetchAllocations } = useQuery({
-    queryKey: ['/api/audio-file-allocation', user?.organizationId, activeTab],
+    queryKey: ['/api/organizations/' + user?.organizationId + '/audio-file-allocations', activeTab],
     enabled: !!user?.organizationId,
   });
 
@@ -87,7 +87,7 @@ const AudioFileAllocation = () => {
   // Mutations
   const createAllocationMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest('/api/audio-file-allocation', {
+      return apiRequest('/api/audio-file-allocations', {
         method: 'POST',
         body: JSON.stringify(data),
       });
@@ -99,8 +99,8 @@ const AudioFileAllocation = () => {
       });
       setCreateDialogOpen(false);
       resetAllocationForm();
-      queryClient.invalidateQueries({ queryKey: ['/api/audio-file-allocation'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/audio-files/available'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/organizations/' + user?.organizationId + '/audio-file-allocations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/organizations/' + user?.organizationId + '/audio-files'] });
     },
     onError: (error) => {
       toast({
@@ -113,7 +113,7 @@ const AudioFileAllocation = () => {
 
   const updateAllocationStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number, status: string }) => {
-      return apiRequest(`/api/audio-file-allocation/${id}/status`, {
+      return apiRequest(`/api/audio-file-allocations/${id}`, {
         method: 'PATCH',
         body: JSON.stringify({ status }),
       });

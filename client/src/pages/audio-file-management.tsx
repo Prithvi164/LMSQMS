@@ -57,14 +57,14 @@ const AudioFileManagement = () => {
 
   // Query for fetching audio files
   const { data: audioFiles, isLoading, refetch } = useQuery({
-    queryKey: ['/api/audio-files', user?.organizationId, filters],
+    queryKey: ['/api/organizations/' + user?.organizationId + '/audio-files', filters],
     enabled: !!user?.organizationId,
   });
 
   // Upload file mutation
   const uploadFileMutation = useMutation({
     mutationFn: async (formData: FormData) => {
-      return apiRequest('/api/audio-files/upload', {
+      return apiRequest('/api/audio-files', {
         method: 'POST',
         body: formData,
       });
@@ -102,7 +102,7 @@ const AudioFileManagement = () => {
   // Update file status mutation
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number, status: string }) => {
-      return apiRequest(`/api/audio-files/${id}/status`, {
+      return apiRequest(`/api/audio-files/${id}`, {
         method: 'PATCH',
         body: JSON.stringify({ status }),
       });
