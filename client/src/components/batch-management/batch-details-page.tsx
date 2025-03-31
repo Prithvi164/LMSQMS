@@ -658,8 +658,6 @@ export function BatchDetailsPage() {
         <TabsContent value="assessments" className="space-y-4">
           <Card>
             <CardContent className="p-6">
-              <h2 className="text-xl font-semibold mb-4">Trainee Assessment Results</h2>
-              
               <Tabs defaultValue="recent" className="w-full">
                 <TabsList className="mb-4">
                   <TabsTrigger value="recent">Recent Assessments</TabsTrigger>
