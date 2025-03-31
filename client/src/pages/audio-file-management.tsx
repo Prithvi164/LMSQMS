@@ -54,10 +54,10 @@ const AudioFileManagement = () => {
   });
   const [activeTab, setActiveTab] = useState('all');
   const [filters, setFilters] = useState({
-    language: '',
+    language: 'all',
     version: '',
-    status: '',
-    duration: ''
+    status: 'any',
+    duration: 'any'
   });
 
   // Query for fetching audio files
@@ -287,10 +287,10 @@ const AudioFileManagement = () => {
 
   const resetFilters = () => {
     setFilters({
-      language: '',
+      language: 'all',
       version: '',
-      status: '',
-      duration: ''
+      status: 'any',
+      duration: 'any'
     });
   };
 
@@ -306,7 +306,7 @@ const AudioFileManagement = () => {
     }
     
     // Apply additional filters
-    if (filters.language) {
+    if (filters.language && filters.language !== 'all') {
       filteredFiles = filteredFiles.filter(file => file.language === filters.language);
     }
     
@@ -314,11 +314,11 @@ const AudioFileManagement = () => {
       filteredFiles = filteredFiles.filter(file => file.version === filters.version);
     }
     
-    if (filters.status) {
+    if (filters.status && filters.status !== 'any') {
       filteredFiles = filteredFiles.filter(file => file.status === filters.status);
     }
     
-    if (filters.duration) {
+    if (filters.duration && filters.duration !== 'any') {
       // Apply duration filter based on the selected range
       const durationValue = parseInt(filters.duration);
       if (durationValue === 60) {
@@ -454,7 +454,7 @@ const AudioFileManagement = () => {
                       <SelectValue placeholder="All" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All</SelectItem>
+                      <SelectItem value="all">All</SelectItem>
                       <SelectItem value="english">English</SelectItem>
                       <SelectItem value="spanish">Spanish</SelectItem>
                       <SelectItem value="french">French</SelectItem>
@@ -482,7 +482,7 @@ const AudioFileManagement = () => {
                       <SelectValue placeholder="Any status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Any status</SelectItem>
+                      <SelectItem value="any">Any status</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="allocated">Allocated</SelectItem>
                       <SelectItem value="evaluated">Evaluated</SelectItem>
@@ -498,7 +498,7 @@ const AudioFileManagement = () => {
                       <SelectValue placeholder="Any length" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Any length</SelectItem>
+                      <SelectItem value="any">Any length</SelectItem>
                       <SelectItem value="60">Less than 1 min</SelectItem>
                       <SelectItem value="180">1-3 minutes</SelectItem>
                       <SelectItem value="300">3-5 minutes</SelectItem>
