@@ -6564,10 +6564,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           const xlsx = await import('xlsx');
           
+          // Log details about the metadata file for debugging
+          console.log("Metadata file details:", {
+            filename: metadataFile.originalname,
+            mimetype: metadataFile.mimetype,
+            size: metadataFile.size,
+            hasBuffer: !!metadataFile.buffer,
+            bufferLength: metadataFile.buffer ? metadataFile.buffer.length : 0
+          });
+          
           // Read the Excel file
           let workbook;
           try {
-            workbook = xlsx.read(metadataFile.buffer, { type: 'buffer' });
+            // First ensure we have a valid buffer
+            if (!metadataFile.buffer || metadataFile.buffer.length === 0) {
+              throw new Error("Empty file buffer");
+            }
+            
+            // Use fs to read the file directly instead of relying on the buffer
+            const fs = await import('fs');
+            console.log("Reading file from path:", metadataFile.path);
+            
+            try {
+              // Check if the file exists
+              if (!fs.existsSync(metadataFile.path)) {
+                throw new Error(`File does not exist at path: ${metadataFile.path}`);
+              }
+              
+              // Get file stats
+              const stats = fs.statSync(metadataFile.path);
+              console.log("File stats:", {
+                size: stats.size,
+                isFile: stats.isFile(),
+                created: stats.birthtime,
+                modified: stats.mtime
+              });
+              
+              let metadata;
+              // Check if it's a CSV file
+              if (metadataFile.mimetype === 'text/csv' || metadataFile.originalname.toLowerCase().endsWith('.csv')) {
+                // If it's a CSV, parse it directly
+                const csvData = fs.readFileSync(metadataFile.path, 'utf8');
+                console.log("CSV data read successfully, size:", csvData.length);
+                
+                // Parse CSV using xlsx library
+                workbook = xlsx.read(csvData, { type: 'string' });
+              } else {
+                // For Excel files
+                // Instead of reading to buffer, use the file path directly
+                console.log("Reading Excel file directly from path");
+                workbook = xlsx.readFile(metadataFile.path);
+              }
+              
+              console.log("Excel/CSV parsed successfully, sheets:", workbook.SheetNames);
+            } catch (fsError) {
+              console.error("Error handling the metadata file:", fsError);
+              throw new Error(`Error processing metadata file: ${fsError.message}`);
+            }
           } catch (excelError) {
             console.error("Error parsing Excel file:", excelError);
             return res.status(400).json({
