@@ -111,15 +111,55 @@ const AudioFileManagement = () => {
         title: 'Success',
         description: `Successfully uploaded ${data.success} audio files${data.failed > 0 ? `, ${data.failed} failed` : ''}.`,
       });
+      
+      // Show more detailed errors if files failed
+      if (data.failedFiles && data.failedFiles.length > 0) {
+        const failureReasons = data.failedFiles.map((file: any) => 
+          `${file.originalFilename}: ${file.error}`
+        ).join('\n');
+        
+        console.error('Failed files details:', failureReasons);
+        
+        if (data.failedFiles.length <= 3) {
+          // Show toast with details for a few failures
+          toast({
+            variant: 'destructive',
+            title: 'Some files failed to upload',
+            description: data.failedFiles.map((file: any) => 
+              `${file.originalFilename}: ${file.error}`
+            ).join(', '),
+          });
+        } else {
+          // For many failures, just show a summary
+          toast({
+            variant: 'destructive',
+            title: 'Some files failed to upload',
+            description: `${data.failedFiles.length} files failed. Check console for details.`,
+          });
+        }
+      }
+      
       setBatchUploadDialogOpen(false);
       setUploadAudioFiles([]);
       setMetadataFile(null);
       refetch();
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      // More helpful error message
+      let errorMessage = error.toString();
+      
+      // Extract a more useful message from the error if available
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.response && error.response.data && error.response.data.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      console.error('Batch upload error:', error);
+      
       toast({
         title: 'Error',
-        description: `Failed to process batch upload: ${error.toString()}`,
+        description: `Failed to upload: ${errorMessage}`,
         variant: 'destructive',
       });
     }

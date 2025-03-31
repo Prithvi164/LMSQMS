@@ -6462,160 +6462,252 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Upload endpoint for multiple audio files with Excel metadata
-  app.post("/api/audio-files/batch-upload", audioUpload.fields([
-    { name: 'audioFiles', maxCount: 100 },
-    { name: 'metadataFile', maxCount: 1 }
-  ]), async (req, res) => {
+  app.post("/api/audio-files/batch-upload", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
     
-    // Check if we have files and a metadata file
-    if (!req.files) {
-      return res.status(400).json({ message: "No files uploaded" });
-    }
-    
-    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-    const audioFiles = files.audioFiles || [];
-    const metadataFiles = files.metadataFile || [];
-    
-    if (audioFiles.length === 0) {
-      return res.status(400).json({ message: "No audio files uploaded" });
-    }
-    
-    if (metadataFiles.length === 0) {
-      return res.status(400).json({ message: "No metadata file (Excel) uploaded" });
-    }
-    
-    const orgId = req.user.organizationId;
-    const uploadedFiles: any[] = [];
-    const failedFiles: any[] = [];
-    
     try {
-      // First, parse the Excel file to get metadata
-      const metadataFile = metadataFiles[0];
-      const xlsx = await import('xlsx');
-      
-      // Read the Excel file
-      const workbook = xlsx.read(metadataFile.buffer, { type: 'buffer' });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      
-      // Convert sheet data to JSON
-      const metadata = xlsx.utils.sheet_to_json(sheet);
-      
-      // Create a lookup map from filename to metadata
-      const metadataMap = new Map();
-      metadata.forEach((item: any) => {
-        if (item.filename) {
-          metadataMap.set(item.filename, item);
+      // Use the middleware for file upload but handle the errors more gracefully
+      audioUpload.fields([
+        { name: 'audioFiles', maxCount: 100 },
+        { name: 'metadataFile', maxCount: 1 }
+      ])(req, res, async (err) => {
+        if (err) {
+          console.error("File upload error:", err);
+          return res.status(400).json({ 
+            message: err.message,
+            success: 0,
+            failed: 0,
+            uploadedFiles: [],
+            failedFiles: []
+          });
         }
-      });
-      
-      // Process each audio file
-      for (const file of audioFiles) {
+        
+        // Check if we have files and a metadata file
+        if (!req.files) {
+          return res.status(400).json({ message: "No files uploaded" });
+        }
+        
+        const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+        const audioFiles = files.audioFiles || [];
+        const metadataFiles = files.metadataFile || [];
+        
+        if (audioFiles.length === 0) {
+          return res.status(400).json({ message: "No audio files uploaded" });
+        }
+        
+        if (metadataFiles.length === 0) {
+          return res.status(400).json({ message: "No metadata file (Excel) uploaded" });
+        }
+        
+        const orgId = req.user.organizationId;
+        const uploadedFiles: any[] = [];
+        const failedFiles: any[] = [];
+        
         try {
-          // Try to match with metadata - first try exact match, then try without extension
-          let fileMetadata = metadataMap.get(file.originalname);
-          if (!fileMetadata) {
-            // Try to match without extension
-            const filenameWithoutExt = file.originalname.replace(/\.[^/.]+$/, "");
-            fileMetadata = metadataMap.get(filenameWithoutExt);
+          // First, parse the Excel file to get metadata
+          const metadataFile = metadataFiles[0];
+          
+          // Check if the metadata file is an Excel file
+          const allowedMetadataTypes = [
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+            'application/vnd.ms-excel', // .xls
+            'text/csv' // .csv
+          ];
+          
+          if (!allowedMetadataTypes.includes(metadataFile.mimetype)) {
+            return res.status(400).json({
+              message: "Invalid metadata file type. Only Excel (.xlsx, .xls) or CSV files are allowed.",
+              success: 0,
+              failed: audioFiles.length,
+              uploadedFiles: [],
+              failedFiles: audioFiles.map(file => ({
+                originalFilename: file.originalname,
+                error: "Invalid metadata file type",
+                status: 'error'
+              }))
+            });
           }
           
-          // Fallback values if metadata is not found
-          const defaultCallDate = new Date().toISOString().split('T')[0];
-          const defaultCallMetrics = { callDate: defaultCallDate, callId: '', callType: '' };
+          const xlsx = await import('xlsx');
           
-          // Get the process ID from the metadata, the user, or use a default
-          let processIdToUse = fileMetadata?.processId || req.user.processId;
-          if (!processIdToUse) {
-            // Try to find a valid process for this organization
-            const processes = await storage.listProcesses(orgId);
-            if (processes && processes.length > 0) {
-              processIdToUse = processes[0].id;
-            } else {
-              // Use a default value if no process is found
-              processIdToUse = 0;
+          // Read the Excel file
+          let workbook;
+          try {
+            workbook = xlsx.read(metadataFile.buffer, { type: 'buffer' });
+          } catch (excelError) {
+            console.error("Error parsing Excel file:", excelError);
+            return res.status(400).json({
+              message: "Failed to parse Excel file. Please ensure it's a valid Excel format.",
+              success: 0,
+              failed: audioFiles.length,
+              uploadedFiles: [],
+              failedFiles: audioFiles.map(file => ({
+                originalFilename: file.originalname,
+                error: "Invalid Excel file format",
+                status: 'error'
+              }))
+            });
+          }
+          
+          if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) {
+            return res.status(400).json({
+              message: "Excel file has no sheets",
+              success: 0,
+              failed: audioFiles.length,
+              uploadedFiles: [],
+              failedFiles: audioFiles.map(file => ({
+                originalFilename: file.originalname,
+                error: "Excel file has no sheets",
+                status: 'error'
+              }))
+            });
+          }
+          
+          const sheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+          
+          // Convert sheet data to JSON
+          const metadata = xlsx.utils.sheet_to_json(sheet);
+          
+          if (!metadata || metadata.length === 0) {
+            return res.status(400).json({
+              message: "Excel file contains no data",
+              success: 0,
+              failed: audioFiles.length,
+              uploadedFiles: [],
+              failedFiles: audioFiles.map(file => ({
+                originalFilename: file.originalname,
+                error: "Excel file contains no data",
+                status: 'error'
+              }))
+            });
+          }
+          
+          // Create a lookup map from filename to metadata
+          const metadataMap = new Map();
+          metadata.forEach((item: any) => {
+            if (item.filename) {
+              metadataMap.set(item.filename, item);
+            }
+          });
+          
+          // Process each audio file
+          for (const file of audioFiles) {
+            try {
+              // Try to match with metadata - first try exact match, then try without extension
+              let fileMetadata = metadataMap.get(file.originalname);
+              if (!fileMetadata) {
+                // Try to match without extension
+                const filenameWithoutExt = file.originalname.replace(/\.[^/.]+$/, "");
+                fileMetadata = metadataMap.get(filenameWithoutExt);
+              }
+              
+              // Fallback values if metadata is not found
+              const defaultCallDate = new Date().toISOString().split('T')[0];
+              const defaultCallMetrics = { callDate: defaultCallDate, callId: '', callType: '' };
+              
+              // Get the process ID from the metadata, the user, or use a default
+              let processIdToUse = fileMetadata?.processId || req.user.processId;
+              if (!processIdToUse) {
+                // Try to find a valid process for this organization
+                const processes = await storage.listProcesses(orgId);
+                if (processes && processes.length > 0) {
+                  processIdToUse = processes[0].id;
+                } else {
+                  // Use a default value if no process is found
+                  processIdToUse = 0;
+                }
+              }
+              
+              // Prepare audio file data from the Excel metadata or use defaults
+              const audioFileData = {
+                filename: file.filename,
+                originalFilename: file.originalname,
+                fileUrl: `/uploads/audio/${file.filename}`,
+                fileSize: file.size,
+                duration: fileMetadata?.duration || 0,
+                language: fileMetadata?.language || 'english',
+                version: fileMetadata?.version || '',
+                call_date: fileMetadata?.call_date || defaultCallDate,
+                callMetrics: fileMetadata?.callMetrics || defaultCallMetrics,
+                organizationId: orgId,
+                processId: processIdToUse,
+                uploadedBy: req.user.id,
+                status: 'pending',
+                uploadedAt: new Date(),
+                batchId: null
+              };
+              
+              // Create the audio file record in the database
+              const audioFile = await storage.createAudioFile(audioFileData);
+              uploadedFiles.push({
+                originalFilename: file.originalname,
+                id: audioFile.id,
+                status: 'success'
+              });
+              
+            } catch (fileError: any) {
+              console.error(`Error processing file ${file.originalname}:`, fileError);
+              
+              // Delete the physical file if database insertion failed
+              try {
+                const fs = await import('fs');
+                fs.unlinkSync(file.path);
+              } catch (unlinkError) {
+                console.error(`Failed to delete file ${file.originalname} after upload error:`, unlinkError);
+              }
+              
+              failedFiles.push({
+                originalFilename: file.originalname,
+                error: fileError.message,
+                status: 'error'
+              });
             }
           }
           
-          // Prepare audio file data from the Excel metadata or use defaults
-          const audioFileData = {
-            filename: file.filename,
-            originalFilename: file.originalname,
-            fileUrl: `/uploads/audio/${file.filename}`,
-            fileSize: file.size,
-            duration: fileMetadata?.duration || 0,
-            language: fileMetadata?.language || 'english',
-            version: fileMetadata?.version || '',
-            call_date: fileMetadata?.call_date || defaultCallDate,
-            callMetrics: fileMetadata?.callMetrics || defaultCallMetrics,
-            organizationId: orgId,
-            processId: processIdToUse,
-            uploadedBy: req.user.id,
-            status: 'pending',
-            uploadedAt: new Date(),
-            batchId: null
+          const result = {
+            success: uploadedFiles.length,
+            failed: failedFiles.length,
+            uploadedFiles,
+            failedFiles
           };
           
-          // Create the audio file record in the database
-          const audioFile = await storage.createAudioFile(audioFileData);
-          uploadedFiles.push({
-            originalFilename: file.originalname,
-            id: audioFile.id,
-            status: 'success'
-          });
+          res.status(201).json(result);
           
-        } catch (fileError: any) {
-          console.error(`Error processing file ${file.originalname}:`, fileError);
+        } catch (error: any) {
+          console.error("Error in batch upload:", error);
           
-          // Delete the physical file if database insertion failed
-          try {
-            const fs = await import('fs');
-            fs.unlinkSync(file.path);
-          } catch (unlinkError) {
-            console.error(`Failed to delete file ${file.originalname} after upload error:`, unlinkError);
+          // Clean up any uploaded files if the overall process failed
+          for (const file of audioFiles) {
+            try {
+              const fs = await import('fs');
+              fs.unlinkSync(file.path);
+            } catch (unlinkError) {
+              console.error(`Failed to delete file ${file.originalname} after upload error:`, unlinkError);
+            }
           }
           
-          failedFiles.push({
-            originalFilename: file.originalname,
-            error: fileError.message,
-            status: 'error'
+          res.status(400).json({ 
+            message: error.message,
+            success: 0,
+            failed: audioFiles.length,
+            uploadedFiles: [],
+            failedFiles: audioFiles.map(file => ({
+              originalFilename: file.originalname,
+              error: error.message,
+              status: 'error'
+            }))
           });
         }
-      }
-      
-      const result = {
-        success: uploadedFiles.length,
-        failed: failedFiles.length,
-        uploadedFiles,
-        failedFiles
-      };
-      
-      res.status(201).json(result);
-      
+      });
     } catch (error: any) {
-      console.error("Error in batch upload:", error);
-      
-      // Clean up any uploaded files if the overall process failed
-      for (const file of audioFiles) {
-        try {
-          const fs = await import('fs');
-          fs.unlinkSync(file.path);
-        } catch (unlinkError) {
-          console.error(`Failed to delete file ${file.originalname} after upload error:`, unlinkError);
-        }
-      }
-      
-      res.status(400).json({ 
-        message: error.message,
+      console.error("Error in batch upload route:", error);
+      res.status(500).json({ 
+        message: "Failed to process batch upload: " + error.message,
         success: 0,
-        failed: audioFiles.length,
+        failed: 0,
         uploadedFiles: [],
-        failedFiles: audioFiles.map(file => ({
-          originalFilename: file.originalname,
-          error: error.message,
-          status: 'error'
-        }))
+        failedFiles: []
       });
     }
   });
