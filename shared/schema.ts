@@ -136,9 +136,10 @@ export const audioFileAllocations = pgTable("audio_file_allocations", {
   qualityAnalystId: integer("quality_analyst_id")
     .references(() => users.id)
     .notNull(),
-  allocationDate: timestamp("allocation_date").defaultNow().notNull(),
+  // Using created_at instead of allocation_date to match the existing database structure
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
   dueDate: timestamp("due_date"),
-  completedDate: timestamp("completed_date"),
   status: audioFileStatusEnum("status").default('allocated').notNull(),
   allocatedBy: integer("allocated_by")
     .references(() => users.id)
@@ -149,8 +150,6 @@ export const audioFileAllocations = pgTable("audio_file_allocations", {
   evaluationId: integer("evaluation_id")
     .references(() => evaluations.id),
   notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 // Audio file batch allocation
@@ -536,7 +535,6 @@ export const insertAudioFileSchema = createInsertSchema(audioFiles)
 export const insertAudioFileAllocationSchema = createInsertSchema(audioFileAllocations)
   .omit({
     id: true,
-    allocationDate: true,
     createdAt: true,
     updatedAt: true,
   })

@@ -6311,7 +6311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         call_date: callDate, // Add the call_date field
         callMetrics: parsedCallMetrics,
         organizationId: orgId,
-        processId: validProcessId,
+        processId: validProcessId, // We now verify this is a valid process ID
         uploadedBy: req.user.id,
         status: 'pending', // Initial status is always pending
         uploadedAt: new Date(),
