@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import {
   Card,
   CardContent,
@@ -25,10 +26,33 @@ export default function ConductEvaluation() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [location] = useLocation();
   const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
   const [selectedTrainee, setSelectedTrainee] = useState<number | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<number | null>(null);
   const [scores, setScores] = useState<Record<number, any>>({});
+  
+  // Parse URL parameters
+  useEffect(() => {
+    if (!user) return;
+    
+    // Get URL parameters
+    const params = new URLSearchParams(window.location.search);
+    const batchId = params.get('batchId');
+    const traineeId = params.get('traineeId');
+    
+    // Set batch ID if provided in URL
+    if (batchId) {
+      const batchIdNum = parseInt(batchId);
+      setSelectedBatch(batchIdNum);
+    }
+    
+    // Set trainee ID if provided in URL (but only after trainees are loaded)
+    if (traineeId) {
+      const traineeIdNum = parseInt(traineeId);
+      setSelectedTrainee(traineeIdNum);
+    }
+  }, [user]);
 
   // Fetch active batches
   const { data: batches } = useQuery({

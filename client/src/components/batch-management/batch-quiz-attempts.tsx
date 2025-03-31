@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useLocation } from "wouter";
 
 import {
   Card,
@@ -207,11 +208,17 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
     setReassignDialogOpen(true);
   };
 
+  const [, navigate] = useLocation();
+  
   // Handler for certification dialog
-  const handleCertificationClick = (traineeId: number, quizAttemptId: number) => {
-    setSelectedTraineeId(traineeId);
-    setSelectedQuizAttemptId(quizAttemptId);
-    setCertificationDialogOpen(true);
+  const handleCertificationClick = (traineeId: number, quizAttemptId: number, traineeName: string) => {
+    // Option 1: Show the certification dialog first
+    // setSelectedTraineeId(traineeId);
+    // setSelectedQuizAttemptId(quizAttemptId);
+    // setCertificationDialogOpen(true);
+    
+    // Option 2: Directly navigate to the conduct evaluation page with pre-selected values
+    navigate(`/conduct-evaluation?batchId=${batchId}&traineeId=${traineeId}&traineeName=${encodeURIComponent(traineeName || '')}`);
   };
 
   return (
@@ -309,7 +316,7 @@ export function BatchQuizAttempts({ organizationId, batchId, filter }: BatchQuiz
                               <Button 
                                 variant="outline" 
                                 size="sm"
-                                onClick={() => handleCertificationClick(attempt.userId, attempt.id)}
+                                onClick={() => handleCertificationClick(attempt.userId, attempt.id, attempt.user?.fullName || `User ${attempt.userId}`)}
                               >
                                 <Award className="h-4 w-4 mr-1" />
                                 Certify
