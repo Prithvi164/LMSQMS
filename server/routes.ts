@@ -1106,6 +1106,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if we're updating the feature type directly
       if (req.body.featureType) {
+        // Feature type changes are restricted as they are tied to billing
+        return res.status(403).json({ 
+          message: "Feature type changes are restricted as they are tied to your subscription plan. Please contact support to update your plan."
+        });
+        
+        /* 
+        // This code is intentionally unreachable - feature type changes are now 
+        // only allowed through direct database changes by service administrators
+        
         // Validate feature type is one of the allowed values
         const featureType = req.body.featureType;
         if (!['LMS', 'QMS', 'BOTH'].includes(featureType)) {
@@ -1128,6 +1137,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         return res.json(settings);
+        */
       }
 
       // Legacy path for other settings types

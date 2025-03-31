@@ -288,9 +288,9 @@ export default function OrganizationSettings() {
             <div className="flex items-center space-x-2">
               <Settings className="h-5 w-5 text-primary" />
               <div>
-                <CardTitle>Feature Display Configuration</CardTitle>
+                <CardTitle>Activated Features</CardTitle>
                 <CardDescription>
-                  Select which application modules to display
+                  Your current subscription features
                 </CardDescription>
               </div>
             </div>
@@ -301,72 +301,42 @@ export default function OrganizationSettings() {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
               </div>
             ) : (
-              <Form {...featureTypeForm}>
-                <form onSubmit={featureTypeForm.handleSubmit(onFeatureTypeSubmit)} className="space-y-4">
-                  <FormField
-                    control={featureTypeForm.control}
-                    name="featureType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-base">Application Mode</FormLabel>
-                        <Select 
-                          value={field.value}
-                          onValueChange={field.onChange}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="h-12">
-                              <SelectValue placeholder="Select a feature type" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="LMS" className="flex items-center py-2">
-                              <div className="flex items-center">
-                                <BookOpen className="h-4 w-4 mr-2 text-blue-500" />
-                                <span>LMS Only (Learning Management)</span>
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="QMS" className="flex items-center py-2">
-                              <div className="flex items-center">
-                                <BarChart className="h-4 w-4 mr-2 text-green-500" />
-                                <span>QMS Only (Quality Management)</span>
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="BOTH" className="flex items-center py-2">
-                              <div className="flex items-center">
-                                <AppWindow className="h-4 w-4 mr-2 text-purple-500" />
-                                <span>Both LMS and QMS</span>
-                              </div>
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          This controls which modules and features appear in the navigation sidebar.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
+              <div className="space-y-6">
+                <div className="flex items-center p-5 border rounded-lg bg-card shadow-sm">
+                  <div className="flex-shrink-0 mr-4 bg-primary/10 p-3 rounded-full">
+                    {settings?.featureType === 'LMS' ? (
+                      <BookOpen className="h-7 w-7 text-blue-500" />
+                    ) : settings?.featureType === 'QMS' ? (
+                      <BarChart className="h-7 w-7 text-green-500" />
+                    ) : (
+                      <AppWindow className="h-7 w-7 text-purple-500" />
                     )}
-                  />
-                  <div className="pt-2">
-                    <Button 
-                      type="submit" 
-                      className="w-full md:w-auto"
-                      disabled={updateFeatureTypeMutation.isPending}
-                    >
-                      {updateFeatureTypeMutation.isPending ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="mr-2 h-4 w-4" />
-                          Save Configuration
-                        </>
-                      )}
-                    </Button>
                   </div>
-                </form>
-              </Form>
+                  <div>
+                    <h3 className="text-lg font-medium">
+                      {settings?.featureType === 'LMS' ? 'Learning Management System' : 
+                        settings?.featureType === 'QMS' ? 'Quality Management System' : 
+                        'Complete Platform (LMS + QMS)'}
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {settings?.featureType === 'LMS' ? 
+                        'Access to trainee management, course materials, batch monitoring, and learning resources.' : 
+                        settings?.featureType === 'QMS' ? 
+                        'Access to quality evaluation, performance metrics, mock call scenarios, and evaluation templates.' : 
+                        'Full access to both Learning Management and Quality Management features.'}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start space-x-2 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-md border border-blue-200 dark:border-blue-900">
+                  <AlertCircle className="h-5 w-5 text-blue-500 mt-0.5" />
+                  <div>
+                    <p className="text-sm text-blue-700 dark:text-blue-400">
+                      Feature access is controlled by your subscription plan. To change your active features, please contact our customer support.
+                    </p>
+                  </div>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
