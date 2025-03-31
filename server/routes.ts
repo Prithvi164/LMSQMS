@@ -15,7 +15,7 @@ import multer from 'multer';
 import * as XLSX from 'xlsx';
 import { mkdirSync, existsSync } from 'fs';
 import { db } from './db';
-import { join } from 'path';
+import { join, extname } from 'path';
 import express from 'express';
 import { eq, and, sql, inArray } from "drizzle-orm";
 import { toIST, formatIST, toUTCStorage, formatISTDateOnly } from './utils/timezone';
@@ -6256,7 +6256,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fieldname: file.fieldname,
         originalname: file.originalname,
         mimetype: file.mimetype,
-        extension: path.extname(file.originalname).toLowerCase()
+        extension: extname(file.originalname).toLowerCase()
       });
 
       // Allow common audio formats
@@ -6273,7 +6273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ];
 
       // Also check file extension as fallback
-      const fileExtension = path.extname(file.originalname).toLowerCase();
+      const fileExtension = extname(file.originalname).toLowerCase();
       const allowedExtensions = ['.mp3', '.wav', '.ogg', '.webm'];
       
       if (allowedMimeTypes.includes(file.mimetype) || 
