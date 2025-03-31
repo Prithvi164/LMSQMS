@@ -6495,6 +6495,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Endpoint to download the audio file metadata template
+  app.get("/api/audio-files/metadata-template", async (req, res) => {
+    try {
+      const xlsx = await import('xlsx');
+      
+      // Create a new workbook
+      const workbook = xlsx.utils.book_new();
+      
+      // Add sample data to show the structure
+      const data = [
+        {
+          filename: "sample-call-1.wav",
+          duration: 180,
+          language: "english",
+          version: "1.0",
+          call_date: new Date().toISOString().split('T')[0],
+          callMetrics: JSON.stringify({ callId: "CALL123", callType: "inbound" })
+        },
+        {
+          filename: "sample-call-2.wav",
+          duration: 240,
+          language: "spanish",
+          version: "2.0",
+          call_date: new Date().toISOString().split('T')[0],
+          callMetrics: JSON.stringify({ callId: "CALL456", callType: "outbound" })
+        }
+      ];
+      
+      // Create a worksheet and append it to the workbook
+      const worksheet = xlsx.utils.json_to_sheet(data);
+      xlsx.utils.book_append_sheet(workbook, worksheet, "AudioFileMetadata");
+      
+      // Set headers for file download
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename=audio-file-metadata-template.xlsx');
+      
+      // Convert workbook to buffer and send
+      const buffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+      return res.send(buffer);
+    } catch (error: any) {
+      console.error("Error generating template:", error);
+      return res.status(500).json({ message: "Failed to generate template" });
+    }
+  });
+    
   // Upload endpoint for multiple audio files with Excel metadata
   app.post("/api/audio-files/batch-upload", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
@@ -6573,54 +6618,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
             bufferLength: metadataFile.buffer ? metadataFile.buffer.length : 0
           });
           
-          // Read the Excel file
           let workbook;
+          
           try {
-            // First ensure we have a valid buffer
-            if (!metadataFile.buffer || metadataFile.buffer.length === 0) {
-              throw new Error("Empty file buffer");
-            }
-            
-            // Use fs to read the file directly instead of relying on the buffer
+            // Use fs to read the file directly
             const fs = await import('fs');
             console.log("Reading file from path:", metadataFile.path);
             
-            try {
-              // Check if the file exists
-              if (!fs.existsSync(metadataFile.path)) {
-                throw new Error(`File does not exist at path: ${metadataFile.path}`);
-              }
-              
-              // Get file stats
-              const stats = fs.statSync(metadataFile.path);
-              console.log("File stats:", {
-                size: stats.size,
-                isFile: stats.isFile(),
-                created: stats.birthtime,
-                modified: stats.mtime
-              });
-              
-              let metadata;
-              // Check if it's a CSV file
-              if (metadataFile.mimetype === 'text/csv' || metadataFile.originalname.toLowerCase().endsWith('.csv')) {
-                // If it's a CSV, parse it directly
-                const csvData = fs.readFileSync(metadataFile.path, 'utf8');
-                console.log("CSV data read successfully, size:", csvData.length);
-                
-                // Parse CSV using xlsx library
-                workbook = xlsx.read(csvData, { type: 'string' });
-              } else {
-                // For Excel files
-                // Instead of reading to buffer, use the file path directly
-                console.log("Reading Excel file directly from path");
-                workbook = xlsx.readFile(metadataFile.path);
-              }
-              
-              console.log("Excel/CSV parsed successfully, sheets:", workbook.SheetNames);
-            } catch (fsError) {
-              console.error("Error handling the metadata file:", fsError);
-              throw new Error(`Error processing metadata file: ${fsError.message}`);
+            if (!fs.existsSync(metadataFile.path)) {
+              throw new Error(`File does not exist at path: ${metadataFile.path}`);
             }
+            
+            // Get file stats
+            const stats = fs.statSync(metadataFile.path);
+            console.log("File stats:", {
+              size: stats.size,
+              isFile: stats.isFile(),
+              created: stats.birthtime,
+              modified: stats.mtime
+            });
+            
+            // Check if it's a CSV file
+            if (metadataFile.mimetype === 'text/csv' || metadataFile.originalname.toLowerCase().endsWith('.csv')) {
+              // For CSV files
+              const csvData = fs.readFileSync(metadataFile.path, 'utf8');
+              workbook = xlsx.read(csvData, { type: 'string' });
+            } else {
+              // For Excel files
+              workbook = xlsx.readFile(metadataFile.path);
+            }
+            
+            console.log("Excel/CSV parsed successfully, sheets:", workbook.SheetNames);
           } catch (excelError) {
             console.error("Error parsing Excel file:", excelError);
             return res.status(400).json({

@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { UploadCloud, FileAudio, Upload, Filter, Clock, FilePlus, FileSpreadsheet } from 'lucide-react';
+import { UploadCloud, FileAudio, Upload, Filter, Clock, FilePlus, FileSpreadsheet, Download } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { apiRequest } from '@/lib/queryClient';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -104,9 +104,11 @@ const AudioFileManagement = () => {
   // Batch upload mutation
   const batchUploadMutation = useMutation({
     mutationFn: async (formData: FormData) => {
-      return apiRequest('POST', '/api/audio-files/batch-upload', formData);
+      const response = await apiRequest('POST', '/api/audio-files/batch-upload', formData);
+      const responseData = await response.json();
+      return responseData as { success: number; failed: number; failedFiles?: { originalFilename: string; error: string }[] };
     },
-    onSuccess: (data) => {
+    onSuccess: (data: { success: number; failed: number; failedFiles?: { originalFilename: string; error: string }[] }) => {
       toast({
         title: 'Success',
         description: `Successfully uploaded ${data.success} audio files${data.failed > 0 ? `, ${data.failed} failed` : ''}.`,
@@ -114,7 +116,7 @@ const AudioFileManagement = () => {
       
       // Show more detailed errors if files failed
       if (data.failedFiles && data.failedFiles.length > 0) {
-        const failureReasons = data.failedFiles.map((file: any) => 
+        const failureReasons = data.failedFiles.map((file) => 
           `${file.originalFilename}: ${file.error}`
         ).join('\n');
         
@@ -125,7 +127,7 @@ const AudioFileManagement = () => {
           toast({
             variant: 'destructive',
             title: 'Some files failed to upload',
-            description: data.failedFiles.map((file: any) => 
+            description: data.failedFiles.map((file) => 
               `${file.originalFilename}: ${file.error}`
             ).join(', '),
           });
@@ -177,10 +179,10 @@ const AudioFileManagement = () => {
       });
       refetch();
     },
-    onError: (error) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Error',
-        description: `Failed to update audio file status: ${error.toString()}`,
+        description: `Failed to update audio file status: ${error instanceof Error ? error.message : String(error)}`,
         variant: 'destructive',
       });
     }
@@ -230,8 +232,9 @@ const AudioFileManagement = () => {
     formData.append('language', fileData.language);
     formData.append('version', fileData.version);
     formData.append('callMetrics', JSON.stringify(fileData.callMetrics));
-    formData.append('organizationId', user?.organizationId.toString() || '');
-    formData.append('processId', user?.processId?.toString() || '1');
+    formData.append('organizationId', user?.organizationId?.toString() || '');
+    // Use a default process ID value since processId might not exist on user
+    formData.append('processId', '1');
     
     uploadFileMutation.mutate(formData);
   };
@@ -269,10 +272,10 @@ const AudioFileManagement = () => {
       
       // Upload the batch directly - server will handle Excel parsing
       batchUploadMutation.mutate(formData);
-    } catch (error) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: `An error occurred: ${error.toString()}`,
+        description: `An error occurred: ${error instanceof Error ? error.message : String(error)}`,
         variant: 'destructive',
       });
     }
@@ -292,12 +295,45 @@ const AudioFileManagement = () => {
   };
 
   const getFilteredAudioFiles = () => {
-    if (!audioFiles) return [];
+    if (!audioFiles || !Array.isArray(audioFiles)) return [];
 
-    let filteredFiles = [...audioFiles];
+    // Explicitly cast audioFiles to an array type to satisfy TypeScript
+    let filteredFiles = [...(audioFiles as any[])];
     
+    // Apply tab filter
     if (activeTab !== 'all') {
       filteredFiles = filteredFiles.filter(file => file.status === activeTab);
+    }
+    
+    // Apply additional filters
+    if (filters.language) {
+      filteredFiles = filteredFiles.filter(file => file.language === filters.language);
+    }
+    
+    if (filters.version) {
+      filteredFiles = filteredFiles.filter(file => file.version === filters.version);
+    }
+    
+    if (filters.status) {
+      filteredFiles = filteredFiles.filter(file => file.status === filters.status);
+    }
+    
+    if (filters.duration) {
+      // Apply duration filter based on the selected range
+      const durationValue = parseInt(filters.duration);
+      if (durationValue === 60) {
+        // Less than 1 minute
+        filteredFiles = filteredFiles.filter(file => file.duration < 60);
+      } else if (durationValue === 180) {
+        // 1-3 minutes
+        filteredFiles = filteredFiles.filter(file => file.duration >= 60 && file.duration <= 180);
+      } else if (durationValue === 300) {
+        // 3-5 minutes
+        filteredFiles = filteredFiles.filter(file => file.duration > 180 && file.duration <= 300);
+      } else if (durationValue === 999) {
+        // More than 5 minutes
+        filteredFiles = filteredFiles.filter(file => file.duration > 300);
+      }
     }
 
     return filteredFiles;
@@ -356,7 +392,8 @@ const AudioFileManagement = () => {
                   <Label htmlFor="metadataFile">Excel Metadata File</Label>
                   <div className="flex items-center gap-2">
                     <Button variant="outline" size="sm" asChild className="mb-2">
-                      <a href="/api/templates/audio-file-metadata" download="audio-file-metadata-template.xlsx">
+                      <a href="/api/audio-files/metadata-template" download="audio-file-metadata-template.xlsx">
+                        <Download className="mr-2 h-4 w-4" />
                         Download Template
                       </a>
                     </Button>
@@ -417,7 +454,7 @@ const AudioFileManagement = () => {
                       <SelectValue placeholder="All" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="">All</SelectItem>
                       <SelectItem value="english">English</SelectItem>
                       <SelectItem value="spanish">Spanish</SelectItem>
                       <SelectItem value="french">French</SelectItem>
@@ -439,16 +476,33 @@ const AudioFileManagement = () => {
                 </div>
                 
                 <div>
+                  <Label htmlFor="filter-status">Status</Label>
+                  <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value)}>
+                    <SelectTrigger id="filter-status" className="w-36">
+                      <SelectValue placeholder="Any status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Any status</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="allocated">Allocated</SelectItem>
+                      <SelectItem value="evaluated">Evaluated</SelectItem>
+                      <SelectItem value="archived">Archived</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
                   <Label htmlFor="filter-duration">Duration</Label>
                   <Select value={filters.duration} onValueChange={(value) => handleFilterChange('duration', value)}>
                     <SelectTrigger id="filter-duration" className="w-36">
                       <SelectValue placeholder="Any length" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="any">Any length</SelectItem>
-                      <SelectItem value="short">Short (&lt; 3min)</SelectItem>
-                      <SelectItem value="medium">Medium (3-10min)</SelectItem>
-                      <SelectItem value="long">Long (&gt; 10min)</SelectItem>
+                      <SelectItem value="">Any length</SelectItem>
+                      <SelectItem value="60">Less than 1 min</SelectItem>
+                      <SelectItem value="180">1-3 minutes</SelectItem>
+                      <SelectItem value="300">3-5 minutes</SelectItem>
+                      <SelectItem value="999">More than 5 minutes</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
