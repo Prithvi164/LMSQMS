@@ -9,12 +9,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { UploadCloud, FileAudio, Upload, Filter, Clock } from 'lucide-react';
+import { UploadCloud, FileAudio, Upload, Filter, Clock, FilePlus, FileSpreadsheet } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { apiRequest } from '@/lib/queryClient';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Spinner } from '@/components/ui/spinner';
 import { formatDistanceToNow } from 'date-fns';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 // Helper functions
 const formatDuration = (seconds: number) => {
@@ -34,7 +35,10 @@ const AudioFileManagement = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [batchUploadDialogOpen, setBatchUploadDialogOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [uploadAudioFiles, setUploadAudioFiles] = useState<File[]>([]);
+  const [metadataFile, setMetadataFile] = useState<File | null>(null);
   const [fileData, setFileData] = useState({
     language: 'english',
     version: '',
@@ -95,6 +99,30 @@ const AudioFileManagement = () => {
       });
     }
   });
+  
+  // Batch upload mutation
+  const batchUploadMutation = useMutation({
+    mutationFn: async (formData: FormData) => {
+      return apiRequest('POST', '/api/audio-files/batch-upload', formData);
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Success',
+        description: `Successfully uploaded ${data.uploaded} audio files.`,
+      });
+      setBatchUploadDialogOpen(false);
+      setUploadAudioFiles([]);
+      setMetadataFile(null);
+      refetch();
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: `Failed to process batch upload: ${error.toString()}`,
+        variant: 'destructive',
+      });
+    }
+  });
 
   // Update file status mutation
   const updateStatusMutation = useMutation({
@@ -120,6 +148,18 @@ const AudioFileManagement = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
+    }
+  };
+  
+  const handleAudioFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setUploadAudioFiles(Array.from(e.target.files));
+    }
+  };
+  
+  const handleMetadataFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setMetadataFile(e.target.files[0]);
     }
   };
 
