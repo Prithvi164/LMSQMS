@@ -13,85 +13,28 @@ import {
   FileSpreadsheet 
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { useFeatures, FEATURES } from '@/hooks/use-features';
 
 export function SidebarNav() {
   const [location] = useLocation();
-  const { logout, user } = useAuth();
-  const { hasAccess } = useFeatures();
+  const { logout, user } = useAuth(); 
+
+  console.log('Current user category:', user?.category);
 
   const isTrainee = user?.category === 'trainee';
+  const isQualityAnalyst = user?.role === 'quality_analyst';
 
-  // Define all navigation items
-  const allNavItems = [
-    { 
-      href: '/', 
-      label: 'Dashboard', 
-      icon: LayoutDashboard, 
-      feature: 'DASHBOARD' as const
-    },
-    
-    // LMS features
-    { 
-      href: '/my-quizzes', 
-      label: 'My Quizzes', 
-      icon: FileCheck, 
-      feature: 'MY_QUIZZES' as const,
-      showForTraineeOnly: true
-    },
-    { 
-      href: '/batch-management', 
-      label: 'Batch Management', 
-      icon: Users, 
-      feature: 'BATCH_MANAGEMENT' as const,
-      hideForTrainee: true
-    },
-    { 
-      href: '/trainee-management', 
-      label: 'Trainee Management', 
-      icon: ClipboardCheck, 
-      feature: 'TRAINEE_MANAGEMENT' as const,
-      hideForTrainee: true
-    },
-    { 
-      href: '/quiz-management', 
-      label: 'Quiz Management', 
-      icon: BookOpen, 
-      feature: 'QUIZ_MANAGEMENT' as const,
-      hideForTrainee: true
-    },
-    
-    // QMS features
-    { 
-      href: '/evaluation-templates', 
-      label: 'Evaluation Forms', 
-      icon: CheckSquare, 
-      feature: 'EVALUATION_TEMPLATES' as const,
-      hideForTrainee: true
-    },
-    { 
-      href: '/conduct-evaluation', 
-      label: 'Conduct Evaluation', 
-      icon: FileSpreadsheet, 
-      feature: 'CONDUCT_EVALUATION' as const,
-      hideForTrainee: true
-    },
+  const navItems = [
+    { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+    ...(isTrainee ? [
+      { href: '/my-quizzes', label: 'My Quizzes', icon: FileCheck }
+    ] : [
+      { href: '/batch-management', label: 'Batch Management', icon: Users },
+      { href: '/trainee-management', label: 'Trainee Management', icon: ClipboardCheck },
+      { href: '/quiz-management', label: 'Quiz Management', icon: BookOpen },
+      { href: '/evaluation-templates', label: 'Evaluation Forms', icon: CheckSquare },
+      { href: '/conduct-evaluation', label: 'Conduct Evaluation', icon: FileSpreadsheet },
+    ]),
   ];
-
-  // Filter navigation items based on feature access and user role
-  const navItems = allNavItems.filter(item => {
-    // Check if user has access to this feature based on feature_type
-    if (!hasAccess(item.feature)) {
-      return false;
-    }
-    
-    // Apply trainee-specific filtering
-    if (isTrainee) {
-      return !item.hideForTrainee;
-    } else {
-      return !item.showForTraineeOnly;
-    }
-  });
 
   return (
     <div className="h-screen w-64 bg-sidebar border-r border-sidebar-border p-4 flex flex-col">

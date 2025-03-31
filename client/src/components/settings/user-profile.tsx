@@ -8,8 +8,6 @@ import { Label } from "@/components/ui/label";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useFeatures, FeatureType } from "@/hooks/use-features";
 
 export function UserProfile() {
   const { user } = useAuth();
@@ -19,7 +17,6 @@ export function UserProfile() {
     fullName: user?.fullName || "",
     location: user?.location || "",
     phoneNumber: user?.phoneNumber || "",
-    featureType: user?.featureType || "BOTH",
   });
 
   if (!user) return null;
@@ -148,30 +145,6 @@ export function UserProfile() {
                     }))}
                   />
                 </div>
-                {/* Show feature type selector for admins */}
-                {user.role === 'admin' || user.role === 'owner' ? (
-                  <div>
-                    <Label htmlFor="featureType">Feature Access</Label>
-                    <Select
-                      value={editedUser.featureType}
-                      onValueChange={(value) => 
-                        setEditedUser(prev => ({
-                          ...prev,
-                          featureType: value as FeatureType
-                        }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select feature access" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="LMS">LMS Only</SelectItem>
-                        <SelectItem value="QMS">QMS Only</SelectItem>
-                        <SelectItem value="BOTH">LMS & QMS (Both)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ) : null}
               </div>
               <div className="flex justify-end gap-2">
                 <Button
@@ -214,14 +187,6 @@ export function UserProfile() {
               <div>
                 <Label className="text-sm text-muted-foreground">Phone Number</Label>
                 <p className="text-lg">{editedUser.phoneNumber || 'Not specified'}</p>
-              </div>
-              <div>
-                <Label className="text-sm text-muted-foreground">Feature Access</Label>
-                <p className="text-lg">
-                  {editedUser.featureType === 'BOTH' && 'LMS & QMS (Both)'}
-                  {editedUser.featureType === 'LMS' && 'LMS Only'}
-                  {editedUser.featureType === 'QMS' && 'QMS Only'}
-                </p>
               </div>
             </div>
           )}
