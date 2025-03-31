@@ -6644,8 +6644,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const csvData = fs.readFileSync(metadataFile.path, 'utf8');
               workbook = xlsx.read(csvData, { type: 'string' });
             } else {
-              // For Excel files
-              workbook = xlsx.readFile(metadataFile.path);
+              // For Excel files - using the read method with binary data
+              const excelData = fs.readFileSync(metadataFile.path);
+              workbook = xlsx.read(excelData, { type: 'buffer' });
             }
             
             console.log("Excel/CSV parsed successfully, sheets:", workbook.SheetNames);
