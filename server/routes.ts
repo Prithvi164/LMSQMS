@@ -1122,7 +1122,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Create new settings
           settings = await storage.createOrganizationSettings({
             organizationId: orgId,
-            featureType
+            featureType,
+            weeklyOffDays: ['Saturday', 'Sunday'] // Default weekend days
           });
         }
         
@@ -1202,6 +1203,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const response = {
         locations: Array.isArray(locations) ? locations : [],
         featureType: orgSettings?.featureType || 'BOTH', // Default to BOTH if not set
+        weeklyOffDays: orgSettings?.weeklyOffDays || ['Saturday', 'Sunday'], // Default weekend days
       };
 
       return res.json(response);

@@ -567,6 +567,7 @@ export const organizationSettings = pgTable("organization_settings", {
     .references(() => organizations.id)
     .notNull(),
   featureType: featureTypeEnum("feature_type").default('BOTH').notNull(),
+  weeklyOffDays: text("weekly_off_days").array().notNull().default(['Saturday', 'Sunday']),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
