@@ -22,8 +22,18 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-// Removed tabs imports since they're no longer needed for weekly off days
-import { AlertCircle, CalendarIcon, Trash2 } from "lucide-react";
+import { 
+  AlertCircle, 
+  CalendarIcon, 
+  Trash2, 
+  Settings, 
+  BookOpen, 
+  BarChart, 
+  AppWindow,
+  Calendar as CalendarIcon2,
+  Loader2,
+  Save
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Calendar } from "@/components/ui/calendar";
@@ -262,284 +272,314 @@ export default function OrganizationSettings() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-8">
+      <div className="flex items-center justify-between border-b pb-4 mb-2">
         <div>
-          <h3 className="text-lg font-medium">Organization Settings</h3>
-          <p className="text-sm text-muted-foreground">
-            Manage your organization's scheduling settings.
+          <h2 className="text-2xl font-bold tracking-tight">Organization Settings</h2>
+          <p className="text-muted-foreground">
+            Configure your organization's appearance and scheduling preferences.
           </p>
         </div>
       </div>
 
-      <Card className="w-full mb-6">
-        <CardContent className="pt-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Feature Display Type</CardTitle>
-                  <CardDescription>
-                    Choose which features are displayed in the sidebar navigation.
-                  </CardDescription>
-                </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <Card className="w-full shadow-sm hover:shadow-md transition-shadow duration-200">
+          <CardHeader className="bg-primary/5 rounded-t-lg">
+            <div className="flex items-center space-x-2">
+              <Settings className="h-5 w-5 text-primary" />
+              <div>
+                <CardTitle>Feature Display Configuration</CardTitle>
+                <CardDescription>
+                  Select which application modules to display
+                </CardDescription>
               </div>
-            </CardHeader>
-            <CardContent>
-              {isLoadingSettings ? (
-                <div className="text-center py-4">Loading settings...</div>
-              ) : (
-                <Form {...featureTypeForm}>
-                  <form onSubmit={featureTypeForm.handleSubmit(onFeatureTypeSubmit)} className="space-y-4">
-                    <FormField
-                      control={featureTypeForm.control}
-                      name="featureType"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Feature Type</FormLabel>
-                          <Select 
-                            value={field.value}
-                            onValueChange={field.onChange}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a feature type" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="LMS">LMS Only (Learning Management)</SelectItem>
-                              <SelectItem value="QMS">QMS Only (Quality Management)</SelectItem>
-                              <SelectItem value="BOTH">Both LMS and QMS</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormDescription>
-                            This setting controls which feature tabs are displayed in the sidebar navigation.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6">
+            {isLoadingSettings ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : (
+              <Form {...featureTypeForm}>
+                <form onSubmit={featureTypeForm.handleSubmit(onFeatureTypeSubmit)} className="space-y-4">
+                  <FormField
+                    control={featureTypeForm.control}
+                    name="featureType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-base">Application Mode</FormLabel>
+                        <Select 
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="h-12">
+                              <SelectValue placeholder="Select a feature type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="LMS" className="flex items-center py-2">
+                              <div className="flex items-center">
+                                <BookOpen className="h-4 w-4 mr-2 text-blue-500" />
+                                <span>LMS Only (Learning Management)</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="QMS" className="flex items-center py-2">
+                              <div className="flex items-center">
+                                <BarChart className="h-4 w-4 mr-2 text-green-500" />
+                                <span>QMS Only (Quality Management)</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="BOTH" className="flex items-center py-2">
+                              <div className="flex items-center">
+                                <AppWindow className="h-4 w-4 mr-2 text-purple-500" />
+                                <span>Both LMS and QMS</span>
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          This controls which modules and features appear in the navigation sidebar.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="pt-2">
                     <Button 
                       type="submit" 
-                      className="mt-4"
+                      className="w-full md:w-auto"
                       disabled={updateFeatureTypeMutation.isPending}
                     >
-                      {updateFeatureTypeMutation.isPending ? "Saving..." : "Save Settings"}
+                      {updateFeatureTypeMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="mr-2 h-4 w-4" />
+                          Save Configuration
+                        </>
+                      )}
                     </Button>
-                  </form>
-                </Form>
-              )}
-            </CardContent>
-          </Card>
-        </CardContent>
-      </Card>
-
-      <Card className="w-full">
-        <CardContent className="pt-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Holidays</CardTitle>
-                  <CardDescription>
-                    Manage holidays for your organization. Holidays are excluded when calculating
-                    training phase durations.
-                  </CardDescription>
-                </div>
-                <Dialog open={isAddHolidayOpen} onOpenChange={setIsAddHolidayOpen}>
-                  <DialogTrigger asChild>
-                    <Button>Add Holiday</Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
-                      <DialogTitle>Add New Holiday</DialogTitle>
-                      <DialogDescription>
-                        Add a new holiday to your organization's calendar.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <Form {...holidayForm}>
-                      <form onSubmit={holidayForm.handleSubmit(onHolidaySubmit)} className="space-y-4">
-                        <FormField
-                          control={holidayForm.control}
-                          name="name"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Holiday Name</FormLabel>
-                              <FormControl>
-                                <Input placeholder="e.g. Christmas, New Year" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={holidayForm.control}
-                          name="date"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-col">
-                              <FormLabel>Date</FormLabel>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <FormControl>
-                                    <Button
-                                      variant={"outline"}
-                                      className={`w-full pl-3 text-left font-normal ${
-                                        !field.value ? "text-muted-foreground" : ""
-                                      }`}
-                                    >
-                                      {field.value ? (
-                                        format(new Date(field.value), "PPP")
-                                      ) : (
-                                        <span>Pick a date</span>
-                                      )}
-                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
-                                  </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                  <Calendar
-                                    mode="single"
-                                    selected={field.value ? new Date(field.value) : undefined}
-                                    onSelect={(date) => {
-                                      field.onChange(date ? format(date, "yyyy-MM-dd") : "");
-                                    }}
-                                    initialFocus
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={holidayForm.control}
-                          name="locationId"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Location (Optional)</FormLabel>
-                              <Select 
-                                value={field.value?.toString() || ""} 
-                                onValueChange={field.onChange}
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select a location" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="all-locations">All Locations</SelectItem>
-                                  {locations?.map((location: Location) => (
-                                    <SelectItem key={location.id} value={location.id.toString()}>
-                                      {location.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormDescription>
-                                If no location is selected, this holiday applies to all locations.
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={holidayForm.control}
-                          name="isRecurring"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                              <FormControl>
-                                <Checkbox
-                                  checked={field.value}
-                                  onCheckedChange={field.onChange}
-                                />
-                              </FormControl>
-                              <div className="space-y-1 leading-none">
-                                <FormLabel>Recurring yearly</FormLabel>
-                                <FormDescription>
-                                  If checked, this holiday will be observed every year on the same date.
-                                </FormDescription>
-                              </div>
-                            </FormItem>
-                          )}
-                        />
-                        <DialogFooter>
-                          <Button type="submit" disabled={createHolidayMutation.isPending}>
-                            {createHolidayMutation.isPending ? "Adding..." : "Add Holiday"}
-                          </Button>
-                        </DialogFooter>
-                      </form>
-                    </Form>
-                  </DialogContent>
-                </Dialog>
+                  </div>
+                </form>
+              </Form>
+            )}
+          </CardContent>
+        </Card>
+        
+        <Card className="w-full shadow-sm hover:shadow-md transition-shadow duration-200">
+          <CardHeader className="bg-primary/5 rounded-t-lg">
+            <div className="flex items-center space-x-2">
+              <CalendarIcon2 className="h-5 w-5 text-primary" />
+              <div>
+                <CardTitle>Holiday Management</CardTitle>
+                <CardDescription>
+                  Configure holidays and non-working days
+                </CardDescription>
               </div>
-            </CardHeader>
-            <CardContent>
-              {isLoadingHolidays ? (
-                <div className="text-center py-4">Loading holidays...</div>
-              ) : holidays?.length === 0 ? (
-                <div className="text-center py-6 text-muted-foreground">
-                  <AlertCircle className="h-10 w-10 mx-auto mb-2" />
-                  <p>No holidays have been added yet.</p>
-                  <p className="text-sm">Click the "Add Holiday" button to get started.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {holidays?.map((holiday: Holiday) => (
-                    <div key={holiday.id} className="flex items-center justify-between gap-4 p-4 border rounded-lg">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-medium">{holiday.name}</h4>
-                          {holiday.isRecurring && (
-                            <Badge variant="outline" className="ml-2">Yearly</Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(holiday.date), "PPP")}
-                        </p>
-                        {holiday.locationId && locations?.find((l: Location) => l.id === holiday.locationId) && (
-                          <Badge variant="secondary" className="mt-1">
-                            {locations.find((l: Location) => l.id === holiday.locationId)?.name}
-                          </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm text-muted-foreground">
+                Holidays are excluded when calculating training phase durations.
+              </p>
+              <Dialog open={isAddHolidayOpen} onOpenChange={setIsAddHolidayOpen}>
+                <DialogTrigger asChild>
+                  <Button>Add Holiday</Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>Add New Holiday</DialogTitle>
+                    <DialogDescription>
+                      Add a new holiday to your organization's calendar.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <Form {...holidayForm}>
+                    <form onSubmit={holidayForm.handleSubmit(onHolidaySubmit)} className="space-y-4">
+                      <FormField
+                        control={holidayForm.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Holiday Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g. Christmas, New Year" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={holidayForm.control}
+                        name="date"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-col">
+                            <FormLabel>Date</FormLabel>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <FormControl>
+                                  <Button
+                                    variant={"outline"}
+                                    className={`w-full pl-3 text-left font-normal ${
+                                      !field.value ? "text-muted-foreground" : ""
+                                    }`}
+                                  >
+                                    {field.value ? (
+                                      format(new Date(field.value), "PPP")
+                                    ) : (
+                                      <span>Pick a date</span>
+                                    )}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                  </Button>
+                                </FormControl>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={field.value ? new Date(field.value) : undefined}
+                                  onSelect={(date) => {
+                                    field.onChange(date ? format(date, "yyyy-MM-dd") : "");
+                                  }}
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={holidayForm.control}
+                        name="locationId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Location (Optional)</FormLabel>
+                            <Select 
+                              value={field.value?.toString() || ""} 
+                              onValueChange={field.onChange}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a location" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="all-locations">All Locations</SelectItem>
+                                {locations?.map((location: Location) => (
+                                  <SelectItem key={location.id} value={location.id.toString()}>
+                                    {location.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>
+                              If no location is selected, this holiday applies to all locations.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={holidayForm.control}
+                        name="isRecurring"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                            <div className="space-y-1 leading-none">
+                              <FormLabel>Recurring yearly</FormLabel>
+                              <FormDescription>
+                                If checked, this holiday will be observed every year on the same date.
+                              </FormDescription>
+                            </div>
+                          </FormItem>
+                        )}
+                      />
+                      <DialogFooter>
+                        <Button type="submit" disabled={createHolidayMutation.isPending}>
+                          {createHolidayMutation.isPending ? "Adding..." : "Add Holiday"}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {isLoadingHolidays ? (
+              <div className="text-center py-4">Loading holidays...</div>
+            ) : holidays?.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground">
+                <AlertCircle className="h-10 w-10 mx-auto mb-2" />
+                <p>No holidays have been added yet.</p>
+                <p className="text-sm">Click the "Add Holiday" button to get started.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {holidays?.map((holiday: Holiday) => (
+                  <div key={holiday.id} className="flex items-center justify-between gap-4 p-4 border rounded-lg">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-medium">{holiday.name}</h4>
+                        {holiday.isRecurring && (
+                          <Badge variant="outline" className="ml-2">Yearly</Badge>
                         )}
                       </div>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => handleDeleteHoliday(holiday)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Holiday</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete "{holidayToDelete?.name}"? This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel onClick={() => setHolidayToDelete(null)}>
-                              Cancel
-                            </AlertDialogCancel>
-                            <AlertDialogAction 
-                              onClick={confirmDeleteHoliday}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      <p className="text-sm text-muted-foreground">
+                        {format(new Date(holiday.date), "PPP")}
+                      </p>
+                      {holiday.locationId && locations?.find((l: Location) => l.id === holiday.locationId) && (
+                        <Badge variant="secondary" className="mt-1">
+                          {locations.find((l: Location) => l.id === holiday.locationId)?.name}
+                        </Badge>
+                      )}
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </CardContent>
-      </Card>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleDeleteHoliday(holiday)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Holiday</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete "{holidayToDelete?.name}"? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel onClick={() => setHolidayToDelete(null)}>
+                            Cancel
+                          </AlertDialogCancel>
+                          <AlertDialogAction 
+                            onClick={confirmDeleteHoliday}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
