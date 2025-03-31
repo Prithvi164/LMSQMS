@@ -6269,6 +6269,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { language, version, callMetrics, organizationId, processId } = req.body;
       
+      // Parse callMetrics and extract call_date
+      const parsedCallMetrics = callMetrics ? JSON.parse(callMetrics) : {};
+      
+      // Use callMetrics.callDate for the call_date column, or default to today
+      const callDate = parsedCallMetrics.callDate || new Date().toISOString().split('T')[0];
+      
       // Prepare audio file data for database
       const audioFileData = {
         filename: req.file.filename,
@@ -6278,7 +6284,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         duration: 0, // This would ideally be calculated from the audio file
         language: language || 'english',
         version: version || '',
-        callMetrics: callMetrics ? JSON.parse(callMetrics) : {},
+        call_date: callDate, // Add the call_date field
+        callMetrics: parsedCallMetrics,
         organizationId: parseInt(organizationId) || req.user.organizationId,
         processId: parseInt(processId) || (req.user.processId || null),
         uploadedBy: req.user.id,
@@ -6312,11 +6319,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
     
     try {
+      // Extract and ensure a call_date is provided (use callMetrics if available)
+      const callDate = req.body.callMetrics?.callDate || req.body.call_date || new Date().toISOString().split('T')[0];
+      
       const audioFileData = {
         ...req.body,
         organizationId: req.user.organizationId,
         uploadedBy: req.user.id,
-        status: 'pending' // Initial status is always pending
+        status: 'pending', // Initial status is always pending
+        call_date: callDate // Ensure call_date is set
       };
       
       const audioFile = await storage.createAudioFile(audioFileData);
