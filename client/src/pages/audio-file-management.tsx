@@ -332,24 +332,6 @@ const AudioFileManagement = () => {
                     <p className="text-sm">The Excel file should contain columns matching audio filenames and their metadata.</p>
                     <p className="text-sm mt-2">Required columns: filename, language, version, call_date, call_type, agent_id</p>
                     <p className="text-sm mt-2">Optional columns: call_id, customer_satisfaction, handle_time</p>
-                    <p className="text-sm mt-3">
-                      <a 
-                        href="/templates/audio_files_metadata_template.xlsx" 
-                        download 
-                        className="text-primary hover:underline flex items-center mb-1"
-                      >
-                        <FileSpreadsheet className="mr-1 h-3 w-3" />
-                        Download Excel Template
-                      </a>
-                      <a 
-                        href="/templates/audio_files_metadata_template.csv" 
-                        download 
-                        className="text-primary hover:underline flex items-center"
-                      >
-                        <FileSpreadsheet className="mr-1 h-3 w-3" />
-                        Download CSV Template
-                      </a>
-                    </p>
                   </AlertDescription>
                 </Alert>
               </div>

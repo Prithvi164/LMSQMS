@@ -1,3 +1,0 @@
-﻿filename,language,version,call_date,call_type,agent_id,call_id,customer_satisfaction,handle_time
-example_audio_file.mp3,english,1.0,2025-03-31,inbound,AG123,CALL789,4,180
-second_example.mp3,spanish,2.0,2025-03-30,outbound,AG456,CALL456,5,240
