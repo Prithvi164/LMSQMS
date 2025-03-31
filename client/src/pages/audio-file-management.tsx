@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Spinner } from '@/components/ui/spinner';
 import { formatDistanceToNow } from 'date-fns';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import * as XLSX from 'xlsx';
 
 // Helper functions
 const formatDuration = (seconds: number) => {
@@ -108,7 +109,7 @@ const AudioFileManagement = () => {
     onSuccess: (data) => {
       toast({
         title: 'Success',
-        description: `Successfully uploaded ${data.uploaded} audio files.`,
+        description: `Successfully uploaded ${data.success} audio files${data.failed > 0 ? `, ${data.failed} failed` : ''}.`,
       });
       setBatchUploadDialogOpen(false);
       setUploadAudioFiles([]);
@@ -194,6 +195,48 @@ const AudioFileManagement = () => {
     
     uploadFileMutation.mutate(formData);
   };
+  
+  const handleBatchUploadSubmit = async () => {
+    if (uploadAudioFiles.length === 0) {
+      toast({
+        title: 'Error',
+        description: 'Please select at least one audio file to upload',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!metadataFile) {
+      toast({
+        title: 'Error',
+        description: 'Please upload an Excel file with metadata',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    try {
+      // Create FormData to send both audio files and metadata Excel file
+      const formData = new FormData();
+      
+      // Based on server implementation, add all audio files to audioFiles[] field
+      uploadAudioFiles.forEach((audioFile) => {
+        formData.append('audioFiles', audioFile);
+      });
+      
+      // Add the Excel file to metadataFile field
+      formData.append('metadataFile', metadataFile);
+      
+      // Upload the batch directly - server will handle Excel parsing
+      batchUploadMutation.mutate(formData);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: `An error occurred: ${error.toString()}`,
+        variant: 'destructive',
+      });
+    }
+  };
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters({ ...filters, [key]: value });
@@ -235,142 +278,68 @@ const AudioFileManagement = () => {
                 Upload Audio File
               </Button>
             </DialogTrigger>
+          </Dialog>
+          
+          <Dialog open={batchUploadDialogOpen} onOpenChange={setBatchUploadDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Batch Upload
+              </Button>
+            </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Upload Audio File</DialogTitle>
+                <DialogTitle>Batch Upload Audio Files</DialogTitle>
                 <DialogDescription>
-                  Upload a new audio file for quality evaluation
+                  Upload multiple audio files with metadata from Excel
                 </DialogDescription>
               </DialogHeader>
               
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="file">Audio File</Label>
-                  <Input id="file" type="file" accept="audio/*" onChange={handleFileChange} />
-                </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="language">Language</Label>
-                  <Select 
-                    value={fileData.language} 
-                    onValueChange={(value) => setFileData({...fileData, language: value})}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select language" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="english">English</SelectItem>
-                      <SelectItem value="spanish">Spanish</SelectItem>
-                      <SelectItem value="french">French</SelectItem>
-                      <SelectItem value="hindi">Hindi</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="version">Version</Label>
+                  <Label htmlFor="audioFiles">Multiple Audio Files</Label>
                   <Input 
-                    id="version" 
-                    placeholder="e.g., v1.0, production" 
-                    value={fileData.version}
-                    onChange={(e) => setFileData({...fileData, version: e.target.value})}
+                    id="audioFiles" 
+                    type="file" 
+                    accept="audio/*" 
+                    multiple 
+                    onChange={handleAudioFilesChange} 
                   />
+                  {uploadAudioFiles.length > 0 && (
+                    <div className="text-sm text-muted-foreground mt-1">
+                      {uploadAudioFiles.length} file(s) selected
+                    </div>
+                  )}
                 </div>
                 
                 <div className="grid gap-2">
-                  <Label>Call Metrics</Label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="callDate">Call Date</Label>
-                      <Input 
-                        id="callDate" 
-                        type="date" 
-                        value={fileData.callMetrics.callDate}
-                        onChange={(e) => setFileData({
-                          ...fileData, 
-                          callMetrics: {...fileData.callMetrics, callDate: e.target.value}
-                        })}
-                      />
+                  <Label htmlFor="metadataFile">Excel Metadata File</Label>
+                  <Input 
+                    id="metadataFile" 
+                    type="file" 
+                    accept=".xlsx,.xls,.csv" 
+                    onChange={handleMetadataFileChange} 
+                  />
+                  {metadataFile && (
+                    <div className="text-sm text-muted-foreground mt-1">
+                      {metadataFile.name}
                     </div>
-                    <div>
-                      <Label htmlFor="callId">Call ID</Label>
-                      <Input 
-                        id="callId" 
-                        placeholder="Call ID" 
-                        value={fileData.callMetrics.callId}
-                        onChange={(e) => setFileData({
-                          ...fileData, 
-                          callMetrics: {...fileData.callMetrics, callId: e.target.value}
-                        })}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="callType">Call Type</Label>
-                      <Select 
-                        value={fileData.callMetrics.callType} 
-                        onValueChange={(value) => setFileData({
-                          ...fileData, 
-                          callMetrics: {...fileData.callMetrics, callType: value}
-                        })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select call type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="inbound">Inbound</SelectItem>
-                          <SelectItem value="outbound">Outbound</SelectItem>
-                          <SelectItem value="internal">Internal</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="agentId">Agent ID</Label>
-                      <Input 
-                        id="agentId" 
-                        placeholder="Agent ID" 
-                        value={fileData.callMetrics.agentId}
-                        onChange={(e) => setFileData({
-                          ...fileData, 
-                          callMetrics: {...fileData.callMetrics, agentId: e.target.value}
-                        })}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="customerSatisfaction">CSAT (0-5)</Label>
-                      <Input 
-                        id="customerSatisfaction" 
-                        type="number" 
-                        min="0" 
-                        max="5"
-                        value={fileData.callMetrics.customerSatisfaction}
-                        onChange={(e) => setFileData({
-                          ...fileData, 
-                          callMetrics: {...fileData.callMetrics, customerSatisfaction: parseInt(e.target.value) || 0}
-                        })}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="handleTime">Handle Time (seconds)</Label>
-                      <Input 
-                        id="handleTime" 
-                        type="number" 
-                        min="0"
-                        value={fileData.callMetrics.handleTime}
-                        onChange={(e) => setFileData({
-                          ...fileData, 
-                          callMetrics: {...fileData.callMetrics, handleTime: parseInt(e.target.value) || 0}
-                        })}
-                      />
-                    </div>
-                  </div>
+                  )}
                 </div>
+                
+                <Alert>
+                  <AlertDescription>
+                    <p className="text-sm">The Excel file should contain columns matching audio filenames and their metadata.</p>
+                    <p className="text-sm mt-2">Required columns: filename, language, version, call_date, call_type, agent_id</p>
+                    <p className="text-sm mt-2">Optional columns: call_id, customer_satisfaction, handle_time</p>
+                  </AlertDescription>
+                </Alert>
               </div>
               
               <DialogFooter>
-                <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleUploadSubmit} disabled={uploadFileMutation.isPending}>
-                  {uploadFileMutation.isPending ? (
+                <Button variant="outline" onClick={() => setBatchUploadDialogOpen(false)}>Cancel</Button>
+                <Button onClick={handleBatchUploadSubmit} disabled={batchUploadMutation.isPending}>
+                  {batchUploadMutation.isPending ? (
                     <>
                       <Spinner className="mr-2 h-4 w-4" />
                       Uploading...
@@ -378,7 +347,7 @@ const AudioFileManagement = () => {
                   ) : (
                     <>
                       <Upload className="mr-2 h-4 w-4" />
-                      Upload
+                      Upload Batch
                     </>
                   )}
                 </Button>
