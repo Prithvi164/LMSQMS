@@ -6259,6 +6259,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         extension: extname(file.originalname).toLowerCase()
       });
 
+      // If this is the metadata file, automatically accept it
+      if (file.fieldname === 'metadataFile') {
+        console.log('Metadata file accepted:', file.originalname);
+        cb(null, true);
+        return;
+      }
+
+      // Only validate audio files
       // Allow common audio formats
       const allowedMimeTypes = [
         'audio/mpeg',    // mp3
@@ -6278,10 +6286,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (allowedMimeTypes.includes(file.mimetype) || 
          (file.fieldname === 'audioFiles' && allowedExtensions.includes(fileExtension))) {
-        console.log('File accepted:', file.originalname);
+        console.log('Audio file accepted:', file.originalname);
         cb(null, true);
       } else {
-        console.log('File rejected:', file.originalname, 'Mimetype:', file.mimetype, 'Extension:', fileExtension);
+        console.log('Audio file rejected:', file.originalname, 'Mimetype:', file.mimetype, 'Extension:', fileExtension);
         cb(new Error('Invalid file type. Only MP3, WAV, OGG, and WEBM audio files are allowed.'), false);
       }
     },
