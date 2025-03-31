@@ -425,6 +425,19 @@ export class DatabaseStorage implements IStorage {
   // Audio File operations
   async createAudioFile(file: InsertAudioFile): Promise<AudioFile> {
     try {
+      // Verify process ID exists
+      if (file.processId) {
+        const [process] = await db
+          .select()
+          .from(organizationProcesses)
+          .where(eq(organizationProcesses.id, file.processId))
+          .where(eq(organizationProcesses.organizationId, file.organizationId));
+          
+        if (!process) {
+          throw new Error(`Process with ID ${file.processId} does not exist in organization ${file.organizationId}`);
+        }
+      }
+      
       const [newFile] = await db
         .insert(audioFiles)
         .values(file)
@@ -500,6 +513,29 @@ export class DatabaseStorage implements IStorage {
 
   async updateAudioFile(id: number, file: Partial<InsertAudioFile>): Promise<AudioFile> {
     try {
+      // Get the original audio file to get the organizationId
+      const [audioFile] = await db
+        .select()
+        .from(audioFiles)
+        .where(eq(audioFiles.id, id)) as AudioFile[];
+        
+      if (!audioFile) {
+        throw new Error('Audio file not found');
+      }
+      
+      // Verify process ID exists if it's being updated
+      if (file.processId) {
+        const [process] = await db
+          .select()
+          .from(organizationProcesses)
+          .where(eq(organizationProcesses.id, file.processId))
+          .where(eq(organizationProcesses.organizationId, audioFile.organizationId));
+          
+        if (!process) {
+          throw new Error(`Process with ID ${file.processId} does not exist in organization ${audioFile.organizationId}`);
+        }
+      }
+      
       const [updatedFile] = await db
         .update(audioFiles)
         .set({

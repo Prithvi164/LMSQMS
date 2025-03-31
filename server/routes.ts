@@ -6275,6 +6275,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Use callMetrics.callDate for the call_date column, or default to today
       const callDate = parsedCallMetrics.callDate || new Date().toISOString().split('T')[0];
       
+      // Get the organization ID from the request or the user
+      const orgId = parseInt(organizationId) || req.user.organizationId;
+      
+      // Get the process ID from the request, the user, or find a valid one
+      let validProcessId;
+      if (processId) {
+        validProcessId = parseInt(processId);
+      } else if (req.user.processId) {
+        validProcessId = req.user.processId;
+      } else {
+        // If no process ID provided, find the first valid process for this organization
+        const processes = await storage.listProcesses(orgId);
+        if (processes && processes.length > 0) {
+          validProcessId = processes[0].id;
+        } else {
+          return res.status(400).json({ message: "No valid process found for this organization. Please create a process first." });
+        }
+      }
+      
+      // Make sure we found a valid process ID
+      if (!validProcessId) {
+        return res.status(400).json({ message: "No valid process found. Please specify a process ID or create a process first." });
+      }
+      
       // Prepare audio file data for database
       const audioFileData = {
         filename: req.file.filename,
@@ -6286,8 +6310,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         version: version || '',
         call_date: callDate, // Add the call_date field
         callMetrics: parsedCallMetrics,
-        organizationId: parseInt(organizationId) || req.user.organizationId,
-        processId: parseInt(processId) || req.user.processId || 1,  // Make sure we have a valid process ID, default to 1 if not available
+        organizationId: orgId,
+        processId: validProcessId,
         uploadedBy: req.user.id,
         status: 'pending', // Initial status is always pending
         uploadedAt: new Date(),
@@ -6324,6 +6348,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Extract and ensure a call_date is provided (use callMetrics if available)
       const callDate = req.body.callMetrics?.callDate || req.body.call_date || new Date().toISOString().split('T')[0];
+      
+      // Check if we have a valid process ID
+      const processId = req.body.processId || req.user.processId;
+      if (!processId) {
+        const processes = await storage.listProcesses(req.user.organizationId);
+        if (processes && processes.length > 0) {
+          req.body.processId = processes[0].id;
+        } else {
+          return res.status(400).json({ message: "No valid process found for this organization. Please create a process first." });
+        }
+      }
       
       const audioFileData = {
         ...req.body,
