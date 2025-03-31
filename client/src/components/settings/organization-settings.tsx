@@ -64,6 +64,7 @@ import {
 type OrganizationSettings = {
   id?: number;
   organizationId: number;
+  featureType: 'LMS' | 'QMS' | 'BOTH';
   createdAt?: string;
   updatedAt?: string;
 };
@@ -94,7 +95,12 @@ const holidaySchema = z.object({
   isRecurring: z.boolean().default(false)
 });
 
+const featureTypeSchema = z.object({
+  featureType: z.enum(['LMS', 'QMS', 'BOTH'])
+});
+
 type HolidayForm = z.infer<typeof holidaySchema>;
+type FeatureTypeForm = z.infer<typeof featureTypeSchema>;
 
 export default function OrganizationSettings() {
   const { user } = useAuth();
@@ -111,6 +117,14 @@ export default function OrganizationSettings() {
       date: "",
       locationId: "",
       isRecurring: false
+    }
+  });
+  
+  // Feature type form setup
+  const featureTypeForm = useForm<FeatureTypeForm>({
+    resolver: zodResolver(featureTypeSchema),
+    defaultValues: {
+      featureType: 'BOTH'
     }
   });
 
@@ -143,7 +157,36 @@ export default function OrganizationSettings() {
   });
 
   // Update settings form when data is loaded
-  // No need for useEffect to reset weeklyOffDays form anymore
+  useEffect(() => {
+    if (settings?.featureType) {
+      featureTypeForm.setValue('featureType', settings.featureType);
+    }
+  }, [settings, featureTypeForm]);
+  
+  // Update feature type mutation
+  const updateFeatureTypeMutation = useMutation({
+    mutationFn: async (data: FeatureTypeForm) => {
+      return apiRequest(
+        "PATCH",
+        `/api/organizations/${user?.organizationId}/settings`,
+        data
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/settings`] });
+      toast({
+        title: "Settings updated",
+        description: "The feature type has been updated successfully.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error updating settings",
+        description: error.message || "An error occurred while updating settings. Please try again.",
+        variant: "destructive"
+      });
+    }
+  });
 
   // Create holiday mutation
   const createHolidayMutation = useMutation({
@@ -198,6 +241,10 @@ export default function OrganizationSettings() {
   });
 
   // Form submission handlers
+  
+  const onFeatureTypeSubmit = (data: FeatureTypeForm) => {
+    updateFeatureTypeMutation.mutate(data);
+  };
 
   const onHolidaySubmit = (data: HolidayForm) => {
     createHolidayMutation.mutate(data);
@@ -223,6 +270,68 @@ export default function OrganizationSettings() {
           </p>
         </div>
       </div>
+
+      <Card className="w-full mb-6">
+        <CardContent className="pt-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Feature Display Type</CardTitle>
+                  <CardDescription>
+                    Choose which features are displayed in the sidebar navigation.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {isLoadingSettings ? (
+                <div className="text-center py-4">Loading settings...</div>
+              ) : (
+                <Form {...featureTypeForm}>
+                  <form onSubmit={featureTypeForm.handleSubmit(onFeatureTypeSubmit)} className="space-y-4">
+                    <FormField
+                      control={featureTypeForm.control}
+                      name="featureType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Feature Type</FormLabel>
+                          <Select 
+                            value={field.value}
+                            onValueChange={field.onChange}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a feature type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="LMS">LMS Only (Learning Management)</SelectItem>
+                              <SelectItem value="QMS">QMS Only (Quality Management)</SelectItem>
+                              <SelectItem value="BOTH">Both LMS and QMS</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            This setting controls which feature tabs are displayed in the sidebar navigation.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button 
+                      type="submit" 
+                      className="mt-4"
+                      disabled={updateFeatureTypeMutation.isPending}
+                    >
+                      {updateFeatureTypeMutation.isPending ? "Saving..." : "Save Settings"}
+                    </Button>
+                  </form>
+                </Form>
+              )}
+            </CardContent>
+          </Card>
+        </CardContent>
+      </Card>
 
       <Card className="w-full">
         <CardContent className="pt-6">

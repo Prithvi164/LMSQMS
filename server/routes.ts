@@ -1104,6 +1104,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only modify your own organization's settings" });
       }
 
+      // Check if we're updating the feature type directly
+      if (req.body.featureType) {
+        // Validate feature type is one of the allowed values
+        const featureType = req.body.featureType;
+        if (!['LMS', 'QMS', 'BOTH'].includes(featureType)) {
+          return res.status(400).json({ message: "Invalid feature type. Must be 'LMS', 'QMS', or 'BOTH'" });
+        }
+
+        // Get current settings or create if doesn't exist
+        let settings = await storage.getOrganizationSettings(orgId);
+        
+        if (settings) {
+          // Update existing settings
+          settings = await storage.updateOrganizationSettings(orgId, { featureType });
+        } else {
+          // Create new settings
+          settings = await storage.createOrganizationSettings({
+            organizationId: orgId,
+            featureType
+          });
+        }
+        
+        return res.json(settings);
+      }
+
+      // Legacy path for other settings types
       const { type, value } = req.body;
       if (!type || !value) {
         return res.status(400).json({ message: "Missing type or value" });
@@ -1167,13 +1193,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Fetch all required data
-      const [locations] = await Promise.all([
+      const [locations, orgSettings] = await Promise.all([
         storage.listLocations(orgId),
+        storage.getOrganizationSettings(orgId),
       ]);
 
       // Ensure we have arrays
       const response = {
         locations: Array.isArray(locations) ? locations : [],
+        featureType: orgSettings?.featureType || 'BOTH', // Default to BOTH if not set
       };
 
       return res.json(response);

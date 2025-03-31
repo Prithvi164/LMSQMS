@@ -69,6 +69,12 @@ export const processStatusEnum = pgEnum('process_status', [
   'archived'
 ]);
 
+export const featureTypeEnum = pgEnum('feature_type', [
+  'LMS',
+  'QMS',
+  'BOTH'
+]);
+
 // Quiz-related tables
 export const questions = pgTable("questions", {
   id: serial("id").primaryKey(),
@@ -560,6 +566,7 @@ export const organizationSettings = pgTable("organization_settings", {
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
+  featureType: featureTypeEnum("feature_type").default('BOTH').notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -573,7 +580,8 @@ export const insertOrganizationSettingsSchema = createInsertSchema(organizationS
     updatedAt: true,
   })
   .extend({
-    organizationId: z.number().int().positive("Organization is required")
+    organizationId: z.number().int().positive("Organization is required"),
+    featureType: z.enum(['LMS', 'QMS', 'BOTH']).default('BOTH')
   });
 
 export type InsertOrganizationSettings = z.infer<typeof insertOrganizationSettingsSchema>;
