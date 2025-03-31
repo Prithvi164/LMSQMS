@@ -6251,11 +6251,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       fileSize: 20 * 1024 * 1024, // 20MB limit for audio files
     },
     fileFilter: (req, file, cb) => {
+      // Log file info for debugging
+      console.log('Uploading file:', {
+        fieldname: file.fieldname,
+        originalname: file.originalname,
+        mimetype: file.mimetype,
+        extension: path.extname(file.originalname).toLowerCase()
+      });
+
       // Allow common audio formats
-      const allowedTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/webm'];
-      if (allowedTypes.includes(file.mimetype)) {
+      const allowedMimeTypes = [
+        'audio/mpeg',    // mp3
+        'audio/mp3',     // mp3 alternative
+        'audio/wav',     // wav
+        'audio/x-wav',   // wav alternative
+        'audio/wave',    // wav alternative
+        'audio/vnd.wave', // wav alternative
+        'audio/x-pn-wav', // wav alternative
+        'audio/ogg',     // ogg
+        'audio/webm'     // webm
+      ];
+
+      // Also check file extension as fallback
+      const fileExtension = path.extname(file.originalname).toLowerCase();
+      const allowedExtensions = ['.mp3', '.wav', '.ogg', '.webm'];
+      
+      if (allowedMimeTypes.includes(file.mimetype) || 
+         (file.fieldname === 'audioFiles' && allowedExtensions.includes(fileExtension))) {
+        console.log('File accepted:', file.originalname);
         cb(null, true);
       } else {
+        console.log('File rejected:', file.originalname, 'Mimetype:', file.mimetype, 'Extension:', fileExtension);
         cb(new Error('Invalid file type. Only MP3, WAV, OGG, and WEBM audio files are allowed.'), false);
       }
     },
