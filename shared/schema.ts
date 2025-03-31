@@ -1466,7 +1466,13 @@ export type {
   InsertEvaluationParameter,
   InsertEvaluationSubReason,
   InsertEvaluationResult,
-  InsertEvaluationParameterResult
+  InsertEvaluationParameterResult,
+  AudioFile,
+  AudioFileAllocation,
+  AudioFileBatchAllocation,
+  InsertAudioFile,
+  InsertAudioFileAllocation,
+  InsertAudioFileBatchAllocation
 };
 
 // Add new enums for mock calls
