@@ -15,7 +15,6 @@ import multer from 'multer';
 import * as XLSX from 'xlsx';
 import { db } from './db';
 import { join } from 'path';
-import fs from 'fs';
 import express from 'express';
 import { eq, and, sql, inArray } from "drizzle-orm";
 import { toIST, formatIST, toUTCStorage, formatISTDateOnly } from './utils/timezone';
@@ -6192,64 +6191,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Audio file routes
-  const audioFileUpload = multer({
-    storage: multer.memoryStorage(),
-    limits: {
-      fileSize: 15 * 1024 * 1024, // 15MB limit
-    },
-    fileFilter: (req, file, cb) => {
-      if (file.mimetype.startsWith('audio/')) {
-        cb(null, true);
-      } else {
-        cb(null, false);
-      }
-    },
-  });
-
-  app.post("/api/audio-files", audioFileUpload.single('file'), async (req, res) => {
+  app.post("/api/audio-files", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-    if (!req.file) return res.status(400).json({ message: "No audio file uploaded" });
     
     try {
-      // Generate a unique filename for storage
-      const fileExt = req.file.originalname.split('.').pop();
-      const uniqueFilename = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-      
-      // Here you would normally save the file to a storage service like AWS S3
-      // For now, we'll simulate this by creating a URL
-      const fileUrl = `/uploads/audio/${uniqueFilename}`;
-      
-      // Parse JSON strings from form data
-      const callMetrics = JSON.parse(req.body.callMetrics || '{}');
-      
       const audioFileData = {
-        filename: uniqueFilename,
-        originalFilename: req.file.originalname,
-        fileUrl: fileUrl,
-        fileSize: req.file.size,
-        duration: 180, // This would normally be extracted from the audio file
-        language: req.body.language,
-        version: req.body.version,
-        callMetrics: callMetrics,
+        ...req.body,
         organizationId: req.user.organizationId,
         uploadedBy: req.user.id,
-        processId: parseInt(req.body.processId) || null,
-        batchId: parseInt(req.body.batchId) || null,
         status: 'pending' // Initial status is always pending
       };
-      
-      // Actually save the file contents to disk or external storage
-      // This is just a placeholder - in a real app you would save to cloud storage
-      const uploadDir = join(process.cwd(), 'uploads', 'audio');
-      try {
-        if (!fs.existsSync(uploadDir)) {
-          fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        fs.writeFileSync(join(uploadDir, uniqueFilename), req.file.buffer);
-      } catch (fsError) {
-        console.error("Error saving file:", fsError);
-        // Continue even if local save fails - in production would use cloud storage
-      }
       
       const audioFile = await storage.createAudioFile(audioFileData);
       res.status(201).json(audioFile);
