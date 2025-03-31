@@ -1226,66 +1226,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Super-admin-only endpoint for managing feature types
-  app.patch("/api/admin/organizations/:id/feature-type", async (req, res) => {
-    if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      // Check if user is a super-admin (this would require an additional field in the user model)
-      // For now, we're checking if the user has role 'owner' which is the highest privilege level
-      if (req.user.role !== 'owner') {
-        return res.status(403).json({ 
-          message: "Feature type management is restricted to super administrators only"
-        });
-      }
-
-      const organizationId = parseInt(req.params.id);
-      if (!organizationId || isNaN(organizationId)) {
-        return res.status(400).json({ message: "Invalid organization ID" });
-      }
-
-      // Validate feature type
-      const { featureType } = req.body;
-      if (!featureType || !['LMS', 'QMS', 'BOTH'].includes(featureType)) {
-        return res.status(400).json({ 
-          message: "Invalid feature type. Must be 'LMS', 'QMS', or 'BOTH'" 
-        });
-      }
-
-      // Get current settings or create if doesn't exist
-      let settings = await storage.getOrganizationSettings(organizationId);
-      
-      if (settings) {
-        // Update existing settings
-        settings = await storage.updateOrganizationSettings(organizationId, { featureType });
-      } else {
-        // Create new settings
-        settings = await storage.createOrganizationSettings({
-          organizationId,
-          featureType,
-          weeklyOffDays: ['Saturday', 'Sunday'] // Default weekend days
-        });
-      }
-
-      // Log this administrative action
-      console.log(`[ADMIN ACTION] Organization ${organizationId} feature type changed to ${featureType} by admin ${req.user.id} (${req.user.username})`);
-      
-      return res.json({
-        success: true,
-        message: `Feature type for organization ${organizationId} updated to ${featureType}`,
-        settings
-      });
-    } catch (error: any) {
-      console.error("Error updating organization feature type:", error);
-      res.status(500).json({ 
-        message: "Failed to update organization feature type",
-        error: error.message 
-      });
-    }
-  });
-
   // Add GET endpoint for user processes
   app.get("/api/users/processes", async (req, res) => {
     if (!req.user) {
