@@ -362,7 +362,7 @@ const AudioFileManagement = () => {
                       <SelectValue placeholder="All" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All</SelectItem>
+                      <SelectItem value="all">All</SelectItem>
                       <SelectItem value="english">English</SelectItem>
                       <SelectItem value="spanish">Spanish</SelectItem>
                       <SelectItem value="french">French</SelectItem>
@@ -390,7 +390,7 @@ const AudioFileManagement = () => {
                       <SelectValue placeholder="Any length" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Any length</SelectItem>
+                      <SelectItem value="any">Any length</SelectItem>
                       <SelectItem value="short">Short (&lt; 3min)</SelectItem>
                       <SelectItem value="medium">Medium (3-10min)</SelectItem>
                       <SelectItem value="long">Long (&gt; 10min)</SelectItem>

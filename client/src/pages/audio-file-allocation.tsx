@@ -204,7 +204,7 @@ const AudioFileAllocation = () => {
   const handleFilterChange = (key: string, value: any) => {
     setFilters({
       ...filters,
-      [key]: value
+      [key]: value === 'all' ? '' : value
     });
   };
 
@@ -514,7 +514,7 @@ const AudioFileAllocation = () => {
                       <SelectValue placeholder="All languages" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All languages</SelectItem>
+                      <SelectItem value="all">All languages</SelectItem>
                       <SelectItem value="english">English</SelectItem>
                       <SelectItem value="spanish">Spanish</SelectItem>
                       <SelectItem value="french">French</SelectItem>
@@ -541,7 +541,7 @@ const AudioFileAllocation = () => {
                       <SelectValue placeholder="Any length" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Any length</SelectItem>
+                      <SelectItem value="all">Any length</SelectItem>
                       <SelectItem value="short">Short (&lt; 3min)</SelectItem>
                       <SelectItem value="medium">Medium (3-10min)</SelectItem>
                       <SelectItem value="long">Long (&gt; 10min)</SelectItem>
@@ -556,7 +556,7 @@ const AudioFileAllocation = () => {
                       <SelectValue placeholder="All call types" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All call types</SelectItem>
+                      <SelectItem value="all">All call types</SelectItem>
                       <SelectItem value="inbound">Inbound</SelectItem>
                       <SelectItem value="outbound">Outbound</SelectItem>
                       <SelectItem value="internal">Internal</SelectItem>
@@ -571,7 +571,7 @@ const AudioFileAllocation = () => {
                       <SelectValue placeholder="All statuses" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All statuses</SelectItem>
+                      <SelectItem value="all">All statuses</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="allocated">Allocated</SelectItem>
                       <SelectItem value="evaluated">Evaluated</SelectItem>
@@ -588,7 +588,7 @@ const AudioFileAllocation = () => {
                         <SelectValue placeholder="All analysts" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All analysts</SelectItem>
+                        <SelectItem value="all">All analysts</SelectItem>
                         {qualityAnalysts.filter(qa => qa.role === 'quality_analyst').map((analyst) => (
                           <SelectItem key={analyst.id} value={analyst.id.toString()}>
                             {analyst.fullName}
