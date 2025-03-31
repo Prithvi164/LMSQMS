@@ -314,6 +314,16 @@ const AudioFileManagement = () => {
                 
                 <div className="grid gap-2">
                   <Label htmlFor="metadataFile">Excel Metadata File</Label>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" asChild className="mb-2">
+                      <a href="/api/templates/audio-file-metadata" download="audio-file-metadata-template.xlsx">
+                        Download Template
+                      </a>
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      ← First download the template
+                    </span>
+                  </div>
                   <Input 
                     id="metadataFile" 
                     type="file" 

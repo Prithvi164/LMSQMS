@@ -6261,6 +6261,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     },
   });
   
+  // Audio file metadata template download endpoint
+  app.get("/api/templates/audio-file-metadata", (req, res) => {
+    try {
+      // Create workbook
+      const wb = XLSX.utils.book_new();
+
+      // Define headers for the main template sheet
+      const headers = [
+        'filename',
+        'language',
+        'version',
+        'call_date',
+        'call_type',
+        'agent_id',
+        'call_id',
+        'customer_satisfaction',
+        'handle_time'
+      ];
+
+      // Create example data row
+      const exampleData = [
+        'sample_call.mp3',
+        'english',
+        'v1.0',
+        '2025-03-31', // Format: YYYY-MM-DD
+        'inbound',
+        'AGT123',
+        'CALL-001-20250331',
+        '4',
+        '180'
+      ];
+
+      // Create worksheet
+      const ws = XLSX.utils.aoa_to_sheet([headers, exampleData]);
+
+      // Add column widths
+      ws['!cols'] = headers.map(() => ({ wch: 20 }));
+
+      // Add styling to headers
+      for (let i = 0; i < headers.length; i++) {
+        const cellRef = XLSX.utils.encode_cell({ r: 0, c: i });
+        if (!ws[cellRef]) ws[cellRef] = { t: 's', v: headers[i] };
+        ws[cellRef].s = { font: { bold: true } };
+      }
+
+      // Add the main worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, 'Audio File Metadata');
+
+      // Create a guidelines worksheet
+      const guidelinesData = [
+        ['Field', 'Description', 'Format', 'Required'],
+        ['filename', 'Exact filename of the audio file including extension', 'text', 'Yes'],
+        ['language', 'Language of the call', 'english, spanish, french, hindi, other', 'Yes'],
+        ['version', 'Version identifier for the call', 'text', 'Yes'],
+        ['call_date', 'Date when the call occurred', 'YYYY-MM-DD', 'Yes'],
+        ['call_type', 'Type of call', 'inbound, outbound, transfer, etc.', 'Yes'],
+        ['agent_id', 'Identifier for the agent who handled the call', 'text', 'Yes'],
+        ['call_id', 'Unique identifier for the call', 'text', 'No'],
+        ['customer_satisfaction', 'Customer satisfaction score', 'number (1-5)', 'No'],
+        ['handle_time', 'Call duration in seconds', 'number', 'No']
+      ];
+
+      const guidelinesWs = XLSX.utils.aoa_to_sheet(guidelinesData);
+      guidelinesWs['!cols'] = [{ wch: 20 }, { wch: 40 }, { wch: 25 }, { wch: 10 }];
+
+      // Add styling to headers in guidelines sheet
+      for (let i = 0; i < guidelinesData[0].length; i++) {
+        const cellRef = XLSX.utils.encode_cell({ r: 0, c: i });
+        if (!guidelinesWs[cellRef]) guidelinesWs[cellRef] = { t: 's', v: guidelinesData[0][i] };
+        guidelinesWs[cellRef].s = { font: { bold: true } };
+      }
+
+      // Add the guidelines worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, guidelinesWs, 'Guidelines');
+
+      // Set response headers
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename=audio-file-metadata-template.xlsx');
+
+      // Write the workbook to response
+      const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+      res.send(buf);
+    } catch (error) {
+      console.error("Error generating template:", error);
+      res.status(500).json({ message: "Failed to generate template" });
+    }
+  });
+
   // File upload endpoint
   app.post("/api/audio-files/upload", audioUpload.single('file'), async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
