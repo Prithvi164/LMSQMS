@@ -87,10 +87,7 @@ const AudioFileAllocation = () => {
   // Mutations
   const createAllocationMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest('/api/audio-file-allocations', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      return apiRequest('POST', '/api/audio-file-allocations', data);
     },
     onSuccess: () => {
       toast({
@@ -113,10 +110,7 @@ const AudioFileAllocation = () => {
 
   const updateAllocationStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number, status: string }) => {
-      return apiRequest(`/api/audio-file-allocations/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status }),
-      });
+      return apiRequest('PATCH', `/api/audio-file-allocations/${id}`, { status });
     },
     onSuccess: () => {
       toast({

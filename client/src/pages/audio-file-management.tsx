@@ -64,10 +64,7 @@ const AudioFileManagement = () => {
   // Upload file mutation
   const uploadFileMutation = useMutation({
     mutationFn: async (formData: FormData) => {
-      return apiRequest('/api/audio-files/upload', {
-        method: 'POST',
-        body: formData,
-      });
+      return apiRequest('POST', '/api/audio-files/upload', formData);
     },
     onSuccess: () => {
       toast({
@@ -102,10 +99,7 @@ const AudioFileManagement = () => {
   // Update file status mutation
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number, status: string }) => {
-      return apiRequest(`/api/audio-files/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status }),
-      });
+      return apiRequest('PATCH', `/api/audio-files/${id}`, { status });
     },
     onSuccess: () => {
       toast({
