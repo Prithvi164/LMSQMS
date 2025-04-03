@@ -15,7 +15,8 @@ import {
   FileSpreadsheet,
   FileText,
   ArrowLeft,
-  Folder
+  Folder,
+  Download
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -190,6 +191,51 @@ const AzureStorageBrowser = () => {
   const handleFolderClick = (folderName: string) => {
     setSelectedFolder(folderName);
     setSelectedBlobItems([]);
+  };
+  
+  // Handle download of all filenames in the current container/folder
+  const handleDownloadFilenames = () => {
+    if (!selectedContainer) {
+      toast({
+        title: "No Container Selected",
+        description: "Please select a container first to download its filenames.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!blobs || !Array.isArray(blobs) || blobs.length === 0) {
+      toast({
+        title: "No Files Found",
+        description: "There are no files to download filenames for.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create CSV content with headers
+    let csvContent = "filename\n";
+    
+    // Add all blob names to the CSV
+    blobs.forEach((blob: BlobItem) => {
+      csvContent += `${blob.name}\n`;
+    });
+    
+    // Create and download the CSV file
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${selectedContainer}${selectedFolder ? `-${selectedFolder}` : ''}-filenames.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    
+    toast({
+      title: 'Filenames Downloaded',
+      description: `${blobs.length} filenames have been downloaded as CSV.`,
+    });
   };
   
   // Handle back button to return from folder to container view
@@ -845,6 +891,14 @@ const AzureStorageBrowser = () => {
                   <Button variant="outline" onClick={() => refetchBlobs()}>
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Refresh
+                  </Button>
+
+                  <Button 
+                    variant="outline" 
+                    onClick={handleDownloadFilenames}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download Filenames
                   </Button>
                 </div>
               )}
