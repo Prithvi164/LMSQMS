@@ -21,6 +21,7 @@ import EvaluationTemplates from "@/pages/evaluation-templates";
 import AudioFileManagement from "@/pages/audio-file-management";
 import AudioFileAllocation from "@/pages/audio-file-allocation";
 import ConductEvaluation from "@/pages/conduct-evaluation";
+import AzureStorageBrowser from "@/pages/azure-storage-browser";
 import { ProtectedRoute } from "./lib/protected-route";
 import { SidebarNav } from "./components/sidebar-nav";
 import { UserProfile } from "./components/user-profile";
@@ -73,6 +74,7 @@ function Router() {
           <ProtectedRoute path="/conduct-evaluation" component={ConductEvaluation} /> 
           <ProtectedRoute path="/audio-file-management" component={AudioFileManagement} />
           <ProtectedRoute path="/audio-file-allocation" component={AudioFileAllocation} />
+          <ProtectedRoute path="/azure-storage" component={AzureStorageBrowser} />
           <Route component={NotFound} />
         </Switch>
       </main>

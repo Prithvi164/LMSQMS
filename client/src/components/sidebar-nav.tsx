@@ -12,7 +12,8 @@ import {
   CheckSquare,
   FileSpreadsheet,
   Headphones,
-  FileAudio
+  FileAudio,
+  Cloud
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useQuery } from '@tanstack/react-query';
@@ -46,6 +47,7 @@ export function SidebarNav() {
     { href: '/conduct-evaluation', label: 'Conduct Evaluation', icon: FileSpreadsheet },
     { href: '/audio-file-management', label: 'Audio Files', icon: FileAudio },
     { href: '/audio-file-allocation', label: 'Audio Allocations', icon: Headphones },
+    { href: '/azure-storage', label: 'Azure Storage', icon: Cloud },
   ];
 
   // Filter non-trainee navigation items based on feature type setting
