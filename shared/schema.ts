@@ -857,15 +857,38 @@ export const organizationHolidaysRelations = relations(organizationHolidays, ({ 
   }),
 }));
 
+// Define the cloud storage provider enum
+export const cloudStorageProviderEnum = pgEnum('cloud_storage_provider', [
+  'azure',
+  'aws',
+  'gcp',
+  'local',
+  'other'
+]);
+
 export const organizations = pgTable("organizations", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   
-  // Azure Storage configuration
-  azureStorageEnabled: boolean("azure_storage_enabled").default(false).notNull(),
-  azureStorageConnectionString: text("azure_storage_connection_string"),
-  azureStorageContainerName: text("azure_storage_container_name").default('audio-files'),
+  // Generic cloud storage configuration
+  cloudStorageEnabled: boolean("cloud_storage_enabled").default(false).notNull(),
+  cloudStorageProvider: cloudStorageProviderEnum("cloud_storage_provider").default('local'),
+  cloudStorageConfig: jsonb("cloud_storage_config").$type<{
+    // Common properties
+    container?: string;
+    bucket?: string;
+    folder?: string;
+    
+    // Provider-specific properties
+    region?: string;
+    endpoint?: string;
+    accessKey?: string;
+    connectionString?: string;
+    
+    // Other properties
+    [key: string]: any;
+  }>(),
 });
 
 export type Organization = InferSelectModel<typeof organizations>;
@@ -1174,9 +1197,17 @@ export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organiz
 export const insertOrganizationSchema = createInsertSchema(organizations)
   .omit({ id: true, createdAt: true })
   .extend({
-    azureStorageEnabled: z.boolean().default(false),
-    azureStorageConnectionString: z.string().optional(),
-    azureStorageContainerName: z.string().default('audio-files')
+    cloudStorageEnabled: z.boolean().default(false),
+    cloudStorageProvider: z.enum(['azure', 'aws', 'gcp', 'local', 'other']).default('local'),
+    cloudStorageConfig: z.object({
+      container: z.string().optional(),
+      bucket: z.string().optional(),
+      folder: z.string().optional(),
+      region: z.string().optional(),
+      endpoint: z.string().optional(),
+      accessKey: z.string().optional(),
+      connectionString: z.string().optional(),
+    }).optional(),
   });
 
 export const insertUserSchema = createInsertSchema(users)

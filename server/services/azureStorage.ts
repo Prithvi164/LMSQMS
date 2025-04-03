@@ -35,9 +35,9 @@ class AzureStorageService {
     try {
       const [org] = await db
         .select({
-          azureStorageConnectionString: organizations.azureStorageConnectionString,
-          azureStorageContainerName: organizations.azureStorageContainerName,
-          azureStorageEnabled: organizations.azureStorageEnabled
+          cloudStorageEnabled: organizations.cloudStorageEnabled,
+          cloudStorageProvider: organizations.cloudStorageProvider,
+          cloudStorageConfig: organizations.cloudStorageConfig
         })
         .from(organizations)
         .where(eq(organizations.id, organizationId));
@@ -46,10 +46,18 @@ class AzureStorageService {
         throw new Error(`Organization with ID ${organizationId} not found`);
       }
 
+      // Check if Azure is enabled for this organization
+      const isAzureEnabled = 
+        org.cloudStorageEnabled && 
+        org.cloudStorageProvider === 'azure' && 
+        org.cloudStorageConfig && 
+        org.cloudStorageConfig.connectionString;
+
+      // Get Azure-specific configuration
       return {
-        connectionString: org.azureStorageConnectionString || DEFAULT_AZURE_STORAGE_CONNECTION_STRING,
-        containerName: org.azureStorageContainerName || DEFAULT_AZURE_STORAGE_CONTAINER_NAME,
-        enabled: org.azureStorageEnabled || false
+        connectionString: org.cloudStorageConfig?.connectionString || DEFAULT_AZURE_STORAGE_CONNECTION_STRING,
+        containerName: org.cloudStorageConfig?.container || DEFAULT_AZURE_STORAGE_CONTAINER_NAME,
+        enabled: isAzureEnabled || false
       };
     } catch (error) {
       console.error('Error fetching organization Azure Storage config:', error);

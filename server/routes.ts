@@ -202,6 +202,18 @@ const audioUpload = multer({
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes (/api/register, /api/login, /api/logout, /api/user)
   setupAuth(app);
+  
+  // Register all API routes from the routes directory
+  try {
+    // Import and register cloud storage routes
+    // Using dynamic import instead of require
+    const cloudStorageModule = await import('./routes/cloud-storage');
+    const cloudStorageRoutes = cloudStorageModule.default;
+    app.use(cloudStorageRoutes);
+    console.log('Registered cloud storage routes');
+  } catch (error) {
+    console.error('Error registering cloud storage routes:', error);
+  }
 
   // User routes - Add logging for debugging
   app.get("/api/user", (req, res) => {
