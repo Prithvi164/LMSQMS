@@ -1,9 +1,50 @@
 import cloudStorage from './server/services/cloudStorage';
 import { Readable } from 'stream';
 import fs from 'fs';
+import { db } from './server/db';
+import { organizations } from './shared/schema';
+import { eq } from 'drizzle-orm';
 
-// Test organization ID 
+// Test organization ID - We'll use the existing organization with ID 39
 const ORGANIZATION_ID = 39;
+
+// Add setup function to configure Azure storage for testing
+async function setupAzureStorage() {
+  console.log('Setting up Azure storage configuration...');
+  try {
+    // Check if environment variables are set
+    const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
+    const containerName = process.env.AZURE_STORAGE_CONTAINER_NAME;
+    
+    if (!connectionString) {
+      console.error('AZURE_STORAGE_CONNECTION_STRING environment variable is not set');
+      return false;
+    }
+    
+    if (!containerName) {
+      console.error('AZURE_STORAGE_CONTAINER_NAME environment variable is not set');
+      return false;
+    }
+    
+    // Update the organization with Azure storage config
+    await db.update(organizations)
+      .set({
+        cloudStorageEnabled: true,
+        cloudStorageProvider: 'azure',
+        cloudStorageConfig: {
+          connectionString: connectionString,
+          container: containerName
+        }
+      })
+      .where(eq(organizations.id, ORGANIZATION_ID));
+    
+    console.log('Azure storage configuration set up successfully');
+    return true;
+  } catch (error) {
+    console.error('Error setting up Azure storage:', error);
+    return false;
+  }
+}
 
 async function testCloudStorage() {
   console.log('Testing Cloud Storage Connection...');
@@ -67,7 +108,21 @@ async function testCloudStorage() {
   }
 }
 
+// Main function to run the setup and test
+async function runTest() {
+  // First, set up Azure Storage configuration
+  const setupSuccess = await setupAzureStorage();
+  
+  if (!setupSuccess) {
+    console.error('Failed to set up Azure Storage configuration. Aborting test.');
+    return;
+  }
+  
+  // Then run the test
+  await testCloudStorage();
+}
+
 // Execute the test
-testCloudStorage().catch(err => {
+runTest().catch(err => {
   console.error('Unhandled error during Cloud Storage test:', err);
 });
