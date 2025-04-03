@@ -9,8 +9,11 @@ import {
   Users, 
   ChevronLeft, 
   ChevronRight,
+  ChevronDown,
   Calendar,
   FileDown,
+  FileSpreadsheet,
+  FileText,
   ArrowLeft,
   Folder
 } from 'lucide-react';
@@ -47,6 +50,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -185,7 +197,7 @@ const AzureStorageBrowser = () => {
     setSelectedFolder(null);
   };
   
-  // Download metadata template
+  // Download standard metadata template
   const handleDownloadTemplate = async () => {
     try {
       const response = await fetch('/api/azure-metadata-template');
@@ -206,7 +218,7 @@ const AzureStorageBrowser = () => {
       
       toast({
         title: 'Template Downloaded',
-        description: 'Metadata template has been downloaded successfully.',
+        description: 'Standard metadata template has been downloaded successfully.',
       });
     } catch (error) {
       toast({
@@ -215,6 +227,62 @@ const AzureStorageBrowser = () => {
         variant: 'destructive',
       });
     }
+  };
+  
+  // Download custom template with filenames from current Azure container
+  const handleDownloadCustomTemplate = () => {
+    if (!selectedContainer) {
+      toast({
+        title: 'No Container Selected',
+        description: 'Please select a container first to download a custom template.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Download the generated custom template
+    const a = document.createElement('a');
+    a.href = '/custom-audio-template.xlsx';
+    a.download = `${selectedContainer}-template.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    
+    toast({
+      title: 'Custom Template Downloaded',
+      description: 'Custom metadata template with your filenames has been downloaded.',
+    });
+  };
+  
+  // Download minimal template with essential fields only
+  const handleDownloadMinimalTemplate = () => {
+    // Download the generated minimal template
+    const a = document.createElement('a');
+    a.href = '/minimal-audio-template.xlsx';
+    a.download = 'minimal-audio-template.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    
+    toast({
+      title: 'Minimal Template Downloaded',
+      description: 'Minimal metadata template with essential fields only has been downloaded.',
+    });
+  };
+  
+  // Download template guide
+  const handleDownloadGuide = () => {
+    const a = document.createElement('a');
+    a.href = '/audio-file-template-guide.md';
+    a.download = 'audio-file-template-guide.md';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    
+    toast({
+      title: 'Template Guide Downloaded',
+      description: 'Template guide documentation has been downloaded.',
+    });
   };
 
   // Handle blob selection for batch operations
@@ -513,11 +581,35 @@ const AzureStorageBrowser = () => {
               </div>
               {selectedContainer && (
                 <div className="flex space-x-2">
-                  {/* Template download button */}
-                  <Button variant="outline" onClick={handleDownloadTemplate}>
-                    <FileDown className="h-4 w-4 mr-2" />
-                    Template
-                  </Button>
+                  {/* Template download buttons */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline">
+                        <FileDown className="h-4 w-4 mr-2" />
+                        Templates <ChevronDown className="h-4 w-4 ml-1" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>Excel Templates</DropdownMenuLabel>
+                      <DropdownMenuItem onClick={handleDownloadTemplate}>
+                        <FileSpreadsheet className="h-4 w-4 mr-2" />
+                        Standard Template
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleDownloadCustomTemplate}>
+                        <FileSpreadsheet className="h-4 w-4 mr-2" />
+                        Custom Template
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleDownloadMinimalTemplate}>
+                        <FileSpreadsheet className="h-4 w-4 mr-2" />
+                        Minimal Template
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleDownloadGuide}>
+                        <FileText className="h-4 w-4 mr-2" />
+                        Template Guide
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   
                   {!folderSelectMode && !selectedFolder && (
                     <Button 
