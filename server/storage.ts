@@ -716,6 +716,7 @@ export class DatabaseStorage implements IStorage {
             allocatedBy: batchAllocation.allocatedBy,
             dueDate: batchAllocation.dueDate,
             status: 'allocated',
+            filters: batchAllocation.filters || null,
           })
           .returning() as AudioFileBatchAllocation[];
 

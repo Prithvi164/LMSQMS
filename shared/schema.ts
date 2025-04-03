@@ -175,6 +175,7 @@ export const audioFileBatchAllocations = pgTable("audio_file_batch_allocations",
     .references(() => organizations.id)
     .notNull(),
   dueDate: timestamp("due_date"),
+  filters: jsonb("filters"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -583,6 +584,7 @@ export const insertAudioFileBatchAllocationSchema = createInsertSchema(audioFile
     allocatedBy: z.number().int().positive("Allocator is required"),
     organizationId: z.number().int().positive("Organization is required"),
     dueDate: z.date().optional(),
+    filters: z.record(z.string(), z.any()).optional(),
   });
 
 export type InsertAudioFile = z.infer<typeof insertAudioFileSchema>;
