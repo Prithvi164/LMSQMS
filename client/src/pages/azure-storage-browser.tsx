@@ -828,7 +828,7 @@ const AzureStorageBrowser = () => {
                       <DialogHeader>
                         <DialogTitle>Import Audio Files from Azure</DialogTitle>
                         <DialogDescription>
-                          Upload an Excel file containing the filename column matching audio files in this container. The system will automatically extract audio duration and use default values for other fields.
+                          Upload an Excel file containing the filename column matching audio files in this container. The system will automatically extract audio duration from the files.
                         </DialogDescription>
                       </DialogHeader>
                       <div className="grid gap-4 py-4">
@@ -842,7 +842,7 @@ const AzureStorageBrowser = () => {
                             onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
                           />
                           <p className="text-xs text-gray-500">
-                            The Excel file only needs a <strong>filename</strong> column matching audio filenames in Azure. The system will automatically analyze audio files for duration and apply default values for other metadata.
+                            The Excel file only needs a <strong>filename</strong> column matching audio filenames in Azure. The system will automatically analyze audio files to extract duration.
                           </p>
                         </div>
                       </div>
