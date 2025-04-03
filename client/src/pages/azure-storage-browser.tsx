@@ -745,6 +745,12 @@ const AzureStorageBrowser = () => {
                         </a>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
+                        <a href="/api/azure-audio-files/download-audio-template" download="audio-metadata-template.xlsx" className="flex items-center px-2 py-1.5 text-sm">
+                          <FileSpreadsheet className="h-4 w-4 mr-2" />
+                          Direct Template Download
+                        </a>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
                         <a href="/generate-csv-template.html" target="_blank" className="flex items-center px-2 py-1.5 text-sm">
                           <FileSpreadsheet className="h-4 w-4 mr-2" />
                           CSV Template Generator

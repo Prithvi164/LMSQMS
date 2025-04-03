@@ -13,58 +13,152 @@ const router = Router();
 // Function to parse the uploaded Excel file
 async function parseExcelFile(filePath: string): Promise<AudioFileMetadata[]> {
   try {
-    // Try to read the Excel file with different options for corrupted files
-    const options = {
-      cellDates: true,
-      cellNF: false,
-      cellText: false,
-      cellFormula: false, 
-      sheetStubs: true, // Include cells with no values in the final JSON
-      type: 'binary'
-    };
-    
+    // First try using the normal xlsx parsing
     let workbook;
+    let excelParsingFailed = false;
+
     try {
-      // First try normal parsing
-      workbook = readXLSX(filePath);
+      workbook = readXLSX(filePath, { cellDates: true, type: 'file' });
     } catch (e) {
-      // If normal parsing fails, try a more forgiving method
-      console.error("First-pass Excel parsing failed:", e);
-      throw new Error("Excel parsing failed. The file appears to be corrupted or in an unsupported format. Please try downloading one of our templates, filling it out, and uploading again.");
+      console.error("Regular Excel parsing failed:", e);
+      excelParsingFailed = true;
+    }
+
+    // If standard parsing failed, let's try an alternative approach - try reading as binary
+    if (excelParsingFailed) {
+      try {
+        workbook = readXLSX(filePath, { type: 'binary' });
+        console.log("Binary Excel parsing succeeded as fallback");
+        excelParsingFailed = false;
+      } catch (e) {
+        console.error("Binary Excel parsing also failed:", e);
+        throw new Error("Excel file is corrupted or in an unsupported format. Please download and use one of our templates.");
+      }
     }
     
-    // Get the first worksheet
-    if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+    // Verify we have a valid workbook with at least one sheet
+    if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) {
       throw new Error('Excel file contains no worksheets');
     }
     
+    // Get the first worksheet
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
     
     if (!worksheet) {
       throw new Error('Excel file contains an empty worksheet');
     }
+
+    // TRY SIMPLER APPROACH: Use array of arrays method first
+    // This often works better with problematic Excel files
+    try {
+      const rawDataArray = xlsxUtils.sheet_to_json(worksheet, { 
+        header: 1,  // Get array of arrays with first row as headers
+        raw: false, // Convert everything to strings for consistency
+        blankrows: false // Skip blank rows
+      }) as any[][];
+
+      if (!rawDataArray || rawDataArray.length < 2) { // Need at least header row and one data row
+        throw new Error('Excel file must contain at least a header row and one data row');
+      }
+
+      // Get header row and convert to lowercase for case-insensitive matching
+      const headers = rawDataArray[0].map(h => String(h || '').toLowerCase());
+      
+      // Find the required column indices
+      const filenameIndex = headers.findIndex(h => h.includes('file') || h.includes('name') || h === 'filename');
+      const languageIndex = headers.findIndex(h => h.includes('lang') || h === 'language');
+      const versionIndex = headers.findIndex(h => h.includes('ver') || h === 'version');
+      const dateIndex = headers.findIndex(h => h.includes('date') || h === 'call_date');
+      
+      if (filenameIndex === -1) {
+        throw new Error(`Could not find filename column. Available columns are: ${headers.join(', ')}`);
+      }
+
+      // Process data rows
+      const result: AudioFileMetadata[] = [];
+      
+      for (let i = 1; i < rawDataArray.length; i++) {
+        const row = rawDataArray[i];
+        if (!row || row.length === 0) continue;
+        
+        // Ensure the filename exists
+        const filename = row[filenameIndex]?.toString().trim();
+        if (!filename) {
+          console.warn(`Row ${i+1}: Missing filename, skipping`);
+          continue;
+        }
+        
+        // Get other fields with defaults
+        const language = (languageIndex >= 0 && row[languageIndex]) ? 
+          row[languageIndex].toString().toLowerCase() : 'english';
+        
+        const version = (versionIndex >= 0 && row[versionIndex]) ? 
+          row[versionIndex].toString() : '1.0';
+        
+        let callDate = (dateIndex >= 0 && row[dateIndex]) ? 
+          row[dateIndex].toString() : new Date().toISOString().split('T')[0];
+        
+        // Basic date parsing for common formats
+        if (callDate) {
+          try {
+            const parsedDate = new Date(callDate);
+            if (!isNaN(parsedDate.getTime())) {
+              callDate = parsedDate.toISOString().split('T')[0];
+            }
+          } catch (e) {
+            console.warn(`Invalid date "${callDate}" for file ${filename}, using today's date`);
+            callDate = new Date().toISOString().split('T')[0];
+          }
+        }
+        
+        // Collect any additional metrics from other columns
+        const callMetrics = {};
+        for (let j = 0; j < headers.length; j++) {
+          if (j !== filenameIndex && j !== languageIndex && j !== versionIndex && j !== dateIndex) {
+            if (row[j] !== undefined && row[j] !== '') {
+              callMetrics[headers[j]] = row[j].toString();
+            }
+          }
+        }
+        
+        result.push({
+          filename,
+          language: language as any,
+          version,
+          call_date: callDate,
+          callMetrics
+        });
+      }
+      
+      if (result.length === 0) {
+        throw new Error('No valid data rows found in the Excel file');
+      }
+      
+      return result;
+      
+    } catch (arrayParsingError) {
+      console.error("Array-based parsing failed:", arrayParsingError);
+      // Continue to traditional object-based parsing as fallback
+    }
     
-    // Try to convert the worksheet to JSON with raw: false to handle case-sensitivity better
-    // and defval to provide default empty values instead of undefined
+    // FALLBACK: Traditional object-based parsing if array method fails
     const rawData = xlsxUtils.sheet_to_json(worksheet, { 
       raw: false,
       defval: '', 
-      blankrows: false // Skip blank rows
+      blankrows: false
     });
     
     if (!rawData || rawData.length === 0) {
       throw new Error('Excel file contains no data or cannot be parsed properly');
     }
     
-    // Let's check if all keys look corrupted, which is a sign of a severely damaged file
+    // Check for corrupted headers
     const firstRow = rawData[0] as Record<string, any>;
     const keys = Object.keys(firstRow);
     
     let corruptedFileDetected = true;
     for (const key of keys) {
-      // If we find at least one reasonable-looking key (contains alphanumeric chars), 
-      // then we might have a valid file
       if (/[a-zA-Z0-9]{3,}/.test(key)) {
         corruptedFileDetected = false;
         break;
@@ -915,6 +1009,57 @@ router.post('/azure-audio-allocate', async (req, res) => {
   } catch (error) {
     console.error('Error allocating audio files:', error);
     res.status(500).json({ message: error.message });
+  }
+});
+
+// Direct download route for Excel template without Azure dependency
+router.get('/download-audio-template', (req, res) => {
+  try {
+    console.log('Direct template download requested');
+    
+    // Create a very simple Excel file with sample data
+    const wb = xlsxUtils.book_new();
+    
+    // Create a worksheet with headers and one example row
+    const ws = xlsxUtils.aoa_to_sheet([
+      ['filename', 'language', 'version', 'call_date', 'duration', 'agent_id', 'customer_id', 'call_reason', 'disposition'],
+      ['call-recording-20250403-123456.mp3', 'english', '1.0', '2025-04-03', '360', 'A12345', 'C67890', 'Support', 'Resolved']
+    ]);
+    
+    // Add column width specifications for better readability
+    ws['!cols'] = [
+      { wch: 45 }, // filename
+      { wch: 12 }, // language
+      { wch: 10 }, // version
+      { wch: 12 }, // call_date
+      { wch: 10 }, // duration
+      { wch: 12 }, // agent_id
+      { wch: 12 }, // customer_id
+      { wch: 15 }, // call_reason
+      { wch: 15 }  // disposition
+    ];
+    
+    // Add the worksheet to the workbook
+    xlsxUtils.book_append_sheet(wb, ws, 'Audio Files');
+    
+    // Write directly to a buffer
+    const buf = writeXLSX(wb, { type: 'buffer', bookType: 'xlsx' });
+    
+    // Set response headers for Excel file download
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=audio-metadata-template.xlsx');
+    res.setHeader('Cache-Control', 'no-cache');
+    
+    console.log('Sending audio metadata template file buffer with length:', buf.length);
+    
+    // Send the file buffer
+    res.send(buf);
+  } catch (error) {
+    console.error('Error generating direct template download:', error);
+    res.status(500).json({ 
+      message: 'Failed to generate template file', 
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
