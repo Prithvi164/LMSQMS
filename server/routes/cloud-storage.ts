@@ -34,8 +34,23 @@ const cloudStorageConfigSchema = z.object({
 // Create router
 const router = Router();
 
+// Properly typed middleware for authentication and organization checks
+import { Request, Response, NextFunction } from 'express';
+
+// Interface to extend Express Request with our User type
+// Ensures organizationId is strictly typed as number (not number|null)
+interface AuthenticatedRequest extends Request {
+  user?: {
+    id: number;
+    organizationId: number; // Always a number when present
+    username: string;
+    role: string;
+    [key: string]: any;
+  };
+}
+
 // Check if user is authenticated
-function isAuthenticated(req: any, res: any, next: any) {
+function isAuthenticated(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   if (!req.user) {
     return res.status(401).json({ message: 'Unauthorized' });
   }
@@ -43,22 +58,24 @@ function isAuthenticated(req: any, res: any, next: any) {
 }
 
 // Check if user has organizationId
-function hasOrganization(req: any, res: any, next: any) {
-  if (!req.user.organizationId) {
-    return res.status(400).json({ message: 'User has no organization' });
+function hasOrganization(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Unauthorized' });
   }
+  // Since we've defined organizationId as non-null in our interface,
+  // we only need to check if req.user exists
   next();
 }
 
 // Get cloud storage configuration for an organization
 router.get('/api/organizations/:organizationId/cloud-storage', 
   isAuthenticated,
-  async (req, res) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
       const organizationId = parseInt(req.params.organizationId);
       
       // Ensure user belongs to this organization
-      if (organizationId !== req.user.organizationId) {
+      if (!req.user || organizationId !== req.user.organizationId) {
         return res.status(403).json({ message: 'Forbidden' });
       }
       
@@ -95,12 +112,12 @@ router.get('/api/organizations/:organizationId/cloud-storage',
 // Update cloud storage configuration for an organization
 router.post('/api/organizations/:organizationId/cloud-storage', 
   isAuthenticated,
-  async (req, res) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
       const organizationId = parseInt(req.params.organizationId);
       
       // Ensure user belongs to this organization
-      if (organizationId !== req.user.organizationId) {
+      if (!req.user || organizationId !== req.user.organizationId) {
         return res.status(403).json({ message: 'Forbidden' });
       }
       
@@ -153,13 +170,13 @@ router.post('/api/organizations/:organizationId/cloud-storage',
 router.get('/api/organizations/:organizationId/cloud-storage/files', 
   isAuthenticated,
   hasOrganization,
-  async (req, res) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
       const organizationId = parseInt(req.params.organizationId);
       const prefix = req.query.prefix as string | undefined;
       
       // Ensure user belongs to this organization
-      if (organizationId !== req.user.organizationId) {
+      if (!req.user || organizationId !== req.user.organizationId) {
         return res.status(403).json({ message: 'Forbidden' });
       }
       
@@ -185,12 +202,12 @@ router.post('/api/organizations/:organizationId/cloud-storage/upload',
   isAuthenticated,
   hasOrganization,
   upload.single('file'),
-  async (req, res) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
       const organizationId = parseInt(req.params.organizationId);
       
       // Ensure user belongs to this organization
-      if (organizationId !== req.user.organizationId) {
+      if (!req.user || organizationId !== req.user.organizationId) {
         return res.status(403).json({ message: 'Forbidden' });
       }
       
@@ -234,13 +251,13 @@ router.post('/api/organizations/:organizationId/cloud-storage/upload',
 router.delete('/api/organizations/:organizationId/cloud-storage/files',
   isAuthenticated,
   hasOrganization,
-  async (req, res) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
       const organizationId = parseInt(req.params.organizationId);
       const fileUrl = req.query.url as string;
       
       // Ensure user belongs to this organization
-      if (organizationId !== req.user.organizationId) {
+      if (!req.user || organizationId !== req.user.organizationId) {
         return res.status(403).json({ message: 'Forbidden' });
       }
       
@@ -270,14 +287,14 @@ router.delete('/api/organizations/:organizationId/cloud-storage/files',
 router.get('/api/organizations/:organizationId/cloud-storage/files/presigned',
   isAuthenticated,
   hasOrganization,
-  async (req, res) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
       const organizationId = parseInt(req.params.organizationId);
       const fileUrl = req.query.url as string;
       const expiryMinutes = req.query.expiryMinutes ? parseInt(req.query.expiryMinutes as string) : 60;
       
       // Ensure user belongs to this organization
-      if (organizationId !== req.user.organizationId) {
+      if (!req.user || organizationId !== req.user.organizationId) {
         return res.status(403).json({ message: 'Forbidden' });
       }
       
@@ -307,12 +324,12 @@ router.get('/api/organizations/:organizationId/cloud-storage/files/presigned',
 router.post('/api/organizations/:organizationId/cloud-storage/test-connection',
   isAuthenticated,
   hasOrganization,
-  async (req, res) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
       const organizationId = parseInt(req.params.organizationId);
       
       // Ensure user belongs to this organization
-      if (organizationId !== req.user.organizationId) {
+      if (!req.user || organizationId !== req.user.organizationId) {
         return res.status(403).json({ message: 'Forbidden' });
       }
       

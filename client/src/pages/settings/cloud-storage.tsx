@@ -57,18 +57,28 @@ export default function CloudStorageSettings() {
   const [connectionStatus, setConnectionStatus] = useState<'untested' | 'success' | 'error'>('untested');
 
   // Fetch existing cloud storage configuration
+  // First fetch the current user to get the organization ID
+  const { data: currentUser } = useQuery({
+    queryKey: ['/api/user'],
+    queryFn: async () => {
+      return await apiRequest('/api/user');
+    }
+  });
+
+  // Then fetch the cloud storage configuration using the organization ID from the user
   const { 
     data: storageConfig, 
     isLoading, 
     error 
   } = useQuery<CloudStorageResponse>({
-    queryKey: ['/api/organizations/:organizationId/cloud-storage'],
+    queryKey: ['/api/organizations/:organizationId/cloud-storage', currentUser?.organizationId],
     queryFn: async () => {
-      // Use the logged-in user's organization ID
-      // This will be replaced with the actual organization ID in a real implementation
-      const organizationId = 1; 
-      return await apiRequest(`/api/organizations/${organizationId}/cloud-storage`);
-    }
+      if (!currentUser?.organizationId) {
+        throw new Error('No organization ID found');
+      }
+      return await apiRequest(`/api/organizations/${currentUser.organizationId}/cloud-storage`);
+    },
+    enabled: !!currentUser?.organizationId // Only run query when we have an organization ID
   });
 
   // Form for cloud storage settings
@@ -112,8 +122,10 @@ export default function CloudStorageSettings() {
   // Mutation to update cloud storage settings
   const updateMutation = useMutation({
     mutationFn: async (data: CloudStorageFormValues) => {
-      const organizationId = 1; // Replace with actual organization ID
-      return await apiRequest(`/api/organizations/${organizationId}/cloud-storage`, {
+      if (!currentUser?.organizationId) {
+        throw new Error('No organization ID found');
+      }
+      return await apiRequest(`/api/organizations/${currentUser.organizationId}/cloud-storage`, {
         method: 'POST',
         body: JSON.stringify(data),
       });
@@ -125,7 +137,9 @@ export default function CloudStorageSettings() {
       });
       
       // Invalidate the query to refetch the data
-      queryClient.invalidateQueries({ queryKey: ['/api/organizations/:organizationId/cloud-storage'] });
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/organizations/:organizationId/cloud-storage', currentUser?.organizationId] 
+      });
     },
     onError: (error: any) => {
       toast({
@@ -139,8 +153,10 @@ export default function CloudStorageSettings() {
   // Mutation to test connection
   const testConnectionMutation = useMutation({
     mutationFn: async (data: CloudStorageFormValues) => {
-      const organizationId = 1; // Replace with actual organization ID
-      return await apiRequest(`/api/organizations/${organizationId}/cloud-storage/test-connection`, {
+      if (!currentUser?.organizationId) {
+        throw new Error('No organization ID found');
+      }
+      return await apiRequest(`/api/organizations/${currentUser.organizationId}/cloud-storage/test-connection`, {
         method: 'POST',
         body: JSON.stringify(data),
       });
