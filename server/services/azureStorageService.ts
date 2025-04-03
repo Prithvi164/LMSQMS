@@ -66,8 +66,8 @@ export class AzureStorageService {
   /**
    * List all blobs in a container
    */
-  async listBlobs(containerName: string): Promise<BlobItem[]> {
-    console.log(`Azure Service: Listing blobs in container "${containerName}"`);
+  async listBlobs(containerName: string, folderPath: string = ''): Promise<BlobItem[]> {
+    console.log(`Azure Service: Listing blobs in container "${containerName}" with folderPath "${folderPath}"`);
     
     try {
       const containerClient = this.getContainerClient(containerName);
@@ -81,9 +81,10 @@ export class AzureStorageService {
       
       const blobs: BlobItem[] = [];
 
-      // Create an async iterator
-      console.log(`Iterating through blobs in container "${containerName}"`);
-      const asyncIterator = containerClient.listBlobsFlat();
+      // Create an async iterator with the prefix (folder path)
+      const options = folderPath ? { prefix: folderPath } : undefined;
+      console.log(`Iterating through blobs in container "${containerName}" with options:`, options);
+      const asyncIterator = containerClient.listBlobsFlat(options);
       let blobItem = await asyncIterator.next();
 
       // Iterate through all blobs
@@ -92,10 +93,74 @@ export class AzureStorageService {
         blobItem = await asyncIterator.next();
       }
 
-      console.log(`Found ${blobs.length} blobs in container "${containerName}"`);
+      console.log(`Found ${blobs.length} blobs in container "${containerName}" with folder path "${folderPath}"`);
       return blobs;
     } catch (error) {
       console.error(`Error listing blobs in container "${containerName}":`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * List folders/virtual directories in a container
+   * Azure Blob Storage doesn't have a formal folder structure, but we can emulate it using prefixes
+   */
+  async listFolders(containerName: string): Promise<string[]> {
+    console.log(`Azure Service: Listing folders in container "${containerName}"`);
+    
+    try {
+      const containerClient = this.getContainerClient(containerName);
+      
+      // Check if the container exists
+      const containerExists = await containerClient.exists();
+      if (!containerExists) {
+        console.log(`Container "${containerName}" does not exist`);
+        return [];
+      }
+      
+      // Folders in Azure Blob are simulated by using delimiters
+      const blobs: BlobItem[] = [];
+      const asyncIterator = containerClient.listBlobsFlat();
+      let blobItem = await asyncIterator.next();
+      
+      while (!blobItem.done) {
+        blobs.push(blobItem.value);
+        blobItem = await asyncIterator.next();
+      }
+      
+      // Extract folder names from blob paths (everything before the first slash)
+      const folders = new Set<string>();
+      
+      blobs.forEach(blob => {
+        const name = blob.name;
+        const slashIndex = name.indexOf('/');
+        
+        if (slashIndex > 0) {
+          // This is a blob in a virtual folder
+          const folderName = name.substring(0, slashIndex);
+          folders.add(folderName);
+        }
+      });
+      
+      // Convert Set to array and sort
+      const folderList = Array.from(folders).sort((a, b) => {
+        // Try to sort by date if folder names are dates
+        const dateA = new Date(a);
+        const dateB = new Date(b);
+        
+        if (!isNaN(dateA.getTime()) && !isNaN(dateB.getTime())) {
+          // Both are valid dates, sort most recent first
+          return dateB.getTime() - dateA.getTime();
+        }
+        
+        // Fall back to alphabetical sort if not dates
+        return a.localeCompare(b);
+      });
+      
+      console.log(`Found ${folderList.length} folders in container "${containerName}"`);
+      return folderList;
+    } catch (error) {
+      console.error(`Error listing folders in container "${containerName}":`, error);
       throw error;
     }
   }

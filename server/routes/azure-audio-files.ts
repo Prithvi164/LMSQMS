@@ -9,6 +9,9 @@ import { eq, and, inArray } from 'drizzle-orm';
 
 const router = Router();
 
+// Import XLSX for Excel file operations
+import * as XLSX from 'xlsx';
+
 // Make sure Azure credentials are available before initializing routes
 const azureService = initAzureStorageService();
 if (!azureService) {
@@ -73,7 +76,23 @@ router.get('/azure-containers', async (req, res) => {
   }
 });
 
-// Get blobs in a container
+// Get folders in a container
+router.get('/azure-folders/:containerName', async (req, res) => {
+  if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
+  if (!azureService) return res.status(503).json({ message: 'Azure service not available' });
+  
+  const { containerName } = req.params;
+  
+  try {
+    const folders = await azureService.listFolders(containerName);
+    res.json(folders);
+  } catch (error) {
+    console.error(`Error listing folders in container ${containerName}:`, error);
+    res.status(500).json({ message: error instanceof Error ? error.message : 'Unknown error occurred' });
+  }
+});
+
+// Get blobs in a container (optional folder path)
 router.get('/azure-blobs/:containerName', async (req, res) => {
   console.log(`Received request for blobs in container: ${req.params.containerName}`);
   
@@ -88,12 +107,14 @@ router.get('/azure-blobs/:containerName', async (req, res) => {
   }
   
   const { containerName } = req.params;
-  console.log(`Attempting to list blobs in container: ${containerName}`);
+  const folderPath = req.query.folderPath as string || '';
+  
+  console.log(`Attempting to list blobs in container: ${containerName}, folder path: ${folderPath}`);
   
   try {
     console.log(`Calling Azure service to list blobs for container: ${containerName}`);
-    const blobs = await azureService.listBlobs(containerName);
-    console.log(`Retrieved ${blobs.length} blobs from container ${containerName}`);
+    const blobs = await azureService.listBlobs(containerName, folderPath);
+    console.log(`Retrieved ${blobs.length} blobs from container ${containerName} in folder ${folderPath || 'root'}`);
     res.json(blobs);
   } catch (error) {
     console.error(`Error listing blobs in container ${containerName}:`, error);
@@ -233,6 +254,83 @@ router.get('/azure-audio-sas/:id', async (req, res) => {
   } catch (error) {
     console.error(`Error generating SAS URL for audio file ${id}:`, error);
     res.status(500).json({ message: error.message });
+  }
+});
+
+// Create a template Excel file for audio metadata
+router.get('/azure-metadata-template', async (req, res) => {
+  if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
+  
+  try {
+    // Create a new workbook
+    const wb = XLSX.utils.book_new();
+    
+    // Sample data with all required fields
+    const sampleData = [
+      {
+        filename: 'agent-123-20250401-1234.mp3', // This should match the actual filename in Azure
+        originalFilename: 'Customer Call - John Smith - Billing Issue.mp3',
+        language: 'english', // must be one of: english, spanish, french, hindi, other
+        version: '1.0',
+        call_date: '2025-04-01', // YYYY-MM-DD format
+        callId: 'CALL-123456',
+        callType: 'inbound',
+        agentId: 'AGT-123',
+        customerSatisfaction: 4.5, // optional, scale of 1-5
+        handleTime: 350, // in seconds
+        // Additional fields can be added here
+        product: 'Premium Plan',
+        team: 'Billing Support',
+        issue: 'Payment Method Update'
+      },
+      {
+        filename: 'agent-456-20250401-5678.mp3',
+        originalFilename: 'Customer Call - Jane Doe - Technical Issue.mp3',
+        language: 'spanish',
+        version: '1.0',
+        call_date: '2025-04-01',
+        callId: 'CALL-123457',
+        callType: 'outbound',
+        agentId: 'AGT-456',
+        customerSatisfaction: 3.0,
+        handleTime: 480,
+        product: 'Basic Plan',
+        team: 'Technical Support',
+        issue: 'Login Problem'
+      }
+    ];
+    
+    // Create worksheet and add to workbook
+    const ws = XLSX.utils.json_to_sheet(sampleData);
+    XLSX.utils.book_append_sheet(wb, ws, 'Audio Metadata');
+    
+    // Add column width specifications for better readability
+    const wscols = [
+      { wch: 30 }, // filename
+      { wch: 40 }, // originalFilename
+      { wch: 10 }, // language
+      { wch: 10 }, // version
+      { wch: 12 }, // call_date
+      { wch: 12 }, // callId
+      { wch: 10 }, // callType
+      { wch: 10 }, // agentId
+      { wch: 10 }, // customerSatisfaction
+      { wch: 10 }  // handleTime
+    ];
+    ws['!cols'] = wscols;
+    
+    // Write to buffer
+    const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
+    
+    // Set response headers
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=audio-metadata-template.xlsx');
+    
+    // Send the file
+    res.send(buf);
+  } catch (error) {
+    console.error('Error creating metadata template:', error);
+    res.status(500).json({ message: 'Failed to generate template' });
   }
 });
 

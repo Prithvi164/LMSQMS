@@ -1,6 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Loader2, RefreshCw, FolderOpen, File, Upload, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+import { 
+  Loader2, 
+  RefreshCw, 
+  FolderOpen, 
+  File, 
+  Upload, 
+  Users, 
+  ChevronLeft, 
+  ChevronRight,
+  Calendar,
+  FileDown,
+  ArrowLeft
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -81,6 +93,9 @@ const AzureStorageBrowser = () => {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [folderSelectMode, setFolderSelectMode] = useState(false);
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [folders, setFolders] = useState<string[]>([]);
   const ITEMS_PER_PAGE = 5;
   
   const { toast } = useToast();
@@ -95,17 +110,48 @@ const AzureStorageBrowser = () => {
     refetchOnWindowFocus: false,
   });
 
-  // Fetch blobs for selected container
+  // Fetch folders within a container
+  const {
+    data: folderList,
+    isLoading: isLoadingFolders,
+    refetch: refetchFolders
+  } = useQuery({
+    queryKey: ['/api/azure-folders', selectedContainer],
+    queryFn: async () => {
+      if (!selectedContainer) return [];
+      console.log(`Fetching folders for container: ${selectedContainer}`);
+      const response = await apiRequest('GET', `/api/azure-folders/${selectedContainer}`);
+      const data = await response.json();
+      console.log('Folder response:', data);
+      
+      // Update the folders state
+      if (data && Array.isArray(data)) {
+        setFolders(data);
+      }
+      
+      return data;
+    },
+    enabled: !!selectedContainer && !selectedFolder,
+    refetchOnWindowFocus: false
+  });
+
+  // Fetch blobs for selected container, optionally filtered by folder
   const { 
     data: blobs, 
     isLoading: isLoadingBlobs,
     refetch: refetchBlobs 
   } = useQuery({
-    queryKey: ['/api/azure-blobs', selectedContainer],
+    queryKey: ['/api/azure-blobs', selectedContainer, selectedFolder],
     queryFn: async () => {
       if (!selectedContainer) return [];
-      console.log(`Fetching blobs for container: ${selectedContainer}`);
-      const response = await apiRequest('GET', `/api/azure-blobs/${selectedContainer}`);
+      
+      let url = `/api/azure-blobs/${selectedContainer}`;
+      if (selectedFolder) {
+        url += `?folderPath=${encodeURIComponent(selectedFolder)}`;
+      }
+      
+      console.log(`Fetching blobs for container: ${selectedContainer}${selectedFolder ? `, folder: ${selectedFolder}` : ''}`);
+      const response = await apiRequest('GET', url);
       const data = await response.json();
       console.log('Blob response:', data);
       return data;
@@ -130,6 +176,51 @@ const AzureStorageBrowser = () => {
   const handleContainerClick = (containerName: string) => {
     setSelectedContainer(containerName);
     setSelectedBlobItems([]);
+    setSelectedFolder(null);
+    setFolderSelectMode(false);
+  };
+  
+  // Handle folder selection
+  const handleFolderClick = (folderName: string) => {
+    setSelectedFolder(folderName);
+    setSelectedBlobItems([]);
+  };
+  
+  // Handle back button to return from folder to container view
+  const handleBackToContainer = () => {
+    setSelectedFolder(null);
+  };
+  
+  // Download metadata template
+  const handleDownloadTemplate = async () => {
+    try {
+      const response = await fetch('/api/azure-metadata-template');
+      
+      if (!response.ok) {
+        throw new Error('Failed to download metadata template');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'audio-file-metadata-template.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: 'Template Downloaded',
+        description: 'Metadata template has been downloaded successfully.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Download Failed',
+        description: error instanceof Error ? error.message : 'Failed to download metadata template',
+        variant: 'destructive',
+      });
+    }
   };
 
   // Handle blob selection for batch operations
@@ -409,14 +500,52 @@ const AzureStorageBrowser = () => {
             <div className="flex justify-between items-center">
               <div>
                 <CardTitle>
-                  {selectedContainer ? `Files in ${selectedContainer}` : 'Select a container'}
+                  {selectedContainer 
+                    ? selectedFolder 
+                      ? `Files in ${selectedContainer}/${selectedFolder}` 
+                      : folderSelectMode 
+                        ? `Select folder in ${selectedContainer}` 
+                        : `Files in ${selectedContainer}`
+                    : 'Select a container'}
                 </CardTitle>
                 <CardDescription>
-                  {selectedContainer && 'View, import, or allocate audio files'}
+                  {selectedContainer && (
+                    selectedFolder 
+                      ? 'View audio files in selected folder' 
+                      : folderSelectMode 
+                        ? 'Select a date folder to browse files' 
+                        : 'View, import, or allocate audio files'
+                  )}
                 </CardDescription>
               </div>
               {selectedContainer && (
                 <div className="flex space-x-2">
+                  {/* Template download button */}
+                  <Button variant="outline" onClick={handleDownloadTemplate}>
+                    <FileDown className="h-4 w-4 mr-2" />
+                    Template
+                  </Button>
+                  
+                  {!folderSelectMode && !selectedFolder && (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setFolderSelectMode(true)}
+                    >
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Date Folders
+                    </Button>
+                  )}
+                  
+                  {(folderSelectMode || selectedFolder) && (
+                    <Button 
+                      variant="outline" 
+                      onClick={handleBackToContainer}
+                    >
+                      <ArrowLeft className="h-4 w-4 mr-2" />
+                      Back
+                    </Button>
+                  )}
+                  
                   <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
                     <DialogTrigger asChild>
                       <Button>
@@ -553,6 +682,39 @@ const AzureStorageBrowser = () => {
                 <h3 className="text-lg font-medium mb-2">No container selected</h3>
                 <p>Select a container from the left panel to view its contents</p>
               </div>
+            ) : folderSelectMode ? (
+              // Folder selection mode - display folders
+              isLoadingFolders ? (
+                <div className="flex justify-center p-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : Array.isArray(folders) && folders.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {folders.map((folder) => (
+                    <Card 
+                      key={folder}
+                      className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                      onClick={() => handleFolderClick(folder)}
+                    >
+                      <CardContent className="p-4 flex items-center space-x-3">
+                        <Folder className="h-6 w-6 text-blue-500" />
+                        <div>
+                          <p className="font-medium">{folder}</p>
+                          <p className="text-xs text-gray-500">
+                            Date folder
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center p-12 text-gray-500">
+                  <Folder className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <h3 className="text-lg font-medium mb-2">No folders found</h3>
+                  <p>This container has no date folders</p>
+                </div>
+              )
             ) : isLoadingBlobs ? (
               <div className="flex justify-center p-12">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -602,7 +764,12 @@ const AzureStorageBrowser = () => {
               <div className="text-center p-12 text-gray-500">
                 <File className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                 <h3 className="text-lg font-medium mb-2">No files found</h3>
-                <p>This container is empty</p>
+                <p>
+                  {selectedFolder 
+                    ? `No files found in the ${selectedFolder} folder` 
+                    : "This container is empty"
+                  }
+                </p>
               </div>
             )}
           </CardContent>
