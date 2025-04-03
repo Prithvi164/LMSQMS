@@ -71,9 +71,7 @@ const AudioFileManagement = () => {
     callTime: '',
     subType: '',
     subSubType: '',
-    voc: '',
-    userRole: '',
-    advisorCategory: ''
+    voc: ''
   });
 
   // Query for fetching audio files
@@ -319,9 +317,7 @@ const AudioFileManagement = () => {
       callTime: '',
       subType: '',
       subSubType: '',
-      voc: '',
-      userRole: '',
-      advisorCategory: ''
+      voc: ''
     });
   };
 
@@ -443,18 +439,6 @@ const AudioFileManagement = () => {
     if (filters.voc) {
       filteredFiles = filteredFiles.filter(file => 
         file.callMetrics?.voc?.toLowerCase().includes(filters.voc.toLowerCase())
-      );
-    }
-    
-    if (filters.userRole) {
-      filteredFiles = filteredFiles.filter(file => 
-        file.callMetrics?.userRole?.toLowerCase().includes(filters.userRole.toLowerCase())
-      );
-    }
-    
-    if (filters.advisorCategory) {
-      filteredFiles = filteredFiles.filter(file => 
-        file.callMetrics?.advisorCategory?.toLowerCase().includes(filters.advisorCategory.toLowerCase())
       );
     }
 
@@ -689,7 +673,7 @@ const AudioFileManagement = () => {
                   <AlertDescription>
                     <p className="text-sm">The Excel file should contain columns matching audio filenames and their metadata.</p>
                     <p className="text-sm mt-2">Required columns: filename, originalFilename, language, version, call_date</p>
-                    <p className="text-sm mt-2">Other fields: callId, callType, agentId, campaignName, duration, disposition1, disposition2, customerMobile, callTime, subType, subSubType, VOC, userRole, advisorCategory, queryType, businessSegment</p>
+                    <p className="text-sm mt-2">Other fields: callId, callType, agentId, campaignName, duration, disposition1, disposition2, customerMobile, callTime, subType, subSubType, VOC, queryType, businessSegment</p>
                   </AlertDescription>
                 </Alert>
               </div>
@@ -928,25 +912,7 @@ const AudioFileManagement = () => {
                       />
                     </div>
                     
-                    <div>
-                      <Label htmlFor="filter-userRole">User Role</Label>
-                      <Input 
-                        id="filter-userRole" 
-                        placeholder="User Role" 
-                        value={filters.userRole}
-                        onChange={(e) => handleFilterChange('userRole', e.target.value)}
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="filter-advisorCategory">Advisor Category</Label>
-                      <Input 
-                        id="filter-advisorCategory" 
-                        placeholder="Advisor Category" 
-                        value={filters.advisorCategory}
-                        onChange={(e) => handleFilterChange('advisorCategory', e.target.value)}
-                      />
-                    </div>
+
                   </div>
                 </CollapsibleContent>
               </Collapsible>
