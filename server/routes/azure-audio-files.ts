@@ -881,7 +881,7 @@ router.get('/azure-minimal-template', async (req, res) => {
   }
 });
 
-// Create an ultra-simple template with just one file from the container
+// Create a metadata template with all files from the container
 router.get('/azure-simple-template/:containerName', async (req, res) => {
   // Skip user authentication check for template downloads to make it more accessible
   if (!azureService) return res.status(503).json({ message: 'Azure service not available' });
@@ -889,7 +889,7 @@ router.get('/azure-simple-template/:containerName', async (req, res) => {
   const { containerName } = req.params;
   
   try {
-    console.log(`Creating simple template for container: ${containerName}`);
+    console.log(`Creating metadata template for container: ${containerName}`);
     
     // Fetch the actual blob names from the container
     const blobs = await azureService.listBlobs(containerName, '');
@@ -899,17 +899,29 @@ router.get('/azure-simple-template/:containerName', async (req, res) => {
       return res.status(404).json({ message: 'No blobs found in container' });
     }
     
-    console.log(`Found ${blobs.length} blobs, using first one as template`);
+    console.log(`Found ${blobs.length} blobs, including all in template`);
     
-    // Use just the first blob as a template
-    const firstBlob = blobs[0];
-    
-    // Create a very basic Excel file with a single row
+    // Create a workbook
     const wb = xlsxUtils.book_new();
-    const ws = xlsxUtils.aoa_to_sheet([
-      ['filename', 'language', 'version', 'call_date'],
-      [firstBlob.name, 'english', '1.0', new Date().toISOString().split('T')[0]]
-    ]);
+    
+    // Create headers
+    const headers = ['filename', 'language', 'version', 'call_date'];
+    
+    // Create rows with all blob names and default values
+    const rows = [headers];
+    
+    // Add a row for each blob
+    blobs.forEach(blob => {
+      rows.push([
+        blob.name, 
+        'english', 
+        '1.0', 
+        new Date().toISOString().split('T')[0]
+      ]);
+    });
+    
+    // Create the worksheet from the array of arrays
+    const ws = xlsxUtils.aoa_to_sheet(rows);
     
     // Add column width specifications for better readability
     ws['!cols'] = [
