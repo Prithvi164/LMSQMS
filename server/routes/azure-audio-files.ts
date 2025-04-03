@@ -652,8 +652,12 @@ router.get('/azure-metadata-template', async (req, res) => {
     ];
     ws['!cols'] = wscols;
     
-    // Write to buffer
-    const buf = writeXLSX(wb, { bookType: 'xlsx', type: 'buffer' });
+    // Write to buffer with compression for better compatibility
+    const buf = writeXLSX(wb, { 
+      bookType: 'xlsx', 
+      type: 'buffer',
+      compression: true
+    });
     
     // Set response headers
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -708,8 +712,12 @@ router.get('/azure-custom-template/:containerName', async (req, res) => {
     ];
     ws['!cols'] = wscols;
     
-    // Write to buffer
-    const buf = writeXLSX(wb, { bookType: 'xlsx', type: 'buffer' });
+    // Write to buffer with compression for better compatibility
+    const buf = writeXLSX(wb, { 
+      bookType: 'xlsx', 
+      type: 'buffer',
+      compression: true
+    });
     
     // Set response headers
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -760,8 +768,12 @@ router.get('/azure-minimal-template', async (req, res) => {
     ];
     ws['!cols'] = wscols;
     
-    // Write to buffer
-    const buf = writeXLSX(wb, { bookType: 'xlsx', type: 'buffer' });
+    // Write to buffer with compression for better compatibility
+    const buf = writeXLSX(wb, { 
+      bookType: 'xlsx', 
+      type: 'buffer',
+      compression: true
+    });
     
     // Set response headers
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -788,9 +800,6 @@ router.get('/azure-simple-template/:containerName', async (req, res) => {
     // Fetch the actual blob names from the container
     const blobs = await azureService.listBlobs(containerName, '');
     
-    // Create a new workbook
-    const wb = xlsxUtils.book_new();
-    
     if (!blobs || blobs.length === 0) {
       console.log('No blobs found in container:', containerName);
       return res.status(404).json({ message: 'No blobs found in container' });
@@ -811,6 +820,9 @@ router.get('/azure-simple-template/:containerName', async (req, res) => {
       }
     ];
     
+    // Create a new workbook
+    const wb = xlsxUtils.book_new();
+    
     // Create worksheet and add to workbook
     const ws = xlsxUtils.json_to_sheet(sampleData);
     xlsxUtils.book_append_sheet(wb, ws, 'Audio File');
@@ -824,16 +836,20 @@ router.get('/azure-simple-template/:containerName', async (req, res) => {
     ];
     ws['!cols'] = wscols;
     
-    // Write to buffer
-    const buf = writeXLSX(wb, { bookType: 'xlsx', type: 'buffer' });
+    // Create a buffer of the XLSX file
+    const buf = writeXLSX(wb, { 
+      bookType: 'xlsx', 
+      type: 'buffer',
+      compression: true // Enable compression for better compatibility
+    });
     
-    // Set response headers
+    // Set response headers with correct MIME type
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename=${containerName}-simple-template.xlsx`);
     
     console.log('Sending simple template file');
     
-    // Send the file
+    // Send the file buffer
     res.send(buf);
   } catch (error) {
     console.error('Error creating ultra-simple template:', error);
