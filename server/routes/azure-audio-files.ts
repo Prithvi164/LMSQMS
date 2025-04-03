@@ -2,15 +2,72 @@ import { Router } from 'express';
 import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import multer from 'multer';
-import { initAzureStorageService } from '../services/azureStorageService';
+import { initAzureStorageService, AudioFileMetadata } from '../services/azureStorageService';
 import { audioFileAllocations, audioFiles, audioLanguageEnum } from '../../shared/schema';
 import { db } from '../db';
 import { eq, and, inArray } from 'drizzle-orm';
+import * as XLSX from 'xlsx';
 
 const router = Router();
 
-// Import XLSX for Excel file operations
-import * as XLSX from 'xlsx';
+// Function to parse the uploaded Excel file
+async function parseExcelFile(filePath: string): Promise<AudioFileMetadata[]> {
+  try {
+    // Read the Excel file
+    const workbook = XLSX.readFile(filePath);
+    
+    // Get the first worksheet
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    
+    // Convert the worksheet to JSON
+    const rawData = XLSX.utils.sheet_to_json(worksheet);
+    
+    // Map the raw data to AudioFileMetadata structure
+    const metadataItems: AudioFileMetadata[] = rawData.map((row: any) => {
+      // Basic validation
+      if (!row.filename) {
+        throw new Error('Excel file missing required "filename" column');
+      }
+      
+      if (!row.language) {
+        throw new Error('Excel file missing required "language" column');
+      }
+      
+      if (!row.version) {
+        throw new Error('Excel file missing required "version" column');
+      }
+      
+      if (!row.call_date) {
+        throw new Error('Excel file missing required "call_date" column');
+      }
+      
+      // Extract call metrics from the row
+      const callMetrics: any = {};
+      for (const key in row) {
+        if (key !== 'filename' && key !== 'originalFilename' && 
+            key !== 'language' && key !== 'version' && key !== 'call_date') {
+          callMetrics[key] = row[key];
+        }
+      }
+      
+      // Return a properly formatted AudioFileMetadata object
+      return {
+        filename: row.filename,
+        originalFilename: row.originalFilename || row.filename,
+        language: row.language.toLowerCase(),
+        version: row.version,
+        call_date: row.call_date,
+        callMetrics
+      };
+    });
+    
+    return metadataItems;
+  } catch (error) {
+    console.error('Error parsing Excel file:', error);
+    throw new Error(`Error parsing Excel file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
 
 // Make sure Azure credentials are available before initializing routes
 const azureService = initAzureStorageService();
@@ -129,11 +186,8 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
   if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
   
   const { containerName } = req.params;
+  // ProcessId is now optional
   const { processId } = req.body;
-  
-  if (!processId) {
-    return res.status(400).json({ message: 'Process ID is required' });
-  }
   
   try {
     // First check if container exists
@@ -144,17 +198,13 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
       return res.status(404).json({ message: `Container ${containerName} does not exist` });
     }
     
-    // Parse Excel file from Azure (assuming you have an Excel with metadata in Azure)
-    const excelBlobName = req.body.excelBlobName;
-    
-    // If the Excel file was uploaded locally, we could parse it directly
-    // but for now we'll assume we're parsing from Azure
-    if (!excelBlobName) {
-      return res.status(400).json({ message: 'Excel blob name is required' });
+    // Parse the uploaded Excel file directly
+    if (!req.file || !req.file.path) {
+      return res.status(400).json({ message: 'Excel file upload failed' });
     }
     
-    // Parse metadata from Excel
-    const metadataItems = await azureService.parseMetadataExcel(containerName, excelBlobName);
+    // Parse metadata from the uploaded Excel file
+    const metadataItems = await parseExcelFile(req.file.path);
     
     // Match with actual files in Azure and get enhanced metadata
     const enrichedItems = await azureService.matchAudioFilesWithMetadata(containerName, metadataItems);
@@ -186,7 +236,8 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
             callMetrics: item.callMetrics,
             status: 'pending',
             uploadedBy: req.user.id,
-            processId: parseInt(processId),
+            // Use a default process ID if none is provided (1 is typically the default process)
+            processId: processId ? parseInt(processId) : 1,
             organizationId: req.user.organizationId
           })
           .returning();

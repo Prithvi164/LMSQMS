@@ -73,10 +73,7 @@ interface BlobItem {
   };
 }
 
-interface Process {
-  id: number;
-  name: string;
-}
+// Process interface removed as it's no longer needed
 
 interface QualityAnalyst {
   id: number;
@@ -88,7 +85,7 @@ const AzureStorageBrowser = () => {
   const [selectedBlobItems, setSelectedBlobItems] = useState<string[]>([]);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [allocateDialogOpen, setAllocateDialogOpen] = useState(false);
-  const [selectedProcessId, setSelectedProcessId] = useState<string>('');
+  // selectedProcessId removed as per user request
   const [selectedQA, setSelectedQA] = useState<string>('');
   const [dueDate, setDueDate] = useState<string>('');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -161,11 +158,7 @@ const AzureStorageBrowser = () => {
     refetchOnWindowFocus: false,
   });
 
-  // Fetch processes for the import dialog
-  const { data: processes } = useQuery<Process[]>({
-    queryKey: ['/api/organizations/processes'],
-    refetchOnWindowFocus: false,
-  });
+  // Process fetching logic removed as per user request
 
   // Fetch quality analysts for allocation
   const { data: qualityAnalysts } = useQuery<QualityAnalyst[]>({
@@ -237,10 +230,10 @@ const AzureStorageBrowser = () => {
 
   // Import audio files mutation
   const importAudioMutation = useMutation({
-    mutationFn: async ({ containerName, processId, metadataFile }: any) => {
+    mutationFn: async ({ containerName, metadataFile }: any) => {
       const formData = new FormData();
       formData.append('metadataFile', metadataFile);
-      formData.append('processId', processId);
+      // processId removed as requested
       
       return apiRequest('POST', `/api/azure-audio-import/${containerName}`, formData);
     },
@@ -291,10 +284,10 @@ const AzureStorageBrowser = () => {
 
   // Handle import form submission
   const handleImport = () => {
-    if (!selectedContainer || !selectedProcessId || !uploadFile) {
+    if (!selectedContainer || !uploadFile) {
       toast({
         title: 'Missing information',
-        description: 'Please select a container, process, and upload a metadata file.',
+        description: 'Please select a container and upload a metadata file.',
         variant: 'destructive',
       });
       return;
@@ -302,7 +295,6 @@ const AzureStorageBrowser = () => {
 
     importAudioMutation.mutate({
       containerName: selectedContainer,
-      processId: selectedProcessId,
       metadataFile: uploadFile,
     });
   };
@@ -562,21 +554,7 @@ const AzureStorageBrowser = () => {
                         </DialogDescription>
                       </DialogHeader>
                       <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="process">Process</Label>
-                          <Select value={selectedProcessId} onValueChange={setSelectedProcessId}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select process" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {processes?.map((process) => (
-                                <SelectItem key={process.id} value={process.id.toString()}>
-                                  {process.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                        {/* Process selection removed as per user request */}
                         <div className="grid gap-2">
                           <Label htmlFor="metadataFile">Metadata Excel File</Label>
                           <Input
