@@ -9,13 +9,14 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { UploadCloud, FileAudio, Upload, Filter, Clock, FilePlus, FileSpreadsheet, Download } from 'lucide-react';
+import { UploadCloud, FileAudio, Upload, Filter, Clock, FilePlus, FileSpreadsheet, Download, ChevronDown } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { apiRequest } from '@/lib/queryClient';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Spinner } from '@/components/ui/spinner';
 import { formatDistanceToNow } from 'date-fns';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import * as XLSX from 'xlsx';
 
 // Helper functions
@@ -57,7 +58,22 @@ const AudioFileManagement = () => {
     language: 'all',
     version: '',
     status: 'any',
-    duration: 'any'
+    duration: 'any',
+    callType: 'all',
+    agentId: '',
+    campaignName: '',
+    callDate: '',
+    disposition1: '',
+    disposition2: '',
+    queryType: '',
+    businessSegment: '',
+    customerMobile: '',
+    callTime: '',
+    subType: '',
+    subSubType: '',
+    voc: '',
+    userRole: '',
+    advisorCategory: ''
   });
 
   // Query for fetching audio files
@@ -290,7 +306,22 @@ const AudioFileManagement = () => {
       language: 'all',
       version: '',
       status: 'any',
-      duration: 'any'
+      duration: 'any',
+      callType: 'all',
+      agentId: '',
+      campaignName: '',
+      callDate: '',
+      disposition1: '',
+      disposition2: '',
+      queryType: '',
+      businessSegment: '',
+      customerMobile: '',
+      callTime: '',
+      subType: '',
+      subSubType: '',
+      voc: '',
+      userRole: '',
+      advisorCategory: ''
     });
   };
 
@@ -336,6 +367,97 @@ const AudioFileManagement = () => {
       }
     }
 
+    // Apply filters for call metrics
+    if (filters.callType && filters.callType !== 'all') {
+      filteredFiles = filteredFiles.filter(file => 
+        file.callMetrics?.callType?.toLowerCase() === filters.callType.toLowerCase()
+      );
+    }
+
+    if (filters.agentId) {
+      filteredFiles = filteredFiles.filter(file => 
+        file.callMetrics?.agentId?.toLowerCase().includes(filters.agentId.toLowerCase())
+      );
+    }
+
+    if (filters.campaignName) {
+      filteredFiles = filteredFiles.filter(file => 
+        file.callMetrics?.campaignName?.toLowerCase().includes(filters.campaignName.toLowerCase())
+      );
+    }
+
+    if (filters.callDate) {
+      filteredFiles = filteredFiles.filter(file => 
+        file.call_date === filters.callDate
+      );
+    }
+
+    if (filters.disposition1) {
+      filteredFiles = filteredFiles.filter(file => 
+        file.callMetrics?.disposition1?.toLowerCase().includes(filters.disposition1.toLowerCase())
+      );
+    }
+
+    if (filters.disposition2) {
+      filteredFiles = filteredFiles.filter(file => 
+        file.callMetrics?.disposition2?.toLowerCase().includes(filters.disposition2.toLowerCase())
+      );
+    }
+
+    if (filters.queryType) {
+      filteredFiles = filteredFiles.filter(file => 
+        file.callMetrics?.queryType?.toLowerCase().includes(filters.queryType.toLowerCase())
+      );
+    }
+
+    if (filters.businessSegment) {
+      filteredFiles = filteredFiles.filter(file => 
+        file.callMetrics?.businessSegment?.toLowerCase().includes(filters.businessSegment.toLowerCase())
+      );
+    }
+    
+    if (filters.customerMobile) {
+      filteredFiles = filteredFiles.filter(file => 
+        file.callMetrics?.customerMobile?.toLowerCase().includes(filters.customerMobile.toLowerCase())
+      );
+    }
+    
+    if (filters.callTime) {
+      filteredFiles = filteredFiles.filter(file => 
+        file.callMetrics?.callTime === filters.callTime
+      );
+    }
+    
+    if (filters.subType) {
+      filteredFiles = filteredFiles.filter(file => 
+        file.callMetrics?.subType?.toLowerCase().includes(filters.subType.toLowerCase())
+      );
+    }
+    
+    if (filters.subSubType) {
+      filteredFiles = filteredFiles.filter(file => 
+        file.callMetrics?.subSubType?.toLowerCase().includes(filters.subSubType.toLowerCase())
+      );
+    }
+    
+    if (filters.voc) {
+      filteredFiles = filteredFiles.filter(file => 
+        file.callMetrics?.voc?.toLowerCase().includes(filters.voc.toLowerCase())
+      );
+    }
+    
+    if (filters.userRole) {
+      filteredFiles = filteredFiles.filter(file => 
+        file.callMetrics?.userRole?.toLowerCase().includes(filters.userRole.toLowerCase())
+      );
+    }
+    
+    if (filters.advisorCategory) {
+      filteredFiles = filteredFiles.filter(file => 
+        file.callMetrics?.advisorCategory?.toLowerCase().includes(filters.advisorCategory.toLowerCase())
+      );
+    }
+
     return filteredFiles;
   };
 
@@ -354,6 +476,155 @@ const AudioFileManagement = () => {
                 Upload Audio File
               </Button>
             </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Upload Audio File</DialogTitle>
+                <DialogDescription>
+                  Upload a single audio file with metadata
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="audio-file">Audio File</Label>
+                  <Input 
+                    id="audio-file" 
+                    type="file" 
+                    accept="audio/*" 
+                    onChange={handleFileChange} 
+                  />
+                  {file && (
+                    <div className="text-sm text-muted-foreground mt-1">
+                      {file.name}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="language">Language</Label>
+                    <Select 
+                      value={fileData.language} 
+                      onValueChange={(value) => setFileData({...fileData, language: value})}
+                    >
+                      <SelectTrigger id="language">
+                        <SelectValue placeholder="Select language" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="english">English</SelectItem>
+                        <SelectItem value="spanish">Spanish</SelectItem>
+                        <SelectItem value="french">French</SelectItem>
+                        <SelectItem value="hindi">Hindi</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="grid gap-2">
+                    <Label htmlFor="version">Version</Label>
+                    <Input 
+                      id="version" 
+                      placeholder="Version" 
+                      value={fileData.version}
+                      onChange={(e) => setFileData({...fileData, version: e.target.value})}
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid gap-2">
+                  <Label>Call Metrics</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="callDate">Call Date</Label>
+                      <Input 
+                        id="callDate" 
+                        type="date"
+                        value={fileData.callMetrics.callDate}
+                        onChange={(e) => setFileData({
+                          ...fileData, 
+                          callMetrics: {
+                            ...fileData.callMetrics,
+                            callDate: e.target.value
+                          }
+                        })}
+                      />
+                    </div>
+                    
+                    <div className="grid gap-2">
+                      <Label htmlFor="callId">Call ID</Label>
+                      <Input 
+                        id="callId" 
+                        placeholder="Call ID"
+                        value={fileData.callMetrics.callId}
+                        onChange={(e) => setFileData({
+                          ...fileData, 
+                          callMetrics: {
+                            ...fileData.callMetrics,
+                            callId: e.target.value
+                          }
+                        })}
+                      />
+                    </div>
+                    
+                    <div className="grid gap-2">
+                      <Label htmlFor="callType">Call Type</Label>
+                      <Select
+                        value={fileData.callMetrics.callType}
+                        onValueChange={(value) => setFileData({
+                          ...fileData, 
+                          callMetrics: {
+                            ...fileData.callMetrics,
+                            callType: value
+                          }
+                        })}
+                      >
+                        <SelectTrigger id="callType">
+                          <SelectValue placeholder="Call Type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="inbound">Inbound</SelectItem>
+                          <SelectItem value="outbound">Outbound</SelectItem>
+                          <SelectItem value="transfer">Transfer</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="grid gap-2">
+                      <Label htmlFor="agentId">Agent ID</Label>
+                      <Input 
+                        id="agentId" 
+                        placeholder="Agent ID"
+                        value={fileData.callMetrics.agentId}
+                        onChange={(e) => setFileData({
+                          ...fileData, 
+                          callMetrics: {
+                            ...fileData.callMetrics,
+                            agentId: e.target.value
+                          }
+                        })}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>Cancel</Button>
+                <Button onClick={handleUploadSubmit} disabled={uploadFileMutation.isPending}>
+                  {uploadFileMutation.isPending ? (
+                    <>
+                      <Spinner className="mr-2 h-4 w-4" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="mr-2 h-4 w-4" />
+                      Upload File
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
           </Dialog>
           
           <Dialog open={batchUploadDialogOpen} onOpenChange={setBatchUploadDialogOpen}>
@@ -444,75 +715,247 @@ const AudioFileManagement = () => {
         </div>
         
         <div className="flex space-x-2">
-          <Card className="w-fit">
+          <Card>
             <CardContent className="p-4">
-              <div className="flex space-x-4">
-                <div>
-                  <Label htmlFor="filter-language">Language</Label>
-                  <Select value={filters.language} onValueChange={(value) => handleFilterChange('language', value)}>
-                    <SelectTrigger id="filter-language" className="w-28">
-                      <SelectValue placeholder="All" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All</SelectItem>
-                      <SelectItem value="english">English</SelectItem>
-                      <SelectItem value="spanish">Spanish</SelectItem>
-                      <SelectItem value="french">French</SelectItem>
-                      <SelectItem value="hindi">Hindi</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
+              <div className="mb-4">
+                <h3 className="text-lg font-medium mb-2">Basic Filters</h3>
+                <div className="flex flex-wrap gap-4">
+                  <div>
+                    <Label htmlFor="filter-language">Language</Label>
+                    <Select value={filters.language} onValueChange={(value) => handleFilterChange('language', value)}>
+                      <SelectTrigger id="filter-language" className="w-28">
+                        <SelectValue placeholder="All" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        <SelectItem value="english">English</SelectItem>
+                        <SelectItem value="spanish">Spanish</SelectItem>
+                        <SelectItem value="french">French</SelectItem>
+                        <SelectItem value="hindi">Hindi</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="filter-version">Version</Label>
+                    <Input 
+                      id="filter-version" 
+                      placeholder="Version" 
+                      className="w-28"
+                      value={filters.version}
+                      onChange={(e) => handleFilterChange('version', e.target.value)}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="filter-status">Status</Label>
+                    <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value)}>
+                      <SelectTrigger id="filter-status" className="w-36">
+                        <SelectValue placeholder="Any status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="any">Any status</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="allocated">Allocated</SelectItem>
+                        <SelectItem value="evaluated">Evaluated</SelectItem>
+                        <SelectItem value="archived">Archived</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="filter-duration">Duration</Label>
+                    <Select value={filters.duration} onValueChange={(value) => handleFilterChange('duration', value)}>
+                      <SelectTrigger id="filter-duration" className="w-36">
+                        <SelectValue placeholder="Any length" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="any">Any length</SelectItem>
+                        <SelectItem value="60">Less than 1 min</SelectItem>
+                        <SelectItem value="180">1-3 minutes</SelectItem>
+                        <SelectItem value="300">3-5 minutes</SelectItem>
+                        <SelectItem value="999">More than 5 minutes</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                
-                <div>
-                  <Label htmlFor="filter-version">Version</Label>
-                  <Input 
-                    id="filter-version" 
-                    placeholder="Version" 
-                    className="w-28"
-                    value={filters.version}
-                    onChange={(e) => handleFilterChange('version', e.target.value)}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="filter-status">Status</Label>
-                  <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value)}>
-                    <SelectTrigger id="filter-status" className="w-36">
-                      <SelectValue placeholder="Any status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="any">Any status</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="allocated">Allocated</SelectItem>
-                      <SelectItem value="evaluated">Evaluated</SelectItem>
-                      <SelectItem value="archived">Archived</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="filter-duration">Duration</Label>
-                  <Select value={filters.duration} onValueChange={(value) => handleFilterChange('duration', value)}>
-                    <SelectTrigger id="filter-duration" className="w-36">
-                      <SelectValue placeholder="Any length" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="any">Any length</SelectItem>
-                      <SelectItem value="60">Less than 1 min</SelectItem>
-                      <SelectItem value="180">1-3 minutes</SelectItem>
-                      <SelectItem value="300">3-5 minutes</SelectItem>
-                      <SelectItem value="999">More than 5 minutes</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="flex items-end">
-                  <Button variant="outline" onClick={resetFilters}>
-                    <Filter className="h-4 w-4 mr-2" />
-                    Reset Filters
+              </div>
+              
+              <Collapsible className="mb-4">
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" className="flex items-center justify-between w-full p-0">
+                    <span className="text-lg font-medium">Advanced Filters</span>
+                    <ChevronDown className="h-4 w-4" />
                   </Button>
-                </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-2">
+                    <div>
+                      <Label htmlFor="filter-callType">Call Type</Label>
+                      <Select value={filters.callType} onValueChange={(value) => handleFilterChange('callType', value)}>
+                        <SelectTrigger id="filter-callType" className="w-full">
+                          <SelectValue placeholder="All Types" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Types</SelectItem>
+                          <SelectItem value="inbound">Inbound</SelectItem>
+                          <SelectItem value="outbound">Outbound</SelectItem>
+                          <SelectItem value="transfer">Transfer</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="filter-agentId">Agent ID</Label>
+                      <Input 
+                        id="filter-agentId" 
+                        placeholder="Agent ID" 
+                        value={filters.agentId}
+                        onChange={(e) => handleFilterChange('agentId', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="filter-campaignName">Campaign</Label>
+                      <Input 
+                        id="filter-campaignName" 
+                        placeholder="Campaign Name" 
+                        value={filters.campaignName}
+                        onChange={(e) => handleFilterChange('campaignName', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="filter-callDate">Call Date</Label>
+                      <Input 
+                        id="filter-callDate" 
+                        type="date"
+                        placeholder="Call Date" 
+                        value={filters.callDate}
+                        onChange={(e) => handleFilterChange('callDate', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="filter-disposition1">Disposition 1</Label>
+                      <Input 
+                        id="filter-disposition1" 
+                        placeholder="Disposition 1" 
+                        value={filters.disposition1}
+                        onChange={(e) => handleFilterChange('disposition1', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="filter-disposition2">Disposition 2</Label>
+                      <Input 
+                        id="filter-disposition2" 
+                        placeholder="Disposition 2" 
+                        value={filters.disposition2}
+                        onChange={(e) => handleFilterChange('disposition2', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="filter-queryType">Query Type</Label>
+                      <Input 
+                        id="filter-queryType" 
+                        placeholder="Query Type" 
+                        value={filters.queryType}
+                        onChange={(e) => handleFilterChange('queryType', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="filter-businessSegment">Business Segment</Label>
+                      <Input 
+                        id="filter-businessSegment" 
+                        placeholder="Business Segment" 
+                        value={filters.businessSegment}
+                        onChange={(e) => handleFilterChange('businessSegment', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="filter-customerMobile">Customer Mobile</Label>
+                      <Input 
+                        id="filter-customerMobile" 
+                        placeholder="Customer Mobile" 
+                        value={filters.customerMobile}
+                        onChange={(e) => handleFilterChange('customerMobile', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="filter-callTime">Call Time</Label>
+                      <Input 
+                        id="filter-callTime" 
+                        type="time"
+                        placeholder="Call Time" 
+                        value={filters.callTime}
+                        onChange={(e) => handleFilterChange('callTime', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="filter-subType">Sub Type</Label>
+                      <Input 
+                        id="filter-subType" 
+                        placeholder="Sub Type" 
+                        value={filters.subType}
+                        onChange={(e) => handleFilterChange('subType', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="filter-subSubType">Sub-Sub Type</Label>
+                      <Input 
+                        id="filter-subSubType" 
+                        placeholder="Sub-Sub Type" 
+                        value={filters.subSubType}
+                        onChange={(e) => handleFilterChange('subSubType', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="filter-voc">VOC</Label>
+                      <Input 
+                        id="filter-voc" 
+                        placeholder="VOC" 
+                        value={filters.voc}
+                        onChange={(e) => handleFilterChange('voc', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="filter-userRole">User Role</Label>
+                      <Input 
+                        id="filter-userRole" 
+                        placeholder="User Role" 
+                        value={filters.userRole}
+                        onChange={(e) => handleFilterChange('userRole', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="filter-advisorCategory">Advisor Category</Label>
+                      <Input 
+                        id="filter-advisorCategory" 
+                        placeholder="Advisor Category" 
+                        value={filters.advisorCategory}
+                        onChange={(e) => handleFilterChange('advisorCategory', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+              
+              <div className="flex justify-end">
+                <Button variant="outline" onClick={resetFilters}>
+                  <Filter className="h-4 w-4 mr-2" />
+                  Reset All Filters
+                </Button>
               </div>
             </CardContent>
           </Card>
