@@ -99,9 +99,9 @@ export const audioFiles = pgTable("audio_files", {
   fileUrl: text("file_url").notNull(),
   fileSize: integer("file_size").notNull(), // in bytes
   duration: numeric("duration", { precision: 10, scale: 2 }).notNull(), // in seconds, with decimal precision
-  language: audioLanguageEnum("language").notNull(),
-  version: text("version").notNull(),
-  call_date: date("call_date").notNull(), // Added call_date field to match database schema
+  language: audioLanguageEnum("language"), // Removed notNull to allow empty values
+  version: text("version"), // Removed notNull to allow empty values
+  call_date: date("call_date"), // Removed notNull to allow empty values
   callMetrics: jsonb("call_metrics").$type<{
     callId: string;
     callType: string;
@@ -126,8 +126,7 @@ export const audioFiles = pgTable("audio_files", {
     .references(() => users.id)
     .notNull(),
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
-  processId: integer("process_id")
-    .notNull(),
+  processId: integer("process_id"),
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
@@ -521,11 +520,11 @@ export const insertAudioFileSchema = createInsertSchema(audioFiles)
     fileUrl: z.string().url("File URL must be a valid URL"),
     fileSize: z.number().int().positive("File size must be positive"),
     duration: z.number().positive("Duration must be positive"), // Removed .int() to allow decimal values
-    language: z.enum(['english', 'spanish', 'french', 'hindi', 'other']),
-    version: z.string().min(1, "Version is required"),
+    language: z.enum(['english', 'spanish', 'french', 'hindi', 'other']).optional(),
+    version: z.string().min(1, "Version is required").optional(),
     call_date: z.string().refine(val => {
       return !!val.match(/^\d{4}-\d{2}-\d{2}$/);
-    }, { message: "Call date must be in YYYY-MM-DD format" }),
+    }, { message: "Call date must be in YYYY-MM-DD format" }).optional(),
     callMetrics: z.object({
       callId: z.string(),
       callType: z.string(),
@@ -546,7 +545,7 @@ export const insertAudioFileSchema = createInsertSchema(audioFiles)
     }).optional(),
     status: z.enum(['pending', 'allocated', 'evaluated', 'archived']).default('pending'),
     uploadedBy: z.number().int().positive("Uploader is required"),
-    processId: z.number().int().positive("Process is required"),
+    processId: z.number().int().positive("Process is required").optional(),
     organizationId: z.number().int().positive("Organization is required"),
     batchId: z.number().int().positive("Batch is required").optional(),
   });
