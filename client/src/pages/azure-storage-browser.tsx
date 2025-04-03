@@ -738,13 +738,17 @@ const AzureStorageBrowser = () => {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Excel Templates</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={handleDownloadStaticTemplate}>
-                        <FileSpreadsheet className="h-4 w-4 mr-2" />
-                        Ultra Simple Template (Pre-generated)
+                      <DropdownMenuItem asChild>
+                        <a href="/ultra-simple-template.xlsx" download="ultra-simple-template.xlsx" className="flex items-center px-2 py-1.5 text-sm">
+                          <FileSpreadsheet className="h-4 w-4 mr-2" />
+                          Ultra Simple Template (Direct)
+                        </a>
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleDownloadSimpleTemplate}>
-                        <FileSpreadsheet className="h-4 w-4 mr-2" />
-                        Ultra Simple Template (1 file)
+                      <DropdownMenuItem asChild>
+                        <a href="/generate-csv-template.html" target="_blank" className="flex items-center px-2 py-1.5 text-sm">
+                          <FileSpreadsheet className="h-4 w-4 mr-2" />
+                          CSV Template Generator
+                        </a>
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={handleDownloadTemplate}>
                         <FileSpreadsheet className="h-4 w-4 mr-2" />
