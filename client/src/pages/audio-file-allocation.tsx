@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Spinner } from '@/components/ui/spinner';
 import { format } from 'date-fns';
-import { CalendarIcon, Check, FileAudio, Plus, Settings, Headphones, RefreshCw, Filter, ClipboardCheck, Info } from 'lucide-react';
+import { CalendarIcon, Check, FileAudio, Plus, Settings, Headphones, RefreshCw, Filter } from 'lucide-react';
 
 // Helper functions
 const formatDuration = (seconds: number) => {
@@ -40,13 +40,10 @@ const AudioFileAllocation = () => {
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('active');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
-  const [currentAllocationId, setCurrentAllocationId] = useState<number | null>(null);
   const [allocationData, setAllocationData] = useState({
     name: '',
     description: '',
     dueDate: selectedDate,
-    evaluationTemplateId: null as number | null,
     filters: {
       language: '',
       version: '',
@@ -85,18 +82,6 @@ const AudioFileAllocation = () => {
   const { data: qualityAnalysts } = useQuery({
     queryKey: ['/api/users/quality-analysts', user?.organizationId],
     enabled: !!user?.organizationId,
-  });
-  
-  // Query for fetching evaluation templates
-  const { data: evaluationTemplates, isLoading: loadingTemplates } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
-    enabled: !!user?.organizationId,
-  });
-
-  // Query for fetching allocation details
-  const { data: allocationDetails, isLoading: loadingAllocationDetails } = useQuery({
-    queryKey: [`/api/audio-file-allocations/${currentAllocationId}`],
-    enabled: !!currentAllocationId,
   });
 
   // Mutations
@@ -164,7 +149,6 @@ const AudioFileAllocation = () => {
       name: '',
       description: '',
       dueDate: new Date(),
-      evaluationTemplateId: null,
       filters: {
         language: '',
         version: '',
@@ -256,15 +240,6 @@ const AudioFileAllocation = () => {
       });
       return;
     }
-    
-    if (!allocationData.evaluationTemplateId) {
-      toast({
-        title: 'Error',
-        description: 'Please select an evaluation template',
-        variant: 'destructive',
-      });
-      return;
-    }
 
     const totalAllocationCount = allocationData.qualityAnalysts.reduce((sum, qa) => sum + qa.count, 0);
     if (totalAllocationCount !== allocationData.audioFileIds.length) {
@@ -351,39 +326,6 @@ const AudioFileAllocation = () => {
                     value={allocationData.description}
                     onChange={(e) => setAllocationData({...allocationData, description: e.target.value})}
                   />
-                </div>
-                
-                <div className="space-y-2 col-span-2">
-                  <Label htmlFor="evaluationTemplate">Evaluation Template</Label>
-                  <Select 
-                    value={allocationData.evaluationTemplateId?.toString() || ""} 
-                    onValueChange={(value) => setAllocationData({
-                      ...allocationData, 
-                      evaluationTemplateId: value ? parseInt(value) : null
-                    })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a template for evaluation" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {loadingTemplates ? (
-                        <div className="flex items-center justify-center p-2">
-                          <Spinner className="h-4 w-4 mr-2" />
-                          <span>Loading templates...</span>
-                        </div>
-                      ) : evaluationTemplates && evaluationTemplates.length > 0 ? (
-                        evaluationTemplates.filter(template => template.status === 'active').map((template) => (
-                          <SelectItem key={template.id} value={template.id.toString()}>
-                            {template.name}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="" disabled>
-                          No active templates available
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
                 </div>
               </div>
               
@@ -741,13 +683,9 @@ const AudioFileAllocation = () => {
                             <Button 
                               variant="outline" 
                               size="sm"
-                              onClick={() => {
-                                setCurrentAllocationId(allocation.id);
-                                setDetailsDialogOpen(true);
-                              }}
+                              asChild
                             >
-                              <Info className="mr-1 h-4 w-4" />
-                              View
+                              <a href={`/allocation-details/${allocation.id}`}>View</a>
                             </Button>
                             
                             {activeTab === 'active' && (
@@ -783,144 +721,6 @@ const AudioFileAllocation = () => {
           </Card>
         </TabsContent>
       </Tabs>
-      
-      {/* Allocation Details Dialog */}
-      <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              Allocation Details
-              {allocationDetails && (
-                <Badge className="ml-2" variant={allocationDetails.status === 'active' ? 'default' : 'secondary'}>
-                  {allocationDetails.status}
-                </Badge>
-              )}
-            </DialogTitle>
-            <DialogDescription>
-              View audio file allocation details and quality analyst assignments
-            </DialogDescription>
-          </DialogHeader>
-          
-          {loadingAllocationDetails ? (
-            <div className="flex items-center justify-center py-8">
-              <Spinner className="h-8 w-8 mr-2" />
-              <span>Loading allocation details...</span>
-            </div>
-          ) : allocationDetails ? (
-            <div className="grid gap-6 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Allocation Name</h3>
-                  <p className="text-lg font-medium">{allocationDetails.name}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Due Date</h3>
-                  <p className="text-lg font-medium">
-                    {allocationDetails.dueDate ? format(new Date(allocationDetails.dueDate), 'PP') : 'No due date'}
-                  </p>
-                </div>
-                
-                <div className="col-span-2">
-                  <h3 className="text-sm font-medium text-muted-foreground">Description</h3>
-                  <p className="text-base">{allocationDetails.description || 'No description provided'}</p>
-                </div>
-                
-                <div className="col-span-2">
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Evaluation Template</h3>
-                  {evaluationTemplates?.filter(t => t.id === allocationDetails.evaluationTemplateId).map(template => (
-                    <div key={template.id} className="p-3 border rounded-md bg-muted/30">
-                      <div className="flex items-center">
-                        <ClipboardCheck className="h-5 w-5 mr-2 text-primary" />
-                        <p className="text-base font-medium">{template.name}</p>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">{template.description || 'No description'}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground mb-2">Quality Analyst Assignments</h3>
-                <Card>
-                  <CardContent className="p-4">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Employee ID</TableHead>
-                          <TableHead className="text-right">Assigned Files</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {allocationDetails.assignments?.map((assignment) => (
-                          <TableRow key={assignment.qualityAnalystId}>
-                            <TableCell className="font-medium">
-                              {qualityAnalysts?.find(qa => qa.id === assignment.qualityAnalystId)?.fullName || 'Unknown'}
-                            </TableCell>
-                            <TableCell>
-                              {qualityAnalysts?.find(qa => qa.id === assignment.qualityAnalystId)?.employeeId || '-'}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {assignment.fileCount}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground mb-2">Allocated Audio Files</h3>
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="max-h-64 overflow-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Filename</TableHead>
-                            <TableHead>Language</TableHead>
-                            <TableHead>Duration</TableHead>
-                            <TableHead>Assigned To</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {allocationDetails.files?.map((file) => (
-                            <TableRow key={file.id}>
-                              <TableCell className="flex items-center">
-                                <FileAudio className="h-4 w-4 mr-2 text-primary" />
-                                {file.originalFilename}
-                              </TableCell>
-                              <TableCell className="capitalize">{file.language}</TableCell>
-                              <TableCell>{formatDuration(file.duration)}</TableCell>
-                              <TableCell>
-                                {file.qualityAnalystId ? (
-                                  qualityAnalysts?.find(qa => qa.id === file.qualityAnalystId)?.fullName || 'Unknown'
-                                ) : 'Unassigned'}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <p>No details available for this allocation.</p>
-            </div>
-          )}
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDetailsDialogOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
