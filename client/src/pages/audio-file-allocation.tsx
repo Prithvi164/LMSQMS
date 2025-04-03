@@ -150,10 +150,6 @@ const AudioFileAllocation = () => {
     audioFileIds: []
   });
   
-  // Database state
-  const [selectedLanguage, setSelectedLanguage] = useState<string>('');
-  const [selectedVersion, setSelectedVersion] = useState<string>('');
-  
   // Azure storage state
   const [sourceTab, setSourceTab] = useState<'database' | 'azure'>('database');
   const [selectedContainer, setSelectedContainer] = useState<string | null>(null);
@@ -570,46 +566,12 @@ const AudioFileAllocation = () => {
                   <CardContent className="p-4">
                     {sourceTab === 'database' && (
                       <>
-                        <div className="grid grid-cols-2 gap-4 mb-4">
-                          <div>
-                            <Label className="mb-2">Language</Label>
-                            <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select language" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="all_languages">All Languages</SelectItem>
-                                <SelectItem value="english">English</SelectItem>
-                                <SelectItem value="spanish">Spanish</SelectItem>
-                                <SelectItem value="french">French</SelectItem>
-                                <SelectItem value="hindi">Hindi</SelectItem>
-                                <SelectItem value="other">Other</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <Label className="mb-2">Version</Label>
-                            <Select value={selectedVersion} onValueChange={setSelectedVersion}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select version" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="all_versions">All Versions</SelectItem>
-                                <SelectItem value="v1">Version 1</SelectItem>
-                                <SelectItem value="v2">Version 2</SelectItem>
-                                <SelectItem value="v3">Version 3</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        
                         <div className="flex justify-end mb-2">
                           <div className="flex items-center space-x-2">
                             <Checkbox 
                               id="selectAll" 
                               checked={selectAllFiles}
                               onCheckedChange={(checked) => setSelectAllFiles(checked === true)}
-                              disabled={!audioFiles || !Array.isArray(audioFiles) || audioFiles.length === 0}
                             />
                             <label htmlFor="selectAll" className="text-sm">Select All</label>
                           </div>
@@ -633,41 +595,31 @@ const AudioFileAllocation = () => {
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
-                                {audioFiles
-                                  .filter((file: AudioFile) => 
-                                    (selectedLanguage === 'all_languages' || !selectedLanguage || file.language === selectedLanguage) &&
-                                    (selectedVersion === 'all_versions' || !selectedVersion || file.version === selectedVersion)
-                                  )
-                                  .map((file: AudioFile) => (
-                                    <TableRow key={file.id} className={selectedFiles.includes(file.id) ? "bg-muted/50" : ""}>
-                                      <TableCell>
-                                        <Checkbox 
-                                          checked={selectedFiles.includes(file.id)}
-                                          onCheckedChange={() => handleToggleFile(file.id)}
-                                        />
-                                      </TableCell>
-                                      <TableCell className="flex items-center">
-                                        <FileAudio className="h-4 w-4 mr-2 text-primary" />
-                                        {file.originalFilename}
-                                      </TableCell>
-                                      <TableCell>{file.callMetrics?.callId || 'N/A'}</TableCell>
-                                      <TableCell className="capitalize">{file.language}</TableCell>
-                                      <TableCell>{file.version}</TableCell>
-                                      <TableCell>{formatDuration(file.duration)}</TableCell>
-                                    </TableRow>
-                                  ))}
+                                {audioFiles.map((file: AudioFile) => (
+                                  <TableRow key={file.id} className={selectedFiles.includes(file.id) ? "bg-muted/50" : ""}>
+                                    <TableCell>
+                                      <Checkbox 
+                                        checked={selectedFiles.includes(file.id)}
+                                        onCheckedChange={() => handleToggleFile(file.id)}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="flex items-center">
+                                      <FileAudio className="h-4 w-4 mr-2 text-primary" />
+                                      {file.originalFilename}
+                                    </TableCell>
+                                    <TableCell>{file.callMetrics?.callId || 'N/A'}</TableCell>
+                                    <TableCell className="capitalize">{file.language}</TableCell>
+                                    <TableCell>{file.version}</TableCell>
+                                    <TableCell>{formatDuration(file.duration)}</TableCell>
+                                  </TableRow>
+                                ))}
                               </TableBody>
                             </Table>
                           </div>
                         ) : (
-                          <div className="flex flex-col items-center justify-center py-8 text-center">
-                            <Database className="h-16 w-16 text-muted-foreground mb-4" />
-                            <p className="text-muted-foreground mb-2">No audio files available</p>
-                            <p className="text-sm text-muted-foreground max-w-md">
-                              {(selectedLanguage && selectedLanguage !== 'all_languages') || (selectedVersion && selectedVersion !== 'all_versions') 
-                                ? "No files match the selected filters. Try changing your selection."
-                                : "There are no unallocated audio files in the database. Import files from Azure Storage or upload new files."}
-                            </p>
+                          <div className="text-center py-8 text-muted-foreground">
+                            <FileAudio className="mx-auto h-12 w-12 mb-4 text-muted-foreground/50" />
+                            <p>No unallocated audio files found</p>
                           </div>
                         )}
                       </>
