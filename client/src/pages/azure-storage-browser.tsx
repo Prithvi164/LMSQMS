@@ -99,6 +99,10 @@ const AzureStorageBrowser = () => {
     refetch: refetchBlobs 
   } = useQuery({
     queryKey: ['/api/azure-blobs', selectedContainer],
+    queryFn: async () => {
+      if (!selectedContainer) return [];
+      return apiRequest(`/api/azure-blobs/${selectedContainer}`);
+    },
     enabled: !!selectedContainer,
     refetchOnWindowFocus: false,
   });
