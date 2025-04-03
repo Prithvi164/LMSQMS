@@ -857,38 +857,10 @@ export const organizationHolidaysRelations = relations(organizationHolidays, ({ 
   }),
 }));
 
-// Define the cloud storage provider enum
-export const cloudStorageProviderEnum = pgEnum('cloud_storage_provider', [
-  'azure',
-  'aws',
-  'gcp',
-  'local',
-  'other'
-]);
-
 export const organizations = pgTable("organizations", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  
-  // Generic cloud storage configuration
-  cloudStorageEnabled: boolean("cloud_storage_enabled").default(false).notNull(),
-  cloudStorageProvider: cloudStorageProviderEnum("cloud_storage_provider").default('local'),
-  cloudStorageConfig: jsonb("cloud_storage_config").$type<{
-    // Common properties
-    container?: string;
-    bucket?: string;
-    folder?: string;
-    
-    // Provider-specific properties
-    region?: string;
-    endpoint?: string;
-    accessKey?: string;
-    connectionString?: string;
-    
-    // Other properties
-    [key: string]: any;
-  }>(),
 });
 
 export type Organization = InferSelectModel<typeof organizations>;
@@ -1194,21 +1166,7 @@ export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organiz
     organizationId: z.number().int().positive("Organization is required"),
   });
 
-export const insertOrganizationSchema = createInsertSchema(organizations)
-  .omit({ id: true, createdAt: true })
-  .extend({
-    cloudStorageEnabled: z.boolean().default(false),
-    cloudStorageProvider: z.enum(['azure', 'aws', 'gcp', 'local', 'other']).default('local'),
-    cloudStorageConfig: z.object({
-      container: z.string().optional(),
-      bucket: z.string().optional(),
-      folder: z.string().optional(),
-      region: z.string().optional(),
-      endpoint: z.string().optional(),
-      accessKey: z.string().optional(),
-      connectionString: z.string().optional(),
-    }).optional(),
-  });
+export const insertOrganizationSchema = createInsertSchema(organizations).omit({ id: true, createdAt: true });
 
 export const insertUserSchema = createInsertSchema(users)
   .omit({ id: true, createdAt: true })

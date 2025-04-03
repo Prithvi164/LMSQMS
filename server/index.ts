@@ -1,6 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes as registerApiRoutes } from "./routes";
-import { registerRoutes as registerModularRoutes } from "./routes/index";
+import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import rateLimit from 'express-rate-limit';
 import { startBatchStatusCron } from './cron/batch-status-cron';
@@ -80,14 +79,9 @@ debugLog("Health check route added");
     debugLog("Starting async initialization");
 
     // Create HTTP server explicitly
-    debugLog("Registering API routes...");
-    const server = await registerApiRoutes(app);
-    debugLog("API routes registered successfully");
-    
-    // Register modular routes
-    debugLog("Registering modular routes...");
-    registerModularRoutes(app);
-    debugLog("Modular routes registered successfully");
+    debugLog("Registering routes...");
+    const server = await registerRoutes(app);
+    debugLog("Routes registered successfully");
 
     // Start the batch status update cron job
     debugLog("Starting batch status cron job...");
