@@ -343,13 +343,52 @@ router.post('/api/organizations/:organizationId/cloud-storage/test-connection',
         // Test a new configuration without saving it
         const config = cloudStorageConfigSchema.parse(req.body);
         
-        // A proper test would involve temporarily setting this configuration and testing it
-        // This is a simplified version
-        isConfigured = config.enabled && (
-          (config.provider === 'azure' && !!config.connectionString) ||
-          (config.provider === 'aws' && !!config.accessKey && !!config.secretKey) ||
-          (config.provider === 'local')
-        );
+        // Create a temporary configuration and test it
+        try {
+          // Save current configuration
+          const [currentConfig] = await db
+            .select({
+              provider: organizations.cloudStorageProvider,
+              config: organizations.cloudStorageConfig
+            })
+            .from(organizations)
+            .where(eq(organizations.id, organizationId));
+          
+          // Update with test configuration temporarily
+          await db
+            .update(organizations)
+            .set({
+              cloudStorageEnabled: config.enabled,
+              cloudStorageProvider: config.provider,
+              cloudStorageConfig: {
+                connectionString: config.connectionString,
+                container: config.container,
+                bucket: config.bucket, 
+                region: config.region,
+                folder: config.folder,
+                accessKey: config.accessKey,
+                secretKey: config.secretKey,
+                endpoint: config.endpoint
+              }
+            })
+            .where(eq(organizations.id, organizationId));
+          
+          // Test the configuration
+          isConfigured = await cloudStorage.isConfigured(organizationId);
+          
+          // Restore original configuration
+          await db
+            .update(organizations)
+            .set({
+              cloudStorageProvider: currentConfig.provider,
+              cloudStorageConfig: currentConfig.config
+            })
+            .where(eq(organizations.id, organizationId));
+            
+        } catch (error) {
+          console.error('Error during test connection:', error);
+          isConfigured = false;
+        }
       }
       
       res.json({ success: isConfigured });

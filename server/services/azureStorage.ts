@@ -54,9 +54,25 @@ class AzureStorageService {
         org.cloudStorageConfig.connectionString;
 
       // Get Azure-specific configuration
+      let connectionString = org.cloudStorageConfig?.connectionString || DEFAULT_AZURE_STORAGE_CONNECTION_STRING;
+      let containerName = org.cloudStorageConfig?.container || DEFAULT_AZURE_STORAGE_CONTAINER_NAME;
+      
+      // Handle environment variable references (e.g., "env:AZURE_STORAGE_CONNECTION_STRING")
+      if (connectionString && connectionString.startsWith('env:')) {
+        const envVar = connectionString.substring(4);
+        connectionString = process.env[envVar] || '';
+        console.log(`Using environment variable ${envVar} for connection string`);
+      }
+      
+      if (containerName && containerName.startsWith('env:')) {
+        const envVar = containerName.substring(4);
+        containerName = process.env[envVar] || '';
+        console.log(`Using environment variable ${envVar} for container name`);
+      }
+      
       return {
-        connectionString: org.cloudStorageConfig?.connectionString || DEFAULT_AZURE_STORAGE_CONNECTION_STRING,
-        containerName: org.cloudStorageConfig?.container || DEFAULT_AZURE_STORAGE_CONTAINER_NAME,
+        connectionString,
+        containerName,
         enabled: isAzureEnabled || false
       };
     } catch (error) {
@@ -96,6 +112,19 @@ class AzureStorageService {
       
       // Get container client
       const containerClient = blobServiceClient.getContainerClient(config.containerName);
+      
+      // Check if container exists, create it if it doesn't
+      try {
+        const containerExists = await containerClient.exists();
+        if (!containerExists) {
+          console.log(`Container ${config.containerName} does not exist. Creating it...`);
+          await containerClient.create();
+          console.log(`Container ${config.containerName} created successfully.`);
+        }
+      } catch (containerError) {
+        console.error(`Error checking/creating container:`, containerError);
+        throw new Error(`Failed to check/create container: ${containerError.message}`);
+      }
       
       // Cache the clients
       const clients = {

@@ -1,5 +1,5 @@
 import { BlobServiceClient, BlockBlobClient, BlobUploadCommonResponse } from '@azure/storage-blob';
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, ListObjectsV2Command, CreateBucketCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Readable } from 'stream';
 import fs from 'fs';
@@ -43,8 +43,22 @@ class AzureBlobStorageProvider implements CloudStorageProvider {
     try {
       if (!this.connectionString) return false;
       
-      // Try to get properties of the container to verify it exists and is accessible
-      await this.containerClient.getProperties();
+      // Check if container exists, create it if it doesn't
+      try {
+        // Try to get properties of the container to verify it exists and is accessible
+        await this.containerClient.getProperties();
+      } catch (containerError) {
+        if (containerError.statusCode === 404) {
+          // Container doesn't exist, create it
+          console.log(`Container ${this.containerName} does not exist. Creating it...`);
+          await this.containerClient.create();
+          console.log(`Container ${this.containerName} created successfully.`);
+        } else {
+          // If it's not a "not found" error, rethrow
+          throw containerError;
+        }
+      }
+      
       return true;
     } catch (error) {
       console.error('Azure Storage configuration check failed:', error);
@@ -171,11 +185,38 @@ class AwsS3StorageProvider implements CloudStorageProvider {
 
   async isConfigured(): Promise<boolean> {
     try {
-      // Try to list objects to verify bucket is accessible
-      await this.s3Client.send(new ListObjectsV2Command({
-        Bucket: this.bucketName,
-        MaxKeys: 1
-      }));
+      try {
+        // Try to list objects to verify bucket is accessible
+        await this.s3Client.send(new ListObjectsV2Command({
+          Bucket: this.bucketName,
+          MaxKeys: 1
+        }));
+      } catch (bucketError: any) {
+        // If bucket doesn't exist, create it (only for NoSuchBucket errors)
+        if (bucketError.name === 'NoSuchBucket') {
+          console.log(`Bucket ${this.bucketName} does not exist. Creating it...`);
+          
+          // Create the bucket
+          // Only include CreateBucketConfiguration if not in us-east-1 (default)
+          const createBucketParams: any = {
+            Bucket: this.bucketName
+          };
+          
+          // Only add location constraint for non-default regions
+          if (this.region !== 'us-east-1') {
+            createBucketParams.CreateBucketConfiguration = {
+              LocationConstraint: this.region
+            };
+          }
+          
+          await this.s3Client.send(new CreateBucketCommand(createBucketParams));
+          console.log(`Bucket ${this.bucketName} created successfully.`);
+        } else {
+          // If it's not a "bucket not found" error, rethrow
+          throw bucketError;
+        }
+      }
+      
       return true;
     } catch (error) {
       console.error('AWS S3 configuration check failed:', error);
@@ -492,10 +533,27 @@ class CloudStorageService {
         throw new Error(`Organization with ID ${organizationId} not found`);
       }
 
+      // Get the basic configuration
+      const provider = org.cloudStorageProvider;
+      const config = org.cloudStorageConfig || {};
+      const enabled = org.cloudStorageEnabled;
+      
+      // Process any environment variable references in the config
+      if (config) {
+        Object.keys(config).forEach(key => {
+          const value = config[key];
+          if (typeof value === 'string' && value.startsWith('env:')) {
+            const envVar = value.substring(4);
+            config[key] = process.env[envVar] || '';
+            console.log(`Using environment variable ${envVar} for ${key}`);
+          }
+        });
+      }
+      
       return {
-        provider: org.cloudStorageProvider,
-        config: org.cloudStorageConfig || {},
-        enabled: org.cloudStorageEnabled
+        provider,
+        config,
+        enabled
       };
     } catch (error) {
       console.error('Error fetching organization cloud storage config:', error);
