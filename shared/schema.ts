@@ -147,7 +147,7 @@ export const audioFileAllocations = pgTable("audio_file_allocations", {
   // Using created_at instead of allocation_date to match the existing database structure
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  dueDate: timestamp("due_date"),
+  // Removed dueDate that was causing issues
   status: audioFileStatusEnum("status").default('allocated').notNull(),
   allocatedBy: integer("allocated_by")
     .references(() => users.id)
@@ -559,8 +559,8 @@ export const insertAudioFileAllocationSchema = createInsertSchema(audioFileAlloc
   .extend({
     audioFileId: z.number().int().positive("Audio file is required"),
     qualityAnalystId: z.number().int().positive("Quality analyst is required"),
-    dueDate: z.date().optional(),
-    completedDate: z.date().optional(),
+    // Removed dueDate field that was causing the issue
+    // completedDate field also removed as it's not in the table
     status: z.enum(['pending', 'allocated', 'evaluated', 'archived']).default('allocated'),
     allocatedBy: z.number().int().positive("Allocator is required"),
     organizationId: z.number().int().positive("Organization is required"),
