@@ -101,7 +101,11 @@ const AzureStorageBrowser = () => {
     queryKey: ['/api/azure-blobs', selectedContainer],
     queryFn: async () => {
       if (!selectedContainer) return [];
-      return apiRequest(`/api/azure-blobs/${selectedContainer}`);
+      console.log(`Fetching blobs for container: ${selectedContainer}`);
+      const response = await apiRequest('GET', `/api/azure-blobs/${selectedContainer}`);
+      const data = await response.json();
+      console.log('Blob response:', data);
+      return data;
     },
     enabled: !!selectedContainer,
     refetchOnWindowFocus: false,
@@ -143,11 +147,7 @@ const AzureStorageBrowser = () => {
       formData.append('metadataFile', metadataFile);
       formData.append('processId', processId);
       
-      return apiRequest(`/api/azure-audio-import/${containerName}`, {
-        method: 'POST',
-        body: formData,
-        // Don't set Content-Type header, let the browser set it with the boundary
-      });
+      return apiRequest('POST', `/api/azure-audio-import/${containerName}`, formData);
     },
     onSuccess: () => {
       toast({
@@ -170,12 +170,10 @@ const AzureStorageBrowser = () => {
   // Allocate audio files mutation (this would need to be implemented)
   const allocateAudioMutation = useMutation({
     mutationFn: async ({ audioFileIds, qualityAnalystId, dueDate }: any) => {
-      return apiRequest('/api/azure-audio-allocate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ audioFileIds, qualityAnalystId, dueDate }),
+      return apiRequest('POST', '/api/azure-audio-allocate', { 
+        audioFileIds, 
+        qualityAnalystId, 
+        dueDate 
       });
     },
     onSuccess: () => {
@@ -268,7 +266,7 @@ const AzureStorageBrowser = () => {
               <div className="flex justify-center p-4">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
-            ) : containers?.length > 0 ? (
+            ) : Array.isArray(containers) && containers.length > 0 ? (
               <ScrollArea className="h-[400px]">
                 <div className="space-y-2">
                   {containers.map((container: Container) => (
@@ -452,7 +450,7 @@ const AzureStorageBrowser = () => {
               <div className="flex justify-center p-12">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
-            ) : blobs?.length > 0 ? (
+            ) : Array.isArray(blobs) && blobs.length > 0 ? (
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>

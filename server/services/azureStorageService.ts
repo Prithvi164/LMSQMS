@@ -67,20 +67,37 @@ export class AzureStorageService {
    * List all blobs in a container
    */
   async listBlobs(containerName: string): Promise<BlobItem[]> {
-    const containerClient = this.getContainerClient(containerName);
-    const blobs: BlobItem[] = [];
+    console.log(`Azure Service: Listing blobs in container "${containerName}"`);
+    
+    try {
+      const containerClient = this.getContainerClient(containerName);
+      
+      // Check if the container exists
+      const containerExists = await containerClient.exists();
+      if (!containerExists) {
+        console.log(`Container "${containerName}" does not exist`);
+        return [];
+      }
+      
+      const blobs: BlobItem[] = [];
 
-    // Create an async iterator
-    const asyncIterator = containerClient.listBlobsFlat();
-    let blobItem = await asyncIterator.next();
+      // Create an async iterator
+      console.log(`Iterating through blobs in container "${containerName}"`);
+      const asyncIterator = containerClient.listBlobsFlat();
+      let blobItem = await asyncIterator.next();
 
-    // Iterate through all blobs
-    while (!blobItem.done) {
-      blobs.push(blobItem.value);
-      blobItem = await asyncIterator.next();
+      // Iterate through all blobs
+      while (!blobItem.done) {
+        blobs.push(blobItem.value);
+        blobItem = await asyncIterator.next();
+      }
+
+      console.log(`Found ${blobs.length} blobs in container "${containerName}"`);
+      return blobs;
+    } catch (error) {
+      console.error(`Error listing blobs in container "${containerName}":`, error);
+      throw error;
     }
-
-    return blobs;
   }
 
   /**
@@ -146,7 +163,14 @@ export class AzureStorageService {
     // Parse audio metadata
     let duration = 0;
     try {
-      const metadata = await mm.parseStream(readableStream, {
+      // Use parseBuffer for Node.js compatibility
+      const chunks: Uint8Array[] = [];
+      for await (const chunk of readableStream) {
+        chunks.push(chunk);
+      }
+      const buffer = Buffer.concat(chunks);
+      
+      const metadata = await mm.parseBuffer(buffer, {
         mimeType: properties.contentType || 'audio/mpeg',
         size: properties.contentLength
       });

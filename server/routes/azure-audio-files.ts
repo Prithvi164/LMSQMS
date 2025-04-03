@@ -75,17 +75,29 @@ router.get('/azure-containers', async (req, res) => {
 
 // Get blobs in a container
 router.get('/azure-blobs/:containerName', async (req, res) => {
-  if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
-  if (!azureService) return res.status(503).json({ message: 'Azure service not available' });
+  console.log(`Received request for blobs in container: ${req.params.containerName}`);
+  
+  if (!req.user) {
+    console.log('User not authenticated for blob listing');
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+  
+  if (!azureService) {
+    console.log('Azure service not available for blob listing');
+    return res.status(503).json({ message: 'Azure service not available' });
+  }
   
   const { containerName } = req.params;
+  console.log(`Attempting to list blobs in container: ${containerName}`);
   
   try {
+    console.log(`Calling Azure service to list blobs for container: ${containerName}`);
     const blobs = await azureService.listBlobs(containerName);
+    console.log(`Retrieved ${blobs.length} blobs from container ${containerName}`);
     res.json(blobs);
   } catch (error) {
     console.error(`Error listing blobs in container ${containerName}:`, error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: error instanceof Error ? error.message : 'Unknown error occurred' });
   }
 });
 
