@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Loader2, RefreshCw, FolderOpen, File, Upload, Users } from 'lucide-react';
+import { Loader2, RefreshCw, FolderOpen, File, Upload, Users, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -79,6 +79,9 @@ const AzureStorageBrowser = () => {
   const [selectedQA, setSelectedQA] = useState<string>('');
   const [dueDate, setDueDate] = useState<string>('');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 5;
   
   const { toast } = useToast();
 
@@ -262,30 +265,134 @@ const AzureStorageBrowser = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="mb-4">
+              <Input 
+                placeholder="Search containers..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1); // Reset to first page on search
+                }}
+                className="mb-2"
+              />
+            </div>
             {isLoadingContainers ? (
               <div className="flex justify-center p-4">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : Array.isArray(containers) && containers.length > 0 ? (
               <ScrollArea className="h-[400px]">
-                <div className="space-y-2">
-                  {containers.map((container: Container) => (
-                    <div
-                      key={container.name}
-                      className={`flex items-center space-x-3 p-3 rounded-md cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 ${
-                        selectedContainer === container.name ? 'bg-gray-100 dark:bg-gray-800 border-l-4 border-primary' : ''
-                      }`}
-                      onClick={() => handleContainerClick(container.name)}
-                    >
-                      <FolderOpen className="h-5 w-5 text-blue-500" />
-                      <div>
-                        <p className="font-medium">{container.name}</p>
-                        <p className="text-xs text-gray-500">
-                          Last modified: {new Date(container.properties.lastModified).toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                <div className="space-y-4">
+                  {/* Group containers by time periods */}
+                  {(() => {
+                    // Filter and sort containers first
+                    const filteredContainers = containers
+                      .filter(container => 
+                        container.name.toLowerCase().includes(searchTerm.toLowerCase())
+                      )
+                      .sort((a, b) => 
+                        new Date(b.properties.lastModified).getTime() - 
+                        new Date(a.properties.lastModified).getTime()
+                      );
+                    
+                    // Calculate total pages
+                    const totalPages = Math.ceil(filteredContainers.length / ITEMS_PER_PAGE);
+                    
+                    // Get current page of containers
+                    const paginatedContainers = filteredContainers.slice(
+                      (currentPage - 1) * ITEMS_PER_PAGE, 
+                      currentPage * ITEMS_PER_PAGE
+                    );
+                    
+                    // Group containers by time periods
+                    const now = new Date();
+                    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    const thisWeekStart = new Date(today);
+                    thisWeekStart.setDate(today.getDate() - today.getDay());
+                    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                    
+                    // Create groups
+                    const groups: {[key: string]: Container[]} = {
+                      "Today": [],
+                      "This Week": [],
+                      "This Month": [],
+                      "Older": []
+                    };
+                    
+                    // Categorize containers
+                    paginatedContainers.forEach(container => {
+                      const modifiedDate = new Date(container.properties.lastModified);
+                      
+                      if (modifiedDate >= today) {
+                        groups["Today"].push(container);
+                      } else if (modifiedDate >= thisWeekStart) {
+                        groups["This Week"].push(container);
+                      } else if (modifiedDate >= thisMonthStart) {
+                        groups["This Month"].push(container);
+                      } else {
+                        groups["Older"].push(container);
+                      }
+                    });
+                    
+                    // Render groups with headings
+                    return (
+                      <>
+                        {Object.entries(groups).map(([groupName, groupContainers]) => 
+                          groupContainers.length > 0 && (
+                            <div key={groupName} className="mb-4">
+                              <h3 className="text-sm font-medium text-gray-500 mb-2">{groupName}</h3>
+                              <div className="space-y-2">
+                                {groupContainers.map((container: Container) => (
+                                  <div
+                                    key={container.name}
+                                    className={`flex items-center space-x-3 p-3 rounded-md cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 ${
+                                      selectedContainer === container.name ? 'bg-gray-100 dark:bg-gray-800 border-l-4 border-primary' : ''
+                                    }`}
+                                    onClick={() => handleContainerClick(container.name)}
+                                  >
+                                    <FolderOpen className="h-5 w-5 text-blue-500" />
+                                    <div>
+                                      <p className="font-medium">{container.name}</p>
+                                      <p className="text-xs text-gray-500">
+                                        Last modified: {new Date(container.properties.lastModified).toLocaleString()}
+                                      </p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )
+                        )}
+                        
+                        {/* Pagination Controls */}
+                        {totalPages > 1 && (
+                          <div className="flex items-center justify-between pt-4 border-t">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                              disabled={currentPage === 1}
+                            >
+                              <ChevronLeft className="h-4 w-4 mr-1" />
+                              Previous
+                            </Button>
+                            <div className="text-sm text-gray-500">
+                              Page {currentPage} of {totalPages}
+                            </div>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                              disabled={currentPage === totalPages}
+                            >
+                              Next
+                              <ChevronRight className="h-4 w-4 ml-1" />
+                            </Button>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </ScrollArea>
             ) : (
