@@ -89,15 +89,15 @@ async function parseExcelFile(filePath: string): Promise<AudioFileMetadata[]> {
           continue;
         }
         
-        // Get other fields with defaults
+        // Get other fields without defaults
         const language = (languageIndex >= 0 && row[languageIndex]) ? 
-          row[languageIndex].toString().toLowerCase() : 'english';
+          row[languageIndex].toString().toLowerCase() : null;
         
         const version = (versionIndex >= 0 && row[versionIndex]) ? 
-          row[versionIndex].toString() : '1.0';
+          row[versionIndex].toString() : null;
         
         let callDate = (dateIndex >= 0 && row[dateIndex]) ? 
-          row[dateIndex].toString() : new Date().toISOString().split('T')[0];
+          row[dateIndex].toString() : null;
         
         // Basic date parsing for common formats
         if (callDate) {
@@ -271,10 +271,11 @@ async function parseExcelFile(filePath: string): Promise<AudioFileMetadata[]> {
           normalizedRow[reqCol] = row[matchedKey];
           foundColumns[reqCol] = matchedKey;
         } else {
-          // If we can't find a required column, provide sensible defaults
-          if (reqCol === 'language') normalizedRow[reqCol] = 'english';
-          else if (reqCol === 'version') normalizedRow[reqCol] = '1.0';
-          else if (reqCol === 'call_date') normalizedRow[reqCol] = new Date().toISOString().split('T')[0];
+          // Don't provide defaults for columns that don't exist
+          // Only filename field is required, leave others as null if not found
+          if (reqCol !== 'filename') {
+            normalizedRow[reqCol] = null;
+          }
           // For filename we'll leave it undefined and handle the error later
         }
       }
@@ -313,17 +314,22 @@ async function parseExcelFile(filePath: string): Promise<AudioFileMetadata[]> {
         const row = rawData[i] as Record<string, any>;
         const normalizedRow = normalizeRow(row, i);
         
-        // Validate language is one of the supported values
+        // Validate language is one of the supported values if provided
         const validLanguages = ['english', 'spanish', 'french', 'hindi', 'other'];
-        let language = normalizedRow.language || 'english';
-        language = language.toString().toLowerCase();
-        if (!validLanguages.includes(language)) {
-          console.warn(`Warning: Row ${i + 1} has invalid language "${language}", defaulting to "english"`);
-          language = 'english';
+        let language = normalizedRow.language;
+        
+        // If language is provided, validate it
+        if (language) {
+          language = language.toString().toLowerCase();
+          if (!validLanguages.includes(language)) {
+            console.warn(`Warning: Row ${i + 1} has invalid language "${language}"`);
+            language = null;
+          }
         }
         
         // Handle date parsing and formatting
         let callDate = normalizedRow.call_date;
+        // Only process the date if it exists
         if (callDate) {
           // Try to parse different date formats
           try {
@@ -351,11 +357,9 @@ async function parseExcelFile(filePath: string): Promise<AudioFileMetadata[]> {
               }
             }
           } catch (e) {
-            console.warn(`Warning: Could not parse date "${callDate}" in row ${i + 1}, using today's date`);
-            callDate = new Date().toISOString().split('T')[0];
+            console.warn(`Warning: Could not parse date "${callDate}" in row ${i + 1}`);
+            callDate = null;
           }
-        } else {
-          callDate = new Date().toISOString().split('T')[0];
         }
         
         // Extract call metrics from the row for any additional fields
@@ -372,8 +376,8 @@ async function parseExcelFile(filePath: string): Promise<AudioFileMetadata[]> {
           filename: normalizedRow.filename.toString().trim(),
           originalFilename: normalizedRow.originalFilename || normalizedRow.filename,
           language: language as any,
-          version: (normalizedRow.version || '1.0').toString(),
-          call_date: callDate.toString(),
+          version: normalizedRow.version ? normalizedRow.version.toString() : null,
+          call_date: callDate ? callDate.toString() : null,
           callMetrics
         };
         
