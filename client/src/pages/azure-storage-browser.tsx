@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Table,
@@ -107,6 +108,7 @@ const AzureStorageBrowser = () => {
   const [folderSelectMode, setFolderSelectMode] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [folders, setFolders] = useState<string[]>([]);
+  const [autoAssign, setAutoAssign] = useState(false);
   const ITEMS_PER_PAGE = 5;
   
   const { toast } = useToast();
@@ -494,7 +496,10 @@ const AzureStorageBrowser = () => {
     mutationFn: async ({ containerName, metadataFile }: any) => {
       const formData = new FormData();
       formData.append('metadataFile', metadataFile);
-      // processId removed as requested
+      // Add autoAssign parameter if checked
+      if (autoAssign) {
+        formData.append('autoAssign', 'true');
+      }
       
       return apiRequest('POST', `/api/azure-audio-import/${containerName}`, formData);
     },
@@ -845,6 +850,22 @@ const AzureStorageBrowser = () => {
                             The Excel file only needs a <strong>filename</strong> column matching audio filenames in Azure. The system will automatically analyze audio files to extract duration.
                           </p>
                         </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <Checkbox 
+                            id="autoAssign" 
+                            checked={autoAssign}
+                            onCheckedChange={(checked: boolean | "indeterminate") => setAutoAssign(checked === true)}
+                          />
+                          <Label htmlFor="autoAssign" className="text-sm font-normal cursor-pointer">
+                            Auto-assign files to quality analysts
+                          </Label>
+                        </div>
+                        {autoAssign && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Imported files will be automatically distributed evenly among all active quality analysts in your organization.
+                          </p>
+                        )}
                       </div>
                       <DialogFooter>
                         <Button variant="outline" onClick={() => setImportDialogOpen(false)}>

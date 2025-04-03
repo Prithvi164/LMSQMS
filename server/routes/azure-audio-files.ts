@@ -3,7 +3,7 @@ import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import multer from 'multer';
 import { initAzureStorageService, AudioFileMetadata } from '../services/azureStorageService';
-import { audioFileAllocations, audioFiles, audioLanguageEnum } from '../../shared/schema';
+import { audioFileAllocations, audioFiles, audioLanguageEnum, users } from '../../shared/schema';
 import { db } from '../db';
 import { eq, and, inArray } from 'drizzle-orm';
 import { read as readXLSX, utils as xlsxUtils, write as writeXLSX } from 'xlsx';
@@ -541,7 +541,7 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
   
   const { containerName } = req.params;
   // ProcessId is now optional
-  const { processId } = req.body;
+  const { processId, autoAssign } = req.body;
   
   try {
     // First check if container exists
@@ -563,8 +563,28 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
     // Match with actual files in Azure and get enhanced metadata
     const enrichedItems = await azureService.matchAudioFilesWithMetadata(containerName, metadataItems);
     
+    // Get quality analysts for auto-assignment if requested
+    let qualityAnalysts = [];
+    if (autoAssign === 'true') {
+      qualityAnalysts = await db
+        .select()
+        .from(users)
+        .where(and(
+          eq(users.organizationId, req.user.organizationId),
+          eq(users.role, 'quality_analyst'),
+          eq(users.active, true)
+        ));
+      
+      if (qualityAnalysts.length === 0) {
+        return res.status(400).json({ 
+          message: 'Auto-assignment requested but no quality analysts found in the organization' 
+        });
+      }
+    }
+    
     // Store in database
     const importResults = [];
+    const successfulImports = [];
     
     for (const item of enrichedItems) {
       try {
@@ -601,6 +621,9 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
           status: 'success',
           id: audioFile.id
         });
+        
+        // Add to successful imports for auto-assignment
+        successfulImports.push(audioFile);
       } catch (error) {
         console.error(`Error importing ${item.filename}:`, error);
         importResults.push({
@@ -611,11 +634,66 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
       }
     }
     
+    // Auto-assign files to quality analysts if requested and successful imports exist
+    let assignmentResults = [];
+    if (autoAssign === 'true' && qualityAnalysts.length > 0 && successfulImports.length > 0) {
+      try {
+        // Distribute files evenly among quality analysts
+        const assignmentMap = new Map();
+        
+        // Initialize assignment map for each quality analyst
+        qualityAnalysts.forEach(qa => {
+          assignmentMap.set(qa.id, []);
+        });
+        
+        // Distribute files to quality analysts evenly
+        successfulImports.forEach((file, index) => {
+          const qaIndex = index % qualityAnalysts.length;
+          const qaId = qualityAnalysts[qaIndex].id;
+          assignmentMap.get(qaId).push(file.id);
+        });
+        
+        // Create allocations in the database
+        for (const [qaId, fileIds] of assignmentMap.entries()) {
+          if (fileIds.length > 0) {
+            for (const fileId of fileIds) {
+              const [allocation] = await db
+                .insert(audioFileAllocations)
+                .values({
+                  audioFileId: fileId,
+                  qualityAnalystId: qaId,
+                  status: 'allocated',
+                  allocatedBy: req.user.id,
+                  organizationId: req.user.organizationId
+                })
+                .returning();
+                
+              // Update audio file status to 'allocated'
+              await db
+                .update(audioFiles)
+                .set({ status: 'allocated' })
+                .where(eq(audioFiles.id, fileId));
+                
+              assignmentResults.push({
+                fileId,
+                qualityAnalystId: qaId,
+                allocationId: allocation.id
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error auto-assigning files:', error);
+      }
+    }
+    
     res.json({
       totalProcessed: enrichedItems.length,
       successCount: importResults.filter(r => r.status === 'success').length,
       errorCount: importResults.filter(r => r.status === 'error').length,
-      results: importResults
+      results: importResults,
+      autoAssigned: autoAssign === 'true' ? assignmentResults.length : 0,
+      assignmentResults: autoAssign === 'true' ? assignmentResults : []
     });
   } catch (error) {
     console.error('Error processing Azure audio file import:', error);

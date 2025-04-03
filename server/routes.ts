@@ -7056,6 +7056,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Add endpoint specifically for the client routes using quality-analysts
+  app.get("/api/users/quality-analysts", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const qualityAnalysts = await storage.getQualityAnalystsForAllocation(req.user.organizationId);
+      res.json(qualityAnalysts);
+    } catch (error: any) {
+      console.error("Error fetching quality analysts:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
   // Batch allocation endpoint
   app.post("/api/audio-file-batch-allocations", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
