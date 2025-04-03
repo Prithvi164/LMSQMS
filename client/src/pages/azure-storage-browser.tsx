@@ -790,10 +790,9 @@ const AzureStorageBrowser = () => {
                           Metadata Template
                         </a>
                       </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleDownloadGuide}>
-                        <FileText className="h-4 w-4 mr-2" />
-                        Template Guide
+                      <DropdownMenuItem onClick={handleDownloadFilenames}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download Filenames
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -867,14 +866,6 @@ const AzureStorageBrowser = () => {
                   <Button variant="outline" onClick={() => refetchBlobs()}>
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Refresh
-                  </Button>
-
-                  <Button 
-                    variant="outline" 
-                    onClick={handleDownloadFilenames}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Download Filenames
                   </Button>
                 </div>
               )}
