@@ -22,6 +22,7 @@ import { toIST, formatIST, toUTCStorage, formatISTDateOnly } from './utils/timez
 import { attendance } from "@shared/schema";
 import type { User } from "@shared/schema";
 import { updateBatchStatuses } from './services/batch-status-service';
+import azureAudioFilesRouter from './routes/azure-audio-files';
 
 // Helper function to check if a user has access to a specific batch or its template
 async function userHasBatchAccess(userId: number, batchId: number | null | undefined): Promise<boolean> {
@@ -202,6 +203,10 @@ const audioUpload = multer({
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes (/api/register, /api/login, /api/logout, /api/user)
   setupAuth(app);
+  
+  // Add Azure audio file routes
+  app.use('/api', azureAudioFilesRouter);
+  console.log("Azure audio file routes registered");
 
   // User routes - Add logging for debugging
   app.get("/api/user", (req, res) => {
