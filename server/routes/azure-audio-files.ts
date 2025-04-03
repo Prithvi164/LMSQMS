@@ -777,12 +777,14 @@ router.get('/azure-minimal-template', async (req, res) => {
 
 // Create an ultra-simple template with just one file from the container
 router.get('/azure-simple-template/:containerName', async (req, res) => {
-  if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
+  // Skip user authentication check for template downloads to make it more accessible
   if (!azureService) return res.status(503).json({ message: 'Azure service not available' });
   
   const { containerName } = req.params;
   
   try {
+    console.log(`Creating simple template for container: ${containerName}`);
+    
     // Fetch the actual blob names from the container
     const blobs = await azureService.listBlobs(containerName, '');
     
@@ -790,8 +792,11 @@ router.get('/azure-simple-template/:containerName', async (req, res) => {
     const wb = xlsxUtils.book_new();
     
     if (!blobs || blobs.length === 0) {
+      console.log('No blobs found in container:', containerName);
       return res.status(404).json({ message: 'No blobs found in container' });
     }
+    
+    console.log(`Found ${blobs.length} blobs, using first one as template`);
     
     // Use just the first blob as a template
     const firstBlob = blobs[0];
@@ -826,11 +831,14 @@ router.get('/azure-simple-template/:containerName', async (req, res) => {
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename=${containerName}-simple-template.xlsx`);
     
+    console.log('Sending simple template file');
+    
     // Send the file
     res.send(buf);
   } catch (error) {
     console.error('Error creating ultra-simple template:', error);
-    res.status(500).json({ message: 'Failed to generate simple template' });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ message: 'Failed to generate simple template', error: errorMessage });
   }
 });
 

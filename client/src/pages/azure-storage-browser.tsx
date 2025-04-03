@@ -315,13 +315,27 @@ const AzureStorageBrowser = () => {
       return;
     }
     
+    // Show loading toast
+    toast({
+      title: 'Generating Template',
+      description: 'Creating an ultra-simple template with just one file...',
+    });
+    
     try {
       // Use the direct API endpoint that generates a template with just one example file
+      console.log(`Downloading simple template for container: ${selectedContainer}`);
       const response = await fetch(`/api/azure-audio-files/azure-simple-template/${selectedContainer}`);
       
       if (!response.ok) {
-        throw new Error('Failed to download ultra-simple template');
+        // Try to get more detailed error information
+        const errorData = await response.json().catch(() => null);
+        console.error('Server response error:', response.status, errorData);
+        throw new Error(errorData?.message || 'Failed to download ultra-simple template');
       }
+      
+      // Check if we got an Excel file (content type)
+      const contentType = response.headers.get('content-type');
+      console.log('Response content type:', contentType);
       
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -338,6 +352,7 @@ const AzureStorageBrowser = () => {
         description: 'A template with just one file from your container has been downloaded.',
       });
     } catch (error) {
+      console.error('Error downloading ultra-simple template:', error);
       toast({
         title: 'Download Failed',
         description: error instanceof Error ? error.message : 'Failed to download ultra-simple template',
