@@ -861,6 +861,11 @@ export const organizations = pgTable("organizations", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  
+  // Azure Storage configuration
+  azureStorageEnabled: boolean("azure_storage_enabled").default(false).notNull(),
+  azureStorageConnectionString: text("azure_storage_connection_string"),
+  azureStorageContainerName: text("azure_storage_container_name").default('audio-files'),
 });
 
 export type Organization = InferSelectModel<typeof organizations>;
@@ -1166,7 +1171,13 @@ export const insertOrganizationLineOfBusinessSchema = createInsertSchema(organiz
     organizationId: z.number().int().positive("Organization is required"),
   });
 
-export const insertOrganizationSchema = createInsertSchema(organizations).omit({ id: true, createdAt: true });
+export const insertOrganizationSchema = createInsertSchema(organizations)
+  .omit({ id: true, createdAt: true })
+  .extend({
+    azureStorageEnabled: z.boolean().default(false),
+    azureStorageConnectionString: z.string().optional(),
+    azureStorageContainerName: z.string().default('audio-files')
+  });
 
 export const insertUserSchema = createInsertSchema(users)
   .omit({ id: true, createdAt: true })
