@@ -12,10 +12,8 @@ import {
   Calendar,
   FileDown,
   ArrowLeft,
-  Folder,
-  FileAudio
+  Folder
 } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -334,29 +332,6 @@ const AzureStorageBrowser = () => {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-  
-  // Extract call ID from filename
-  const extractCallId = (filename: string): string => {
-    // Check if it's in the format agent-261-... pattern
-    const agentIdMatch = filename.match(/agent-(\d+)/i);
-    if (agentIdMatch && agentIdMatch[1]) {
-      return agentIdMatch[1];
-    }
-    
-    // Check for explicit call ID in filename
-    const callIdMatch = filename.match(/callid[-_]?(\d+)/i);
-    if (callIdMatch && callIdMatch[1]) {
-      return callIdMatch[1];
-    }
-    
-    // Fallback to searching for any number pattern
-    const anyNumberMatch = filename.match(/\d{3,}/);
-    if (anyNumberMatch) {
-      return anyNumberMatch[0];
-    }
-    
-    return 'N/A';
   };
 
   return (
@@ -747,59 +722,40 @@ const AzureStorageBrowser = () => {
               </div>
             ) : Array.isArray(blobs) && blobs.length > 0 ? (
               <div className="rounded-md border">
-                <div className="flex justify-between items-center mb-2">
-                  <Label>Select Audio Files</Label>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="selectAllBlobs" 
-                      checked={selectedBlobItems.length > 0 && blobs && selectedBlobItems.length === blobs.length}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setSelectedBlobItems(blobs.map(blob => blob.name));
-                        } else {
-                          setSelectedBlobItems([]);
-                        }
-                      }}
-                    />
-                    <label htmlFor="selectAllBlobs" className="text-sm">Select All</label>
-                  </div>
-                </div>
-                
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-12"></TableHead>
-                      <TableHead>Filename</TableHead>
-                      <TableHead>Call ID</TableHead>
-                      <TableHead>Language</TableHead>
-                      <TableHead>Version</TableHead>
-                      <TableHead>Duration</TableHead>
+                      <TableHead className="w-12">
+                        <span className="sr-only">Select</span>
+                      </TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Size</TableHead>
+                      <TableHead>Last Modified</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {blobs.map((blob: BlobItem) => (
-                      <TableRow 
-                        key={blob.name} 
-                        className={selectedBlobItems.includes(blob.name) ? "bg-muted/50" : ""}
-                      >
+                      <TableRow key={blob.name}>
                         <TableCell>
-                          <Checkbox 
+                          <input
+                            type="checkbox"
                             checked={selectedBlobItems.includes(blob.name)}
-                            onCheckedChange={() => handleBlobSelection(blob.name)}
+                            onChange={() => handleBlobSelection(blob.name)}
+                            className="rounded border-gray-300"
                           />
                         </TableCell>
                         <TableCell className="font-medium">
-                          <div className="flex items-center">
-                            <FileAudio className="h-4 w-4 mr-2 text-primary" />
+                          <div className="flex items-center space-x-2">
+                            <File className="h-4 w-4 text-gray-500" />
                             <span className="truncate max-w-[200px]" title={blob.name}>
                               {blob.name}
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell>{extractCallId(blob.name) || 'N/A'}</TableCell>
-                        <TableCell>English</TableCell>
-                        <TableCell>v1.0</TableCell>
-                        <TableCell>0:00</TableCell>
+                        <TableCell>{blob.properties.contentType || 'application/octet-stream'}</TableCell>
+                        <TableCell>{formatFileSize(blob.properties.contentLength)}</TableCell>
+                        <TableCell>{new Date(blob.properties.lastModified).toLocaleString()}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

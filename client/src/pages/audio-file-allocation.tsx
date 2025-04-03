@@ -18,89 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Spinner } from '@/components/ui/spinner';
 import { format } from 'date-fns';
-import { 
-  CalendarIcon, 
-  Check, 
-  FileAudio, 
-  Plus, 
-  Settings, 
-  Headphones, 
-  RefreshCw, 
-  Filter, 
-  FolderOpen, 
-  Cloud,
-  Download,
-  Database
-} from 'lucide-react';
-
-// Type definitions
-interface Container {
-  name: string;
-  properties: {
-    lastModified: string;
-    etag: string;
-    leaseStatus: string;
-    leaseState: string;
-    [key: string]: any;
-  };
-}
-
-interface BlobItem {
-  name: string;
-  properties: {
-    createdOn: string;
-    lastModified: string;
-    contentLength: number;
-    contentType: string;
-    [key: string]: any;
-  };
-}
-
-interface AudioFile {
-  id: number;
-  originalFilename: string;
-  language: string;
-  version: string;
-  duration: number;
-  callMetrics?: {
-    callId: string;
-    [key: string]: any;
-  };
-  [key: string]: any;
-}
-
-interface QualityAnalyst {
-  id: number;
-  fullName: string;
-  employeeId: string;
-  role: string;
-  [key: string]: any;
-}
-
-interface AllocationData {
-  name: string;
-  description: string;
-  dueDate: Date;
-  filters: {
-    language: string;
-    version: string;
-    duration: string;
-    callType: string;
-    minCsat: number;
-    maxCsat: number;
-  };
-  qualityAnalysts: Array<{id: number, count: number}>;
-  audioFileIds: number[];
-}
-
-interface Filters {
-  language: string;
-  version: string;
-  duration: string;
-  callType: string;
-  status: string;
-  allocatedTo: string;
-}
+import { CalendarIcon, Check, FileAudio, Plus, Settings, Headphones, RefreshCw, Filter } from 'lucide-react';
 
 // Helper functions
 const formatDuration = (seconds: number) => {
@@ -118,26 +36,14 @@ const getAllocationStatusColor = (allocatedCount: number, totalCount: number) =>
 const AudioFileAllocation = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  
-  // State
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<number[]>([]);
-  const [selectedAzureFiles, setSelectedAzureFiles] = useState<string[]>([]);
-  const [selectAllFiles, setSelectAllFiles] = useState(false);
-  const [selectAllAzureFiles, setSelectAllAzureFiles] = useState(false);
-  const [filters, setFilters] = useState<Filters>({
-    language: '',
-    version: '',
-    duration: '',
-    callType: '',
-    status: '',
-    allocatedTo: ''
-  });
-  const [allocationData, setAllocationData] = useState<AllocationData>({
+  const [activeTab, setActiveTab] = useState('active');
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [allocationData, setAllocationData] = useState({
     name: '',
     description: '',
-    dueDate: new Date(),
+    dueDate: selectedDate,
     filters: {
       language: '',
       version: '',
@@ -146,107 +52,90 @@ const AudioFileAllocation = () => {
       minCsat: 0,
       maxCsat: 5
     },
-    qualityAnalysts: [],
-    audioFileIds: []
+    qualityAnalysts: [] as { id: number, count: number }[],
+    audioFileIds: [] as number[]
   });
-  
-  // Azure storage state
-  const [sourceTab, setSourceTab] = useState<'database' | 'azure'>('database');
-  const [selectedContainer, setSelectedContainer] = useState<string | null>(null);
-  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
-  
-  // Data fetching
-  const { data: audioFiles = [], isLoading: loadingAudioFiles, refetch: refetchAudioFiles } = useQuery({
-    queryKey: ['/api/organizations', user?.organizationId, 'audio-files', 'unallocated'],
+  const [selectedFiles, setSelectedFiles] = useState<number[]>([]);
+  const [selectAllFiles, setSelectAllFiles] = useState(false);
+  const [filters, setFilters] = useState({
+    language: '',
+    version: '',
+    duration: '',
+    callType: '',
+    status: '',
+    allocatedTo: ''
+  });
+
+  // Query for fetching available audio files for allocation
+  const { data: audioFiles, isLoading: loadingAudioFiles, refetch: refetchAudioFiles } = useQuery({
+    queryKey: ['/api/organizations/' + user?.organizationId + '/audio-files', filters],
     enabled: !!user?.organizationId,
   });
-  
-  const { data: qualityAnalysts = [], isLoading: loadingQualityAnalysts } = useQuery({
-    queryKey: ['/api/users/quality-analysts'],
+
+  // Query for fetching allocations
+  const { data: allocations, isLoading: loadingAllocations, refetch: refetchAllocations } = useQuery({
+    queryKey: ['/api/organizations/' + user?.organizationId + '/audio-file-allocations', activeTab],
     enabled: !!user?.organizationId,
   });
-  
-  const { data: allocations = [], isLoading: loadingAllocations, refetch: refetchAllocations } = useQuery({
-    queryKey: ['/api/organizations', user?.organizationId, 'audio-file-allocations'],
+
+  // Query for fetching quality analysts
+  const { data: qualityAnalysts } = useQuery({
+    queryKey: ['/api/users/quality-analysts', user?.organizationId],
     enabled: !!user?.organizationId,
   });
-  
-  // Azure storage data fetching
-  const { data: containers = [], isLoading: loadingContainers } = useQuery({
-    queryKey: ['/api/azure/containers'],
-    enabled: sourceTab === 'azure',
-  });
-  
-  const { data: blobs = [], isLoading: loadingBlobs } = useQuery({
-    queryKey: ['/api/azure/blobs', selectedContainer],
-    enabled: !!selectedContainer && sourceTab === 'azure',
-  });
-  
+
   // Mutations
   const createAllocationMutation = useMutation({
-    mutationFn: (data: any) => apiRequest('/api/organizations/' + user?.organizationId + '/audio-file-allocations', 'POST', data),
+    mutationFn: async (data: any) => {
+      return apiRequest('POST', '/api/audio-file-allocations', data);
+    },
     onSuccess: () => {
       toast({
-        title: 'Allocation Created',
-        description: 'The audio files have been successfully allocated to quality analysts',
+        title: 'Success',
+        description: 'Allocation created successfully',
       });
-      
       setCreateDialogOpen(false);
       resetAllocationForm();
-      queryClient.invalidateQueries({
-        queryKey: ['/api/organizations', user?.organizationId, 'audio-file-allocations']
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['/api/organizations', user?.organizationId, 'audio-files', 'unallocated']
-      });
+      queryClient.invalidateQueries({ queryKey: ['/api/organizations/' + user?.organizationId + '/audio-file-allocations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/organizations/' + user?.organizationId + '/audio-files'] });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to create allocation',
+        description: `Failed to create allocation: ${error.toString()}`,
         variant: 'destructive',
       });
     }
   });
-  
-  const importAzureFilesMutation = useMutation({
-    mutationFn: (data: {files: string[], container: string}) => 
-      apiRequest('/api/azure/import-files', 'POST', data),
+
+  const updateAllocationStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: number, status: string }) => {
+      return apiRequest('PATCH', `/api/audio-file-allocations/${id}`, { status });
+    },
     onSuccess: () => {
       toast({
-        title: 'Files Imported',
-        description: 'The audio files have been successfully imported from Azure Storage',
+        title: 'Success',
+        description: 'Allocation status updated successfully',
       });
-      
-      setSelectedAzureFiles([]);
-      queryClient.invalidateQueries({
-        queryKey: ['/api/organizations', user?.organizationId, 'audio-files', 'unallocated']
-      });
+      refetchAllocations();
+      refetchAudioFiles();
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to import files from Azure Storage',
+        description: `Failed to update allocation status: ${error.toString()}`,
         variant: 'destructive',
       });
     }
   });
 
   useEffect(() => {
-    if (selectAllFiles && audioFiles && Array.isArray(audioFiles)) {
-      setSelectedFiles(audioFiles.map((file: AudioFile) => file.id));
+    if (selectAllFiles && audioFiles) {
+      setSelectedFiles(audioFiles.map(file => file.id));
     } else if (!selectAllFiles) {
       setSelectedFiles([]);
     }
   }, [selectAllFiles, audioFiles]);
-  
-  useEffect(() => {
-    if (selectAllAzureFiles && blobs && Array.isArray(blobs)) {
-      setSelectedAzureFiles(blobs.map((blob: BlobItem) => blob.name));
-    } else if (!selectAllAzureFiles) {
-      setSelectedAzureFiles([]);
-    }
-  }, [selectAllAzureFiles, blobs]);
 
   useEffect(() => {
     setAllocationData(prev => ({
@@ -254,58 +143,6 @@ const AudioFileAllocation = () => {
       audioFileIds: selectedFiles
     }));
   }, [selectedFiles]);
-  
-  // Helper functions for Azure
-  const handleToggleAzureFile = (fileName: string) => {
-    if (selectedAzureFiles.includes(fileName)) {
-      setSelectedAzureFiles(selectedAzureFiles.filter(name => name !== fileName));
-    } else {
-      setSelectedAzureFiles([...selectedAzureFiles, fileName]);
-    }
-  };
-  
-  const handleImportAzureFiles = () => {
-    if (selectedAzureFiles.length === 0) {
-      toast({
-        title: 'Error',
-        description: 'Please select at least one file to import',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    if (!selectedContainer) {
-      toast({
-        title: 'Error',
-        description: 'No container selected',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    importAzureFilesMutation.mutate({
-      files: selectedAzureFiles,
-      container: selectedContainer
-    });
-  };
-  
-  const handleContainerChange = (container: string) => {
-    setSelectedContainer(container);
-    setSelectedFolder(null);
-    setSelectedAzureFiles([]);
-  };
-  
-  const handleFolderChange = (folder: string | null) => {
-    setSelectedFolder(folder);
-    setSelectedAzureFiles([]);
-  };
-  
-  const extractCallId = (fileName: string) => {
-    // Extract call ID from filename
-    // Pattern: <anything>_<callId>_<anything>
-    const match = fileName.match(/_([A-Za-z0-9]+)_/);
-    return match ? match[1] : 'N/A';
-  };
 
   const resetAllocationForm = () => {
     setAllocationData({
@@ -474,7 +311,7 @@ const AudioFileAllocation = () => {
                       <Calendar
                         mode="single"
                         selected={allocationData.dueDate}
-                        onSelect={(date) => setAllocationData({...allocationData, dueDate: date!})}
+                        onSelect={(date) => setAllocationData({...allocationData, dueDate: date})}
                         initialFocus
                       />
                     </PopoverContent>
@@ -503,45 +340,43 @@ const AudioFileAllocation = () => {
                 <Card>
                   <CardContent className="p-4">
                     <div className="grid grid-cols-2 gap-4">
-                      {qualityAnalysts && Array.isArray(qualityAnalysts) ? 
-                        qualityAnalysts.filter((qa: QualityAnalyst) => qa.role === 'quality_analyst').map((analyst: QualityAnalyst) => (
-                          <div key={analyst.id} className="flex items-center justify-between border p-2 rounded-md">
-                            <div>
-                              <p className="font-medium">{analyst.fullName}</p>
-                              <p className="text-sm text-muted-foreground">{analyst.employeeId}</p>
-                            </div>
-                            <div className="flex items-center">
-                              <Button 
-                                variant="outline" 
-                                size="icon" 
-                                className="h-8 w-8"
-                                onClick={() => {
-                                  const current = allocationData.qualityAnalysts.find(a => a.id === analyst.id)?.count || 0;
-                                  handleQualityAnalystChange(analyst.id, Math.max(0, current - 1));
-                                }}
-                              >
-                                -
-                              </Button>
-                              <span className="w-12 text-center">
-                                {allocationData.qualityAnalysts.find(a => a.id === analyst.id)?.count || 0}
-                              </span>
-                              <Button 
-                                variant="outline" 
-                                size="icon" 
-                                className="h-8 w-8"
-                                onClick={() => {
-                                  const current = allocationData.qualityAnalysts.find(a => a.id === analyst.id)?.count || 0;
-                                  handleQualityAnalystChange(analyst.id, current + 1);
-                                }}
-                              >
-                                +
-                              </Button>
-                            </div>
+                      {qualityAnalysts?.filter(qa => qa.role === 'quality_analyst').map((analyst) => (
+                        <div key={analyst.id} className="flex items-center justify-between border p-2 rounded-md">
+                          <div>
+                            <p className="font-medium">{analyst.fullName}</p>
+                            <p className="text-sm text-muted-foreground">{analyst.employeeId}</p>
                           </div>
-                        ))
-                      : null}
+                          <div className="flex items-center">
+                            <Button 
+                              variant="outline" 
+                              size="icon" 
+                              className="h-8 w-8"
+                              onClick={() => {
+                                const current = allocationData.qualityAnalysts.find(a => a.id === analyst.id)?.count || 0;
+                                handleQualityAnalystChange(analyst.id, Math.max(0, current - 1));
+                              }}
+                            >
+                              -
+                            </Button>
+                            <span className="w-12 text-center">
+                              {allocationData.qualityAnalysts.find(a => a.id === analyst.id)?.count || 0}
+                            </span>
+                            <Button 
+                              variant="outline" 
+                              size="icon" 
+                              className="h-8 w-8"
+                              onClick={() => {
+                                const current = allocationData.qualityAnalysts.find(a => a.id === analyst.id)?.count || 0;
+                                handleQualityAnalystChange(analyst.id, current + 1);
+                              }}
+                            >
+                              +
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
                       
-                      {(!qualityAnalysts || (qualityAnalysts && Array.isArray(qualityAnalysts) && qualityAnalysts.filter((qa: QualityAnalyst) => qa.role === 'quality_analyst').length === 0)) && (
+                      {!qualityAnalysts || qualityAnalysts.filter(qa => qa.role === 'quality_analyst').length === 0 && (
                         <div className="col-span-2 text-center py-4 text-muted-foreground">
                           No quality analysts available
                         </div>
@@ -554,252 +389,66 @@ const AudioFileAllocation = () => {
               <div className="space-y-2">
                 <div className="flex justify-between items-center mb-2">
                   <Label>Select Audio Files</Label>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="selectAll" 
+                      checked={selectAllFiles}
+                      onCheckedChange={(checked) => setSelectAllFiles(checked === true)}
+                    />
+                    <label htmlFor="selectAll" className="text-sm">Select All</label>
+                  </div>
                 </div>
                 
-                <Tabs value={sourceTab} onValueChange={(value) => setSourceTab(value as 'database' | 'azure')} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 mb-4">
-                    <TabsTrigger value="database">
-                      <Database className="mr-2 h-4 w-4" />
-                      Database
-                    </TabsTrigger>
-                    <TabsTrigger value="azure">
-                      <Cloud className="mr-2 h-4 w-4" />
-                      Azure Storage
-                    </TabsTrigger>
-                  </TabsList>
-                
-                  <Card>
-                    <CardContent className="p-4">
-                    <TabsContent value="database">
-                        <div className="flex justify-end mb-2">
-                          <div className="flex items-center space-x-2">
-                            <Checkbox 
-                              id="selectAll" 
-                              checked={selectAllFiles}
-                              onCheckedChange={(checked) => setSelectAllFiles(checked === true)}
-                            />
-                            <label htmlFor="selectAll" className="text-sm">Select All</label>
-                          </div>
-                        </div>
-                        
-                        {loadingAudioFiles ? (
-                          <div className="flex justify-center items-center py-8">
-                            <Spinner className="h-8 w-8" />
-                          </div>
-                        ) : audioFiles && Array.isArray(audioFiles) && audioFiles.length > 0 ? (
-                          <div className="max-h-64 overflow-auto">
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead className="w-12"></TableHead>
-                                  <TableHead>Filename</TableHead>
-                                  <TableHead>Call ID</TableHead>
-                                  <TableHead>Language</TableHead>
-                                  <TableHead>Version</TableHead>
-                                  <TableHead>Duration</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {audioFiles.map((file: AudioFile) => (
-                                  <TableRow key={file.id} className={selectedFiles.includes(file.id) ? "bg-muted/50" : ""}>
-                                    <TableCell>
-                                      <Checkbox 
-                                        checked={selectedFiles.includes(file.id)}
-                                        onCheckedChange={() => handleToggleFile(file.id)}
-                                      />
-                                    </TableCell>
-                                    <TableCell className="flex items-center">
-                                      <FileAudio className="h-4 w-4 mr-2 text-primary" />
-                                      {file.originalFilename}
-                                    </TableCell>
-                                    <TableCell>{file.callMetrics?.callId || 'N/A'}</TableCell>
-                                    <TableCell className="capitalize">{file.language}</TableCell>
-                                    <TableCell>{file.version}</TableCell>
-                                    <TableCell>{formatDuration(file.duration)}</TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        ) : (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <FileAudio className="mx-auto h-12 w-12 mb-4 text-muted-foreground/50" />
-                            <p>No unallocated audio files found</p>
-                          </div>
-                        )}
-                      </TabsContent>
-                    
-                    <TabsContent value="azure">
-                        <div className="flex space-x-2 mb-4">
-                          <div className="w-1/2">
-                            <Label className="mb-2 block">Container</Label>
-                            <Select
-                              value={selectedContainer || ''}
-                              onValueChange={handleContainerChange}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select container" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {loadingContainers ? (
-                                  <SelectItem value="loading" disabled>
-                                    Loading containers...
-                                  </SelectItem>
-                                ) : containers && Array.isArray(containers) && containers.length > 0 ? (
-                                  containers.map((container: Container) => (
-                                    <SelectItem key={container.name} value={container.name}>
-                                      {container.name}
-                                    </SelectItem>
-                                  ))
-                                ) : (
-                                  <SelectItem value="none" disabled>
-                                    No containers available
-                                  </SelectItem>
-                                )}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          
-                          <div className="w-1/2">
-                            <Label className="mb-2 block">Folder</Label>
-                            <Select
-                              value={selectedFolder || ''}
-                              onValueChange={(value) => handleFolderChange(value === 'root' ? null : value)}
-                              disabled={!selectedContainer || loadingBlobs}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select folder" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="root">Root (No folder)</SelectItem>
-                                {blobs && Array.isArray(blobs) && selectedContainer && (
-                                  Array.from(
-                                    new Set(
-                                      blobs
-                                        .filter((blob: BlobItem) => blob.name.includes('/'))
-                                        .map((blob: BlobItem) => blob.name.split('/')[0])
-                                    )
-                                  ).map((folder: string) => (
-                                    <SelectItem key={folder} value={folder}>
-                                      {folder}
-                                    </SelectItem>
-                                  ))
-                                )}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        
-                        <div className="flex justify-between items-center mb-2">
-                          <p className="text-sm text-muted-foreground">
-                            {selectedContainer && blobs && Array.isArray(blobs) && blobs.length
-                              ? `${blobs.length} files found${selectedFolder ? ` in ${selectedFolder}` : ''}` 
-                              : 'Select a container to view files'}
-                          </p>
-                          <div className="flex items-center space-x-2">
-                            <Checkbox 
-                              id="selectAllAzure" 
-                              checked={selectAllAzureFiles}
-                              onCheckedChange={(checked) => setSelectAllAzureFiles(checked === true)}
-                              disabled={!selectedContainer || !blobs || !Array.isArray(blobs) || blobs.length === 0}
-                            />
-                            <label htmlFor="selectAllAzure" className="text-sm">Select All</label>
-                          </div>
-                        </div>
-                        
-                        {loadingBlobs ? (
-                          <div className="flex justify-center items-center py-8">
-                            <Spinner className="h-8 w-8" />
-                          </div>
-                        ) : selectedContainer && blobs && Array.isArray(blobs) && blobs.length > 0 ? (
-                          <>
-                            <div className="max-h-64 overflow-auto">
-                              <Table>
-                                <TableHeader>
-                                  <TableRow>
-                                    <TableHead className="w-12"></TableHead>
-                                    <TableHead>Filename</TableHead>
-                                    <TableHead>Size</TableHead>
-                                    <TableHead>Call ID</TableHead>
-                                    <TableHead>Last Modified</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {blobs
-                                    .filter((blob: BlobItem) => 
-                                      !selectedFolder ? 
-                                        !blob.name.includes('/') : 
-                                        blob.name.startsWith(`${selectedFolder}/`) && blob.name.split('/').length === 2
-                                    )
-                                    .map((blob: BlobItem) => {
-                                      const displayName = selectedFolder ? 
-                                        blob.name.split('/')[1] : 
-                                        blob.name;
-                                      return (
-                                        <TableRow 
-                                          key={blob.name} 
-                                          className={selectedAzureFiles.includes(blob.name) ? "bg-muted/50" : ""}
-                                        >
-                                          <TableCell>
-                                            <Checkbox 
-                                              checked={selectedAzureFiles.includes(blob.name)}
-                                              onCheckedChange={() => handleToggleAzureFile(blob.name)}
-                                            />
-                                          </TableCell>
-                                          <TableCell className="flex items-center">
-                                            <FileAudio className="h-4 w-4 mr-2 text-primary" />
-                                            {displayName}
-                                          </TableCell>
-                                          <TableCell>
-                                            {Math.round(blob.properties.contentLength / 1024)} KB
-                                          </TableCell>
-                                          <TableCell>{extractCallId(blob.name)}</TableCell>
-                                          <TableCell>
-                                            {new Date(blob.properties.lastModified).toLocaleDateString()}
-                                          </TableCell>
-                                        </TableRow>
-                                      );
-                                    })
-                                  }
-                                </TableBody>
-                              </Table>
-                            </div>
-                            
-                            <div className="flex justify-end mt-4">
-                              <Button 
-                                onClick={handleImportAzureFiles}
-                                disabled={selectedAzureFiles.length === 0 || importAzureFilesMutation.isPending}
-                                size="sm"
-                              >
-                                {importAzureFilesMutation.isPending ? (
-                                  <>
-                                    <Spinner className="mr-2 h-4 w-4" />
-                                    Importing...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Download className="mr-2 h-4 w-4" />
-                                    Import Selected Files
-                                  </>
-                                )}
-                              </Button>
-                            </div>
-                          </>
-                        ) : selectedContainer ? (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <FileAudio className="mx-auto h-12 w-12 mb-4 text-muted-foreground/50" />
-                            <p>No audio files found in this container{selectedFolder ? ` or folder` : ''}</p>
-                          </div>
-                        ) : (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <Database className="mx-auto h-12 w-12 mb-4 text-muted-foreground/50" />
-                            <p>Select a container to view files</p>
-                          </div>
-                        )}
-                    </TabsContent>
-                  </Tabs>
-                </CardContent>
-              </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    {loadingAudioFiles ? (
+                      <div className="flex justify-center items-center py-8">
+                        <Spinner className="h-8 w-8" />
+                      </div>
+                    ) : audioFiles && audioFiles.length > 0 ? (
+                      <div className="max-h-64 overflow-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-12"></TableHead>
+                              <TableHead>Filename</TableHead>
+                              <TableHead>Call ID</TableHead>
+                              <TableHead>Language</TableHead>
+                              <TableHead>Version</TableHead>
+                              <TableHead>Duration</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {audioFiles.map((file) => (
+                              <TableRow key={file.id} className={selectedFiles.includes(file.id) ? "bg-muted/50" : ""}>
+                                <TableCell>
+                                  <Checkbox 
+                                    checked={selectedFiles.includes(file.id)}
+                                    onCheckedChange={() => handleToggleFile(file.id)}
+                                  />
+                                </TableCell>
+                                <TableCell className="flex items-center">
+                                  <FileAudio className="h-4 w-4 mr-2 text-primary" />
+                                  {file.originalFilename}
+                                </TableCell>
+                                <TableCell>{file.callMetrics?.callId || 'N/A'}</TableCell>
+                                <TableCell className="capitalize">{file.language}</TableCell>
+                                <TableCell>{file.version}</TableCell>
+                                <TableCell>{formatDuration(file.duration)}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <FileAudio className="mx-auto h-12 w-12 mb-4 text-muted-foreground/50" />
+                        <p>No unallocated audio files found</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             </div>
             
             <DialogFooter>
@@ -847,151 +496,231 @@ const AudioFileAllocation = () => {
               <SheetHeader>
                 <SheetTitle>Filters</SheetTitle>
                 <SheetDescription>
-                  Filter audio file allocations by various criteria
+                  Filter allocations and audio files
                 </SheetDescription>
               </SheetHeader>
               
               <div className="grid gap-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="status">Status</Label>
-                  <Select 
-                    value={filters.status} 
-                    onValueChange={(value) => handleFilterChange('status', value)}
-                  >
+                  <Label htmlFor="filter-language">Language</Label>
+                  <Select value={filters.language} onValueChange={(value) => handleFilterChange('language', value)}>
                     <SelectTrigger>
-                      <SelectValue placeholder="All Statuses" />
+                      <SelectValue placeholder="All languages" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Statuses</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="in_progress">In Progress</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="overdue">Overdue</SelectItem>
+                      <SelectItem value="all">All languages</SelectItem>
+                      <SelectItem value="english">English</SelectItem>
+                      <SelectItem value="spanish">Spanish</SelectItem>
+                      <SelectItem value="french">French</SelectItem>
+                      <SelectItem value="hindi">Hindi</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="allocatedTo">Allocated To</Label>
-                  <Select 
-                    value={filters.allocatedTo} 
-                    onValueChange={(value) => handleFilterChange('allocatedTo', value)}
-                  >
+                  <Label htmlFor="filter-version">Version</Label>
+                  <Input 
+                    id="filter-version" 
+                    placeholder="Version" 
+                    value={filters.version}
+                    onChange={(e) => handleFilterChange('version', e.target.value)}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="filter-duration">Duration</Label>
+                  <Select value={filters.duration} onValueChange={(value) => handleFilterChange('duration', value)}>
                     <SelectTrigger>
-                      <SelectValue placeholder="All Quality Analysts" />
+                      <SelectValue placeholder="Any length" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Quality Analysts</SelectItem>
-                      {qualityAnalysts && Array.isArray(qualityAnalysts) ? 
-                        qualityAnalysts
-                          .filter((qa: QualityAnalyst) => qa.role === 'quality_analyst')
-                          .map((analyst: QualityAnalyst) => (
-                            <SelectItem key={analyst.id} value={analyst.id.toString()}>
-                              {analyst.fullName}
-                            </SelectItem>
-                          ))
-                      : null}
+                      <SelectItem value="all">Any length</SelectItem>
+                      <SelectItem value="short">Short (&lt; 3min)</SelectItem>
+                      <SelectItem value="medium">Medium (3-10min)</SelectItem>
+                      <SelectItem value="long">Long (&gt; 10min)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="filter-callType">Call Type</Label>
+                  <Select value={filters.callType} onValueChange={(value) => handleFilterChange('callType', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All call types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All call types</SelectItem>
+                      <SelectItem value="inbound">Inbound</SelectItem>
+                      <SelectItem value="outbound">Outbound</SelectItem>
+                      <SelectItem value="internal">Internal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="filter-status">Status</Label>
+                  <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All statuses</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="allocated">Allocated</SelectItem>
+                      <SelectItem value="evaluated">Evaluated</SelectItem>
+                      <SelectItem value="archived">Archived</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {qualityAnalysts && (
+                  <div className="space-y-2">
+                    <Label htmlFor="filter-allocatedTo">Allocated To</Label>
+                    <Select value={filters.allocatedTo} onValueChange={(value) => handleFilterChange('allocatedTo', value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="All analysts" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All analysts</SelectItem>
+                        {qualityAnalysts.filter(qa => qa.role === 'quality_analyst').map((analyst) => (
+                          <SelectItem key={analyst.id} value={analyst.id.toString()}>
+                            {analyst.fullName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
               
               <SheetFooter>
-                <Button onClick={resetFilters} variant="outline">Reset Filters</Button>
+                <Button variant="outline" onClick={resetFilters}>Reset Filters</Button>
+                <Button onClick={() => setFilterSheetOpen(false)}>Apply Filters</Button>
               </SheetFooter>
             </SheetContent>
           </Sheet>
         </div>
       </div>
       
-      {loadingAllocations ? (
-        <div className="flex justify-center items-center py-12">
-          <Spinner className="h-12 w-12" />
-        </div>
-      ) : allocations && Array.isArray(allocations) && allocations.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {allocations.map((allocation: any) => (
-            <Card key={allocation.id} className="overflow-hidden">
-              <CardHeader className="pb-3">
-                <CardTitle>{allocation.name}</CardTitle>
-                <CardDescription>
-                  {allocation.description || 'No description provided'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pb-3">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-sm text-muted-foreground">Status</div>
-                  <Badge
-                    className={
-                      allocation.status === 'completed' ? 'bg-green-100 text-green-800' :
-                      allocation.status === 'overdue' ? 'bg-red-100 text-red-800' :
-                      allocation.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-blue-100 text-blue-800'
-                    }
-                  >
-                    {allocation.status.replace('_', ' ')}
-                  </Badge>
+      <Tabs defaultValue="active" value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="mb-4">
+          <TabsTrigger value="active">Active Allocations</TabsTrigger>
+          <TabsTrigger value="completed">Completed</TabsTrigger>
+          <TabsTrigger value="archived">Archived</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value={activeTab} className="mt-0">
+          <Card>
+            <CardHeader>
+              <CardTitle>Audio File Allocations</CardTitle>
+              <CardDescription>
+                {activeTab === 'active' ? 'Ongoing audio file allocations' : 
+                 activeTab === 'completed' ? 'Completed allocations' : 'Archived allocations'}
+                {allocations ? ` (${allocations.length})` : ''}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingAllocations ? (
+                <div className="flex justify-center items-center py-8">
+                  <Spinner className="h-8 w-8" />
                 </div>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-sm text-muted-foreground">Progress</div>
-                  <Badge 
-                    className={getAllocationStatusColor(
-                      allocation.audioFileAllocations?.filter((afa: any) => afa.status === 'evaluated').length || 0,
-                      allocation.audioFileAllocations?.length || 0
-                    )}
-                  >
-                    {allocation.audioFileAllocations?.filter((afa: any) => afa.status === 'evaluated').length || 0}
-                    /{allocation.audioFileAllocations?.length || 0}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-sm text-muted-foreground">Due Date</div>
-                  <span className="text-sm font-medium">
-                    {allocation.dueDate ? format(new Date(allocation.dueDate), 'PPP') : 'Not set'}
-                  </span>
-                </div>
-                <div className="border-t pt-3 mt-3">
-                  <div className="text-sm font-medium mb-2">Quality Analysts</div>
-                  <div className="flex flex-wrap gap-2">
-                    {allocation.qualityAnalysts?.map((qa: any) => (
-                      <Badge key={qa.id} variant="secondary">
-                        {qa.fullName}
-                      </Badge>
+              ) : allocations && allocations.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead>Allocation</TableHead>
+                      <TableHead>Progress</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {allocations.map((allocation) => (
+                      <TableRow key={allocation.id}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{allocation.name}</p>
+                            <p className="text-sm text-muted-foreground truncate max-w-xs">
+                              {allocation.description || 'No description'}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {new Date(allocation.allocationDate).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          {allocation.dueDate ? new Date(allocation.dueDate).toLocaleDateString() : 'No due date'}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            <Badge className={getAllocationStatusColor(
+                              allocation.allocatedCount, allocation.totalFiles
+                            )}>
+                              {allocation.allocatedCount} / {allocation.totalFiles}
+                            </Badge>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            <div className="w-full bg-muted rounded-full h-2">
+                              <div 
+                                className="bg-primary rounded-full h-2" 
+                                style={{ 
+                                  width: `${allocation.evaluatedCount / (allocation.totalFiles || 1) * 100}%` 
+                                }}
+                              ></div>
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              {Math.round(allocation.evaluatedCount / (allocation.totalFiles || 1) * 100)}%
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              asChild
+                            >
+                              <a href={`/allocation-details/${allocation.id}`}>View</a>
+                            </Button>
+                            
+                            {activeTab === 'active' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => updateAllocationStatusMutation.mutate({ 
+                                  id: allocation.id, 
+                                  status: 'archived' 
+                                })}
+                              >
+                                Archive
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                    {!allocation.qualityAnalysts?.length && (
-                      <span className="text-sm text-muted-foreground">No analysts assigned</span>
-                    )}
-                  </div>
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Headphones className="mx-auto h-12 w-12 mb-4 text-muted-foreground/50" />
+                  <p>No allocations found</p>
+                  <p className="text-sm">
+                    {activeTab === 'active' 
+                      ? 'Create a new allocation to get started' 
+                      : 'Completed allocations will appear here'}
+                  </p>
                 </div>
-              </CardContent>
-              <CardFooter>
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={() => {
-                    // View allocation details
-                  }}
-                >
-                  <FolderOpen className="mr-2 h-4 w-4" />
-                  View Details
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-12 border rounded-lg">
-          <Headphones className="mx-auto h-12 w-12 mb-4 text-muted-foreground" />
-          <h3 className="text-lg font-medium mb-2">No Allocations Found</h3>
-          <p className="text-muted-foreground mb-6">
-            Start by creating a new allocation for quality analysts to evaluate audio files
-          </p>
-          <Button onClick={() => setCreateDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Create Allocation
-          </Button>
-        </div>
-      )}
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
