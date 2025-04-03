@@ -98,7 +98,7 @@ export const audioFiles = pgTable("audio_files", {
   originalFilename: text("original_filename").notNull(),
   fileUrl: text("file_url").notNull(),
   fileSize: integer("file_size").notNull(), // in bytes
-  duration: integer("duration").notNull(), // in seconds
+  duration: numeric("duration", { precision: 10, scale: 2 }).notNull(), // in seconds, with decimal precision
   language: audioLanguageEnum("language").notNull(),
   version: text("version").notNull(),
   call_date: date("call_date").notNull(), // Added call_date field to match database schema
@@ -520,7 +520,7 @@ export const insertAudioFileSchema = createInsertSchema(audioFiles)
     originalFilename: z.string().min(1, "Original filename is required"),
     fileUrl: z.string().url("File URL must be a valid URL"),
     fileSize: z.number().int().positive("File size must be positive"),
-    duration: z.number().int().positive("Duration must be positive"),
+    duration: z.number().positive("Duration must be positive"), // Removed .int() to allow decimal values
     language: z.enum(['english', 'spanish', 'french', 'hindi', 'other']),
     version: z.string().min(1, "Version is required"),
     call_date: z.string().refine(val => {
