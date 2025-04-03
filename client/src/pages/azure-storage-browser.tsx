@@ -230,7 +230,7 @@ const AzureStorageBrowser = () => {
   };
   
   // Download custom template with filenames from current Azure container
-  const handleDownloadCustomTemplate = () => {
+  const handleDownloadCustomTemplate = async () => {
     if (!selectedContainer) {
       toast({
         title: 'No Container Selected',
@@ -240,49 +240,104 @@ const AzureStorageBrowser = () => {
       return;
     }
     
-    // Download the generated custom template
-    const a = document.createElement('a');
-    a.href = '/custom-audio-template.xlsx';
-    a.download = `${selectedContainer}-template.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    
-    toast({
-      title: 'Custom Template Downloaded',
-      description: 'Custom metadata template with your filenames has been downloaded.',
-    });
+    try {
+      // Use the direct API endpoint that generates a template with actual filenames
+      const response = await fetch(`/api/azure-audio-files/azure-custom-template/${selectedContainer}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to download custom template');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${selectedContainer}-template.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: 'Custom Template Downloaded',
+        description: `Custom template with your actual filenames from ${selectedContainer} has been downloaded.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Download Failed',
+        description: error instanceof Error ? error.message : 'Failed to download custom template',
+        variant: 'destructive',
+      });
+    }
   };
   
   // Download minimal template with essential fields only
-  const handleDownloadMinimalTemplate = () => {
-    // Download the generated minimal template
-    const a = document.createElement('a');
-    a.href = '/minimal-audio-template.xlsx';
-    a.download = 'minimal-audio-template.xlsx';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    
-    toast({
-      title: 'Minimal Template Downloaded',
-      description: 'Minimal metadata template with essential fields only has been downloaded.',
-    });
+  const handleDownloadMinimalTemplate = async () => {
+    try {
+      // Use the direct API endpoint for minimal template
+      const response = await fetch('/api/azure-audio-files/azure-minimal-template');
+      
+      if (!response.ok) {
+        throw new Error('Failed to download minimal template');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'minimal-audio-template.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: 'Minimal Template Downloaded',
+        description: 'Minimal template with just the essential fields has been downloaded.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Download Failed',
+        description: error instanceof Error ? error.message : 'Failed to download minimal template',
+        variant: 'destructive',
+      });
+    }
   };
   
   // Download template guide
   const handleDownloadGuide = () => {
-    const a = document.createElement('a');
-    a.href = '/audio-file-template-guide.md';
-    a.download = 'audio-file-template-guide.md';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    
-    toast({
-      title: 'Template Guide Downloaded',
-      description: 'Template guide documentation has been downloaded.',
-    });
+    // Use the public path for the template guide
+    fetch('/audio-file-template-guide.md')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Failed to download template guide');
+        }
+        return response.text();
+      })
+      .then(text => {
+        // Create a Blob from the text
+        const blob = new Blob([text], { type: 'text/markdown' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'audio-file-template-guide.md';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        toast({
+          title: 'Template Guide Downloaded',
+          description: 'Template guide documentation has been downloaded.',
+        });
+      })
+      .catch(error => {
+        toast({
+          title: 'Download Failed',
+          description: error instanceof Error ? error.message : 'Failed to download template guide',
+          variant: 'destructive',
+        });
+      });
   };
 
   // Handle blob selection for batch operations

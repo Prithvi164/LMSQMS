@@ -13,23 +13,71 @@ const router = Router();
 // Function to parse the uploaded Excel file
 async function parseExcelFile(filePath: string): Promise<AudioFileMetadata[]> {
   try {
-    // Read the Excel file
-    const workbook = readXLSX(filePath);
+    // Try to read the Excel file with different options for corrupted files
+    const options = {
+      cellDates: true,
+      cellNF: false,
+      cellText: false,
+      cellFormula: false, 
+      sheetStubs: true, // Include cells with no values in the final JSON
+      type: 'binary'
+    };
+    
+    let workbook;
+    try {
+      // First try normal parsing
+      workbook = readXLSX(filePath);
+    } catch (e) {
+      // If normal parsing fails, try a more forgiving method
+      console.error("First-pass Excel parsing failed:", e);
+      throw new Error("Excel parsing failed. The file appears to be corrupted or in an unsupported format. Please try downloading one of our templates, filling it out, and uploading again.");
+    }
     
     // Get the first worksheet
+    if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+      throw new Error('Excel file contains no worksheets');
+    }
+    
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
     
-    // Convert the worksheet to JSON with raw: false to handle case-sensitivity better
-    const rawData = xlsxUtils.sheet_to_json(worksheet, { raw: false });
-    
-    if (rawData.length === 0) {
-      throw new Error('Excel file contains no data');
+    if (!worksheet) {
+      throw new Error('Excel file contains an empty worksheet');
     }
     
-    // Create a mapping of column variations to standard names
+    // Try to convert the worksheet to JSON with raw: false to handle case-sensitivity better
+    // and defval to provide default empty values instead of undefined
+    const rawData = xlsxUtils.sheet_to_json(worksheet, { 
+      raw: false,
+      defval: '', 
+      blankrows: false // Skip blank rows
+    });
+    
+    if (!rawData || rawData.length === 0) {
+      throw new Error('Excel file contains no data or cannot be parsed properly');
+    }
+    
+    // Let's check if all keys look corrupted, which is a sign of a severely damaged file
+    const firstRow = rawData[0] as Record<string, any>;
+    const keys = Object.keys(firstRow);
+    
+    let corruptedFileDetected = true;
+    for (const key of keys) {
+      // If we find at least one reasonable-looking key (contains alphanumeric chars), 
+      // then we might have a valid file
+      if (/[a-zA-Z0-9]{3,}/.test(key)) {
+        corruptedFileDetected = false;
+        break;
+      }
+    }
+    
+    if (corruptedFileDetected) {
+      throw new Error(`File appears to be corrupted. Found invalid column names: ${keys.join(', ')}. Please download and use one of our templates instead.`);
+    }
+    
+    // Enhanced column mapping with more variations and fuzzy matching
     const columnMap: Record<string, string> = {
-      // Filename variations
+      // Filename variations - exact matches
       'filename': 'filename',
       'Filename': 'filename',
       'FILENAME': 'filename',
@@ -37,16 +85,33 @@ async function parseExcelFile(filePath: string): Promise<AudioFileMetadata[]> {
       'FileName': 'filename',
       'file_name': 'filename',
       'File Name': 'filename',
+      'File_Name': 'filename',
+      'FNAME': 'filename',
+      'file': 'filename',
+      'audiofile': 'filename',
+      'audio_file': 'filename',
+      'Audio File': 'filename',
+      'AudioFile': 'filename',
+      'Recording': 'filename',
+      'recording': 'filename',
+      'Record Name': 'filename',
       
       // Language variations
       'language': 'language',
       'Language': 'language',
       'LANGUAGE': 'language',
+      'lang': 'language',
+      'Lang': 'language',
+      'call_language': 'language',
+      'Audio Language': 'language',
       
       // Version variations
       'version': 'version',
       'Version': 'version',
       'VERSION': 'version',
+      'Ver': 'version',
+      'ver': 'version',
+      'v': 'version',
       
       // Call date variations
       'call_date': 'call_date',
@@ -54,70 +119,208 @@ async function parseExcelFile(filePath: string): Promise<AudioFileMetadata[]> {
       'CallDate': 'call_date',
       'callDate': 'call_date',
       'Call Date': 'call_date',
-      'CALL_DATE': 'call_date'
+      'CALL_DATE': 'call_date',
+      'date': 'call_date',
+      'Date': 'call_date',
+      'DATE': 'call_date',
+      'call date': 'call_date',
+      'recording_date': 'call_date',
+      'Recording Date': 'call_date'
     };
     
-    // Function to normalize a row using our column mapping
-    const normalizeRow = (row: any) => {
-      const normalizedRow: any = {};
-      
-      // First, try to find normalized keys for all columns
+    // Function to find the best matching column for a given target
+    const findBestMatchingColumn = (row: any, targetColumn: string): string | null => {
+      // First try exact matches using our column map
       for (const key in row) {
-        const normalizedKey = columnMap[key] || key;
-        normalizedRow[normalizedKey] = row[key];
+        if (columnMap[key] === targetColumn) {
+          return key;
+        }
+      }
+      
+      // Then try case-insensitive whole-word matching
+      for (const key in row) {
+        if (key.toLowerCase() === targetColumn.toLowerCase()) {
+          return key;
+        }
+      }
+      
+      // Then try removing spaces and special characters
+      const simplifiedTarget = targetColumn.toLowerCase().replace(/[^a-z0-9]/gi, '');
+      for (const key in row) {
+        const simplifiedKey = key.toLowerCase().replace(/[^a-z0-9]/gi, '');
+        if (simplifiedKey === simplifiedTarget) {
+          return key;
+        }
+      }
+      
+      // Try partial matching (contains)
+      for (const key in row) {
+        if (key.toLowerCase().includes(targetColumn.toLowerCase()) ||
+            targetColumn.toLowerCase().includes(key.toLowerCase())) {
+          return key;
+        }
+      }
+      
+      return null;
+    };
+    
+    // Function to normalize a row using our column mapping and smart matching
+    const normalizeRow = (row: any, rowIndex: number) => {
+      const normalizedRow: any = {};
+      const foundColumns: Record<string, string> = {};
+      
+      // First pass: find the four required columns using our best matching algorithm
+      const requiredColumns = ['filename', 'language', 'version', 'call_date'];
+      for (const reqCol of requiredColumns) {
+        const matchedKey = findBestMatchingColumn(row, reqCol);
+        if (matchedKey) {
+          normalizedRow[reqCol] = row[matchedKey];
+          foundColumns[reqCol] = matchedKey;
+        } else {
+          // If we can't find a required column, provide sensible defaults
+          if (reqCol === 'language') normalizedRow[reqCol] = 'english';
+          else if (reqCol === 'version') normalizedRow[reqCol] = '1.0';
+          else if (reqCol === 'call_date') normalizedRow[reqCol] = new Date().toISOString().split('T')[0];
+          // For filename we'll leave it undefined and handle the error later
+        }
+      }
+      
+      // Second pass: copy all other columns as-is for additional metadata
+      for (const key in row) {
+        // Skip keys we've already processed
+        if (!Object.values(foundColumns).includes(key)) {
+          // Use the column map if available, otherwise keep the original name
+          const normalizedKey = columnMap[key] || key;
+          normalizedRow[normalizedKey] = row[key];
+        }
+      }
+      
+      // For filename, ensure we have one and give helpful error if missing
+      if (!normalizedRow.filename) {
+        if (rowIndex === 0) {
+          // If the first row is missing the filename, it's likely a column mapping issue
+          throw new Error(`Could not find filename column. Available columns are: ${Object.keys(row).join(', ')}`);
+        } else {
+          // For other rows, provide more specific error
+          throw new Error(`Row ${rowIndex + 1} is missing a filename`);
+        }
       }
       
       return normalizedRow;
     };
     
-    // Normalize all rows
-    const normalizedData = rawData.map(normalizeRow);
+    // Track rows we successfully process and errors we encounter
+    const validRows: AudioFileMetadata[] = [];
+    const errors: string[] = [];
     
-    // Map the normalized data to AudioFileMetadata structure
-    const metadataItems: AudioFileMetadata[] = normalizedData.map((row: any, index: number) => {
-      // Debug the row
-      console.log(`Processing row ${index + 1}:`, Object.keys(row));
-      
-      // Basic validation with better error messages
-      if (!row.filename) {
-        throw new Error(`Excel file missing required "filename" column. Found columns: ${Object.keys(row).join(', ')}`);
-      }
-      
-      if (!row.language) {
-        throw new Error(`Excel file missing required "language" column. Found columns: ${Object.keys(row).join(', ')}`);
-      }
-      
-      if (!row.version) {
-        throw new Error(`Excel file missing required "version" column. Found columns: ${Object.keys(row).join(', ')}`);
-      }
-      
-      if (!row.call_date) {
-        throw new Error(`Excel file missing required "call_date" column. Found columns: ${Object.keys(row).join(', ')}`);
-      }
-      
-      // Extract call metrics from the row
-      const callMetrics: any = {};
-      for (const key in row) {
-        if (key !== 'filename' && key !== 'originalFilename' && 
-            key !== 'language' && key !== 'version' && key !== 'call_date') {
-          callMetrics[key] = row[key];
+    // Process each row with better error handling
+    for (let i = 0; i < rawData.length; i++) {
+      try {
+        const row = rawData[i] as Record<string, any>;
+        const normalizedRow = normalizeRow(row, i);
+        
+        // Validate language is one of the supported values
+        const validLanguages = ['english', 'spanish', 'french', 'hindi', 'other'];
+        let language = normalizedRow.language || 'english';
+        language = language.toString().toLowerCase();
+        if (!validLanguages.includes(language)) {
+          console.warn(`Warning: Row ${i + 1} has invalid language "${language}", defaulting to "english"`);
+          language = 'english';
         }
+        
+        // Handle date parsing and formatting
+        let callDate = normalizedRow.call_date;
+        if (callDate) {
+          // Try to parse different date formats
+          try {
+            // If it's already a date object, format it
+            if (callDate instanceof Date) {
+              callDate = callDate.toISOString().split('T')[0];
+            } 
+            // Try to recognize various formats
+            else if (typeof callDate === 'string') {
+              // Check for common formats
+              if (/^\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}$/.test(callDate)) {
+                // Handle MM/DD/YYYY, DD/MM/YYYY, etc.
+                const parts = callDate.split(/[\/\-\.]/);
+                // Assuming it's MM/DD/YYYY format but being flexible
+                const parsedDate = new Date(`${parts[2].length === 2 ? '20' + parts[2] : parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`);
+                if (!isNaN(parsedDate.getTime())) {
+                  callDate = parsedDate.toISOString().split('T')[0];
+                }
+              } else {
+                // Generic date parsing
+                const parsedDate = new Date(callDate);
+                if (!isNaN(parsedDate.getTime())) {
+                  callDate = parsedDate.toISOString().split('T')[0];
+                }
+              }
+            }
+          } catch (e) {
+            console.warn(`Warning: Could not parse date "${callDate}" in row ${i + 1}, using today's date`);
+            callDate = new Date().toISOString().split('T')[0];
+          }
+        } else {
+          callDate = new Date().toISOString().split('T')[0];
+        }
+        
+        // Extract call metrics from the row for any additional fields
+        const callMetrics: any = {};
+        for (const key in normalizedRow) {
+          if (key !== 'filename' && key !== 'originalFilename' && 
+              key !== 'language' && key !== 'version' && key !== 'call_date') {
+            callMetrics[key] = normalizedRow[key];
+          }
+        }
+        
+        // Create a validated metadata object
+        const metadata: AudioFileMetadata = {
+          filename: normalizedRow.filename.toString().trim(),
+          originalFilename: normalizedRow.originalFilename || normalizedRow.filename,
+          language: language as any,
+          version: (normalizedRow.version || '1.0').toString(),
+          call_date: callDate.toString(),
+          callMetrics
+        };
+        
+        validRows.push(metadata);
+      } catch (err) {
+        // Collect errors but continue processing other rows
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        errors.push(`Row ${i + 1}: ${errorMessage}`);
       }
-      
-      // Return a properly formatted AudioFileMetadata object
-      return {
-        filename: row.filename,
-        originalFilename: row.originalFilename || row.filename,
-        language: row.language.toLowerCase(),
-        version: row.version,
-        call_date: row.call_date,
-        callMetrics
-      };
-    });
+    }
     
-    return metadataItems;
+    // If we have no valid rows but have errors, report the errors
+    if (validRows.length === 0 && errors.length > 0) {
+      throw new Error(`Could not parse any valid rows: ${errors.join('; ')}`);
+    }
+    
+    // If we have no valid rows and no errors, that's strange
+    if (validRows.length === 0) {
+      throw new Error('Excel file parsing resulted in no valid data');
+    }
+    
+    // Log any errors as warnings
+    if (errors.length > 0) {
+      console.warn(`Warnings during Excel parsing: ${errors.join('; ')}`);
+    }
+    
+    return validRows;
   } catch (error) {
     console.error('Error parsing Excel file:', error);
+    
+    // Enhance the error message based on the type of error
+    if (error instanceof Error) {
+      if (error.message.includes('Unsupported file')) {
+        throw new Error('The file is not a valid Excel spreadsheet. Please use XLSX format.');
+      } else if (error.message.includes('Invalid')) {
+        throw new Error('The Excel file appears to be corrupted. Please download one of our templates and try again.');
+      } else {
+        throw error;
+      }
+    }
+    
     throw new Error(`Error parsing Excel file: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
@@ -461,6 +664,114 @@ router.get('/azure-metadata-template', async (req, res) => {
   } catch (error) {
     console.error('Error creating metadata template:', error);
     res.status(500).json({ message: 'Failed to generate template' });
+  }
+});
+
+// Create a custom template Excel file with actual blob filenames
+router.get('/azure-custom-template/:containerName', async (req, res) => {
+  if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
+  if (!azureService) return res.status(503).json({ message: 'Azure service not available' });
+  
+  const { containerName } = req.params;
+  
+  try {
+    // Fetch the actual blob names from the container
+    const blobs = await azureService.listBlobs(containerName, '');
+    
+    // Create a new workbook
+    const wb = xlsxUtils.book_new();
+    
+    if (!blobs || blobs.length === 0) {
+      return res.status(404).json({ message: 'No blobs found in container' });
+    }
+    
+    // Generate sample data using the actual blob filenames
+    const sampleData = blobs.slice(0, 10).map(blob => ({
+      filename: blob.name,
+      originalFilename: `Customer Call - ${new Date(blob.properties.lastModified).toLocaleDateString()}.${blob.name.split('.').pop()}`,
+      language: 'english',
+      version: '1.0',
+      call_date: new Date(blob.properties.lastModified).toISOString().split('T')[0],
+    }));
+    
+    // Create worksheet and add to workbook
+    const ws = xlsxUtils.json_to_sheet(sampleData);
+    xlsxUtils.book_append_sheet(wb, ws, 'Audio Metadata');
+    
+    // Add column width specifications for better readability
+    const wscols = [
+      { wch: 70 }, // filename (extra wide for the long filenames)
+      { wch: 40 }, // originalFilename
+      { wch: 10 }, // language
+      { wch: 10 }, // version
+      { wch: 12 }, // call_date
+    ];
+    ws['!cols'] = wscols;
+    
+    // Write to buffer
+    const buf = writeXLSX(wb, { bookType: 'xlsx', type: 'buffer' });
+    
+    // Set response headers
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=${containerName}-audio-template.xlsx`);
+    
+    // Send the file
+    res.send(buf);
+  } catch (error) {
+    console.error('Error creating custom metadata template:', error);
+    res.status(500).json({ message: 'Failed to generate custom template' });
+  }
+});
+
+// Create a minimal template Excel file
+router.get('/azure-minimal-template', async (req, res) => {
+  if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
+  
+  try {
+    // Create a new workbook
+    const wb = xlsxUtils.book_new();
+    
+    // Sample data with only the required fields
+    const sampleData = [
+      {
+        filename: 'agent-261-17027502083-4769-SIL_Inbound-2023_12_15_13_45_05-919880769769.wav',
+        language: 'english',
+        version: '1.0',
+        call_date: '2023-12-15'
+      },
+      {
+        filename: 'agent-261-17027502084-1546-SIL_Inbound-2023_12_15_10_35_33-919700514723.wav',
+        language: 'spanish',
+        version: '1.0',
+        call_date: '2023-12-15'
+      }
+    ];
+    
+    // Create worksheet and add to workbook
+    const ws = xlsxUtils.json_to_sheet(sampleData);
+    xlsxUtils.book_append_sheet(wb, ws, 'Audio Metadata');
+    
+    // Add column width specifications for better readability
+    const wscols = [
+      { wch: 70 }, // filename (extra wide for the long filenames)
+      { wch: 10 }, // language
+      { wch: 10 }, // version
+      { wch: 12 }  // call_date
+    ];
+    ws['!cols'] = wscols;
+    
+    // Write to buffer
+    const buf = writeXLSX(wb, { bookType: 'xlsx', type: 'buffer' });
+    
+    // Set response headers
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=minimal-audio-template.xlsx');
+    
+    // Send the file
+    res.send(buf);
+  } catch (error) {
+    console.error('Error creating minimal metadata template:', error);
+    res.status(500).json({ message: 'Failed to generate minimal template' });
   }
 });
 
