@@ -360,6 +360,41 @@ const AzureStorageBrowser = () => {
       });
     }
   };
+
+  // Download the static pre-generated ultra-simple template file
+  const handleDownloadStaticTemplate = async () => {
+    try {
+      console.log('Downloading static ultra-simple template');
+      // This is the pre-generated file we put in the public folder
+      const response = await fetch('/ultra-simple-template.xlsx');
+      
+      if (!response.ok) {
+        throw new Error('Failed to download static template file');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'ultra-simple-template.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: 'Static Template Downloaded',
+        description: 'Pre-generated ultra-simple template has been downloaded. This template should open in all Excel versions.',
+      });
+    } catch (error) {
+      console.error('Error downloading static template:', error);
+      toast({
+        title: 'Download Failed',
+        description: error instanceof Error ? error.message : 'Failed to download static template',
+        variant: 'destructive',
+      });
+    }
+  };
   
   // Download template guide
   const handleDownloadGuide = () => {
@@ -703,6 +738,10 @@ const AzureStorageBrowser = () => {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Excel Templates</DropdownMenuLabel>
+                      <DropdownMenuItem onClick={handleDownloadStaticTemplate}>
+                        <FileSpreadsheet className="h-4 w-4 mr-2" />
+                        Ultra Simple Template (Pre-generated)
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={handleDownloadSimpleTemplate}>
                         <FileSpreadsheet className="h-4 w-4 mr-2" />
                         Ultra Simple Template (1 file)
