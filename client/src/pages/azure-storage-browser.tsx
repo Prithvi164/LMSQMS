@@ -779,40 +779,16 @@ const AzureStorageBrowser = () => {
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline">
                         <FileDown className="h-4 w-4 mr-2" />
-                        Templates <ChevronDown className="h-4 w-4 ml-1" />
+                        Metadata Template <ChevronDown className="h-4 w-4 ml-1" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Excel Templates</DropdownMenuLabel>
                       <DropdownMenuItem asChild>
-                        <a href="/ultra-simple-template.xlsx" download="ultra-simple-template.xlsx" className="flex items-center px-2 py-1.5 text-sm">
+                        <a href="/ultra-simple-template.xlsx" download="metadata-template.xlsx" className="flex items-center px-2 py-1.5 text-sm">
                           <FileSpreadsheet className="h-4 w-4 mr-2" />
-                          Ultra Simple Template (Direct)
+                          Metadata Template
                         </a>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <a href="/api/azure-audio-files/download-audio-template" download="audio-metadata-template.xlsx" className="flex items-center px-2 py-1.5 text-sm">
-                          <FileSpreadsheet className="h-4 w-4 mr-2" />
-                          Direct Template Download
-                        </a>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <a href="/generate-csv-template.html" target="_blank" className="flex items-center px-2 py-1.5 text-sm">
-                          <FileSpreadsheet className="h-4 w-4 mr-2" />
-                          CSV Template Generator
-                        </a>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleDownloadTemplate}>
-                        <FileSpreadsheet className="h-4 w-4 mr-2" />
-                        Standard Template
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleDownloadCustomTemplate}>
-                        <FileSpreadsheet className="h-4 w-4 mr-2" />
-                        Custom Template
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleDownloadMinimalTemplate}>
-                        <FileSpreadsheet className="h-4 w-4 mr-2" />
-                        Minimal Template
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleDownloadGuide}>
