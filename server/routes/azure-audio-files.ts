@@ -6,7 +6,7 @@ import { initAzureStorageService, AudioFileMetadata } from '../services/azureSto
 import { audioFileAllocations, audioFiles, audioLanguageEnum } from '../../shared/schema';
 import { db } from '../db';
 import { eq, and, inArray } from 'drizzle-orm';
-import * as XLSX from 'xlsx';
+import { read as readXLSX, utils as xlsxUtils, write as writeXLSX } from 'xlsx';
 
 const router = Router();
 
@@ -14,14 +14,14 @@ const router = Router();
 async function parseExcelFile(filePath: string): Promise<AudioFileMetadata[]> {
   try {
     // Read the Excel file
-    const workbook = XLSX.readFile(filePath);
+    const workbook = readXLSX(filePath);
     
     // Get the first worksheet
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
     
     // Convert the worksheet to JSON
-    const rawData = XLSX.utils.sheet_to_json(worksheet);
+    const rawData = xlsxUtils.sheet_to_json(worksheet);
     
     // Map the raw data to AudioFileMetadata structure
     const metadataItems: AudioFileMetadata[] = rawData.map((row: any) => {
@@ -314,7 +314,7 @@ router.get('/azure-metadata-template', async (req, res) => {
   
   try {
     // Create a new workbook
-    const wb = XLSX.utils.book_new();
+    const wb = xlsxUtils.book_new();
     
     // Sample data with all required fields
     const sampleData = [
@@ -367,8 +367,8 @@ router.get('/azure-metadata-template', async (req, res) => {
     ];
     
     // Create worksheet and add to workbook
-    const ws = XLSX.utils.json_to_sheet(sampleData);
-    XLSX.utils.book_append_sheet(wb, ws, 'Audio Metadata');
+    const ws = xlsxUtils.json_to_sheet(sampleData);
+    xlsxUtils.book_append_sheet(wb, ws, 'Audio Metadata');
     
     // Add column width specifications for better readability
     const wscols = [
@@ -397,7 +397,7 @@ router.get('/azure-metadata-template', async (req, res) => {
     ws['!cols'] = wscols;
     
     // Write to buffer
-    const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
+    const buf = writeXLSX(wb, { bookType: 'xlsx', type: 'buffer' });
     
     // Set response headers
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
