@@ -578,7 +578,7 @@ const AudioFileAllocation = () => {
                                 <SelectValue placeholder="Select language" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="">All Languages</SelectItem>
+                                <SelectItem value="all_languages">All Languages</SelectItem>
                                 <SelectItem value="english">English</SelectItem>
                                 <SelectItem value="spanish">Spanish</SelectItem>
                                 <SelectItem value="french">French</SelectItem>
@@ -594,7 +594,7 @@ const AudioFileAllocation = () => {
                                 <SelectValue placeholder="Select version" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="">All Versions</SelectItem>
+                                <SelectItem value="all_versions">All Versions</SelectItem>
                                 <SelectItem value="v1">Version 1</SelectItem>
                                 <SelectItem value="v2">Version 2</SelectItem>
                                 <SelectItem value="v3">Version 3</SelectItem>
@@ -635,8 +635,8 @@ const AudioFileAllocation = () => {
                               <TableBody>
                                 {audioFiles
                                   .filter((file: AudioFile) => 
-                                    (!selectedLanguage || file.language === selectedLanguage) &&
-                                    (!selectedVersion || file.version === selectedVersion)
+                                    (selectedLanguage === 'all_languages' || !selectedLanguage || file.language === selectedLanguage) &&
+                                    (selectedVersion === 'all_versions' || !selectedVersion || file.version === selectedVersion)
                                   )
                                   .map((file: AudioFile) => (
                                     <TableRow key={file.id} className={selectedFiles.includes(file.id) ? "bg-muted/50" : ""}>
@@ -664,7 +664,7 @@ const AudioFileAllocation = () => {
                             <Database className="h-16 w-16 text-muted-foreground mb-4" />
                             <p className="text-muted-foreground mb-2">No audio files available</p>
                             <p className="text-sm text-muted-foreground max-w-md">
-                              {selectedLanguage || selectedVersion 
+                              {(selectedLanguage && selectedLanguage !== 'all_languages') || (selectedVersion && selectedVersion !== 'all_versions') 
                                 ? "No files match the selected filters. Try changing your selection."
                                 : "There are no unallocated audio files in the database. Import files from Azure Storage or upload new files."}
                             </p>
