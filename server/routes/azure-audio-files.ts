@@ -810,46 +810,33 @@ router.get('/azure-simple-template/:containerName', async (req, res) => {
     // Use just the first blob as a template
     const firstBlob = blobs[0];
     
-    // Create a very simple template with just one sample row
-    const sampleData = [
-      {
-        filename: firstBlob.name,
-        language: 'english',
-        version: '1.0',
-        call_date: new Date().toISOString().split('T')[0]
-      }
-    ];
-    
-    // Create a new workbook
+    // Create a very basic Excel file with a single row
     const wb = xlsxUtils.book_new();
-    
-    // Create worksheet and add to workbook
-    const ws = xlsxUtils.json_to_sheet(sampleData);
-    xlsxUtils.book_append_sheet(wb, ws, 'Audio File');
+    const ws = xlsxUtils.aoa_to_sheet([
+      ['filename', 'language', 'version', 'call_date'],
+      [firstBlob.name, 'english', '1.0', new Date().toISOString().split('T')[0]]
+    ]);
     
     // Add column width specifications for better readability
-    const wscols = [
+    ws['!cols'] = [
       { wch: 70 }, // filename (extra wide for the long filenames)
       { wch: 10 }, // language
       { wch: 10 }, // version
       { wch: 12 }  // call_date
     ];
-    ws['!cols'] = wscols;
     
-    // Create a buffer of the XLSX file
-    const buf = writeXLSX(wb, { 
-      bookType: 'xlsx', 
-      type: 'buffer',
-      compression: true // Enable compression for better compatibility
-    });
+    xlsxUtils.book_append_sheet(wb, ws, 'Simple Template');
     
-    // Set response headers with correct MIME type
+    // Write directly to a buffer with absolute minimal options
+    const buf = writeXLSX(wb, { type: 'buffer' });
+    
+    // Set response headers
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename=${containerName}-simple-template.xlsx`);
     
-    console.log('Sending simple template file');
+    console.log('Sending ultra-simple template file');
     
-    // Send the file buffer
+    // Send the file
     res.send(buf);
   } catch (error) {
     console.error('Error creating ultra-simple template:', error);
