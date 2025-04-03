@@ -447,15 +447,17 @@ const excelUpload = multer({
   fileFilter: (req, file, cb) => {
     const allowedMimeTypes = [
       'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/csv',
+      'application/csv'
     ];
-    const allowedExtensions = ['.xls', '.xlsx'];
+    const allowedExtensions = ['.xls', '.xlsx', '.csv'];
     const fileExtension = '.' + file.originalname.split('.').pop();
     
     if (allowedMimeTypes.includes(file.mimetype) || allowedExtensions.includes(fileExtension)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only Excel files are allowed.'), false);
+      cb(new Error('Invalid file type. Only Excel or CSV files are allowed.'), false);
     }
   }
 });
@@ -901,53 +903,28 @@ router.get('/azure-simple-template/:containerName', async (req, res) => {
     
     console.log(`Found ${blobs.length} blobs, including all in template`);
     
-    // Create a workbook
-    const wb = xlsxUtils.book_new();
+    // Create the CSV content manually for maximum compatibility
+    let csvContent = 'filename,language,version,call_date\n';
     
-    // Create headers
-    const headers = ['filename', 'language', 'version', 'call_date'];
-    
-    // Create rows with all blob names and default values
-    const rows = [headers];
-    
-    // Add a row for each blob
+    // Add each blob name as a row
     blobs.forEach(blob => {
-      rows.push([
-        blob.name, 
-        'english', 
-        '1.0', 
-        new Date().toISOString().split('T')[0]
-      ]);
+      // Properly escape fields for CSV
+      const today = new Date().toISOString().split('T')[0];
+      csvContent += `${blob.name},"english","1.0","${today}"\n`;
     });
     
-    // Create the worksheet from the array of arrays
-    const ws = xlsxUtils.aoa_to_sheet(rows);
+    // Set response headers for CSV download
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=${containerName}-metadata-template.csv`);
     
-    // Add column width specifications for better readability
-    ws['!cols'] = [
-      { wch: 70 }, // filename (extra wide for the long filenames)
-      { wch: 10 }, // language
-      { wch: 10 }, // version
-      { wch: 12 }  // call_date
-    ];
+    console.log('Sending CSV template file');
     
-    xlsxUtils.book_append_sheet(wb, ws, 'Simple Template');
-    
-    // Write directly to a buffer with absolute minimal options
-    const buf = writeXLSX(wb, { type: 'buffer' });
-    
-    // Set response headers
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=${containerName}-simple-template.xlsx`);
-    
-    console.log('Sending ultra-simple template file');
-    
-    // Send the file
-    res.send(buf);
+    // Send the CSV content directly
+    res.send(csvContent);
   } catch (error) {
-    console.error('Error creating ultra-simple template:', error);
+    console.error('Error creating template:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    res.status(500).json({ message: 'Failed to generate simple template', error: errorMessage });
+    res.status(500).json({ message: 'Failed to generate template', error: errorMessage });
   }
 });
 
