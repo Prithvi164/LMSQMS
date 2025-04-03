@@ -37,23 +37,29 @@ export class AzureStorageService {
 
     // Check if credentials are available
     if (!this.accountName || !this.accountKey) {
-      console.error('Azure Storage credentials not provided. Service will not function properly.');
+      console.warn('Azure Storage credentials not provided. Azure-related features will not be available.');
       // Initialize with placeholder to prevent errors, but functionality will be limited
       this.blobServiceClient = BlobServiceClient.fromConnectionString('DefaultEndpointsProtocol=https;AccountName=placeholder;AccountKey=placeholder;EndpointSuffix=core.windows.net');
       return;
     }
 
-    // Create a SharedKeyCredential object
-    const sharedKeyCredential = new StorageSharedKeyCredential(
-      this.accountName,
-      this.accountKey
-    );
-
-    // Create the BlobServiceClient using the credential
-    this.blobServiceClient = new BlobServiceClient(
-      `https://${this.accountName}.blob.core.windows.net`,
-      sharedKeyCredential
-    );
+    try {
+      // Create a SharedKeyCredential object
+      const sharedKeyCredential = new StorageSharedKeyCredential(
+        this.accountName,
+        this.accountKey
+      );
+      
+      // Create the BlobServiceClient using the credential
+      this.blobServiceClient = new BlobServiceClient(
+        `https://${this.accountName}.blob.core.windows.net`,
+        sharedKeyCredential
+      );
+    } catch (error) {
+      console.error('Error connecting to Azure Storage:', error);
+      // Initialize with placeholder to prevent errors, but functionality will be limited
+      this.blobServiceClient = BlobServiceClient.fromConnectionString('DefaultEndpointsProtocol=https;AccountName=placeholder;AccountKey=placeholder;EndpointSuffix=core.windows.net');
+    }
   }
 
   /**
@@ -229,9 +235,9 @@ export class AzureStorageService {
     let duration = 0;
     try {
       // Use parseBuffer for Node.js compatibility
-      const chunks: Uint8Array[] = [];
+      const chunks: Buffer[] = [];
       for await (const chunk of readableStream) {
-        chunks.push(chunk);
+        chunks.push(chunk instanceof Buffer ? chunk : Buffer.from(chunk));
       }
       const buffer = Buffer.concat(chunks);
       
@@ -276,7 +282,7 @@ export class AzureStorageService {
     try {
       // Download the Excel file
       const downloadResponse = await blobClient.download(0);
-      const chunks: Uint8Array[] = [];
+      const chunks: Buffer[] = [];
       
       // Read the data
       const readableStream = downloadResponse.readableStreamBody;
@@ -286,13 +292,13 @@ export class AzureStorageService {
       
       // Convert stream to buffer
       for await (const chunk of readableStream) {
-        chunks.push(chunk);
+        chunks.push(chunk instanceof Buffer ? chunk : Buffer.from(chunk));
       }
       
       const buffer = Buffer.concat(chunks);
       
       // Parse Excel data
-      const workbook = XLSX.read(buffer);
+      const workbook = XLSX.read(buffer, {type: 'buffer'});
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(worksheet);
       
@@ -382,10 +388,12 @@ export const initAzureStorageService = (): AzureStorageService | null => {
   try {
     // Check for required environment variables
     if (!process.env.AZURE_STORAGE_ACCOUNT_NAME || !process.env.AZURE_STORAGE_ACCOUNT_KEY) {
-      console.error('Missing Azure Storage credentials. Set AZURE_STORAGE_ACCOUNT_NAME and AZURE_STORAGE_ACCOUNT_KEY environment variables.');
+      console.warn('Missing Azure Storage credentials. Set AZURE_STORAGE_ACCOUNT_NAME and AZURE_STORAGE_ACCOUNT_KEY environment variables. Azure-related features will be disabled.');
       return null;
     }
 
+    // Create service with a timeout promise to avoid hanging
+    console.log('Initializing Azure Storage service...');
     const service = new AzureStorageService(
       process.env.AZURE_STORAGE_ACCOUNT_NAME,
       process.env.AZURE_STORAGE_ACCOUNT_KEY

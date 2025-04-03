@@ -554,18 +554,23 @@ const AudioFileAllocation = () => {
               <div className="space-y-2">
                 <div className="flex justify-between items-center mb-2">
                   <Label>Select Audio Files</Label>
-                  <Tabs value={sourceTab} onValueChange={(value) => setSourceTab(value as 'database' | 'azure')} className="justify-end">
-                    <TabsList>
-                      <TabsTrigger value="database">Database</TabsTrigger>
-                      <TabsTrigger value="azure">Azure Storage</TabsTrigger>
-                    </TabsList>
-                  </Tabs>
                 </div>
                 
-                <Card>
-                  <CardContent className="p-4">
-                    {sourceTab === 'database' && (
-                      <>
+                <Tabs value={sourceTab} onValueChange={(value) => setSourceTab(value as 'database' | 'azure')} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 mb-4">
+                    <TabsTrigger value="database">
+                      <Database className="mr-2 h-4 w-4" />
+                      Database
+                    </TabsTrigger>
+                    <TabsTrigger value="azure">
+                      <Cloud className="mr-2 h-4 w-4" />
+                      Azure Storage
+                    </TabsTrigger>
+                  </TabsList>
+                
+                  <Card>
+                    <CardContent className="p-4">
+                    <TabsContent value="database">
                         <div className="flex justify-end mb-2">
                           <div className="flex items-center space-x-2">
                             <Checkbox 
@@ -622,11 +627,9 @@ const AudioFileAllocation = () => {
                             <p>No unallocated audio files found</p>
                           </div>
                         )}
-                      </>
-                    )}
+                      </TabsContent>
                     
-                    {sourceTab === 'azure' && (
-                      <>
+                    <TabsContent value="azure">
                         <div className="flex space-x-2 mb-4">
                           <div className="w-1/2">
                             <Label className="mb-2 block">Container</Label>
@@ -793,11 +796,10 @@ const AudioFileAllocation = () => {
                             <p>Select a container to view files</p>
                           </div>
                         )}
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
             </div>
             
             <DialogFooter>
