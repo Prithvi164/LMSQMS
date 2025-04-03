@@ -67,8 +67,6 @@ const AudioFileManagement = () => {
     disposition2: '',
     queryType: '',
     businessSegment: '',
-    customerMobile: '',
-    callTime: '',
     subType: '',
     subSubType: '',
     voc: ''
@@ -313,8 +311,6 @@ const AudioFileManagement = () => {
       disposition2: '',
       queryType: '',
       businessSegment: '',
-      customerMobile: '',
-      callTime: '',
       subType: '',
       subSubType: '',
       voc: ''
@@ -412,17 +408,7 @@ const AudioFileManagement = () => {
       );
     }
     
-    if (filters.customerMobile) {
-      filteredFiles = filteredFiles.filter(file => 
-        file.callMetrics?.customerMobile?.toLowerCase().includes(filters.customerMobile.toLowerCase())
-      );
-    }
-    
-    if (filters.callTime) {
-      filteredFiles = filteredFiles.filter(file => 
-        file.callMetrics?.callTime === filters.callTime
-      );
-    }
+
     
     if (filters.subType) {
       filteredFiles = filteredFiles.filter(file => 
@@ -673,7 +659,7 @@ const AudioFileManagement = () => {
                   <AlertDescription>
                     <p className="text-sm">The Excel file should contain columns matching audio filenames and their metadata.</p>
                     <p className="text-sm mt-2">Required columns: filename, originalFilename, language, version, call_date</p>
-                    <p className="text-sm mt-2">Other fields: callId, callType, agentId, campaignName, duration, disposition1, disposition2, customerMobile, callTime, subType, subSubType, VOC, queryType, businessSegment</p>
+                    <p className="text-sm mt-2">Other fields: callId, callType, agentId, campaignName, duration, disposition1, disposition2, subType, subSubType, VOC, queryType, businessSegment</p>
                   </AlertDescription>
                 </Alert>
               </div>
@@ -861,26 +847,7 @@ const AudioFileManagement = () => {
                       />
                     </div>
                     
-                    <div>
-                      <Label htmlFor="filter-customerMobile">Customer Mobile</Label>
-                      <Input 
-                        id="filter-customerMobile" 
-                        placeholder="Customer Mobile" 
-                        value={filters.customerMobile}
-                        onChange={(e) => handleFilterChange('customerMobile', e.target.value)}
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="filter-callTime">Call Time</Label>
-                      <Input 
-                        id="filter-callTime" 
-                        type="time"
-                        placeholder="Call Time" 
-                        value={filters.callTime}
-                        onChange={(e) => handleFilterChange('callTime', e.target.value)}
-                      />
-                    </div>
+
                     
                     <div>
                       <Label htmlFor="filter-subType">Sub Type</Label>
