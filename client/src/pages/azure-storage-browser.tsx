@@ -775,13 +775,52 @@ const AzureStorageBrowser = () => {
               {selectedContainer && (
                 <div className="flex space-x-2">
                   {/* Template download buttons */}
-                  <Button 
-                    variant="outline"
-                    onClick={handleDownloadSimpleTemplate}
-                  >
-                    <FileDown className="h-4 w-4 mr-2" />
-                    CSV Metadata Template
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline">
+                        <FileDown className="h-4 w-4 mr-2" />
+                        Templates <ChevronDown className="h-4 w-4 ml-1" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>Excel Templates</DropdownMenuLabel>
+                      <DropdownMenuItem asChild>
+                        <a href="/ultra-simple-template.xlsx" download="ultra-simple-template.xlsx" className="flex items-center px-2 py-1.5 text-sm">
+                          <FileSpreadsheet className="h-4 w-4 mr-2" />
+                          Ultra Simple Template (Direct)
+                        </a>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <a href="/api/azure-audio-files/download-audio-template" download="audio-metadata-template.xlsx" className="flex items-center px-2 py-1.5 text-sm">
+                          <FileSpreadsheet className="h-4 w-4 mr-2" />
+                          Direct Template Download
+                        </a>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <a href="/generate-csv-template.html" target="_blank" className="flex items-center px-2 py-1.5 text-sm">
+                          <FileSpreadsheet className="h-4 w-4 mr-2" />
+                          CSV Template Generator
+                        </a>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleDownloadTemplate}>
+                        <FileSpreadsheet className="h-4 w-4 mr-2" />
+                        Standard Template
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleDownloadCustomTemplate}>
+                        <FileSpreadsheet className="h-4 w-4 mr-2" />
+                        Custom Template
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleDownloadMinimalTemplate}>
+                        <FileSpreadsheet className="h-4 w-4 mr-2" />
+                        Minimal Template
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleDownloadGuide}>
+                        <FileText className="h-4 w-4 mr-2" />
+                        Template Guide
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   
                   {!folderSelectMode && !selectedFolder && (
                     <Button 
@@ -820,15 +859,15 @@ const AzureStorageBrowser = () => {
                       <div className="grid gap-4 py-4">
                         {/* Process selection removed as per user request */}
                         <div className="grid gap-2">
-                          <Label htmlFor="metadataFile">Metadata File</Label>
+                          <Label htmlFor="metadataFile">Metadata Excel File</Label>
                           <Input
                             id="metadataFile"
                             type="file"
-                            accept=".xlsx,.xls,.csv"
+                            accept=".xlsx,.xls"
                             onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
                           />
                           <p className="text-xs text-gray-500">
-                            Upload a CSV or Excel file containing columns matching audio filenames in Azure.
+                            The Excel file should contain columns matching audio filenames in Azure.
                           </p>
                         </div>
                       </div>
@@ -852,6 +891,14 @@ const AzureStorageBrowser = () => {
                   <Button variant="outline" onClick={() => refetchBlobs()}>
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Refresh
+                  </Button>
+
+                  <Button 
+                    variant="outline" 
+                    onClick={handleDownloadFilenames}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download Filenames
                   </Button>
                 </div>
               )}

@@ -447,17 +447,15 @@ const excelUpload = multer({
   fileFilter: (req, file, cb) => {
     const allowedMimeTypes = [
       'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'text/csv',
-      'application/csv'
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     ];
-    const allowedExtensions = ['.xls', '.xlsx', '.csv'];
+    const allowedExtensions = ['.xls', '.xlsx'];
     const fileExtension = '.' + file.originalname.split('.').pop();
     
     if (allowedMimeTypes.includes(file.mimetype) || allowedExtensions.includes(fileExtension)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only Excel or CSV files are allowed.'), false);
+      cb(new Error('Invalid file type. Only Excel files are allowed.'), false);
     }
   }
 });
@@ -883,7 +881,7 @@ router.get('/azure-minimal-template', async (req, res) => {
   }
 });
 
-// Create a metadata template with all files from the container
+// Create an ultra-simple template with just one file from the container
 router.get('/azure-simple-template/:containerName', async (req, res) => {
   // Skip user authentication check for template downloads to make it more accessible
   if (!azureService) return res.status(503).json({ message: 'Azure service not available' });
@@ -891,7 +889,7 @@ router.get('/azure-simple-template/:containerName', async (req, res) => {
   const { containerName } = req.params;
   
   try {
-    console.log(`Creating metadata template for container: ${containerName}`);
+    console.log(`Creating simple template for container: ${containerName}`);
     
     // Fetch the actual blob names from the container
     const blobs = await azureService.listBlobs(containerName, '');
@@ -901,30 +899,43 @@ router.get('/azure-simple-template/:containerName', async (req, res) => {
       return res.status(404).json({ message: 'No blobs found in container' });
     }
     
-    console.log(`Found ${blobs.length} blobs, including all in template`);
+    console.log(`Found ${blobs.length} blobs, using first one as template`);
     
-    // Create the CSV content manually for maximum compatibility
-    let csvContent = 'filename,language,version,call_date\n';
+    // Use just the first blob as a template
+    const firstBlob = blobs[0];
     
-    // Add each blob name as a row
-    blobs.forEach(blob => {
-      // Properly escape fields for CSV
-      const today = new Date().toISOString().split('T')[0];
-      csvContent += `${blob.name},"english","1.0","${today}"\n`;
-    });
+    // Create a very basic Excel file with a single row
+    const wb = xlsxUtils.book_new();
+    const ws = xlsxUtils.aoa_to_sheet([
+      ['filename', 'language', 'version', 'call_date'],
+      [firstBlob.name, 'english', '1.0', new Date().toISOString().split('T')[0]]
+    ]);
     
-    // Set response headers for CSV download
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename=${containerName}-metadata-template.csv`);
+    // Add column width specifications for better readability
+    ws['!cols'] = [
+      { wch: 70 }, // filename (extra wide for the long filenames)
+      { wch: 10 }, // language
+      { wch: 10 }, // version
+      { wch: 12 }  // call_date
+    ];
     
-    console.log('Sending CSV template file');
+    xlsxUtils.book_append_sheet(wb, ws, 'Simple Template');
     
-    // Send the CSV content directly
-    res.send(csvContent);
+    // Write directly to a buffer with absolute minimal options
+    const buf = writeXLSX(wb, { type: 'buffer' });
+    
+    // Set response headers
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=${containerName}-simple-template.xlsx`);
+    
+    console.log('Sending ultra-simple template file');
+    
+    // Send the file
+    res.send(buf);
   } catch (error) {
-    console.error('Error creating template:', error);
+    console.error('Error creating ultra-simple template:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    res.status(500).json({ message: 'Failed to generate template', error: errorMessage });
+    res.status(500).json({ message: 'Failed to generate simple template', error: errorMessage });
   }
 });
 
