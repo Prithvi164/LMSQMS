@@ -3,17 +3,17 @@ import { Readable } from 'stream';
 import * as XLSX from 'xlsx';
 import * as mm from 'music-metadata';
 
-// Define the shape of metadata for audio files
+// Define the shape of metadata for audio files - all fields are now optional
 export interface AudioFileMetadata {
-  filename: string;      // Name of the file in Azure
+  filename?: string;      // Name of the file in Azure (optional now)
   originalFilename?: string; // Original name if different
-  language: string;      // Language of the audio
-  version: string;       // Version of the recording
-  call_date: string;     // Date of the call (YYYY-MM-DD)
-  callMetrics: {
-    callDate: string;    // Call date in readable format
-    callId: string;      // Unique call identifier
-    callType: string;    // Type of call (e.g., inbound, outbound)
+  language?: string;      // Language of the audio
+  version?: string;       // Version of the recording
+  call_date?: string;     // Date of the call (YYYY-MM-DD)
+  callMetrics?: {
+    callDate?: string;    // Call date in readable format
+    callId?: string;      // Unique call identifier
+    callType?: string;    // Type of call (e.g., inbound, outbound)
     agentId?: string;    // Agent identifier
     customerSatisfaction?: number; // Customer satisfaction score
     handleTime?: number; // Handle time in seconds
@@ -348,8 +348,17 @@ export class AzureStorageService {
     const enhancedMetadata: AudioFileMetadata[] = [];
     
     for (const metadata of metadataItems) {
-      // Skip items without filename
-      if (!metadata.filename) continue;
+      // Always process items, even without filename
+      if (!metadata.filename) {
+        // For items without a filename, we'll just include the metadata as-is
+        enhancedMetadata.push({
+          ...metadata,
+          filename: `unknown_file_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+          fileSize: 0,
+          duration: 0
+        });
+        continue;
+      }
       
       const blob = blobMap.get(metadata.filename);
       
@@ -371,6 +380,12 @@ export class AzureStorageService {
         }
       } else {
         console.warn(`Metadata references file ${metadata.filename} that doesn't exist in container ${containerName}`);
+        // Still include the metadata even if we can't find the file
+        enhancedMetadata.push({
+          ...metadata,
+          fileSize: 0,
+          duration: 0
+        });
       }
     }
     

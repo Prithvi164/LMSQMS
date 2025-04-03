@@ -71,8 +71,9 @@ async function parseExcelFile(filePath: string): Promise<AudioFileMetadata[]> {
       const versionIndex = headers.findIndex(h => h.includes('ver') || h === 'version');
       const dateIndex = headers.findIndex(h => h.includes('date') || h === 'call_date');
       
+      // All fields are optional now, but warn if no filename column found
       if (filenameIndex === -1) {
-        throw new Error(`Could not find filename column. Available columns are: ${headers.join(', ')}`);
+        console.warn(`Warning: Could not find filename column. Available columns are: ${headers.join(', ')}`);
       }
 
       // Process data rows
@@ -82,12 +83,9 @@ async function parseExcelFile(filePath: string): Promise<AudioFileMetadata[]> {
         const row = rawDataArray[i];
         if (!row || row.length === 0) continue;
         
-        // Ensure the filename exists
-        const filename = row[filenameIndex]?.toString().trim();
-        if (!filename) {
-          console.warn(`Row ${i+1}: Missing filename, skipping`);
-          continue;
-        }
+        // Get filename if it exists (now optional)
+        const filename = filenameIndex !== -1 ? row[filenameIndex]?.toString().trim() : '';
+        // Continue processing even if no filename - we'll generate a placeholder later if needed
         
         // Get other fields with defaults
         const language = (languageIndex >= 0 && row[languageIndex]) ? 
@@ -289,15 +287,11 @@ async function parseExcelFile(filePath: string): Promise<AudioFileMetadata[]> {
         }
       }
       
-      // For filename, ensure we have one and give helpful error if missing
+      // For filename, it's now optional so we'll just add placeholder or use empty string
       if (!normalizedRow.filename) {
-        if (rowIndex === 0) {
-          // If the first row is missing the filename, it's likely a column mapping issue
-          throw new Error(`Could not find filename column. Available columns are: ${Object.keys(row).join(', ')}`);
-        } else {
-          // For other rows, provide more specific error
-          throw new Error(`Row ${rowIndex + 1} is missing a filename`);
-        }
+        // Generate a placeholder filename if none is provided
+        normalizedRow.filename = `audio_file_${rowIndex + 1}_${Date.now()}`;
+        console.warn(`Row ${rowIndex + 1}: Added placeholder filename: ${normalizedRow.filename}`);
       }
       
       return normalizedRow;
@@ -564,26 +558,26 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
     
     for (const item of enrichedItems) {
       try {
-        // Generate a SAS URL for the file
+        // Generate a SAS URL for the file (ensuring filename is a string)
         const sasUrl = await azureService.generateBlobSasUrl(
           containerName,
-          item.filename,
+          item.filename || `unknown_file_${Date.now()}`,
           1440 // 24 hours
         );
         
-        // Create the database record
+        // Create the database record, ensuring all fields have valid values
         const [audioFile] = await db
           .insert(audioFiles)
           .values({
-            filename: item.filename,
-            originalFilename: item.originalFilename || item.filename,
+            filename: item.filename || `unknown_file_${Date.now()}`,
+            originalFilename: item.originalFilename || item.filename || `unknown_file_${Date.now()}`,
             fileUrl: sasUrl,
             fileSize: item.fileSize || 0,
             duration: item.duration || 0,
-            language: item.language as any,
-            version: item.version,
-            call_date: item.call_date,
-            callMetrics: item.callMetrics,
+            language: (item.language || 'english') as any,
+            version: item.version || '1.0',
+            call_date: item.call_date || new Date().toISOString().split('T')[0],
+            callMetrics: item.callMetrics || {},
             status: 'pending',
             uploadedBy: req.user.id,
             // Use a default process ID if none is provided (1 is typically the default process)
@@ -592,15 +586,17 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
           })
           .returning();
         
+        const displayFilename = item.filename || `unknown_file_${Date.now()}`;
         importResults.push({
-          file: item.filename,
+          file: displayFilename,
           status: 'success',
           id: audioFile.id
         });
       } catch (error) {
-        console.error(`Error importing ${item.filename}:`, error);
+        const displayFilename = item.filename || `unknown_file_${Date.now()}`;
+        console.error(`Error importing ${displayFilename}:`, error);
         importResults.push({
-          file: item.filename,
+          file: displayFilename,
           status: 'error',
           error: error.message
         });
