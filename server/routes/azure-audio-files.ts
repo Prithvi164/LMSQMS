@@ -775,6 +775,65 @@ router.get('/azure-minimal-template', async (req, res) => {
   }
 });
 
+// Create an ultra-simple template with just one file from the container
+router.get('/azure-simple-template/:containerName', async (req, res) => {
+  if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
+  if (!azureService) return res.status(503).json({ message: 'Azure service not available' });
+  
+  const { containerName } = req.params;
+  
+  try {
+    // Fetch the actual blob names from the container
+    const blobs = await azureService.listBlobs(containerName, '');
+    
+    // Create a new workbook
+    const wb = xlsxUtils.book_new();
+    
+    if (!blobs || blobs.length === 0) {
+      return res.status(404).json({ message: 'No blobs found in container' });
+    }
+    
+    // Use just the first blob as a template
+    const firstBlob = blobs[0];
+    
+    // Create a very simple template with just one sample row
+    const sampleData = [
+      {
+        filename: firstBlob.name,
+        language: 'english',
+        version: '1.0',
+        call_date: new Date().toISOString().split('T')[0]
+      }
+    ];
+    
+    // Create worksheet and add to workbook
+    const ws = xlsxUtils.json_to_sheet(sampleData);
+    xlsxUtils.book_append_sheet(wb, ws, 'Audio File');
+    
+    // Add column width specifications for better readability
+    const wscols = [
+      { wch: 70 }, // filename (extra wide for the long filenames)
+      { wch: 10 }, // language
+      { wch: 10 }, // version
+      { wch: 12 }  // call_date
+    ];
+    ws['!cols'] = wscols;
+    
+    // Write to buffer
+    const buf = writeXLSX(wb, { bookType: 'xlsx', type: 'buffer' });
+    
+    // Set response headers
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=${containerName}-simple-template.xlsx`);
+    
+    // Send the file
+    res.send(buf);
+  } catch (error) {
+    console.error('Error creating ultra-simple template:', error);
+    res.status(500).json({ message: 'Failed to generate simple template' });
+  }
+});
+
 // Allocate audio files to quality analysts
 router.post('/azure-audio-allocate', async (req, res) => {
   if (!req.user) return res.status(401).json({ message: 'Unauthorized' });

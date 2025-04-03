@@ -304,6 +304,48 @@ const AzureStorageBrowser = () => {
     }
   };
   
+  // Download ultra-simple template with just one file
+  const handleDownloadSimpleTemplate = async () => {
+    if (!selectedContainer) {
+      toast({
+        title: 'No Container Selected',
+        description: 'Please select a container first to download a simple template.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    try {
+      // Use the direct API endpoint that generates a template with just one example file
+      const response = await fetch(`/api/azure-audio-files/azure-simple-template/${selectedContainer}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to download ultra-simple template');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${selectedContainer}-simple-template.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: 'Ultra-Simple Template Downloaded',
+        description: 'A template with just one file from your container has been downloaded.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Download Failed',
+        description: error instanceof Error ? error.message : 'Failed to download ultra-simple template',
+        variant: 'destructive',
+      });
+    }
+  };
+  
   // Download template guide
   const handleDownloadGuide = () => {
     // Use the public path for the template guide
@@ -646,6 +688,10 @@ const AzureStorageBrowser = () => {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Excel Templates</DropdownMenuLabel>
+                      <DropdownMenuItem onClick={handleDownloadSimpleTemplate}>
+                        <FileSpreadsheet className="h-4 w-4 mr-2" />
+                        Ultra Simple Template (1 file)
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={handleDownloadTemplate}>
                         <FileSpreadsheet className="h-4 w-4 mr-2" />
                         Standard Template
