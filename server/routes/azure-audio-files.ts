@@ -20,26 +20,79 @@ async function parseExcelFile(filePath: string): Promise<AudioFileMetadata[]> {
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
     
-    // Convert the worksheet to JSON
-    const rawData = xlsxUtils.sheet_to_json(worksheet);
+    // Convert the worksheet to JSON with raw: false to handle case-sensitivity better
+    const rawData = xlsxUtils.sheet_to_json(worksheet, { raw: false });
     
-    // Map the raw data to AudioFileMetadata structure
-    const metadataItems: AudioFileMetadata[] = rawData.map((row: any) => {
-      // Basic validation
+    if (rawData.length === 0) {
+      throw new Error('Excel file contains no data');
+    }
+    
+    // Create a mapping of column variations to standard names
+    const columnMap: Record<string, string> = {
+      // Filename variations
+      'filename': 'filename',
+      'Filename': 'filename',
+      'FILENAME': 'filename',
+      'fileName': 'filename',
+      'FileName': 'filename',
+      'file_name': 'filename',
+      'File Name': 'filename',
+      
+      // Language variations
+      'language': 'language',
+      'Language': 'language',
+      'LANGUAGE': 'language',
+      
+      // Version variations
+      'version': 'version',
+      'Version': 'version',
+      'VERSION': 'version',
+      
+      // Call date variations
+      'call_date': 'call_date',
+      'Call_Date': 'call_date',
+      'CallDate': 'call_date',
+      'callDate': 'call_date',
+      'Call Date': 'call_date',
+      'CALL_DATE': 'call_date'
+    };
+    
+    // Function to normalize a row using our column mapping
+    const normalizeRow = (row: any) => {
+      const normalizedRow: any = {};
+      
+      // First, try to find normalized keys for all columns
+      for (const key in row) {
+        const normalizedKey = columnMap[key] || key;
+        normalizedRow[normalizedKey] = row[key];
+      }
+      
+      return normalizedRow;
+    };
+    
+    // Normalize all rows
+    const normalizedData = rawData.map(normalizeRow);
+    
+    // Map the normalized data to AudioFileMetadata structure
+    const metadataItems: AudioFileMetadata[] = normalizedData.map((row: any, index: number) => {
+      // Debug the row
+      console.log(`Processing row ${index + 1}:`, Object.keys(row));
+      
+      // Basic validation with better error messages
       if (!row.filename) {
-        throw new Error('Excel file missing required "filename" column');
+        throw new Error(`Excel file missing required "filename" column. Found columns: ${Object.keys(row).join(', ')}`);
       }
       
       if (!row.language) {
-        throw new Error('Excel file missing required "language" column');
+        throw new Error(`Excel file missing required "language" column. Found columns: ${Object.keys(row).join(', ')}`);
       }
       
       if (!row.version) {
-        throw new Error('Excel file missing required "version" column');
+        throw new Error(`Excel file missing required "version" column. Found columns: ${Object.keys(row).join(', ')}`);
       }
       
       if (!row.call_date) {
-        throw new Error('Excel file missing required "call_date" column');
+        throw new Error(`Excel file missing required "call_date" column. Found columns: ${Object.keys(row).join(', ')}`);
       }
       
       // Extract call metrics from the row
