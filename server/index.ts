@@ -74,6 +74,17 @@ app.get("/health", (_req, res) => {
 });
 debugLog("Health check route added");
 
+// Serve static files from the public directory
+app.use(express.static('public'));
+
+// Direct Excel file serving with proper headers
+app.get('/ultra-simple-template.xlsx', (_req, res) => {
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="ultra-simple-template.xlsx"');
+  res.sendFile('ultra-simple-template.xlsx', { root: '.' });
+});
+debugLog("Static file routes added");
+
 (async () => {
   try {
     debugLog("Starting async initialization");
