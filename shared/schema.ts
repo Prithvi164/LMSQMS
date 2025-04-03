@@ -147,7 +147,7 @@ export const audioFileAllocations = pgTable("audio_file_allocations", {
   // Using created_at instead of allocation_date to match the existing database structure
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  // Removed dueDate that was causing issues
+  // Removed dueDate and notes fields that were causing issues
   status: audioFileStatusEnum("status").default('allocated').notNull(),
   allocatedBy: integer("allocated_by")
     .references(() => users.id)
@@ -157,7 +157,6 @@ export const audioFileAllocations = pgTable("audio_file_allocations", {
     .notNull(),
   evaluationId: integer("evaluation_id")
     .references(() => evaluations.id),
-  notes: text("notes"),
 });
 
 // Audio file batch allocation
@@ -559,13 +558,11 @@ export const insertAudioFileAllocationSchema = createInsertSchema(audioFileAlloc
   .extend({
     audioFileId: z.number().int().positive("Audio file is required"),
     qualityAnalystId: z.number().int().positive("Quality analyst is required"),
-    // Removed dueDate field that was causing the issue
-    // completedDate field also removed as it's not in the table
+    // Removed dueDate, completedDate, and notes fields that were causing issues
     status: z.enum(['pending', 'allocated', 'evaluated', 'archived']).default('allocated'),
     allocatedBy: z.number().int().positive("Allocator is required"),
     organizationId: z.number().int().positive("Organization is required"),
     evaluationId: z.number().int().positive("Evaluation is required").optional(),
-    notes: z.string().optional(),
   });
 
 export const insertAudioFileBatchAllocationSchema = createInsertSchema(audioFileBatchAllocations)
