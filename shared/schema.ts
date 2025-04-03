@@ -103,12 +103,22 @@ export const audioFiles = pgTable("audio_files", {
   version: text("version").notNull(),
   call_date: date("call_date").notNull(), // Added call_date field to match database schema
   callMetrics: jsonb("call_metrics").$type<{
-    callDate: string;
     callId: string;
     callType: string;
-    agentId?: string;
-    customerSatisfaction?: number;
-    handleTime?: number;
+    agentId: string;
+    campaignName: string;
+    duration: number; // in minutes
+    disposition1: string;
+    disposition2: string;
+    customerMobile: string;
+    callTime: string;
+    subType: string;
+    subSubType: string;
+    VOC: string;
+    userRole: string;
+    advisorCategory: string;
+    queryType: string;
+    businessSegment: string;
     [key: string]: any; // For additional metrics
   }>(),
   status: audioFileStatusEnum("status").default('pending').notNull(),
@@ -517,12 +527,22 @@ export const insertAudioFileSchema = createInsertSchema(audioFiles)
       return !!val.match(/^\d{4}-\d{2}-\d{2}$/);
     }, { message: "Call date must be in YYYY-MM-DD format" }),
     callMetrics: z.object({
-      callDate: z.string(),
       callId: z.string(),
       callType: z.string(),
-      agentId: z.string().optional(),
-      customerSatisfaction: z.number().min(0).max(10).optional(),
-      handleTime: z.number().optional(),
+      agentId: z.string(),
+      campaignName: z.string(),
+      duration: z.number(), // in minutes
+      disposition1: z.string(),
+      disposition2: z.string(),
+      customerMobile: z.string(),
+      callTime: z.string(),
+      subType: z.string(),
+      subSubType: z.string(),
+      VOC: z.string(),
+      userRole: z.string(),
+      advisorCategory: z.string(),
+      queryType: z.string(),
+      businessSegment: z.string(),
     }).optional(),
     status: z.enum(['pending', 'allocated', 'evaluated', 'archived']).default('pending'),
     uploadedBy: z.number().int().positive("Uploader is required"),

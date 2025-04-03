@@ -273,15 +273,22 @@ router.get('/azure-metadata-template', async (req, res) => {
         language: 'english', // must be one of: english, spanish, french, hindi, other
         version: '1.0',
         call_date: '2025-04-01', // YYYY-MM-DD format
-        callId: 'CALL-123456',
+        callId: '101',
         callType: 'inbound',
-        agentId: 'AGT-123',
-        customerSatisfaction: 4.5, // optional, scale of 1-5
-        handleTime: 350, // in seconds
-        // Additional fields can be added here
-        product: 'Premium Plan',
-        team: 'Billing Support',
-        issue: 'Payment Method Update'
+        agentId: '249',
+        campaignName: 'Symp_Inbound_D2C',
+        duration: 1, // in minutes
+        disposition1: 'Lead',
+        disposition2: 'happy',
+        customerMobile: '9876543210',
+        callTime: '15:30:45',
+        subType: 'Customer Service',
+        subSubType: 'Billing Inquiry',
+        VOC: 'Positive',
+        userRole: 'Agent',
+        advisorCategory: 'Level 1',
+        queryType: 'General',
+        businessSegment: 'Consumer'
       },
       {
         filename: 'agent-456-20250401-5678.mp3',
@@ -289,14 +296,22 @@ router.get('/azure-metadata-template', async (req, res) => {
         language: 'spanish',
         version: '1.0',
         call_date: '2025-04-01',
-        callId: 'CALL-123457',
+        callId: '102',
         callType: 'outbound',
-        agentId: 'AGT-456',
-        customerSatisfaction: 3.0,
-        handleTime: 480,
-        product: 'Basic Plan',
-        team: 'Technical Support',
-        issue: 'Login Problem'
+        agentId: '204',
+        campaignName: 'NPR_Restel_Outbound',
+        duration: 2, // in minutes
+        disposition1: 'Not Lead',
+        disposition2: 'not happy',
+        customerMobile: '8765432109',
+        callTime: '16:45:30',
+        subType: 'Technical Support',
+        subSubType: 'Product Issue',
+        VOC: 'Negative',
+        userRole: 'Supervisor',
+        advisorCategory: 'Level 2',
+        queryType: 'Specific',
+        businessSegment: 'Enterprise'
       }
     ];
     
@@ -311,11 +326,22 @@ router.get('/azure-metadata-template', async (req, res) => {
       { wch: 10 }, // language
       { wch: 10 }, // version
       { wch: 12 }, // call_date
-      { wch: 12 }, // callId
+      { wch: 10 }, // callId
       { wch: 10 }, // callType
       { wch: 10 }, // agentId
-      { wch: 10 }, // customerSatisfaction
-      { wch: 10 }  // handleTime
+      { wch: 20 }, // campaignName
+      { wch: 10 }, // duration
+      { wch: 12 }, // disposition1
+      { wch: 12 }, // disposition2
+      { wch: 15 }, // customerMobile
+      { wch: 10 }, // callTime
+      { wch: 15 }, // subType
+      { wch: 15 }, // subSubType
+      { wch: 10 }, // VOC
+      { wch: 12 }, // userRole
+      { wch: 15 }, // advisorCategory
+      { wch: 12 }, // queryType
+      { wch: 18 }  // businessSegment
     ];
     ws['!cols'] = wscols;
     

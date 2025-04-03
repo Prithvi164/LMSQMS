@@ -11,7 +11,8 @@ import {
   ChevronRight,
   Calendar,
   FileDown,
-  ArrowLeft
+  ArrowLeft,
+  Folder
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';

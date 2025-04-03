@@ -392,7 +392,7 @@ const AudioFileManagement = () => {
                   <Label htmlFor="metadataFile">Excel Metadata File</Label>
                   <div className="flex items-center gap-2">
                     <Button variant="outline" size="sm" asChild className="mb-2">
-                      <a href="/api/audio-files/metadata-template" download="audio-file-metadata-template.xlsx">
+                      <a href="/api/azure-audio-files/azure-metadata-template" download="audio-metadata-template.xlsx">
                         <Download className="mr-2 h-4 w-4" />
                         Download Template
                       </a>
@@ -417,8 +417,8 @@ const AudioFileManagement = () => {
                 <Alert>
                   <AlertDescription>
                     <p className="text-sm">The Excel file should contain columns matching audio filenames and their metadata.</p>
-                    <p className="text-sm mt-2">Required columns: filename, language, version, call_date, call_type, agent_id</p>
-                    <p className="text-sm mt-2">Optional columns: call_id, customer_satisfaction, handle_time</p>
+                    <p className="text-sm mt-2">Required columns: filename, originalFilename, language, version, call_date</p>
+                    <p className="text-sm mt-2">Other fields: callId, callType, agentId, campaignName, duration, disposition1, disposition2, customerMobile, callTime, subType, subSubType, VOC, userRole, advisorCategory, queryType, businessSegment</p>
                   </AlertDescription>
                 </Alert>
               </div>
