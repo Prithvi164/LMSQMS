@@ -100,7 +100,7 @@ const AzureStorageBrowser = () => {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [allocateDialogOpen, setAllocateDialogOpen] = useState(false);
   // selectedProcessId removed as per user request
-  const [selectedQA, setSelectedQA] = useState<string>('');
+  const [selectedQA, setSelectedQA] = useState<string[]>([]);
   const [dueDate, setDueDate] = useState<string>('');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -119,6 +119,7 @@ const AzureStorageBrowser = () => {
   const [maxDuration, setMaxDuration] = useState<string>('');
   const [language, setLanguage] = useState<string>('all');
   const [filterCounts, setFilterCounts] = useState<{total: number, filtered: number} | null>(null);
+  const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
   
   const ITEMS_PER_PAGE = 5;
   
@@ -524,6 +525,11 @@ const AzureStorageBrowser = () => {
         total: data.total,
         filtered: data.filtered
       });
+      
+      // Extract available languages from the response
+      if (data.availableLanguages && Array.isArray(data.availableLanguages)) {
+        setAvailableLanguages(data.availableLanguages);
+      }
     },
     onError: (error: any) => {
       toast({
@@ -637,18 +643,22 @@ const AzureStorageBrowser = () => {
 
   // Handle allocation form submission
   const handleAllocate = () => {
-    if (!selectedBlobItems.length || !selectedQA) {
+    if (!selectedBlobItems.length || !selectedQA.length) {
       toast({
         title: 'Missing information',
-        description: 'Please select audio files and a quality analyst.',
+        description: 'Please select audio files and at least one quality analyst.',
         variant: 'destructive',
       });
       return;
     }
 
+    // Currently only supporting allocation to a single QA
+    // In the future, this could be extended to support multiple QAs
+    const firstSelectedQA = selectedQA[0];
+    
     allocateAudioMutation.mutate({
       audioFileIds: selectedBlobItems,
-      qualityAnalystId: parseInt(selectedQA),
+      qualityAnalystId: parseInt(firstSelectedQA),
       dueDate: dueDate || undefined,
     });
   };
@@ -906,19 +916,20 @@ const AzureStorageBrowser = () => {
                           Upload an Excel file containing the filename column matching audio files in this container. The system will automatically extract audio duration from the files.
                         </DialogDescription>
                       </DialogHeader>
-                      <div className="grid gap-4 py-4">
-                        {/* Process selection removed as per user request */}
-                        <div className="grid gap-2">
-                          <Label htmlFor="metadataFile">Metadata Excel File</Label>
-                          <Input
-                            id="metadataFile"
-                            type="file"
-                            accept=".xlsx,.xls"
-                            onChange={(e) => {
-                              setUploadFile(e.target.files?.[0] || null);
-                              setFilterCounts(null);
-                            }}
-                          />
+                      <ScrollArea className="max-h-[70vh]">
+                        <div className="grid gap-4 py-4">
+                          {/* Process selection removed as per user request */}
+                          <div className="grid gap-2">
+                            <Label htmlFor="metadataFile">Metadata Excel File</Label>
+                            <Input
+                              id="metadataFile"
+                              type="file"
+                              accept=".xlsx,.xls"
+                              onChange={(e) => {
+                                setUploadFile(e.target.files?.[0] || null);
+                                setFilterCounts(null);
+                              }}
+                            />
                           <p className="text-xs text-gray-500">
                             The Excel file only needs a <strong>filename</strong> column matching audio filenames in Azure. The system will automatically analyze audio files to extract duration.
                           </p>
@@ -1021,17 +1032,27 @@ const AzureStorageBrowser = () => {
                                   </SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="all">All Languages</SelectItem>
-                                    <SelectItem value="english">English</SelectItem>
-                                    <SelectItem value="spanish">Spanish</SelectItem>
-                                    <SelectItem value="french">French</SelectItem>
-                                    <SelectItem value="german">German</SelectItem>
-                                    <SelectItem value="portuguese">Portuguese</SelectItem>
-                                    <SelectItem value="mandarin">Chinese (Mandarin)</SelectItem>
-                                    <SelectItem value="japanese">Japanese</SelectItem>
-                                    <SelectItem value="korean">Korean</SelectItem>
-                                    <SelectItem value="russian">Russian</SelectItem>
-                                    <SelectItem value="arabic">Arabic</SelectItem>
-                                    <SelectItem value="hindi">Hindi</SelectItem>
+                                    {availableLanguages.length > 0 ? (
+                                      availableLanguages.map(lang => (
+                                        <SelectItem key={lang} value={lang}>
+                                          {lang.charAt(0).toUpperCase() + lang.slice(1)}
+                                        </SelectItem>
+                                      ))
+                                    ) : (
+                                      <>
+                                        <SelectItem value="english">English</SelectItem>
+                                        <SelectItem value="spanish">Spanish</SelectItem>
+                                        <SelectItem value="french">French</SelectItem>
+                                        <SelectItem value="german">German</SelectItem>
+                                        <SelectItem value="portuguese">Portuguese</SelectItem>
+                                        <SelectItem value="mandarin">Chinese (Mandarin)</SelectItem>
+                                        <SelectItem value="japanese">Japanese</SelectItem>
+                                        <SelectItem value="korean">Korean</SelectItem>
+                                        <SelectItem value="russian">Russian</SelectItem>
+                                        <SelectItem value="arabic">Arabic</SelectItem>
+                                        <SelectItem value="hindi">Hindi</SelectItem>
+                                      </>
+                                    )}
                                   </SelectContent>
                                 </Select>
                               </div>
@@ -1069,10 +1090,63 @@ const AzureStorageBrowser = () => {
                                   </div>
                                 </div>
                               )}
+                              
+                              {filterCounts && filterCounts.filtered > 0 && (
+                                <div className="mt-4 border-t pt-4">
+                                  <h4 className="font-medium mb-2">Quality Analyst Assignment</h4>
+                                  
+                                  <div className="flex items-center space-x-2 mb-4">
+                                    <Checkbox 
+                                      id="autoAssign" 
+                                      checked={autoAssign}
+                                      onCheckedChange={(checked: boolean | "indeterminate") => setAutoAssign(checked === true)}
+                                    />
+                                    <Label htmlFor="autoAssign" className="text-sm font-normal cursor-pointer">
+                                      Auto-assign files to quality analysts
+                                    </Label>
+                                  </div>
+                                  
+                                  {!autoAssign && (
+                                    <div className="grid gap-2">
+                                      <Label htmlFor="selectedQA">Assign to Quality Analysts</Label>
+                                      <Select
+                                        value={selectedQA.length === 1 ? selectedQA[0] : undefined}
+                                        onValueChange={(value) => {
+                                          if (value) {
+                                            setSelectedQA([value]);
+                                          } else {
+                                            setSelectedQA([]);
+                                          }
+                                        }}
+                                      >
+                                        <SelectTrigger id="selectedQA">
+                                          <SelectValue 
+                                            placeholder={selectedQA.length > 1 
+                                              ? `${selectedQA.length} analysts selected` 
+                                              : "Select quality analyst"
+                                            } 
+                                          />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {qualityAnalysts?.map((qa) => (
+                                            <SelectItem key={qa.id} value={qa.id.toString()}>
+                                              {qa.fullName}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                      <p className="text-xs text-gray-500">
+                                        Quality analysts will be notified about the new audio files assigned to them.
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
                       </div>
+                      </ScrollArea>
                       <DialogFooter>
                         <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
                           Cancel
@@ -1117,9 +1191,23 @@ const AzureStorageBrowser = () => {
                     <div className="grid gap-4 py-4">
                       <div className="grid gap-2">
                         <Label htmlFor="qualityAnalyst">Quality Analyst</Label>
-                        <Select value={selectedQA} onValueChange={setSelectedQA}>
+                        <Select 
+                          value={selectedQA.length === 1 ? selectedQA[0] : undefined} 
+                          onValueChange={(value) => {
+                            if (value) {
+                              setSelectedQA([value]);
+                            } else {
+                              setSelectedQA([]);
+                            }
+                          }}
+                        >
                           <SelectTrigger>
-                            <SelectValue placeholder="Select quality analyst" />
+                            <SelectValue 
+                              placeholder={selectedQA.length > 1 
+                                ? `${selectedQA.length} analysts selected` 
+                                : "Select quality analyst"
+                              } 
+                            />
                           </SelectTrigger>
                           <SelectContent>
                             {qualityAnalysts?.map((qa) => (

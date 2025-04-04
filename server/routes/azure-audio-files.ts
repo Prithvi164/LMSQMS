@@ -660,13 +660,23 @@ router.post('/azure-audio-filter-preview/:containerName', excelUpload.single('me
     // Match with actual files in Azure and get enhanced metadata
     const enrichedItems = await azureService.matchAudioFilesWithMetadata(containerName, metadataItems);
     
+    // Extract available languages from metadata
+    const availableLanguages = Array.from(
+      new Set(
+        enrichedItems
+          .filter(item => item.language && typeof item.language === 'string' && item.language.trim() !== '')
+          .map(item => item.language.toLowerCase().trim())
+      )
+    );
+    
     // Apply filters to get the filtered count
     const filteredItems = filterAudioMetadata(enrichedItems, filters);
     
     // Return the counts
     return res.status(200).json({
       total: enrichedItems.length,
-      filtered: filteredItems.length
+      filtered: filteredItems.length,
+      availableLanguages
     });
     
   } catch (error) {
@@ -719,7 +729,7 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
     // Apply filters if any are specified
     let filteredItems = enrichedItems;
     if (filters.fileNameFilter || filters.dateRangeStart || filters.dateRangeEnd || 
-        filters.minDuration || filters.maxDuration) {
+        filters.minDuration || filters.maxDuration || (filters.language && filters.language !== 'all')) {
       console.log('Applying filters to imported files:', filters);
       filteredItems = filterAudioMetadata(enrichedItems, filters);
       console.log(`Filtered ${enrichedItems.length} items to ${filteredItems.length} items`);
@@ -856,7 +866,8 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
       errorCount: importResults.filter(r => r.status === 'error').length,
       filtered: enrichedItems.length !== filteredItems.length,
       filterApplied: filters.fileNameFilter || filters.dateRangeStart || filters.dateRangeEnd || 
-                    filters.minDuration || filters.maxDuration ? true : false,
+                    filters.minDuration || filters.maxDuration || 
+                    (filters.language && filters.language !== 'all') ? true : false,
       results: importResults,
       autoAssigned: autoAssign === 'true' ? assignmentResults.length : 0,
       assignmentResults: autoAssign === 'true' ? assignmentResults : []
