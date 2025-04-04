@@ -980,10 +980,10 @@ const AzureStorageBrowser = () => {
                                 setFilterCounts(null);
                               }}
                             />
-                            <p className="text-xs text-gray-500">
-                              The Excel file only needs a <strong>filename</strong> column matching audio filenames in Azure. The system will automatically analyze audio files to extract duration.
-                            </p>
-                          </div>
+                          <p className="text-xs text-gray-500">
+                            The Excel file only needs a <strong>filename</strong> column matching audio filenames in Azure. The system will automatically analyze audio files to extract duration.
+                          </p>
+                        </div>
                         
                         <div className="grid gap-2 mt-3">
                           <Label htmlFor="importEvaluationTemplate">Evaluation Template</Label>
@@ -1242,8 +1242,8 @@ const AzureStorageBrowser = () => {
                                     </p>
                                   </div>
                                 </div>
-                              )}
-                            </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </ScrollArea>
@@ -1252,17 +1252,17 @@ const AzureStorageBrowser = () => {
                           Cancel
                         </Button>
                         <Button 
-                          onClick={handleImport}
-                          disabled={importAudioMutation.isPending}
-                        >
-                          {importAudioMutation.isPending && (
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          )}
-                          Import Files
+                        onClick={handleImport}
+                        disabled={importAudioMutation.isPending}
+                      >
+                        {importAudioMutation.isPending && (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        )}
+                        Import Files
                         </Button>
                       </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
+                    </DialogContent>
+                  </Dialog>
 
                   <Button variant="outline" onClick={() => refetchBlobs()}>
                     <RefreshCw className="h-4 w-4 mr-2" />
