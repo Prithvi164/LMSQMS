@@ -109,6 +109,16 @@ const AzureStorageBrowser = () => {
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [folders, setFolders] = useState<string[]>([]);
   const [autoAssign, setAutoAssign] = useState(false);
+  
+  // Filter states for import
+  const [showFilters, setShowFilters] = useState(false);
+  const [fileNameFilter, setFileNameFilter] = useState<string>('');
+  const [dateRangeStart, setDateRangeStart] = useState<string>('');
+  const [dateRangeEnd, setDateRangeEnd] = useState<string>('');
+  const [minDuration, setMinDuration] = useState<string>('');
+  const [maxDuration, setMaxDuration] = useState<string>('');
+  const [filterCounts, setFilterCounts] = useState<{total: number, filtered: number} | null>(null);
+  
   const ITEMS_PER_PAGE = 5;
   
   const { toast } = useToast();
@@ -491,15 +501,55 @@ const AzureStorageBrowser = () => {
     });
   };
 
+  // Apply filters to get counts before import
+  const applyFilters = useMutation({
+    mutationFn: async ({ containerName, metadataFile }: any) => {
+      const formData = new FormData();
+      formData.append('metadataFile', metadataFile);
+      
+      // Add filters if they exist
+      if (fileNameFilter) formData.append('fileNameFilter', fileNameFilter);
+      if (dateRangeStart) formData.append('dateRangeStart', dateRangeStart);
+      if (dateRangeEnd) formData.append('dateRangeEnd', dateRangeEnd);
+      if (minDuration) formData.append('minDuration', minDuration);
+      if (maxDuration) formData.append('maxDuration', maxDuration);
+      
+      return apiRequest('POST', `/api/azure-audio-filter-preview/${containerName}`, formData);
+    },
+    onSuccess: async (response) => {
+      const data = await response.json();
+      setFilterCounts({
+        total: data.total,
+        filtered: data.filtered
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Filter preview failed',
+        description: error.message || 'There was an error applying filters.',
+        variant: 'destructive',
+      });
+      setFilterCounts(null);
+    },
+  });
+
   // Import audio files mutation
   const importAudioMutation = useMutation({
     mutationFn: async ({ containerName, metadataFile }: any) => {
       const formData = new FormData();
       formData.append('metadataFile', metadataFile);
+      
       // Add autoAssign parameter if checked
       if (autoAssign) {
         formData.append('autoAssign', 'true');
       }
+      
+      // Add filter parameters if they exist
+      if (fileNameFilter) formData.append('fileNameFilter', fileNameFilter);
+      if (dateRangeStart) formData.append('dateRangeStart', dateRangeStart);
+      if (dateRangeEnd) formData.append('dateRangeEnd', dateRangeEnd);
+      if (minDuration) formData.append('minDuration', minDuration);
+      if (maxDuration) formData.append('maxDuration', maxDuration);
       
       return apiRequest('POST', `/api/azure-audio-import/${containerName}`, formData);
     },
@@ -547,6 +597,23 @@ const AzureStorageBrowser = () => {
       });
     },
   });
+
+  // Handle preview filter application
+  const handleApplyFilters = () => {
+    if (!selectedContainer || !uploadFile) {
+      toast({
+        title: 'Missing information',
+        description: 'Please select a container and upload a metadata file.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    applyFilters.mutate({
+      containerName: selectedContainer,
+      metadataFile: uploadFile,
+    });
+  };
 
   // Handle import form submission
   const handleImport = () => {
@@ -844,7 +911,10 @@ const AzureStorageBrowser = () => {
                             id="metadataFile"
                             type="file"
                             accept=".xlsx,.xls"
-                            onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                            onChange={(e) => {
+                              setUploadFile(e.target.files?.[0] || null);
+                              setFilterCounts(null);
+                            }}
                           />
                           <p className="text-xs text-gray-500">
                             The Excel file only needs a <strong>filename</strong> column matching audio filenames in Azure. The system will automatically analyze audio files to extract duration.
@@ -866,6 +936,113 @@ const AzureStorageBrowser = () => {
                             Imported files will be automatically distributed evenly among all active quality analysts in your organization.
                           </p>
                         )}
+                        
+                        <div className="pt-2">
+                          <Button 
+                            variant="outline" 
+                            type="button" 
+                            onClick={() => setShowFilters(!showFilters)} 
+                            className="mb-4 w-full"
+                          >
+                            {showFilters ? "Hide Filters" : "Show Filters"}
+                          </Button>
+                          
+                          {showFilters && (
+                            <div className="space-y-4 border rounded-md p-4 bg-muted/20">
+                              <h4 className="font-medium">Filter Audio Files</h4>
+                              
+                              <div className="grid gap-2">
+                                <Label htmlFor="fileNameFilter">Filename Contains</Label>
+                                <Input
+                                  id="fileNameFilter"
+                                  value={fileNameFilter}
+                                  onChange={(e) => setFileNameFilter(e.target.value)}
+                                  placeholder="Enter part of filename"
+                                />
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="grid gap-2">
+                                  <Label htmlFor="dateRangeStart">Date Range (Start)</Label>
+                                  <Input
+                                    id="dateRangeStart"
+                                    type="date"
+                                    value={dateRangeStart}
+                                    onChange={(e) => setDateRangeStart(e.target.value)}
+                                  />
+                                </div>
+                                <div className="grid gap-2">
+                                  <Label htmlFor="dateRangeEnd">Date Range (End)</Label>
+                                  <Input
+                                    id="dateRangeEnd"
+                                    type="date"
+                                    value={dateRangeEnd}
+                                    onChange={(e) => setDateRangeEnd(e.target.value)}
+                                  />
+                                </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="grid gap-2">
+                                  <Label htmlFor="minDuration">Min Duration (seconds)</Label>
+                                  <Input
+                                    id="minDuration"
+                                    type="number"
+                                    min="0"
+                                    value={minDuration}
+                                    onChange={(e) => setMinDuration(e.target.value)}
+                                    placeholder="e.g. 60"
+                                  />
+                                </div>
+                                <div className="grid gap-2">
+                                  <Label htmlFor="maxDuration">Max Duration (seconds)</Label>
+                                  <Input
+                                    id="maxDuration"
+                                    type="number"
+                                    min="0"
+                                    value={maxDuration}
+                                    onChange={(e) => setMaxDuration(e.target.value)}
+                                    placeholder="e.g. 300"
+                                  />
+                                </div>
+                              </div>
+                              
+                              <Button 
+                                variant="secondary" 
+                                className="w-full"
+                                onClick={handleApplyFilters}
+                                disabled={applyFilters.isPending || !uploadFile}
+                              >
+                                {applyFilters.isPending ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Applying Filters...
+                                  </>
+                                ) : (
+                                  'Preview Filter Results'
+                                )}
+                              </Button>
+                              
+                              {filterCounts && (
+                                <div className="bg-primary/10 p-4 rounded-md">
+                                  <h4 className="font-medium mb-2">Filter Results:</h4>
+                                  <div className="flex justify-between text-sm">
+                                    <span>Total files:</span>
+                                    <span className="font-medium">{filterCounts.total}</span>
+                                  </div>
+                                  <div className="flex justify-between text-sm">
+                                    <span>After filtering:</span>
+                                    <span className="font-medium">{filterCounts.filtered}</span>
+                                  </div>
+                                  <div className="flex justify-between text-sm text-muted-foreground">
+                                    <span>Excluded files:</span>
+                                    <span>{filterCounts.total - filterCounts.filtered}</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <DialogFooter>
                         <Button variant="outline" onClick={() => setImportDialogOpen(false)}>

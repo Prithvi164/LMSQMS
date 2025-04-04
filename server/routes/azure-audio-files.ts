@@ -10,6 +10,66 @@ import { read as readXLSX, utils as xlsxUtils, write as writeXLSX } from 'xlsx';
 
 const router = Router();
 
+// Helper function to filter audio metadata based on criteria
+function filterAudioMetadata(items: any[], filters: {
+  fileNameFilter?: string;
+  dateRangeStart?: string;
+  dateRangeEnd?: string;
+  minDuration?: string;
+  maxDuration?: string;
+}): any[] {
+  return items.filter(item => {
+    // Filter by filename
+    if (filters.fileNameFilter && 
+        !item.filename.toLowerCase().includes(filters.fileNameFilter.toLowerCase())) {
+      return false;
+    }
+    
+    // Filter by date range
+    if (filters.dateRangeStart || filters.dateRangeEnd) {
+      const callDate = item.call_date ? new Date(item.call_date) : null;
+      
+      if (callDate) {
+        if (filters.dateRangeStart) {
+          const startDate = new Date(filters.dateRangeStart);
+          if (callDate < startDate) return false;
+        }
+        
+        if (filters.dateRangeEnd) {
+          const endDate = new Date(filters.dateRangeEnd);
+          endDate.setHours(23, 59, 59, 999); // End of day
+          if (callDate > endDate) return false;
+        }
+      } else if (filters.dateRangeStart || filters.dateRangeEnd) {
+        // If we have date filters but the item has no date, exclude it
+        return false;
+      }
+    }
+    
+    // Filter by duration (in seconds)
+    if (item.duration) {
+      // Convert duration string (like "00:02:45") to seconds
+      const durationParts = item.duration.split(':');
+      const durationSeconds = parseInt(durationParts[0]) * 3600 + 
+                            parseInt(durationParts[1]) * 60 + 
+                            parseInt(durationParts[2]);
+      
+      if (filters.minDuration && durationSeconds < parseInt(filters.minDuration)) {
+        return false;
+      }
+      
+      if (filters.maxDuration && durationSeconds > parseInt(filters.maxDuration)) {
+        return false;
+      }
+    } else if (filters.minDuration || filters.maxDuration) {
+      // If we have duration filters but the item has no duration, exclude it
+      return false;
+    }
+    
+    return true;
+  });
+};
+
 // Function to parse the uploaded Excel file
 async function parseExcelFile(filePath: string): Promise<AudioFileMetadata[]> {
   try {
@@ -533,6 +593,58 @@ router.get('/azure-blobs/:containerName', async (req, res) => {
   }
 });
 
+// Filter preview endpoint to get counts before and after filtering
+router.post('/azure-audio-filter-preview/:containerName', excelUpload.single('metadataFile'), async (req, res) => {
+  if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
+  if (!azureService) return res.status(503).json({ message: 'Azure service not available' });
+  if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
+  
+  const { containerName } = req.params;
+  const filters = {
+    fileNameFilter: req.body.fileNameFilter,
+    dateRangeStart: req.body.dateRangeStart,
+    dateRangeEnd: req.body.dateRangeEnd,
+    minDuration: req.body.minDuration,
+    maxDuration: req.body.maxDuration
+  };
+  
+  try {
+    // First check if container exists
+    const containerClient = azureService.getContainerClient(containerName);
+    const containerExists = await containerClient.exists();
+    
+    if (!containerExists) {
+      return res.status(404).json({ message: `Container "${containerName}" does not exist` });
+    }
+    
+    // Parse the uploaded Excel file directly
+    if (!req.file || !req.file.path) {
+      return res.status(400).json({ message: 'Excel file upload failed' });
+    }
+    
+    // Parse metadata from the uploaded Excel file
+    const metadataItems = await parseExcelFile(req.file.path);
+    
+    // Match with actual files in Azure and get enhanced metadata
+    const enrichedItems = await azureService.matchAudioFilesWithMetadata(containerName, metadataItems);
+    
+    // Apply filters to get the filtered count
+    const filteredItems = filterAudioMetadata(enrichedItems, filters);
+    
+    // Return the counts
+    return res.status(200).json({
+      total: enrichedItems.length,
+      filtered: filteredItems.length
+    });
+    
+  } catch (error) {
+    console.error('Error in filter preview:', error);
+    return res.status(500).json({ 
+      message: error instanceof Error ? error.message : 'An error occurred during filter preview' 
+    });
+  }
+});
+
 // Upload Excel metadata file and process with Azure audio files
 router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFile'), async (req, res) => {
   if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
@@ -542,6 +654,15 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
   const { containerName } = req.params;
   // ProcessId is now optional
   const { processId, autoAssign } = req.body;
+  
+  // Get filter parameters
+  const filters = {
+    fileNameFilter: req.body.fileNameFilter,
+    dateRangeStart: req.body.dateRangeStart,
+    dateRangeEnd: req.body.dateRangeEnd,
+    minDuration: req.body.minDuration,
+    maxDuration: req.body.maxDuration
+  };
   
   try {
     // First check if container exists
@@ -562,6 +683,15 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
     
     // Match with actual files in Azure and get enhanced metadata
     const enrichedItems = await azureService.matchAudioFilesWithMetadata(containerName, metadataItems);
+    
+    // Apply filters if any are specified
+    let filteredItems = enrichedItems;
+    if (filters.fileNameFilter || filters.dateRangeStart || filters.dateRangeEnd || 
+        filters.minDuration || filters.maxDuration) {
+      console.log('Applying filters to imported files:', filters);
+      filteredItems = filterAudioMetadata(enrichedItems, filters);
+      console.log(`Filtered ${enrichedItems.length} items to ${filteredItems.length} items`);
+    }
     
     // Get quality analysts for auto-assignment if requested
     let qualityAnalysts = [];
@@ -586,7 +716,7 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
     const importResults = [];
     const successfulImports = [];
     
-    for (const item of enrichedItems) {
+    for (const item of filteredItems) {
       try {
         // Generate a SAS URL for the file
         const sasUrl = await azureService.generateBlobSasUrl(
@@ -688,9 +818,13 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
     }
     
     res.json({
-      totalProcessed: enrichedItems.length,
+      totalBefore: enrichedItems.length,
+      totalAfterFiltering: filteredItems.length,
       successCount: importResults.filter(r => r.status === 'success').length,
       errorCount: importResults.filter(r => r.status === 'error').length,
+      filtered: enrichedItems.length !== filteredItems.length,
+      filterApplied: filters.fileNameFilter || filters.dateRangeStart || filters.dateRangeEnd || 
+                    filters.minDuration || filters.maxDuration ? true : false,
       results: importResults,
       autoAssigned: autoAssign === 'true' ? assignmentResults.length : 0,
       assignmentResults: autoAssign === 'true' ? assignmentResults : []
