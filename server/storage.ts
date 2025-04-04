@@ -699,8 +699,29 @@ export class DatabaseStorage implements IStorage {
 
   async getQualityAnalystsForAllocation(organizationId: number): Promise<User[]> {
     try {
+      console.log('Fetching quality analysts for organization:', organizationId);
       const qualityAnalysts = await db
-        .select()
+        .select({
+          id: users.id,
+          username: users.username,
+          fullName: users.fullName, // This maps 'full_name' in DB to 'fullName' in code
+          employeeId: users.employeeId,
+          role: users.role,
+          category: users.category,
+          locationId: users.locationId,
+          email: users.email,
+          education: users.education,
+          dateOfJoining: users.dateOfJoining,
+          phoneNumber: users.phoneNumber,
+          dateOfBirth: users.dateOfBirth,
+          lastWorkingDay: users.lastWorkingDay,
+          organizationId: users.organizationId,
+          managerId: users.managerId,
+          active: users.active,
+          certified: users.certified,
+          createdAt: users.createdAt,
+          onboardingCompleted: users.onboardingCompleted,
+        })
         .from(users)
         .where(and(
           eq(users.organizationId, organizationId),
@@ -708,6 +729,7 @@ export class DatabaseStorage implements IStorage {
           eq(users.active, true)
         )) as User[];
       
+      console.log('Found quality analysts:', qualityAnalysts.length);
       return qualityAnalysts;
     } catch (error) {
       console.error('Error getting quality analysts:', error);

@@ -163,7 +163,7 @@ export const audioFileAllocations = pgTable("audio_file_allocations", {
     .references(() => organizations.id)
     .notNull(),
   evaluationId: integer("evaluation_id")
-    .references(() => evaluations.id),
+    .references(() => evaluationTemplates.id),
 });
 
 // Audio file batch allocation

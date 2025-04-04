@@ -1206,16 +1206,28 @@ router.post('/azure-audio-allocate', async (req, res) => {
   
   const { audioFileIds, qualityAnalystId, dueDate, evaluationTemplateId } = req.body;
   
+  console.log('📝 Allocation request received:', {
+    audioFileIds, 
+    qualityAnalystId, 
+    dueDate, 
+    evaluationTemplateId,
+    userId: req.user.id,
+    organizationId: req.user.organizationId
+  });
+  
   if (!audioFileIds || !Array.isArray(audioFileIds) || audioFileIds.length === 0) {
+    console.log('❌ Missing audio file IDs');
     return res.status(400).json({ message: 'Audio file IDs are required' });
   }
   
   if (!qualityAnalystId) {
+    console.log('❌ Missing quality analyst ID');
     return res.status(400).json({ message: 'Quality analyst ID is required' });
   }
   
   try {
     // Verify files exist and belong to user's organization
+    console.log('🔍 Verifying audio files:', audioFileIds);
     const audioFilesToAllocate = await db
       .select()
       .from(audioFiles)
@@ -1224,7 +1236,10 @@ router.post('/azure-audio-allocate', async (req, res) => {
         inArray(audioFiles.id, audioFileIds)
       ));
     
+    console.log(`✅ Found ${audioFilesToAllocate.length} of ${audioFileIds.length} files`);
+    
     if (audioFilesToAllocate.length !== audioFileIds.length) {
+      console.log('❌ File count mismatch');
       return res.status(400).json({ 
         message: 'Some audio files were not found or do not belong to your organization' 
       });
@@ -1232,12 +1247,37 @@ router.post('/azure-audio-allocate', async (req, res) => {
     
     // Create allocations
     const allocations = [];
+    console.log('📋 Starting allocation process for', audioFilesToAllocate.length, 'files');
     
     for (const file of audioFilesToAllocate) {
       try {
-        const [allocation] = await db
-          .insert(audioFileAllocations)
-          .values({
+        console.log(`🔹 Allocating file ID ${file.id} to QA ID ${qualityAnalystId}`);
+        
+        // Check if there is an existing allocation for this file
+        const existingAllocation = await db
+          .select()
+          .from(audioFileAllocations)
+          .where(eq(audioFileAllocations.audioFileId, file.id))
+          .limit(1);
+        
+        if (existingAllocation.length > 0) {
+          console.log(`⚠️ File ID ${file.id} already allocated, updating instead`);
+          const [allocation] = await db
+            .update(audioFileAllocations)
+            .set({
+              qualityAnalystId,
+              status: 'allocated',
+              updatedAt: new Date(),
+              evaluationId: evaluationTemplateId || null
+            })
+            .where(eq(audioFileAllocations.audioFileId, file.id))
+            .returning();
+          
+          allocations.push(allocation);
+        } else {
+          // Create new allocation
+          console.log(`✨ Creating new allocation for file ID ${file.id}`);
+          const allocation = {
             audioFileId: file.id,
             qualityAnalystId,
             dueDate: dueDate ? new Date(dueDate) : undefined,
@@ -1245,30 +1285,40 @@ router.post('/azure-audio-allocate', async (req, res) => {
             allocatedBy: req.user.id,
             organizationId: req.user.organizationId,
             evaluationId: evaluationTemplateId || null
-          })
-          .returning();
-        
-        // Update audio file status
-        await db
-          .update(audioFiles)
-          .set({
-            status: 'allocated',
-            updatedAt: new Date()
-          })
-          .where(eq(audioFiles.id, file.id));
-        
-        allocations.push(allocation);
+          };
+          
+          console.log('📌 Insertion data:', allocation);
+          
+          const [insertedAllocation] = await db
+            .insert(audioFileAllocations)
+            .values(allocation)
+            .returning();
+          
+          console.log('✅ Allocation created:', insertedAllocation);
+          
+          // Update audio file status
+          await db
+            .update(audioFiles)
+            .set({
+              status: 'allocated',
+              updatedAt: new Date()
+            })
+            .where(eq(audioFiles.id, file.id));
+          
+          allocations.push(insertedAllocation);
+        }
       } catch (error) {
-        console.error(`Error allocating audio file ${file.id}:`, error);
+        console.error(`❌ Error allocating audio file ${file.id}:`, error);
       }
     }
     
+    console.log(`✅ Successfully allocated ${allocations.length} files`);
     res.json({
       allocated: allocations.length,
       allocations
     });
   } catch (error) {
-    console.error('Error allocating audio files:', error);
+    console.error('❌ Error allocating audio files:', error);
     res.status(500).json({ message: error.message });
   }
 });
