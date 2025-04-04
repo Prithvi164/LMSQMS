@@ -87,6 +87,8 @@ interface BlobItem {
   };
 }
 
+// Process interface removed as it's no longer needed
+
 interface QualityAnalyst {
   id: number;
   fullName: string;
@@ -97,213 +99,592 @@ const AzureStorageBrowser = () => {
   const [selectedBlobItems, setSelectedBlobItems] = useState<string[]>([]);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [allocateDialogOpen, setAllocateDialogOpen] = useState(false);
-  const [metadataFile, setMetadataFile] = useState<File | null>(null);
-  const [autoAssignToQA, setAutoAssignToQA] = useState(false);
+  // selectedProcessId removed as per user request
   const [selectedQA, setSelectedQA] = useState<string[]>([]);
-  const [dueDate, setDueDate] = useState('');
-  const [selectedEvaluationTemplate, setSelectedEvaluationTemplate] = useState('');
-  const [importEvaluationTemplate, setImportEvaluationTemplate] = useState('');
-  const [maxAssignmentsPerQA, setMaxAssignmentsPerQA] = useState(5);
   const [qaAssignmentCounts, setQaAssignmentCounts] = useState<Record<string, number>>({});
-  const [selectedFolder, setSelectedFolder] = useState('');
-  const [dateFolders, setDateFolders] = useState<string[]>([]);
-  const [filterOptions, setFilterOptions] = useState({
-    language: '',
-    startDate: '',
-    endDate: '',
-    minDuration: '',
-    maxDuration: '',
-  });
+  const [maxAssignmentsPerQA, setMaxAssignmentsPerQA] = useState<number>(10);
+  const [dueDate, setDueDate] = useState<string>('');
+  const [selectedEvaluationTemplate, setSelectedEvaluationTemplate] = useState<string>('');
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState(1);
+  // folderSelectMode removed as per user request
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [folders, setFolders] = useState<string[]>([]);
+  const [autoAssign, setAutoAssign] = useState(false);
+  
+  // Filter states for import
+  const [showFilters, setShowFilters] = useState(false);
+  const [fileNameFilter, setFileNameFilter] = useState<string>('');
+  const [dateRangeStart, setDateRangeStart] = useState<string>('');
+  const [dateRangeEnd, setDateRangeEnd] = useState<string>('');
+  const [minDuration, setMinDuration] = useState<string>('');
+  const [maxDuration, setMaxDuration] = useState<string>('');
+  const [language, setLanguage] = useState<string>('all');
+  const [filterCounts, setFilterCounts] = useState<{total: number, filtered: number} | null>(null);
   const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+  
+  const ITEMS_PER_PAGE = 5;
   
   const { toast } = useToast();
 
   // Fetch containers
-  const { data: containers = [], isPending: isLoadingContainers } = useQuery({
-    queryKey: ['/api/azure/containers'],
-    select: (data) => data.containers || [],
+  const { 
+    data: containers, 
+    isLoading: isLoadingContainers,
+    refetch: refetchContainers
+  } = useQuery({
+    queryKey: ['/api/azure-containers'],
+    refetchOnWindowFocus: false,
   });
 
-  // Group containers by prefix/category
-  const groupContainers = (containers: Container[]) => {
-    return containers.filter((container: Container) => 
-      container.name.startsWith('audio-') || 
-      container.name.startsWith('recording-') ||
-      container.name.includes('call')
-    );
-  };
+  // Fetch folders within a container
+  const {
+    data: folderList,
+    isLoading: isLoadingFolders,
+    refetch: refetchFolders
+  } = useQuery({
+    queryKey: ['/api/azure-folders', selectedContainer],
+    queryFn: async () => {
+      if (!selectedContainer) return [];
+      console.log(`Fetching folders for container: ${selectedContainer}`);
+      const response = await apiRequest('GET', `/api/azure-folders/${selectedContainer}`);
+      const data = await response.json();
+      console.log('Folder response:', data);
+      
+      // Update the folders state
+      if (data && Array.isArray(data)) {
+        setFolders(data);
+      }
+      
+      return data;
+    },
+    enabled: !!selectedContainer && !selectedFolder,
+    refetchOnWindowFocus: false
+  });
 
-  // Fetch blobs in selected container
+  // Fetch blobs for selected container, optionally filtered by folder
   const { 
-    data: blobsData = { blobs: [] }, 
-    isPending: isLoadingBlobs,
+    data: blobs, 
+    isLoading: isLoadingBlobs,
     refetch: refetchBlobs 
   } = useQuery({
-    queryKey: ['/api/azure/blobs', selectedContainer, selectedFolder],
+    queryKey: ['/api/azure-blobs', selectedContainer, selectedFolder],
+    queryFn: async () => {
+      if (!selectedContainer) return [];
+      
+      let url = `/api/azure-blobs/${selectedContainer}`;
+      if (selectedFolder) {
+        url += `?folderPath=${encodeURIComponent(selectedFolder)}`;
+      }
+      
+      console.log(`Fetching blobs for container: ${selectedContainer}${selectedFolder ? `, folder: ${selectedFolder}` : ''}`);
+      const response = await apiRequest('GET', url);
+      const data = await response.json();
+      console.log('Blob response:', data);
+      return data;
+    },
     enabled: !!selectedContainer,
-    select: (data) => {
-      // If we have filter options, apply them
-      let filteredBlobs = data.blobs;
-      
-      if (filterOptions.language && filteredBlobs.length > 0) {
-        filteredBlobs = filteredBlobs.filter((blob: any) => 
-          blob.metadata && 
-          blob.metadata.language && 
-          blob.metadata.language.toLowerCase() === filterOptions.language.toLowerCase()
-        );
-      }
-      
-      if (filterOptions.startDate && filteredBlobs.length > 0) {
-        const startDate = new Date(filterOptions.startDate);
-        filteredBlobs = filteredBlobs.filter((blob: any) => {
-          const blobDate = blob.metadata && blob.metadata.callDate 
-            ? new Date(blob.metadata.callDate) 
-            : new Date(blob.properties.createdOn);
-          return blobDate >= startDate;
-        });
-      }
-      
-      if (filterOptions.endDate && filteredBlobs.length > 0) {
-        const endDate = new Date(filterOptions.endDate);
-        filteredBlobs = filteredBlobs.filter((blob: any) => {
-          const blobDate = blob.metadata && blob.metadata.callDate 
-            ? new Date(blob.metadata.callDate) 
-            : new Date(blob.properties.createdOn);
-          return blobDate <= endDate;
-        });
-      }
-      
-      if (filterOptions.minDuration && filteredBlobs.length > 0) {
-        const minDuration = parseInt(filterOptions.minDuration);
-        filteredBlobs = filteredBlobs.filter((blob: any) => {
-          const duration = blob.metadata && blob.metadata.durationSeconds 
-            ? parseInt(blob.metadata.durationSeconds) 
-            : 0;
-          return duration >= minDuration;
-        });
-      }
-      
-      if (filterOptions.maxDuration && filteredBlobs.length > 0) {
-        const maxDuration = parseInt(filterOptions.maxDuration);
-        filteredBlobs = filteredBlobs.filter((blob: any) => {
-          const duration = blob.metadata && blob.metadata.durationSeconds 
-            ? parseInt(blob.metadata.durationSeconds) 
-            : 0;
-          return duration <= maxDuration || duration === 0;
-        });
-      }
-      
-      // Extract available languages from metadata
-      if (filteredBlobs.length > 0) {
-        const languages = new Set<string>();
-        filteredBlobs.forEach((blob: any) => {
-          if (blob.metadata && blob.metadata.language) {
-            languages.add(blob.metadata.language);
-          }
-        });
-        setAvailableLanguages(Array.from(languages));
-      }
-      
-      return { blobs: filteredBlobs };
-    }
+    refetchOnWindowFocus: false,
   });
 
-  const blobs = blobsData.blobs;
+  // Process fetching logic removed as per user request
 
-  // Fetch quality analysts
-  const { data: qualityAnalysts = [] } = useQuery({
-    queryKey: ['/api/quality-analysts'],
-    select: (data) => data.qualityAnalysts || [],
+  // Fetch quality analysts for allocation
+  const { data: qualityAnalysts } = useQuery<QualityAnalyst[]>({
+    queryKey: ['/api/users/quality-analysts'],
+    refetchOnWindowFocus: false,
   });
   
   // Fetch evaluation templates
-  const { data: evaluationTemplates = [] } = useQuery({
-    queryKey: ['/api/evaluation-templates'],
-    select: (data) => data.templates || [],
+  const { data: evaluationTemplates } = useQuery({
+    queryKey: ['/api/organizations/39/evaluation-templates'],
+    refetchOnWindowFocus: false,
   });
 
-  // Mutation for import audio files
-  const importAudioMutation = useMutation({
-    mutationFn: async (formData: FormData) => {
-      return await apiRequest('/api/azure/import-audio', {
-        method: 'POST',
-        body: formData,
+  // Handle container selection
+  const handleContainerClick = (containerName: string) => {
+    setSelectedContainer(containerName);
+    setSelectedBlobItems([]);
+    setSelectedFolder(null);
+    // folderSelectMode removed as per user request
+  };
+  
+  // Handle folder selection
+  const handleFolderClick = (folderName: string) => {
+    setSelectedFolder(folderName);
+    setSelectedBlobItems([]);
+  };
+  
+  // Handle download of all filenames in the current container/folder
+  const handleDownloadFilenames = () => {
+    if (!selectedContainer) {
+      toast({
+        title: "No Container Selected",
+        description: "Please select a container first to download its filenames.",
+        variant: "destructive",
       });
+      return;
+    }
+    
+    if (!blobs || !Array.isArray(blobs) || blobs.length === 0) {
+      toast({
+        title: "No Files Found",
+        description: "There are no files to download filenames for.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create CSV content with headers
+    let csvContent = "filename\n";
+    
+    // Add all blob names to the CSV
+    blobs.forEach((blob: BlobItem) => {
+      csvContent += `${blob.name}\n`;
+    });
+    
+    // Create and download the CSV file
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${selectedContainer}${selectedFolder ? `-${selectedFolder}` : ''}-filenames.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    
+    toast({
+      title: 'Filenames Downloaded',
+      description: `${blobs.length} filenames have been downloaded as CSV.`,
+    });
+  };
+  
+  // Handle back button to return from folder to container view
+  const handleBackToContainer = () => {
+    setSelectedFolder(null);
+  };
+  
+  // Download standard metadata template
+  const handleDownloadTemplate = async () => {
+    try {
+      const response = await fetch('/api/azure-metadata-template');
+      
+      if (!response.ok) {
+        throw new Error('Failed to download metadata template');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'audio-file-metadata-template.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: 'Template Downloaded',
+        description: 'Standard metadata template has been downloaded successfully.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Download Failed',
+        description: error instanceof Error ? error.message : 'Failed to download metadata template',
+        variant: 'destructive',
+      });
+    }
+  };
+  
+  // Download custom template with filenames from current Azure container
+  const handleDownloadCustomTemplate = async () => {
+    if (!selectedContainer) {
+      toast({
+        title: 'No Container Selected',
+        description: 'Please select a container first to download a custom template.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    try {
+      // Use the direct API endpoint that generates a template with actual filenames
+      const response = await fetch(`/api/azure-audio-files/azure-custom-template/${selectedContainer}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to download custom template');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${selectedContainer}-template.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: 'Custom Template Downloaded',
+        description: `Custom template with your actual filenames from ${selectedContainer} has been downloaded.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Download Failed',
+        description: error instanceof Error ? error.message : 'Failed to download custom template',
+        variant: 'destructive',
+      });
+    }
+  };
+  
+  // Download minimal template with essential fields only
+  const handleDownloadMinimalTemplate = async () => {
+    try {
+      // Use the direct API endpoint for minimal template
+      const response = await fetch('/api/azure-audio-files/azure-minimal-template');
+      
+      if (!response.ok) {
+        throw new Error('Failed to download minimal template');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'minimal-audio-template.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: 'Minimal Template Downloaded',
+        description: 'Minimal template with just the essential fields has been downloaded.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Download Failed',
+        description: error instanceof Error ? error.message : 'Failed to download minimal template',
+        variant: 'destructive',
+      });
+    }
+  };
+  
+  // Download ultra-simple template with just one file
+  const handleDownloadSimpleTemplate = async () => {
+    if (!selectedContainer) {
+      toast({
+        title: 'No Container Selected',
+        description: 'Please select a container first to download a simple template.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Show loading toast
+    toast({
+      title: 'Generating Template',
+      description: 'Creating an ultra-simple template with just one file...',
+    });
+    
+    try {
+      // Use the direct API endpoint that generates a template with just one example file
+      console.log(`Downloading simple template for container: ${selectedContainer}`);
+      const response = await fetch(`/api/azure-audio-files/azure-simple-template/${selectedContainer}`);
+      
+      if (!response.ok) {
+        // Try to get more detailed error information
+        const errorData = await response.json().catch(() => null);
+        console.error('Server response error:', response.status, errorData);
+        throw new Error(errorData?.message || 'Failed to download ultra-simple template');
+      }
+      
+      // Check if we got an Excel file (content type)
+      const contentType = response.headers.get('content-type');
+      console.log('Response content type:', contentType);
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${selectedContainer}-simple-template.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: 'Ultra-Simple Template Downloaded',
+        description: 'A template with just one file from your container has been downloaded.',
+      });
+    } catch (error) {
+      console.error('Error downloading ultra-simple template:', error);
+      toast({
+        title: 'Download Failed',
+        description: error instanceof Error ? error.message : 'Failed to download ultra-simple template',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Download the static pre-generated ultra-simple template file
+  const handleDownloadStaticTemplate = async () => {
+    try {
+      console.log('Downloading static ultra-simple template');
+      // This is the pre-generated file we put in the public folder
+      const response = await fetch('/ultra-simple-template.xlsx');
+      
+      if (!response.ok) {
+        throw new Error('Failed to download static template file');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'ultra-simple-template.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: 'Static Template Downloaded',
+        description: 'Pre-generated ultra-simple template has been downloaded. This template should open in all Excel versions.',
+      });
+    } catch (error) {
+      console.error('Error downloading static template:', error);
+      toast({
+        title: 'Download Failed',
+        description: error instanceof Error ? error.message : 'Failed to download static template',
+        variant: 'destructive',
+      });
+    }
+  };
+  
+  // Download template guide
+  const handleDownloadGuide = () => {
+    // Use the public path for the template guide
+    fetch('/audio-file-template-guide.md')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Failed to download template guide');
+        }
+        return response.text();
+      })
+      .then(text => {
+        // Create a Blob from the text
+        const blob = new Blob([text], { type: 'text/markdown' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'audio-file-template-guide.md';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        toast({
+          title: 'Template Guide Downloaded',
+          description: 'Template guide documentation has been downloaded.',
+        });
+      })
+      .catch(error => {
+        toast({
+          title: 'Download Failed',
+          description: error instanceof Error ? error.message : 'Failed to download template guide',
+          variant: 'destructive',
+        });
+      });
+  };
+
+  // Handle blob selection for batch operations
+  const handleBlobSelection = (blobName: string) => {
+    setSelectedBlobItems(prev => {
+      if (prev.includes(blobName)) {
+        return prev.filter(item => item !== blobName);
+      } else {
+        return [...prev, blobName];
+      }
+    });
+  };
+
+  // Apply filters to get counts before import
+  const applyFilters = useMutation({
+    mutationFn: async ({ containerName, metadataFile }: any) => {
+      const formData = new FormData();
+      formData.append('metadataFile', metadataFile);
+      
+      // Add filters if they exist
+      if (fileNameFilter) formData.append('fileNameFilter', fileNameFilter);
+      if (dateRangeStart) formData.append('dateRangeStart', dateRangeStart);
+      if (dateRangeEnd) formData.append('dateRangeEnd', dateRangeEnd);
+      if (minDuration) formData.append('minDuration', minDuration);
+      if (maxDuration) formData.append('maxDuration', maxDuration);
+      if (language) formData.append('language', language);
+      
+      return apiRequest('POST', `/api/azure-audio-filter-preview/${containerName}`, formData);
+    },
+    onSuccess: async (response) => {
+      const data = await response.json();
+      setFilterCounts({
+        total: data.total,
+        filtered: data.filtered
+      });
+      
+      // Extract available languages from the response
+      if (data.availableLanguages && Array.isArray(data.availableLanguages)) {
+        setAvailableLanguages(data.availableLanguages);
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Filter preview failed',
+        description: error.message || 'There was an error applying filters.',
+        variant: 'destructive',
+      });
+      setFilterCounts(null);
+    },
+  });
+
+  // Import audio files mutation
+  const importAudioMutation = useMutation({
+    mutationFn: async ({ containerName, metadataFile }: any) => {
+      const formData = new FormData();
+      formData.append('metadataFile', metadataFile);
+      
+      // Add autoAssign parameter if checked
+      if (autoAssign) {
+        formData.append('autoAssign', 'true');
+        
+        // Include evaluation template ID when auto-assigning
+        if (selectedEvaluationTemplate) {
+          formData.append('evaluationTemplateId', selectedEvaluationTemplate);
+        }
+      }
+      
+      // Add filter parameters if they exist
+      if (fileNameFilter) formData.append('fileNameFilter', fileNameFilter);
+      if (dateRangeStart) formData.append('dateRangeStart', dateRangeStart);
+      if (dateRangeEnd) formData.append('dateRangeEnd', dateRangeEnd);
+      if (minDuration) formData.append('minDuration', minDuration);
+      if (maxDuration) formData.append('maxDuration', maxDuration);
+      if (language) formData.append('language', language);
+      
+      return apiRequest('POST', `/api/azure-audio-import/${containerName}`, formData);
     },
     onSuccess: () => {
       toast({
         title: 'Import successful',
-        description: 'Audio files have been imported with metadata',
+        description: 'Audio files were successfully imported from Azure.',
       });
       setImportDialogOpen(false);
-      setMetadataFile(null);
-      queryClient.invalidateQueries({ queryKey: ['/api/azure/blobs'] });
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: ['/api/organizations/audio-files'] });
     },
     onError: (error: any) => {
       toast({
         title: 'Import failed',
-        description: error.message || 'An error occurred while importing files',
+        description: error.message || 'There was an error importing audio files.',
         variant: 'destructive',
       });
     },
   });
-  
-  // Mutation for allocating audio files to quality analysts
+
+  // Allocate audio files mutation (this would need to be implemented)
   const allocateAudioMutation = useMutation({
-    mutationFn: async (data: {
-      containerName: string;
-      blobNames: string[];
-      qaIds: string[];
-      dueDate?: string;
-      evaluationTemplateId?: string;
-      maxAssignmentsPerQA: Record<string, number>;
-    }) => {
-      return await apiRequest('/api/azure/allocate-audio', {
-        method: 'POST',
-        body: JSON.stringify(data),
+    mutationFn: async ({ audioFileIds, qualityAnalystId, dueDate, evaluationTemplateId }: any) => {
+      return apiRequest('POST', '/api/azure-audio-allocate', { 
+        audioFileIds, 
+        qualityAnalystId, 
+        dueDate,
+        evaluationTemplateId
       });
     },
     onSuccess: () => {
       toast({
         title: 'Allocation successful',
-        description: 'Audio files have been allocated to quality analysts',
+        description: 'Audio files were successfully allocated to quality analyst.',
       });
       setAllocateDialogOpen(false);
-      setSelectedBlobItems([]);
-      queryClient.invalidateQueries({ queryKey: ['/api/qa-assignments'] });
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: ['/api/organizations/audio-file-allocations'] });
     },
     onError: (error: any) => {
       toast({
         title: 'Allocation failed',
-        description: error.message || 'An error occurred while allocating files',
+        description: error.message || 'There was an error allocating audio files.',
         variant: 'destructive',
       });
     },
   });
 
-  // Handle container selection
-  const handleContainerSelect = (containerName: string) => {
-    setSelectedContainer(containerName);
-    setSelectedBlobItems([]);
-    setSelectedFolder('');
-    // Reset filter options when changing containers
-    setFilterOptions({
-      language: '',
-      startDate: '',
-      endDate: '',
-      minDuration: '',
-      maxDuration: '',
+  // Handle preview filter application
+  const handleApplyFilters = () => {
+    if (!selectedContainer || !uploadFile) {
+      toast({
+        title: 'Missing information',
+        description: 'Please select a container and upload a metadata file.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    applyFilters.mutate({
+      containerName: selectedContainer,
+      metadataFile: uploadFile,
     });
   };
 
-  // Handle blob selection
-  const handleBlobSelection = (blobName: string) => {
-    setSelectedBlobItems((prev) => {
-      if (prev.includes(blobName)) {
-        return prev.filter((name) => name !== blobName);
-      } else {
-        return [...prev, blobName];
-      }
+  // Handle import form submission
+  const handleImport = () => {
+    if (!selectedContainer || !uploadFile) {
+      toast({
+        title: 'Missing information',
+        description: 'Please select a container and upload a metadata file.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    importAudioMutation.mutate({
+      containerName: selectedContainer,
+      metadataFile: uploadFile,
+    });
+  };
+
+  // Handle allocation form submission
+  const handleAllocate = () => {
+    if (!selectedBlobItems.length || !selectedQA.length) {
+      toast({
+        title: 'Missing information',
+        description: 'Please select audio files and at least one quality analyst.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    if (!selectedEvaluationTemplate) {
+      toast({
+        title: 'Evaluation Template Required',
+        description: 'Please select an evaluation template to use for the assessments.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Currently only supporting allocation to a single QA
+    // In the future, this could be extended to support multiple QAs
+    const firstSelectedQA = selectedQA[0];
+    
+    allocateAudioMutation.mutate({
+      audioFileIds: selectedBlobItems,
+      qualityAnalystId: parseInt(firstSelectedQA),
+      dueDate: dueDate || undefined,
+      evaluationTemplateId: parseInt(selectedEvaluationTemplate),
     });
   };
 
@@ -316,129 +697,159 @@ const AzureStorageBrowser = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // Handle metadata file selection
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setMetadataFile(e.target.files[0]);
-    }
-  };
-
-  // Handle import submission
-  const handleImport = async () => {
-    if (!selectedContainer || selectedBlobItems.length === 0) {
-      toast({
-        title: 'Import failed',
-        description: 'Please select a container and at least one file',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append('containerName', selectedContainer);
-    
-    // Add selected blobs
-    selectedBlobItems.forEach(blobName => {
-      formData.append('blobNames', blobName);
-    });
-    
-    // Add metadata file if available
-    if (metadataFile) {
-      formData.append('metadataFile', metadataFile);
-    }
-    
-    // Add auto-assign flag and QA IDs if enabled
-    formData.append('autoAssignToQA', autoAssignToQA.toString());
-    
-    if (autoAssignToQA) {
-      selectedQA.forEach(qaId => {
-        formData.append('qaIds', qaId);
-      });
-      
-      // Add maxAssignmentsPerQA as JSON
-      formData.append('maxAssignmentsPerQA', JSON.stringify(qaAssignmentCounts));
-      
-      // Add evaluation template if selected
-      if (importEvaluationTemplate) {
-        formData.append('evaluationTemplateId', importEvaluationTemplate);
-      }
-      
-      // Add due date if available
-      if (dueDate) {
-        formData.append('dueDate', dueDate);
-      }
-    }
-    
-    importAudioMutation.mutate(formData);
-  };
-
-  // Handle allocation submission
-  const handleAllocate = async () => {
-    if (selectedQA.length === 0) {
-      toast({
-        title: 'Allocation failed',
-        description: 'Please select at least one quality analyst',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    if (!selectedEvaluationTemplate) {
-      toast({
-        title: 'Allocation failed',
-        description: 'Please select an evaluation template',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const data = {
-      containerName: selectedContainer || '',
-      blobNames: selectedBlobItems,
-      qaIds: selectedQA,
-      evaluationTemplateId: selectedEvaluationTemplate,
-      maxAssignmentsPerQA: qaAssignmentCounts,
-    };
-    
-    if (dueDate) {
-      data.dueDate = dueDate;
-    }
-    
-    allocateAudioMutation.mutate(data);
-  };
-
   return (
-    <div className="flex flex-col space-y-4">
-      <div className="grid lg:grid-cols-7 gap-6">
-        {/* Left sidebar for containers */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-3">
-            <CardTitle>Storage Containers</CardTitle>
+    <div className="container mx-auto py-6">
+      <h1 className="text-3xl font-bold mb-6">Azure Storage Browser</h1>
+      <p className="text-gray-500 mb-6">
+        Browse, import, and allocate audio files from your Azure Storage account
+      </p>
+
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+        {/* Containers Panel */}
+        <Card className="md:col-span-4">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>Containers</span>
+              <Button variant="outline" size="sm" onClick={() => refetchContainers()}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+            </CardTitle>
             <CardDescription>
-              Select a container to view files
+              Select a container to view its contents
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="mb-4">
+              <Input 
+                placeholder="Search containers..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1); // Reset to first page on search
+                }}
+                className="mb-2"
+              />
+            </div>
             {isLoadingContainers ? (
-              <div className="flex justify-center py-4">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <div className="flex justify-center p-4">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : Array.isArray(containers) && containers.length > 0 ? (
-              <div>
-                <div className="space-y-1">
-                  {groupContainers(containers).map((container: Container) => (
-                    <Button
-                      key={container.name}
-                      variant={selectedContainer === container.name ? "secondary" : "ghost"}
-                      className="w-full justify-start text-left font-normal"
-                      onClick={() => handleContainerSelect(container.name)}
-                    >
-                      <FolderOpen className="h-4 w-4 mr-2" />
-                      <span className="truncate">{container.name}</span>
-                    </Button>
-                  ))}
+              <ScrollArea className="h-[400px]">
+                <div className="space-y-4">
+                  {/* Group containers by time periods */}
+                  {(() => {
+                    // Filter and sort containers first
+                    const filteredContainers = containers
+                      .filter(container => 
+                        container.name.toLowerCase().includes(searchTerm.toLowerCase())
+                      )
+                      .sort((a, b) => 
+                        new Date(b.properties.lastModified).getTime() - 
+                        new Date(a.properties.lastModified).getTime()
+                      );
+                    
+                    // Calculate total pages
+                    const totalPages = Math.ceil(filteredContainers.length / ITEMS_PER_PAGE);
+                    
+                    // Get current page of containers
+                    const paginatedContainers = filteredContainers.slice(
+                      (currentPage - 1) * ITEMS_PER_PAGE, 
+                      currentPage * ITEMS_PER_PAGE
+                    );
+                    
+                    // Group containers by time periods
+                    const now = new Date();
+                    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    const thisWeekStart = new Date(today);
+                    thisWeekStart.setDate(today.getDate() - today.getDay());
+                    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                    
+                    // Create groups
+                    const groups: {[key: string]: Container[]} = {
+                      "Today": [],
+                      "This Week": [],
+                      "This Month": [],
+                      "Older": []
+                    };
+                    
+                    // Categorize containers
+                    paginatedContainers.forEach(container => {
+                      const modifiedDate = new Date(container.properties.lastModified);
+                      
+                      if (modifiedDate >= today) {
+                        groups["Today"].push(container);
+                      } else if (modifiedDate >= thisWeekStart) {
+                        groups["This Week"].push(container);
+                      } else if (modifiedDate >= thisMonthStart) {
+                        groups["This Month"].push(container);
+                      } else {
+                        groups["Older"].push(container);
+                      }
+                    });
+                    
+                    // Render groups with headings
+                    return (
+                      <>
+                        {Object.entries(groups).map(([groupName, groupContainers]) => 
+                          groupContainers.length > 0 && (
+                            <div key={groupName} className="mb-4">
+                              <h3 className="text-sm font-medium text-gray-500 mb-2">{groupName}</h3>
+                              <div className="space-y-2">
+                                {groupContainers.map((container: Container) => (
+                                  <div
+                                    key={container.name}
+                                    className={`flex items-center space-x-3 p-3 rounded-md cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 ${
+                                      selectedContainer === container.name ? 'bg-gray-100 dark:bg-gray-800 border-l-4 border-primary' : ''
+                                    }`}
+                                    onClick={() => handleContainerClick(container.name)}
+                                  >
+                                    <FolderOpen className="h-5 w-5 text-blue-500" />
+                                    <div>
+                                      <p className="font-medium">{container.name}</p>
+                                      <p className="text-xs text-gray-500">
+                                        Last modified: {new Date(container.properties.lastModified).toLocaleString()}
+                                      </p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )
+                        )}
+                        
+                        {/* Pagination Controls */}
+                        {totalPages > 1 && (
+                          <div className="flex items-center justify-between pt-4 border-t">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                              disabled={currentPage === 1}
+                            >
+                              <ChevronLeft className="h-4 w-4 mr-1" />
+                              Previous
+                            </Button>
+                            <div className="text-sm text-gray-500">
+                              Page {currentPage} of {totalPages}
+                            </div>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                              disabled={currentPage === totalPages}
+                            >
+                              Next
+                              <ChevronRight className="h-4 w-4 ml-1" />
+                            </Button>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
-              </div>
+              </ScrollArea>
             ) : (
               <div className="text-center p-4 text-gray-500">
                 No containers found
@@ -447,30 +858,63 @@ const AzureStorageBrowser = () => {
           </CardContent>
         </Card>
 
-        {/* Main content area for files */}
-        <Card className="lg:col-span-5">
+        {/* Blobs Panel */}
+        <Card className="md:col-span-8">
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex justify-between items-center">
               <div>
                 <CardTitle>
-                  {selectedContainer ? (
-                    <span className="flex items-center">
-                      <span className="mr-2">{selectedContainer}</span>
-                      {selectedFolder && (
-                        <span className="text-sm text-gray-500 flex items-center">
-                          <ChevronRight className="h-4 w-4 mx-1" />
-                          {selectedFolder}
-                        </span>
-                      )}
-                    </span>
-                  ) : 'Select a Container'}
+                  {selectedContainer 
+                    ? selectedFolder 
+                      ? `Files in ${selectedContainer}/${selectedFolder}` 
+                      : `Files in ${selectedContainer}`
+                    : 'Select a container'}
                 </CardTitle>
                 <CardDescription>
-                  {selectedContainer ? 'View, import, or allocate audio files' : 'Choose a container from the sidebar'}
+                  {selectedContainer && (
+                    selectedFolder 
+                      ? 'View audio files in selected folder' 
+                      : 'View, import, or allocate audio files'
+                  )}
                 </CardDescription>
               </div>
               {selectedContainer && (
-                <div className="flex items-center space-x-2">
+                <div className="flex space-x-2">
+                  {/* Template download buttons */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline">
+                        <FileDown className="h-4 w-4 mr-2" />
+                        Metadata Template <ChevronDown className="h-4 w-4 ml-1" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>Excel Templates</DropdownMenuLabel>
+                      <DropdownMenuItem asChild>
+                        <a href="/ultra-simple-template.xlsx" download="metadata-template.xlsx" className="flex items-center px-2 py-1.5 text-sm">
+                          <FileSpreadsheet className="h-4 w-4 mr-2" />
+                          Metadata Template
+                        </a>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleDownloadFilenames}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download Filenames
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  
+                  {/* Date Folders button removed as per user request */}
+                  
+                  {selectedFolder && (
+                    <Button 
+                      variant="outline" 
+                      onClick={handleBackToContainer}
+                    >
+                      <ArrowLeft className="h-4 w-4 mr-2" />
+                      Back
+                    </Button>
+                  )}
+                  
                   <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
                     <DialogTrigger asChild>
                       <Button>
@@ -478,192 +922,326 @@ const AzureStorageBrowser = () => {
                         Import
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-2xl max-h-[90vh]">
+                    <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Import Audio Files</DialogTitle>
+                        <DialogTitle>Import Audio Files from Azure</DialogTitle>
                         <DialogDescription>
-                          Import selected audio files with metadata for quality analysis.
+                          Upload an Excel file containing the filename column matching audio files in this container. The system will automatically extract audio duration from the files.
                         </DialogDescription>
                       </DialogHeader>
-                      
-                      <ScrollArea className="max-h-[60vh] pr-4">
+                      <ScrollArea className="max-h-[70vh]">
                         <div className="grid gap-4 py-4">
-                          <div className="grid gap-2">
-                            <div className="p-4 border rounded-md bg-gray-50">
-                              <h3 className="font-medium mb-2">Selected Files</h3>
-                              {selectedBlobItems.length > 0 ? (
-                                <div className="max-h-28 overflow-y-auto">
-                                  <ul className="space-y-1">
-                                    {selectedBlobItems.map(blobName => (
-                                      <li key={blobName} className="text-sm text-gray-600 truncate">
-                                        <File className="h-3 w-3 inline mr-1" /> {blobName}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              ) : (
-                                <p className="text-sm text-gray-500">No files selected</p>
-                              )}
-                            </div>
-                          </div>
-                          
+                          {/* Process selection removed as per user request */}
                           <div className="grid gap-2">
                             <Label htmlFor="metadataFile">Metadata Excel File</Label>
-                            <Input 
-                              id="metadataFile" 
-                              type="file" 
-                              accept=".xlsx,.xls" 
-                              onChange={handleFileChange}
+                            <Input
+                              id="metadataFile"
+                              type="file"
+                              accept=".xlsx,.xls"
+                              onChange={(e) => {
+                                setUploadFile(e.target.files?.[0] || null);
+                                setFilterCounts(null);
+                              }}
                             />
-                            <p className="text-xs text-gray-500">
-                              The Excel file only needs a <span className="font-bold">filename</span> column matching audio filenames in Azure. The system will automatically analyze audio files to extract duration.
+                          <p className="text-xs text-gray-500">
+                            The Excel file only needs a <strong>filename</strong> column matching audio filenames in Azure. The system will automatically analyze audio files to extract duration.
+                          </p>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <Checkbox 
+                            id="autoAssign" 
+                            checked={autoAssign}
+                            onCheckedChange={(checked: boolean | "indeterminate") => setAutoAssign(checked === true)}
+                          />
+                          <Label htmlFor="autoAssign" className="text-sm font-normal cursor-pointer">
+                            Auto-assign files to quality analysts
+                          </Label>
+                        </div>
+                        {autoAssign && (
+                          <>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Imported files will be automatically distributed evenly among all active quality analysts in your organization.
                             </p>
-                          </div>
-                          
-                          <div className="flex items-center space-x-2 py-2">
-                            <Checkbox 
-                              id="autoAssignQA"
-                              checked={autoAssignToQA}
-                              onCheckedChange={(checked) => setAutoAssignToQA(checked === true)}
-                            />
-                            <Label 
-                              htmlFor="autoAssignQA" 
-                              className="text-sm font-medium cursor-pointer"
-                            >
-                              Auto-assign files to quality analysts
-                            </Label>
-                          </div>
-                          
-                          {autoAssignToQA && (
-                            <div className="space-y-4 px-4 py-2 border-l-2 border-gray-200">
-                              <div className="grid gap-2">
-                                <Label htmlFor="qualityAnalyst">Quality Analysts (Multi-select)</Label>
-                                <div className="flex items-center mb-2">
-                                  <Checkbox 
-                                    id="select-all-qa-import"
-                                    checked={qualityAnalysts?.length > 0 && selectedQA.length === qualityAnalysts.length}
-                                    onCheckedChange={(checked) => {
-                                      if (checked) {
-                                        // Select all quality analysts
-                                        setSelectedQA(qualityAnalysts?.map(qa => qa.id.toString()) || []);
-                                      } else {
-                                        // Deselect all
-                                        setSelectedQA([]);
-                                      }
-                                    }}
-                                  />
-                                  <Label 
-                                    htmlFor="select-all-qa-import" 
-                                    className="ml-2 text-sm font-medium cursor-pointer"
-                                  >
-                                    Select All Quality Analysts
-                                  </Label>
-                                </div>
-                                <div className="border rounded-md p-4 space-y-3 max-h-60 overflow-y-auto">
-                                  {qualityAnalysts?.map((qa) => (
-                                    <div key={qa.id} className="flex items-center justify-between space-x-2 pb-2 border-b">
-                                      <div className="flex items-center gap-2">
-                                        <Checkbox
-                                          id={`qa-${qa.id}`}
-                                          checked={selectedQA.includes(qa.id.toString())}
-                                          onCheckedChange={(checked) => {
-                                            if (checked) {
-                                              setSelectedQA(prev => [...prev, qa.id.toString()]);
-                                            } else {
-                                              setSelectedQA(prev => prev.filter(id => id !== qa.id.toString()));
-                                            }
-                                          }}
-                                        />
-                                        <Label 
-                                          htmlFor={`qa-${qa.id}`} 
-                                          className="text-sm font-medium cursor-pointer"
-                                        >
-                                          {qa.fullName}
-                                        </Label>
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        <Label 
-                                          htmlFor={`qa-limit-${qa.id}`} 
-                                          className="text-xs text-gray-500"
-                                        >
-                                          Max cases:
-                                        </Label>
-                                        <Input
-                                          id={`qa-limit-${qa.id}`}
-                                          type="number"
-                                          className="w-16 h-8 text-xs"
-                                          min={1}
-                                          max={100}
-                                          value={qaAssignmentCounts[qa.id.toString()] || maxAssignmentsPerQA}
-                                          onChange={(e) => {
-                                            const count = parseInt(e.target.value) || maxAssignmentsPerQA;
-                                            setQaAssignmentCounts(prev => ({
-                                              ...prev,
-                                              [qa.id.toString()]: count
-                                            }));
-                                          }}
-                                        />
-                                      </div>
-                                    </div>
+                            
+                            <div className="grid gap-2 mt-3">
+                              <Label htmlFor="importEvaluationTemplate">Evaluation Template</Label>
+                              <Select 
+                                value={selectedEvaluationTemplate} 
+                                onValueChange={setSelectedEvaluationTemplate}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select an evaluation template" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Array.isArray(evaluationTemplates) && evaluationTemplates.map((template: any) => (
+                                    <SelectItem key={template.id} value={template.id.toString()}>
+                                      {template.name}
+                                    </SelectItem>
                                   ))}
-                                </div>
-                                <div className="flex items-center justify-between mt-2">
-                                  <p className="text-xs text-gray-500">
-                                    Files will be distributed evenly between selected QAs
-                                  </p>
-                                  <Button 
-                                    type="button" 
-                                    variant="outline" 
-                                    size="sm"
-                                    onClick={() => {
-                                      const newCounts: Record<string, number> = {};
-                                      selectedQA.forEach(qaId => {
-                                        newCounts[qaId] = maxAssignmentsPerQA;
-                                      });
-                                      setQaAssignmentCounts(newCounts);
-                                    }}
-                                  >
-                                    Reset Limits
-                                  </Button>
-                                </div>
-                              </div>
+                                </SelectContent>
+                              </Select>
+                              <p className="text-xs text-gray-500">
+                                The selected evaluation template will be used for all files being imported.
+                              </p>
+                            </div>
+                          </>
+                        )}
+                        
+                        <div className="pt-2">
+                          <Button 
+                            variant="outline" 
+                            type="button" 
+                            onClick={() => setShowFilters(!showFilters)} 
+                            className="mb-4 w-full"
+                          >
+                            {showFilters ? "Hide Filters" : "Show Filters"}
+                          </Button>
+                          
+                          {showFilters && (
+                            <div className="space-y-4 border rounded-md p-4 bg-muted/20">
+                              <h4 className="font-medium">Filter Audio Files</h4>
                               
                               <div className="grid gap-2">
-                                <Label htmlFor="importEvaluationTemplate">Evaluation Template</Label>
-                                <Select 
-                                  value={importEvaluationTemplate} 
-                                  onValueChange={setImportEvaluationTemplate}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select an evaluation template" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {Array.isArray(evaluationTemplates) && evaluationTemplates.map((template: any) => (
-                                      <SelectItem key={template.id} value={template.id.toString()}>
-                                        {template.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <p className="text-xs text-gray-500">
-                                  The selected evaluation template will be used for all files being imported.
-                                </p>
-                              </div>
-                              
-                              <div className="grid gap-2">
-                                <Label htmlFor="importDueDate">Due Date (Optional)</Label>
+                                <Label htmlFor="fileNameFilter">Filename Contains</Label>
                                 <Input
-                                  id="importDueDate"
-                                  type="datetime-local"
-                                  value={dueDate}
-                                  onChange={(e) => setDueDate(e.target.value)}
+                                  id="fileNameFilter"
+                                  value={fileNameFilter}
+                                  onChange={(e) => setFileNameFilter(e.target.value)}
+                                  placeholder="Enter part of filename"
                                 />
                               </div>
+                              
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="grid gap-2">
+                                  <Label htmlFor="dateRangeStart">Date Range (Start)</Label>
+                                  <Input
+                                    id="dateRangeStart"
+                                    type="date"
+                                    value={dateRangeStart}
+                                    onChange={(e) => setDateRangeStart(e.target.value)}
+                                  />
+                                </div>
+                                <div className="grid gap-2">
+                                  <Label htmlFor="dateRangeEnd">Date Range (End)</Label>
+                                  <Input
+                                    id="dateRangeEnd"
+                                    type="date"
+                                    value={dateRangeEnd}
+                                    onChange={(e) => setDateRangeEnd(e.target.value)}
+                                  />
+                                </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="grid gap-2">
+                                  <Label htmlFor="minDuration">Min Duration (seconds)</Label>
+                                  <Input
+                                    id="minDuration"
+                                    type="number"
+                                    min="0"
+                                    value={minDuration}
+                                    onChange={(e) => setMinDuration(e.target.value)}
+                                    placeholder="e.g. 60"
+                                  />
+                                </div>
+                                <div className="grid gap-2">
+                                  <Label htmlFor="maxDuration">Max Duration (seconds)</Label>
+                                  <Input
+                                    id="maxDuration"
+                                    type="number"
+                                    min="0"
+                                    value={maxDuration}
+                                    onChange={(e) => setMaxDuration(e.target.value)}
+                                    placeholder="e.g. 300"
+                                  />
+                                </div>
+                              </div>
+                              
+                              <div className="grid gap-2">
+                                <Label htmlFor="language">Language</Label>
+                                <Select
+                                  value={language}
+                                  onValueChange={(value) => setLanguage(value)}
+                                >
+                                  <SelectTrigger id="language">
+                                    <SelectValue placeholder="Select language" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="all">All Languages</SelectItem>
+                                    {availableLanguages.length > 0 ? (
+                                      availableLanguages.map(lang => (
+                                        <SelectItem key={lang} value={lang}>
+                                          {lang.charAt(0).toUpperCase() + lang.slice(1)}
+                                        </SelectItem>
+                                      ))
+                                    ) : (
+                                      <>
+                                        <SelectItem value="english">English</SelectItem>
+                                        <SelectItem value="spanish">Spanish</SelectItem>
+                                        <SelectItem value="french">French</SelectItem>
+                                        <SelectItem value="german">German</SelectItem>
+                                        <SelectItem value="portuguese">Portuguese</SelectItem>
+                                        <SelectItem value="mandarin">Chinese (Mandarin)</SelectItem>
+                                        <SelectItem value="japanese">Japanese</SelectItem>
+                                        <SelectItem value="korean">Korean</SelectItem>
+                                        <SelectItem value="russian">Russian</SelectItem>
+                                        <SelectItem value="arabic">Arabic</SelectItem>
+                                        <SelectItem value="hindi">Hindi</SelectItem>
+                                      </>
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              
+                              <Button 
+                                variant="secondary" 
+                                className="w-full"
+                                onClick={handleApplyFilters}
+                                disabled={applyFilters.isPending || !uploadFile}
+                              >
+                                {applyFilters.isPending ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Applying Filters...
+                                  </>
+                                ) : (
+                                  'Preview Filter Results'
+                                )}
+                              </Button>
+                              
+                              {filterCounts && (
+                                <div className="bg-primary/10 p-4 rounded-md">
+                                  <h4 className="font-medium mb-2">Filter Results:</h4>
+                                  <div className="flex justify-between text-sm">
+                                    <span>Total files:</span>
+                                    <span className="font-medium">{filterCounts.total}</span>
+                                  </div>
+                                  <div className="flex justify-between text-sm">
+                                    <span>After filtering:</span>
+                                    <span className="font-medium">{filterCounts.filtered}</span>
+                                  </div>
+                                  <div className="flex justify-between text-sm text-muted-foreground">
+                                    <span>Excluded files:</span>
+                                    <span>{filterCounts.total - filterCounts.filtered}</span>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {filterCounts && filterCounts.filtered > 0 && (
+                                <div className="mt-4 border-t pt-4">
+                                  <h4 className="font-medium mb-2">Quality Analyst Assignment</h4>
+                                  
+                                  <div className="flex items-center space-x-2 mb-4">
+                                    <Checkbox 
+                                      id="autoAssign" 
+                                      checked={autoAssign}
+                                      onCheckedChange={(checked: boolean | "indeterminate") => setAutoAssign(checked === true)}
+                                    />
+                                    <Label htmlFor="autoAssign" className="text-sm font-normal cursor-pointer">
+                                      Auto-assign files to quality analysts
+                                    </Label>
+                                  </div>
+                                  
+                                  {!autoAssign && (
+                                    <div className="grid gap-4">
+                                      <div className="grid gap-2">
+                                        <Label htmlFor="selectedQA">Assign to Quality Analysts (Multi-select)</Label>
+                                        <div className="border rounded-md p-4 space-y-3 max-h-60 overflow-y-auto">
+                                          {qualityAnalysts?.map((qa) => (
+                                            <div key={qa.id} className="flex items-center justify-between space-x-2 pb-2 border-b">
+                                              <div className="flex items-center gap-2">
+                                                <Checkbox
+                                                  id={`qa-${qa.id}`}
+                                                  checked={selectedQA.includes(qa.id.toString())}
+                                                  onCheckedChange={(checked) => {
+                                                    if (checked) {
+                                                      setSelectedQA(prev => [...prev, qa.id.toString()]);
+                                                    } else {
+                                                      setSelectedQA(prev => prev.filter(id => id !== qa.id.toString()));
+                                                    }
+                                                  }}
+                                                />
+                                                <Label 
+                                                  htmlFor={`qa-${qa.id}`} 
+                                                  className="text-sm font-medium cursor-pointer"
+                                                >
+                                                  {qa.fullName}
+                                                </Label>
+                                              </div>
+                                              <div className="flex items-center gap-2">
+                                                <Label 
+                                                  htmlFor={`qa-limit-${qa.id}`} 
+                                                  className="text-xs text-gray-500"
+                                                >
+                                                  Max assignments:
+                                                </Label>
+                                                <Input
+                                                  id={`qa-limit-${qa.id}`}
+                                                  type="number"
+                                                  className="w-16 h-8 text-xs"
+                                                  min={1}
+                                                  max={100}
+                                                  value={qaAssignmentCounts[qa.id.toString()] || maxAssignmentsPerQA}
+                                                  onChange={(e) => {
+                                                    const count = parseInt(e.target.value) || maxAssignmentsPerQA;
+                                                    setQaAssignmentCounts(prev => ({
+                                                      ...prev,
+                                                      [qa.id.toString()]: count
+                                                    }));
+                                                  }}
+                                                />
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                      
+                                      <div className="grid gap-2">
+                                        <Label htmlFor="maxAssignmentsPerQA">Default Max Assignments Per QA</Label>
+                                        <div className="flex items-center gap-2">
+                                          <Input
+                                            id="maxAssignmentsPerQA"
+                                            type="number"
+                                            className="w-24"
+                                            value={maxAssignmentsPerQA}
+                                            min={1}
+                                            max={100}
+                                            onChange={(e) => setMaxAssignmentsPerQA(parseInt(e.target.value) || 10)}
+                                          />
+                                          <Button 
+                                            type="button" 
+                                            variant="outline" 
+                                            size="sm"
+                                            onClick={() => {
+                                              const newCounts: Record<string, number> = {};
+                                              selectedQA.forEach(qaId => {
+                                                newCounts[qaId] = maxAssignmentsPerQA;
+                                              });
+                                              setQaAssignmentCounts(newCounts);
+                                            }}
+                                          >
+                                            Apply to All
+                                          </Button>
+                                        </div>
+                                        <p className="text-xs text-gray-500">
+                                          Maximum number of audio files to assign per QA. Each QA can have a different limit.
+                                        </p>
+                                      </div>
+                                      
+                                      <p className="text-xs text-gray-500">
+                                        Quality analysts will be notified about the new audio files assigned to them. 
+                                        Files will be distributed evenly according to assignment limits.
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
+                      </div>
                       </ScrollArea>
-                      
                       <DialogFooter>
                         <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
                           Cancel
@@ -708,27 +1286,6 @@ const AzureStorageBrowser = () => {
                     <div className="grid gap-4 py-4">
                       <div className="grid gap-2">
                         <Label htmlFor="qualityAnalyst">Quality Analysts (Multi-select)</Label>
-                        <div className="flex items-center mb-2">
-                          <Checkbox 
-                            id="select-all-qa"
-                            checked={qualityAnalysts?.length > 0 && selectedQA.length === qualityAnalysts.length}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                // Select all quality analysts
-                                setSelectedQA(qualityAnalysts?.map(qa => qa.id.toString()) || []);
-                              } else {
-                                // Deselect all
-                                setSelectedQA([]);
-                              }
-                            }}
-                          />
-                          <Label 
-                            htmlFor="select-all-qa" 
-                            className="ml-2 text-sm font-medium cursor-pointer"
-                          >
-                            Select All Quality Analysts
-                          </Label>
-                        </div>
                         <div className="border rounded-md p-4 space-y-3 max-h-60 overflow-y-auto">
                           {qualityAnalysts?.map((qa) => (
                             <div key={qa.id} className="flex items-center justify-between space-x-2 pb-2 border-b">
@@ -857,123 +1414,45 @@ const AzureStorageBrowser = () => {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : Array.isArray(blobs) && blobs.length > 0 ? (
-              <div>
-                <div className="bg-gray-50 p-4 rounded-md mb-4">
-                  <h3 className="font-medium mb-3">Filter Options</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div>
-                      <Label htmlFor="filterLanguage">Language</Label>
-                      <Select
-                        value={filterOptions.language}
-                        onValueChange={(value) => setFilterOptions({...filterOptions, language: value})}
-                      >
-                        <SelectTrigger id="filterLanguage">
-                          <SelectValue placeholder="Select language" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="">All Languages</SelectItem>
-                          {availableLanguages.map(lang => (
-                            <SelectItem key={lang} value={lang}>{lang}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="filterStartDate">Start Date</Label>
-                      <Input
-                        id="filterStartDate"
-                        type="date"
-                        value={filterOptions.startDate}
-                        onChange={(e) => setFilterOptions({...filterOptions, startDate: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="filterEndDate">End Date</Label>
-                      <Input
-                        id="filterEndDate"
-                        type="date"
-                        value={filterOptions.endDate}
-                        onChange={(e) => setFilterOptions({...filterOptions, endDate: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="filterMinDuration">Min Duration (seconds)</Label>
-                      <Input
-                        id="filterMinDuration"
-                        type="number"
-                        min="0"
-                        value={filterOptions.minDuration}
-                        onChange={(e) => setFilterOptions({...filterOptions, minDuration: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="filterMaxDuration">Max Duration (seconds)</Label>
-                      <Input
-                        id="filterMaxDuration"
-                        type="number"
-                        min="0"
-                        value={filterOptions.maxDuration}
-                        onChange={(e) => setFilterOptions({...filterOptions, maxDuration: e.target.value})}
-                      />
-                    </div>
-                    <div className="flex items-end">
-                      <Button 
-                        variant="outline" 
-                        onClick={() => {
-                          setFilterOptions({
-                            language: '',
-                            startDate: '',
-                            endDate: '',
-                            minDuration: '',
-                            maxDuration: '',
-                          });
-                        }}
-                      >
-                        Reset Filters
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-12">
-                          <span className="sr-only">Select</span>
-                        </TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Size</TableHead>
-                        <TableHead>Last Modified</TableHead>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">
+                        <span className="sr-only">Select</span>
+                      </TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Size</TableHead>
+                      <TableHead>Last Modified</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {blobs.map((blob: BlobItem) => (
+                      <TableRow key={blob.name}>
+                        <TableCell>
+                          <input
+                            type="checkbox"
+                            checked={selectedBlobItems.includes(blob.name)}
+                            onChange={() => handleBlobSelection(blob.name)}
+                            className="rounded border-gray-300"
+                          />
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center space-x-2">
+                            <File className="h-4 w-4 text-gray-500" />
+                            <span className="truncate max-w-[200px]" title={blob.name}>
+                              {blob.name}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>{blob.properties.contentType || 'application/octet-stream'}</TableCell>
+                        <TableCell>{formatFileSize(blob.properties.contentLength)}</TableCell>
+                        <TableCell>{new Date(blob.properties.lastModified).toLocaleString()}</TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {blobs.map((blob: BlobItem) => (
-                        <TableRow key={blob.name}>
-                          <TableCell>
-                            <input
-                              type="checkbox"
-                              checked={selectedBlobItems.includes(blob.name)}
-                              onChange={() => handleBlobSelection(blob.name)}
-                              className="rounded border-gray-300"
-                            />
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center space-x-2">
-                              <File className="h-4 w-4 text-gray-500" />
-                              <span className="truncate max-w-[200px]" title={blob.name}>
-                                {blob.name}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>{blob.properties.contentType || 'application/octet-stream'}</TableCell>
-                          <TableCell>{formatFileSize(blob.properties.contentLength)}</TableCell>
-                          <TableCell>{new Date(blob.properties.lastModified).toLocaleString()}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             ) : (
               <div className="text-center p-12 text-gray-500">
