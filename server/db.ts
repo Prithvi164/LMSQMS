@@ -3,8 +3,20 @@ import { drizzle } from 'drizzle-orm/neon-serverless';
 import ws from "ws";
 import * as schema from "@shared/schema";
 
-// Configure WebSocket for Neon database
-neonConfig.webSocketConstructor = ws;
+// Configure WebSocket for Neon database - with patched WebSocket constructor
+class PatchedWebSocketClass extends ws {
+  constructor(url: string, protocols?: string | string[]) {
+    super(url, protocols);
+    
+    // Fix for ErrorEvent issue - add custom error handling
+    this.addEventListener('error', (event) => {
+      console.error('WebSocket error:', event);
+    });
+  }
+}
+
+// Use our patched WebSocket class
+neonConfig.webSocketConstructor = PatchedWebSocketClass as any;
 
 // Connection retry settings
 const MAX_RETRIES = 5;
@@ -25,9 +37,9 @@ export const pool = new Pool({
   connectionTimeoutMillis: 5000, // How long to wait for a connection
 });
 
-// Add connection error handling
+// Add connection error handling - with safer error handling
 pool.on('error', (err, client) => {
-  console.error('Unexpected error on idle client', err);
+  console.error('Unexpected error on idle client:', err?.message || 'Unknown error');
   // Attempt to reconnect if in production
   if (process.env.NODE_ENV === 'production') {
     console.log('Attempting to reconnect to database...');
