@@ -6849,7 +6849,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         version: req.query.version as string | undefined,
         processId: req.query.processId ? parseInt(req.query.processId as string) : undefined,
         batchId: req.query.batchId ? parseInt(req.query.batchId as string) : undefined,
-        duration: undefined as { min?: number; max?: number } | undefined
+        duration: undefined as { min?: number; max?: number } | undefined,
+        page: req.query.page ? parseInt(req.query.page as string) : 1,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 50 // Default to 50 items per page
       };
       
       // Parse duration filter if provided
@@ -6860,8 +6862,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       }
       
-      const audioFiles = await storage.listAudioFiles(orgId, filters);
-      res.json(audioFiles);
+      const { files, total } = await storage.listAudioFiles(orgId, filters);
+      res.json({
+        files,
+        pagination: {
+          page: filters.page,
+          limit: filters.limit,
+          total,
+          pages: Math.ceil(total / filters.limit)
+        }
+      });
     } catch (error: any) {
       console.error("Error fetching audio files:", error);
       res.status(500).json({ message: error.message });

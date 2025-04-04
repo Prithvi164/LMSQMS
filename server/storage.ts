@@ -469,42 +469,72 @@ export class DatabaseStorage implements IStorage {
     processId?: number;
     batchId?: number;
     duration?: { min?: number; max?: number };
-  }): Promise<AudioFile[]> {
+    page?: number;
+    limit?: number;
+  }): Promise<{ files: AudioFile[]; total: number }> {
     try {
+      // Set default pagination values
+      const page = filters?.page || 1;
+      const limit = filters?.limit || 100; // Default to 100 items per page
+      const offset = (page - 1) * limit;
+      
+      // Build query for counting total results
+      let countQuery = db
+        .select({ count: sql`count(*)` })
+        .from(audioFiles)
+        .where(eq(audioFiles.organizationId, organizationId));
+        
+      // Build main query for fetching paginated data
       let query = db
         .select()
         .from(audioFiles)
-        .where(eq(audioFiles.organizationId, organizationId));
+        .where(eq(audioFiles.organizationId, organizationId))
+        .limit(limit)
+        .offset(offset)
+        .orderBy(audioFiles.id);  // Ensure consistent ordering
 
       // Apply filters if provided
       if (filters) {
         if (filters.status) {
           query = query.where(eq(audioFiles.status, filters.status as any));
+          countQuery = countQuery.where(eq(audioFiles.status, filters.status as any));
         }
         if (filters.language) {
           query = query.where(eq(audioFiles.language, filters.language as any));
+          countQuery = countQuery.where(eq(audioFiles.language, filters.language as any));
         }
         if (filters.version) {
           query = query.where(eq(audioFiles.version, filters.version));
+          countQuery = countQuery.where(eq(audioFiles.version, filters.version));
         }
         if (filters.processId) {
           query = query.where(eq(audioFiles.processId, filters.processId));
+          countQuery = countQuery.where(eq(audioFiles.processId, filters.processId));
         }
         if (filters.batchId) {
           query = query.where(eq(audioFiles.batchId, filters.batchId));
+          countQuery = countQuery.where(eq(audioFiles.batchId, filters.batchId));
         }
         if (filters.duration) {
           if (filters.duration.min !== undefined) {
             query = query.where(gte(audioFiles.duration, filters.duration.min));
+            countQuery = countQuery.where(gte(audioFiles.duration, filters.duration.min));
           }
           if (filters.duration.max !== undefined) {
             query = query.where(lte(audioFiles.duration, filters.duration.max));
+            countQuery = countQuery.where(lte(audioFiles.duration, filters.duration.max));
           }
         }
       }
 
+      // Get the total count and paginated files
+      const [totalResult] = await countQuery;
       const files = await query as AudioFile[];
-      return files;
+      
+      return {
+        files,
+        total: Number(totalResult?.count || 0)
+      };
     } catch (error) {
       console.error('Error listing audio files:', error);
       throw error;

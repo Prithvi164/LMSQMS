@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -74,11 +74,36 @@ const AudioFileManagement = () => {
     voc: ''
   });
 
+  // State for pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalFiles, setTotalFiles] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const pageSize = 50; // Match the default limit in the server
+
   // Query for fetching audio files
-  const { data: audioFiles, isLoading, refetch } = useQuery({
-    queryKey: ['/api/organizations/' + user?.organizationId + '/audio-files', filters],
+  const { data: audioFilesResponse, isLoading, refetch } = useQuery({
+    queryKey: ['/api/organizations/' + user?.organizationId + '/audio-files', filters, currentPage],
+    queryFn: async () => {
+      const endpoint = `/api/organizations/${user?.organizationId}/audio-files?page=${currentPage}&limit=${pageSize}`;
+      const response = await fetch(endpoint);
+      if (!response.ok) {
+        throw new Error('Failed to fetch audio files');
+      }
+      return response.json();
+    },
     enabled: !!user?.organizationId,
   });
+
+  // Extract the actual files array and pagination info
+  const audioFiles = audioFilesResponse?.files || [];
+  
+  // Update pagination state when data changes
+  useEffect(() => {
+    if (audioFilesResponse?.pagination) {
+      setTotalFiles(audioFilesResponse.pagination.total);
+      setTotalPages(audioFilesResponse.pagination.pages);
+    }
+  }, [audioFilesResponse]);
 
   // Upload file mutation
   const uploadFileMutation = useMutation({
@@ -549,11 +574,13 @@ const AudioFileManagement = () => {
                         })}
                       />
                     </div>
-                    
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
                       <Label htmlFor="callType">Call Type</Label>
-                      <Select
-                        value={fileData.callMetrics.callType}
+                      <Select 
+                        value={fileData.callMetrics.callType} 
                         onValueChange={(value) => setFileData({
                           ...fileData, 
                           callMetrics: {
@@ -563,12 +590,11 @@ const AudioFileManagement = () => {
                         })}
                       >
                         <SelectTrigger id="callType">
-                          <SelectValue placeholder="Call Type" />
+                          <SelectValue placeholder="Select call type" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="inbound">Inbound</SelectItem>
                           <SelectItem value="outbound">Outbound</SelectItem>
-                          <SelectItem value="transfer">Transfer</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -593,19 +619,15 @@ const AudioFileManagement = () => {
               </div>
               
               <DialogFooter>
-                <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleUploadSubmit} disabled={uploadFileMutation.isPending}>
-                  {uploadFileMutation.isPending ? (
-                    <>
-                      <Spinner className="mr-2 h-4 w-4" />
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="mr-2 h-4 w-4" />
-                      Upload File
-                    </>
-                  )}
+                <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleUploadSubmit}
+                  disabled={uploadFileMutation.isPending}
+                >
+                  {uploadFileMutation.isPending && <Spinner className="mr-2 h-4 w-4" />}
+                  Upload
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -613,51 +635,40 @@ const AudioFileManagement = () => {
           
           <Dialog open={batchUploadDialogOpen} onOpenChange={setBatchUploadDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline">
+              <Button variant="secondary">
                 <FileSpreadsheet className="mr-2 h-4 w-4" />
                 Batch Upload
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>Batch Upload Audio Files</DialogTitle>
                 <DialogDescription>
-                  Upload multiple audio files with metadata from Excel
+                  Upload multiple audio files with an Excel metadata file
                 </DialogDescription>
               </DialogHeader>
               
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="audioFiles">Multiple Audio Files</Label>
+                  <Label htmlFor="audio-files">Audio Files</Label>
                   <Input 
-                    id="audioFiles" 
+                    id="audio-files" 
                     type="file" 
-                    accept="audio/*" 
                     multiple 
+                    accept="audio/*" 
                     onChange={handleAudioFilesChange} 
                   />
                   {uploadAudioFiles.length > 0 && (
                     <div className="text-sm text-muted-foreground mt-1">
-                      {uploadAudioFiles.length} file(s) selected
+                      {uploadAudioFiles.length} audio files selected
                     </div>
                   )}
                 </div>
                 
                 <div className="grid gap-2">
-                  <Label htmlFor="metadataFile">Excel Metadata File</Label>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" asChild className="mb-2">
-                      <a href="/api/azure-audio-files/azure-metadata-template" download="audio-metadata-template.xlsx">
-                        <Download className="mr-2 h-4 w-4" />
-                        Download Template
-                      </a>
-                    </Button>
-                    <span className="text-sm text-muted-foreground">
-                      ← First download the template
-                    </span>
-                  </div>
+                  <Label htmlFor="metadata-file">Excel Metadata File</Label>
                   <Input 
-                    id="metadataFile" 
+                    id="metadata-file" 
                     type="file" 
                     accept=".xlsx,.xls,.csv" 
                     onChange={handleMetadataFileChange} 
@@ -671,270 +682,171 @@ const AudioFileManagement = () => {
                 
                 <Alert>
                   <AlertDescription>
-                    <p className="text-sm">The Excel file should contain columns matching audio filenames and their metadata.</p>
-                    <p className="text-sm mt-2">Required columns: filename, originalFilename, language, version, call_date</p>
-                    <p className="text-sm mt-2">Other fields: callId, callType, agentId, campaignName, duration, disposition1, disposition2, customerMobile, callTime, subType, subSubType, VOC, queryType, businessSegment</p>
+                    <div className="flex items-center">
+                      <Download className="mr-2 h-4 w-4" />
+                      <a 
+                        href="/api/templates/audio-metadata" 
+                        target="_blank"
+                        className="text-blue-500 hover:underline"
+                      >
+                        Download metadata template
+                      </a>
+                    </div>
                   </AlertDescription>
                 </Alert>
               </div>
               
               <DialogFooter>
-                <Button variant="outline" onClick={() => setBatchUploadDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleBatchUploadSubmit} disabled={batchUploadMutation.isPending}>
-                  {batchUploadMutation.isPending ? (
-                    <>
-                      <Spinner className="mr-2 h-4 w-4" />
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="mr-2 h-4 w-4" />
-                      Upload Batch
-                    </>
-                  )}
+                <Button variant="outline" onClick={() => setBatchUploadDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleBatchUploadSubmit}
+                  disabled={batchUploadMutation.isPending}
+                >
+                  {batchUploadMutation.isPending && <Spinner className="mr-2 h-4 w-4" />}
+                  Upload Batch
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          
+          <Button variant="outline" asChild>
+            <a href="/azure-storage-browser">
+              <FilePlus className="mr-2 h-4 w-4" />
+              Import from Azure
+            </a>
+          </Button>
         </div>
         
-        <div className="flex space-x-2">
-          <Card>
-            <CardContent className="p-4">
-              <div className="mb-4">
-                <h3 className="text-lg font-medium mb-2">Basic Filters</h3>
-                <div className="flex flex-wrap gap-4">
-                  <div>
-                    <Label htmlFor="filter-language">Language</Label>
-                    <Select value={filters.language} onValueChange={(value) => handleFilterChange('language', value)}>
-                      <SelectTrigger id="filter-language" className="w-28">
-                        <SelectValue placeholder="All" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All</SelectItem>
-                        <SelectItem value="english">English</SelectItem>
-                        <SelectItem value="spanish">Spanish</SelectItem>
-                        <SelectItem value="french">French</SelectItem>
-                        <SelectItem value="hindi">Hindi</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="filter-version">Version</Label>
-                    <Input 
-                      id="filter-version" 
-                      placeholder="Version" 
-                      className="w-28"
-                      value={filters.version}
-                      onChange={(e) => handleFilterChange('version', e.target.value)}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="filter-status">Status</Label>
-                    <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value)}>
-                      <SelectTrigger id="filter-status" className="w-36">
-                        <SelectValue placeholder="Any status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="any">Any status</SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="allocated">Allocated</SelectItem>
-                        <SelectItem value="evaluated">Evaluated</SelectItem>
-                        <SelectItem value="archived">Archived</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="filter-duration">Duration</Label>
-                    <Select value={filters.duration} onValueChange={(value) => handleFilterChange('duration', value)}>
-                      <SelectTrigger id="filter-duration" className="w-36">
-                        <SelectValue placeholder="Any length" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="any">Any length</SelectItem>
-                        <SelectItem value="60">Less than 1 min</SelectItem>
-                        <SelectItem value="180">1-3 minutes</SelectItem>
-                        <SelectItem value="300">3-5 minutes</SelectItem>
-                        <SelectItem value="999">More than 5 minutes</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+        <Collapsible className="w-[320px]">
+          <CollapsibleTrigger asChild>
+            <Button variant="outline" className="w-full flex justify-between">
+              <div className="flex items-center">
+                <Filter className="mr-2 h-4 w-4" />
+                Filters
+              </div>
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-2 space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label htmlFor="filter-language">Language</Label>
+                <Select 
+                  value={filters.language} 
+                  onValueChange={(value) => handleFilterChange('language', value)}
+                >
+                  <SelectTrigger id="filter-language">
+                    <SelectValue placeholder="Select language" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Languages</SelectItem>
+                    <SelectItem value="english">English</SelectItem>
+                    <SelectItem value="spanish">Spanish</SelectItem>
+                    <SelectItem value="french">French</SelectItem>
+                    <SelectItem value="hindi">Hindi</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               
-              <Collapsible className="mb-4">
-                <CollapsibleTrigger asChild>
-                  <Button variant="ghost" className="flex items-center justify-between w-full p-0">
-                    <span className="text-lg font-medium">Advanced Filters</span>
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-2">
-                    <div>
-                      <Label htmlFor="filter-callType">Call Type</Label>
-                      <Select value={filters.callType} onValueChange={(value) => handleFilterChange('callType', value)}>
-                        <SelectTrigger id="filter-callType" className="w-full">
-                          <SelectValue placeholder="All Types" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Types</SelectItem>
-                          <SelectItem value="inbound">Inbound</SelectItem>
-                          <SelectItem value="outbound">Outbound</SelectItem>
-                          <SelectItem value="transfer">Transfer</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="filter-agentId">Agent ID</Label>
-                      <Input 
-                        id="filter-agentId" 
-                        placeholder="Agent ID" 
-                        value={filters.agentId}
-                        onChange={(e) => handleFilterChange('agentId', e.target.value)}
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="filter-campaignName">Campaign</Label>
-                      <Input 
-                        id="filter-campaignName" 
-                        placeholder="Campaign Name" 
-                        value={filters.campaignName}
-                        onChange={(e) => handleFilterChange('campaignName', e.target.value)}
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="filter-callDate">Call Date</Label>
-                      <Input 
-                        id="filter-callDate" 
-                        type="date"
-                        placeholder="Call Date" 
-                        value={filters.callDate}
-                        onChange={(e) => handleFilterChange('callDate', e.target.value)}
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="filter-disposition1">Disposition 1</Label>
-                      <Input 
-                        id="filter-disposition1" 
-                        placeholder="Disposition 1" 
-                        value={filters.disposition1}
-                        onChange={(e) => handleFilterChange('disposition1', e.target.value)}
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="filter-disposition2">Disposition 2</Label>
-                      <Input 
-                        id="filter-disposition2" 
-                        placeholder="Disposition 2" 
-                        value={filters.disposition2}
-                        onChange={(e) => handleFilterChange('disposition2', e.target.value)}
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="filter-queryType">Query Type</Label>
-                      <Input 
-                        id="filter-queryType" 
-                        placeholder="Query Type" 
-                        value={filters.queryType}
-                        onChange={(e) => handleFilterChange('queryType', e.target.value)}
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="filter-businessSegment">Business Segment</Label>
-                      <Input 
-                        id="filter-businessSegment" 
-                        placeholder="Business Segment" 
-                        value={filters.businessSegment}
-                        onChange={(e) => handleFilterChange('businessSegment', e.target.value)}
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="filter-customerMobile">Customer Mobile</Label>
-                      <Input 
-                        id="filter-customerMobile" 
-                        placeholder="Customer Mobile" 
-                        value={filters.customerMobile}
-                        onChange={(e) => handleFilterChange('customerMobile', e.target.value)}
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="filter-callTime">Call Time</Label>
-                      <Input 
-                        id="filter-callTime" 
-                        type="time"
-                        placeholder="Call Time" 
-                        value={filters.callTime}
-                        onChange={(e) => handleFilterChange('callTime', e.target.value)}
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="filter-subType">Sub Type</Label>
-                      <Input 
-                        id="filter-subType" 
-                        placeholder="Sub Type" 
-                        value={filters.subType}
-                        onChange={(e) => handleFilterChange('subType', e.target.value)}
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="filter-subSubType">Sub-Sub Type</Label>
-                      <Input 
-                        id="filter-subSubType" 
-                        placeholder="Sub-Sub Type" 
-                        value={filters.subSubType}
-                        onChange={(e) => handleFilterChange('subSubType', e.target.value)}
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="filter-voc">VOC</Label>
-                      <Input 
-                        id="filter-voc" 
-                        placeholder="VOC" 
-                        value={filters.voc}
-                        onChange={(e) => handleFilterChange('voc', e.target.value)}
-                      />
-                    </div>
-                    
-
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-              
-              <div className="flex justify-end">
-                <Button variant="outline" onClick={resetFilters}>
-                  <Filter className="h-4 w-4 mr-2" />
-                  Reset All Filters
-                </Button>
+              <div>
+                <Label htmlFor="filter-status">Status</Label>
+                <Select 
+                  value={filters.status} 
+                  onValueChange={(value) => handleFilterChange('status', value)}
+                >
+                  <SelectTrigger id="filter-status">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Any Status</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="allocated">Allocated</SelectItem>
+                    <SelectItem value="evaluated">Evaluated</SelectItem>
+                    <SelectItem value="archived">Archived</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label htmlFor="filter-callType">Call Type</Label>
+                <Select 
+                  value={filters.callType} 
+                  onValueChange={(value) => handleFilterChange('callType', value)}
+                >
+                  <SelectTrigger id="filter-callType">
+                    <SelectValue placeholder="Select call type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="inbound">Inbound</SelectItem>
+                    <SelectItem value="outbound">Outbound</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label htmlFor="filter-duration">Duration</Label>
+                <Select 
+                  value={filters.duration} 
+                  onValueChange={(value) => handleFilterChange('duration', value)}
+                >
+                  <SelectTrigger id="filter-duration">
+                    <SelectValue placeholder="Select duration" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Any Duration</SelectItem>
+                    <SelectItem value="60">Less than 1 min</SelectItem>
+                    <SelectItem value="180">1-3 min</SelectItem>
+                    <SelectItem value="300">3-5 min</SelectItem>
+                    <SelectItem value="999">More than 5 min</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div>
+              <Label htmlFor="filter-agentId">Agent ID</Label>
+              <Input
+                id="filter-agentId"
+                placeholder="Filter by agent ID"
+                value={filters.agentId}
+                onChange={(e) => handleFilterChange('agentId', e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="filter-version">Version</Label>
+              <Input
+                id="filter-version"
+                placeholder="Filter by version"
+                value={filters.version}
+                onChange={(e) => handleFilterChange('version', e.target.value)}
+              />
+            </div>
+            
+            <Button onClick={resetFilters} variant="outline" className="w-full">
+              Reset Filters
+            </Button>
+          </CollapsibleContent>
+        </Collapsible>
       </div>
       
-      <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-4">
-          <TabsTrigger value="all">All Files</TabsTrigger>
+      <Tabs 
+        defaultValue="all" 
+        value={activeTab} 
+        onValueChange={setActiveTab}
+        className="w-full"
+      >
+        <TabsList className="grid grid-cols-4 mb-4">
+          <TabsTrigger value="all">All</TabsTrigger>
           <TabsTrigger value="pending">Pending</TabsTrigger>
           <TabsTrigger value="allocated">Allocated</TabsTrigger>
           <TabsTrigger value="evaluated">Evaluated</TabsTrigger>
-          <TabsTrigger value="archived">Archived</TabsTrigger>
         </TabsList>
         
         <TabsContent value={activeTab} className="mt-0">
@@ -953,67 +865,130 @@ const AudioFileManagement = () => {
                   <Spinner className="h-8 w-8" />
                 </div>
               ) : filteredAudioFiles && filteredAudioFiles.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Filename</TableHead>
-                      <TableHead>Call ID</TableHead>
-                      <TableHead>Language</TableHead>
-                      <TableHead>Version</TableHead>
-                      <TableHead>Duration</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Uploaded</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredAudioFiles.map((audioFile) => (
-                      <TableRow key={audioFile.id}>
-                        <TableCell className="flex items-center">
-                          <FileAudio className="h-4 w-4 mr-2 text-primary" />
-                          {audioFile.originalFilename}
-                        </TableCell>
-                        <TableCell>{audioFile.callMetrics?.callId || 'N/A'}</TableCell>
-                        <TableCell className="capitalize">{audioFile.language}</TableCell>
-                        <TableCell>{audioFile.version}</TableCell>
-                        <TableCell>{formatDuration(audioFile.duration)}</TableCell>
-                        <TableCell>
-                          <Badge className={statusColors[audioFile.status as keyof typeof statusColors]}>
-                            {audioFile.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center">
-                            <Clock className="h-3 w-3 mr-1 text-muted-foreground" />
-                            <span title={new Date(audioFile.uploadedAt).toLocaleString()}>
-                              {formatDistanceToNow(new Date(audioFile.uploadedAt), { addSuffix: true })}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              asChild
-                            >
-                              <a href={audioFile.fileUrl} target="_blank" rel="noopener noreferrer">Listen</a>
-                            </Button>
-                            {audioFile.status === 'pending' && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => updateStatusMutation.mutate({ id: audioFile.id, status: 'archived' })}
-                              >
-                                Archive
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
+                <div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Filename</TableHead>
+                        <TableHead>Language</TableHead>
+                        <TableHead>Version</TableHead>
+                        <TableHead>Duration</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Uploaded</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredAudioFiles.map((audioFile: any) => (
+                        <TableRow key={audioFile.id}>
+                          <TableCell className="font-medium">
+                            {audioFile.filename}
+                          </TableCell>
+                          <TableCell>{audioFile.language}</TableCell>
+                          <TableCell>{audioFile.version}</TableCell>
+                          <TableCell>
+                            {audioFile.duration ? formatDuration(audioFile.duration) : 'N/A'}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={statusColors[audioFile.status] || ''}>
+                              {audioFile.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {audioFile.createdAt ? (
+                              <div className="flex items-center">
+                                <Clock className="mr-1 h-3 w-3 text-muted-foreground" />
+                                <span title={new Date(audioFile.createdAt).toLocaleString()}>
+                                  {formatDistanceToNow(new Date(audioFile.createdAt), { addSuffix: true })}
+                                </span>
+                              </div>
+                            ) : (
+                              'N/A'
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex space-x-2">
+                              <Button 
+                                size="sm"
+                                variant="outline"
+                                className="h-8"
+                                asChild
+                              >
+                                <a 
+                                  href={`/api/audio-files/${audioFile.id}/download`} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                >
+                                  Download
+                                </a>
+                              </Button>
+                              
+                              {audioFile.status === 'pending' && (
+                                <Button
+                                  size="sm"
+                                  className="h-8"
+                                  variant="outline"
+                                  onClick={() => updateStatusMutation.mutate({ id: audioFile.id, status: 'allocated' })}
+                                >
+                                  Allocate
+                                </Button>
+                              )}
+                              
+                              {audioFile.status === 'allocated' && (
+                                <Button
+                                  size="sm"
+                                  className="h-8"
+                                  variant="outline"
+                                  onClick={() => updateStatusMutation.mutate({ id: audioFile.id, status: 'evaluated' })}
+                                >
+                                  Mark Evaluated
+                                </Button>
+                              )}
+                              
+                              {(audioFile.status === 'pending' || audioFile.status === 'allocated') && (
+                                <Button
+                                  size="sm"
+                                  className="h-8"
+                                  variant="outline"
+                                  onClick={() => updateStatusMutation.mutate({ id: audioFile.id, status: 'archived' })}
+                                >
+                                  Archive
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  
+                  {/* Pagination controls */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between p-4 border-t">
+                      <div className="text-sm text-muted-foreground">
+                        Showing page {currentPage} of {totalPages} ({totalFiles} total files)
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                        >
+                          Previous
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                          disabled={currentPage === totalPages}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <FileAudio className="mx-auto h-12 w-12 mb-4 text-muted-foreground/50" />
