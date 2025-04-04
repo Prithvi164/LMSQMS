@@ -65,7 +65,7 @@ function filterAudioMetadata(items: any[], filters: {
         durationSeconds = item.duration;
       } else if (typeof item.duration === 'string') {
         // Handle string format - could be "00:02:45" or just "165" (seconds)
-        if (item.duration.includes(':')) {
+        if (item.duration && typeof item.duration.includes === 'function' && item.duration.includes(':')) {
           try {
             // Try to parse as "HH:MM:SS" format
             const durationParts = item.duration.split(':');
@@ -406,7 +406,7 @@ async function parseExcelFile(filePath: string): Promise<AudioFileMetadata[]> {
         const normalizedRow = normalizeRow(row, i);
         
         // Validate language is one of the supported values if provided
-        const validLanguages = ['english', 'spanish', 'french', 'hindi', 'other'];
+        const validLanguages = ['english', 'spanish', 'french', 'german', 'portuguese', 'hindi', 'mandarin', 'japanese', 'korean', 'arabic', 'russian', 'other'];
         let language = normalizedRow.language;
         
         // If language is provided, validate it
@@ -919,7 +919,7 @@ router.get('/azure-metadata-template', async (req, res) => {
       {
         filename: 'agent-123-20250401-1234.mp3', // This should match the actual filename in Azure
         originalFilename: 'Customer Call - John Smith - Billing Issue.mp3',
-        language: 'english', // must be one of: english, spanish, french, hindi, other
+        language: 'english', // must be one of: english, spanish, french, german, portuguese, chinese, japanese, korean, russian, arabic, hindi, other
         version: '1.0',
         call_date: '2025-04-01', // YYYY-MM-DD format
         callId: '101',
@@ -942,7 +942,7 @@ router.get('/azure-metadata-template', async (req, res) => {
       {
         filename: 'agent-456-20250401-5678.mp3',
         originalFilename: 'Customer Call - Jane Doe - Technical Issue.mp3',
-        language: 'spanish',
+        language: 'mandarin',
         version: '1.0',
         call_date: '2025-04-01',
         callId: '102',
@@ -1091,7 +1091,7 @@ router.get('/azure-minimal-template', async (req, res) => {
       },
       {
         filename: 'agent-261-17027502084-1546-SIL_Inbound-2023_12_15_10_35_33-919700514723.wav',
-        language: 'spanish',
+        language: 'russian',
         version: '1.0',
         call_date: '2023-12-15'
       }

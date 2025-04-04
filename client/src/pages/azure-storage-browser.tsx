@@ -117,7 +117,7 @@ const AzureStorageBrowser = () => {
   const [dateRangeEnd, setDateRangeEnd] = useState<string>('');
   const [minDuration, setMinDuration] = useState<string>('');
   const [maxDuration, setMaxDuration] = useState<string>('');
-  const [language, setLanguage] = useState<string>('');
+  const [language, setLanguage] = useState<string>('all');
   const [filterCounts, setFilterCounts] = useState<{total: number, filtered: number} | null>(null);
   
   const ITEMS_PER_PAGE = 5;
@@ -1026,7 +1026,7 @@ const AzureStorageBrowser = () => {
                                     <SelectItem value="french">French</SelectItem>
                                     <SelectItem value="german">German</SelectItem>
                                     <SelectItem value="portuguese">Portuguese</SelectItem>
-                                    <SelectItem value="chinese">Chinese</SelectItem>
+                                    <SelectItem value="mandarin">Chinese (Mandarin)</SelectItem>
                                     <SelectItem value="japanese">Japanese</SelectItem>
                                     <SelectItem value="korean">Korean</SelectItem>
                                     <SelectItem value="russian">Russian</SelectItem>
