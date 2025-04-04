@@ -837,7 +837,7 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
                   status: 'allocated',
                   allocatedBy: req.user.id,
                   organizationId: req.user.organizationId,
-                  evaluationTemplateId: evaluationTemplateId ? parseInt(evaluationTemplateId) : undefined
+                  evaluationId: evaluationTemplateId ? parseInt(evaluationTemplateId) : undefined
                 })
                 .returning();
                 
@@ -1244,7 +1244,7 @@ router.post('/azure-audio-allocate', async (req, res) => {
             status: 'allocated',
             allocatedBy: req.user.id,
             organizationId: req.user.organizationId,
-            evaluationTemplateId: evaluationTemplateId || null
+            evaluationId: evaluationTemplateId || null
           })
           .returning();
         
