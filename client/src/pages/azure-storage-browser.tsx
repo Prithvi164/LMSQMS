@@ -111,7 +111,7 @@ const AzureStorageBrowser = () => {
   // folderSelectMode removed as per user request
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [folders, setFolders] = useState<string[]>([]);
-  // autoAssign option removed as requested
+  const [autoAssign, setAutoAssign] = useState(false);
   
   // Filter states for import
   const [showFilters, setShowFilters] = useState(false);
@@ -556,8 +556,10 @@ const AzureStorageBrowser = () => {
       const formData = new FormData();
       formData.append('metadataFile', metadataFile);
       
-      // Auto-assign is disabled by default
-      formData.append('autoAssign', 'false');
+      // Add autoAssign parameter if checked
+      if (autoAssign) {
+        formData.append('autoAssign', 'true');
+      }
       
       // Always include evaluation template ID
       if (selectedEvaluationTemplate) {
@@ -941,182 +943,207 @@ const AzureStorageBrowser = () => {
                                 setFilterCounts(null);
                               }}
                             />
-                            <p className="text-xs text-gray-500">
-                              The Excel file only needs a <strong>filename</strong> column matching audio filenames in Azure. The system will automatically analyze audio files to extract duration.
-                            </p>
-                          </div>
+                          <p className="text-xs text-gray-500">
+                            The Excel file only needs a <strong>filename</strong> column matching audio filenames in Azure. The system will automatically analyze audio files to extract duration.
+                          </p>
+                        </div>
                         
-                          <div className="grid gap-2 mt-3">
-                            <Label htmlFor="importEvaluationTemplate">Evaluation Template</Label>
-                            <Select 
-                              value={selectedEvaluationTemplate} 
-                              onValueChange={setSelectedEvaluationTemplate}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select an evaluation template" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {Array.isArray(evaluationTemplates) && evaluationTemplates.map((template: any) => (
-                                  <SelectItem key={template.id} value={template.id.toString()}>
-                                    {template.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <p className="text-xs text-gray-500">
-                              The selected evaluation template will be used for all files being imported.
-                            </p>
-                          </div>
+                        <div className="grid gap-2 mt-3">
+                          <Label htmlFor="importEvaluationTemplate">Evaluation Template</Label>
+                          <Select 
+                            value={selectedEvaluationTemplate} 
+                            onValueChange={setSelectedEvaluationTemplate}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select an evaluation template" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Array.isArray(evaluationTemplates) && evaluationTemplates.map((template: any) => (
+                                <SelectItem key={template.id} value={template.id.toString()}>
+                                  {template.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-gray-500">
+                            The selected evaluation template will be used for all files being imported.
+                          </p>
+                        </div>
 
-                          {/* Auto-assign option removed as requested */}
+                        <div className="flex items-center space-x-2 mt-4">
+                          <Checkbox 
+                            id="autoAssign" 
+                            checked={autoAssign}
+                            onCheckedChange={(checked: boolean | "indeterminate") => setAutoAssign(checked === true)}
+                          />
+                          <Label htmlFor="autoAssign" className="text-sm font-normal cursor-pointer">
+                            Auto-assign files to quality analysts
+                          </Label>
+                        </div>
+                        {autoAssign && (
+                          <>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Imported files will be automatically distributed evenly among all active quality analysts in your organization.
+                            </p>
+                          </>
+                        )}
                         
-                          <div className="pt-2">
-                            <Button 
-                              variant="outline" 
-                              type="button" 
-                              onClick={() => setShowFilters(!showFilters)} 
-                              className="mb-4 w-full"
-                            >
-                              {showFilters ? "Hide Filters" : "Show Filters"}
-                            </Button>
+                        <div className="pt-2">
+                          <Button 
+                            variant="outline" 
+                            type="button" 
+                            onClick={() => setShowFilters(!showFilters)} 
+                            className="mb-4 w-full"
+                          >
+                            {showFilters ? "Hide Filters" : "Show Filters"}
+                          </Button>
                           
-                            {showFilters && (
-                              <div className="space-y-4 border rounded-md p-4 bg-muted/20">
-                                <h4 className="font-medium">Filter Audio Files</h4>
+                          {showFilters && (
+                            <div className="space-y-4 border rounded-md p-4 bg-muted/20">
+                              <h4 className="font-medium">Filter Audio Files</h4>
                               
+                              <div className="grid gap-2">
+                                <Label htmlFor="fileNameFilter">Filename Contains</Label>
+                                <Input
+                                  id="fileNameFilter"
+                                  value={fileNameFilter}
+                                  onChange={(e) => setFileNameFilter(e.target.value)}
+                                  placeholder="Enter part of filename"
+                                />
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-4">
                                 <div className="grid gap-2">
-                                  <Label htmlFor="fileNameFilter">Filename Contains</Label>
+                                  <Label htmlFor="dateRangeStart">Date Range (Start)</Label>
                                   <Input
-                                    id="fileNameFilter"
-                                    value={fileNameFilter}
-                                    onChange={(e) => setFileNameFilter(e.target.value)}
-                                    placeholder="Enter part of filename"
+                                    id="dateRangeStart"
+                                    type="date"
+                                    value={dateRangeStart}
+                                    onChange={(e) => setDateRangeStart(e.target.value)}
                                   />
                                 </div>
-                              
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div className="grid gap-2">
-                                    <Label htmlFor="dateRangeStart">Date Range (Start)</Label>
-                                    <Input
-                                      id="dateRangeStart"
-                                      type="date"
-                                      value={dateRangeStart}
-                                      onChange={(e) => setDateRangeStart(e.target.value)}
-                                    />
-                                  </div>
-                                  <div className="grid gap-2">
-                                    <Label htmlFor="dateRangeEnd">Date Range (End)</Label>
-                                    <Input
-                                      id="dateRangeEnd"
-                                      type="date"
-                                      value={dateRangeEnd}
-                                      onChange={(e) => setDateRangeEnd(e.target.value)}
-                                    />
-                                  </div>
-                                </div>
-                              
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div className="grid gap-2">
-                                    <Label htmlFor="minDuration">Min Duration (seconds)</Label>
-                                    <Input
-                                      id="minDuration"
-                                      type="number"
-                                      min="0"
-                                      value={minDuration}
-                                      onChange={(e) => setMinDuration(e.target.value)}
-                                      placeholder="e.g. 60"
-                                    />
-                                  </div>
-                                  <div className="grid gap-2">
-                                    <Label htmlFor="maxDuration">Max Duration (seconds)</Label>
-                                    <Input
-                                      id="maxDuration"
-                                      type="number"
-                                      min="0"
-                                      value={maxDuration}
-                                      onChange={(e) => setMaxDuration(e.target.value)}
-                                      placeholder="e.g. 300"
-                                    />
-                                  </div>
-                                </div>
-                              
                                 <div className="grid gap-2">
-                                  <Label htmlFor="language">Language</Label>
-                                  <Select
-                                    value={language}
-                                    onValueChange={(value) => setLanguage(value)}
-                                  >
-                                    <SelectTrigger id="language">
-                                      <SelectValue placeholder="Select language" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="all">All Languages</SelectItem>
-                                      {availableLanguages.length > 0 ? (
-                                        availableLanguages.map(lang => (
-                                          <SelectItem key={lang} value={lang}>
-                                            {lang.charAt(0).toUpperCase() + lang.slice(1)}
-                                          </SelectItem>
-                                        ))
-                                      ) : (
-                                        <>
-                                          <SelectItem value="english">English</SelectItem>
-                                          <SelectItem value="spanish">Spanish</SelectItem>
-                                          <SelectItem value="french">French</SelectItem>
-                                          <SelectItem value="german">German</SelectItem>
-                                          <SelectItem value="portuguese">Portuguese</SelectItem>
-                                          <SelectItem value="mandarin">Chinese (Mandarin)</SelectItem>
-                                          <SelectItem value="japanese">Japanese</SelectItem>
-                                          <SelectItem value="korean">Korean</SelectItem>
-                                          <SelectItem value="russian">Russian</SelectItem>
-                                          <SelectItem value="arabic">Arabic</SelectItem>
-                                          <SelectItem value="hindi">Hindi</SelectItem>
-                                        </>
-                                      )}
-                                    </SelectContent>
-                                  </Select>
+                                  <Label htmlFor="dateRangeEnd">Date Range (End)</Label>
+                                  <Input
+                                    id="dateRangeEnd"
+                                    type="date"
+                                    value={dateRangeEnd}
+                                    onChange={(e) => setDateRangeEnd(e.target.value)}
+                                  />
                                 </div>
+                              </div>
                               
-                                <Button 
-                                  variant="secondary" 
-                                  className="w-full"
-                                  onClick={handleApplyFilters}
-                                  disabled={applyFilters.isPending || !uploadFile}
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="grid gap-2">
+                                  <Label htmlFor="minDuration">Min Duration (seconds)</Label>
+                                  <Input
+                                    id="minDuration"
+                                    type="number"
+                                    min="0"
+                                    value={minDuration}
+                                    onChange={(e) => setMinDuration(e.target.value)}
+                                    placeholder="e.g. 60"
+                                  />
+                                </div>
+                                <div className="grid gap-2">
+                                  <Label htmlFor="maxDuration">Max Duration (seconds)</Label>
+                                  <Input
+                                    id="maxDuration"
+                                    type="number"
+                                    min="0"
+                                    value={maxDuration}
+                                    onChange={(e) => setMaxDuration(e.target.value)}
+                                    placeholder="e.g. 300"
+                                  />
+                                </div>
+                              </div>
+                              
+                              <div className="grid gap-2">
+                                <Label htmlFor="language">Language</Label>
+                                <Select
+                                  value={language}
+                                  onValueChange={(value) => setLanguage(value)}
                                 >
-                                  {applyFilters.isPending ? (
-                                    <>
-                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                      Applying Filters...
-                                    </>
-                                  ) : (
-                                    'Preview Filter Results'
-                                  )}
-                                </Button>
+                                  <SelectTrigger id="language">
+                                    <SelectValue placeholder="Select language" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="all">All Languages</SelectItem>
+                                    {availableLanguages.length > 0 ? (
+                                      availableLanguages.map(lang => (
+                                        <SelectItem key={lang} value={lang}>
+                                          {lang.charAt(0).toUpperCase() + lang.slice(1)}
+                                        </SelectItem>
+                                      ))
+                                    ) : (
+                                      <>
+                                        <SelectItem value="english">English</SelectItem>
+                                        <SelectItem value="spanish">Spanish</SelectItem>
+                                        <SelectItem value="french">French</SelectItem>
+                                        <SelectItem value="german">German</SelectItem>
+                                        <SelectItem value="portuguese">Portuguese</SelectItem>
+                                        <SelectItem value="mandarin">Chinese (Mandarin)</SelectItem>
+                                        <SelectItem value="japanese">Japanese</SelectItem>
+                                        <SelectItem value="korean">Korean</SelectItem>
+                                        <SelectItem value="russian">Russian</SelectItem>
+                                        <SelectItem value="arabic">Arabic</SelectItem>
+                                        <SelectItem value="hindi">Hindi</SelectItem>
+                                      </>
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                              </div>
                               
-                                {filterCounts && (
-                                  <div className="bg-primary/10 p-4 rounded-md">
-                                    <h4 className="font-medium mb-2">Filter Results:</h4>
-                                    <div className="flex justify-between text-sm">
-                                      <span>Total files:</span>
-                                      <span className="font-medium">{filterCounts.total}</span>
-                                    </div>
-                                    <div className="flex justify-between text-sm">
-                                      <span>After filtering:</span>
-                                      <span className="font-medium">{filterCounts.filtered}</span>
-                                    </div>
-                                    <div className="flex justify-between text-sm text-muted-foreground">
-                                      <span>Excluded files:</span>
-                                      <span>{filterCounts.total - filterCounts.filtered}</span>
-                                    </div>
-                                  </div>
+                              <Button 
+                                variant="secondary" 
+                                className="w-full"
+                                onClick={handleApplyFilters}
+                                disabled={applyFilters.isPending || !uploadFile}
+                              >
+                                {applyFilters.isPending ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Applying Filters...
+                                  </>
+                                ) : (
+                                  'Preview Filter Results'
                                 )}
+                              </Button>
                               
-                                {filterCounts && filterCounts.filtered > 0 && (
-                                  <div className="mt-4 border-t pt-4">
-                                    <h4 className="font-medium mb-2">Quality Analyst Assignment</h4>
+                              {filterCounts && (
+                                <div className="bg-primary/10 p-4 rounded-md">
+                                  <h4 className="font-medium mb-2">Filter Results:</h4>
+                                  <div className="flex justify-between text-sm">
+                                    <span>Total files:</span>
+                                    <span className="font-medium">{filterCounts.total}</span>
+                                  </div>
+                                  <div className="flex justify-between text-sm">
+                                    <span>After filtering:</span>
+                                    <span className="font-medium">{filterCounts.filtered}</span>
+                                  </div>
+                                  <div className="flex justify-between text-sm text-muted-foreground">
+                                    <span>Excluded files:</span>
+                                    <span>{filterCounts.total - filterCounts.filtered}</span>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {filterCounts && filterCounts.filtered > 0 && (
+                                <div className="mt-4 border-t pt-4">
+                                  <h4 className="font-medium mb-2">Quality Analyst Assignment</h4>
                                   
-                                    {/* Auto-assign option removed as requested */}
+                                  <div className="flex items-center space-x-2 mb-4">
+                                    <Checkbox 
+                                      id="autoAssign" 
+                                      checked={autoAssign}
+                                      onCheckedChange={(checked: boolean | "indeterminate") => setAutoAssign(checked === true)}
+                                    />
+                                    <Label htmlFor="autoAssign" className="text-sm font-normal cursor-pointer">
+                                      Auto-assign files to quality analysts
+                                    </Label>
+                                  </div>
                                   
-                                    {/* Manual assignment section (always displayed) */}
+                                  {!autoAssign && (
                                     <div className="grid gap-4">
                                       <div className="grid gap-2">
                                         <Label htmlFor="selectedQA">Assign to Quality Analysts (Multi-select)</Label>
@@ -1207,12 +1234,13 @@ const AzureStorageBrowser = () => {
                                         Files will be distributed evenly according to assignment limits.
                                       </p>
                                     </div>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
+                      </div>
                       </ScrollArea>
                       <DialogFooter>
                         <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
