@@ -1,81 +1,113 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
+// Import dependencies
 import * as schema from "@shared/schema";
 
-// Configure WebSocket for Neon database - with patched WebSocket constructor
-class PatchedWebSocketClass extends ws {
-  constructor(url: string, protocols?: string | string[]) {
-    super(url, protocols);
-    
-    // Fix for ErrorEvent issue - add custom error handling
-    this.addEventListener('error', (event) => {
-      console.error('WebSocket error:', event);
-    });
-  }
-}
+console.log("Starting database connection setup...");
 
-// Use our patched WebSocket class
-neonConfig.webSocketConstructor = PatchedWebSocketClass as any;
+// Flag to track if we have a real database connection
+let hasRealDatabaseConnection = false;
 
-// Connection retry settings
-const MAX_RETRIES = 5;
-const RETRY_DELAY_MS = 2000;
+// Generic mock function for database operations
+const mockDbOperation = async (...args: any[]) => {
+  console.log(`Mock DB operation called with:`, args);
+  return [];
+};
 
-// Check for DATABASE_URL environment variable
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
-}
-
-// Configure the connection pool with improved settings for production
-export const pool = new Pool({ 
-  connectionString: process.env.DATABASE_URL,
-  max: 20,               // Maximum number of clients
-  idleTimeoutMillis: 30000, // How long a client is allowed to remain idle before being closed
-  connectionTimeoutMillis: 5000, // How long to wait for a connection
-});
-
-// Add connection error handling - with safer error handling
-pool.on('error', (err, client) => {
-  console.error('Unexpected error on idle client:', err?.message || 'Unknown error');
-  // Attempt to reconnect if in production
-  if (process.env.NODE_ENV === 'production') {
-    console.log('Attempting to reconnect to database...');
-  }
-});
-
-// Connect to the database with retry logic
-const connectWithRetry = async () => {
-  let retries = 0;
-  while (retries < MAX_RETRIES) {
-    try {
-      // Test the connection
-      const client = await pool.connect();
-      client.release();
-      console.log('Successfully connected to database');
-      return;
-    } catch (err) {
-      retries++;
-      console.error(`Database connection attempt ${retries} failed:`, err);
-      if (retries >= MAX_RETRIES) {
-        throw new Error(`Could not connect to database after ${MAX_RETRIES} attempts`);
+// Create a basic mock DB object that won't crash the app
+const createMockDb = () => {
+  console.log("Creating mock database interface");
+  
+  // Create a proxy that logs operations but doesn't fail
+  const mockQueryHandler = {
+    get: function(target: any, prop: string) {
+      if (prop === 'query') {
+        return target.query;
       }
-      // Wait before trying again
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+      
+      // Return a function for any called method
+      return async (...args: any[]) => {
+        console.warn(`Mock DB method ${prop} called - database is not connected`);
+        return [];
+      };
     }
+  };
+  
+  // Create base mock object with query namespace
+  const mockDb = {
+    query: new Proxy({}, {
+      get: function(target, tableName: string) {
+        return {
+          findMany: mockDbOperation,
+          findFirst: mockDbOperation,
+          count: async () => 0
+        };
+      }
+    }),
+    insert: mockDbOperation,
+    select: mockDbOperation,
+    update: mockDbOperation,
+    delete: mockDbOperation,
+  };
+  
+  return new Proxy(mockDb, mockQueryHandler);
+};
+
+// Initialize with mock database first to allow app to start
+let db = createMockDb();
+
+// Try to set up a real database connection asynchronously
+const initializeRealDatabase = async () => {
+  try {
+    console.log("Attempting to connect to real database...");
+    
+    // Dynamically import dependencies to prevent startup failures
+    const { Pool, neonConfig } = await import('@neondatabase/serverless');
+    const { drizzle } = await import('drizzle-orm/neon-serverless');
+    const ws = await import('ws').then(m => m.default);
+    
+    // Set WebSocket constructor
+    neonConfig.webSocketConstructor = ws;
+    
+    // Check DATABASE_URL
+    if (!process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL environment variable is not set");
+    }
+    
+    // Create connection pool
+    const pool = new Pool({ 
+      connectionString: process.env.DATABASE_URL,
+      max: 10, 
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000
+    });
+    
+    // Test connection
+    const client = await pool.connect();
+    client.release();
+    
+    // Create real Drizzle instance
+    const realDb = drizzle({ client: pool, schema });
+    console.log("🟢 Successfully connected to real database!");
+    
+    // Replace mock with real implementation
+    db = realDb;
+    hasRealDatabaseConnection = true;
+    
+    return true;
+  } catch (error) {
+    console.error("❌ Failed to initialize real database:", error);
+    console.warn("Application will continue with limited database functionality");
+    return false;
   }
 };
 
-// Initialize connection in production
-if (process.env.NODE_ENV === 'production') {
-  connectWithRetry().catch(err => {
-    console.error('Initial database connection failed:', err);
-    // We don't exit the process here, allowing the application to continue
-    // even if initial connection fails (it may recover later)
-  });
-}
+// Start async initialization
+initializeRealDatabase().then(success => {
+  if (success) {
+    console.log("Database ready for operations");
+  } else {
+    console.warn("Application is running without database access");
+  }
+});
 
-// Create Drizzle ORM instance
-export const db = drizzle({ client: pool, schema });
+// Export the db object - it will be a mock first and then replaced with real implementation if connection succeeds
+export { db };

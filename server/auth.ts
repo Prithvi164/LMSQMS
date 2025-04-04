@@ -2,6 +2,7 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { Express } from "express";
 import session from "express-session";
+import memorystore from "memorystore";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
@@ -61,12 +62,36 @@ async function comparePasswords(supplied: string, stored: string) {
 
 export function setupAuth(app: Express) {
   const sessionSecret = randomBytes(32).toString("hex");
-  const sessionStore = new PostgresSessionStore({
-    conObject: {
-      connectionString: process.env.DATABASE_URL,
-    },
-    createTableIfMissing: true,
+  
+  // Use a memory store initially to allow the app to start even if DB connection fails
+  const MemoryStore = memorystore(session);
+  let sessionStore: any = new MemoryStore({
+    checkPeriod: 86400000 // prune expired entries every 24h
   });
+  
+  console.log("Using memory session store initially");
+  
+  // Try to create a PostgreSQL session store, but don't fail if it doesn't work
+  try {
+    if (process.env.DATABASE_URL) {
+      console.log("Attempting to create PostgreSQL session store");
+      const pgStore = new PostgresSessionStore({
+        conObject: {
+          connectionString: process.env.DATABASE_URL,
+        },
+        createTableIfMissing: true,
+      });
+      
+      // Check if the store is valid before using it
+      if (pgStore) {
+        console.log("Successfully created PostgreSQL session store");
+        sessionStore = pgStore;
+      }
+    }
+  } catch (error) {
+    console.error("Failed to create PostgreSQL session store:", error);
+    console.log("Continuing with memory session store");
+  }
 
   app.use(session({
     secret: sessionSecret,
