@@ -694,7 +694,7 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
   if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
   
   const { containerName } = req.params;
-  // ProcessId is now optional, evaluationTemplateId is used for auto-assignment
+  // ProcessId is now optional, evaluationTemplateId is used for all files (not just auto-assigned ones)
   const { processId, autoAssign, evaluationTemplateId } = req.body;
   
   const filters = {

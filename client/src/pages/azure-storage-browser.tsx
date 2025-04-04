@@ -559,11 +559,11 @@ const AzureStorageBrowser = () => {
       // Add autoAssign parameter if checked
       if (autoAssign) {
         formData.append('autoAssign', 'true');
-        
-        // Include evaluation template ID when auto-assigning
-        if (selectedEvaluationTemplate) {
-          formData.append('evaluationTemplateId', selectedEvaluationTemplate);
-        }
+      }
+      
+      // Always include evaluation template ID
+      if (selectedEvaluationTemplate) {
+        formData.append('evaluationTemplateId', selectedEvaluationTemplate);
       }
       
       // Add filter parameters if they exist
@@ -948,7 +948,29 @@ const AzureStorageBrowser = () => {
                           </p>
                         </div>
                         
-                        <div className="flex items-center space-x-2">
+                        <div className="grid gap-2 mt-3">
+                          <Label htmlFor="importEvaluationTemplate">Evaluation Template</Label>
+                          <Select 
+                            value={selectedEvaluationTemplate} 
+                            onValueChange={setSelectedEvaluationTemplate}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select an evaluation template" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Array.isArray(evaluationTemplates) && evaluationTemplates.map((template: any) => (
+                                <SelectItem key={template.id} value={template.id.toString()}>
+                                  {template.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-gray-500">
+                            The selected evaluation template will be used for all files being imported.
+                          </p>
+                        </div>
+
+                        <div className="flex items-center space-x-2 mt-4">
                           <Checkbox 
                             id="autoAssign" 
                             checked={autoAssign}
@@ -963,28 +985,6 @@ const AzureStorageBrowser = () => {
                             <p className="text-xs text-gray-500 mt-1">
                               Imported files will be automatically distributed evenly among all active quality analysts in your organization.
                             </p>
-                            
-                            <div className="grid gap-2 mt-3">
-                              <Label htmlFor="importEvaluationTemplate">Evaluation Template</Label>
-                              <Select 
-                                value={selectedEvaluationTemplate} 
-                                onValueChange={setSelectedEvaluationTemplate}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select an evaluation template" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {Array.isArray(evaluationTemplates) && evaluationTemplates.map((template: any) => (
-                                    <SelectItem key={template.id} value={template.id.toString()}>
-                                      {template.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <p className="text-xs text-gray-500">
-                                The selected evaluation template will be used for all files being imported.
-                              </p>
-                            </div>
                           </>
                         )}
                         
