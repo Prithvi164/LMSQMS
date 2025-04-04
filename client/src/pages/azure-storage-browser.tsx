@@ -1020,7 +1020,7 @@ const AzureStorageBrowser = () => {
                                     <SelectValue placeholder="Select language" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="">All Languages</SelectItem>
+                                    <SelectItem value="all">All Languages</SelectItem>
                                     <SelectItem value="english">English</SelectItem>
                                     <SelectItem value="spanish">Spanish</SelectItem>
                                     <SelectItem value="french">French</SelectItem>
