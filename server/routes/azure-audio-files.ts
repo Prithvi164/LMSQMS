@@ -1145,4 +1145,326 @@ router.get('/download-audio-template', (req, res) => {
   }
 });
 
+// Integrated workflow for folder selection, metadata upload, and allocation
+router.post('/azure-folder-batch-process', excelUpload.single('metadataFile'), async (req, res) => {
+  if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
+  if (!azureService) return res.status(503).json({ message: 'Azure service not available' });
+  if (!req.file) return res.status(400).json({ message: 'No metadata file uploaded' });
+  
+  const { containerName, folderPath, qualityAnalysts, distributionMethod = 'random', dueDate, name } = req.body;
+  
+  if (!containerName) {
+    return res.status(400).json({ message: 'Container name is required' });
+  }
+  
+  if (!folderPath) {
+    return res.status(400).json({ message: 'Folder path is required' });
+  }
+  
+  if (!qualityAnalysts || !Array.isArray(qualityAnalysts) || qualityAnalysts.length === 0) {
+    return res.status(400).json({ message: 'Quality analyst assignments are required' });
+  }
+  
+  try {
+    // Verify container exists
+    const containerClient = azureService.getContainerClient(containerName);
+    const containerExists = await containerClient.exists();
+    
+    if (!containerExists) {
+      return res.status(404).json({ message: `Container ${containerName} does not exist` });
+    }
+    
+    // Parse metadata from the uploaded Excel file
+    const metadataItems = await parseExcelFile(req.file.path);
+    
+    // Match with actual files in Azure and get enhanced metadata
+    const enrichedItems = await azureService.matchAudioFilesWithMetadata(containerName, metadataItems);
+    
+    // Filter enriched items to only include files in the selected folder
+    const folderFilteredItems = enrichedItems.filter(item => {
+      // Handle files that might be directly in the folder or in subfolders
+      return item.filename.startsWith(folderPath === '/' ? '' : folderPath);
+    });
+    
+    if (folderFilteredItems.length === 0) {
+      return res.status(400).json({ 
+        message: 'No matching audio files found in the selected folder with the provided metadata' 
+      });
+    }
+    
+    // Store in database
+    const importResults = [];
+    const successfulImports = [];
+    let allocations = [];
+    let batchAllocationId = null;
+    
+    // Transaction to ensure all operations succeed or fail together
+    await db.transaction(async (tx) => {
+      // First, create batch allocation record if name is provided
+      if (name) {
+        const [batchAllocation] = await tx
+          .insert(audioFileBatchAllocations)
+          .values({
+            name,
+            organizationId: req.user.organizationId,
+            allocatedBy: req.user.id,
+            dueDate: dueDate ? new Date(dueDate) : undefined,
+            status: 'allocated',
+          })
+          .returning();
+          
+        batchAllocationId = batchAllocation.id;
+      }
+      
+      // Import all files from the folder
+      for (const item of folderFilteredItems) {
+        try {
+          // Generate a SAS URL for the file
+          const sasUrl = await azureService.generateBlobSasUrl(
+            containerName,
+            item.filename,
+            1440 // 24 hours
+          );
+          
+          // Create the database record
+          const [audioFile] = await tx
+            .insert(audioFiles)
+            .values({
+              filename: item.filename,
+              originalFilename: item.originalFilename || item.filename,
+              fileUrl: sasUrl,
+              fileSize: item.fileSize || 0,
+              duration: item.duration || 0,
+              language: item.language as any,
+              version: item.version,
+              call_date: item.call_date,
+              callMetrics: item.callMetrics,
+              status: 'pending', // Initially pending, will be updated to allocated
+              uploadedBy: req.user.id,
+              processId: 1, // Default process ID
+              organizationId: req.user.organizationId
+            })
+            .returning();
+          
+          successfulImports.push(audioFile);
+          importResults.push({
+            file: item.filename,
+            status: 'success',
+            id: audioFile.id
+          });
+        } catch (error) {
+          console.error(`Error importing file ${item.filename}:`, error);
+          importResults.push({
+            file: item.filename,
+            status: 'error',
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      }
+      
+      // Parse quality analysts data
+      const qaAssignments = qualityAnalysts.map(qa => {
+        // Handle both string and object format
+        if (typeof qa === 'string') {
+          const [id, count] = qa.split(':');
+          return { id: parseInt(id), count: parseInt(count) };
+        }
+        return { id: parseInt(qa.id), count: parseInt(qa.count) };
+      }).filter(qa => !isNaN(qa.id) && !isNaN(qa.count) && qa.count > 0);
+      
+      if (qaAssignments.length === 0) {
+        throw new Error('No valid quality analyst assignments provided');
+      }
+      
+      // Create allocations based on distribution method
+      allocations = [];
+      
+      if (distributionMethod === 'agent-balanced') {
+        // Group files by agent ID
+        const filesByAgent = new Map<string, typeof successfulImports[0][]>();
+        
+        // Process each file and group by agent
+        for (const file of successfulImports) {
+          // Extract agentId from callMetrics if available
+          const agentId = file.callMetrics?.agentId || 'unknown';
+          
+          if (!filesByAgent.has(agentId)) {
+            filesByAgent.set(agentId, []);
+          }
+          
+          filesByAgent.get(agentId)!.push(file);
+        }
+        
+        // Calculate total allocation count
+        const totalQACount = qaAssignments.reduce((sum, qa) => sum + qa.count, 0);
+        
+        // Sort QAs by count (descending) to prioritize those who should receive more files
+        qaAssignments.sort((a, b) => b.count - a.count);
+        
+        // Distribute files from each agent proportionally to QAs
+        for (const [agentId, agentFiles] of filesByAgent.entries()) {
+          let remainingAgentFiles = agentFiles.length;
+          let qaIndex = 0;
+          
+          while (remainingAgentFiles > 0) {
+            const qa = qaAssignments[qaIndex % qaAssignments.length];
+            // Calculate how many files this QA should get from this agent
+            const targetProportion = qa.count / totalQACount;
+            const targetCount = Math.ceil(agentFiles.length * targetProportion);
+            
+            // Only allocate what's remaining for this QA (max they can take)
+            const actualCount = Math.min(
+              remainingAgentFiles, 
+              qaIndex === qaAssignments.length - 1 ? remainingAgentFiles : targetCount
+            );
+            
+            // Create allocations for these files
+            for (let i = 0; i < actualCount; i++) {
+              const fileIndex = agentFiles.length - remainingAgentFiles;
+              const file = agentFiles[fileIndex];
+              
+              try {
+                const [allocation] = await tx
+                  .insert(audioFileAllocations)
+                  .values({
+                    audioFileId: file.id,
+                    qualityAnalystId: qa.id,
+                    dueDate: dueDate ? new Date(dueDate) : undefined,
+                    status: 'allocated',
+                    allocatedBy: req.user.id,
+                    organizationId: req.user.organizationId,
+                    batchAllocationId
+                  })
+                  .returning();
+                
+                // Update audio file status
+                await tx
+                  .update(audioFiles)
+                  .set({
+                    status: 'allocated',
+                    updatedAt: new Date()
+                  })
+                  .where(eq(audioFiles.id, file.id));
+                
+                allocations.push(allocation);
+                remainingAgentFiles--;
+              } catch (error) {
+                console.error(`Error allocating file ${file.id}:`, error);
+              }
+            }
+            
+            qaIndex++;
+          }
+        }
+      } else {
+        // Random distribution - evenly distribute files among QAs based on their count
+        const totalCount = qaAssignments.reduce((sum, qa) => sum + qa.count, 0);
+        const filesToAssign = [...successfulImports];
+        
+        if (totalCount === 0) {
+          throw new Error('Total allocation count must be greater than 0');
+        }
+        
+        // Distribute files proportionally
+        for (const qa of qaAssignments) {
+          // Calculate how many files this QA should get
+          const fileCount = Math.min(
+            Math.round((qa.count / totalCount) * filesToAssign.length),
+            filesToAssign.length
+          );
+          
+          for (let i = 0; i < fileCount && filesToAssign.length > 0; i++) {
+            // Pick a random file from the remaining files
+            const randomIndex = Math.floor(Math.random() * filesToAssign.length);
+            const file = filesToAssign.splice(randomIndex, 1)[0];
+            
+            try {
+              const [allocation] = await tx
+                .insert(audioFileAllocations)
+                .values({
+                  audioFileId: file.id,
+                  qualityAnalystId: qa.id,
+                  dueDate: dueDate ? new Date(dueDate) : undefined,
+                  status: 'allocated',
+                  allocatedBy: req.user.id,
+                  organizationId: req.user.organizationId,
+                  batchAllocationId
+                })
+                .returning();
+              
+              // Update audio file status
+              await tx
+                .update(audioFiles)
+                .set({
+                  status: 'allocated',
+                  updatedAt: new Date()
+                })
+                .where(eq(audioFiles.id, file.id));
+              
+              allocations.push(allocation);
+            } catch (error) {
+              console.error(`Error allocating file ${file.id}:`, error);
+            }
+          }
+        }
+        
+        // Assign any remaining files
+        while (filesToAssign.length > 0) {
+          const file = filesToAssign.pop();
+          if (!file) break;
+          
+          // Find QA with lowest allocation count
+          qaAssignments.sort((a, b) => {
+            const aCount = allocations.filter(alloc => alloc.qualityAnalystId === a.id).length;
+            const bCount = allocations.filter(alloc => alloc.qualityAnalystId === b.id).length;
+            return aCount - bCount;
+          });
+          
+          const qa = qaAssignments[0];
+          
+          try {
+            const [allocation] = await tx
+              .insert(audioFileAllocations)
+              .values({
+                audioFileId: file.id,
+                qualityAnalystId: qa.id,
+                dueDate: dueDate ? new Date(dueDate) : undefined,
+                status: 'allocated',
+                allocatedBy: req.user.id,
+                organizationId: req.user.organizationId,
+                batchAllocationId
+              })
+              .returning();
+            
+            // Update audio file status
+            await tx
+              .update(audioFiles)
+              .set({
+                status: 'allocated',
+                updatedAt: new Date()
+              })
+              .where(eq(audioFiles.id, file.id));
+            
+            allocations.push(allocation);
+          } catch (error) {
+            console.error(`Error allocating file ${file.id}:`, error);
+          }
+        }
+      }
+    });
+    
+    res.json({
+      totalProcessed: folderFilteredItems.length,
+      successCount: importResults.filter(r => r.status === 'success').length,
+      errorCount: importResults.filter(r => r.status === 'error').length,
+      results: importResults,
+      allocationsCreated: allocations.length,
+      batchAllocationId
+    });
+  } catch (error) {
+    console.error('Error in integrated folder batch process:', error);
+    res.status(500).json({ message: error instanceof Error ? error.message : 'Unknown error occurred' });
+  }
+});
+
 export default router;
