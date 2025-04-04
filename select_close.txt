@@ -1,0 +1,24 @@
+957:                              </SelectTrigger>
+962:                                  </SelectItem>
+964:                              </SelectContent>
+965:                            </Select>
+1051:                                    </SelectTrigger>
+1053:                                      <SelectItem value="all">All Languages</SelectItem>
+1058:                                          </SelectItem>
+1062:                                          <SelectItem value="english">English</SelectItem>
+1063:                                          <SelectItem value="spanish">Spanish</SelectItem>
+1064:                                          <SelectItem value="french">French</SelectItem>
+1065:                                          <SelectItem value="german">German</SelectItem>
+1066:                                          <SelectItem value="portuguese">Portuguese</SelectItem>
+1067:                                          <SelectItem value="mandarin">Chinese (Mandarin)</SelectItem>
+1068:                                          <SelectItem value="japanese">Japanese</SelectItem>
+1069:                                          <SelectItem value="korean">Korean</SelectItem>
+1070:                                          <SelectItem value="russian">Russian</SelectItem>
+1071:                                          <SelectItem value="arabic">Arabic</SelectItem>
+1072:                                          <SelectItem value="hindi">Hindi</SelectItem>
+1075:                                    </SelectContent>
+1076:                                  </Select>
+1337:                          </SelectTrigger>
+1342:                              </SelectItem>
+1344:                          </SelectContent>
+1345:                        </Select>
