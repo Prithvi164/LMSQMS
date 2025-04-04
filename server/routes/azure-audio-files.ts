@@ -694,8 +694,8 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
   if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
   
   const { containerName } = req.params;
-  // ProcessId is now optional
-  const { processId, autoAssign } = req.body;
+  // ProcessId is now optional, evaluationTemplateId is used for auto-assignment
+  const { processId, autoAssign, evaluationTemplateId } = req.body;
   
   const filters = {
     fileNameFilter: req.body.fileNameFilter,
@@ -836,7 +836,8 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
                   qualityAnalystId: qaId,
                   status: 'allocated',
                   allocatedBy: req.user.id,
-                  organizationId: req.user.organizationId
+                  organizationId: req.user.organizationId,
+                  evaluationTemplateId: evaluationTemplateId ? parseInt(evaluationTemplateId) : undefined
                 })
                 .returning();
                 
