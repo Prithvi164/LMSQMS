@@ -11,8 +11,6 @@ import {
   FileCheck,
   CheckSquare,
   FileSpreadsheet,
-  Headphones,
-  FileAudio,
   Cloud
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
@@ -45,8 +43,6 @@ export function SidebarNav() {
   const qmsFeatures = [
     { href: '/evaluation-templates', label: 'Evaluation Forms', icon: CheckSquare },
     { href: '/conduct-evaluation', label: 'Conduct Evaluation', icon: FileSpreadsheet },
-    { href: '/audio-file-management', label: 'Audio Files', icon: FileAudio },
-    { href: '/audio-file-allocation', label: 'Audio Allocations', icon: Headphones },
     { href: '/azure-storage', label: 'Azure Storage', icon: Cloud },
   ];
 
