@@ -164,6 +164,8 @@ export const audioFileAllocations = pgTable("audio_file_allocations", {
     .notNull(),
   evaluationId: integer("evaluation_id")
     .references(() => evaluations.id),
+  evaluationTemplateId: integer("evaluation_template_id")
+    .references(() => evaluationTemplates.id),
 });
 
 // Audio file batch allocation
@@ -570,6 +572,7 @@ export const insertAudioFileAllocationSchema = createInsertSchema(audioFileAlloc
     allocatedBy: z.number().int().positive("Allocator is required"),
     organizationId: z.number().int().positive("Organization is required"),
     evaluationId: z.number().int().positive("Evaluation is required").optional(),
+    evaluationTemplateId: z.number().int().positive("Evaluation template is required").optional(),
   });
 
 export const insertAudioFileBatchAllocationSchema = createInsertSchema(audioFileBatchAllocations)
@@ -629,6 +632,10 @@ export const audioFileAllocationsRelations = relations(audioFileAllocations, ({ 
   evaluation: one(evaluations, {
     fields: [audioFileAllocations.evaluationId],
     references: [evaluations.id],
+  }),
+  evaluationTemplate: one(evaluationTemplates, {
+    fields: [audioFileAllocations.evaluationTemplateId],
+    references: [evaluationTemplates.id],
   }),
 }));
 

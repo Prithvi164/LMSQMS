@@ -1242,8 +1242,10 @@ const AzureStorageBrowser = () => {
                                     </p>
                                   </div>
                                 </div>
-                            )}
-                          </div>
+                              </div>
+                            </div>
+                          )}
+                        
                         </div>
                       </div>
                     </ScrollArea>
