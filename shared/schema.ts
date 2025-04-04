@@ -626,9 +626,9 @@ export const audioFileAllocationsRelations = relations(audioFileAllocations, ({ 
     fields: [audioFileAllocations.organizationId],
     references: [organizations.id],
   }),
-  evaluation: one(evaluations, {
+  evaluationTemplate: one(evaluationTemplates, {
     fields: [audioFileAllocations.evaluationId],
-    references: [evaluations.id],
+    references: [evaluationTemplates.id],
   }),
 }));
 
