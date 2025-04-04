@@ -559,6 +559,15 @@ const AzureStorageBrowser = () => {
       // Add autoAssign parameter if checked
       if (autoAssign) {
         formData.append('autoAssign', 'true');
+      } else if (selectedQA.length > 0) {
+        // When not auto-assigning but manually selecting QAs
+        // Add selected quality analysts as JSON array
+        formData.append('selectedQualityAnalysts', JSON.stringify(selectedQA));
+        
+        // Add allocation counts if specified
+        if (Object.keys(qaAssignmentCounts).length > 0) {
+          formData.append('qaAssignmentCounts', JSON.stringify(qaAssignmentCounts));
+        }
       }
       
       // Always include evaluation template ID

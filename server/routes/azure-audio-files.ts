@@ -695,7 +695,13 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
   
   const { containerName } = req.params;
   // ProcessId is now optional, evaluationTemplateId is used for all files (not just auto-assigned ones)
-  const { processId, autoAssign, evaluationTemplateId } = req.body;
+  const { 
+    processId, 
+    autoAssign, 
+    evaluationTemplateId, 
+    selectedQualityAnalysts,
+    qaAssignmentCounts
+  } = req.body;
   
   const filters = {
     fileNameFilter: req.body.fileNameFilter,
@@ -808,6 +814,8 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
     
     // Auto-assign files to quality analysts if requested and successful imports exist
     let assignmentResults = [];
+    
+    // Handle auto-assignment mode
     if (autoAssign === 'true' && qualityAnalysts.length > 0 && successfulImports.length > 0) {
       try {
         // Distribute files evenly among quality analysts
@@ -858,6 +866,85 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
       } catch (error) {
         console.error('Error auto-assigning files:', error);
       }
+    } 
+    // Handle manual assignment mode (when selectedQualityAnalysts is provided)
+    else if (selectedQualityAnalysts && successfulImports.length > 0) {
+      try {
+        console.log('Manual quality analyst selection mode detected');
+        
+        // Parse the selected quality analysts from the request
+        let selectedQAs = [];
+        try {
+          selectedQAs = JSON.parse(selectedQualityAnalysts);
+          console.log(`Parsed ${selectedQAs.length} quality analysts from request:`, selectedQAs);
+        } catch (parseError) {
+          console.error('Error parsing selectedQualityAnalysts:', parseError);
+          selectedQAs = [];
+        }
+        
+        if (selectedQAs.length > 0) {
+          // Parse QA assignment counts if available
+          let qaAssignmentCountsObj = {};
+          if (qaAssignmentCounts) {
+            try {
+              qaAssignmentCountsObj = JSON.parse(qaAssignmentCounts);
+              console.log('Parsed QA assignment counts:', qaAssignmentCountsObj);
+            } catch (parseError) {
+              console.error('Error parsing qaAssignmentCounts:', parseError);
+            }
+          }
+          
+          // Create a map to evenly distribute files among selected QAs
+          const assignmentMap = new Map();
+          
+          // Initialize assignment map for each selected quality analyst
+          selectedQAs.forEach(qaId => {
+            assignmentMap.set(parseInt(qaId), []);
+          });
+          
+          // Distribute files to selected quality analysts
+          successfulImports.forEach((file, index) => {
+            const qaIndex = index % selectedQAs.length;
+            const qaId = parseInt(selectedQAs[qaIndex]);
+            assignmentMap.get(qaId).push(file.id);
+          });
+          
+          // Create allocations in the database
+          for (const [qaId, fileIds] of assignmentMap.entries()) {
+            if (fileIds.length > 0) {
+              for (const fileId of fileIds) {
+                const [allocation] = await db
+                  .insert(audioFileAllocations)
+                  .values({
+                    audioFileId: fileId,
+                    qualityAnalystId: qaId,
+                    status: 'allocated',
+                    allocatedBy: req.user.id,
+                    organizationId: req.user.organizationId,
+                    evaluationId: evaluationTemplateId ? parseInt(evaluationTemplateId) : undefined
+                  })
+                  .returning();
+                  
+                // Update audio file status to 'allocated'
+                await db
+                  .update(audioFiles)
+                  .set({ status: 'allocated' })
+                  .where(eq(audioFiles.id, fileId));
+                  
+                assignmentResults.push({
+                  fileId,
+                  qualityAnalystId: qaId,
+                  allocationId: allocation.id
+                });
+              }
+            }
+          }
+          
+          console.log(`Manual allocation complete: ${assignmentResults.length} files allocated to ${selectedQAs.length} QAs`);
+        }
+      } catch (error) {
+        console.error('Error manually assigning files:', error);
+      }
     }
     
     res.json({
@@ -871,7 +958,8 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
                     (filters.language && filters.language !== 'all') ? true : false,
       results: importResults,
       autoAssigned: autoAssign === 'true' ? assignmentResults.length : 0,
-      assignmentResults: autoAssign === 'true' ? assignmentResults : []
+      manuallyAssigned: autoAssign === 'true' ? 0 : assignmentResults.length,
+      assignmentResults: assignmentResults
     });
   } catch (error) {
     console.error('Error processing Azure audio file import:', error);
