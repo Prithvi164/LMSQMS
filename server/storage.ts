@@ -925,34 +925,35 @@ export class DatabaseStorage implements IStorage {
               const audioFile = audioFilesToAllocate[currentFileIndex++];
               
               const [allocation] = await tx
-              .insert(audioFileAllocations)
-              .values({
-                audioFileId: audioFile.id,
-                qualityAnalystId: qaId,
-                dueDate: batchAllocation.dueDate,
-                status: 'allocated',
-                allocatedBy: batchAllocation.allocatedBy,
-                organizationId: batchAllocation.organizationId,
-              })
-              .returning() as AudioFileAllocation[];
-            
-            allocations.push(allocation);
-            
-            // Update audio file status
-            await tx
-              .update(audioFiles)
-              .set({
-                status: 'allocated',
-                updatedAt: new Date()
-              })
-              .where(eq(audioFiles.id, audioFile.id));
+                .insert(audioFileAllocations)
+                .values({
+                  audioFileId: audioFile.id,
+                  qualityAnalystId: qaId,
+                  dueDate: batchAllocation.dueDate,
+                  status: 'allocated',
+                  allocatedBy: batchAllocation.allocatedBy,
+                  organizationId: batchAllocation.organizationId,
+                })
+                .returning() as AudioFileAllocation[];
+              
+              allocations.push(allocation);
+              
+              // Update audio file status
+              await tx
+                .update(audioFiles)
+                .set({
+                  status: 'allocated',
+                  updatedAt: new Date()
+                })
+                .where(eq(audioFiles.id, audioFile.id));
+            }
           }
-        }
 
-        return {
-          batchAllocation: newBatchAllocation,
-          allocations
-        };
+          return {
+            batchAllocation: newBatchAllocation,
+            allocations
+          };
+        }
       });
     } catch (error) {
       console.error('Error creating audio file batch allocation:', error);
@@ -1074,29 +1075,6 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  async createEvaluationParameter(parameter: InsertEvaluationParameter): Promise<EvaluationParameter> {
-    try {
-      console.log('Creating evaluation parameter with data:', parameter);
-      
-      // Ensure noReasons is an array before inserting
-      const parameterData = {
-        ...parameter,
-        noReasons: Array.isArray(parameter.noReasons) ? parameter.noReasons : [],
-      };
-
-      const [newParameter] = await db
-        .insert(evaluationParameters)
-        .values(parameterData)
-        .returning() as EvaluationParameter[];
-
-      console.log('Created parameter:', newParameter);
-      return newParameter;
-    } catch (error) {
-      console.error('Error creating evaluation parameter:', error);
-      throw error;
-    }
-  }
-
   async updateEvaluationParameter(id: number, parameter: Partial<InsertEvaluationParameter>): Promise<EvaluationParameter> {
     try {
       console.log('Updating evaluation parameter:', id, parameter);
@@ -1119,50 +1097,6 @@ export class DatabaseStorage implements IStorage {
       return updatedParameter;
     } catch (error) {
       console.error('Error updating evaluation parameter:', error);
-      throw error;
-    }
-  }
-
-  async createEvaluation(evaluation: InsertEvaluation & { scores: Array<{ parameterId: number; score: string; comment?: string; noReason?: string; }> }): Promise<Evaluation> {
-    try {
-      console.log('Creating evaluation:', evaluation);
-
-      return await db.transaction(async (tx) => {
-        // First create the evaluation record
-        const [newEvaluation] = await tx
-          .insert(evaluations)
-          .values({
-            templateId: evaluation.templateId,
-            traineeId: evaluation.traineeId,
-            batchId: evaluation.batchId,
-            evaluatorId: evaluation.evaluatorId, 
-            organizationId: evaluation.organizationId,
-            finalScore: evaluation.finalScore,
-            status: evaluation.status,
-          })
-          .returning() as Evaluation[];
-
-        console.log('Created evaluation:', newEvaluation);
-
-        // Then create all the parameter scores
-        const scoresToInsert = evaluation.scores.map(score => ({
-          evaluationId: newEvaluation.id,
-          parameterId: score.parameterId,
-          score: score.score,
-          comment: score.comment,
-          noReason: score.noReason,
-        }));
-
-        await tx
-          .insert(evaluationScores)
-          .values(scoresToInsert);
-
-        console.log('Created evaluation scores');
-
-        return newEvaluation;
-      });
-    } catch (error) {
-      console.error('Error creating evaluation:', error);
       throw error;
     }
   }
