@@ -7080,7 +7080,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dueDate, 
         audioFileIds, 
         qualityAnalysts, 
-        filters 
+        filters,
+        distributionMethod
       } = req.body;
       
       // Validate input
@@ -7104,7 +7105,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dueDate: dueDate ? new Date(dueDate) : undefined,
         audioFileIds: audioFileIds || [],
         qualityAnalysts,
-        filters
+        filters,
+        distributionMethod: distributionMethod || 'random'
       };
       
       const result = await storage.createAudioFileBatchAllocation(batchAllocationData);

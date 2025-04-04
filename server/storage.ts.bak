@@ -693,7 +693,6 @@ export class DatabaseStorage implements IStorage {
     dueDate?: Date;
     audioFileIds: number[];
     qualityAnalysts: { id: number; count: number }[];
-    distributionMethod?: 'random' | 'agent-balanced';
     filters?: {
       language?: string[];
       version?: string[];
@@ -780,151 +779,39 @@ export class DatabaseStorage implements IStorage {
         // Sort QAs by count (descending) to prioritize those who should receive more files
         qualityAnalysts.sort((a, b) => b.count - a.count);
 
-        // Distribution depends on the selected method
-        if (batchAllocation.distributionMethod === 'agent-balanced') {
-          // Group files by agent ID
-          const filesByAgent = new Map<string, AudioFile[]>();
-          
-          // Process each file and group by agent
-          for (const file of audioFilesToAllocate) {
-            const agentId = file.callMetrics?.agentId;
-            
-            if (agentId) {
-              if (!filesByAgent.has(agentId)) {
-                filesByAgent.set(agentId, []);
-              }
-              filesByAgent.get(agentId)!.push(file);
-            } else {
-              // Handle files without agent ID by using a special key
-              if (!filesByAgent.has('unknown')) {
-                filesByAgent.set('unknown', []);
-              }
-              filesByAgent.get('unknown')!.push(file);
-            }
-          }
-          
-          // Calculate how many files each QA should get from each agent
-          const qaAllocationMap = new Map<number, number>();
-          const qaAgentAllocationMap = new Map<number, Map<string, number>>();
-          
-          // Initialize allocation maps for each QA
-          for (const qa of qualityAnalysts) {
-            qaAllocationMap.set(qa.id, 0);
-            qaAgentAllocationMap.set(qa.id, new Map<string, number>());
-          }
-          
-          // Distribute files by agent to ensure balanced assignments
-          for (const [agentId, agentFiles] of filesByAgent.entries()) {
-            const agentFileCount = agentFiles.length;
-            
-            // Calculate how many files each QA should get for this agent proportionally
-            let remainingAgentFiles = agentFileCount;
-            
-            // First pass: assign files based on QA proportions
-            for (const qa of qualityAnalysts) {
-              const proportion = qa.count / totalQACount;
-              const filesForQA = Math.floor(agentFileCount * proportion);
-              
-              qaAgentAllocationMap.get(qa.id)!.set(agentId, filesForQA);
-              qaAllocationMap.set(qa.id, (qaAllocationMap.get(qa.id) || 0) + filesForQA);
-              
-              remainingAgentFiles -= filesForQA;
-            }
-            
-            // Second pass: distribute remaining files to QAs who should get more
-            let qaIndex = 0;
-            while (remainingAgentFiles > 0) {
-              const qaId = qualityAnalysts[qaIndex].id;
-              
-              qaAgentAllocationMap.get(qaId)!.set(
-                agentId, 
-                (qaAgentAllocationMap.get(qaId)!.get(agentId) || 0) + 1
-              );
-              
-              qaAllocationMap.set(qaId, (qaAllocationMap.get(qaId) || 0) + 1);
-              
-              remainingAgentFiles--;
-              qaIndex = (qaIndex + 1) % qualityAnalysts.length;
-            }
-          }
-          
-          // Create allocation records
-          const allocations: AudioFileAllocation[] = [];
-          
-          // Assign files to QAs based on the balanced distribution by agent
-          for (const [qaId, agentAllocations] of qaAgentAllocationMap.entries()) {
-            for (const [agentId, fileCount] of agentAllocations.entries()) {
-              const agentFiles = filesByAgent.get(agentId) || [];
-              
-              for (let i = 0; i < fileCount && agentFiles.length > 0; i++) {
-                const audioFile = agentFiles.shift()!;
-                
-                const [allocation] = await tx
-                  .insert(audioFileAllocations)
-                  .values({
-                    audioFileId: audioFile.id,
-                    qualityAnalystId: qaId,
-                    dueDate: batchAllocation.dueDate,
-                    status: 'allocated',
-                    allocatedBy: batchAllocation.allocatedBy,
-                    organizationId: batchAllocation.organizationId,
-                  })
-                  .returning() as AudioFileAllocation[];
-                
-                allocations.push(allocation);
-                
-                // Update audio file status
-                await tx
-                  .update(audioFiles)
-                  .set({
-                    status: 'allocated',
-                    updatedAt: new Date()
-                  })
-                  .where(eq(audioFiles.id, audioFile.id));
-              }
-            }
-          }
-          
-          return {
-            batchAllocation: newBatchAllocation,
-            allocations
-          };
-          
-        } else {
-          // Default random distribution method
-          // Calculate how many files each QA should get
-          const qaAllocationMap = new Map<number, number>();
-          let remainingFiles = audioFilesToAllocate.length;
-          
-          // First pass: assign minimum files based on proportions
-          for (const qa of qualityAnalysts) {
-            const proportion = qa.count / totalQACount;
-            const filesForQA = Math.floor(audioFilesToAllocate.length * proportion);
-            qaAllocationMap.set(qa.id, filesForQA);
-            remainingFiles -= filesForQA;
-          }
-          
-          // Second pass: distribute remaining files to QAs who should get more
-          let qaIndex = 0;
-          while (remainingFiles > 0) {
-            const qaId = qualityAnalysts[qaIndex].id;
-            qaAllocationMap.set(qaId, (qaAllocationMap.get(qaId) || 0) + 1);
-            remainingFiles--;
-            qaIndex = (qaIndex + 1) % qualityAnalysts.length;
-          }
+        // Calculate how many files each QA should get
+        const qaAllocationMap = new Map<number, number>();
+        let remainingFiles = audioFilesToAllocate.length;
+        
+        // First pass: assign minimum files based on proportions
+        for (const qa of qualityAnalysts) {
+          const proportion = qa.count / totalQACount;
+          const filesForQA = Math.floor(audioFilesToAllocate.length * proportion);
+          qaAllocationMap.set(qa.id, filesForQA);
+          remainingFiles -= filesForQA;
+        }
+        
+        // Second pass: distribute remaining files to QAs who should get more
+        let qaIndex = 0;
+        while (remainingFiles > 0) {
+          const qaId = qualityAnalysts[qaIndex].id;
+          qaAllocationMap.set(qaId, (qaAllocationMap.get(qaId) || 0) + 1);
+          remainingFiles--;
+          qaIndex = (qaIndex + 1) % qualityAnalysts.length;
+        }
 
-          // Create allocation records
-          const allocations: AudioFileAllocation[] = [];
-          let currentQAIndex = 0;
-          let currentFileIndex = 0;
-          
-          for (const [qaId, fileCount] of qaAllocationMap.entries()) {
-            for (let i = 0; i < fileCount; i++) {
-              if (currentFileIndex >= audioFilesToAllocate.length) break;
-              
-              const audioFile = audioFilesToAllocate[currentFileIndex++];
-              
-              const [allocation] = await tx
+        // Create allocation records
+        const allocations: AudioFileAllocation[] = [];
+        let currentQAIndex = 0;
+        let currentFileIndex = 0;
+        
+        for (const [qaId, fileCount] of qaAllocationMap.entries()) {
+          for (let i = 0; i < fileCount; i++) {
+            if (currentFileIndex >= audioFilesToAllocate.length) break;
+            
+            const audioFile = audioFilesToAllocate[currentFileIndex++];
+            
+            const [allocation] = await tx
               .insert(audioFileAllocations)
               .values({
                 audioFileId: audioFile.id,

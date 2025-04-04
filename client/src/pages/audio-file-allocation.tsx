@@ -53,7 +53,8 @@ const AudioFileAllocation = () => {
       maxCsat: 5
     },
     qualityAnalysts: [] as { id: number, count: number }[],
-    audioFileIds: [] as number[]
+    audioFileIds: [] as number[],
+    distributionMethod: 'random' as 'random' | 'agent-balanced'
   });
   const [selectedFiles, setSelectedFiles] = useState<number[]>([]);
   const [selectAllFiles, setSelectAllFiles] = useState(false);
@@ -158,7 +159,8 @@ const AudioFileAllocation = () => {
         maxCsat: 5
       },
       qualityAnalysts: [],
-      audioFileIds: []
+      audioFileIds: [],
+      distributionMethod: 'random'
     });
     setSelectedFiles([]);
     setSelectAllFiles(false);
@@ -384,6 +386,27 @@ const AudioFileAllocation = () => {
                     </div>
                   </CardContent>
                 </Card>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="distributionMethod">Distribution Method</Label>
+                <Select 
+                  value={allocationData.distributionMethod} 
+                  onValueChange={(value: 'random' | 'agent-balanced') => 
+                    setAllocationData({...allocationData, distributionMethod: value})
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select distribution method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="random">Random distribution</SelectItem>
+                    <SelectItem value="agent-balanced">Agent-balanced distribution</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Agent-balanced distribution ensures each QA receives a balanced mix of calls from different agents
+                </p>
               </div>
               
               <div className="space-y-2">
