@@ -38,7 +38,10 @@ export async function apiRequest(
       return apiRequest(method, url, data); // Retry after waiting
     }
 
-    await throwIfResNotOk(res);
+    // Clone the response before checking if it's ok
+    // This way we can still use the original response later
+    const resClone = res.clone();
+    await throwIfResNotOk(resClone);
     return res;
   } catch (error) {
     if (error instanceof Error) {
@@ -69,7 +72,9 @@ export const getQueryFn = <T>({ on401 }: { on401: UnauthorizedBehavior }): Query
         return null;
       }
 
-      await throwIfResNotOk(res);
+      // Clone the response before checking if it's ok
+      const resClone = res.clone();
+      await throwIfResNotOk(resClone);
       return await res.json();
     } catch (error) {
       if (error instanceof Error) {
