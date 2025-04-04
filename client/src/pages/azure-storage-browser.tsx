@@ -104,6 +104,7 @@ const AzureStorageBrowser = () => {
   const [qaAssignmentCounts, setQaAssignmentCounts] = useState<Record<string, number>>({});
   const [maxAssignmentsPerQA, setMaxAssignmentsPerQA] = useState<number>(10);
   const [dueDate, setDueDate] = useState<string>('');
+  const [selectedEvaluationTemplate, setSelectedEvaluationTemplate] = useState<string>('');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -192,6 +193,12 @@ const AzureStorageBrowser = () => {
   // Fetch quality analysts for allocation
   const { data: qualityAnalysts } = useQuery<QualityAnalyst[]>({
     queryKey: ['/api/users/quality-analysts'],
+    refetchOnWindowFocus: false,
+  });
+  
+  // Fetch evaluation templates
+  const { data: evaluationTemplates } = useQuery({
+    queryKey: ['/api/organizations/39/evaluation-templates'],
     refetchOnWindowFocus: false,
   });
 
@@ -584,11 +591,12 @@ const AzureStorageBrowser = () => {
 
   // Allocate audio files mutation (this would need to be implemented)
   const allocateAudioMutation = useMutation({
-    mutationFn: async ({ audioFileIds, qualityAnalystId, dueDate }: any) => {
+    mutationFn: async ({ audioFileIds, qualityAnalystId, dueDate, evaluationTemplateId }: any) => {
       return apiRequest('POST', '/api/azure-audio-allocate', { 
         audioFileIds, 
         qualityAnalystId, 
-        dueDate 
+        dueDate,
+        evaluationTemplateId
       });
     },
     onSuccess: () => {
@@ -653,6 +661,15 @@ const AzureStorageBrowser = () => {
       });
       return;
     }
+    
+    if (!selectedEvaluationTemplate) {
+      toast({
+        title: 'Evaluation Template Required',
+        description: 'Please select an evaluation template to use for the assessments.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     // Currently only supporting allocation to a single QA
     // In the future, this could be extended to support multiple QAs
@@ -662,6 +679,7 @@ const AzureStorageBrowser = () => {
       audioFileIds: selectedBlobItems,
       qualityAnalystId: parseInt(firstSelectedQA),
       dueDate: dueDate || undefined,
+      evaluationTemplateId: parseInt(selectedEvaluationTemplate),
     });
   };
 
@@ -1307,6 +1325,25 @@ const AzureStorageBrowser = () => {
                           </Button>
                         </div>
                       </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="evaluationTemplate">Evaluation Template</Label>
+                        <Select 
+                          value={selectedEvaluationTemplate} 
+                          onValueChange={setSelectedEvaluationTemplate}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select an evaluation template" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.isArray(evaluationTemplates) && evaluationTemplates.map((template: any) => (
+                              <SelectItem key={template.id} value={template.id.toString()}>
+                                {template.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
                       <div className="grid gap-2">
                         <Label htmlFor="dueDate">Due Date (Optional)</Label>
                         <Input

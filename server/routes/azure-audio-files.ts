@@ -1203,7 +1203,7 @@ router.post('/azure-audio-allocate', async (req, res) => {
   if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
   if (!azureService) return res.status(503).json({ message: 'Azure service not available' });
   
-  const { audioFileIds, qualityAnalystId, dueDate } = req.body;
+  const { audioFileIds, qualityAnalystId, dueDate, evaluationTemplateId } = req.body;
   
   if (!audioFileIds || !Array.isArray(audioFileIds) || audioFileIds.length === 0) {
     return res.status(400).json({ message: 'Audio file IDs are required' });
@@ -1242,7 +1242,8 @@ router.post('/azure-audio-allocate', async (req, res) => {
             dueDate: dueDate ? new Date(dueDate) : undefined,
             status: 'allocated',
             allocatedBy: req.user.id,
-            organizationId: req.user.organizationId
+            organizationId: req.user.organizationId,
+            evaluationTemplateId: evaluationTemplateId || null
           })
           .returning();
         
