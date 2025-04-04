@@ -693,6 +693,7 @@ export class DatabaseStorage implements IStorage {
     dueDate?: Date;
     audioFileIds: number[];
     qualityAnalysts: { id: number; count: number }[];
+    evaluationTemplateId: number;
     filters?: {
       language?: string[];
       version?: string[];
@@ -716,6 +717,7 @@ export class DatabaseStorage implements IStorage {
             allocatedBy: batchAllocation.allocatedBy,
             dueDate: batchAllocation.dueDate,
             status: 'allocated',
+            evaluationTemplateId: batchAllocation.evaluationTemplateId,
           })
           .returning() as AudioFileBatchAllocation[];
 
@@ -820,6 +822,7 @@ export class DatabaseStorage implements IStorage {
                 status: 'allocated',
                 allocatedBy: batchAllocation.allocatedBy,
                 organizationId: batchAllocation.organizationId,
+                evaluationTemplateId: batchAllocation.evaluationTemplateId,
               })
               .returning() as AudioFileAllocation[];
             
