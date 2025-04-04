@@ -17,12 +17,21 @@ function filterAudioMetadata(items: any[], filters: {
   dateRangeEnd?: string;
   minDuration?: string;
   maxDuration?: string;
+  language?: string;
 }): any[] {
   return items.filter(item => {
     // Filter by filename
     if (filters.fileNameFilter && 
         !item.filename.toLowerCase().includes(filters.fileNameFilter.toLowerCase())) {
       return false;
+    }
+    
+    // Filter by language
+    if (filters.language && filters.language !== 'all') {
+      const itemLanguage = item.language?.toLowerCase();
+      if (!itemLanguage || itemLanguage !== filters.language.toLowerCase()) {
+        return false;
+      }
     }
     
     // Filter by date range
@@ -47,12 +56,34 @@ function filterAudioMetadata(items: any[], filters: {
     }
     
     // Filter by duration (in seconds)
-    if (item.duration) {
-      // Convert duration string (like "00:02:45") to seconds
-      const durationParts = item.duration.split(':');
-      const durationSeconds = parseInt(durationParts[0]) * 3600 + 
-                            parseInt(durationParts[1]) * 60 + 
-                            parseInt(durationParts[2]);
+    if (item.duration !== undefined && item.duration !== null) {
+      let durationSeconds: number;
+      
+      // Handle different duration formats
+      if (typeof item.duration === 'number') {
+        // If duration is already a number, use it directly
+        durationSeconds = item.duration;
+      } else if (typeof item.duration === 'string') {
+        // Handle string format - could be "00:02:45" or just "165" (seconds)
+        if (item.duration.includes(':')) {
+          try {
+            // Try to parse as "HH:MM:SS" format
+            const durationParts = item.duration.split(':');
+            durationSeconds = parseInt(durationParts[0] || '0') * 3600 + 
+                             parseInt(durationParts[1] || '0') * 60 + 
+                             parseInt(durationParts[2] || '0');
+          } catch (e) {
+            console.warn(`Could not parse duration: ${item.duration}`, e);
+            durationSeconds = 0;
+          }
+        } else {
+          // Just a number in string format
+          durationSeconds = parseInt(item.duration) || 0;
+        }
+      } else {
+        console.warn(`Unhandled duration format: ${typeof item.duration}`);
+        durationSeconds = 0;
+      }
       
       if (filters.minDuration && durationSeconds < parseInt(filters.minDuration)) {
         return false;
@@ -605,7 +636,8 @@ router.post('/azure-audio-filter-preview/:containerName', excelUpload.single('me
     dateRangeStart: req.body.dateRangeStart,
     dateRangeEnd: req.body.dateRangeEnd,
     minDuration: req.body.minDuration,
-    maxDuration: req.body.maxDuration
+    maxDuration: req.body.maxDuration,
+    language: req.body.language
   };
   
   try {
@@ -655,13 +687,13 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
   // ProcessId is now optional
   const { processId, autoAssign } = req.body;
   
-  // Get filter parameters
   const filters = {
     fileNameFilter: req.body.fileNameFilter,
     dateRangeStart: req.body.dateRangeStart,
     dateRangeEnd: req.body.dateRangeEnd,
     minDuration: req.body.minDuration,
-    maxDuration: req.body.maxDuration
+    maxDuration: req.body.maxDuration,
+    language: req.body.language
   };
   
   try {

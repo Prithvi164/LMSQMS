@@ -117,6 +117,7 @@ const AzureStorageBrowser = () => {
   const [dateRangeEnd, setDateRangeEnd] = useState<string>('');
   const [minDuration, setMinDuration] = useState<string>('');
   const [maxDuration, setMaxDuration] = useState<string>('');
+  const [language, setLanguage] = useState<string>('');
   const [filterCounts, setFilterCounts] = useState<{total: number, filtered: number} | null>(null);
   
   const ITEMS_PER_PAGE = 5;
@@ -513,6 +514,7 @@ const AzureStorageBrowser = () => {
       if (dateRangeEnd) formData.append('dateRangeEnd', dateRangeEnd);
       if (minDuration) formData.append('minDuration', minDuration);
       if (maxDuration) formData.append('maxDuration', maxDuration);
+      if (language) formData.append('language', language);
       
       return apiRequest('POST', `/api/azure-audio-filter-preview/${containerName}`, formData);
     },
@@ -550,6 +552,7 @@ const AzureStorageBrowser = () => {
       if (dateRangeEnd) formData.append('dateRangeEnd', dateRangeEnd);
       if (minDuration) formData.append('minDuration', minDuration);
       if (maxDuration) formData.append('maxDuration', maxDuration);
+      if (language) formData.append('language', language);
       
       return apiRequest('POST', `/api/azure-audio-import/${containerName}`, formData);
     },
@@ -1005,6 +1008,32 @@ const AzureStorageBrowser = () => {
                                     placeholder="e.g. 300"
                                   />
                                 </div>
+                              </div>
+                              
+                              <div className="grid gap-2">
+                                <Label htmlFor="language">Language</Label>
+                                <Select
+                                  value={language}
+                                  onValueChange={(value) => setLanguage(value)}
+                                >
+                                  <SelectTrigger id="language">
+                                    <SelectValue placeholder="Select language" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="">All Languages</SelectItem>
+                                    <SelectItem value="english">English</SelectItem>
+                                    <SelectItem value="spanish">Spanish</SelectItem>
+                                    <SelectItem value="french">French</SelectItem>
+                                    <SelectItem value="german">German</SelectItem>
+                                    <SelectItem value="portuguese">Portuguese</SelectItem>
+                                    <SelectItem value="chinese">Chinese</SelectItem>
+                                    <SelectItem value="japanese">Japanese</SelectItem>
+                                    <SelectItem value="korean">Korean</SelectItem>
+                                    <SelectItem value="russian">Russian</SelectItem>
+                                    <SelectItem value="arabic">Arabic</SelectItem>
+                                    <SelectItem value="hindi">Hindi</SelectItem>
+                                  </SelectContent>
+                                </Select>
                               </div>
                               
                               <Button 
