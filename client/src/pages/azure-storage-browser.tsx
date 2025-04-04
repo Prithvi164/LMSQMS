@@ -603,23 +603,7 @@ const AzureStorageBrowser = () => {
         dueDate,
         evaluationTemplateId
       });
-    },
-    onSuccess: () => {
-      toast({
-        title: 'Allocation successful',
-        description: 'Audio files were successfully allocated to quality analyst.',
-      });
-      setAllocateDialogOpen(false);
-      // Invalidate relevant queries
-      queryClient.invalidateQueries({ queryKey: ['/api/organizations/audio-file-allocations'] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Allocation failed',
-        description: error.message || 'There was an error allocating audio files.',
-        variant: 'destructive',
-      });
-    },
+    }
   });
 
   // Handle preview filter application
@@ -657,7 +641,7 @@ const AzureStorageBrowser = () => {
   };
 
   // Handle allocation form submission
-  const handleAllocate = () => {
+  const handleAllocate = async () => {
     if (!selectedBlobItems.length || !selectedQA.length) {
       toast({
         title: 'Missing information',
@@ -676,16 +660,36 @@ const AzureStorageBrowser = () => {
       return;
     }
 
-    // Currently only supporting allocation to a single QA
-    // In the future, this could be extended to support multiple QAs
-    const firstSelectedQA = selectedQA[0];
-    
-    allocateAudioMutation.mutate({
-      audioFileIds: selectedBlobItems,
-      qualityAnalystId: parseInt(firstSelectedQA),
-      dueDate: dueDate || undefined,
-      evaluationTemplateId: parseInt(selectedEvaluationTemplate),
+    // Handle multiple quality analyst selections
+    // Create a promise for each quality analyst allocation
+    const allocationPromises = selectedQA.map(qaId => {
+      return allocateAudioMutation.mutateAsync({
+        audioFileIds: selectedBlobItems,
+        qualityAnalystId: parseInt(qaId),
+        dueDate: dueDate || undefined,
+        evaluationTemplateId: parseInt(selectedEvaluationTemplate),
+      });
     });
+    
+    try {
+      // Execute all allocations in parallel
+      await Promise.all(allocationPromises);
+      
+      toast({
+        title: 'Allocation successful',
+        description: `Audio files were successfully allocated to ${selectedQA.length} quality analyst(s).`,
+      });
+      setAllocateDialogOpen(false);
+      
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: ['/api/organizations/audio-file-allocations'] });
+    } catch (error: any) {
+      toast({
+        title: 'Allocation failed',
+        description: error.message || 'There was an error allocating audio files.',
+        variant: 'destructive',
+      });
+    }
   };
 
   // Format file size for display
@@ -1394,7 +1398,7 @@ const AzureStorageBrowser = () => {
                         {allocateAudioMutation.isPending && (
                           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         )}
-                        Allocate Files
+                        Allocate Files to Selected QA(s)
                       </Button>
                     </DialogFooter>
                   </DialogContent>
