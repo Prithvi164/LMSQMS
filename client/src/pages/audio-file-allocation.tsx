@@ -53,8 +53,7 @@ const AudioFileAllocation = () => {
       maxCsat: 5
     },
     qualityAnalysts: [] as { id: number, count: number }[],
-    audioFileIds: [] as number[],
-    evaluationTemplateId: null as number | null, // Added evaluationTemplateId
+    audioFileIds: [] as number[]
   });
   const [selectedFiles, setSelectedFiles] = useState<number[]>([]);
   const [selectAllFiles, setSelectAllFiles] = useState(false);
@@ -82,13 +81,6 @@ const AudioFileAllocation = () => {
   // Query for fetching quality analysts
   const { data: qualityAnalysts } = useQuery({
     queryKey: ['/api/users/quality-analysts', user?.organizationId],
-    enabled: !!user?.organizationId,
-  });
-  
-  // Query for fetching active evaluation templates
-  const { data: evaluationTemplates } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
-    select: (data) => data?.filter((t: any) => t.status === "active"),
     enabled: !!user?.organizationId,
   });
 
@@ -166,8 +158,7 @@ const AudioFileAllocation = () => {
         maxCsat: 5
       },
       qualityAnalysts: [],
-      audioFileIds: [],
-      evaluationTemplateId: null
+      audioFileIds: []
     });
     setSelectedFiles([]);
     setSelectAllFiles(false);
@@ -245,15 +236,6 @@ const AudioFileAllocation = () => {
       toast({
         title: 'Error',
         description: 'Please select at least one quality analyst',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    if (!allocationData.evaluationTemplateId) {
-      toast({
-        title: 'Error',
-        description: 'Please select an evaluation template',
         variant: 'destructive',
       });
       return;
@@ -344,28 +326,6 @@ const AudioFileAllocation = () => {
                     value={allocationData.description}
                     onChange={(e) => setAllocationData({...allocationData, description: e.target.value})}
                   />
-                </div>
-                
-                <div className="space-y-2 col-span-2">
-                  <Label htmlFor="evaluationTemplate">Evaluation Template</Label>
-                  <Select 
-                    value={allocationData.evaluationTemplateId?.toString() || ""} 
-                    onValueChange={(value) => setAllocationData({
-                      ...allocationData, 
-                      evaluationTemplateId: value ? parseInt(value) : null
-                    })}
-                  >
-                    <SelectTrigger id="evaluationTemplate">
-                      <SelectValue placeholder="Select evaluation template" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {evaluationTemplates?.map((template: any) => (
-                        <SelectItem key={template.id} value={template.id.toString()}>
-                          {template.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
               </div>
               

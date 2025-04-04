@@ -7080,8 +7080,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dueDate, 
         audioFileIds, 
         qualityAnalysts, 
-        filters,
-        evaluationTemplateId
+        filters 
       } = req.body;
       
       // Validate input
@@ -7097,13 +7096,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Validate evaluation template
-      if (!evaluationTemplateId) {
-        return res.status(400).json({ 
-          message: "An evaluation template must be specified" 
-        });
-      }
-      
       const batchAllocationData = {
         name,
         description,
@@ -7112,8 +7104,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dueDate: dueDate ? new Date(dueDate) : undefined,
         audioFileIds: audioFileIds || [],
         qualityAnalysts,
-        filters,
-        evaluationTemplateId
+        filters
       };
       
       const result = await storage.createAudioFileBatchAllocation(batchAllocationData);

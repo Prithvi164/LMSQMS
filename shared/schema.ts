@@ -157,8 +157,6 @@ export const audioFileAllocations = pgTable("audio_file_allocations", {
     .notNull(),
   evaluationId: integer("evaluation_id")
     .references(() => evaluations.id),
-  evaluationTemplateId: integer("evaluation_template_id")
-    .references(() => evaluationTemplates.id),
 });
 
 // Audio file batch allocation
@@ -174,8 +172,6 @@ export const audioFileBatchAllocations = pgTable("audio_file_batch_allocations",
   organizationId: integer("organization_id")
     .references(() => organizations.id)
     .notNull(),
-  evaluationTemplateId: integer("evaluation_template_id")
-    .references(() => evaluationTemplates.id),
   dueDate: timestamp("due_date"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -567,7 +563,6 @@ export const insertAudioFileAllocationSchema = createInsertSchema(audioFileAlloc
     allocatedBy: z.number().int().positive("Allocator is required"),
     organizationId: z.number().int().positive("Organization is required"),
     evaluationId: z.number().int().positive("Evaluation is required").optional(),
-    evaluationTemplateId: z.number().int().positive("Evaluation template is required").optional(),
   });
 
 export const insertAudioFileBatchAllocationSchema = createInsertSchema(audioFileBatchAllocations)
@@ -583,7 +578,6 @@ export const insertAudioFileBatchAllocationSchema = createInsertSchema(audioFile
     status: z.enum(['pending', 'allocated', 'evaluated', 'archived']).default('allocated'),
     allocatedBy: z.number().int().positive("Allocator is required"),
     organizationId: z.number().int().positive("Organization is required"),
-    evaluationTemplateId: z.number().int().positive("Evaluation template is required").optional(),
     dueDate: z.date().optional(),
   });
 
@@ -629,10 +623,6 @@ export const audioFileAllocationsRelations = relations(audioFileAllocations, ({ 
     fields: [audioFileAllocations.evaluationId],
     references: [evaluations.id],
   }),
-  evaluationTemplate: one(evaluationTemplates, {
-    fields: [audioFileAllocations.evaluationTemplateId],
-    references: [evaluationTemplates.id],
-  }),
 }));
 
 export const audioFileBatchAllocationsRelations = relations(audioFileBatchAllocations, ({ one }) => ({
@@ -643,10 +633,6 @@ export const audioFileBatchAllocationsRelations = relations(audioFileBatchAlloca
   organization: one(organizations, {
     fields: [audioFileBatchAllocations.organizationId],
     references: [organizations.id],
-  }),
-  evaluationTemplate: one(evaluationTemplates, {
-    fields: [audioFileBatchAllocations.evaluationTemplateId],
-    references: [evaluationTemplates.id],
   }),
 }));
 
@@ -1230,6 +1216,7 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
 export type InsertOrganizationProcess = z.infer<typeof insertOrganizationProcessSchema>;
 export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
+export type InsertBatchTemplate = z.infer<typeof insertBatchTemplateSchema>;
 
 
 export const batchHistoryEventTypeEnum = pgEnum('batch_history_event_type', [
