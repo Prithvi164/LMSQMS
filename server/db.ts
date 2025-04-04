@@ -6,14 +6,6 @@ import * as schema from "@shared/schema";
 // Configure WebSocket for Neon database
 neonConfig.webSocketConstructor = ws;
 
-// Add this to fix the TypeError related to ErrorEvent
-process.removeAllListeners('error');
-
-// Add custom error handler
-process.on('error', (err) => {
-  console.error('Uncaught error:', err);
-});
-
 // Connection retry settings
 const MAX_RETRIES = 5;
 const RETRY_DELAY_MS = 2000;
@@ -73,21 +65,5 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-// Create Drizzle ORM instance with fallback for connection issues
-let db;
-try {
-  db = drizzle({ client: pool, schema });
-} catch (error) {
-  console.error('Failed to initialize Drizzle ORM:', error);
-  // Create a placeholder that will retry connection later
-  db = {
-    query: async () => {
-      throw new Error('Database connection not available');
-    },
-    // Add minimal required methods
-    insert: () => ({ values: () => ({ returning: () => Promise.reject(new Error('Database connection not available')) }) }),
-    select: () => ({ from: () => ({ where: () => ({ get: () => Promise.reject(new Error('Database connection not available')) }) }) })
-  };
-}
-
-export { db };
+// Create Drizzle ORM instance
+export const db = drizzle({ client: pool, schema });

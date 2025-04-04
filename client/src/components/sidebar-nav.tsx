@@ -13,8 +13,7 @@ import {
   FileSpreadsheet,
   Headphones,
   FileAudio,
-  Cloud,
-  Zap
+  Cloud
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useQuery } from '@tanstack/react-query';
@@ -48,7 +47,6 @@ export function SidebarNav() {
     { href: '/conduct-evaluation', label: 'Conduct Evaluation', icon: FileSpreadsheet },
     { href: '/audio-file-management', label: 'Audio Files', icon: FileAudio },
     { href: '/audio-file-allocation', label: 'Audio Allocations', icon: Headphones },
-    { href: '/integrated-audio-allocation', label: 'One-Step Allocation', icon: Zap },
     { href: '/azure-storage', label: 'Azure Storage', icon: Cloud },
   ];
 
