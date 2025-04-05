@@ -106,56 +106,83 @@ function filterAudioMetadata(items: any[], filters: {
     
     // Filter by Partner Name
     if (filters.partnerNameFilter && item.callMetrics) {
-      // Check multiple possible field names for Partner Name
-      const partnerNameValue = item.callMetrics.partnerName || 
-                              item.callMetrics.Partner_Name || 
-                              item.callMetrics["Partner Name"];
+      // Get all possible partner name values from different field formats
+      const possiblePartnerNames = [
+        item.callMetrics.partnerName,
+        item.callMetrics.Partner_Name,
+        item.callMetrics["Partner Name"],
+        item.callMetrics["partner name"],
+        item.callMetrics.partnername,
+        item.callMetrics.PartnerName
+      ].filter(Boolean); // Remove undefined/null values
       
-      console.log(`DEBUG Filter - File: ${item.filename}, Partner Name: ${partnerNameValue}, Filter: ${filters.partnerNameFilter}`);
+      console.log(`DEBUG Filter - File: ${item.filename}, Partner Names: ${JSON.stringify(possiblePartnerNames)}, Filter: ${filters.partnerNameFilter}`);
       
-      if (!partnerNameValue || 
-          partnerNameValue.toLowerCase() !== filters.partnerNameFilter.toLowerCase()) {
+      // If no partner name found in any field, or none match the filter, return false
+      if (possiblePartnerNames.length === 0 || 
+          !possiblePartnerNames.some(name => 
+            name.toLowerCase() === filters.partnerNameFilter?.toLowerCase())) {
         return false;
       }
     }
     
     // Filter by Call Type
     if (filters.callTypeFilter && item.callMetrics) {
-      // Check multiple possible field names for Call Type
-      const callTypeValue = item.callMetrics.callType || 
-                           item.callMetrics.Call_Type || 
-                           item.callMetrics["Call Type"];
+      // Get all possible call type values from different field formats
+      const possibleCallTypes = [
+        item.callMetrics.callType,
+        item.callMetrics.Call_Type,
+        item.callMetrics["Call Type"],
+        item.callMetrics["call type"],
+        item.callMetrics.CallType,
+        item.callMetrics.calltype
+      ].filter(Boolean); // Remove undefined/null values
       
-      if (!callTypeValue || 
-          callTypeValue.toLowerCase() !== filters.callTypeFilter.toLowerCase()) {
+      // If no call type found in any field, or none match the filter, return false
+      if (possibleCallTypes.length === 0 || 
+          !possibleCallTypes.some(type => 
+            type.toLowerCase() === filters.callTypeFilter?.toLowerCase())) {
         return false;
       }
     }
     
     // Filter by VOC (Voice of Customer)
     if (filters.vocFilter && item.callMetrics) {
-      // Check multiple possible field names for VOC
-      const vocValue = item.callMetrics.VOC || 
-                      item.callMetrics.voc || 
-                      item.callMetrics["Voice of Customer"] ||
-                      item.callMetrics["Voice_of_Customer"];
+      // Get all possible VOC values from different field formats
+      const possibleVOCs = [
+        item.callMetrics.VOC,
+        item.callMetrics.voc,
+        item.callMetrics["Voice of Customer"],
+        item.callMetrics["Voice_of_Customer"],
+        item.callMetrics["voice of customer"],
+        item.callMetrics.VoiceOfCustomer
+      ].filter(Boolean); // Remove undefined/null values
       
-      if (!vocValue || 
-          vocValue.toLowerCase() !== filters.vocFilter.toLowerCase()) {
+      // If no VOC found in any field, or none match the filter, return false
+      if (possibleVOCs.length === 0 || 
+          !possibleVOCs.some(voc => 
+            voc.toLowerCase() === filters.vocFilter?.toLowerCase())) {
         return false;
       }
     }
     
     // Filter by Campaign
     if (filters.campaignFilter && item.callMetrics) {
-      // Check multiple possible field names for Campaign
-      const campaignValue = item.callMetrics.campaign || 
-                           item.callMetrics.Campaign ||
-                           item.callMetrics["Campaign Name"] ||
-                           item.callMetrics.campaign_name;
+      // Get all possible campaign values from different field formats
+      const possibleCampaigns = [
+        item.callMetrics.campaign,
+        item.callMetrics.Campaign,
+        item.callMetrics["Campaign Name"],
+        item.callMetrics["campaign name"],
+        item.callMetrics.campaign_name,
+        item.callMetrics.CampaignName,
+        item.callMetrics.campaignName
+      ].filter(Boolean); // Remove undefined/null values
       
-      if (!campaignValue || 
-          campaignValue.toLowerCase() !== filters.campaignFilter.toLowerCase()) {
+      // If no campaign found in any field, or none match the filter, return false
+      if (possibleCampaigns.length === 0 || 
+          !possibleCampaigns.some(campaign => 
+            campaign.toLowerCase() === filters.campaignFilter?.toLowerCase())) {
         return false;
       }
     }
