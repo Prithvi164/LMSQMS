@@ -14,11 +14,11 @@ try {
       // Base fields
       'filename', 'language', 'version', 'call_date',
       
-      // Required metadata fields for callMetrics (matching image exact names)
-      'Audit Role', 'AgentID', 'AgentName', 'PBX ID', 'Partner Name', 
-      'Customer Mobile', 'Call Duration', 'Call Type', 'Sub Type', 
-      'Sub sub Type', 'VOC', 'languageOfCall', 'userRole', 'Advisor Category', 
-      'businessSegment', 'LOB', 'formName', 'Campaign',
+      // Required metadata fields for callMetrics
+      'auditRole', 'OLMSID', 'Name', 'PBXID', 'partnerName', 
+      'customerMobile', 'callDuration', 'callType', 'subType', 
+      'subSubType', 'VOC', 'languageOfCall', 'userRole', 'advisorCategory', 
+      'businessSegment', 'LOB', 'formName',
       
       // Required call identification fields
       'callId', 'callDate'
@@ -31,7 +31,7 @@ try {
       'Quality Analyst', 'AG123456', 'John Smith', 'PBX987654', 'CloudPoint Technologies',
       '9876543210', '180', 'inbound', 'Customer Service',
       'Billing Inquiry', 'Positive', 'English', 'Agent', 'Challenger',
-      'Care', 'Prepaid', 'Evaluation Form 1', 'Spring Promo 2025',
+      'Care', 'Prepaid', 'Evaluation Form 1',
       
       // Required call identification fields
       'CALL-123-25', '2025-04-03'
@@ -47,24 +47,23 @@ try {
     { wch: 10 }, // language
     { wch: 10 }, // version
     { wch: 12 }, // call_date
-    { wch: 15 }, // Audit Role
-    { wch: 15 }, // AgentID
-    { wch: 20 }, // AgentName
-    { wch: 15 }, // PBX ID
-    { wch: 25 }, // Partner Name
-    { wch: 15 }, // Customer Mobile
-    { wch: 15 }, // Call Duration
-    { wch: 12 }, // Call Type
-    { wch: 15 }, // Sub Type
-    { wch: 20 }, // Sub sub Type
+    { wch: 15 }, // auditRole
+    { wch: 15 }, // OLMSID
+    { wch: 20 }, // Name
+    { wch: 15 }, // PBXID
+    { wch: 25 }, // partnerName
+    { wch: 15 }, // customerMobile
+    { wch: 15 }, // callDuration
+    { wch: 12 }, // callType
+    { wch: 15 }, // subType
+    { wch: 20 }, // subSubType
     { wch: 15 }, // VOC
     { wch: 15 }, // languageOfCall
     { wch: 15 }, // userRole
-    { wch: 20 }, // Advisor Category
+    { wch: 20 }, // advisorCategory
     { wch: 20 }, // businessSegment
     { wch: 15 }, // LOB
     { wch: 20 }, // formName
-    { wch: 15 }, // Campaign
     { wch: 15 }, // callId
     { wch: 15 }  // callDate
   ];

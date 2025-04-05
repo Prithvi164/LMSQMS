@@ -15,31 +15,27 @@ export interface AudioFileMetadata {
     callDate: string;    // Call date in readable format (YYYY-MM-DD)
     callId: string;      // Unique call identifier
     callType: string;    // Type of call (e.g., inbound, outbound)
-    
-    // Fields from the image template
-    auditRole: string;   // Audit Role - Evaluator title (Quality Analyst)
-    agentId: string;     // AgentID - Unique ID for the agent
-    agentName: string;   // AgentName - Name of the agent being evaluated
-    pbxId: string;       // PBX ID - Unique telephony ID
-    partnerName: string; // Partner Name - Partner/Client the call belongs to
-    customerMobile: string; // Customer Mobile - For call tracking
-    callDuration: string; // Call Duration - Duration of the call in seconds
-    subType: string;     // Sub Type - Further classification
-    subSubType: string;  // Sub sub Type - Further granularity
-    voc: string;         // VOC - Voice of Customer sentiment (Positive, Negative, Neutral)
-    
-    // Additional fields
-    languageOfCall: string; // Language spoken during call
-    userRole: string;    // Based on logged-in user's profile (Agent, Senior Agent)
-    advisorCategory: string; // Advisor Category (Challenger, Performer)
-    businessSegment: string; // Business Segment (Care, Tech Support, Sales)
-    lob: string;         // Line of Business (e.g., Prepaid, Postpaid, Enterprise)
-    formName: string;    // Evaluation form to be used (Evaluation Form 1)
-    campaign: string;    // Campaign associated with the call
-    
-    // Optional fields
+    agentId?: string;    // Agent identifier
     customerSatisfaction?: number; // Customer satisfaction score
     handleTime?: number; // Handle time in seconds
+    
+    // Required fields from the metadata requirements
+    auditRole: string;   // Auto-filled based on logged-in auditor (Quality Analyst)
+    OLMSID: string;      // Unique ID for the agent/system
+    Name: string;        // Name of the agent being evaluated
+    PBXID: string;       // Unique telephony ID
+    partnerName: string; // Partner/Client the call belongs to (CloudPoint Technologies)
+    customerMobile: string; // For call tracking (Customer Mobile #)
+    callDuration: string; // Duration of the call in seconds
+    subType: string;     // Further classification (Customer Service, Technical Support, etc.)
+    subSubType: string;  // Further granularity (Billing Inquiry, Hardware Issue, etc.)
+    VOC: string;         // Captures Voice of Customer (Positive, Negative, Neutral)
+    languageOfCall: string; // Language spoken during call (matching standard language codes)
+    userRole: string;    // Based on logged-in user's profile (Agent, Senior Agent)
+    advisorCategory: string; // E.g., Challenger, Performer
+    businessSegment: string; // E.g., Care, Tech Support, Sales
+    LOB: string;         // Line of Business (e.g., Prepaid, Postpaid, Enterprise)
+    formName: string;    // Select form for evaluation (Evaluation Form 1)
     
     [key: string]: any;  // For additional metrics
   };
@@ -336,32 +332,32 @@ export class AzureStorageService {
           // Standard required fields
           callDate: row.callDate || row.CallDate || new Date().toISOString().split('T')[0],
           callId: row.callId || row.CallId || row.Call_ID || 'unknown',
-          callType: row['Call Type'] || row.callType || row.CallType || row.Type || 'unknown',
+          callType: row.callType || row.CallType || row.Type || 'unknown',
           
           // Optional fields with defaults
+          agentId: row.agentId || row.AgentId || row.Agent_ID || '',
           customerSatisfaction: parseFloat(row.csat || row.CSAT || row.satisfaction || '0') || 0,
           handleTime: parseInt(row.handleTime || row.HandleTime || row.handle_time || '0') || 0,
           
-          // Fields from the image template (using exact field names)
-          auditRole: row['Audit Role'] || row.auditRole || row.AuditRole || '',
-          agentId: row['AgentID'] || row.agentId || row.AgentId || row.Agent_ID || '',
-          agentName: row['AgentName'] || row.agentName || row.Name || row.name || '',
-          pbxId: row['PBX ID'] || row.PBXID || row.pbxId || row.pbxid || '',
-          partnerName: row['Partner Name'] || row.partnerName || row.PartnerName || '',
-          customerMobile: row['Customer Mobile'] || row.customerMobile || row.CustomerMobile || '',
-          callDuration: row['Call Duration'] || row.callDuration || row.CallDuration || '',
-          subType: row['Sub Type'] || row.subType || row.SubType || '',
-          subSubType: row['Sub sub Type'] || row.subSubType || row.SubSubType || '',
-          voc: row['VOC'] || row.voc || row.VOC || '',
-          advisorCategory: row['Advisor Category'] || row.advisorCategory || row.AdvisorCategory || '',
-          campaign: row['Campaign'] || row.campaign || '',
+          // New fields from requirements
+          auditRole: row.auditRole || row.AuditRole || '',
+          OLMSID: row.OLMSID || row.olmsid || row.OlmsId || '',
+          Name: row.Name || row.name || '',
+          PBXID: row.PBXID || row.pbxid || row.PbxId || '',
+          partnerName: row.partnerName || row.PartnerName || row.Partner_Name || '',
+          customerMobile: row.customerMobile || row.CustomerMobile || row.customer_mobile || '',
+          subType: row.subType || row.SubType || row.sub_type || '',
+          subSubType: row.subSubType || row.SubSubType || row.sub_sub_type || '',
+          VOC: row.VOC || row.voc || row.Voc || '',
+          userRole: row.userRole || row.UserRole || row.user_role || '',
+          advisorCategory: row.advisorCategory || row.AdvisorCategory || row.advisor_category || '',
+          businessSegment: row.businessSegment || row.BusinessSegment || row.business_segment || '',
+          LOB: row.LOB || row.lob || row.LineOfBusiness || '',
+          formName: row.formName || row.FormName || row.form_name || '',
           
-          // Additional fields
-          userRole: row.userRole || row.UserRole || '',
-          businessSegment: row.businessSegment || row.BusinessSegment || '',
-          lob: row.lob || row.LOB || '',
-          languageOfCall: row.languageOfCall || row.LanguageOfCall || row.language || '',
-          formName: row.formName || row.FormName || ''
+          // New fields from updated requirements
+          callDuration: row.callDuration || row.CallDuration || row.call_duration || '',
+          languageOfCall: row.languageOfCall || row.LanguageOfCall || row.language_of_call || row.language || ''
         };
         
         // Add any additional metrics that might be in the Excel
