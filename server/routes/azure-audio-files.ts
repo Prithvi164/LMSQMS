@@ -219,12 +219,25 @@ async function parseExcelFile(filePath: string): Promise<AudioFileMetadata[]> {
           }
         }
         
+        // Ensure the callMetrics object has all required properties
+        if (!callMetrics.callDate) callMetrics.callDate = callDate || new Date().toISOString().split('T')[0];
+        if (!callMetrics.callId) callMetrics.callId = 'unknown';
+        if (!callMetrics.callType) callMetrics.callType = 'unknown';
+        
+        // Ensure callMetrics has the required properties before pushing to results
+        const typedCallMetrics: AudioFileMetadata["callMetrics"] = {
+          ...callMetrics,
+          callDate: callMetrics.callDate || callDate || new Date().toISOString().split('T')[0],
+          callId: callMetrics.callId || "unknown",
+          callType: callMetrics.callType || "unknown"
+        };
+        
         result.push({
           filename,
           language: language as any,
           version,
           call_date: callDate,
-          callMetrics
+          callMetrics: typedCallMetrics
         });
       }
       
@@ -460,7 +473,7 @@ async function parseExcelFile(filePath: string): Promise<AudioFileMetadata[]> {
         }
         
         // Extract call metrics from the row for any additional fields
-        const callMetrics: Record<string, any> = {
+        const callMetrics: AudioFileMetadata["callMetrics"] = {
           // Required callMetrics fields with defaults
           callDate: callDate || new Date().toISOString().split('T')[0],
           callId: normalizedRow.callId || 'unknown',
@@ -481,7 +494,13 @@ async function parseExcelFile(filePath: string): Promise<AudioFileMetadata[]> {
           language: language as any,
           version: normalizedRow.version ? normalizedRow.version.toString() : null,
           call_date: callDate ? callDate.toString() : null,
-          callMetrics
+          callMetrics: {
+            ...callMetrics,
+            // Ensure required properties are always present
+            callDate: callMetrics.callDate || (callDate || new Date().toISOString().split('T')[0]),
+            callId: callMetrics.callId || 'unknown',
+            callType: callMetrics.callType || 'unknown'
+          }
         };
         
         validRows.push(metadata);
@@ -1341,10 +1360,10 @@ router.post('/azure-audio-allocate', async (req, res) => {
     const audioFilesToAllocate = await db
       .select()
       .from(audioFiles)
-      .where(eq(audioFiles.organizationId, req.user.organizationId))
-      .where(
-        sql`${audioFiles.id} IN (${audioFileIds.join(', ')})`
-      );
+      .where(and(
+        eq(audioFiles.organizationId, req.user.organizationId),
+        inArray(audioFiles.id, audioFileIds)
+      ));
     
     console.log(`✅ Found ${audioFilesToAllocate.length} of ${audioFileIds.length} files`);
     
