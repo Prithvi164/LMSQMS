@@ -639,8 +639,9 @@ export class DatabaseStorage implements IStorage {
     qualityAnalystId?: number;
     audioFileId?: number;
     status?: string;
-  }): Promise<AudioFileAllocation[]> {
+  }): Promise<any[]> {
     try {
+      // Get the basic allocation data
       let query = db
         .select()
         .from(audioFileAllocations)
@@ -657,7 +658,53 @@ export class DatabaseStorage implements IStorage {
       }
 
       const allocations = await query as AudioFileAllocation[];
-      return allocations;
+      
+      // If no allocations, return empty array
+      if (!allocations.length) {
+        return [];
+      }
+      
+      // Get all unique IDs we need to fetch
+      const audioFileIds = [...new Set(allocations.map(a => a.audioFileId))];
+      const userIds = [...new Set([
+        ...allocations.map(a => a.qualityAnalystId),
+        ...allocations.map(a => a.allocatedBy)
+      ])];
+      
+      // Fetch related data
+      const audioFilesData = await db
+        .select()
+        .from(audioFiles)
+        .where(inArray(audioFiles.id, audioFileIds)) as AudioFile[];
+      
+      const usersData = await db
+        .select({
+          id: users.id,
+          fullName: users.fullName
+        })
+        .from(users)
+        .where(inArray(users.id, userIds));
+      
+      // Create lookup maps for faster access
+      const audioFileMap = new Map(audioFilesData.map(file => [file.id, file]));
+      const userMap = new Map(usersData.map(user => [user.id, user]));
+      
+      // Enhance allocations with related data
+      return allocations.map(allocation => {
+        const audioFile = audioFileMap.get(allocation.audioFileId);
+        const qualityAnalyst = userMap.get(allocation.qualityAnalystId);
+        const allocator = userMap.get(allocation.allocatedBy);
+        
+        return {
+          ...allocation,
+          allocationDate: allocation.createdAt,
+          audioFileName: audioFile?.name || `Audio File #${allocation.audioFileId}`,
+          qualityAnalystName: qualityAnalyst?.fullName || `QA #${allocation.qualityAnalystId}`,
+          allocatedByName: allocator?.fullName || `User #${allocation.allocatedBy}`,
+          // Add other useful fields
+          dueDate: null // We'll add this later if needed
+        };
+      });
     } catch (error) {
       console.error('Error listing audio file allocations:', error);
       throw error;
