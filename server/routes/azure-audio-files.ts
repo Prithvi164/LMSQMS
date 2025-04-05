@@ -1231,7 +1231,8 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
           const qaMaxAssignments = new Map();
           selectedQAs.forEach((qaId: string | number) => {
             const parsedQaId = parseInt(qaId.toString());
-            const maxCount = qaAssignmentCountsObj[parsedQaId] || maxAssignmentsPerQA;
+            // Use type assertion to avoid TypeScript error when accessing object with numeric key
+            const maxCount = (qaAssignmentCountsObj as any)[parsedQaId] || maxAssignmentsPerQA;
             qaMaxAssignments.set(parsedQaId, maxCount);
           });
           
@@ -1282,6 +1283,21 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
           // Log assignment results
           console.log(`Distributed ${assignedFileCount} files out of ${successfulImports.length} imported files`);
           console.log(`${filesToAssign.length} files left unassigned due to QA capacity limits`);
+          
+          // Track which files were assigned vs. unassigned
+          const assignedFileIds = new Set<number>();
+          
+          // Collect all assigned file IDs
+          for (const [_, fileIds] of Array.from(assignmentMap.entries())) {
+            fileIds.forEach((fileId: number) => assignedFileIds.add(fileId));
+          }
+          
+          // Collect unassigned file IDs (still in filesToAssign array or not in assignedFileIds)
+          const unassignedFileIds = successfulImports
+            .filter(file => !assignedFileIds.has(file.id))
+            .map(file => file.id);
+            
+          console.log(`Tracking ${unassignedFileIds.length} unassigned files that will remain with 'pending' status`);
           
           // Create allocations in the database
           for (const entry of Array.from(assignmentMap.entries())) {
