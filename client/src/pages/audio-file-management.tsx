@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { UploadCloud, FileAudio, Upload, Filter, Clock, FilePlus, FileSpreadsheet, Download, ChevronDown } from 'lucide-react';
+import { UploadCloud, FileAudio, Upload, Filter, Clock, FilePlus, FileSpreadsheet, Download, ChevronDown, Info } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { apiRequest } from '@/lib/queryClient';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -26,7 +26,10 @@ const formatDuration = (seconds: number) => {
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 };
 
-const statusColors = {
+// Define status type to fix TypeScript errors
+type AudioFileStatus = 'pending' | 'allocated' | 'evaluated' | 'archived';
+
+const statusColors: Record<AudioFileStatus, string> = {
   pending: "bg-yellow-100 text-yellow-800 hover:bg-yellow-200",
   allocated: "bg-blue-100 text-blue-800 hover:bg-blue-200",
   evaluated: "bg-green-100 text-green-800 hover:bg-green-200",
@@ -50,7 +53,24 @@ const AudioFileManagement = () => {
       callType: 'inbound',
       agentId: '',
       customerSatisfaction: 0,
-      handleTime: 0
+      handleTime: 0,
+      // New fields from requirements
+      auditRole: '',
+      OLMSID: '',
+      Name: '',
+      PBXID: '',
+      partnerName: '',
+      customerMobile: '',
+      callDuration: '',
+      subType: '',
+      subSubType: '',
+      VOC: '',
+      languageOfCall: 'english',
+      userRole: '',
+      advisorCategory: '',
+      businessSegment: '',
+      LOB: '',
+      formName: ''
     }
   });
   const [activeTab, setActiveTab] = useState('all');
@@ -79,6 +99,46 @@ const AudioFileManagement = () => {
   const [totalFiles, setTotalFiles] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const pageSize = 50; // Match the default limit in the server
+  
+  // Define an interface for audio file with proper typing
+  interface AudioFile {
+    id: number;
+    filename: string;
+    status: AudioFileStatus;
+    language: string;
+    duration?: number;
+    version: string;
+    size?: number;
+    created_at: string;
+    callMetrics?: {
+      callId?: string;
+      callType?: string;
+      callDate?: string;
+      agentId?: string;
+      OLMSID?: string;
+      Name?: string;
+      PBXID?: string;
+      partnerName?: string;
+      customerMobile?: string;
+      callDuration?: string;
+      subType?: string;
+      subSubType?: string;
+      VOC?: string;
+      languageOfCall?: string;
+      userRole?: string;
+      advisorCategory?: string;
+      businessSegment?: string;
+      LOB?: string;
+      formName?: string;
+      auditRole?: string;
+      [key: string]: any;
+    };
+    [key: string]: any;
+  }
+
+  // State for view details dialog
+  const [viewDetailsOpen, setViewDetailsOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<AudioFile | null>(null);
 
   // Query for fetching audio files
   const { data: audioFilesResponse, isLoading, refetch } = useQuery({
@@ -126,7 +186,24 @@ const AudioFileManagement = () => {
           callType: 'inbound',
           agentId: '',
           customerSatisfaction: 0,
-          handleTime: 0
+          handleTime: 0,
+          // New fields from requirements
+          auditRole: '',
+          OLMSID: '',
+          Name: '',
+          PBXID: '',
+          partnerName: '',
+          customerMobile: '',
+          callDuration: '',
+          subType: '',
+          subSubType: '',
+          VOC: '',
+          languageOfCall: 'english',
+          userRole: '',
+          advisorCategory: '',
+          businessSegment: '',
+          LOB: '',
+          formName: ''
         }
       });
       refetch();
@@ -244,6 +321,11 @@ const AudioFileManagement = () => {
       setMetadataFile(e.target.files[0]);
     }
   };
+  
+  const handleViewDetails = (audioFile: AudioFile) => {
+    setSelectedFile(audioFile);
+    setViewDetailsOpen(true);
+  };
 
   const handleUploadSubmit = () => {
     if (!file) {
@@ -350,7 +432,7 @@ const AudioFileManagement = () => {
     if (!audioFiles || !Array.isArray(audioFiles)) return [];
 
     // Explicitly cast audioFiles to an array type to satisfy TypeScript
-    let filteredFiles = [...(audioFiles as any[])];
+    let filteredFiles = [...(audioFiles as AudioFile[])];
     
     // Apply tab filter
     if (activeTab !== 'all') {
@@ -610,6 +692,295 @@ const AudioFileManagement = () => {
                           callMetrics: {
                             ...fileData.callMetrics,
                             agentId: e.target.value
+                          }
+                        })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* New Metadata Fields */}
+                  <div className="grid grid-cols-2 gap-4 mt-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="OLMSID">OLMSID</Label>
+                      <Input 
+                        id="OLMSID" 
+                        placeholder="Unique ID for agent/system"
+                        value={fileData.callMetrics.OLMSID}
+                        onChange={(e) => setFileData({
+                          ...fileData, 
+                          callMetrics: {
+                            ...fileData.callMetrics,
+                            OLMSID: e.target.value
+                          }
+                        })}
+                      />
+                    </div>
+                    
+                    <div className="grid gap-2">
+                      <Label htmlFor="Name">Agent Name</Label>
+                      <Input 
+                        id="Name" 
+                        placeholder="Name of agent being evaluated"
+                        value={fileData.callMetrics.Name}
+                        onChange={(e) => setFileData({
+                          ...fileData, 
+                          callMetrics: {
+                            ...fileData.callMetrics,
+                            Name: e.target.value
+                          }
+                        })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="PBXID">PBX ID</Label>
+                      <Input 
+                        id="PBXID" 
+                        placeholder="Unique telephony ID"
+                        value={fileData.callMetrics.PBXID}
+                        onChange={(e) => setFileData({
+                          ...fileData, 
+                          callMetrics: {
+                            ...fileData.callMetrics,
+                            PBXID: e.target.value
+                          }
+                        })}
+                      />
+                    </div>
+                    
+                    <div className="grid gap-2">
+                      <Label htmlFor="partnerName">Partner Name</Label>
+                      <Input 
+                        id="partnerName" 
+                        placeholder="Partner/Client name"
+                        value={fileData.callMetrics.partnerName}
+                        onChange={(e) => setFileData({
+                          ...fileData, 
+                          callMetrics: {
+                            ...fileData.callMetrics,
+                            partnerName: e.target.value
+                          }
+                        })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="customerMobile">Customer Mobile</Label>
+                      <Input 
+                        id="customerMobile" 
+                        placeholder="Customer mobile number"
+                        value={fileData.callMetrics.customerMobile}
+                        onChange={(e) => setFileData({
+                          ...fileData, 
+                          callMetrics: {
+                            ...fileData.callMetrics,
+                            customerMobile: e.target.value
+                          }
+                        })}
+                      />
+                    </div>
+                    
+                    <div className="grid gap-2">
+                      <Label htmlFor="callDuration">Call Duration</Label>
+                      <Input 
+                        id="callDuration" 
+                        placeholder="Duration of the call"
+                        value={fileData.callMetrics.callDuration}
+                        onChange={(e) => setFileData({
+                          ...fileData, 
+                          callMetrics: {
+                            ...fileData.callMetrics,
+                            callDuration: e.target.value
+                          }
+                        })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="subType">Sub Type</Label>
+                      <Input 
+                        id="subType" 
+                        placeholder="Call sub-type classification"
+                        value={fileData.callMetrics.subType}
+                        onChange={(e) => setFileData({
+                          ...fileData, 
+                          callMetrics: {
+                            ...fileData.callMetrics,
+                            subType: e.target.value
+                          }
+                        })}
+                      />
+                    </div>
+                    
+                    <div className="grid gap-2">
+                      <Label htmlFor="subSubType">Sub-Sub Type</Label>
+                      <Input 
+                        id="subSubType" 
+                        placeholder="Further call granularity"
+                        value={fileData.callMetrics.subSubType}
+                        onChange={(e) => setFileData({
+                          ...fileData, 
+                          callMetrics: {
+                            ...fileData.callMetrics,
+                            subSubType: e.target.value
+                          }
+                        })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="VOC">VOC</Label>
+                      <Input 
+                        id="VOC" 
+                        placeholder="Voice of Customer"
+                        value={fileData.callMetrics.VOC}
+                        onChange={(e) => setFileData({
+                          ...fileData, 
+                          callMetrics: {
+                            ...fileData.callMetrics,
+                            VOC: e.target.value
+                          }
+                        })}
+                      />
+                    </div>
+                    
+                    <div className="grid gap-2">
+                      <Label htmlFor="languageOfCall">Language of Call</Label>
+                      <Select 
+                        value={fileData.callMetrics.languageOfCall || "english"} 
+                        onValueChange={(value) => setFileData({
+                          ...fileData, 
+                          callMetrics: {
+                            ...fileData.callMetrics,
+                            languageOfCall: value
+                          }
+                        })}
+                      >
+                        <SelectTrigger id="languageOfCall">
+                          <SelectValue placeholder="Select language" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="english">English</SelectItem>
+                          <SelectItem value="spanish">Spanish</SelectItem>
+                          <SelectItem value="french">French</SelectItem>
+                          <SelectItem value="german">German</SelectItem>
+                          <SelectItem value="portuguese">Portuguese</SelectItem>
+                          <SelectItem value="hindi">Hindi</SelectItem>
+                          <SelectItem value="mandarin">Mandarin</SelectItem>
+                          <SelectItem value="japanese">Japanese</SelectItem>
+                          <SelectItem value="korean">Korean</SelectItem>
+                          <SelectItem value="arabic">Arabic</SelectItem>
+                          <SelectItem value="russian">Russian</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="userRole">User Role</Label>
+                      <Input 
+                        id="userRole" 
+                        placeholder="User's role"
+                        value={fileData.callMetrics.userRole}
+                        onChange={(e) => setFileData({
+                          ...fileData, 
+                          callMetrics: {
+                            ...fileData.callMetrics,
+                            userRole: e.target.value
+                          }
+                        })}
+                      />
+                    </div>
+                    
+                    <div className="grid gap-2">
+                      <Label htmlFor="advisorCategory">Advisor Category</Label>
+                      <Input 
+                        id="advisorCategory" 
+                        placeholder="E.g., Challenger, Performer"
+                        value={fileData.callMetrics.advisorCategory}
+                        onChange={(e) => setFileData({
+                          ...fileData, 
+                          callMetrics: {
+                            ...fileData.callMetrics,
+                            advisorCategory: e.target.value
+                          }
+                        })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="businessSegment">Business Segment</Label>
+                      <Input 
+                        id="businessSegment" 
+                        placeholder="E.g., Care, Tech Support"
+                        value={fileData.callMetrics.businessSegment}
+                        onChange={(e) => setFileData({
+                          ...fileData, 
+                          callMetrics: {
+                            ...fileData.callMetrics,
+                            businessSegment: e.target.value
+                          }
+                        })}
+                      />
+                    </div>
+                    
+                    <div className="grid gap-2">
+                      <Label htmlFor="LOB">Line of Business</Label>
+                      <Input 
+                        id="LOB" 
+                        placeholder="E.g., Prepaid"
+                        value={fileData.callMetrics.LOB}
+                        onChange={(e) => setFileData({
+                          ...fileData, 
+                          callMetrics: {
+                            ...fileData.callMetrics,
+                            LOB: e.target.value
+                          }
+                        })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="formName">Form Name</Label>
+                      <Input 
+                        id="formName" 
+                        placeholder="Select form for evaluation"
+                        value={fileData.callMetrics.formName}
+                        onChange={(e) => setFileData({
+                          ...fileData, 
+                          callMetrics: {
+                            ...fileData.callMetrics,
+                            formName: e.target.value
+                          }
+                        })}
+                      />
+                    </div>
+                    
+                    <div className="grid gap-2">
+                      <Label htmlFor="auditRole">Audit Role</Label>
+                      <Input 
+                        id="auditRole" 
+                        placeholder="Auditor role"
+                        value={fileData.callMetrics.auditRole}
+                        onChange={(e) => setFileData({
+                          ...fileData, 
+                          callMetrics: {
+                            ...fileData.callMetrics,
+                            auditRole: e.target.value
                           }
                         })}
                       />
@@ -890,7 +1261,7 @@ const AudioFileManagement = () => {
                             {audioFile.duration ? formatDuration(audioFile.duration) : 'N/A'}
                           </TableCell>
                           <TableCell>
-                            <Badge className={statusColors[audioFile.status] || ''}>
+                            <Badge className={statusColors[audioFile.status as AudioFileStatus] || ''}>
                               {audioFile.status}
                             </Badge>
                           </TableCell>
@@ -919,8 +1290,19 @@ const AudioFileManagement = () => {
                                   target="_blank" 
                                   rel="noopener noreferrer"
                                 >
+                                  <Download className="h-4 w-4 mr-1" />
                                   Download
                                 </a>
+                              </Button>
+                              
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8"
+                                onClick={() => handleViewDetails(audioFile)}
+                              >
+                                <Info className="h-4 w-4 mr-1" />
+                                View Details
                               </Button>
                               
                               {audioFile.status === 'pending' && (
@@ -1000,6 +1382,172 @@ const AudioFileManagement = () => {
           </Card>
         </TabsContent>
       </Tabs>
+      
+      {/* View Details Dialog */}
+      <Dialog open={viewDetailsOpen} onOpenChange={setViewDetailsOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>Audio File Details</DialogTitle>
+            <DialogDescription>
+              Complete metadata information for the selected audio file
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedFile && (
+            <div className="grid gap-4 py-2">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                <div>
+                  <h3 className="font-semibold">File Information</h3>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <div className="text-sm text-muted-foreground">Filename:</div>
+                    <div className="text-sm font-medium">{selectedFile.filename}</div>
+                    
+                    <div className="text-sm text-muted-foreground">Duration:</div>
+                    <div className="text-sm font-medium">
+                      {selectedFile.duration ? formatDuration(selectedFile.duration) : 'N/A'}
+                    </div>
+                    
+                    <div className="text-sm text-muted-foreground">Language:</div>
+                    <div className="text-sm font-medium capitalize">{selectedFile.language}</div>
+                    
+                    <div className="text-sm text-muted-foreground">Status:</div>
+                    <div className="text-sm font-medium">
+                      <Badge variant="outline" className={statusColors[selectedFile.status as AudioFileStatus] || ''}>
+                        {selectedFile.status}
+                      </Badge>
+                    </div>
+                    
+                    <div className="text-sm text-muted-foreground">Uploaded At:</div>
+                    <div className="text-sm font-medium">
+                      {new Date(selectedFile.created_at).toLocaleString()}
+                    </div>
+                    
+                    <div className="text-sm text-muted-foreground">Size:</div>
+                    <div className="text-sm font-medium">
+                      {selectedFile.size ? Math.round(selectedFile.size / 1024) + ' KB' : 'N/A'}
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="font-semibold">Call Information</h3>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <div className="text-sm text-muted-foreground">Call ID:</div>
+                    <div className="text-sm font-medium">{selectedFile.callMetrics?.callId || 'N/A'}</div>
+                    
+                    <div className="text-sm text-muted-foreground">Call Type:</div>
+                    <div className="text-sm font-medium capitalize">{selectedFile.callMetrics?.callType || 'N/A'}</div>
+                    
+                    <div className="text-sm text-muted-foreground">Call Date:</div>
+                    <div className="text-sm font-medium">{selectedFile.callMetrics?.callDate || 'N/A'}</div>
+                    
+                    <div className="text-sm text-muted-foreground">Agent ID:</div>
+                    <div className="text-sm font-medium">{selectedFile.callMetrics?.agentId || 'N/A'}</div>
+                    
+                    <div className="text-sm text-muted-foreground">PBX ID:</div>
+                    <div className="text-sm font-medium">{selectedFile.callMetrics?.PBXID || 'N/A'}</div>
+                    
+                    <div className="text-sm text-muted-foreground">OLMS ID:</div>
+                    <div className="text-sm font-medium">{selectedFile.callMetrics?.OLMSID || 'N/A'}</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="border-t pt-4">
+                <h3 className="font-semibold mb-2">Extended Metadata</h3>
+                <div className="grid grid-cols-3 gap-x-6 gap-y-2">
+                  <div>
+                    <div className="text-sm text-muted-foreground">Name:</div>
+                    <div className="text-sm font-medium">{selectedFile.callMetrics?.Name || 'N/A'}</div>
+                  </div>
+                  
+                  <div>
+                    <div className="text-sm text-muted-foreground">Partner Name:</div>
+                    <div className="text-sm font-medium">{selectedFile.callMetrics?.partnerName || 'N/A'}</div>
+                  </div>
+                  
+                  <div>
+                    <div className="text-sm text-muted-foreground">Customer Mobile:</div>
+                    <div className="text-sm font-medium">{selectedFile.callMetrics?.customerMobile || 'N/A'}</div>
+                  </div>
+                  
+                  <div>
+                    <div className="text-sm text-muted-foreground">Language of Call:</div>
+                    <div className="text-sm font-medium capitalize">{selectedFile.callMetrics?.languageOfCall || 'N/A'}</div>
+                  </div>
+                  
+                  <div>
+                    <div className="text-sm text-muted-foreground">Call Duration:</div>
+                    <div className="text-sm font-medium">{selectedFile.callMetrics?.callDuration || 'N/A'}</div>
+                  </div>
+                  
+                  <div>
+                    <div className="text-sm text-muted-foreground">Sub Type:</div>
+                    <div className="text-sm font-medium">{selectedFile.callMetrics?.subType || 'N/A'}</div>
+                  </div>
+                  
+                  <div>
+                    <div className="text-sm text-muted-foreground">Sub-Sub Type:</div>
+                    <div className="text-sm font-medium">{selectedFile.callMetrics?.subSubType || 'N/A'}</div>
+                  </div>
+                  
+                  <div>
+                    <div className="text-sm text-muted-foreground">VOC:</div>
+                    <div className="text-sm font-medium">{selectedFile.callMetrics?.VOC || 'N/A'}</div>
+                  </div>
+                  
+                  <div>
+                    <div className="text-sm text-muted-foreground">User Role:</div>
+                    <div className="text-sm font-medium">{selectedFile.callMetrics?.userRole || 'N/A'}</div>
+                  </div>
+                  
+                  <div>
+                    <div className="text-sm text-muted-foreground">Advisor Category:</div>
+                    <div className="text-sm font-medium">{selectedFile.callMetrics?.advisorCategory || 'N/A'}</div>
+                  </div>
+                  
+                  <div>
+                    <div className="text-sm text-muted-foreground">Business Segment:</div>
+                    <div className="text-sm font-medium">{selectedFile.callMetrics?.businessSegment || 'N/A'}</div>
+                  </div>
+                  
+                  <div>
+                    <div className="text-sm text-muted-foreground">LOB:</div>
+                    <div className="text-sm font-medium">{selectedFile.callMetrics?.LOB || 'N/A'}</div>
+                  </div>
+
+                  <div>
+                    <div className="text-sm text-muted-foreground">Form Name:</div>
+                    <div className="text-sm font-medium">{selectedFile.callMetrics?.formName || 'N/A'}</div>
+                  </div>
+                  
+                  <div>
+                    <div className="text-sm text-muted-foreground">Audit Role:</div>
+                    <div className="text-sm font-medium">{selectedFile.callMetrics?.auditRole || 'N/A'}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewDetailsOpen(false)}>Close</Button>
+            <Button 
+              asChild
+              variant="default"
+            >
+              <a 
+                href={selectedFile ? `/api/audio-files/${selectedFile.id}/download` : '#'} 
+                target="_blank" 
+                rel="noopener noreferrer"
+              >
+                <Download className="h-4 w-4 mr-1" />
+                Download Audio
+              </a>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
