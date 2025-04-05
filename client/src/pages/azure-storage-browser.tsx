@@ -113,9 +113,7 @@ const AzureStorageBrowser = () => {
   const [folders, setFolders] = useState<string[]>([]);
   const [autoAssign, setAutoAssign] = useState(false);
   
-  // View details dialog state
-  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
-  const [selectedBlobForDetails, setSelectedBlobForDetails] = useState<BlobItem | null>(null);
+  // No details dialog state needed
   
   // Filter states for import
   const [showFilters, setShowFilters] = useState(false);
@@ -516,11 +514,7 @@ const AzureStorageBrowser = () => {
     });
   };
   
-  // Handle opening the view details dialog for a blob
-  const handleViewDetails = (blob: BlobItem) => {
-    setSelectedBlobForDetails(blob);
-    setDetailsDialogOpen(true);
-  };
+  // No details view needed
 
   // Apply filters to get counts before import
   const applyFilters = useMutation({
@@ -1458,7 +1452,6 @@ const AzureStorageBrowser = () => {
                       <TableHead>Type</TableHead>
                       <TableHead>Size</TableHead>
                       <TableHead>Last Modified</TableHead>
-                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1483,33 +1476,6 @@ const AzureStorageBrowser = () => {
                         <TableCell>{blob.properties.contentType || 'application/octet-stream'}</TableCell>
                         <TableCell>{formatFileSize(blob.properties.contentLength)}</TableCell>
                         <TableCell>{new Date(blob.properties.lastModified).toLocaleString()}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="flex items-center space-x-1"
-                              onClick={() => handleViewDetails(blob)}
-                            >
-                              <FileText className="h-3.5 w-3.5" />
-                              <span>View Details</span>
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="flex items-center space-x-1"
-                              onClick={() => {
-                                // Create download URL
-                                if (selectedContainer) {
-                                  window.open(`/api/azure-audio-files/download/${selectedContainer}/${encodeURIComponent(blob.name)}`, '_blank');
-                                }
-                              }}
-                            >
-                              <Download className="h-3.5 w-3.5" />
-                              <span>Download</span>
-                            </Button>
-                          </div>
-                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -1530,124 +1496,6 @@ const AzureStorageBrowser = () => {
           </CardContent>
         </Card>
       </div>
-
-      {/* Blob Details Dialog */}
-      <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
-        <DialogContent className="sm:max-w-[700px]">
-          <DialogHeader>
-            <DialogTitle>File Details</DialogTitle>
-            <DialogDescription>
-              Detailed information about the selected audio file
-            </DialogDescription>
-          </DialogHeader>
-
-          <ScrollArea className="max-h-[70vh]">
-            <div className="space-y-6 py-4">
-              {selectedBlobForDetails && (
-                <>
-                  {/* File Information Section */}
-                  <div>
-                    <h3 className="text-lg font-medium mb-3">File Information</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-lg border p-4">
-                      <div className="space-y-2">
-                        <div>
-                          <Label className="text-xs text-muted-foreground">Filename</Label>
-                          <p className="font-medium break-all">{selectedBlobForDetails.name}</p>
-                        </div>
-                        <div>
-                          <Label className="text-xs text-muted-foreground">File Type</Label>
-                          <p>{selectedBlobForDetails.properties.contentType || 'application/octet-stream'}</p>
-                        </div>
-                        <div>
-                          <Label className="text-xs text-muted-foreground">Size</Label>
-                          <p>{formatFileSize(selectedBlobForDetails.properties.contentLength)}</p>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <div>
-                          <Label className="text-xs text-muted-foreground">Created On</Label>
-                          <p>{new Date(selectedBlobForDetails.properties.createdOn).toLocaleString()}</p>
-                        </div>
-                        <div>
-                          <Label className="text-xs text-muted-foreground">Last Modified</Label>
-                          <p>{new Date(selectedBlobForDetails.properties.lastModified).toLocaleString()}</p>
-                        </div>
-                        <div>
-                          <Label className="text-xs text-muted-foreground">Container</Label>
-                          <p>{selectedContainer}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* File Properties Section */}
-                  <div>
-                    <h3 className="text-lg font-medium mb-3">File Properties</h3>
-                    <div className="rounded-lg border p-4">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="w-1/3">Property</TableHead>
-                            <TableHead>Value</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {Object.entries(selectedBlobForDetails.properties).map(([key, value]) => (
-                            <TableRow key={key}>
-                              <TableCell className="font-medium">{key}</TableCell>
-                              <TableCell>{formatBlobProperty(value)}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </div>
-
-                  {/* Extended Metadata Section (when available) */}
-                  {selectedBlobForDetails.metadata && Object.keys(selectedBlobForDetails.metadata).length > 0 && (
-                    <div>
-                      <h3 className="text-lg font-medium mb-3">Extended Metadata</h3>
-                      <div className="rounded-lg border p-4">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead className="w-1/3">Metadata Field</TableHead>
-                              <TableHead>Value</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {Object.entries(selectedBlobForDetails.metadata).map(([key, value]) => (
-                              <TableRow key={key}>
-                                <TableCell className="font-medium">{key}</TableCell>
-                                <TableCell>{formatBlobProperty(value)}</TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </ScrollArea>
-
-          <DialogFooter>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                if (selectedContainer && selectedBlobForDetails) {
-                  window.open(`/api/azure-audio-files/download/${selectedContainer}/${encodeURIComponent(selectedBlobForDetails.name)}`, '_blank');
-                }
-              }}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Download File
-            </Button>
-            <Button onClick={() => setDetailsDialogOpen(false)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
