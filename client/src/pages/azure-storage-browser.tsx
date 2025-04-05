@@ -17,8 +17,7 @@ import {
   ArrowLeft,
   Folder,
   Download,
-  X,
-  Check
+  X
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -65,18 +64,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
+// Popover and Command imports removed as they're no longer needed
 import { cn } from "@/lib/utils";
 
 // Types
@@ -1366,89 +1354,31 @@ const AzureStorageBrowser = () => {
                               </div>
                               
                               <div className="grid gap-2">
-                                <Label htmlFor="language">Languages (Multi-select)</Label>
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      role="combobox"
-                                      aria-expanded={false}
-                                      className="w-full justify-between"
-                                    >
-                                      {selectedLanguages.length > 0
-                                        ? `${selectedLanguages.length} languages selected`
-                                        : "Select languages"}
-                                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-full p-0">
-                                    <Command>
-                                      <CommandInput placeholder="Search languages..." />
-                                      <CommandEmpty>No language found.</CommandEmpty>
-                                      <CommandGroup className="max-h-60 overflow-y-auto">
-                                        {availableLanguages.length > 0 ? (
-                                          availableLanguages.map(lang => (
-                                            <CommandItem
-                                              key={lang}
-                                              onSelect={() => {
-                                                setSelectedLanguages(prevLangs => {
-                                                  if (prevLangs.includes(lang)) {
-                                                    return prevLangs.filter(l => l !== lang);
-                                                  } else {
-                                                    return [...prevLangs, lang];
-                                                  }
-                                                });
-                                              }}
-                                            >
-                                              <div className="flex items-center gap-2">
-                                                <div
-                                                  className={cn(
-                                                    "h-4 w-4 border rounded-sm flex items-center justify-center",
-                                                    selectedLanguages.includes(lang)
-                                                      ? "bg-primary border-primary text-primary-foreground"
-                                                      : "border-input"
-                                                  )}
-                                                >
-                                                  {selectedLanguages.includes(lang) && <Check className="h-3 w-3" />}
-                                                </div>
-                                                {lang.charAt(0).toUpperCase() + lang.slice(1)}
-                                              </div>
-                                            </CommandItem>
-                                          ))
-                                        ) : (
-                                          ['english', 'hindi', 'tamil', 'bengali'].map(lang => (
-                                            <CommandItem
-                                              key={lang}
-                                              onSelect={() => {
-                                                setSelectedLanguages(prevLangs => {
-                                                  if (prevLangs.includes(lang)) {
-                                                    return prevLangs.filter(l => l !== lang);
-                                                  } else {
-                                                    return [...prevLangs, lang];
-                                                  }
-                                                });
-                                              }}
-                                            >
-                                              <div className="flex items-center gap-2">
-                                                <div
-                                                  className={cn(
-                                                    "h-4 w-4 border rounded-sm flex items-center justify-center",
-                                                    selectedLanguages.includes(lang)
-                                                      ? "bg-primary border-primary text-primary-foreground"
-                                                      : "border-input"
-                                                  )}
-                                                >
-                                                  {selectedLanguages.includes(lang) && <Check className="h-3 w-3" />}
-                                                </div>
-                                                {lang.charAt(0).toUpperCase() + lang.slice(1)}
-                                              </div>
-                                            </CommandItem>
-                                          ))
-                                        )}
-                                      </CommandGroup>
-                                    </Command>
-                                  </PopoverContent>
-                                </Popover>
+                                <Label htmlFor="languageFilter">Languages (Enter multiple values separated by commas)</Label>
+                                <Input
+                                  id="languageFilter"
+                                  placeholder="E.g. english, hindi, tamil, bengali"
+                                  value={selectedLanguages.join(', ')}
+                                  onChange={(e) => {
+                                    // Improved handling for more intuitive user input
+                                    const inputValue = e.target.value;
+                                    const endsWithComma = inputValue.trim().endsWith(',');
+                                    
+                                    // Split by commas and process values
+                                    let values = inputValue
+                                      .split(',')
+                                      .map(v => v.trim().toLowerCase())
+                                      .filter(v => v.length > 0);
+                                    
+                                    // If the input ends with a comma, add an empty string to preserve it visually
+                                    if (endsWithComma && values.length > 0) {
+                                      values[values.length-1] = values[values.length-1] + ', ';
+                                    }
+                                    
+                                    setSelectedLanguages(values);
+                                  }}
+                                  className="w-full"
+                                />
                               </div>
                               
                               {/* New metadata filters as requested */}
