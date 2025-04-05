@@ -112,7 +112,6 @@ const AzureStorageBrowser = () => {
   // folderSelectMode removed as per user request
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [folders, setFolders] = useState<string[]>([]);
-  const [autoAssign, setAutoAssign] = useState(false);
   
   // No details dialog state needed
   
@@ -684,11 +683,8 @@ const AzureStorageBrowser = () => {
       const formData = new FormData();
       formData.append('metadataFile', metadataFile);
       
-      // Add autoAssign parameter if checked
-      if (autoAssign) {
-        formData.append('autoAssign', 'true');
-      } else if (selectedQA.length > 0) {
-        // When not auto-assigning but manually selecting QAs
+      // Add selected quality analysts if any are selected
+      if (selectedQA.length > 0) {
         // Add selected quality analysts as JSON array
         formData.append('selectedQualityAnalysts', JSON.stringify(selectedQA));
         
@@ -1218,23 +1214,7 @@ const AzureStorageBrowser = () => {
                           </p>
                         </div>
 
-                        <div className="flex items-center space-x-2 mt-4">
-                          <Checkbox 
-                            id="autoAssign" 
-                            checked={autoAssign}
-                            onCheckedChange={(checked: boolean | "indeterminate") => setAutoAssign(checked === true)}
-                          />
-                          <Label htmlFor="autoAssign" className="text-sm font-normal cursor-pointer">
-                            Auto-assign files to quality analysts
-                          </Label>
-                        </div>
-                        {autoAssign && (
-                          <>
-                            <p className="text-xs text-gray-500 mt-1">
-                              Imported files will be automatically distributed evenly among all active quality analysts in your organization.
-                            </p>
-                          </>
-                        )}
+
                         
                         <div className="pt-2">
                           <Button 
@@ -1451,71 +1431,58 @@ const AzureStorageBrowser = () => {
                               {filterCounts && filterCounts.filtered > 0 && (
                                 <div className="mt-4 border-t pt-4">
                                   <h4 className="font-medium mb-2">Quality Analyst Assignment</h4>
-                                  
-                                  <div className="flex items-center space-x-2 mb-4">
-                                    <Checkbox 
-                                      id="autoAssign" 
-                                      checked={autoAssign}
-                                      onCheckedChange={(checked: boolean | "indeterminate") => setAutoAssign(checked === true)}
-                                    />
-                                    <Label htmlFor="autoAssign" className="text-sm font-normal cursor-pointer">
-                                      Auto-assign files to quality analysts
-                                    </Label>
-                                  </div>
-                                  
-                                  {!autoAssign && (
-                                    <div className="grid gap-4">
-                                      <div className="grid gap-2">
-                                        <Label htmlFor="selectedQA">Assign to Quality Analysts (Multi-select)</Label>
-                                        <div className="border rounded-md p-4 space-y-3 max-h-60 overflow-y-auto">
-                                          {qualityAnalysts?.map((qa) => (
-                                            <div key={qa.id} className="flex items-center justify-between space-x-2 pb-2 border-b">
-                                              <div className="flex items-center gap-2">
-                                                <Checkbox
-                                                  id={`qa-${qa.id}`}
-                                                  checked={selectedQA.includes(qa.id.toString())}
-                                                  onCheckedChange={(checked) => {
-                                                    if (checked) {
-                                                      setSelectedQA(prev => [...prev, qa.id.toString()]);
-                                                    } else {
-                                                      setSelectedQA(prev => prev.filter(id => id !== qa.id.toString()));
-                                                    }
-                                                  }}
-                                                />
-                                                <Label 
-                                                  htmlFor={`qa-${qa.id}`} 
-                                                  className="text-sm font-medium cursor-pointer"
-                                                >
-                                                  {qa.fullName}
-                                                </Label>
-                                              </div>
-                                              <div className="flex items-center gap-2">
-                                                <Label 
-                                                  htmlFor={`qa-limit-${qa.id}`} 
-                                                  className="text-xs text-gray-500"
-                                                >
-                                                  Max assignments:
-                                                </Label>
-                                                <Input
-                                                  id={`qa-limit-${qa.id}`}
-                                                  type="number"
-                                                  className="w-16 h-8 text-xs"
-                                                  min={1}
-                                                  max={100}
-                                                  value={qaAssignmentCounts[qa.id.toString()] || maxAssignmentsPerQA}
-                                                  onChange={(e) => {
-                                                    const count = parseInt(e.target.value) || maxAssignmentsPerQA;
-                                                    setQaAssignmentCounts(prev => ({
-                                                      ...prev,
-                                                      [qa.id.toString()]: count
-                                                    }));
-                                                  }}
-                                                />
-                                              </div>
-                                            </div>
-                                          ))}
+                                  <div className="grid gap-4">
+                                    <div className="grid gap-2">
+                                      <Label htmlFor="selectedQA">Assign to Quality Analysts (Multi-select)</Label>
+                                      <div className="border rounded-md p-4 space-y-3 max-h-60 overflow-y-auto">
+                                      {qualityAnalysts?.map((qa) => (
+                                        <div key={qa.id} className="flex items-center justify-between space-x-2 pb-2 border-b">
+                                        <div className="flex items-center gap-2">
+                                          <Checkbox
+                                            id={`qa-${qa.id}`}
+                                            checked={selectedQA.includes(qa.id.toString())}
+                                            onCheckedChange={(checked) => {
+                                              if (checked) {
+                                                setSelectedQA(prev => [...prev, qa.id.toString()]);
+                                              } else {
+                                                setSelectedQA(prev => prev.filter(id => id !== qa.id.toString()));
+                                              }
+                                            }}
+                                          />
+                                          <Label 
+                                            htmlFor={`qa-${qa.id}`} 
+                                            className="text-sm font-medium cursor-pointer"
+                                          >
+                                            {qa.fullName}
+                                          </Label>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <Label 
+                                            htmlFor={`qa-limit-${qa.id}`} 
+                                            className="text-xs text-gray-500"
+                                          >
+                                            Max assignments:
+                                          </Label>
+                                          <Input
+                                            id={`qa-limit-${qa.id}`}
+                                            type="number"
+                                            className="w-16 h-8 text-xs"
+                                            min={1}
+                                            max={100}
+                                            value={qaAssignmentCounts[qa.id.toString()] || maxAssignmentsPerQA}
+                                            onChange={(e) => {
+                                              const count = parseInt(e.target.value) || maxAssignmentsPerQA;
+                                              setQaAssignmentCounts(prev => ({
+                                                ...prev,
+                                                [qa.id.toString()]: count
+                                              }));
+                                            }}
+                                          />
                                         </div>
                                       </div>
+                                      ))}
+                                      </div>
+                                    </div>
                                       
                                       <div className="grid gap-2">
                                         <Label htmlFor="maxAssignmentsPerQA">Default Max Assignments Per QA</Label>
@@ -1554,7 +1521,6 @@ const AzureStorageBrowser = () => {
                                         Files will be distributed evenly according to assignment limits.
                                       </p>
                                     </div>
-                                  )}
                                 </div>
                               )}
                             </div>
