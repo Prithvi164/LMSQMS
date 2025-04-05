@@ -101,16 +101,10 @@ const AzureStorageBrowser = () => {
   const [selectedContainer, setSelectedContainer] = useState<string | null>(null);
   const [selectedBlobItems, setSelectedBlobItems] = useState<string[]>([]);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [allocateDialogOpen, setAllocateDialogOpen] = useState(false);
-  // selectedProcessId removed as per user request
-  const [selectedQA, setSelectedQA] = useState<string[]>([]);
-  const [qaAssignmentCounts, setQaAssignmentCounts] = useState<Record<string, number>>({});
-  const [maxAssignmentsPerQA, setMaxAssignmentsPerQA] = useState<number>(10);
-  const [dueDate, setDueDate] = useState<string>('');
-  const [selectedEvaluationTemplate, setSelectedEvaluationTemplate] = useState<string>('');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedEvaluationTemplate, setSelectedEvaluationTemplate] = useState<string>('');
   // folderSelectMode removed as per user request
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [folders, setFolders] = useState<string[]>([]);
@@ -685,18 +679,7 @@ const AzureStorageBrowser = () => {
       const formData = new FormData();
       formData.append('metadataFile', metadataFile);
       
-      // Add selected quality analysts if any are selected
-      if (selectedQA.length > 0) {
-        // Add selected quality analysts as JSON array
-        formData.append('selectedQualityAnalysts', JSON.stringify(selectedQA));
-        
-        // Add allocation counts if specified
-        if (Object.keys(qaAssignmentCounts).length > 0) {
-          formData.append('qaAssignmentCounts', JSON.stringify(qaAssignmentCounts));
-        }
-      }
-      
-      // Always include evaluation template ID
+      // Include evaluation template ID
       if (selectedEvaluationTemplate) {
         formData.append('evaluationTemplateId', selectedEvaluationTemplate);
       }
@@ -735,18 +718,7 @@ const AzureStorageBrowser = () => {
     },
   });
 
-  // Allocate audio files mutation (this would need to be implemented)
-  const allocateAudioMutation = useMutation({
-    mutationFn: async ({ audioFileIds, qualityAnalystId, dueDate, evaluationTemplateId }: any) => {
-      console.log(`Allocating ${audioFileIds.length} files to QA ${qualityAnalystId}`);
-      return apiRequest('POST', '/api/azure-audio-allocate', { 
-        audioFileIds, 
-        qualityAnalystId, 
-        dueDate,
-        evaluationTemplateId
-      });
-    }
-  });
+  // Allocate function removed as requested
 
   // Remove a filter
   const removeFilter = (filterId: string) => {
@@ -843,112 +815,7 @@ const AzureStorageBrowser = () => {
     });
   };
 
-  // Handle allocation form submission
-  const handleAllocate = async () => {
-    if (!selectedBlobItems.length || !selectedQA.length) {
-      toast({
-        title: 'Missing information',
-        description: 'Please select audio files and at least one quality analyst.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    if (!selectedEvaluationTemplate) {
-      toast({
-        title: 'Evaluation Template Required',
-        description: 'Please select an evaluation template to use for the assessments.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    // Create a distribution map based on QA IDs and their max assignments
-    const qaDistribution = new Map<string, string[]>();
-    
-    // Copy the selected items so we can randomly assign them
-    let filesToAssign = [...selectedBlobItems];
-    
-    // Shuffle the array to ensure random distribution
-    // Fisher-Yates shuffle algorithm
-    for (let i = filesToAssign.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [filesToAssign[i], filesToAssign[j]] = [filesToAssign[j], filesToAssign[i]];
-    }
-    
-    // Assign files to QAs up to their max assignment limit
-    let assignedFileCount = 0;
-    let unassignedFileCount = 0;
-    
-    // Continue assigning files until either all files are assigned or we've reached all QA limits
-    while (filesToAssign.length > 0) {
-      let assignedInThisRound = false;
-      
-      // Try to assign to each QA in turn
-      for (const qaId of selectedQA) {
-        // Get current assignment count for this QA
-        const currentAssignments = qaDistribution.get(qaId) || [];
-        const maxForThisQA = qaAssignmentCounts[qaId] || maxAssignmentsPerQA;
-        
-        // If this QA hasn't reached their limit and we have files to assign
-        if (currentAssignments.length < maxForThisQA && filesToAssign.length > 0) {
-          // Take the next file from the shuffled list
-          const nextFile = filesToAssign.shift();
-          if (nextFile) {
-            // Add to this QA's distribution
-            currentAssignments.push(nextFile);
-            qaDistribution.set(qaId, currentAssignments);
-            assignedInThisRound = true;
-            assignedFileCount++;
-          }
-        }
-      }
-      
-      // If we couldn't assign any files in this round, break the loop
-      // (All QAs have reached their limits)
-      if (!assignedInThisRound) {
-        unassignedFileCount = filesToAssign.length;
-        break;
-      }
-    }
-    
-    // Now create allocation promises based on the distribution
-    const allocationPromises = Array.from(qaDistribution.entries()).map(([qaId, fileIds]) => {
-      if (fileIds.length === 0) return Promise.resolve(); // Skip if no files to allocate
-      
-      return allocateAudioMutation.mutateAsync({
-        audioFileIds: fileIds,
-        qualityAnalystId: parseInt(qaId),
-        dueDate: dueDate || undefined,
-        evaluationTemplateId: parseInt(selectedEvaluationTemplate),
-      });
-    }).filter(Boolean); // Remove empty promises
-    
-    try {
-      // Execute all allocations in parallel
-      await Promise.all(allocationPromises);
-      
-      let successMessage = `${assignedFileCount} audio files were successfully allocated to ${selectedQA.length} quality analyst(s).`;
-      if (unassignedFileCount > 0) {
-        successMessage += ` ${unassignedFileCount} files were left unassigned due to maximum assignment limits.`;
-      }
-      
-      toast({
-        title: 'Allocation successful',
-        description: successMessage,
-      });
-      setAllocateDialogOpen(false);
-      
-      // Invalidate relevant queries
-      queryClient.invalidateQueries({ queryKey: ['/api/organizations/audio-file-allocations'] });
-    } catch (error: any) {
-      toast({
-        title: 'Allocation failed',
-        description: error.message || 'There was an error allocating audio files.',
-        variant: 'destructive',
-      });
-    }
-  };
+  // Allocation function removed as requested
 
   // Format file size for display
   const formatFileSize = (bytes: number) => {
@@ -973,7 +840,7 @@ const AzureStorageBrowser = () => {
     <div className="container mx-auto py-6">
       <h1 className="text-3xl font-bold mb-6">Azure Storage Browser</h1>
       <p className="text-gray-500 mb-6">
-        Browse, import, and allocate audio files from your Azure Storage account
+        Browse and import audio files from your Azure Storage account
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
@@ -1146,7 +1013,7 @@ const AzureStorageBrowser = () => {
                   {selectedContainer && (
                     selectedFolder 
                       ? 'View audio files in selected folder' 
-                      : 'View, import, or allocate audio files'
+                      : 'View or import audio files'
                   )}
                 </CardDescription>
               </div>
@@ -1584,101 +1451,7 @@ const AzureStorageBrowser = () => {
                                 </div>
                               )}
                               
-                              {filterCounts && filterCounts.filtered > 0 && (
-                                <div className="mt-4 border-t pt-4">
-                                  <h4 className="font-medium mb-2">Quality Analyst Assignment</h4>
-                                  <div className="grid gap-4">
-                                    <div className="grid gap-2">
-                                      <Label htmlFor="selectedQA">Assign to Quality Analysts (Multi-select)</Label>
-                                      <div className="border rounded-md p-4 space-y-3 max-h-60 overflow-y-auto">
-                                      {qualityAnalysts?.map((qa) => (
-                                        <div key={qa.id} className="flex items-center justify-between space-x-2 pb-2 border-b">
-                                        <div className="flex items-center gap-2">
-                                          <Checkbox
-                                            id={`qa-${qa.id}`}
-                                            checked={selectedQA.includes(qa.id.toString())}
-                                            onCheckedChange={(checked) => {
-                                              if (checked) {
-                                                setSelectedQA(prev => [...prev, qa.id.toString()]);
-                                              } else {
-                                                setSelectedQA(prev => prev.filter(id => id !== qa.id.toString()));
-                                              }
-                                            }}
-                                          />
-                                          <Label 
-                                            htmlFor={`qa-${qa.id}`} 
-                                            className="text-sm font-medium cursor-pointer"
-                                          >
-                                            {qa.fullName}
-                                          </Label>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                          <Label 
-                                            htmlFor={`qa-limit-${qa.id}`} 
-                                            className="text-xs text-gray-500"
-                                          >
-                                            Max assignments:
-                                          </Label>
-                                          <Input
-                                            id={`qa-limit-${qa.id}`}
-                                            type="number"
-                                            className="w-16 h-8 text-xs"
-                                            min={1}
-                                            max={100}
-                                            value={qaAssignmentCounts[qa.id.toString()] || maxAssignmentsPerQA}
-                                            onChange={(e) => {
-                                              const count = parseInt(e.target.value) || maxAssignmentsPerQA;
-                                              setQaAssignmentCounts(prev => ({
-                                                ...prev,
-                                                [qa.id.toString()]: count
-                                              }));
-                                            }}
-                                          />
-                                        </div>
-                                      </div>
-                                      ))}
-                                      </div>
-                                    </div>
-                                      
-                                      <div className="grid gap-2">
-                                        <Label htmlFor="maxAssignmentsPerQA">Default Max Assignments Per QA</Label>
-                                        <div className="flex items-center gap-2">
-                                          <Input
-                                            id="maxAssignmentsPerQA"
-                                            type="number"
-                                            className="w-24"
-                                            value={maxAssignmentsPerQA}
-                                            min={1}
-                                            max={100}
-                                            onChange={(e) => setMaxAssignmentsPerQA(parseInt(e.target.value) || 10)}
-                                          />
-                                          <Button 
-                                            type="button" 
-                                            variant="outline" 
-                                            size="sm"
-                                            onClick={() => {
-                                              const newCounts: Record<string, number> = {};
-                                              selectedQA.forEach(qaId => {
-                                                newCounts[qaId] = maxAssignmentsPerQA;
-                                              });
-                                              setQaAssignmentCounts(newCounts);
-                                            }}
-                                          >
-                                            Apply to All
-                                          </Button>
-                                        </div>
-                                        <p className="text-xs text-gray-500">
-                                          Maximum number of audio files to assign per QA. Each QA can have a different limit.
-                                        </p>
-                                      </div>
-                                      
-                                      <p className="text-xs text-gray-500">
-                                        Quality analysts will be notified about the new audio files assigned to them. 
-                                        Files will be distributed evenly according to assignment limits.
-                                      </p>
-                                    </div>
-                                </div>
-                              )}
+                              {/* QA Assignment section has been removed as requested */}
                             </div>
                           )}
                         </div>
@@ -1709,138 +1482,8 @@ const AzureStorageBrowser = () => {
               )}
             </div>
             {selectedContainer && selectedBlobItems.length > 0 && (
-              <div className="mt-2 flex items-center space-x-2">
+              <div className="mt-2">
                 <Badge variant="outline">{selectedBlobItems.length} items selected</Badge>
-                <Dialog open={allocateDialogOpen} onOpenChange={setAllocateDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="secondary" size="sm">
-                      <Users className="h-4 w-4 mr-2" />
-                      Allocate Selected
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Allocate Audio Files</DialogTitle>
-                      <DialogDescription>
-                        Assign the selected audio files to a quality analyst for evaluation.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="qualityAnalyst">Quality Analysts (Multi-select)</Label>
-                        <div className="border rounded-md p-4 space-y-3 max-h-60 overflow-y-auto">
-                          {qualityAnalysts?.map((qa) => (
-                            <div key={qa.id} className="flex items-center justify-between space-x-2 pb-2 border-b">
-                              <div className="flex items-center gap-2">
-                                <Checkbox
-                                  id={`alloc-qa-${qa.id}`}
-                                  checked={selectedQA.includes(qa.id.toString())}
-                                  onCheckedChange={(checked) => {
-                                    if (checked) {
-                                      setSelectedQA(prev => [...prev, qa.id.toString()]);
-                                    } else {
-                                      setSelectedQA(prev => prev.filter(id => id !== qa.id.toString()));
-                                    }
-                                  }}
-                                />
-                                <Label 
-                                  htmlFor={`alloc-qa-${qa.id}`} 
-                                  className="text-sm font-medium cursor-pointer"
-                                >
-                                  {qa.fullName}
-                                </Label>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Label 
-                                  htmlFor={`alloc-qa-limit-${qa.id}`} 
-                                  className="text-xs text-gray-500"
-                                >
-                                  Max cases:
-                                </Label>
-                                <Input
-                                  id={`alloc-qa-limit-${qa.id}`}
-                                  type="number"
-                                  className="w-16 h-8 text-xs"
-                                  min={1}
-                                  max={100}
-                                  value={qaAssignmentCounts[qa.id.toString()] || maxAssignmentsPerQA}
-                                  onChange={(e) => {
-                                    const count = parseInt(e.target.value) || maxAssignmentsPerQA;
-                                    setQaAssignmentCounts(prev => ({
-                                      ...prev,
-                                      [qa.id.toString()]: count
-                                    }));
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        <div className="flex items-center justify-between mt-2">
-                          <p className="text-xs text-gray-500">
-                            Files will be distributed evenly between selected QAs
-                          </p>
-                          <Button 
-                            type="button" 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => {
-                              const newCounts: Record<string, number> = {};
-                              selectedQA.forEach(qaId => {
-                                newCounts[qaId] = maxAssignmentsPerQA;
-                              });
-                              setQaAssignmentCounts(newCounts);
-                            }}
-                          >
-                            Reset Limits
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="evaluationTemplate">Evaluation Template</Label>
-                        <Select 
-                          value={selectedEvaluationTemplate} 
-                          onValueChange={setSelectedEvaluationTemplate}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select an evaluation template" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Array.isArray(evaluationTemplates) && evaluationTemplates.map((template: any) => (
-                              <SelectItem key={template.id} value={template.id.toString()}>
-                                {template.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="grid gap-2">
-                        <Label htmlFor="dueDate">Due Date (Optional)</Label>
-                        <Input
-                          id="dueDate"
-                          type="datetime-local"
-                          value={dueDate}
-                          onChange={(e) => setDueDate(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setAllocateDialogOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button 
-                        onClick={handleAllocate}
-                        disabled={allocateAudioMutation.isPending}
-                      >
-                        {allocateAudioMutation.isPending && (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        )}
-                        Allocate Files to Selected QA(s)
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
               </div>
             )}
           </CardHeader>
