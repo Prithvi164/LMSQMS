@@ -19,21 +19,23 @@ export interface AudioFileMetadata {
     customerSatisfaction?: number; // Customer satisfaction score
     handleTime?: number; // Handle time in seconds
     
-    // New fields from requirements
-    auditRole?: string;  // Auto-filled based on logged-in auditor
+    // Added fields from requirements (based on the image)
+    auditRole?: string;  // Auto-filled based on logged-in auditor (Audit Role)
     OLMSID?: string;     // Unique ID for the agent/system
     Name?: string;       // Name of the agent being evaluated
     PBXID?: string;      // Unique telephony ID
     partnerName?: string; // Partner/Client the call belongs to
-    customerMobile?: string; // For call tracking
-    subType?: string;    // Further classification
-    subSubType?: string; // Further granularity
+    customerMobile?: string; // For call tracking (Customer Mobile #)
+    callDuration?: string; // Duration of the call (Call Duration)
+    subType?: string;    // Further classification (Sub Type)
+    subSubType?: string; // Further granularity (Sub sub Type)
     VOC?: string;        // Captures Voice of Customer
-    userRole?: string;   // Based on logged-in user's profile 
-    advisorCategory?: string; // E.g., Challenger, Performer
-    businessSegment?: string; // E.g., Care, Tech Support
+    languageOfCall?: string; // Language spoken during call (Language of Call)
+    userRole?: string;   // Based on logged-in user's profile (User Role)
+    advisorCategory?: string; // E.g., Challenger, Performer (Advisor Category)
+    businessSegment?: string; // E.g., Care, Tech Support (Business Segment)
     LOB?: string;        // Line of Business (e.g., Prepaid)
-    formName?: string;   // Select form for evaluation
+    formName?: string;   // Select form for evaluation (Form Name)
     
     [key: string]: any;  // For additional metrics
   };
@@ -351,7 +353,11 @@ export class AzureStorageService {
           advisorCategory: row.advisorCategory || row.AdvisorCategory || row.advisor_category || '',
           businessSegment: row.businessSegment || row.BusinessSegment || row.business_segment || '',
           LOB: row.LOB || row.lob || row.LineOfBusiness || '',
-          formName: row.formName || row.FormName || row.form_name || ''
+          formName: row.formName || row.FormName || row.form_name || '',
+          
+          // New fields from updated requirements
+          callDuration: row.callDuration || row.CallDuration || row.call_duration || '',
+          languageOfCall: row.languageOfCall || row.LanguageOfCall || row.language_of_call || row.language || ''
         };
         
         // Add any additional metrics that might be in the Excel
@@ -363,7 +369,7 @@ export class AzureStorageService {
                'satisfaction', 'handletime', 'auditrole', 'olmsid', 'name',
                'pbxid', 'partnername', 'customermobile', 'subtype', 'subsubtype',
                'voc', 'userrole', 'advisorcategory', 'businesssegment', 'lob',
-               'formname'].includes(lowerKey)) {
+               'formname', 'callduration', 'languageofcall'].includes(lowerKey)) {
             callMetrics[key] = row[key];
           }
         });

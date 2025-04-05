@@ -1048,60 +1048,81 @@ router.get('/azure-metadata-template', async (req, res) => {
     // Create a new workbook
     const wb = xlsxUtils.book_new();
     
-    // Sample data with all required fields
+    // Sample data with all required fields based on the image requirements
     const sampleData = [
       {
+        // Base fields (always required)
         filename: 'agent-123-20250401-1234.mp3', // This should match the actual filename in Azure
         originalFilename: 'Customer Call - John Smith - Billing Issue.mp3',
-        language: 'english', // must be one of: english, spanish, french, german, portuguese, chinese, japanese, korean, russian, arabic, hindi, other
+        language: 'english', // must be one of: english, spanish, french, german, portuguese, mandarin, japanese, korean, russian, arabic, hindi, other
         version: '1.0',
         call_date: '2025-04-01', // YYYY-MM-DD format
-        callId: '101',
-        callType: 'inbound',
+
+        // Fields from the requirements image
+        auditRole: 'Quality Analyst', // Auto-filled based on logged-in auditor
+        OLMSID: 'AG123456', // Unique ID for the agent/system
+        Name: 'John Smith', // Name of the agent being evaluated
+        PBXID: 'PBX987654', // Unique telephony ID
+        partnerName: 'CloudPoint Technologies', // Partner/Client the call belongs to
+        callDate: '2025-04-01', // Required field - Date of call
+        customerMobile: '9876543210', // For call tracking
+        callDuration: '180', // Duration in seconds
+        callType: 'inbound', // Type of call (Inbound/Outbound)
+        subType: 'Customer Service', // Further classification
+        subSubType: 'Billing Inquiry', // Further granularity
+        VOC: 'Positive', // Captures Voice of Customer
+        languageOfCall: 'English', // Language spoken during call
+        userRole: 'Agent', // Based on logged-in user's profile
+        advisorCategory: 'Challenger', // E.g., Challenger, Performer
+        businessSegment: 'Care', // E.g., Care, Tech Support
+        LOB: 'Prepaid', // Line of Business
+        formName: 'Evaluation Form 1', // Select form for evaluation
+        
+        // Additional useful fields
+        callId: 'CALL-123-25', // Unique call identifier (required in callMetrics)
         agentId: '249',
         campaignName: 'Symp_Inbound_D2C',
-        duration: 1, // in minutes
         disposition1: 'Lead',
         disposition2: 'happy',
-        customerMobile: '9876543210',
         callTime: '15:30:45',
-        subType: 'Customer Service',
-        subSubType: 'Billing Inquiry',
-        VOC: 'Positive',
-        userRole: 'Agent',
-        advisorCategory: 'Level 1',
-        queryType: 'General',
-        businessSegment: 'Consumer',
-        // New fields from requirements
-        auditRole: 'Quality Analyst',
-        OLMSID: 'AG123456',
-        Name: 'John Smith',
-        PBXID: 'PBX987654',
-        partnerName: 'CloudPoint Technologies',
-        LOB: 'Prepaid'
+        queryType: 'General'
       },
       {
+        // Base fields (always required)
         filename: 'agent-456-20250401-5678.mp3',
         originalFilename: 'Customer Call - Jane Doe - Technical Issue.mp3',
-        language: 'mandarin',
+        language: 'spanish',
         version: '1.0',
         call_date: '2025-04-01',
-        callId: '102',
-        callType: 'outbound',
+        
+        // Fields from the requirements image
+        auditRole: 'Manager', // Auto-filled based on logged-in auditor
+        OLMSID: 'AG789012', // Unique ID for the agent/system
+        Name: 'Jane Doe', // Name of the agent being evaluated
+        PBXID: 'PBX345678', // Unique telephony ID
+        partnerName: 'TechSupport Inc.', // Partner/Client the call belongs to
+        callDate: '2025-04-01', // Required field - Date of call
+        customerMobile: '8765432109', // For call tracking
+        callDuration: '240', // Duration in seconds
+        callType: 'outbound', // Type of call (Inbound/Outbound)
+        subType: 'Technical Support', // Further classification
+        subSubType: 'Product Issue', // Further granularity
+        VOC: 'Negative', // Captures Voice of Customer
+        languageOfCall: 'Spanish', // Language spoken during call
+        userRole: 'Supervisor', // Based on logged-in user's profile
+        advisorCategory: 'Performer', // E.g., Challenger, Performer
+        businessSegment: 'Tech Support', // E.g., Care, Tech Support
+        LOB: 'Postpaid', // Line of Business
+        formName: 'Tech Support Evaluation', // Select form for evaluation
+
+        // Additional useful fields
+        callId: 'CALL-456-25', // Unique call identifier (required in callMetrics)
         agentId: '204',
         campaignName: 'NPR_Restel_Outbound',
-        duration: 2, // in minutes
         disposition1: 'Not Lead',
         disposition2: 'not happy',
-        customerMobile: '8765432109',
         callTime: '16:45:30',
-        subType: 'Technical Support',
-        subSubType: 'Product Issue',
-        VOC: 'Negative',
-        userRole: 'Supervisor',
-        advisorCategory: 'Level 2',
-        queryType: 'Specific',
-        businessSegment: 'Enterprise'
+        queryType: 'Specific'
       }
     ];
     
@@ -1111,27 +1132,41 @@ router.get('/azure-metadata-template', async (req, res) => {
     
     // Add column width specifications for better readability
     const wscols = [
+      // Base fields
       { wch: 30 }, // filename
       { wch: 40 }, // originalFilename
       { wch: 10 }, // language
       { wch: 10 }, // version
       { wch: 12 }, // call_date
-      { wch: 10 }, // callId
-      { wch: 10 }, // callType
-      { wch: 10 }, // agentId
-      { wch: 20 }, // campaignName
-      { wch: 10 }, // duration
-      { wch: 12 }, // disposition1
-      { wch: 12 }, // disposition2
+      
+      // Fields from requirements image
+      { wch: 15 }, // auditRole
+      { wch: 15 }, // OLMSID
+      { wch: 20 }, // Name
+      { wch: 15 }, // PBXID
+      { wch: 25 }, // partnerName
+      { wch: 12 }, // callDate
       { wch: 15 }, // customerMobile
-      { wch: 10 }, // callTime
+      { wch: 15 }, // callDuration
+      { wch: 12 }, // callType
       { wch: 15 }, // subType
       { wch: 15 }, // subSubType
-      { wch: 10 }, // VOC
-      { wch: 12 }, // userRole
+      { wch: 15 }, // VOC
+      { wch: 15 }, // languageOfCall
+      { wch: 15 }, // userRole
       { wch: 15 }, // advisorCategory
-      { wch: 12 }, // queryType
-      { wch: 18 }  // businessSegment
+      { wch: 15 }, // businessSegment
+      { wch: 15 }, // LOB
+      { wch: 25 }, // formName
+      
+      // Additional fields
+      { wch: 15 }, // callId
+      { wch: 12 }, // agentId
+      { wch: 20 }, // campaignName
+      { wch: 15 }, // disposition1
+      { wch: 15 }, // disposition2
+      { wch: 12 }, // callTime
+      { wch: 15 }  // queryType
     ];
     ws['!cols'] = wscols;
     
@@ -1222,19 +1257,50 @@ router.get('/azure-minimal-template', async (req, res) => {
     // Create a new workbook
     const wb = xlsxUtils.book_new();
     
-    // Sample data with only the required fields
+    // Sample data with minimal but sufficient fields
+    // Including the new fields from the requirements image
     const sampleData = [
       {
+        // Required fields
         filename: 'agent-261-17027502083-4769-SIL_Inbound-2023_12_15_13_45_05-919880769769.wav',
         language: 'english',
         version: '1.0',
-        call_date: '2023-12-15'
+        call_date: '2023-12-15',
+        
+        // Required callMetrics fields
+        callId: 'CALL-123',
+        callType: 'inbound',
+        
+        // New fields from requirements (minimal set)
+        OLMSID: 'AG123456',
+        Name: 'John Smith',
+        PBXID: 'PBX987654',
+        partnerName: 'CloudPoint Technologies',
+        customerMobile: '9876543210',
+        callDuration: '180',
+        subType: 'Customer Service',
+        languageOfCall: 'English'
       },
       {
+        // Required fields
         filename: 'agent-261-17027502084-1546-SIL_Inbound-2023_12_15_10_35_33-919700514723.wav',
         language: 'russian',
         version: '1.0',
-        call_date: '2023-12-15'
+        call_date: '2023-12-15',
+        
+        // Required callMetrics fields
+        callId: 'CALL-456',
+        callType: 'outbound',
+        
+        // New fields from requirements (minimal set)
+        OLMSID: 'AG789012',
+        Name: 'Jane Doe',
+        PBXID: 'PBX345678',
+        partnerName: 'TechSupport Inc.',
+        customerMobile: '8765432109',
+        callDuration: '240',
+        subType: 'Technical Support',
+        languageOfCall: 'Russian'
       }
     ];
     
@@ -1247,7 +1313,17 @@ router.get('/azure-minimal-template', async (req, res) => {
       { wch: 70 }, // filename (extra wide for the long filenames)
       { wch: 10 }, // language
       { wch: 10 }, // version
-      { wch: 12 }  // call_date
+      { wch: 12 }, // call_date
+      { wch: 12 }, // callId
+      { wch: 12 }, // callType
+      { wch: 15 }, // OLMSID
+      { wch: 20 }, // Name
+      { wch: 15 }, // PBXID
+      { wch: 25 }, // partnerName
+      { wch: 15 }, // customerMobile
+      { wch: 15 }, // callDuration
+      { wch: 15 }, // subType
+      { wch: 15 }  // languageOfCall
     ];
     ws['!cols'] = wscols;
     
@@ -1293,11 +1369,27 @@ router.get('/azure-simple-template/:containerName', async (req, res) => {
     // Use just the first blob as a template
     const firstBlob = blobs[0];
     
-    // Create a very basic Excel file with a single row
+    // Create a very basic Excel file with a single row, including new required fields
     const wb = xlsxUtils.book_new();
     const ws = xlsxUtils.aoa_to_sheet([
-      ['filename', 'language', 'version', 'call_date'],
-      [firstBlob.name, 'english', '1.0', new Date().toISOString().split('T')[0]]
+      // Headers including all the required fields from the image
+      ['filename', 'language', 'version', 'call_date', 'OLMSID', 'Name', 'PBXID', 'partnerName', 'customerMobile', 'callDuration', 'callType', 'subType', 'languageOfCall'],
+      // Sample data row
+      [
+        firstBlob.name, 
+        'english', 
+        '1.0', 
+        new Date().toISOString().split('T')[0],
+        'AG123456',
+        'John Smith',
+        'PBX987654',
+        'CloudPoint Technologies',
+        '9876543210',
+        '180',
+        'inbound',
+        'Customer Service',
+        'English'
+      ]
     ]);
     
     // Add column width specifications for better readability
@@ -1305,7 +1397,16 @@ router.get('/azure-simple-template/:containerName', async (req, res) => {
       { wch: 70 }, // filename (extra wide for the long filenames)
       { wch: 10 }, // language
       { wch: 10 }, // version
-      { wch: 12 }  // call_date
+      { wch: 12 }, // call_date
+      { wch: 15 }, // OLMSID
+      { wch: 20 }, // Name
+      { wch: 15 }, // PBXID
+      { wch: 25 }, // partnerName
+      { wch: 15 }, // customerMobile
+      { wch: 15 }, // callDuration
+      { wch: 12 }, // callType
+      { wch: 15 }, // subType
+      { wch: 15 }  // languageOfCall
     ];
     
     xlsxUtils.book_append_sheet(wb, ws, 'Simple Template');
@@ -1457,13 +1558,38 @@ router.get('/download-audio-template', (req, res) => {
   try {
     console.log('Direct template download requested');
     
-    // Create a very simple Excel file with sample data
+    // Create a very simple Excel file with sample data including the new fields
     const wb = xlsxUtils.book_new();
     
-    // Create a worksheet with headers and one example row
+    // Create a worksheet with headers and one example row, including new fields
     const ws = xlsxUtils.aoa_to_sheet([
-      ['filename', 'language', 'version', 'call_date', 'duration', 'agent_id', 'customer_id', 'call_reason', 'disposition'],
-      ['call-recording-20250403-123456.mp3', 'english', '1.0', '2025-04-03', '360', 'A12345', 'C67890', 'Support', 'Resolved']
+      // All required fields from the requirements image
+      ['filename', 'language', 'version', 'call_date', 'callId', 'callType', 'OLMSID', 'Name', 'PBXID', 'partnerName', 'customerMobile', 'callDuration', 'subType', 'subSubType', 'VOC', 'languageOfCall', 'userRole', 'advisorCategory', 'businessSegment', 'LOB', 'formName'],
+      
+      // Sample data
+      [
+        'call-recording-20250403-123456.mp3', 
+        'english', 
+        '1.0', 
+        '2025-04-03', 
+        'CALL-123',
+        'inbound',
+        'AG123456',
+        'John Smith',
+        'PBX987654',
+        'CloudPoint Technologies',
+        '9876543210',
+        '180',
+        'Customer Service',
+        'Billing Inquiry',
+        'Positive',
+        'English',
+        'Agent',
+        'Challenger',
+        'Care',
+        'Prepaid',
+        'Evaluation Form 1'
+      ]
     ]);
     
     // Add column width specifications for better readability
@@ -1472,11 +1598,23 @@ router.get('/download-audio-template', (req, res) => {
       { wch: 12 }, // language
       { wch: 10 }, // version
       { wch: 12 }, // call_date
-      { wch: 10 }, // duration
-      { wch: 12 }, // agent_id
-      { wch: 12 }, // customer_id
-      { wch: 15 }, // call_reason
-      { wch: 15 }  // disposition
+      { wch: 12 }, // callId
+      { wch: 12 }, // callType
+      { wch: 15 }, // OLMSID
+      { wch: 20 }, // Name
+      { wch: 15 }, // PBXID
+      { wch: 25 }, // partnerName
+      { wch: 15 }, // customerMobile
+      { wch: 15 }, // callDuration
+      { wch: 15 }, // subType
+      { wch: 15 }, // subSubType
+      { wch: 15 }, // VOC
+      { wch: 15 }, // languageOfCall
+      { wch: 15 }, // userRole
+      { wch: 15 }, // advisorCategory
+      { wch: 15 }, // businessSegment
+      { wch: 15 }, // LOB
+      { wch: 25 }  // formName
     ];
     
     // Add the worksheet to the workbook
