@@ -13,7 +13,8 @@ export const questionTypeEnum = pgEnum('question_type', [
 export const quizStatusEnum = pgEnum('quiz_status', [
   'active',
   'completed',
-  'expired'
+  'expired',
+  'in_progress'
 ]);
 
 export const batchCategoryEnum = pgEnum('batch_category', [
@@ -83,23 +84,7 @@ export const audioFileStatusEnum = pgEnum('audio_file_status', [
   'archived'
 ]);
 
-export const audioLanguageEnum = pgEnum('audio_language', [
-  'english',
-  'spanish',
-  'french',
-  'german',
-  'portuguese',
-  'hindi',
-  'mandarin',
-  'japanese',
-  'korean',
-  'arabic',
-  'russian',
-  'tamil',
-  'bengali',
-  'telugu',
-  'other'
-]);
+// Removed audioLanguageEnum in favor of a more flexible text field approach
 
 // Audio files management
 export const audioFiles = pgTable("audio_files", {
@@ -109,7 +94,7 @@ export const audioFiles = pgTable("audio_files", {
   fileUrl: text("file_url").notNull(),
   fileSize: integer("file_size").notNull(), // in bytes
   duration: numeric("duration", { precision: 10, scale: 2 }).notNull(), // in seconds, with decimal precision
-  language: audioLanguageEnum("language"), // Removed notNull to allow empty values
+  language: text("language"), // Changed from enum to text field for flexibility
   version: text("version"), // Removed notNull to allow empty values
   call_date: date("call_date"), // Removed notNull to allow empty values
   callMetrics: jsonb("call_metrics").$type<{
@@ -529,7 +514,7 @@ export const insertAudioFileSchema = createInsertSchema(audioFiles)
     fileUrl: z.string().url("File URL must be a valid URL"),
     fileSize: z.number().int().positive("File size must be positive"),
     duration: z.number().positive("Duration must be positive"), // Removed .int() to allow decimal values
-    language: z.enum(['english', 'spanish', 'french', 'hindi', 'other']).optional(),
+    language: z.string().optional(), // Changed from enum to allow any language value
     version: z.string().min(1, "Version is required").optional(),
     call_date: z.string().refine(val => {
       return !!val.match(/^\d{4}-\d{2}-\d{2}$/);
