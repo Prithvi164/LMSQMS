@@ -270,15 +270,29 @@ const AzureStorageBrowser = () => {
   
   // Download standard metadata template
   const handleDownloadTemplate = async () => {
+    console.log('Starting metadata template download...');
+    toast({
+      title: 'Downloading Template',
+      description: 'Requesting template from server...',
+    });
+    
     try {
       // Use the direct API endpoint to download the metadata template with all fields
+      console.log('Fetching from /api/azure-metadata-template');
       const response = await fetch('/api/azure-metadata-template');
       
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+      
       if (!response.ok) {
-        throw new Error('Failed to download metadata template');
+        const errorText = await response.text();
+        console.error('Download error details:', errorText);
+        throw new Error(`Failed to download metadata template: ${response.status} ${response.statusText}`);
       }
       
       const blob = await response.blob();
+      console.log('Received blob:', blob.type, blob.size, 'bytes');
+      
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
