@@ -112,7 +112,7 @@ function filterAudioMetadata(items: any[], filters: {
                               item.callMetrics["Partner Name"];
       
       if (!partnerNameValue || 
-          !partnerNameValue.toLowerCase().includes(filters.partnerNameFilter.toLowerCase())) {
+          partnerNameValue.toLowerCase() !== filters.partnerNameFilter.toLowerCase()) {
         return false;
       }
     }
@@ -125,7 +125,7 @@ function filterAudioMetadata(items: any[], filters: {
                            item.callMetrics["Call Type"];
       
       if (!callTypeValue || 
-          !callTypeValue.toLowerCase().includes(filters.callTypeFilter.toLowerCase())) {
+          callTypeValue.toLowerCase() !== filters.callTypeFilter.toLowerCase()) {
         return false;
       }
     }
@@ -139,7 +139,7 @@ function filterAudioMetadata(items: any[], filters: {
                       item.callMetrics["Voice_of_Customer"];
       
       if (!vocValue || 
-          !vocValue.toLowerCase().includes(filters.vocFilter.toLowerCase())) {
+          vocValue.toLowerCase() !== filters.vocFilter.toLowerCase()) {
         return false;
       }
     }
@@ -153,7 +153,7 @@ function filterAudioMetadata(items: any[], filters: {
                            item.callMetrics.campaign_name;
       
       if (!campaignValue || 
-          !campaignValue.toLowerCase().includes(filters.campaignFilter.toLowerCase())) {
+          campaignValue.toLowerCase() !== filters.campaignFilter.toLowerCase()) {
         return false;
       }
     }
