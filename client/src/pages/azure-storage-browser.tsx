@@ -271,7 +271,8 @@ const AzureStorageBrowser = () => {
   // Download standard metadata template
   const handleDownloadTemplate = async () => {
     try {
-      const response = await fetch('/api/azure-metadata-template');
+      // Use the direct API endpoint to download the metadata template with all fields
+      const response = await fetch('/api/azure-audio-files/azure-metadata-template');
       
       if (!response.ok) {
         throw new Error('Failed to download metadata template');
@@ -289,7 +290,7 @@ const AzureStorageBrowser = () => {
       
       toast({
         title: 'Template Downloaded',
-        description: 'Standard metadata template has been downloaded successfully.',
+        description: 'Complete metadata template with all required fields has been downloaded successfully.',
       });
     } catch (error) {
       toast({
