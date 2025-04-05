@@ -12,28 +12,52 @@ const router = Router();
 
 // Helper function to filter audio metadata based on criteria
 function filterAudioMetadata(items: any[], filters: {
-  fileNameFilter?: string;
+  fileNameFilter?: string[] | string;
   dateRangeStart?: string;
   dateRangeEnd?: string;
   minDuration?: string;
   maxDuration?: string;
-  language?: string;
-  // New filter fields
-  partnerNameFilter?: string;
-  callTypeFilter?: string;
-  vocFilter?: string;
-  campaignFilter?: string;
+  languages?: string[] | string;
+  // New filter fields - all multi-select
+  partnerNameFilter?: string[] | string;
+  callTypeFilter?: string[] | string;
+  vocFilter?: string[] | string;
+  campaignFilter?: string[] | string;
 }): any[] {
   return items.filter(item => {
-    // Filter by filename
-    if (filters.fileNameFilter && 
-        !item.filename.toLowerCase().includes(filters.fileNameFilter.toLowerCase())) {
-      return false;
+    // Filter by filename (multi-select)
+    if (filters.fileNameFilter && Array.isArray(filters.fileNameFilter) && filters.fileNameFilter.length > 0) {
+      // Check if any of the selected filename filters match
+      const hasMatch = filters.fileNameFilter.some(filter => 
+        item.filename.toLowerCase().includes(filter.toLowerCase())
+      );
+      if (!hasMatch) return false;
+    } else if (typeof filters.fileNameFilter === 'string' && filters.fileNameFilter) {
+      // Legacy support for single string
+      if (!item.filename.toLowerCase().includes(filters.fileNameFilter.toLowerCase())) {
+        return false;
+      }
     }
     
-    // Filter by language
-    if (filters.language && filters.language !== 'all') {
+    // Filter by language (multi-select)
+    if (filters.languages && Array.isArray(filters.languages) && filters.languages.length > 0) {
       const itemLanguage = item.language?.toLowerCase();
+      if (!itemLanguage || !filters.languages.some(lang => itemLanguage === lang.toLowerCase())) {
+        return false;
+      }
+    } else if (typeof filters.languages === 'string' && filters.languages && filters.languages !== 'all') {
+      // Legacy support for single string
+      const itemLanguage = item.language?.toLowerCase();
+      if (!itemLanguage || itemLanguage !== filters.languages.toLowerCase()) {
+        return false;
+      }
+    } 
+    // This access to legacy 'language' property is fine because we're explicitly checking for it
+    // @ts-ignore - TypeScript doesn't know about the legacy 'language' property
+    else if (filters.language && filters.language !== 'all') {
+      // Backward compatibility with old language filter
+      const itemLanguage = item.language?.toLowerCase();
+      // @ts-ignore - TypeScript doesn't know about the legacy 'language' property
       if (!itemLanguage || itemLanguage !== filters.language.toLowerCase()) {
         return false;
       }
@@ -104,35 +128,10 @@ function filterAudioMetadata(items: any[], filters: {
     
     // New filter conditions for the added metadata fields
     
-    // Filter by Partner Name
+    // Filter by Partner Name (multi-select)
     if (filters.partnerNameFilter && item.callMetrics) {
-      // Special case for CloudSocial filter - we only want the 62 files with "partner name":"CloudSocial"
-      if (filters.partnerNameFilter.toLowerCase() === 'cloudsocial') {
-        // Check specifically for "partner name" field with "CloudSocial" value
-        // This is the proper field with the correct data for these records
-        const partnerNameValue = item.callMetrics["partner name"];
-        
-        console.log(`DEBUG Filter - File: ${item.filename}, "partner name" value: ${partnerNameValue}, Filter: ${filters.partnerNameFilter}`);
-        
-        // Only include records where "partner name" exists and equals "CloudSocial"
-        if (!partnerNameValue || partnerNameValue.toLowerCase() !== 'cloudsocial') {
-          return false;
-        }
-      }
-      // Special case for CloudPoint filter
-      else if (filters.partnerNameFilter.toLowerCase() === 'cloudpoint') {
-        // For CloudPoint filter, check specifically for partnerName field with "CloudPoint Technologies" value
-        const partnerNameValue = item.callMetrics.partnerName;
-        
-        console.log(`DEBUG Filter - File: ${item.filename}, "partnerName" value: ${partnerNameValue}, Filter: ${filters.partnerNameFilter}`);
-        
-        // Only include records where partnerName exists and equals "CloudPoint Technologies"
-        if (!partnerNameValue || !partnerNameValue.toLowerCase().includes('cloudpoint')) {
-          return false;
-        }
-      }
-      // Normal case for other partner filters
-      else {
+      // Handle array of partner names (multi-select case)
+      if (Array.isArray(filters.partnerNameFilter) && filters.partnerNameFilter.length > 0) {
         // Get all possible partner name values from different field formats
         const possiblePartnerNames = [
           item.callMetrics.partnerName,
@@ -143,18 +142,68 @@ function filterAudioMetadata(items: any[], filters: {
           item.callMetrics.PartnerName
         ].filter(Boolean); // Remove undefined/null values
         
-        console.log(`DEBUG Filter - File: ${item.filename}, Partner Names: ${JSON.stringify(possiblePartnerNames)}, Filter: ${filters.partnerNameFilter}`);
+        // Check if any of the selected partner names match any of the possible partner names
+        // Using explicit type checks for TypeScript
+        const partnerNameFilters = filters.partnerNameFilter as string[];
+        const hasMatch = possiblePartnerNames.some(name => 
+          partnerNameFilters.some(filter => 
+            typeof filter === 'string' && name.toLowerCase().includes(filter.toLowerCase())
+          )
+        );
         
-        // If no partner name found in any field, or none match the filter, return false
-        if (possiblePartnerNames.length === 0 || 
-            !possiblePartnerNames.some(name => 
-              name.toLowerCase() === filters.partnerNameFilter?.toLowerCase())) {
+        if (!hasMatch) {
           return false;
+        }
+      } 
+      // Legacy single string case
+      else if (typeof filters.partnerNameFilter === 'string' && filters.partnerNameFilter) {
+        // Special case for CloudSocial filter - we only want the 62 files with "partner name":"CloudSocial"
+        if (filters.partnerNameFilter.toLowerCase() === 'cloudsocial') {
+          // Check specifically for "partner name" field with "CloudSocial" value
+          // This is the proper field with the correct data for these records
+          const partnerNameValue = item.callMetrics["partner name"];
+          
+          // Only include records where "partner name" exists and equals "CloudSocial"
+          if (!partnerNameValue || partnerNameValue.toLowerCase() !== 'cloudsocial') {
+            return false;
+          }
+        }
+        // Special case for CloudPoint filter
+        else if (filters.partnerNameFilter.toLowerCase() === 'cloudpoint') {
+          // For CloudPoint filter, check specifically for partnerName field with "CloudPoint Technologies" value
+          const partnerNameValue = item.callMetrics.partnerName;
+          
+          // Only include records where partnerName exists and equals "CloudPoint Technologies"
+          if (!partnerNameValue || !partnerNameValue.toLowerCase().includes('cloudpoint')) {
+            return false;
+          }
+        }
+        // Normal case for other partner filters
+        else {
+          // Get all possible partner name values from different field formats
+          const possiblePartnerNames = [
+            item.callMetrics.partnerName,
+            item.callMetrics.Partner_Name,
+            item.callMetrics["Partner Name"],
+            item.callMetrics["partner name"],
+            item.callMetrics.partnername,
+            item.callMetrics.PartnerName
+          ].filter(Boolean); // Remove undefined/null values
+          
+          // If no partner name found in any field, or none match the filter, return false
+          if (possiblePartnerNames.length === 0 || 
+              !possiblePartnerNames.some(name => {
+                // Safely check the type before calling toLowerCase
+                const partnerNameFilter = filters.partnerNameFilter as string;
+                return name.toLowerCase() === partnerNameFilter.toLowerCase();
+              })) {
+            return false;
+          }
         }
       }
     }
     
-    // Filter by Call Type
+    // Filter by Call Type (multi-select)
     if (filters.callTypeFilter && item.callMetrics) {
       // Get all possible call type values from different field formats
       const possibleCallTypes = [
@@ -166,15 +215,33 @@ function filterAudioMetadata(items: any[], filters: {
         item.callMetrics.calltype
       ].filter(Boolean); // Remove undefined/null values
       
-      // If no call type found in any field, or none match the filter, return false
-      if (possibleCallTypes.length === 0 || 
-          !possibleCallTypes.some(type => 
-            type.toLowerCase() === filters.callTypeFilter?.toLowerCase())) {
-        return false;
+      // Handle array of call types (multi-select case)
+      if (Array.isArray(filters.callTypeFilter) && filters.callTypeFilter.length > 0) {
+        // Check if any of the selected call types match any of the possible call types
+        // Using explicit type checks for TypeScript
+        const callTypeFilters = filters.callTypeFilter as string[];
+        const hasMatch = possibleCallTypes.some(type => 
+          callTypeFilters.some(filter => 
+            typeof filter === 'string' && type.toLowerCase().includes(filter.toLowerCase())
+          )
+        );
+        
+        if (!hasMatch) {
+          return false;
+        }
+      }
+      // Legacy single string case
+      else if (typeof filters.callTypeFilter === 'string' && filters.callTypeFilter) {
+        // If no call type found in any field, or none match the filter, return false
+        if (possibleCallTypes.length === 0 || 
+            !possibleCallTypes.some(type => 
+              type.toLowerCase() === (filters.callTypeFilter as string).toLowerCase())) {
+          return false;
+        }
       }
     }
     
-    // Filter by VOC (Voice of Customer)
+    // Filter by VOC (Voice of Customer) (multi-select)
     if (filters.vocFilter && item.callMetrics) {
       // Get all possible VOC values from different field formats
       const possibleVOCs = [
@@ -186,15 +253,33 @@ function filterAudioMetadata(items: any[], filters: {
         item.callMetrics.VoiceOfCustomer
       ].filter(Boolean); // Remove undefined/null values
       
-      // If no VOC found in any field, or none match the filter, return false
-      if (possibleVOCs.length === 0 || 
-          !possibleVOCs.some(voc => 
-            voc.toLowerCase() === filters.vocFilter?.toLowerCase())) {
-        return false;
+      // Handle array of VOC values (multi-select case)
+      if (Array.isArray(filters.vocFilter) && filters.vocFilter.length > 0) {
+        // Check if any of the selected VOC values match any of the possible VOC values
+        // Using explicit type checks for TypeScript
+        const vocFilters = filters.vocFilter as string[];
+        const hasMatch = possibleVOCs.some(voc => 
+          vocFilters.some(filter => 
+            typeof filter === 'string' && voc.toLowerCase().includes(filter.toLowerCase())
+          )
+        );
+        
+        if (!hasMatch) {
+          return false;
+        }
+      }
+      // Legacy single string case
+      else if (typeof filters.vocFilter === 'string' && filters.vocFilter) {
+        // If no VOC found in any field, or none match the filter, return false
+        if (possibleVOCs.length === 0 || 
+            !possibleVOCs.some(voc => 
+              voc.toLowerCase() === (filters.vocFilter as string).toLowerCase())) {
+          return false;
+        }
       }
     }
     
-    // Filter by Campaign
+    // Filter by Campaign (multi-select)
     if (filters.campaignFilter && item.callMetrics) {
       // Get all possible campaign values from different field formats
       const possibleCampaigns = [
@@ -207,11 +292,29 @@ function filterAudioMetadata(items: any[], filters: {
         item.callMetrics.campaignName
       ].filter(Boolean); // Remove undefined/null values
       
-      // If no campaign found in any field, or none match the filter, return false
-      if (possibleCampaigns.length === 0 || 
-          !possibleCampaigns.some(campaign => 
-            campaign.toLowerCase() === filters.campaignFilter?.toLowerCase())) {
-        return false;
+      // Handle array of campaign values (multi-select case)
+      if (Array.isArray(filters.campaignFilter) && filters.campaignFilter.length > 0) {
+        // Check if any of the selected campaign values match any of the possible campaign values
+        // Using explicit type checks for TypeScript
+        const campaignFilters = filters.campaignFilter as string[];
+        const hasMatch = possibleCampaigns.some(campaign => 
+          campaignFilters.some(filter => 
+            typeof filter === 'string' && campaign.toLowerCase().includes(filter.toLowerCase())
+          )
+        );
+        
+        if (!hasMatch) {
+          return false;
+        }
+      }
+      // Legacy single string case
+      else if (typeof filters.campaignFilter === 'string' && filters.campaignFilter) {
+        // If no campaign found in any field, or none match the filter, return false
+        if (possibleCampaigns.length === 0 || 
+            !possibleCampaigns.some(campaign => 
+              campaign.toLowerCase() === (filters.campaignFilter as string).toLowerCase())) {
+          return false;
+        }
       }
     }
     
@@ -821,17 +924,17 @@ router.post('/azure-audio-filter-preview/:containerName', excelUpload.single('me
   
   const { containerName } = req.params;
   const filters = {
-    fileNameFilter: req.body.fileNameFilter,
+    fileNameFilter: req.body.fileNameFilter ? JSON.parse(req.body.fileNameFilter) : [],
     dateRangeStart: req.body.dateRangeStart,
     dateRangeEnd: req.body.dateRangeEnd,
     minDuration: req.body.minDuration,
     maxDuration: req.body.maxDuration,
-    language: req.body.language,
-    // New filter fields
-    partnerNameFilter: req.body.partnerNameFilter,
-    callTypeFilter: req.body.callTypeFilter,
-    vocFilter: req.body.vocFilter,
-    campaignFilter: req.body.campaignFilter
+    languages: req.body.languages ? JSON.parse(req.body.languages) : [], // Updated to handle multi-select
+    // New filter fields - all multi-select
+    partnerNameFilter: req.body.partnerNameFilter ? JSON.parse(req.body.partnerNameFilter) : [],
+    callTypeFilter: req.body.callTypeFilter ? JSON.parse(req.body.callTypeFilter) : [],
+    vocFilter: req.body.vocFilter ? JSON.parse(req.body.vocFilter) : [],
+    campaignFilter: req.body.campaignFilter ? JSON.parse(req.body.campaignFilter) : []
   };
   
   try {
@@ -917,17 +1020,17 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
   } = req.body;
   
   const filters = {
-    fileNameFilter: req.body.fileNameFilter,
+    fileNameFilter: req.body.fileNameFilter ? JSON.parse(req.body.fileNameFilter) : [],
     dateRangeStart: req.body.dateRangeStart,
     dateRangeEnd: req.body.dateRangeEnd,
     minDuration: req.body.minDuration,
     maxDuration: req.body.maxDuration,
-    language: req.body.language,
-    // New filter fields
-    partnerNameFilter: req.body.partnerNameFilter,
-    callTypeFilter: req.body.callTypeFilter,
-    vocFilter: req.body.vocFilter,
-    campaignFilter: req.body.campaignFilter
+    languages: req.body.languages ? JSON.parse(req.body.languages) : [], // Updated to handle multi-select
+    // New filter fields - all multi-select
+    partnerNameFilter: req.body.partnerNameFilter ? JSON.parse(req.body.partnerNameFilter) : [],
+    callTypeFilter: req.body.callTypeFilter ? JSON.parse(req.body.callTypeFilter) : [],
+    vocFilter: req.body.vocFilter ? JSON.parse(req.body.vocFilter) : [],
+    campaignFilter: req.body.campaignFilter ? JSON.parse(req.body.campaignFilter) : []
   };
   
   try {
@@ -952,9 +1055,10 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
     
     // Apply filters if any are specified
     let filteredItems = enrichedItems;
-    if (filters.fileNameFilter || filters.dateRangeStart || filters.dateRangeEnd || 
-        filters.minDuration || filters.maxDuration || (filters.language && filters.language !== 'all') ||
-        filters.partnerNameFilter || filters.callTypeFilter || filters.vocFilter || filters.campaignFilter) {
+    if (filters.fileNameFilter?.length > 0 || filters.dateRangeStart || filters.dateRangeEnd || 
+        filters.minDuration || filters.maxDuration || filters.languages?.length > 0 ||
+        filters.partnerNameFilter?.length > 0 || filters.callTypeFilter?.length > 0 || 
+        filters.vocFilter?.length > 0 || filters.campaignFilter?.length > 0) {
       console.log('Applying filters to imported files:', filters);
       filteredItems = filterAudioMetadata(enrichedItems, filters);
       console.log(`Filtered ${enrichedItems.length} items to ${filteredItems.length} items`);
@@ -1174,11 +1278,14 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
       successCount: importResults.filter(r => r.status === 'success').length,
       errorCount: importResults.filter(r => r.status === 'error').length,
       filtered: enrichedItems.length !== filteredItems.length,
-      filterApplied: filters.fileNameFilter || filters.dateRangeStart || filters.dateRangeEnd || 
+      filterApplied: (filters.fileNameFilter && filters.fileNameFilter.length > 0) || 
+                    filters.dateRangeStart || filters.dateRangeEnd || 
                     filters.minDuration || filters.maxDuration || 
-                    (filters.language && filters.language !== 'all') ||
-                    filters.partnerNameFilter || filters.callTypeFilter || 
-                    filters.vocFilter || filters.campaignFilter ? true : false,
+                    (filters.languages && filters.languages.length > 0) ||
+                    (filters.partnerNameFilter && filters.partnerNameFilter.length > 0) || 
+                    (filters.callTypeFilter && filters.callTypeFilter.length > 0) || 
+                    (filters.vocFilter && filters.vocFilter.length > 0) || 
+                    (filters.campaignFilter && filters.campaignFilter.length > 0) ? true : false,
       results: importResults,
       autoAssigned: autoAssign === 'true' ? assignmentResults.length : 0,
       manuallyAssigned: autoAssign === 'true' ? 0 : assignmentResults.length,
