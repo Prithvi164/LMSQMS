@@ -64,7 +64,14 @@ const AudioFileAllocation = () => {
     duration: '',
     callType: '',
     status: '',
-    allocatedTo: ''
+    allocatedTo: '',
+    agentName: '',
+    businessSegment: '',
+    lob: '',
+    voc: '',
+    subType: '',
+    subSubType: '',
+    advisorCategory: ''
   });
 
   // Query for fetching available audio files for allocation
@@ -211,7 +218,14 @@ const AudioFileAllocation = () => {
       duration: '',
       callType: '',
       status: '',
-      allocatedTo: ''
+      allocatedTo: '',
+      agentName: '',
+      businessSegment: '',
+      lob: '',
+      voc: '',
+      subType: '',
+      subSubType: '',
+      advisorCategory: ''
     });
   };
 
@@ -615,6 +629,95 @@ const AudioFileAllocation = () => {
                     </Select>
                   </div>
                 )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="filter-agentName">Agent Name</Label>
+                  <Input 
+                    id="filter-agentName" 
+                    placeholder="Agent name" 
+                    value={filters.agentName}
+                    onChange={(e) => handleFilterChange('agentName', e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="filter-businessSegment">Business Segment</Label>
+                  <Select value={filters.businessSegment} onValueChange={(value) => handleFilterChange('businessSegment', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All segments" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All segments</SelectItem>
+                      <SelectItem value="Care">Care</SelectItem>
+                      <SelectItem value="Tech Support">Tech Support</SelectItem>
+                      <SelectItem value="Sales">Sales</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="filter-lob">Line of Business</Label>
+                  <Select value={filters.lob} onValueChange={(value) => handleFilterChange('lob', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Lines of Business" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Lines of Business</SelectItem>
+                      <SelectItem value="Prepaid">Prepaid</SelectItem>
+                      <SelectItem value="Postpaid">Postpaid</SelectItem>
+                      <SelectItem value="Enterprise">Enterprise</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="filter-voc">Voice of Customer</Label>
+                  <Select value={filters.voc} onValueChange={(value) => handleFilterChange('voc', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All VOC" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All VOC</SelectItem>
+                      <SelectItem value="Positive">Positive</SelectItem>
+                      <SelectItem value="Neutral">Neutral</SelectItem>
+                      <SelectItem value="Negative">Negative</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="filter-subType">Call Sub-Type</Label>
+                  <Input 
+                    id="filter-subType" 
+                    placeholder="Call sub-type" 
+                    value={filters.subType}
+                    onChange={(e) => handleFilterChange('subType', e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="filter-subSubType">Call Sub-Sub-Type</Label>
+                  <Input 
+                    id="filter-subSubType" 
+                    placeholder="Call sub-sub-type" 
+                    value={filters.subSubType}
+                    onChange={(e) => handleFilterChange('subSubType', e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="filter-advisorCategory">Advisor Category</Label>
+                  <Select value={filters.advisorCategory} onValueChange={(value) => handleFilterChange('advisorCategory', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All categories</SelectItem>
+                      <SelectItem value="Challenger">Challenger</SelectItem>
+                      <SelectItem value="Performer">Performer</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               
               <SheetFooter>

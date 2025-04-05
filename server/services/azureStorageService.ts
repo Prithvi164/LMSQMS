@@ -12,30 +12,30 @@ export interface AudioFileMetadata {
   call_date: string;     // Date of the call (YYYY-MM-DD)
   callMetrics: {
     // Standard fields
-    callDate: string;    // Call date in readable format
+    callDate: string;    // Call date in readable format (YYYY-MM-DD)
     callId: string;      // Unique call identifier
     callType: string;    // Type of call (e.g., inbound, outbound)
     agentId?: string;    // Agent identifier
     customerSatisfaction?: number; // Customer satisfaction score
     handleTime?: number; // Handle time in seconds
     
-    // Added fields from requirements (based on the image)
-    auditRole?: string;  // Auto-filled based on logged-in auditor (Audit Role)
-    OLMSID?: string;     // Unique ID for the agent/system
-    Name?: string;       // Name of the agent being evaluated
-    PBXID?: string;      // Unique telephony ID
-    partnerName?: string; // Partner/Client the call belongs to
-    customerMobile?: string; // For call tracking (Customer Mobile #)
-    callDuration?: string; // Duration of the call (Call Duration)
-    subType?: string;    // Further classification (Sub Type)
-    subSubType?: string; // Further granularity (Sub sub Type)
-    VOC?: string;        // Captures Voice of Customer
-    languageOfCall?: string; // Language spoken during call (Language of Call)
-    userRole?: string;   // Based on logged-in user's profile (User Role)
-    advisorCategory?: string; // E.g., Challenger, Performer (Advisor Category)
-    businessSegment?: string; // E.g., Care, Tech Support (Business Segment)
-    LOB?: string;        // Line of Business (e.g., Prepaid)
-    formName?: string;   // Select form for evaluation (Form Name)
+    // Required fields from the metadata requirements
+    auditRole: string;   // Auto-filled based on logged-in auditor (Quality Analyst)
+    OLMSID: string;      // Unique ID for the agent/system
+    Name: string;        // Name of the agent being evaluated
+    PBXID: string;       // Unique telephony ID
+    partnerName: string; // Partner/Client the call belongs to (CloudPoint Technologies)
+    customerMobile: string; // For call tracking (Customer Mobile #)
+    callDuration: string; // Duration of the call in seconds
+    subType: string;     // Further classification (Customer Service, Technical Support, etc.)
+    subSubType: string;  // Further granularity (Billing Inquiry, Hardware Issue, etc.)
+    VOC: string;         // Captures Voice of Customer (Positive, Negative, Neutral)
+    languageOfCall: string; // Language spoken during call (matching standard language codes)
+    userRole: string;    // Based on logged-in user's profile (Agent, Senior Agent)
+    advisorCategory: string; // E.g., Challenger, Performer
+    businessSegment: string; // E.g., Care, Tech Support, Sales
+    LOB: string;         // Line of Business (e.g., Prepaid, Postpaid, Enterprise)
+    formName: string;    // Select form for evaluation (Evaluation Form 1)
     
     [key: string]: any;  // For additional metrics
   };

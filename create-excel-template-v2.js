@@ -2,16 +2,40 @@
 import * as XLSX from 'xlsx';
 import { writeFileSync } from 'fs';
 
-console.log('Creating ultra-simple Excel template with basic method...');
+console.log('Creating Excel template with all required fields...');
 
 try {
   // Create a workbook from scratch
   const wb = XLSX.utils.book_new();
 
-  // Create a worksheet with the simplest possible data (array of arrays)
+  // Create a worksheet with all the required fields (array of arrays)
   const data = [
-    ['filename', 'language', 'version', 'call_date'],
-    ['agent-261-17027502083-444.mp3', 'english', '1.0', '2025-04-03']
+    [
+      // Base fields
+      'filename', 'language', 'version', 'call_date',
+      
+      // Required metadata fields for callMetrics
+      'auditRole', 'OLMSID', 'Name', 'PBXID', 'partnerName', 
+      'customerMobile', 'callDuration', 'callType', 'subType', 
+      'subSubType', 'VOC', 'languageOfCall', 'userRole', 'advisorCategory', 
+      'businessSegment', 'LOB', 'formName',
+      
+      // Required call identification fields
+      'callId', 'callDate'
+    ],
+    [
+      // Base fields with sample values
+      'agent-261-17027502083-444.mp3', 'english', '1.0', '2025-04-03',
+      
+      // Required metadata fields with sample values
+      'Quality Analyst', 'AG123456', 'John Smith', 'PBX987654', 'CloudPoint Technologies',
+      '9876543210', '180', 'inbound', 'Customer Service',
+      'Billing Inquiry', 'Positive', 'English', 'Agent', 'Challenger',
+      'Care', 'Prepaid', 'Evaluation Form 1',
+      
+      // Required call identification fields
+      'CALL-123-25', '2025-04-03'
+    ]
   ];
 
   // Convert data to worksheet
@@ -19,10 +43,29 @@ try {
 
   // Set column widths for better visibility
   ws['!cols'] = [
-    { wch: 50 }, // filename
-    { wch: 15 }, // language
+    { wch: 70 }, // filename (extra wide for the long filenames)
+    { wch: 10 }, // language
     { wch: 10 }, // version
-    { wch: 15 }  // call_date
+    { wch: 12 }, // call_date
+    { wch: 15 }, // auditRole
+    { wch: 15 }, // OLMSID
+    { wch: 20 }, // Name
+    { wch: 15 }, // PBXID
+    { wch: 25 }, // partnerName
+    { wch: 15 }, // customerMobile
+    { wch: 15 }, // callDuration
+    { wch: 12 }, // callType
+    { wch: 15 }, // subType
+    { wch: 20 }, // subSubType
+    { wch: 15 }, // VOC
+    { wch: 15 }, // languageOfCall
+    { wch: 15 }, // userRole
+    { wch: 20 }, // advisorCategory
+    { wch: 20 }, // businessSegment
+    { wch: 15 }, // LOB
+    { wch: 20 }, // formName
+    { wch: 15 }, // callId
+    { wch: 15 }  // callDate
   ];
 
   // Add worksheet to workbook
@@ -38,8 +81,8 @@ try {
   }
   
   // Write file to disk
-  writeFileSync('ultra-simple-template.xlsx', buffer);
-  console.log('Ultra-simple Excel template created successfully: ultra-simple-template.xlsx');
+  writeFileSync('template.xlsx', buffer);
+  console.log('Excel template with all required fields created successfully: template.xlsx');
 } catch (error) {
   console.error('Error creating template:', error);
 }

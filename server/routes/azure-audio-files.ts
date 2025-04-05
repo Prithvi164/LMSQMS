@@ -227,9 +227,28 @@ async function parseExcelFile(filePath: string): Promise<AudioFileMetadata[]> {
         // Ensure callMetrics has the required properties before pushing to results
         const typedCallMetrics: AudioFileMetadata["callMetrics"] = {
           ...callMetrics,
+          // Required standard fields
           callDate: callMetrics.callDate || callDate || new Date().toISOString().split('T')[0],
           callId: callMetrics.callId || "unknown",
-          callType: callMetrics.callType || "unknown"
+          callType: callMetrics.callType || "unknown",
+          
+          // Required metadata fields with defaults if not present
+          auditRole: callMetrics.auditRole || "Quality Analyst",
+          OLMSID: callMetrics.OLMSID || "",
+          Name: callMetrics.Name || "",
+          PBXID: callMetrics.PBXID || "",
+          partnerName: callMetrics.partnerName || "CloudPoint Technologies",
+          customerMobile: callMetrics.customerMobile || "",
+          callDuration: callMetrics.callDuration || "0",
+          subType: callMetrics.subType || "",
+          subSubType: callMetrics.subSubType || "",
+          VOC: callMetrics.VOC || "Neutral",
+          languageOfCall: callMetrics.languageOfCall || "English",
+          userRole: callMetrics.userRole || "Agent",
+          advisorCategory: callMetrics.advisorCategory || "Performer",
+          businessSegment: callMetrics.businessSegment || "Care",
+          LOB: callMetrics.LOB || "Prepaid",
+          formName: callMetrics.formName || "Evaluation Form 1"
         };
         
         result.push({
@@ -477,7 +496,25 @@ async function parseExcelFile(filePath: string): Promise<AudioFileMetadata[]> {
           // Required callMetrics fields with defaults
           callDate: callDate || new Date().toISOString().split('T')[0],
           callId: normalizedRow.callId || 'unknown',
-          callType: normalizedRow.callType || 'unknown'
+          callType: normalizedRow.callType || 'unknown',
+          
+          // Required metadata fields with defaults if not present
+          auditRole: normalizedRow.auditRole || "Quality Analyst",
+          OLMSID: normalizedRow.OLMSID || "",
+          Name: normalizedRow.Name || normalizedRow.name || "",
+          PBXID: normalizedRow.PBXID || normalizedRow.pbxid || "",
+          partnerName: normalizedRow.partnerName || "CloudPoint Technologies",
+          customerMobile: normalizedRow.customerMobile || normalizedRow.customer_mobile || "",
+          callDuration: normalizedRow.callDuration || normalizedRow.call_duration || "0",
+          subType: normalizedRow.subType || normalizedRow.sub_type || "",
+          subSubType: normalizedRow.subSubType || normalizedRow.sub_sub_type || "",
+          VOC: normalizedRow.VOC || normalizedRow.voc || "Neutral",
+          languageOfCall: normalizedRow.languageOfCall || normalizedRow.language_of_call || "English",
+          userRole: normalizedRow.userRole || normalizedRow.user_role || "Agent",
+          advisorCategory: normalizedRow.advisorCategory || normalizedRow.advisor_category || "Performer",
+          businessSegment: normalizedRow.businessSegment || normalizedRow.business_segment || "Care",
+          LOB: normalizedRow.LOB || normalizedRow.lob || "Prepaid",
+          formName: normalizedRow.formName || normalizedRow.form_name || "Evaluation Form 1"
         };
         
         for (const key in normalizedRow) {
