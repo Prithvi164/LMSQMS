@@ -285,6 +285,83 @@ export class AzureStorageService {
       return false;
     }
   }
+  
+  /**
+   * Get a blob client and basic information about a blob
+   */
+  async getBlobClient(containerName: string, blobName: string): Promise<{ name: string, url: string } | null> {
+    try {
+      const containerClient = this.getContainerClient(containerName);
+      const blobClient = containerClient.getBlobClient(blobName);
+      
+      // Check if the blob exists by trying to get its properties
+      await blobClient.getProperties();
+      
+      // Return basic information about the blob
+      return {
+        name: blobName,
+        url: blobClient.url
+      };
+    } catch (error) {
+      console.error(`Error getting blob client for ${blobName}:`, error);
+      return null;
+    }
+  }
+  
+  /**
+   * List all containers in the storage account
+   */
+  async listContainers(): Promise<string[]> {
+    try {
+      console.log('Listing all containers in the storage account');
+      
+      // Get a reference to all containers
+      const containerIterator = this.blobServiceClient.listContainers();
+      
+      // Extract container names
+      const containers: string[] = [];
+      for await (const container of containerIterator) {
+        containers.push(container.name);
+      }
+      
+      console.log(`Found ${containers.length} containers in the storage account`);
+      return containers;
+    } catch (error) {
+      console.error('Error listing containers:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get properties of a specific blob
+   */
+  async getBlobProperties(containerName: string, blobName: string): Promise<any> {
+    try {
+      console.log(`Getting properties for blob "${blobName}" in container "${containerName}"`);
+      
+      // Get a reference to the blob
+      const containerClient = this.getContainerClient(containerName);
+      const blobClient = containerClient.getBlobClient(blobName);
+      
+      // Get the blob's properties
+      const properties = await blobClient.getProperties();
+      
+      // Return the properties and URL
+      return {
+        url: blobClient.url,
+        name: blobName,
+        properties: {
+          contentType: properties.contentType,
+          contentLength: properties.contentLength,
+          createdOn: properties.createdOn,
+          lastModified: properties.lastModified
+        }
+      };
+    } catch (error) {
+      console.error(`Error getting properties for blob "${blobName}" in container "${containerName}":`, error);
+      return null;
+    }
+  }
 
   /**
    * Download an Excel file from Azure blob storage and parse its contents

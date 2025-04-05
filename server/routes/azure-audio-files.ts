@@ -1804,13 +1804,14 @@ router.post('/azure-audio-allocate', async (req, res) => {
   if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
   if (!azureService) return res.status(503).json({ message: 'Azure service not available' });
   
-  const { audioFileIds, qualityAnalystId, dueDate, evaluationTemplateId } = req.body;
+  const { audioFileIds, qualityAnalystId, dueDate, evaluationTemplateId, containerName } = req.body;
   
   console.log('📝 Allocation request received:', {
     audioFileIds, 
     qualityAnalystId, 
     dueDate, 
     evaluationTemplateId,
+    containerName,
     userId: req.user.id,
     organizationId: req.user.organizationId
   });
@@ -1826,24 +1827,86 @@ router.post('/azure-audio-allocate', async (req, res) => {
   }
   
   try {
-    // Verify files exist and belong to user's organization
-    console.log('🔍 Verifying audio files:', audioFileIds);
-    // Use SQL directly to avoid type issues
-    const result = await db.execute(sql`
-      SELECT * FROM "audio_files" 
-      WHERE "organization_id" = ${req.user.organizationId} 
-      AND "id" IN (${sql.join(audioFileIds, sql`, `)})
-    `);
+    // Check if any of the IDs are numeric (database IDs) vs filenames
+    const areIdsNumeric = audioFileIds.every(id => !isNaN(Number(id)));
     
-    // Convert the raw result to an array of audio files
-    const audioFilesToAllocate = result.rows as typeof audioFiles.$inferSelect[];
+    let audioFilesToAllocate: any[] = [];
     
-    console.log(`✅ Found ${audioFilesToAllocate.length} of ${audioFileIds.length} files`);
+    if (areIdsNumeric) {
+      // Direct lookup by ID
+      console.log('🔍 Looking up files by numeric ID');
+      const result = await db.execute(sql`
+        SELECT * FROM "audio_files" 
+        WHERE "organization_id" = ${req.user.organizationId} 
+        AND "id" IN (${sql.join(audioFileIds.map(id => parseInt(id.toString())), sql`, `)})
+      `);
+      audioFilesToAllocate = result.rows;
+    } else {
+      // These are filenames, so look up by filename or add if not found
+      console.log('🔍 Looking up files by filename');
+      
+      // Check which files already exist in the database
+      for (const filename of audioFileIds) {
+        // Look up by filename
+        const existingFile = await db.query.audioFiles.findFirst({
+          where: {
+            organizationId: req.user.organizationId,
+            filename: filename
+          }
+        });
+        
+        if (existingFile) {
+          console.log(`✅ Found existing file: ${filename}`);
+          audioFilesToAllocate.push(existingFile);
+        } else if (containerName) {
+          console.log(`⏳ Need to import file from Azure: ${filename}`);
+          try {
+            // Get blob info directly
+            const blobInfo = await azureService.getBlobClient(containerName, filename);
+            if (!blobInfo) {
+              console.error(`❌ Could not find blob in Azure: ${filename}`);
+              continue;
+            }
+            
+            // Generate SAS URL
+            const sasUrl = await azureService.generateBlobSasUrl(containerName, filename, 60);
+            
+            // Create a record for this file
+            const newAudioFile = {
+              filename: filename,
+              originalFilename: filename,
+              fileUrl: blobInfo.url,
+              sasUrl: sasUrl,
+              fileSize: 0, // Will be updated later if needed
+              status: 'allocated',
+              callType: 'unknown',
+              language: 'unknown',
+              organizationId: req.user.organizationId,
+              uploadedBy: req.user.id,
+              uploadDate: new Date()
+            };
+            
+            // Insert the new file into the database
+            const [insertedFile] = await db
+              .insert(audioFiles)
+              .values(newAudioFile)
+              .returning();
+            
+            console.log(`✅ Created new file record: ${filename} (ID: ${insertedFile.id})`);
+            audioFilesToAllocate.push(insertedFile);
+          } catch (error) {
+            console.error(`❌ Error importing file ${filename}:`, error);
+          }
+        }
+      }
+    }
     
-    if (audioFilesToAllocate.length !== audioFileIds.length) {
-      console.log('❌ File count mismatch');
+    console.log(`✅ Total files to allocate: ${audioFilesToAllocate.length}`);
+    
+    if (audioFilesToAllocate.length === 0) {
+      console.log('❌ No files to allocate');
       return res.status(400).json({ 
-        message: 'Some audio files were not found or do not belong to your organization' 
+        message: 'No files could be found or imported for allocation' 
       });
     }
     
@@ -1881,7 +1944,7 @@ router.post('/azure-audio-allocate', async (req, res) => {
           console.log(`✨ Creating new allocation for file ID ${file.id}`);
           const allocation = {
             audioFileId: file.id,
-            qualityAnalystId,
+            qualityAnalystId: qualityAnalystId,
             dueDate: dueDate ? new Date(dueDate) : undefined,
             status: 'allocated',
             allocatedBy: req.user.id,
