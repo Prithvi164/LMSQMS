@@ -105,29 +105,55 @@ function filterAudioMetadata(items: any[], filters: {
     // New filter conditions for the added metadata fields
     
     // Filter by Partner Name
-    if (filters.partnerNameFilter && item.callMetrics && item.callMetrics.partnerName) {
-      if (!item.callMetrics.partnerName.toLowerCase().includes(filters.partnerNameFilter.toLowerCase())) {
+    if (filters.partnerNameFilter && item.callMetrics) {
+      // Check multiple possible field names for Partner Name
+      const partnerNameValue = item.callMetrics.partnerName || 
+                              item.callMetrics.Partner_Name || 
+                              item.callMetrics["Partner Name"];
+      
+      if (!partnerNameValue || 
+          !partnerNameValue.toLowerCase().includes(filters.partnerNameFilter.toLowerCase())) {
         return false;
       }
     }
     
     // Filter by Call Type
-    if (filters.callTypeFilter && item.callMetrics && item.callMetrics.callType) {
-      if (!item.callMetrics.callType.toLowerCase().includes(filters.callTypeFilter.toLowerCase())) {
+    if (filters.callTypeFilter && item.callMetrics) {
+      // Check multiple possible field names for Call Type
+      const callTypeValue = item.callMetrics.callType || 
+                           item.callMetrics.Call_Type || 
+                           item.callMetrics["Call Type"];
+      
+      if (!callTypeValue || 
+          !callTypeValue.toLowerCase().includes(filters.callTypeFilter.toLowerCase())) {
         return false;
       }
     }
     
     // Filter by VOC (Voice of Customer)
-    if (filters.vocFilter && item.callMetrics && item.callMetrics.VOC) {
-      if (!item.callMetrics.VOC.toLowerCase().includes(filters.vocFilter.toLowerCase())) {
+    if (filters.vocFilter && item.callMetrics) {
+      // Check multiple possible field names for VOC
+      const vocValue = item.callMetrics.VOC || 
+                      item.callMetrics.voc || 
+                      item.callMetrics["Voice of Customer"] ||
+                      item.callMetrics["Voice_of_Customer"];
+      
+      if (!vocValue || 
+          !vocValue.toLowerCase().includes(filters.vocFilter.toLowerCase())) {
         return false;
       }
     }
     
     // Filter by Campaign
-    if (filters.campaignFilter && item.callMetrics && item.callMetrics.campaign) {
-      if (!item.callMetrics.campaign.toLowerCase().includes(filters.campaignFilter.toLowerCase())) {
+    if (filters.campaignFilter && item.callMetrics) {
+      // Check multiple possible field names for Campaign
+      const campaignValue = item.callMetrics.campaign || 
+                           item.callMetrics.Campaign ||
+                           item.callMetrics["Campaign Name"] ||
+                           item.callMetrics.campaign_name;
+      
+      if (!campaignValue || 
+          !campaignValue.toLowerCase().includes(filters.campaignFilter.toLowerCase())) {
         return false;
       }
     }
@@ -268,22 +294,24 @@ async function parseExcelFile(filePath: string): Promise<AudioFileMetadata[]> {
           callType: callMetrics.callType || "unknown",
           
           // Required metadata fields with defaults if not present
-          auditRole: callMetrics.auditRole || "Quality Analyst",
-          OLMSID: callMetrics.OLMSID || "",
-          Name: callMetrics.Name || "",
-          PBXID: callMetrics.PBXID || "",
-          partnerName: callMetrics.partnerName || "CloudPoint Technologies",
-          customerMobile: callMetrics.customerMobile || "",
-          callDuration: callMetrics.callDuration || "0",
-          subType: callMetrics.subType || "",
-          subSubType: callMetrics.subSubType || "",
-          VOC: callMetrics.VOC || "Neutral",
+          auditRole: callMetrics.auditRole || callMetrics["Audit Role"] || "Quality Analyst",
+          OLMSID: callMetrics.OLMSID || callMetrics.AgentID || callMetrics["Agent ID"] || "",
+          Name: callMetrics.Name || callMetrics.AgentName || callMetrics["Agent Name"] || "",
+          PBXID: callMetrics.PBXID || callMetrics["PBX ID"] || "",
+          partnerName: callMetrics.partnerName || callMetrics["Partner Name"] || callMetrics.Partner_Name || "CloudSocial",
+          customerMobile: callMetrics.customerMobile || callMetrics["Customer Mobile"] || "",
+          callDuration: callMetrics.callDuration || callMetrics["Call Duration"] || "0",
+          // Using existing callType from above so not redefining it here
+          subType: callMetrics.subType || callMetrics["Sub Type"] || "",
+          subSubType: callMetrics.subSubType || callMetrics["Sub sub Type"] || "",
+          VOC: callMetrics.VOC || callMetrics.voc || "Neutral",
           languageOfCall: callMetrics.languageOfCall || "English",
-          userRole: callMetrics.userRole || "Agent",
-          advisorCategory: callMetrics.advisorCategory || "Performer",
-          businessSegment: callMetrics.businessSegment || "Care",
+          userRole: callMetrics.userRole || callMetrics["User Role"] || "Agent",
+          advisorCategory: callMetrics.advisorCategory || callMetrics["Advisor Category"] || "Performer",
+          campaign: callMetrics.campaign || callMetrics.Campaign || callMetrics["Campaign Name"] || "",
+          businessSegment: callMetrics.businessSegment || callMetrics["Business Segment"] || "Care",
           LOB: callMetrics.LOB || "Prepaid",
-          formName: callMetrics.formName || "Evaluation Form 1"
+          formName: callMetrics.formName || callMetrics["Form Name"] || "Evaluation Form 1"
         };
         
         result.push({
@@ -531,19 +559,19 @@ async function parseExcelFile(filePath: string): Promise<AudioFileMetadata[]> {
           // Required callMetrics fields with defaults
           callDate: callDate || new Date().toISOString().split('T')[0],
           callId: normalizedRow.callId || 'unknown',
-          callType: normalizedRow.callType || 'unknown',
+          callType: normalizedRow.callType || normalizedRow["Call Type"] || normalizedRow.Call_Type || 'unknown',
           
           // Required metadata fields with defaults if not present
           auditRole: normalizedRow.auditRole || "Quality Analyst",
           OLMSID: normalizedRow.OLMSID || "",
           Name: normalizedRow.Name || normalizedRow.name || "",
           PBXID: normalizedRow.PBXID || normalizedRow.pbxid || "",
-          partnerName: normalizedRow.partnerName || "CloudPoint Technologies",
-          customerMobile: normalizedRow.customerMobile || normalizedRow.customer_mobile || "",
-          callDuration: normalizedRow.callDuration || normalizedRow.call_duration || "0",
-          subType: normalizedRow.subType || normalizedRow.sub_type || "",
-          subSubType: normalizedRow.subSubType || normalizedRow.sub_sub_type || "",
-          VOC: normalizedRow.VOC || normalizedRow.voc || "Neutral",
+          partnerName: normalizedRow.partnerName || normalizedRow["Partner Name"] || normalizedRow.Partner_Name || "CloudSocial",
+          customerMobile: normalizedRow.customerMobile || normalizedRow["Customer Mobile"] || normalizedRow.customer_mobile || "",
+          callDuration: normalizedRow.callDuration || normalizedRow["Call Duration"] || normalizedRow.call_duration || "0",
+          subType: normalizedRow.subType || normalizedRow["Sub Type"] || normalizedRow.sub_type || "",
+          subSubType: normalizedRow.subSubType || normalizedRow["Sub sub Type"] || normalizedRow.sub_sub_type || "",
+          VOC: normalizedRow.VOC || normalizedRow.voc || normalizedRow["Voice of Customer"] || "Neutral",
           languageOfCall: normalizedRow.languageOfCall || normalizedRow.language_of_call || "English",
           userRole: normalizedRow.userRole || normalizedRow.user_role || "Agent",
           advisorCategory: normalizedRow.advisorCategory || normalizedRow.advisor_category || "Performer",
