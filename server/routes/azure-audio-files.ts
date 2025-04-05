@@ -1082,88 +1082,63 @@ router.get('/azure-metadata-template', async (req, res) => {
   if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
   
   try {
-    console.log('Starting metadata template generation');
+    console.log('Starting metadata template generation with client-specified fields');
     
     // Create a new workbook
     const wb = xlsxUtils.book_new();
     
-    // REQUIRED METADATA FIELDS:
-    // Create sample data with all 23 required fields ordered clearly
-    // The field order is important for readability and ensures all required fields are present
+    // Creating sample data with EXACTLY the fields requested by the client
+    // 1. Base fields (4): filename, language, version, call_date 
+    // 2. Additional fields (13): Audit Role, AgentID, AgentName, PBX ID, Partner Name, 
+    //    Customer Mobile, Call Duration, Call Type, Sub Type, Sub sub Type, VOC, Advisor Category, Campaign
     const sampleData = [
       {
-        // REQUIRED FIELDS (23 fields total) - ordered for clarity
-        filename: 'agent-123-20250401-1234.mp3',         // 1. Filename (match Azure)
-        language: 'english',                            // 2. Language
-        version: '1.0',                                 // 3. Version
-        call_date: '2025-04-01',                        // 4. Call Date
-        callId: 'CALL-123-456-25',                      // 5. Call ID
-        callType: 'inbound',                            // 6. Call Type
-        agentId: '249',                                 // 7. Agent ID
-        OLMSID: 'AG123456',                             // 8. OLMS ID
-        Name: 'John Smith',                             // 9. Name
-        PBXID: 'PBX987654',                             // 10. PBX ID
-        partnerName: 'CloudPoint Technologies',         // 11. Partner Name
-        customerMobile: '9876543210',                   // 12. Customer Mobile
-        languageOfCall: 'English',                      // 13. Language of Call
-        callDuration: '180',                            // 14. Call Duration
-        subType: 'Customer Service',                    // 15. Sub Type
-        subSubType: 'Billing Inquiry',                  // 16. Sub-Sub Type
-        VOC: 'Positive',                                // 17. VOC
-        userRole: 'Agent',                              // 18. User Role
-        advisorCategory: 'Challenger',                  // 19. Advisor Category
-        businessSegment: 'Care',                        // 20. Business Segment
-        LOB: 'Prepaid',                                 // 21. LOB
-        formName: 'Evaluation Form 1',                  // 22. Form Name
-        auditRole: 'Quality Analyst',                   // 23. Audit Role
+        // Existing base fields - always required
+        filename: 'agent-123-20250401-1234.mp3',
+        language: 'english',
+        version: '1.0',
+        call_date: '2025-04-01',
         
-        // OPTIONAL FIELDS - helpful but not required
-        originalFilename: 'Customer Call - John Smith - Billing Issue.mp3',
-        callDate: '2025-04-01',
-        campaignName: 'Symp_Inbound_D2C',
-        disposition1: 'Lead',
-        disposition2: 'happy',
-        callTime: '15:30:45',
-        queryType: 'General'
+        // Client-specified additional fields
+        "Audit Role": 'Quality Analyst',
+        "AgentID": '249',
+        "AgentName": 'John Smith',
+        "PBX ID": 'PBX987654',
+        "Partner Name": 'CloudPoint Technologies',
+        "Customer Mobile": '9876543210',
+        "Call Duration": '180',
+        "Call Type": 'inbound',
+        "Sub Type": 'Customer Service',
+        "Sub sub Type": 'Billing Inquiry',
+        "VOC": 'Positive',
+        "Advisor Category": 'Challenger',
+        "Campaign": 'Symp_Inbound_D2C'
       },
       {
-        // REQUIRED FIELDS (23 fields total) - second example
-        filename: 'agent-456-20250401-5678.mp3',         // 1. Filename
-        language: 'spanish',                            // 2. Language
-        version: '1.0',                                 // 3. Version
-        call_date: '2025-04-01',                        // 4. Call Date
-        callId: 'CALL-456-789-25',                      // 5. Call ID
-        callType: 'outbound',                           // 6. Call Type
-        agentId: '204',                                 // 7. Agent ID
-        OLMSID: 'AG789012',                             // 8. OLMS ID
-        Name: 'Jane Doe',                               // 9. Name
-        PBXID: 'PBX345678',                             // 10. PBX ID
-        partnerName: 'TechSupport Inc.',                // 11. Partner Name
-        customerMobile: '8765432109',                   // 12. Customer Mobile
-        languageOfCall: 'Spanish',                      // 13. Language of Call
-        callDuration: '240',                            // 14. Call Duration
-        subType: 'Technical Support',                   // 15. Sub Type
-        subSubType: 'Product Issue',                    // 16. Sub-Sub Type
-        VOC: 'Negative',                                // 17. VOC
-        userRole: 'Supervisor',                         // 18. User Role
-        advisorCategory: 'Performer',                   // 19. Advisor Category
-        businessSegment: 'Tech Support',                // 20. Business Segment
-        LOB: 'Postpaid',                                // 21. LOB
-        formName: 'Tech Support Evaluation',            // 22. Form Name
-        auditRole: 'Manager',                           // 23. Audit Role
+        // Existing base fields - always required
+        filename: 'agent-456-20250401-5678.mp3',
+        language: 'spanish',
+        version: '1.0',
+        call_date: '2025-04-01',
         
-        // OPTIONAL FIELDS
-        originalFilename: 'Customer Call - Jane Doe - Technical Issue.mp3',
-        callDate: '2025-04-01',
-        campaignName: 'NPR_Restel_Outbound',
-        disposition1: 'Not Lead',
-        disposition2: 'not happy',
-        callTime: '16:45:30',
-        queryType: 'Specific'
+        // Client-specified additional fields
+        "Audit Role": 'Manager',
+        "AgentID": '204',
+        "AgentName": 'Jane Doe',
+        "PBX ID": 'PBX345678',
+        "Partner Name": 'TechSupport Inc.',
+        "Customer Mobile": '8765432109',
+        "Call Duration": '240',
+        "Call Type": 'outbound',
+        "Sub Type": 'Technical Support',
+        "Sub sub Type": 'Product Issue',
+        "VOC": 'Negative',
+        "Advisor Category": 'Performer',
+        "Campaign": 'NPR_Restel_Outbound'
       }
     ];
     
-    console.log('Created sample data with all 23 required fields');
+    console.log('Created sample data with exactly the client-requested fields');
     
     // Create worksheet and add to workbook
     const ws = xlsxUtils.json_to_sheet(sampleData);
@@ -1173,39 +1148,26 @@ router.get('/azure-metadata-template', async (req, res) => {
     
     // Add column width specifications for better readability
     const wscols = [
-      // REQUIRED FIELDS - 23 columns
-      { wch: 35 }, // 1. filename
-      { wch: 15 }, // 2. language
-      { wch: 10 }, // 3. version
-      { wch: 15 }, // 4. call_date
-      { wch: 20 }, // 5. callId
-      { wch: 15 }, // 6. callType
-      { wch: 12 }, // 7. agentId
-      { wch: 15 }, // 8. OLMSID
-      { wch: 20 }, // 9. Name
-      { wch: 15 }, // 10. PBXID
-      { wch: 25 }, // 11. partnerName
-      { wch: 15 }, // 12. customerMobile
-      { wch: 15 }, // 13. languageOfCall
-      { wch: 15 }, // 14. callDuration
-      { wch: 20 }, // 15. subType
-      { wch: 20 }, // 16. subSubType
-      { wch: 15 }, // 17. VOC
-      { wch: 15 }, // 18. userRole
-      { wch: 20 }, // 19. advisorCategory
-      { wch: 20 }, // 20. businessSegment
-      { wch: 15 }, // 21. LOB
-      { wch: 25 }, // 22. formName
-      { wch: 15 }, // 23. auditRole
+      // Base fields (4)
+      { wch: 35 }, // filename
+      { wch: 15 }, // language
+      { wch: 10 }, // version
+      { wch: 15 }, // call_date
       
-      // OPTIONAL FIELDS
-      { wch: 40 }, // originalFilename
-      { wch: 12 }, // callDate
-      { wch: 20 }, // campaignName
-      { wch: 15 }, // disposition1
-      { wch: 15 }, // disposition2
-      { wch: 12 }, // callTime
-      { wch: 15 }  // queryType
+      // Client-specified additional fields (13)
+      { wch: 15 }, // Audit Role
+      { wch: 15 }, // AgentID
+      { wch: 20 }, // AgentName
+      { wch: 15 }, // PBX ID
+      { wch: 25 }, // Partner Name
+      { wch: 20 }, // Customer Mobile
+      { wch: 15 }, // Call Duration
+      { wch: 15 }, // Call Type
+      { wch: 20 }, // Sub Type
+      { wch: 20 }, // Sub sub Type
+      { wch: 15 }, // VOC
+      { wch: 20 }, // Advisor Category
+      { wch: 25 }  // Campaign
     ];
     ws['!cols'] = wscols;
     
