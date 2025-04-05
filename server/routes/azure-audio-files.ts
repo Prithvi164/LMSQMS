@@ -18,6 +18,11 @@ function filterAudioMetadata(items: any[], filters: {
   minDuration?: string;
   maxDuration?: string;
   language?: string;
+  // New filter fields
+  partnerNameFilter?: string;
+  callTypeFilter?: string;
+  vocFilter?: string;
+  campaignFilter?: string;
 }): any[] {
   return items.filter(item => {
     // Filter by filename
@@ -95,6 +100,36 @@ function filterAudioMetadata(items: any[], filters: {
     } else if (filters.minDuration || filters.maxDuration) {
       // If we have duration filters but the item has no duration, exclude it
       return false;
+    }
+    
+    // New filter conditions for the added metadata fields
+    
+    // Filter by Partner Name
+    if (filters.partnerNameFilter && item.callMetrics && item.callMetrics.partnerName) {
+      if (!item.callMetrics.partnerName.toLowerCase().includes(filters.partnerNameFilter.toLowerCase())) {
+        return false;
+      }
+    }
+    
+    // Filter by Call Type
+    if (filters.callTypeFilter && item.callMetrics && item.callMetrics.callType) {
+      if (!item.callMetrics.callType.toLowerCase().includes(filters.callTypeFilter.toLowerCase())) {
+        return false;
+      }
+    }
+    
+    // Filter by VOC (Voice of Customer)
+    if (filters.vocFilter && item.callMetrics && item.callMetrics.VOC) {
+      if (!item.callMetrics.VOC.toLowerCase().includes(filters.vocFilter.toLowerCase())) {
+        return false;
+      }
+    }
+    
+    // Filter by Campaign
+    if (filters.campaignFilter && item.callMetrics && item.callMetrics.campaign) {
+      if (!item.callMetrics.campaign.toLowerCase().includes(filters.campaignFilter.toLowerCase())) {
+        return false;
+      }
     }
     
     return true;
@@ -706,7 +741,12 @@ router.post('/azure-audio-filter-preview/:containerName', excelUpload.single('me
     dateRangeEnd: req.body.dateRangeEnd,
     minDuration: req.body.minDuration,
     maxDuration: req.body.maxDuration,
-    language: req.body.language
+    language: req.body.language,
+    // New filter fields
+    partnerNameFilter: req.body.partnerNameFilter,
+    callTypeFilter: req.body.callTypeFilter,
+    vocFilter: req.body.vocFilter,
+    campaignFilter: req.body.campaignFilter
   };
   
   try {
@@ -778,7 +818,12 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
     dateRangeEnd: req.body.dateRangeEnd,
     minDuration: req.body.minDuration,
     maxDuration: req.body.maxDuration,
-    language: req.body.language
+    language: req.body.language,
+    // New filter fields
+    partnerNameFilter: req.body.partnerNameFilter,
+    callTypeFilter: req.body.callTypeFilter,
+    vocFilter: req.body.vocFilter,
+    campaignFilter: req.body.campaignFilter
   };
   
   try {
@@ -804,7 +849,8 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
     // Apply filters if any are specified
     let filteredItems = enrichedItems;
     if (filters.fileNameFilter || filters.dateRangeStart || filters.dateRangeEnd || 
-        filters.minDuration || filters.maxDuration || (filters.language && filters.language !== 'all')) {
+        filters.minDuration || filters.maxDuration || (filters.language && filters.language !== 'all') ||
+        filters.partnerNameFilter || filters.callTypeFilter || filters.vocFilter || filters.campaignFilter) {
       console.log('Applying filters to imported files:', filters);
       filteredItems = filterAudioMetadata(enrichedItems, filters);
       console.log(`Filtered ${enrichedItems.length} items to ${filteredItems.length} items`);
@@ -1026,7 +1072,9 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
       filtered: enrichedItems.length !== filteredItems.length,
       filterApplied: filters.fileNameFilter || filters.dateRangeStart || filters.dateRangeEnd || 
                     filters.minDuration || filters.maxDuration || 
-                    (filters.language && filters.language !== 'all') ? true : false,
+                    (filters.language && filters.language !== 'all') ||
+                    filters.partnerNameFilter || filters.callTypeFilter || 
+                    filters.vocFilter || filters.campaignFilter ? true : false,
       results: importResults,
       autoAssigned: autoAssign === 'true' ? assignmentResults.length : 0,
       manuallyAssigned: autoAssign === 'true' ? 0 : assignmentResults.length,

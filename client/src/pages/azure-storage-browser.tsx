@@ -123,6 +123,11 @@ const AzureStorageBrowser = () => {
   const [minDuration, setMinDuration] = useState<string>('');
   const [maxDuration, setMaxDuration] = useState<string>('');
   const [language, setLanguage] = useState<string>('all');
+  // New filter states for the requested metadata fields
+  const [partnerNameFilter, setPartnerNameFilter] = useState<string>('');
+  const [callTypeFilter, setCallTypeFilter] = useState<string>('');
+  const [vocFilter, setVocFilter] = useState<string>('');
+  const [campaignFilter, setCampaignFilter] = useState<string>('');
   const [filterCounts, setFilterCounts] = useState<{total: number, filtered: number} | null>(null);
   const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
   
@@ -545,6 +550,12 @@ const AzureStorageBrowser = () => {
       if (maxDuration) formData.append('maxDuration', maxDuration);
       if (language) formData.append('language', language);
       
+      // Add new filters for the metadata fields
+      if (partnerNameFilter) formData.append('partnerNameFilter', partnerNameFilter);
+      if (callTypeFilter) formData.append('callTypeFilter', callTypeFilter);
+      if (vocFilter) formData.append('vocFilter', vocFilter);
+      if (campaignFilter) formData.append('campaignFilter', campaignFilter);
+      
       return apiRequest('POST', `/api/azure-audio-filter-preview/${containerName}`, formData);
     },
     onSuccess: async (response) => {
@@ -601,6 +612,12 @@ const AzureStorageBrowser = () => {
       if (minDuration) formData.append('minDuration', minDuration);
       if (maxDuration) formData.append('maxDuration', maxDuration);
       if (language) formData.append('language', language);
+      
+      // Add new metadata filters
+      if (partnerNameFilter) formData.append('partnerNameFilter', partnerNameFilter);
+      if (callTypeFilter) formData.append('callTypeFilter', callTypeFilter);
+      if (vocFilter) formData.append('vocFilter', vocFilter);
+      if (campaignFilter) formData.append('campaignFilter', campaignFilter);
       
       return apiRequest('POST', `/api/azure-audio-import/${containerName}`, formData);
     },
@@ -1180,6 +1197,47 @@ const AzureStorageBrowser = () => {
                                     )}
                                   </SelectContent>
                                 </Select>
+                              </div>
+                              
+                              {/* New metadata filters as requested */}
+                              <div className="grid gap-2">
+                                <Label htmlFor="partnerNameFilter">Partner Name</Label>
+                                <Input
+                                  id="partnerNameFilter"
+                                  value={partnerNameFilter}
+                                  onChange={(e) => setPartnerNameFilter(e.target.value)}
+                                  placeholder="Enter partner name"
+                                />
+                              </div>
+                              
+                              <div className="grid gap-2">
+                                <Label htmlFor="callTypeFilter">Call Type</Label>
+                                <Input
+                                  id="callTypeFilter"
+                                  value={callTypeFilter}
+                                  onChange={(e) => setCallTypeFilter(e.target.value)}
+                                  placeholder="Enter call type (inbound, outbound, etc.)"
+                                />
+                              </div>
+                              
+                              <div className="grid gap-2">
+                                <Label htmlFor="vocFilter">VOC (Voice of Customer)</Label>
+                                <Input
+                                  id="vocFilter"
+                                  value={vocFilter}
+                                  onChange={(e) => setVocFilter(e.target.value)}
+                                  placeholder="Enter VOC value"
+                                />
+                              </div>
+                              
+                              <div className="grid gap-2">
+                                <Label htmlFor="campaignFilter">Campaign</Label>
+                                <Input
+                                  id="campaignFilter"
+                                  value={campaignFilter}
+                                  onChange={(e) => setCampaignFilter(e.target.value)}
+                                  placeholder="Enter campaign name"
+                                />
                               </div>
                               
                               <Button 
