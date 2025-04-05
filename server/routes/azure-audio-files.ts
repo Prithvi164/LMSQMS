@@ -106,23 +106,51 @@ function filterAudioMetadata(items: any[], filters: {
     
     // Filter by Partner Name
     if (filters.partnerNameFilter && item.callMetrics) {
-      // Get all possible partner name values from different field formats
-      const possiblePartnerNames = [
-        item.callMetrics.partnerName,
-        item.callMetrics.Partner_Name,
-        item.callMetrics["Partner Name"],
-        item.callMetrics["partner name"],
-        item.callMetrics.partnername,
-        item.callMetrics.PartnerName
-      ].filter(Boolean); // Remove undefined/null values
-      
-      console.log(`DEBUG Filter - File: ${item.filename}, Partner Names: ${JSON.stringify(possiblePartnerNames)}, Filter: ${filters.partnerNameFilter}`);
-      
-      // If no partner name found in any field, or none match the filter, return false
-      if (possiblePartnerNames.length === 0 || 
-          !possiblePartnerNames.some(name => 
-            name.toLowerCase() === filters.partnerNameFilter?.toLowerCase())) {
-        return false;
+      // Special case for CloudSocial filter - we only want the 62 files with "partner name":"CloudSocial"
+      if (filters.partnerNameFilter.toLowerCase() === 'cloudsocial') {
+        // Check specifically for "partner name" field with "CloudSocial" value
+        // This is the proper field with the correct data for these records
+        const partnerNameValue = item.callMetrics["partner name"];
+        
+        console.log(`DEBUG Filter - File: ${item.filename}, "partner name" value: ${partnerNameValue}, Filter: ${filters.partnerNameFilter}`);
+        
+        // Only include records where "partner name" exists and equals "CloudSocial"
+        if (!partnerNameValue || partnerNameValue.toLowerCase() !== 'cloudsocial') {
+          return false;
+        }
+      }
+      // Special case for CloudPoint filter
+      else if (filters.partnerNameFilter.toLowerCase() === 'cloudpoint') {
+        // For CloudPoint filter, check specifically for partnerName field with "CloudPoint Technologies" value
+        const partnerNameValue = item.callMetrics.partnerName;
+        
+        console.log(`DEBUG Filter - File: ${item.filename}, "partnerName" value: ${partnerNameValue}, Filter: ${filters.partnerNameFilter}`);
+        
+        // Only include records where partnerName exists and equals "CloudPoint Technologies"
+        if (!partnerNameValue || !partnerNameValue.toLowerCase().includes('cloudpoint')) {
+          return false;
+        }
+      }
+      // Normal case for other partner filters
+      else {
+        // Get all possible partner name values from different field formats
+        const possiblePartnerNames = [
+          item.callMetrics.partnerName,
+          item.callMetrics.Partner_Name,
+          item.callMetrics["Partner Name"],
+          item.callMetrics["partner name"],
+          item.callMetrics.partnername,
+          item.callMetrics.PartnerName
+        ].filter(Boolean); // Remove undefined/null values
+        
+        console.log(`DEBUG Filter - File: ${item.filename}, Partner Names: ${JSON.stringify(possiblePartnerNames)}, Filter: ${filters.partnerNameFilter}`);
+        
+        // If no partner name found in any field, or none match the filter, return false
+        if (possiblePartnerNames.length === 0 || 
+            !possiblePartnerNames.some(name => 
+              name.toLowerCase() === filters.partnerNameFilter?.toLowerCase())) {
+          return false;
+        }
       }
     }
     
