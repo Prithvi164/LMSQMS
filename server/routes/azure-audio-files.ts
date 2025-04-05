@@ -1218,7 +1218,7 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
             }
           }
           
-          // Create a map to evenly distribute files among selected QAs
+          // Create a map to distribute files among selected QAs with max limits
           const assignmentMap = new Map();
           
           // Initialize assignment map for each selected quality analyst
@@ -1226,12 +1226,62 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
             assignmentMap.set(parseInt(qaId.toString()), []);
           });
           
-          // Distribute files to selected quality analysts
-          successfulImports.forEach((file, index) => {
-            const qaIndex = index % selectedQAs.length;
-            const qaId = parseInt(selectedQAs[qaIndex]);
-            assignmentMap.get(qaId).push(file.id);
+          // Parse QA assignment counts if available and set max counts
+          const maxAssignmentsPerQA = 10; // Default max assignments per QA
+          const qaMaxAssignments = new Map();
+          selectedQAs.forEach((qaId: string | number) => {
+            const parsedQaId = parseInt(qaId.toString());
+            const maxCount = qaAssignmentCountsObj[parsedQaId] || maxAssignmentsPerQA;
+            qaMaxAssignments.set(parsedQaId, maxCount);
           });
+          
+          // Make copy of files to distribute and shuffle them for randomness
+          const filesToAssign = [...successfulImports];
+          // Fisher-Yates shuffle algorithm for random distribution
+          for (let i = filesToAssign.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [filesToAssign[i], filesToAssign[j]] = [filesToAssign[j], filesToAssign[i]];
+          }
+          
+          // Distribute files to selected QAs up to their max limits
+          let assignedFileCount = 0;
+          let currentQaIndex = 0;
+          
+          while (filesToAssign.length > 0 && assignedFileCount < filesToAssign.length) {
+            let allQasAtLimit = true;
+            
+            // Try to assign to each QA in round-robin fashion
+            for (let i = 0; i < selectedQAs.length; i++) {
+              // Get next QA in rotation
+              const qaIndex = (currentQaIndex + i) % selectedQAs.length;
+              const qaId = parseInt(selectedQAs[qaIndex].toString());
+              
+              const currentAssignedFiles = assignmentMap.get(qaId) || [];
+              const maxForThisQA = qaMaxAssignments.get(qaId) || maxAssignmentsPerQA;
+              
+              // If this QA has not reached their limit and we have files to assign
+              if (currentAssignedFiles.length < maxForThisQA && filesToAssign.length > 0) {
+                // Take the next file from our shuffled list
+                const file = filesToAssign.shift();
+                if (file) {
+                  currentAssignedFiles.push(file.id);
+                  assignmentMap.set(qaId, currentAssignedFiles);
+                  assignedFileCount++;
+                  allQasAtLimit = false;
+                }
+              }
+            }
+            
+            // Move to next QA for the next round
+            currentQaIndex = (currentQaIndex + 1) % selectedQAs.length;
+            
+            // If all QAs are at their limits, break out of the loop
+            if (allQasAtLimit) break;
+          }
+          
+          // Log assignment results
+          console.log(`Distributed ${assignedFileCount} files out of ${successfulImports.length} imported files`);
+          console.log(`${filesToAssign.length} files left unassigned due to QA capacity limits`);
           
           // Create allocations in the database
           for (const entry of Array.from(assignmentMap.entries())) {
