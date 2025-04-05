@@ -738,6 +738,7 @@ const AzureStorageBrowser = () => {
   // Allocate audio files mutation (this would need to be implemented)
   const allocateAudioMutation = useMutation({
     mutationFn: async ({ audioFileIds, qualityAnalystId, dueDate, evaluationTemplateId }: any) => {
+      console.log(`Allocating ${audioFileIds.length} files to QA ${qualityAnalystId}`);
       return apiRequest('POST', '/api/azure-audio-allocate', { 
         audioFileIds, 
         qualityAnalystId, 
