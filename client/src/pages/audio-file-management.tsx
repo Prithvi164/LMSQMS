@@ -75,7 +75,7 @@ const AudioFileManagement = () => {
   });
   const [activeTab, setActiveTab] = useState('all');
   const [filters, setFilters] = useState({
-    language: [] as string[],
+    language: 'all',
     version: '',
     status: 'any',
     duration: 'any',
@@ -402,37 +402,13 @@ const AudioFileManagement = () => {
     }
   };
 
-  const handleFilterChange = (key: string, value: string | string[]) => {
+  const handleFilterChange = (key: string, value: string) => {
     setFilters({ ...filters, [key]: value });
-  };
-  
-  // Add a special handler for language multi-select
-  const handleLanguageFilterChange = (value: string) => {
-    // Special case for "all" - clear the array
-    if (value === 'all') {
-      setFilters({ ...filters, language: [] });
-      return;
-    }
-    
-    const updatedLanguages = [...(filters.language as string[])];
-    
-    // Check if the value is already in the array
-    const index = updatedLanguages.indexOf(value);
-    
-    if (index === -1) {
-      // Add the value if it's not in the array
-      updatedLanguages.push(value);
-    } else {
-      // Remove the value if it's already in the array
-      updatedLanguages.splice(index, 1);
-    }
-    
-    setFilters({ ...filters, language: updatedLanguages });
   };
 
   const resetFilters = () => {
     setFilters({
-      language: [] as string[],
+      language: 'all',
       version: '',
       status: 'any',
       duration: 'any',
@@ -464,8 +440,8 @@ const AudioFileManagement = () => {
     }
     
     // Apply additional filters
-    if (filters.language && Array.isArray(filters.language) && filters.language.length > 0) {
-      filteredFiles = filteredFiles.filter(file => filters.language.includes(file.language));
+    if (filters.language && filters.language !== 'all') {
+      filteredFiles = filteredFiles.filter(file => file.language === filters.language);
     }
     
     if (filters.version) {
@@ -1127,99 +1103,23 @@ const AudioFileManagement = () => {
           <CollapsibleContent className="mt-2 space-y-2">
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label htmlFor="filter-language">Language (Multi-select)</Label>
-                <div className="space-y-2 mt-2 border rounded-md p-3 bg-background">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="lang-english"
-                      checked={filters.language.includes('english')}
-                      onChange={() => handleLanguageFilterChange('english')}
-                      className="rounded border-gray-300"
-                    />
-                    <label htmlFor="lang-english" className="text-sm">English</label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="lang-spanish"
-                      checked={filters.language.includes('spanish')}
-                      onChange={() => handleLanguageFilterChange('spanish')}
-                      className="rounded border-gray-300"
-                    />
-                    <label htmlFor="lang-spanish" className="text-sm">Spanish</label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="lang-french"
-                      checked={filters.language.includes('french')}
-                      onChange={() => handleLanguageFilterChange('french')}
-                      className="rounded border-gray-300"
-                    />
-                    <label htmlFor="lang-french" className="text-sm">French</label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="lang-hindi"
-                      checked={filters.language.includes('hindi')}
-                      onChange={() => handleLanguageFilterChange('hindi')}
-                      className="rounded border-gray-300"
-                    />
-                    <label htmlFor="lang-hindi" className="text-sm">Hindi</label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="lang-bengali"
-                      checked={filters.language.includes('bengali')}
-                      onChange={() => handleLanguageFilterChange('bengali')}
-                      className="rounded border-gray-300"
-                    />
-                    <label htmlFor="lang-bengali" className="text-sm">Bengali</label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="lang-telugu"
-                      checked={filters.language.includes('telugu')}
-                      onChange={() => handleLanguageFilterChange('telugu')}
-                      className="rounded border-gray-300"
-                    />
-                    <label htmlFor="lang-telugu" className="text-sm">Telugu</label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="lang-tamil"
-                      checked={filters.language.includes('tamil')}
-                      onChange={() => handleLanguageFilterChange('tamil')}
-                      className="rounded border-gray-300"
-                    />
-                    <label htmlFor="lang-tamil" className="text-sm">Tamil</label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="lang-other"
-                      checked={filters.language.includes('other')}
-                      onChange={() => handleLanguageFilterChange('other')}
-                      className="rounded border-gray-300"
-                    />
-                    <label htmlFor="lang-other" className="text-sm">Other</label>
-                  </div>
-                  <div className="pt-2 border-t mt-2">
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className="w-full text-xs"
-                      onClick={() => setFilters({...filters, language: []})}
-                    >
-                      Clear Selections
-                    </Button>
-                  </div>
-                </div>
+                <Label htmlFor="filter-language">Language</Label>
+                <Select 
+                  value={filters.language} 
+                  onValueChange={(value) => handleFilterChange('language', value)}
+                >
+                  <SelectTrigger id="filter-language">
+                    <SelectValue placeholder="Select language" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Languages</SelectItem>
+                    <SelectItem value="english">English</SelectItem>
+                    <SelectItem value="spanish">Spanish</SelectItem>
+                    <SelectItem value="french">French</SelectItem>
+                    <SelectItem value="hindi">Hindi</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               
               <div>
