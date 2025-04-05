@@ -272,7 +272,7 @@ const AzureStorageBrowser = () => {
   const handleDownloadTemplate = async () => {
     try {
       // Use the direct API endpoint to download the metadata template with all fields
-      const response = await fetch('/api/azure-audio-files/azure-metadata-template');
+      const response = await fetch('/api/azure-metadata-template');
       
       if (!response.ok) {
         throw new Error('Failed to download metadata template');
@@ -314,7 +314,7 @@ const AzureStorageBrowser = () => {
     
     try {
       // Use the direct API endpoint that generates a template with actual filenames
-      const response = await fetch(`/api/azure-audio-files/azure-custom-template/${selectedContainer}`);
+      const response = await fetch(`/api/azure-custom-template/${selectedContainer}`);
       
       if (!response.ok) {
         throw new Error('Failed to download custom template');
@@ -347,7 +347,7 @@ const AzureStorageBrowser = () => {
   const handleDownloadMinimalTemplate = async () => {
     try {
       // Use the direct API endpoint for minimal template
-      const response = await fetch('/api/azure-audio-files/azure-minimal-template');
+      const response = await fetch('/api/azure-minimal-template');
       
       if (!response.ok) {
         throw new Error('Failed to download minimal template');
@@ -396,7 +396,7 @@ const AzureStorageBrowser = () => {
     try {
       // Use the direct API endpoint that generates a template with just one example file
       console.log(`Downloading simple template for container: ${selectedContainer}`);
-      const response = await fetch(`/api/azure-audio-files/azure-simple-template/${selectedContainer}`);
+      const response = await fetch(`/api/azure-simple-template/${selectedContainer}`);
       
       if (!response.ok) {
         // Try to get more detailed error information
