@@ -1083,9 +1083,9 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
       }
     }
     
-    // Store in database
+    // Prepare file data (no database insertion yet)
     const importResults = [];
-    const successfulImports = [];
+    const preparedFiles = [];
     
     for (const item of filteredItems) {
       try {
@@ -1096,10 +1096,9 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
           1440 // 24 hours
         );
         
-        // Create the database record
-        const [audioFile] = await db
-          .insert(audioFiles)
-          .values({
+        // Prepare the file data for later insertion
+        preparedFiles.push({
+          fileData: {
             filename: item.filename,
             originalFilename: item.originalFilename || item.filename,
             fileUrl: sasUrl,
@@ -1109,24 +1108,22 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
             version: item.version,
             call_date: item.call_date,
             callMetrics: item.callMetrics,
-            status: 'pending',
+            status: 'allocated', // Will only insert if allocated
             uploadedBy: req.user.id,
-            // Use a default process ID if none is provided (1 is typically the default process)
             processId: processId ? parseInt(processId) : 1,
             organizationId: req.user.organizationId
-          })
-          .returning();
+          },
+          // Store the raw filename for result reporting
+          filename: item.filename
+        });
         
         importResults.push({
           file: item.filename,
           status: 'success',
-          id: audioFile.id
+          message: 'File prepared for allocation'
         });
-        
-        // Add to successful imports for auto-assignment
-        successfulImports.push(audioFile);
       } catch (error) {
-        console.error(`Error importing ${item.filename}:`, error);
+        console.error(`Error preparing ${item.filename}:`, error);
         importResults.push({
           file: item.filename,
           status: 'error',
@@ -1135,36 +1132,54 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
       }
     }
     
-    // Auto-assign files to quality analysts if requested and successful imports exist
+    // Setup assignment results for later reporting
     let assignmentResults = [];
+    const successfulImports: any[] = []; // No longer used for database allocation
     
     // Handle auto-assignment mode
-    if (autoAssign === 'true' && qualityAnalysts.length > 0 && successfulImports.length > 0) {
+    if (autoAssign === 'true' && qualityAnalysts.length > 0 && preparedFiles.length > 0) {
       try {
-        // Distribute files evenly among quality analysts
-        const assignmentMap = new Map();
+        console.log('Auto-assignment mode detected');
+        
+        // Create map to distribute files evenly among quality analysts
+        const assignedFilesMap = new Map<number, any[]>();
         
         // Initialize assignment map for each quality analyst
         qualityAnalysts.forEach((qa: { id: number }) => {
-          assignmentMap.set(qa.id, []);
+          assignedFilesMap.set(qa.id, []);
         });
         
         // Distribute files to quality analysts evenly
-        successfulImports.forEach((file, index) => {
+        preparedFiles.forEach((file, index) => {
           const qaIndex = index % qualityAnalysts.length;
           const qaId = qualityAnalysts[qaIndex].id;
-          assignmentMap.get(qaId).push(file.id);
+          const currentAssignedFiles = assignedFilesMap.get(qaId) || [];
+          currentAssignedFiles.push(file);
+          assignedFilesMap.set(qaId, currentAssignedFiles);
         });
         
-        // Create allocations in the database
-        for (const entry of Array.from(assignmentMap.entries())) {
-          const [qaId, fileIds] = entry;
-          if (fileIds.length > 0) {
-            for (const fileId of fileIds) {
+        // Insert files into database and create allocations
+        const qaIds = Array.from(assignedFilesMap.keys());
+        for (let i = 0; i < qaIds.length; i++) {
+          const qaId = qaIds[i];
+          const files = assignedFilesMap.get(qaId) || [];
+          // For each file assigned to this QA
+          for (const file of files) {
+            try {
+              // 1. Insert the audio file into the database
+              const [audioFile] = await db
+                .insert(audioFiles)
+                .values({
+                  ...file.fileData,
+                  status: 'allocated' // Explicitly set status to allocated
+                })
+                .returning();
+              
+              // 2. Create the allocation record
               const [allocation] = await db
                 .insert(audioFileAllocations)
                 .values({
-                  audioFileId: fileId,
+                  audioFileId: audioFile.id,
                   qualityAnalystId: qaId,
                   status: 'allocated',
                   allocatedBy: req.user.id,
@@ -1172,27 +1187,27 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
                   evaluationId: evaluationTemplateId ? parseInt(evaluationTemplateId) : undefined
                 })
                 .returning();
-                
-              // Update audio file status to 'allocated'
-              await db
-                .update(audioFiles)
-                .set({ status: 'allocated' })
-                .where(eq(audioFiles.id, fileId));
-                
+              
+              // 3. Track the assignment in the results
               assignmentResults.push({
-                fileId,
+                fileId: audioFile.id,
                 qualityAnalystId: qaId,
-                allocationId: allocation.id
+                allocationId: allocation.id,
+                filename: file.filename
               });
+            } catch (error) {
+              console.error(`Error inserting and allocating file ${file.fileData.filename}:`, error);
             }
           }
         }
+        
+        console.log(`Auto allocation complete: ${assignmentResults.length} files allocated to ${qualityAnalysts.length} QAs`);
       } catch (error) {
         console.error('Error auto-assigning files:', error);
       }
     } 
     // Handle manual assignment mode (when selectedQualityAnalysts is provided)
-    else if (selectedQualityAnalysts && successfulImports.length > 0) {
+    else if (selectedQualityAnalysts && preparedFiles.length > 0) {
       try {
         console.log('Manual quality analyst selection mode detected');
         
@@ -1236,8 +1251,8 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
             qaMaxAssignments.set(parsedQaId, maxCount);
           });
           
-          // Make copy of files to distribute and shuffle them for randomness
-          const filesToAssign = [...successfulImports];
+          // Create a copy of prepared files to distribute and shuffle them for randomness
+          const filesToAssign = [...preparedFiles];
           // Fisher-Yates shuffle algorithm for random distribution
           for (let i = filesToAssign.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -1247,8 +1262,19 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
           // Distribute files to selected QAs up to their max limits
           let assignedFileCount = 0;
           let currentQaIndex = 0;
+          const assignedFiles: any[] = [];
           
-          while (filesToAssign.length > 0 && assignedFileCount < filesToAssign.length) {
+          // Maps for tracking assignments
+          const assignedFilesMap = new Map<number, any[]>();
+          
+          // Initialize the map for each QA
+          selectedQAs.forEach((qaId: string | number) => {
+            const parsedQaId = parseInt(qaId.toString());
+            assignedFilesMap.set(parsedQaId, []);
+          });
+          
+          // First pass: distribute files to QAs
+          while (filesToAssign.length > 0) {
             let allQasAtLimit = true;
             
             // Try to assign to each QA in round-robin fashion
@@ -1257,7 +1283,7 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
               const qaIndex = (currentQaIndex + i) % selectedQAs.length;
               const qaId = parseInt(selectedQAs[qaIndex].toString());
               
-              const currentAssignedFiles = assignmentMap.get(qaId) || [];
+              const currentAssignedFiles = assignedFilesMap.get(qaId) || [];
               const maxForThisQA = qaMaxAssignments.get(qaId) || maxAssignmentsPerQA;
               
               // If this QA has not reached their limit and we have files to assign
@@ -1265,8 +1291,9 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
                 // Take the next file from our shuffled list
                 const file = filesToAssign.shift();
                 if (file) {
-                  currentAssignedFiles.push(file.id);
-                  assignmentMap.set(qaId, currentAssignedFiles);
+                  // Add file to this QA's assignment list
+                  currentAssignedFiles.push(file);
+                  assignedFilesMap.set(qaId, currentAssignedFiles);
                   assignedFileCount++;
                   allQasAtLimit = false;
                 }
@@ -1281,33 +1308,31 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
           }
           
           // Log assignment results
-          console.log(`Distributed ${assignedFileCount} files out of ${successfulImports.length} imported files`);
+          console.log(`Distributed ${assignedFileCount} files out of ${preparedFiles.length} prepared files`);
           console.log(`${filesToAssign.length} files left unassigned due to QA capacity limits`);
           
-          // Track which files were assigned vs. unassigned
-          const assignedFileIds = new Set<number>();
-          
-          // Collect all assigned file IDs
-          for (const [_, fileIds] of Array.from(assignmentMap.entries())) {
-            fileIds.forEach((fileId: number) => assignedFileIds.add(fileId));
-          }
-          
-          // Collect unassigned file IDs (still in filesToAssign array or not in assignedFileIds)
-          const unassignedFileIds = successfulImports
-            .filter(file => !assignedFileIds.has(file.id))
-            .map(file => file.id);
-            
-          console.log(`Tracking ${unassignedFileIds.length} unassigned files that will remain with 'pending' status`);
-          
-          // Create allocations in the database
-          for (const entry of Array.from(assignmentMap.entries())) {
-            const [qaId, fileIds] = entry;
-            if (fileIds.length > 0) {
-              for (const fileId of fileIds) {
+          // Second pass: insert assigned files into database and create allocations
+          const manualQaIds = Array.from(assignedFilesMap.keys());
+          for (let i = 0; i < manualQaIds.length; i++) {
+            const qaId = manualQaIds[i];
+            const files = assignedFilesMap.get(qaId) || [];
+            // For each file assigned to this QA
+            for (const file of files) {
+              try {
+                // 1. Insert the audio file into the database
+                const [audioFile] = await db
+                  .insert(audioFiles)
+                  .values({
+                    ...file.fileData,
+                    status: 'allocated' // Explicitly set status to allocated
+                  })
+                  .returning();
+                
+                // 2. Create the allocation record
                 const [allocation] = await db
                   .insert(audioFileAllocations)
                   .values({
-                    audioFileId: fileId,
+                    audioFileId: audioFile.id,
                     qualityAnalystId: qaId,
                     status: 'allocated',
                     allocatedBy: req.user.id,
@@ -1315,21 +1340,26 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
                     evaluationId: evaluationTemplateId ? parseInt(evaluationTemplateId) : undefined
                   })
                   .returning();
-                  
-                // Update audio file status to 'allocated'
-                await db
-                  .update(audioFiles)
-                  .set({ status: 'allocated' })
-                  .where(eq(audioFiles.id, fileId));
-                  
+                
+                // 3. Track the assignment in the results
                 assignmentResults.push({
-                  fileId,
+                  fileId: audioFile.id,
                   qualityAnalystId: qaId,
-                  allocationId: allocation.id
+                  allocationId: allocation.id,
+                  filename: file.filename
                 });
+                
+                // Add to assigned files list for reporting
+                assignedFiles.push(audioFile);
+              } catch (error) {
+                console.error(`Error inserting and allocating file ${file.fileData.filename}:`, error);
               }
             }
           }
+          
+          // Log database insertion results
+          console.log(`Successfully inserted and allocated ${assignmentResults.length} files`);
+          console.log(`${filesToAssign.length} files were not inserted due to QA capacity limits`);
           
           console.log(`Manual allocation complete: ${assignmentResults.length} files allocated to ${selectedQAs.length} QAs`);
         }
