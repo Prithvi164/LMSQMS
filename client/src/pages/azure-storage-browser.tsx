@@ -1297,11 +1297,22 @@ const AzureStorageBrowser = () => {
                                   id="fileNameFilter"
                                   value={fileNameFilter.join(', ')}
                                   onChange={(e) => {
-                                    // Split by commas, trim whitespace, and filter out empty strings
-                                    const values = e.target.value
+                                    // Improved handling for more intuitive user input
+                                    // If input ends with a comma, keep it in the display value
+                                    const inputValue = e.target.value;
+                                    const endsWithComma = inputValue.trim().endsWith(',');
+                                    
+                                    // Split by commas and process values
+                                    let values = inputValue
                                       .split(',')
                                       .map(v => v.trim())
                                       .filter(v => v.length > 0);
+                                    
+                                    // If the input ends with a comma, add an empty string to preserve it visually
+                                    if (endsWithComma && values.length > 0) {
+                                      values[values.length-1] = values[values.length-1] + ', ';
+                                    }
+                                    
                                     setFileNameFilter(values);
                                   }}
                                   placeholder="E.g. call123, agent456, customer789"
@@ -1448,11 +1459,21 @@ const AzureStorageBrowser = () => {
                                   placeholder="E.g. Acme, Globex, CloudSocial"
                                   value={partnerNameFilter.join(', ')}
                                   onChange={(e) => {
-                                    // Split by commas, trim whitespace, and filter out empty strings
-                                    const values = e.target.value
+                                    // Improved handling for more intuitive user input
+                                    const inputValue = e.target.value;
+                                    const endsWithComma = inputValue.trim().endsWith(',');
+                                    
+                                    // Split by commas and process values
+                                    let values = inputValue
                                       .split(',')
                                       .map(v => v.trim())
                                       .filter(v => v.length > 0);
+                                    
+                                    // If the input ends with a comma, add an empty string to preserve it visually
+                                    if (endsWithComma && values.length > 0) {
+                                      values[values.length-1] = values[values.length-1] + ', ';
+                                    }
+                                    
                                     setPartnerNameFilter(values);
                                   }}
                                   className="w-full"
@@ -1466,11 +1487,21 @@ const AzureStorageBrowser = () => {
                                   placeholder="E.g. inbound, outbound, service"
                                   value={callTypeFilter.join(', ')}
                                   onChange={(e) => {
-                                    // Split by commas, trim whitespace, and filter out empty strings
-                                    const values = e.target.value
+                                    // Improved handling for more intuitive user input
+                                    const inputValue = e.target.value;
+                                    const endsWithComma = inputValue.trim().endsWith(',');
+                                    
+                                    // Split by commas and process values
+                                    let values = inputValue
                                       .split(',')
                                       .map(v => v.trim())
                                       .filter(v => v.length > 0);
+                                    
+                                    // If the input ends with a comma, add an empty string to preserve it visually
+                                    if (endsWithComma && values.length > 0) {
+                                      values[values.length-1] = values[values.length-1] + ', ';
+                                    }
+                                    
                                     setCallTypeFilter(values);
                                   }}
                                   className="w-full"
@@ -1484,11 +1515,21 @@ const AzureStorageBrowser = () => {
                                   placeholder="E.g. positive, neutral, negative, escalation"
                                   value={vocFilter.join(', ')}
                                   onChange={(e) => {
-                                    // Split by commas, trim whitespace, and filter out empty strings
-                                    const values = e.target.value
+                                    // Improved handling for more intuitive user input
+                                    const inputValue = e.target.value;
+                                    const endsWithComma = inputValue.trim().endsWith(',');
+                                    
+                                    // Split by commas and process values
+                                    let values = inputValue
                                       .split(',')
                                       .map(v => v.trim())
                                       .filter(v => v.length > 0);
+                                    
+                                    // If the input ends with a comma, add an empty string to preserve it visually
+                                    if (endsWithComma && values.length > 0) {
+                                      values[values.length-1] = values[values.length-1] + ', ';
+                                    }
+                                    
                                     setVocFilter(values);
                                   }}
                                   className="w-full"
@@ -1502,11 +1543,21 @@ const AzureStorageBrowser = () => {
                                   placeholder="E.g. summer_promo, holiday_special, retention"
                                   value={campaignFilter.join(', ')}
                                   onChange={(e) => {
-                                    // Split by commas, trim whitespace, and filter out empty strings
-                                    const values = e.target.value
+                                    // Improved handling for more intuitive user input
+                                    const inputValue = e.target.value;
+                                    const endsWithComma = inputValue.trim().endsWith(',');
+                                    
+                                    // Split by commas and process values
+                                    let values = inputValue
                                       .split(',')
                                       .map(v => v.trim())
                                       .filter(v => v.length > 0);
+                                    
+                                    // If the input ends with a comma, add an empty string to preserve it visually
+                                    if (endsWithComma && values.length > 0) {
+                                      values[values.length-1] = values[values.length-1] + ', ';
+                                    }
+                                    
                                     setCampaignFilter(values);
                                   }}
                                   className="w-full"
