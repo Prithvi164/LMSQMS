@@ -95,6 +95,8 @@ export const audioLanguageEnum = pgEnum('audio_language', [
   'korean',
   'arabic',
   'russian',
+  'tamil',
+  'bengali',
   'other'
 ]);
 
