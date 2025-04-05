@@ -111,6 +111,8 @@ function filterAudioMetadata(items: any[], filters: {
                               item.callMetrics.Partner_Name || 
                               item.callMetrics["Partner Name"];
       
+      console.log(`DEBUG Filter - File: ${item.filename}, Partner Name: ${partnerNameValue}, Filter: ${filters.partnerNameFilter}`);
+      
       if (!partnerNameValue || 
           partnerNameValue.toLowerCase() !== filters.partnerNameFilter.toLowerCase()) {
         return false;
