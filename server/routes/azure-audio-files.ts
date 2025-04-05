@@ -809,7 +809,26 @@ router.post('/azure-audio-filter-preview/:containerName', excelUpload.single('me
     );
     
     // Apply filters to get the filtered count
+    console.log('Filter preview - Applying filters:', JSON.stringify(filters));
+    console.log(`Filter preview - Total items before filtering: ${enrichedItems.length}`);
+    
+    // For partnerNameFilter, log how many items have each partner name before filtering
+    if (filters.partnerNameFilter) {
+      const partnerNameCounts: Record<string, number> = {};
+      enrichedItems.forEach(item => {
+        if (item.callMetrics) {
+          const partnerName = item.callMetrics.partnerName || 
+                             item.callMetrics.Partner_Name || 
+                             item.callMetrics["Partner Name"] || 
+                             'unknown';
+          partnerNameCounts[partnerName] = (partnerNameCounts[partnerName] || 0) + 1;
+        }
+      });
+      console.log('Filter preview - Partner name counts:', partnerNameCounts);
+    }
+    
     const filteredItems = filterAudioMetadata(enrichedItems, filters);
+    console.log(`Filter preview - Items after filtering: ${filteredItems.length}`);
     
     // Return the counts
     return res.status(200).json({
