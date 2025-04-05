@@ -912,7 +912,7 @@ const AzureStorageBrowser = () => {
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline">
                         <FileDown className="h-4 w-4 mr-2" />
-                        Template Options <ChevronDown className="h-4 w-4 ml-1" />
+                        Metadata Template <ChevronDown className="h-4 w-4 ml-1" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -920,29 +920,12 @@ const AzureStorageBrowser = () => {
                       <DropdownMenuItem asChild>
                         <a href="/ultra-simple-template.xlsx" download="metadata-template.xlsx" className="flex items-center px-2 py-1.5 text-sm">
                           <FileSpreadsheet className="h-4 w-4 mr-2" />
-                          Simple Metadata Template
+                          Metadata Template
                         </a>
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleDownloadTemplate}>
-                        <FileSpreadsheet className="h-4 w-4 mr-2" />
-                        Standard Template
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleDownloadMinimalTemplate}>
-                        <FileSpreadsheet className="h-4 w-4 mr-2" />
-                        Minimal Template
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleDownloadCustomTemplate}>
-                        <FileSpreadsheet className="h-4 w-4 mr-2" />
-                        Custom Template (with filenames)
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleDownloadFilenames}>
                         <Download className="h-4 w-4 mr-2" />
                         Download Filenames
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleDownloadGuide}>
-                        <FileText className="h-4 w-4 mr-2" />
-                        Template Guide
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
