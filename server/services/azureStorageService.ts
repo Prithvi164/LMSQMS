@@ -11,13 +11,31 @@ export interface AudioFileMetadata {
   version: string;       // Version of the recording
   call_date: string;     // Date of the call (YYYY-MM-DD)
   callMetrics: {
+    // Standard fields
     callDate: string;    // Call date in readable format
     callId: string;      // Unique call identifier
     callType: string;    // Type of call (e.g., inbound, outbound)
     agentId?: string;    // Agent identifier
     customerSatisfaction?: number; // Customer satisfaction score
     handleTime?: number; // Handle time in seconds
-    [key: string]: any;  // Additional metrics
+    
+    // New fields from requirements
+    auditRole?: string;  // Auto-filled based on logged-in auditor
+    OLMSID?: string;     // Unique ID for the agent/system
+    Name?: string;       // Name of the agent being evaluated
+    PBXID?: string;      // Unique telephony ID
+    partnerName?: string; // Partner/Client the call belongs to
+    customerMobile?: string; // For call tracking
+    subType?: string;    // Further classification
+    subSubType?: string; // Further granularity
+    VOC?: string;        // Captures Voice of Customer
+    userRole?: string;   // Based on logged-in user's profile 
+    advisorCategory?: string; // E.g., Challenger, Performer
+    businessSegment?: string; // E.g., Care, Tech Support
+    LOB?: string;        // Line of Business (e.g., Prepaid)
+    formName?: string;   // Select form for evaluation
+    
+    [key: string]: any;  // For additional metrics
   };
   duration?: number;     // Will be populated from audio analysis
   fileSize?: number;     // Will be populated from blob properties
@@ -231,7 +249,7 @@ export class AzureStorageService {
       // Use parseBuffer for Node.js compatibility
       const chunks: Uint8Array[] = [];
       for await (const chunk of readableStream) {
-        chunks.push(chunk);
+        chunks.push(chunk as Uint8Array);
       }
       const buffer = Buffer.concat(chunks);
       
@@ -242,7 +260,7 @@ export class AzureStorageService {
       
       duration = metadata.format.duration || 0;
     } catch (error) {
-      console.error(`Error parsing audio metadata: ${error}`);
+      console.error(`Error parsing audio metadata: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
     
     return {
@@ -269,7 +287,7 @@ export class AzureStorageService {
   /**
    * Download an Excel file from Azure blob storage and parse its contents
    */
-  async parseMetadataExcel(containerName: string, excelBlobName: string): Promise<AudioFileMetadata[]> {
+  async parseMetadataExcel(containerName: string, excelBlobName: string): Promise<any[]> {
     const containerClient = this.getContainerClient(containerName);
     const blobClient = containerClient.getBlobClient(excelBlobName);
     
@@ -286,45 +304,77 @@ export class AzureStorageService {
       
       // Convert stream to buffer
       for await (const chunk of readableStream) {
-        chunks.push(chunk);
+        chunks.push(chunk as Uint8Array);
       }
       
       const buffer = Buffer.concat(chunks);
       
       // Parse Excel data
-      const workbook = XLSX.read(buffer);
+      const workbook = XLSX.read(buffer as Buffer);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(worksheet);
       
       // Transform Excel data to our metadata format
-      return rows.map((row: any) => {
-        return {
+      return (rows as any[]).map((row: Record<string, any>): any => {
+        // Extract base metadata
+        const baseMetadata = {
           filename: row.filename || row.Filename || row.FileName || row.file_name || '',
           originalFilename: row.originalFilename || row.OriginalFilename || row.original_filename || row.filename || row.Filename || '',
           language: (row.language || row.Language || 'english').toLowerCase(),
           version: row.version || row.Version || '1.0',
           call_date: row.call_date || row.CallDate || row.Date || new Date().toISOString().split('T')[0],
-          callMetrics: {
-            callDate: row.callDate || row.CallDate || new Date().toISOString().split('T')[0],
-            callId: row.callId || row.CallId || row.Call_ID || 'unknown',
-            callType: row.callType || row.CallType || row.Type || 'unknown',
-            agentId: row.agentId || row.AgentId || row.Agent_ID || '',
-            customerSatisfaction: parseFloat(row.csat || row.CSAT || row.satisfaction || '0') || 0,
-            handleTime: parseInt(row.handleTime || row.HandleTime || row.handle_time || '0') || 0,
-            // Add any additional metrics that might be in the Excel
-            ...Object.keys(row).reduce((acc: Record<string, any>, key: string) => {
-              if (!['filename', 'originalFilename', 'language', 'version', 'call_date', 
-                   'callDate', 'callId', 'callType', 'agentId', 'csat', 'CSAT', 
-                   'satisfaction', 'handleTime', 'HandleTime', 'handle_time'].includes(key)) {
-                acc[key] = row[key];
-              }
-              return acc;
-            }, {})
-          }
         };
-      }).filter((item: AudioFileMetadata) => item.filename); // Filter out entries without filenames
+        
+        // Extract callMetrics with all the required properties
+        const callMetrics: Record<string, any> = {
+          // Standard required fields
+          callDate: row.callDate || row.CallDate || new Date().toISOString().split('T')[0],
+          callId: row.callId || row.CallId || row.Call_ID || 'unknown',
+          callType: row.callType || row.CallType || row.Type || 'unknown',
+          
+          // Optional fields with defaults
+          agentId: row.agentId || row.AgentId || row.Agent_ID || '',
+          customerSatisfaction: parseFloat(row.csat || row.CSAT || row.satisfaction || '0') || 0,
+          handleTime: parseInt(row.handleTime || row.HandleTime || row.handle_time || '0') || 0,
+          
+          // New fields from requirements
+          auditRole: row.auditRole || row.AuditRole || '',
+          OLMSID: row.OLMSID || row.olmsid || row.OlmsId || '',
+          Name: row.Name || row.name || '',
+          PBXID: row.PBXID || row.pbxid || row.PbxId || '',
+          partnerName: row.partnerName || row.PartnerName || row.Partner_Name || '',
+          customerMobile: row.customerMobile || row.CustomerMobile || row.customer_mobile || '',
+          subType: row.subType || row.SubType || row.sub_type || '',
+          subSubType: row.subSubType || row.SubSubType || row.sub_sub_type || '',
+          VOC: row.VOC || row.voc || row.Voc || '',
+          userRole: row.userRole || row.UserRole || row.user_role || '',
+          advisorCategory: row.advisorCategory || row.AdvisorCategory || row.advisor_category || '',
+          businessSegment: row.businessSegment || row.BusinessSegment || row.business_segment || '',
+          LOB: row.LOB || row.lob || row.LineOfBusiness || '',
+          formName: row.formName || row.FormName || row.form_name || ''
+        };
+        
+        // Add any additional metrics that might be in the Excel
+        Object.keys(row).forEach(key => {
+          const lowerKey = key.toLowerCase();
+          // Skip keys that we've already processed
+          if (!['filename', 'originalfilename', 'language', 'version', 'call_date',
+               'calldate', 'callid', 'calltype', 'agentid', 'csat',
+               'satisfaction', 'handletime', 'auditrole', 'olmsid', 'name',
+               'pbxid', 'partnername', 'customermobile', 'subtype', 'subsubtype',
+               'voc', 'userrole', 'advisorcategory', 'businesssegment', 'lob',
+               'formname'].includes(lowerKey)) {
+            callMetrics[key] = row[key];
+          }
+        });
+        
+        return {
+          ...baseMetadata,
+          callMetrics
+        };
+      }).filter((item: any) => item.filename); // Filter out entries without filenames
     } catch (error) {
-      console.error(`Error parsing Excel metadata from Azure: ${error}`);
+      console.error(`Error parsing Excel metadata from Azure: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return [];
     }
   }
@@ -334,8 +384,8 @@ export class AzureStorageService {
    */
   async matchAudioFilesWithMetadata(
     containerName: string,
-    metadataItems: AudioFileMetadata[]
-  ): Promise<AudioFileMetadata[]> {
+    metadataItems: any[]
+  ): Promise<any[]> {
     const blobs = await this.listBlobs(containerName);
     const blobMap = new Map<string, BlobItem>();
     
@@ -345,7 +395,7 @@ export class AzureStorageService {
     });
     
     // For each metadata item, find matching blob and enhance with audio details
-    const enhancedMetadata: AudioFileMetadata[] = [];
+    const enhancedMetadata: any[] = [];
     
     for (const metadata of metadataItems) {
       // Skip items without filename

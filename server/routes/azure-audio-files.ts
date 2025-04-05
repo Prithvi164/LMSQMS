@@ -5,7 +5,7 @@ import multer from 'multer';
 import { initAzureStorageService, AudioFileMetadata } from '../services/azureStorageService';
 import { audioFileAllocations, audioFiles, audioLanguageEnum, users } from '../../shared/schema';
 import { db } from '../db';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, sql } from 'drizzle-orm';
 import { read as readXLSX, utils as xlsxUtils, write as writeXLSX } from 'xlsx';
 
 const router = Router();
@@ -204,7 +204,13 @@ async function parseExcelFile(filePath: string): Promise<AudioFileMetadata[]> {
         }
         
         // Collect any additional metrics from other columns
-        const callMetrics = {};
+        const callMetrics: Record<string, any> = {
+          // Required fields with defaults
+          callDate: callDate,
+          callId: "unknown",
+          callType: "unknown"
+        };
+        
         for (let j = 0; j < headers.length; j++) {
           if (j !== filenameIndex && j !== languageIndex && j !== versionIndex && j !== dateIndex) {
             if (row[j] !== undefined && row[j] !== '') {
@@ -454,7 +460,13 @@ async function parseExcelFile(filePath: string): Promise<AudioFileMetadata[]> {
         }
         
         // Extract call metrics from the row for any additional fields
-        const callMetrics: any = {};
+        const callMetrics: Record<string, any> = {
+          // Required callMetrics fields with defaults
+          callDate: callDate || new Date().toISOString().split('T')[0],
+          callId: normalizedRow.callId || 'unknown',
+          callType: normalizedRow.callType || 'unknown'
+        };
+        
         for (const key in normalizedRow) {
           if (key !== 'filename' && key !== 'originalFilename' && 
               key !== 'language' && key !== 'version' && key !== 'call_date') {
@@ -550,7 +562,8 @@ const excelUpload = multer({
     if (allowedMimeTypes.includes(file.mimetype) || allowedExtensions.includes(fileExtension)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only Excel files are allowed.'), false);
+      cb(null, false);
+      throw new Error('Invalid file type. Only Excel files are allowed.');
     }
   }
 });
@@ -574,7 +587,7 @@ router.get('/azure-containers', async (req, res) => {
     res.json(containerList);
   } catch (error) {
     console.error('Error listing Azure containers:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: error instanceof Error ? error.message : 'Unknown error occurred' });
   }
 });
 
@@ -807,7 +820,7 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
         importResults.push({
           file: item.filename,
           status: 'error',
-          error: error.message
+          error: error instanceof Error ? error.message : 'Unknown error occurred'
         });
       }
     }
@@ -822,7 +835,7 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
         const assignmentMap = new Map();
         
         // Initialize assignment map for each quality analyst
-        qualityAnalysts.forEach(qa => {
+        qualityAnalysts.forEach((qa: { id: number }) => {
           assignmentMap.set(qa.id, []);
         });
         
@@ -834,7 +847,8 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
         });
         
         // Create allocations in the database
-        for (const [qaId, fileIds] of assignmentMap.entries()) {
+        for (const entry of Array.from(assignmentMap.entries())) {
+          const [qaId, fileIds] = entry;
           if (fileIds.length > 0) {
             for (const fileId of fileIds) {
               const [allocation] = await db
@@ -898,8 +912,8 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
           const assignmentMap = new Map();
           
           // Initialize assignment map for each selected quality analyst
-          selectedQAs.forEach(qaId => {
-            assignmentMap.set(parseInt(qaId), []);
+          selectedQAs.forEach((qaId: string | number) => {
+            assignmentMap.set(parseInt(qaId.toString()), []);
           });
           
           // Distribute files to selected quality analysts
@@ -910,7 +924,8 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
           });
           
           // Create allocations in the database
-          for (const [qaId, fileIds] of assignmentMap.entries()) {
+          for (const entry of Array.from(assignmentMap.entries())) {
+            const [qaId, fileIds] = entry;
             if (fileIds.length > 0) {
               for (const fileId of fileIds) {
                 const [allocation] = await db
@@ -963,7 +978,7 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
     });
   } catch (error) {
     console.error('Error processing Azure audio file import:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: error instanceof Error ? error.message : 'Unknown error occurred' });
   }
 });
 
@@ -1002,7 +1017,7 @@ router.get('/azure-audio-sas/:id', async (req, res) => {
     res.json({ sasUrl });
   } catch (error) {
     console.error(`Error generating SAS URL for audio file ${id}:`, error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: error instanceof Error ? error.message : 'Unknown error occurred' });
   }
 });
 
@@ -1037,7 +1052,14 @@ router.get('/azure-metadata-template', async (req, res) => {
         userRole: 'Agent',
         advisorCategory: 'Level 1',
         queryType: 'General',
-        businessSegment: 'Consumer'
+        businessSegment: 'Consumer',
+        // New fields from requirements
+        auditRole: 'Quality Analyst',
+        OLMSID: 'AG123456',
+        Name: 'John Smith',
+        PBXID: 'PBX987654',
+        partnerName: 'CloudPoint Technologies',
+        LOB: 'Prepaid'
       },
       {
         filename: 'agent-456-20250401-5678.mp3',
@@ -1319,10 +1341,10 @@ router.post('/azure-audio-allocate', async (req, res) => {
     const audioFilesToAllocate = await db
       .select()
       .from(audioFiles)
-      .where(and(
-        eq(audioFiles.organizationId, req.user.organizationId),
-        inArray(audioFiles.id, audioFileIds)
-      ));
+      .where(eq(audioFiles.organizationId, req.user.organizationId))
+      .where(
+        sql`${audioFiles.id} IN (${audioFileIds.join(', ')})`
+      );
     
     console.log(`✅ Found ${audioFilesToAllocate.length} of ${audioFileIds.length} files`);
     
@@ -1407,7 +1429,7 @@ router.post('/azure-audio-allocate', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Error allocating audio files:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: error instanceof Error ? error.message : 'Unknown error occurred' });
   }
 });
 
