@@ -862,24 +862,79 @@ const AzureStorageBrowser = () => {
       return;
     }
 
-    // Handle multiple quality analyst selections
-    // Create a promise for each quality analyst allocation
-    const allocationPromises = selectedQA.map(qaId => {
+    // Create a distribution map based on QA IDs and their max assignments
+    const qaDistribution = new Map<string, string[]>();
+    
+    // Copy the selected items so we can randomly assign them
+    let filesToAssign = [...selectedBlobItems];
+    
+    // Shuffle the array to ensure random distribution
+    // Fisher-Yates shuffle algorithm
+    for (let i = filesToAssign.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [filesToAssign[i], filesToAssign[j]] = [filesToAssign[j], filesToAssign[i]];
+    }
+    
+    // Assign files to QAs up to their max assignment limit
+    let assignedFileCount = 0;
+    let unassignedFileCount = 0;
+    
+    // Continue assigning files until either all files are assigned or we've reached all QA limits
+    while (filesToAssign.length > 0) {
+      let assignedInThisRound = false;
+      
+      // Try to assign to each QA in turn
+      for (const qaId of selectedQA) {
+        // Get current assignment count for this QA
+        const currentAssignments = qaDistribution.get(qaId) || [];
+        const maxForThisQA = qaAssignmentCounts[qaId] || maxAssignmentsPerQA;
+        
+        // If this QA hasn't reached their limit and we have files to assign
+        if (currentAssignments.length < maxForThisQA && filesToAssign.length > 0) {
+          // Take the next file from the shuffled list
+          const nextFile = filesToAssign.shift();
+          if (nextFile) {
+            // Add to this QA's distribution
+            currentAssignments.push(nextFile);
+            qaDistribution.set(qaId, currentAssignments);
+            assignedInThisRound = true;
+            assignedFileCount++;
+          }
+        }
+      }
+      
+      // If we couldn't assign any files in this round, break the loop
+      // (All QAs have reached their limits)
+      if (!assignedInThisRound) {
+        unassignedFileCount = filesToAssign.length;
+        break;
+      }
+    }
+    
+    // Now create allocation promises based on the distribution
+    const allocationPromises = Array.from(qaDistribution.entries()).map(([qaId, fileIds]) => {
+      if (fileIds.length === 0) return Promise.resolve(); // Skip if no files to allocate
+      
       return allocateAudioMutation.mutateAsync({
-        audioFileIds: selectedBlobItems,
+        audioFileIds: fileIds,
         qualityAnalystId: parseInt(qaId),
         dueDate: dueDate || undefined,
         evaluationTemplateId: parseInt(selectedEvaluationTemplate),
       });
-    });
+    }).filter(Boolean); // Remove empty promises
     
     try {
       // Execute all allocations in parallel
       await Promise.all(allocationPromises);
       
+      let successMessage = `${assignedFileCount} audio files were successfully allocated to ${selectedQA.length} quality analyst(s).`;
+      if (unassignedFileCount > 0) {
+        successMessage += ` ${unassignedFileCount} files were left unassigned due to maximum assignment limits.`;
+      }
+      
       toast({
         title: 'Allocation successful',
-        description: `Audio files were successfully allocated to ${selectedQA.length} quality analyst(s).`,
+        description: successMessage,
       });
       setAllocateDialogOpen(false);
       
