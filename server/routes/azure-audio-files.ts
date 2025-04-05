@@ -1625,13 +1625,15 @@ router.post('/azure-audio-allocate', async (req, res) => {
   try {
     // Verify files exist and belong to user's organization
     console.log('🔍 Verifying audio files:', audioFileIds);
-    const audioFilesToAllocate = await db
-      .select()
-      .from(audioFiles)
-      .where(and(
-        eq(audioFiles.organizationId, req.user.organizationId),
-        inArray(audioFiles.id, audioFileIds)
-      ));
+    // Use SQL directly to avoid type issues
+    const result = await db.execute(sql`
+      SELECT * FROM "audio_files" 
+      WHERE "organization_id" = ${req.user.organizationId} 
+      AND "id" IN (${sql.join(audioFileIds, sql`, `)})
+    `);
+    
+    // Convert the raw result to an array of audio files
+    const audioFilesToAllocate = result.rows as typeof audioFiles.$inferSelect[];
     
     console.log(`✅ Found ${audioFilesToAllocate.length} of ${audioFileIds.length} files`);
     

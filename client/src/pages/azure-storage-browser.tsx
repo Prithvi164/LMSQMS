@@ -16,7 +16,8 @@ import {
   FileText,
   ArrowLeft,
   Folder,
-  Download
+  Download,
+  X
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -130,6 +131,16 @@ const AzureStorageBrowser = () => {
   const [campaignFilter, setCampaignFilter] = useState<string>('');
   const [filterCounts, setFilterCounts] = useState<{total: number, filtered: number} | null>(null);
   const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+  
+  // Track active filters for filter chips
+  const [activeFilters, setActiveFilters] = useState<{
+    id: string;
+    label: string;
+    value: string;
+    setter: (value: string) => void;
+  }[]>([]);
+  
+  // Filter functions are defined later in the component
   
   const ITEMS_PER_PAGE = 5;
   
@@ -548,7 +559,7 @@ const AzureStorageBrowser = () => {
       if (dateRangeEnd) formData.append('dateRangeEnd', dateRangeEnd);
       if (minDuration) formData.append('minDuration', minDuration);
       if (maxDuration) formData.append('maxDuration', maxDuration);
-      if (language) formData.append('language', language);
+      if (language && language !== 'all') formData.append('language', language);
       
       // Add new filters for the metadata fields
       if (partnerNameFilter) formData.append('partnerNameFilter', partnerNameFilter);
@@ -569,6 +580,93 @@ const AzureStorageBrowser = () => {
       if (data.availableLanguages && Array.isArray(data.availableLanguages)) {
         setAvailableLanguages(data.availableLanguages);
       }
+      
+      // Update active filters - first clear existing ones
+      const newActiveFilters = [];
+      
+      // Add each active filter with its label, value, and setter function
+      if (fileNameFilter) {
+        newActiveFilters.push({
+          id: 'filename',
+          label: 'Filename',
+          value: fileNameFilter,
+          setter: setFileNameFilter
+        });
+      }
+      
+      if (partnerNameFilter) {
+        newActiveFilters.push({
+          id: 'partner',
+          label: 'Partner',
+          value: partnerNameFilter,
+          setter: setPartnerNameFilter
+        });
+      }
+      
+      if (callTypeFilter) {
+        newActiveFilters.push({
+          id: 'callType',
+          label: 'Call Type',
+          value: callTypeFilter, 
+          setter: setCallTypeFilter
+        });
+      }
+      
+      if (vocFilter) {
+        newActiveFilters.push({
+          id: 'voc',
+          label: 'VOC',
+          value: vocFilter,
+          setter: setVocFilter
+        });
+      }
+      
+      if (campaignFilter) {
+        newActiveFilters.push({
+          id: 'campaign',
+          label: 'Campaign',
+          value: campaignFilter,
+          setter: setCampaignFilter
+        });
+      }
+      
+      if (language && language !== 'all') {
+        newActiveFilters.push({
+          id: 'language',
+          label: 'Language',
+          value: language.charAt(0).toUpperCase() + language.slice(1),
+          setter: setLanguage
+        });
+      }
+      
+      if (dateRangeStart || dateRangeEnd) {
+        const dateValue = `${dateRangeStart || 'Any'} to ${dateRangeEnd || 'Any'}`;
+        newActiveFilters.push({
+          id: 'dateRange',
+          label: 'Date Range',
+          value: dateValue,
+          setter: () => {
+            setDateRangeStart('');
+            setDateRangeEnd('');
+          }
+        });
+      }
+      
+      if (minDuration || maxDuration) {
+        const durationValue = `${minDuration || '0'}s to ${maxDuration || '∞'}s`;
+        newActiveFilters.push({
+          id: 'duration',
+          label: 'Duration',
+          value: durationValue,
+          setter: () => {
+            setMinDuration('');
+            setMaxDuration('');
+          }
+        });
+      }
+      
+      // Set the active filters
+      setActiveFilters(newActiveFilters);
     },
     onError: (error: any) => {
       toast({
@@ -650,6 +748,51 @@ const AzureStorageBrowser = () => {
       });
     }
   });
+
+  // Remove a filter
+  const removeFilter = (filterId: string) => {
+    const filter = activeFilters.find(f => f.id === filterId);
+    if (filter) {
+      filter.setter('');
+      if (filterId === 'language') {
+        filter.setter('all');
+      }
+    }
+    
+    // Update active filters after removal
+    setActiveFilters(prev => prev.filter(f => f.id !== filterId));
+    
+    // If we have a file uploaded, apply the filters automatically
+    if (uploadFile && selectedContainer) {
+      applyFilters.mutate({
+        containerName: selectedContainer,
+        metadataFile: uploadFile,
+      });
+    }
+  };
+  
+  // Clear all filters
+  const clearAllFilters = () => {
+    setFileNameFilter('');
+    setPartnerNameFilter('');
+    setCallTypeFilter('');
+    setVocFilter('');
+    setCampaignFilter('');
+    setLanguage('all');
+    setMinDuration('');
+    setMaxDuration('');
+    setDateRangeStart('');
+    setDateRangeEnd('');
+    setActiveFilters([]);
+    
+    // If we have a file uploaded, apply the filters automatically
+    if (uploadFile && selectedContainer) {
+      applyFilters.mutate({
+        containerName: selectedContainer,
+        metadataFile: uploadFile,
+      });
+    }
+  };
 
   // Handle preview filter application
   const handleApplyFilters = () => {
@@ -1106,6 +1249,37 @@ const AzureStorageBrowser = () => {
                           {showFilters && (
                             <div className="space-y-4 border rounded-md p-4 bg-muted/20">
                               <h4 className="font-medium">Filter Audio Files</h4>
+                              
+                              {activeFilters.length > 0 && (
+                                <div className="mb-4">
+                                  <div className="flex flex-wrap gap-2 mb-2">
+                                    {activeFilters.map((filter) => (
+                                      <Badge 
+                                        key={filter.id} 
+                                        variant="secondary"
+                                        className="flex items-center gap-1 px-3 py-1"
+                                      >
+                                        <span className="font-medium">{filter.label}:</span> {filter.value}
+                                        <button 
+                                          onClick={() => removeFilter(filter.id)}
+                                          className="ml-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                                        >
+                                          ✕
+                                        </button>
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                  
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={clearAllFilters}
+                                    className="text-xs"
+                                  >
+                                    ✕ Clear All Filters
+                                  </Button>
+                                </div>
+                              )}
                               
                               <div className="grid gap-2">
                                 <Label htmlFor="fileNameFilter">Filename Contains</Label>
