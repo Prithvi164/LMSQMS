@@ -146,12 +146,12 @@ const AzureStorageBrowser = () => {
   const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
   
   // Track active filters for filter chips
-  const [activeFilters, setActiveFilters] = useState<{
+  const [activeFilters, setActiveFilters] = useState<Array<{
     id: string;
     label: string;
-    value: string;
-    setter: (value: string) => void;
-  }[]>([]);
+    value: string | string[];
+    setter: ((value: string) => void) | (() => void) | React.Dispatch<React.SetStateAction<string[]>>;
+  }>>([]);
   
   // Filter functions are defined later in the component
   
@@ -598,48 +598,48 @@ const AzureStorageBrowser = () => {
       const newActiveFilters = [];
       
       // Add each active filter with its label, value, and setter function
-      if (fileNameFilter) {
+      if (fileNameFilter.length > 0) {
         newActiveFilters.push({
           id: 'filename',
           label: 'Filename',
-          value: fileNameFilter,
-          setter: setFileNameFilter
+          value: fileNameFilter.join(', '),
+          setter: () => setFileNameFilter([])
         });
       }
       
-      if (partnerNameFilter) {
+      if (partnerNameFilter.length > 0) {
         newActiveFilters.push({
           id: 'partner',
           label: 'Partner',
-          value: partnerNameFilter,
-          setter: setPartnerNameFilter
+          value: partnerNameFilter.join(', '),
+          setter: () => setPartnerNameFilter([])
         });
       }
       
-      if (callTypeFilter) {
+      if (callTypeFilter.length > 0) {
         newActiveFilters.push({
           id: 'callType',
           label: 'Call Type',
-          value: callTypeFilter, 
-          setter: setCallTypeFilter
+          value: callTypeFilter.join(', '), 
+          setter: () => setCallTypeFilter([])
         });
       }
       
-      if (vocFilter) {
+      if (vocFilter.length > 0) {
         newActiveFilters.push({
           id: 'voc',
           label: 'VOC',
-          value: vocFilter,
-          setter: setVocFilter
+          value: vocFilter.join(', '),
+          setter: () => setVocFilter([])
         });
       }
       
-      if (campaignFilter) {
+      if (campaignFilter.length > 0) {
         newActiveFilters.push({
           id: 'campaign',
           label: 'Campaign',
-          value: campaignFilter,
-          setter: setCampaignFilter
+          value: campaignFilter.join(', '),
+          setter: () => setCampaignFilter([])
         });
       }
       
@@ -776,9 +776,12 @@ const AzureStorageBrowser = () => {
         setCampaignFilter([]);
       } else if (filterId === 'language') {
         setSelectedLanguages([]);
-      } else {
-        // For other filters using the setter directly
-        filter.setter('');
+      } else if (filterId === 'dateRange') {
+        setDateRangeStart('');
+        setDateRangeEnd('');
+      } else if (filterId === 'duration') {
+        setMinDuration('');
+        setMaxDuration('');
       }
     }
     
@@ -1289,12 +1292,19 @@ const AzureStorageBrowser = () => {
                               )}
                               
                               <div className="grid gap-2">
-                                <Label htmlFor="fileNameFilter">Filename Contains</Label>
+                                <Label htmlFor="fileNameFilter">Filename Contains (Enter multiple values separated by commas)</Label>
                                 <Input
                                   id="fileNameFilter"
-                                  value={fileNameFilter}
-                                  onChange={(e) => setFileNameFilter(e.target.value)}
-                                  placeholder="Enter part of filename"
+                                  value={fileNameFilter.join(', ')}
+                                  onChange={(e) => {
+                                    // Split by commas, trim whitespace, and filter out empty strings
+                                    const values = e.target.value
+                                      .split(',')
+                                      .map(v => v.trim())
+                                      .filter(v => v.length > 0);
+                                    setFileNameFilter(values);
+                                  }}
+                                  placeholder="E.g. call123, agent456, customer789"
                                 />
                               </div>
                               
@@ -1432,223 +1442,75 @@ const AzureStorageBrowser = () => {
                               
                               {/* New metadata filters as requested */}
                               <div className="grid gap-2">
-                                <Label htmlFor="partnerNameFilter">Partner Name (Multi-select)</Label>
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      role="combobox"
-                                      aria-expanded={false}
-                                      className="w-full justify-between"
-                                    >
-                                      {partnerNameFilter.length > 0
-                                        ? `${partnerNameFilter.length} partners selected`
-                                        : "Select partners"}
-                                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-full p-0">
-                                    <Command>
-                                      <CommandInput placeholder="Search partners..." />
-                                      <CommandEmpty>No partner found.</CommandEmpty>
-                                      <CommandGroup className="max-h-60 overflow-y-auto">
-                                        {['acme', 'globex', 'initech', 'umbrella'].map(partner => (
-                                          <CommandItem
-                                            key={partner}
-                                            onSelect={() => {
-                                              setPartnerNameFilter(prev => {
-                                                if (prev.includes(partner)) {
-                                                  return prev.filter(p => p !== partner);
-                                                } else {
-                                                  return [...prev, partner];
-                                                }
-                                              });
-                                            }}
-                                          >
-                                            <div className="flex items-center gap-2">
-                                              <div
-                                                className={cn(
-                                                  "h-4 w-4 border rounded-sm flex items-center justify-center",
-                                                  partnerNameFilter.includes(partner)
-                                                    ? "bg-primary border-primary text-primary-foreground"
-                                                    : "border-input"
-                                                )}
-                                              >
-                                                {partnerNameFilter.includes(partner) && <Check className="h-3 w-3" />}
-                                              </div>
-                                              {partner.charAt(0).toUpperCase() + partner.slice(1)}
-                                            </div>
-                                          </CommandItem>
-                                        ))}
-                                      </CommandGroup>
-                                    </Command>
-                                  </PopoverContent>
-                                </Popover>
+                                <Label htmlFor="partnerNameFilter">Partner Name (Enter multiple values separated by commas)</Label>
+                                <Input
+                                  id="partnerNameFilter"
+                                  placeholder="E.g. Acme, Globex, CloudSocial"
+                                  value={partnerNameFilter.join(', ')}
+                                  onChange={(e) => {
+                                    // Split by commas, trim whitespace, and filter out empty strings
+                                    const values = e.target.value
+                                      .split(',')
+                                      .map(v => v.trim())
+                                      .filter(v => v.length > 0);
+                                    setPartnerNameFilter(values);
+                                  }}
+                                  className="w-full"
+                                />
                               </div>
                               
                               <div className="grid gap-2">
-                                <Label htmlFor="callTypeFilter">Call Type (Multi-select)</Label>
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      role="combobox"
-                                      aria-expanded={false}
-                                      className="w-full justify-between"
-                                    >
-                                      {callTypeFilter.length > 0
-                                        ? `${callTypeFilter.length} call types selected`
-                                        : "Select call types"}
-                                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-full p-0">
-                                    <Command>
-                                      <CommandInput placeholder="Search call types..." />
-                                      <CommandEmpty>No call types found.</CommandEmpty>
-                                      <CommandGroup className="max-h-60 overflow-y-auto">
-                                        {['inbound', 'outbound', 'service', 'complaint', 'sales'].map(callType => (
-                                          <CommandItem
-                                            key={callType}
-                                            onSelect={() => {
-                                              setCallTypeFilter(prev => {
-                                                if (prev.includes(callType)) {
-                                                  return prev.filter(c => c !== callType);
-                                                } else {
-                                                  return [...prev, callType];
-                                                }
-                                              });
-                                            }}
-                                          >
-                                            <div className="flex items-center gap-2">
-                                              <div
-                                                className={cn(
-                                                  "h-4 w-4 border rounded-sm flex items-center justify-center",
-                                                  callTypeFilter.includes(callType)
-                                                    ? "bg-primary border-primary text-primary-foreground"
-                                                    : "border-input"
-                                                )}
-                                              >
-                                                {callTypeFilter.includes(callType) && <Check className="h-3 w-3" />}
-                                              </div>
-                                              {callType.charAt(0).toUpperCase() + callType.slice(1)}
-                                            </div>
-                                          </CommandItem>
-                                        ))}
-                                      </CommandGroup>
-                                    </Command>
-                                  </PopoverContent>
-                                </Popover>
+                                <Label htmlFor="callTypeFilter">Call Type (Enter multiple values separated by commas)</Label>
+                                <Input
+                                  id="callTypeFilter"
+                                  placeholder="E.g. inbound, outbound, service"
+                                  value={callTypeFilter.join(', ')}
+                                  onChange={(e) => {
+                                    // Split by commas, trim whitespace, and filter out empty strings
+                                    const values = e.target.value
+                                      .split(',')
+                                      .map(v => v.trim())
+                                      .filter(v => v.length > 0);
+                                    setCallTypeFilter(values);
+                                  }}
+                                  className="w-full"
+                                />
                               </div>
                               
                               <div className="grid gap-2">
-                                <Label htmlFor="vocFilter">VOC (Voice of Customer) (Multi-select)</Label>
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      role="combobox"
-                                      aria-expanded={false}
-                                      className="w-full justify-between"
-                                    >
-                                      {vocFilter.length > 0
-                                        ? `${vocFilter.length} VOC values selected`
-                                        : "Select VOC values"}
-                                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-full p-0">
-                                    <Command>
-                                      <CommandInput placeholder="Search VOC values..." />
-                                      <CommandEmpty>No VOC value found.</CommandEmpty>
-                                      <CommandGroup className="max-h-60 overflow-y-auto">
-                                        {['positive', 'neutral', 'negative', 'escalation'].map(voc => (
-                                          <CommandItem
-                                            key={voc}
-                                            onSelect={() => {
-                                              setVocFilter(prev => {
-                                                if (prev.includes(voc)) {
-                                                  return prev.filter(v => v !== voc);
-                                                } else {
-                                                  return [...prev, voc];
-                                                }
-                                              });
-                                            }}
-                                          >
-                                            <div className="flex items-center gap-2">
-                                              <div
-                                                className={cn(
-                                                  "h-4 w-4 border rounded-sm flex items-center justify-center",
-                                                  vocFilter.includes(voc)
-                                                    ? "bg-primary border-primary text-primary-foreground"
-                                                    : "border-input"
-                                                )}
-                                              >
-                                                {vocFilter.includes(voc) && <Check className="h-3 w-3" />}
-                                              </div>
-                                              {voc.charAt(0).toUpperCase() + voc.slice(1)}
-                                            </div>
-                                          </CommandItem>
-                                        ))}
-                                      </CommandGroup>
-                                    </Command>
-                                  </PopoverContent>
-                                </Popover>
+                                <Label htmlFor="vocFilter">VOC (Voice of Customer) (Enter multiple values separated by commas)</Label>
+                                <Input
+                                  id="vocFilter"
+                                  placeholder="E.g. positive, neutral, negative, escalation"
+                                  value={vocFilter.join(', ')}
+                                  onChange={(e) => {
+                                    // Split by commas, trim whitespace, and filter out empty strings
+                                    const values = e.target.value
+                                      .split(',')
+                                      .map(v => v.trim())
+                                      .filter(v => v.length > 0);
+                                    setVocFilter(values);
+                                  }}
+                                  className="w-full"
+                                />
                               </div>
                               
                               <div className="grid gap-2">
-                                <Label htmlFor="campaignFilter">Campaign (Multi-select)</Label>
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      role="combobox"
-                                      aria-expanded={false}
-                                      className="w-full justify-between"
-                                    >
-                                      {campaignFilter.length > 0
-                                        ? `${campaignFilter.length} campaigns selected`
-                                        : "Select campaigns"}
-                                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-full p-0">
-                                    <Command>
-                                      <CommandInput placeholder="Search campaigns..." />
-                                      <CommandEmpty>No campaign found.</CommandEmpty>
-                                      <CommandGroup className="max-h-60 overflow-y-auto">
-                                        {['summer_promo', 'holiday_special', 'retention', 'winback', 'new_features'].map(campaign => (
-                                          <CommandItem
-                                            key={campaign}
-                                            onSelect={() => {
-                                              setCampaignFilter(prev => {
-                                                if (prev.includes(campaign)) {
-                                                  return prev.filter(c => c !== campaign);
-                                                } else {
-                                                  return [...prev, campaign];
-                                                }
-                                              });
-                                            }}
-                                          >
-                                            <div className="flex items-center gap-2">
-                                              <div
-                                                className={cn(
-                                                  "h-4 w-4 border rounded-sm flex items-center justify-center",
-                                                  campaignFilter.includes(campaign)
-                                                    ? "bg-primary border-primary text-primary-foreground"
-                                                    : "border-input"
-                                                )}
-                                              >
-                                                {campaignFilter.includes(campaign) && <Check className="h-3 w-3" />}
-                                              </div>
-                                              {campaign.replace('_', ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                                            </div>
-                                          </CommandItem>
-                                        ))}
-                                      </CommandGroup>
-                                    </Command>
-                                  </PopoverContent>
-                                </Popover>
+                                <Label htmlFor="campaignFilter">Campaign (Enter multiple values separated by commas)</Label>
+                                <Input
+                                  id="campaignFilter"
+                                  placeholder="E.g. summer_promo, holiday_special, retention"
+                                  value={campaignFilter.join(', ')}
+                                  onChange={(e) => {
+                                    // Split by commas, trim whitespace, and filter out empty strings
+                                    const values = e.target.value
+                                      .split(',')
+                                      .map(v => v.trim())
+                                      .filter(v => v.length > 0);
+                                    setCampaignFilter(values);
+                                  }}
+                                  className="w-full"
+                                />
                               </div>
                               
                               <Button 
