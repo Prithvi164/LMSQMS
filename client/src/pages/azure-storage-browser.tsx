@@ -19,6 +19,7 @@ import {
   Download,
   X
 } from 'lucide-react';
+import { MultiSelect } from '@/components/ui/multi-select';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -126,6 +127,10 @@ const AzureStorageBrowser = () => {
   const [campaignFilter, setCampaignFilter] = useState<string[]>([]);
   const [filterCounts, setFilterCounts] = useState<{total: number, filtered: number} | null>(null);
   const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+  
+  // QA Assignment state
+  const [selectedQAs, setSelectedQAs] = useState<string[]>([]);
+  const [qaMaxAssignments, setQaMaxAssignments] = useState<Record<string, number>>({});
   
   // Track active filters for filter chips
   const [activeFilters, setActiveFilters] = useState<Array<{
@@ -682,6 +687,16 @@ const AzureStorageBrowser = () => {
       // Include evaluation template ID
       if (selectedEvaluationTemplate) {
         formData.append('evaluationTemplateId', selectedEvaluationTemplate);
+      }
+      
+      // Add QA assignment data if selected
+      if (selectedQAs.length > 0) {
+        formData.append('selectedQualityAnalysts', JSON.stringify(selectedQAs));
+        
+        // Only send qaAssignmentCounts if there are actually values set
+        if (Object.keys(qaMaxAssignments).length > 0) {
+          formData.append('qaAssignmentCounts', JSON.stringify(qaMaxAssignments));
+        }
       }
       
       // Add filter parameters if they exist - convert arrays to JSON for transport
@@ -1451,7 +1466,66 @@ const AzureStorageBrowser = () => {
                                 </div>
                               )}
                               
-                              {/* QA Assignment section has been removed as requested */}
+                              {/* QA Assignment Section */}
+                              <div className="border rounded-md p-4 mt-4 bg-muted/20">
+                                <h4 className="font-medium mb-2">QA Assignment (Optional)</h4>
+                                <p className="text-xs text-gray-500 mb-4">
+                                  Select Quality Analysts to automatically assign files during import. 
+                                  Each QA can have a custom maximum file assignment limit.
+                                </p>
+                                
+                                <div className="grid gap-2">
+                                  <Label htmlFor="qualityAnalysts">Select Quality Analysts</Label>
+                                  <MultiSelect
+                                    options={
+                                      Array.isArray(qualityAnalysts) 
+                                        ? qualityAnalysts.map((qa: QualityAnalyst) => ({
+                                            value: qa.id.toString(),
+                                            label: qa.fullName
+                                          }))
+                                        : []
+                                    }
+                                    selectedValues={selectedQAs}
+                                    onChange={(values) => setSelectedQAs(values)}
+                                    placeholder="Select quality analysts..."
+                                  />
+                                </div>
+                                
+                                {selectedQAs.length > 0 && (
+                                  <div className="mt-4">
+                                    <Label className="mb-2">Maximum Files Per QA</Label>
+                                    <div className="space-y-3 mt-2">
+                                      {selectedQAs.map((qaId) => {
+                                        const qa = Array.isArray(qualityAnalysts) 
+                                          ? qualityAnalysts.find((q: QualityAnalyst) => q.id.toString() === qaId)
+                                          : null;
+                                        
+                                        return qa ? (
+                                          <div key={qaId} className="flex items-center gap-3">
+                                            <div className="flex-1">{qa.fullName}</div>
+                                            <Input 
+                                              type="number" 
+                                              className="w-20"
+                                              value={qaMaxAssignments[qaId] || 10}
+                                              min={1}
+                                              max={100}
+                                              onChange={(e) => {
+                                                const value = parseInt(e.target.value);
+                                                if (!isNaN(value) && value > 0) {
+                                                  setQaMaxAssignments(prev => ({
+                                                    ...prev,
+                                                    [qaId]: value
+                                                  }));
+                                                }
+                                              }}
+                                            />
+                                          </div>
+                                        ) : null;
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           )}
                         </div>
