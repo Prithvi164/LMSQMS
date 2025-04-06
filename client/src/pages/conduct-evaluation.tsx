@@ -32,8 +32,21 @@ import {
   Headphones,
   Volume2,
   FileAudio,
+  Clock,
+  Globe,
+  Tag,
+  ClipboardCheck,
+  ClipboardList,
+  Check,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
+import { 
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 export default function ConductEvaluation() {
   const { user } = useAuth();
@@ -944,16 +957,22 @@ export default function ConductEvaluation() {
         </TabsContent>
 
         <TabsContent value="audio" className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold">Conduct Audio Evaluation</h1>
-            <div className="flex gap-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Headphones className="h-6 w-6 text-primary" />
+              <span>Conduct Audio Evaluation</span>
+            </h1>
+            <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
               {/* Audio File Selection */}
-              <div className="w-[250px]">
+              <div className="w-full sm:w-[280px]">
+                <Label htmlFor="audio-file-select" className="mb-1.5 block text-sm font-medium">
+                  Audio File
+                </Label>
                 <Select
                   onValueChange={handleAudioFileSelect}
                   value={selectedAudioFile?.toString()}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="audio-file-select" className="bg-background">
                     <SelectValue placeholder="Select Audio File" />
                   </SelectTrigger>
                   <SelectContent>
@@ -979,7 +998,10 @@ export default function ConductEvaluation() {
               </div>
 
               {/* Template Selection */}
-              <div className="w-[200px]">
+              <div className="w-full sm:w-[240px]">
+                <Label htmlFor="template-select" className="mb-1.5 block text-sm font-medium">
+                  Evaluation Template
+                </Label>
                 <Select
                   onValueChange={(value) =>
                     setSelectedTemplate(parseInt(value))
@@ -987,7 +1009,7 @@ export default function ConductEvaluation() {
                   value={selectedTemplate?.toString()}
                   disabled={!selectedAudioFile}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="template-select" className="bg-background">
                     <SelectValue placeholder="Select Template" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1005,272 +1027,604 @@ export default function ConductEvaluation() {
             </div>
           </div>
 
-          {/* Audio Player */}
-          {selectedAudioFileDetails && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileAudio className="h-5 w-5" />
-                  {selectedAudioFileDetails.originalFilename ||
-                    selectedAudioFileDetails.filename ||
-                    `Audio File #${selectedAudioFileDetails.id}`}
-                </CardTitle>
-                <CardDescription>
-                  Duration: {selectedAudioFileDetails.duration || "Unknown"} |
-                  Language: {selectedAudioFileDetails.language || "Unknown"} |
-                  Version: {selectedAudioFileDetails.version || "N/A"}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {/* Hidden audio element with comprehensive MIME type support and enhanced error handling */}
-                  <audio
-                    ref={audioRef}
-                    onTimeUpdate={handleTimeUpdate}
-                    onLoadedMetadata={handleLoadedMetadata}
-                    onEnded={() => setIsPlaying(false)}
-                    onError={(e) => {
-                      // Log detailed error information for debugging
-                      const target = e.currentTarget as HTMLAudioElement;
-                      const errorCode = target.error?.code;
-                      const errorMessage = target.error?.message;
-
-                      console.error("Audio player error:", {
-                        code: errorCode,
-                        message: errorMessage,
-                        audioUrl: audioUrl?.substring(0, 100) + "...",
-                        selectedAudioFile,
-                      });
-
-                      // Error code reference:
-                      // MEDIA_ERR_ABORTED (1): Fetching process aborted by user
-                      // MEDIA_ERR_NETWORK (2): Error occurred when downloading
-                      // MEDIA_ERR_DECODE (3): Error occurred when decoding
-                      // MEDIA_ERR_SRC_NOT_SUPPORTED (4): Audio not supported
-
-                      // Determine error type for better user feedback
-                      let errorType = "unknown";
-                      if (errorCode === MediaError.MEDIA_ERR_NETWORK) {
-                        errorType = "network";
-                      } else if (
-                        errorCode === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED
-                      ) {
-                        errorType = "format";
-                      } else if (errorCode === MediaError.MEDIA_ERR_DECODE) {
-                        errorType = "decode";
-                      }
-
-                      // Is this likely a SAS token expiration issue?
-                      const isSasError =
-                        errorType === "network" ||
-                        errorType === "format" ||
-                        (audioUrl &&
-                          audioUrl.includes("sig=") &&
-                          audioUrl.includes("se="));
-
-                      if (isSasError && selectedAudioFile) {
-                        console.log(
-                          "Detected potential SAS token expiration for file:",
-                          selectedAudioFile,
-                          "Error type:",
-                          errorType
-                        );
-
-                        // Inform user we're refreshing the audio access
-                        toast({
-                          title: "Audio Access Expired",
-                          description:
-                            "The secure access link has expired. Refreshing audio access...",
-                          duration: 3000,
-                        });
-
-                        // Clear current audio URL first
-                        setAudioUrl(null);
-                        
-                        // Allow state update to complete
-                        setTimeout(() => {
-                          console.log("Requesting fresh SAS token for file:", selectedAudioFile);
-                          
-                          // Force refresh the query to get a new SAS URL
-                          queryClient.invalidateQueries({
-                            queryKey: [
-                              `/api/azure-audio-sas/${selectedAudioFile}`,
-                            ],
-                            exact: true,
-                          });
-                          
-                          // After invalidating, manually refetch to ensure we get a new token
-                          queryClient.fetchQuery({
-                            queryKey: [`/api/azure-audio-sas/${selectedAudioFile}`],
-                            staleTime: 0,
-                          })
-                          .then((response: any) => {
-                            console.log("Successfully refreshed SAS token");
-                            // Handle successful token refresh
-                            if (response && response.sasUrl) {
-                              // Set the new URL
-                              setAudioUrl(response.sasUrl);
-                              
-                              // Wait for state update then load and play
-                              setTimeout(() => {
-                                if (audioRef.current) {
-                                  audioRef.current.load();
-                                  console.log("Audio element reloaded with fresh token");
-                                  
-                                  // Try to play after a brief delay to allow loading
-                                  setTimeout(() => {
-                                    if (audioRef.current) {
-                                      audioRef.current.play()
-                                        .then(() => console.log("Auto-play after token refresh succeeded"))
-                                        .catch(err => console.warn("Auto-play after token refresh failed:", err));
-                                    }
-                                  }, 1000);
-                                }
-                              }, 200);
-                            }
-                          })
-                          .catch(error => {
-                            console.error("Failed to fetch new SAS token:", error);
-                            toast({
-                              variant: "destructive",
-                              title: "Token Refresh Failed",
-                              description: "Could not refresh audio access. Please try again.",
-                            });
-                          });
-                        }, 500);
-                      } else if (
-                        errorType === "format" ||
-                        errorType === "decode"
-                      ) {
-                        // This is likely a file format issue
-                        toast({
-                          variant: "destructive",
-                          title: "Audio Format Error",
-                          description:
-                            "This audio file format is not supported by your browser. Try using a different browser or contact support.",
-                        });
-                      } else {
-                        // Generic error message for other issues
-                        toast({
-                          variant: "destructive",
-                          title: "Audio Playback Error",
-                          description:
-                            "Could not play the audio file. Try selecting it again or contact support if the issue persists.",
-                        });
-                      }
-
-                      // Always ensure we're in a non-playing state after an error
-                      setIsPlaying(false);
-                    }}
-                    preload="auto"
-                    controls
-                    style={{ display: "none" }}
-                  >
-                    {audioUrl && (
-                      <>
-                        {/* Comprehensive list of MIME types for maximum browser compatibility */}
-                        <source src={audioUrl} type="audio/mpeg" />
-                        <source src={audioUrl} type="audio/mp3" />
-                        <source src={audioUrl} type="audio/wav" />
-                        <source src={audioUrl} type="audio/wave" />
-                        <source src={audioUrl} type="audio/x-wav" />
-                        <source src={audioUrl} type="audio/webm" />
-                        <source src={audioUrl} type="audio/ogg" />
-                        <source src={audioUrl} type="audio/mp4" />
-                        <source src={audioUrl} type="audio/x-m4a" />
-                        <source src={audioUrl} type="audio/aac" />
-                        <source src={audioUrl} type="audio/x-ms-wma" />
-                        <source src={audioUrl} type="audio/flac" />
-                        {/* Fallback message for browsers without audio support */}
-                        <p>
-                          Your browser doesn't support HTML5 audio. Here is a{" "}
-                          <a
-                            href={audioUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            link to the audio
-                          </a>{" "}
-                          instead.
-                        </p>
-                      </>
+          {/* Main Content Area */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Audio Player Section */}
+            <div className="lg:col-span-5">
+              {selectedAudioFileDetails ? (
+                <Card className="overflow-hidden border-primary/10">
+                  <CardHeader className="bg-primary/5 border-b border-primary/10 pb-3">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <FileAudio className="h-5 w-5 text-primary" />
+                      <span className="truncate">
+                        {selectedAudioFileDetails.originalFilename ||
+                          selectedAudioFileDetails.filename ||
+                          `Audio File #${selectedAudioFileDetails.id}`}
+                      </span>
+                    </CardTitle>
+                    <CardDescription className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                      <span className="flex items-center">
+                        <Clock className="h-3.5 w-3.5 mr-1" />
+                        <span>{formatTime(duration || 0)}</span>
+                      </span>
+                      <span className="flex items-center">
+                        <Globe className="h-3.5 w-3.5 mr-1" />
+                        <span>{selectedAudioFileDetails.language || "Unknown"}</span>
+                      </span>
+                      <span className="flex items-center">
+                        <Tag className="h-3.5 w-3.5 mr-1" />
+                        <span>{selectedAudioFileDetails.version || "N/A"}</span>
+                      </span>
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    {/* File Metadata */}
+                    {selectedAudioFileDetails.callMetrics && (
+                      <div className="mb-4 grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 text-sm">
+                        {Object.entries(selectedAudioFileDetails.callMetrics)
+                          .filter(([key]) => key !== 'auditRole' && key !== 'formName')
+                          .slice(0, 6)
+                          .map(([key, value]) => (
+                            <div key={key} className="overflow-hidden">
+                              <span className="block text-muted-foreground capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                              <span className="font-medium truncate block">{value?.toString() || 'N/A'}</span>
+                            </div>
+                          ))}
+                      </div>
                     )}
-                  </audio>
 
-                  {/* Custom audio player UI */}
-                  <div className="flex flex-col space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">{formatTime(currentTime)}</span>
-                      <span className="text-sm">{formatTime(duration)}</span>
-                    </div>
+                    {/* Hidden audio element with comprehensive MIME type support and enhanced error handling */}
+                    <audio
+                      ref={audioRef}
+                      onTimeUpdate={handleTimeUpdate}
+                      onLoadedMetadata={handleLoadedMetadata}
+                      onEnded={() => setIsPlaying(false)}
+                      onError={(e) => {
+                        // Log detailed error information for debugging
+                        const target = e.currentTarget as HTMLAudioElement;
+                        const errorCode = target.error?.code;
+                        const errorMessage = target.error?.message;
 
-                    <Slider
-                      value={[currentTime]}
-                      max={duration || 100}
-                      step={0.1}
-                      onValueChange={handleSliderChange}
-                      className="w-full"
-                    />
+                        console.error("Audio player error:", {
+                          code: errorCode,
+                          message: errorMessage,
+                          audioUrl: audioUrl?.substring(0, 100) + "...",
+                          selectedAudioFile,
+                        });
 
-                    <div className="flex justify-center items-center gap-4 mt-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => {
-                          if (audioRef.current) {
-                            audioRef.current.currentTime = Math.max(
-                              0,
-                              currentTime - 10,
-                            );
-                          }
-                        }}
-                      >
-                        <SkipBack className="h-4 w-4" />
-                      </Button>
+                        // Error code reference:
+                        // MEDIA_ERR_ABORTED (1): Fetching process aborted by user
+                        // MEDIA_ERR_NETWORK (2): Error occurred when downloading
+                        // MEDIA_ERR_DECODE (3): Error occurred when decoding
+                        // MEDIA_ERR_SRC_NOT_SUPPORTED (4): Audio not supported
 
-                      <Button
-                        variant="default"
-                        size="icon"
-                        onClick={handlePlayPause}
-                      >
-                        {isPlaying ? (
-                          <Pause className="h-4 w-4" />
-                        ) : (
-                          <Play className="h-4 w-4" />
-                        )}
-                      </Button>
+                        // Determine error type for better user feedback
+                        let errorType = "unknown";
+                        if (errorCode === MediaError.MEDIA_ERR_NETWORK) {
+                          errorType = "network";
+                        } else if (
+                          errorCode === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED
+                        ) {
+                          errorType = "format";
+                        } else if (errorCode === MediaError.MEDIA_ERR_DECODE) {
+                          errorType = "decode";
+                        }
 
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => {
-                          if (audioRef.current) {
-                            audioRef.current.currentTime = Math.min(
-                              duration,
-                              currentTime + 10,
-                            );
-                          }
-                        }}
-                      >
-                        <SkipForward className="h-4 w-4" />
-                      </Button>
+                        // Is this likely a SAS token expiration issue?
+                        const isSasError =
+                          errorType === "network" ||
+                          errorType === "format" ||
+                          (audioUrl &&
+                            audioUrl.includes("sig=") &&
+                            audioUrl.includes("se="));
 
-                      <div className="flex items-center gap-2 ml-4">
-                        <Volume2 className="h-4 w-4" />
-                        <Slider
-                          value={[volume]}
-                          max={1}
-                          step={0.01}
-                          onValueChange={handleVolumeChange}
-                          className="w-24"
-                        />
+                        if (isSasError && selectedAudioFile) {
+                          console.log(
+                            "Detected potential SAS token expiration for file:",
+                            selectedAudioFile,
+                            "Error type:",
+                            errorType
+                          );
+
+                          // Inform user we're refreshing the audio access
+                          toast({
+                            title: "Audio Access Expired",
+                            description:
+                              "The secure access link has expired. Refreshing audio access...",
+                            duration: 3000,
+                          });
+
+                          // Clear current audio URL first
+                          setAudioUrl(null);
+                          
+                          // Allow state update to complete
+                          setTimeout(() => {
+                            console.log("Requesting fresh SAS token for file:", selectedAudioFile);
+                            
+                            // Force refresh the query to get a new SAS URL
+                            queryClient.invalidateQueries({
+                              queryKey: [
+                                `/api/azure-audio-sas/${selectedAudioFile}`,
+                              ],
+                              exact: true,
+                            });
+                            
+                            // After invalidating, manually refetch to ensure we get a new token
+                            queryClient.fetchQuery({
+                              queryKey: [`/api/azure-audio-sas/${selectedAudioFile}`],
+                              staleTime: 0,
+                            })
+                            .then((response: any) => {
+                              console.log("Successfully refreshed SAS token");
+                              // Handle successful token refresh
+                              if (response && response.sasUrl) {
+                                // Set the new URL
+                                setAudioUrl(response.sasUrl);
+                                
+                                // Wait for state update then load and play
+                                setTimeout(() => {
+                                  if (audioRef.current) {
+                                    audioRef.current.load();
+                                    console.log("Audio element reloaded with fresh token");
+                                    
+                                    // Try to play after a brief delay to allow loading
+                                    setTimeout(() => {
+                                      if (audioRef.current) {
+                                        audioRef.current.play()
+                                          .then(() => console.log("Auto-play after token refresh succeeded"))
+                                          .catch(err => console.warn("Auto-play after token refresh failed:", err));
+                                      }
+                                    }, 1000);
+                                  }
+                                }, 200);
+                              }
+                            })
+                            .catch(error => {
+                              console.error("Failed to fetch new SAS token:", error);
+                              toast({
+                                variant: "destructive",
+                                title: "Token Refresh Failed",
+                                description: "Could not refresh audio access. Please try again.",
+                              });
+                            });
+                          }, 500);
+                        } else if (
+                          errorType === "format" ||
+                          errorType === "decode"
+                        ) {
+                          // This is likely a file format issue
+                          toast({
+                            variant: "destructive",
+                            title: "Audio Format Error",
+                            description:
+                              "This audio file format is not supported by your browser. Try using a different browser or contact support.",
+                          });
+                        } else {
+                          // Generic error message for other issues
+                          toast({
+                            variant: "destructive",
+                            title: "Audio Playback Error",
+                            description:
+                              "Could not play the audio file. Try selecting it again or contact support if the issue persists.",
+                          });
+                        }
+
+                        // Always ensure we're in a non-playing state after an error
+                        setIsPlaying(false);
+                      }}
+                      preload="auto"
+                      controls
+                      style={{ display: "none" }}
+                    >
+                      {audioUrl && (
+                        <>
+                          {/* Comprehensive list of MIME types for maximum browser compatibility */}
+                          <source src={audioUrl} type="audio/mpeg" />
+                          <source src={audioUrl} type="audio/mp3" />
+                          <source src={audioUrl} type="audio/wav" />
+                          <source src={audioUrl} type="audio/wave" />
+                          <source src={audioUrl} type="audio/x-wav" />
+                          <source src={audioUrl} type="audio/webm" />
+                          <source src={audioUrl} type="audio/ogg" />
+                          <source src={audioUrl} type="audio/mp4" />
+                          <source src={audioUrl} type="audio/x-m4a" />
+                          <source src={audioUrl} type="audio/aac" />
+                          <source src={audioUrl} type="audio/x-ms-wma" />
+                          <source src={audioUrl} type="audio/flac" />
+                          {/* Fallback message for browsers without audio support */}
+                          <p>
+                            Your browser doesn't support HTML5 audio. Here is a{" "}
+                            <a
+                              href={audioUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              link to the audio
+                            </a>{" "}
+                            instead.
+                          </p>
+                        </>
+                      )}
+                    </audio>
+
+                    {/* Enhanced audio player UI */}
+                    <div className="rounded-lg border bg-card p-4 shadow-sm">
+                      {/* Waveform visualization placeholder */}
+                      <div className="relative h-16 mb-2 bg-muted/30 rounded overflow-hidden">
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div
+                            className="h-full bg-primary/20 transition-all"
+                            style={{
+                              width: `${(currentTime / (duration || 1)) * 100}%`,
+                            }}
+                          ></div>
+                        </div>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          {!audioUrl ? (
+                            <Spinner className="h-6 w-6" />
+                          ) : !isPlaying ? (
+                            <div className="text-sm text-muted-foreground">
+                              Click play to start audio
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      {/* Time indicators */}
+                      <div className="flex items-center justify-between mb-1.5 text-xs text-muted-foreground">
+                        <span>{formatTime(currentTime)}</span>
+                        <span>{formatTime(duration)}</span>
+                      </div>
+
+                      {/* Playback progress slider */}
+                      <Slider
+                        value={[currentTime]}
+                        max={duration || 100}
+                        step={0.1}
+                        onValueChange={handleSliderChange}
+                        className="w-full mb-4"
+                      />
+
+                      {/* Controls */}
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => {
+                              if (audioRef.current) {
+                                audioRef.current.currentTime = Math.max(
+                                  0,
+                                  currentTime - 10,
+                                );
+                              }
+                            }}
+                            className="h-8 w-8 rounded-full"
+                            aria-label="Rewind 10 seconds"
+                            title="Rewind 10 seconds"
+                          >
+                            <SkipBack className="h-4 w-4" />
+                          </Button>
+
+                          <Button
+                            variant="default"
+                            size="icon"
+                            onClick={handlePlayPause}
+                            className="h-10 w-10 rounded-full"
+                            aria-label={isPlaying ? "Pause" : "Play"}
+                          >
+                            {isPlaying ? (
+                              <Pause className="h-5 w-5" />
+                            ) : (
+                              <Play className="h-5 w-5 ml-0.5" />
+                            )}
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => {
+                              if (audioRef.current) {
+                                audioRef.current.currentTime = Math.min(
+                                  duration,
+                                  currentTime + 10,
+                                );
+                              }
+                            }}
+                            className="h-8 w-8 rounded-full"
+                            aria-label="Forward 10 seconds"
+                            title="Forward 10 seconds"
+                          >
+                            <SkipForward className="h-4 w-4" />
+                          </Button>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Volume2 className="h-4 w-4 text-muted-foreground" />
+                          <Slider
+                            value={[volume]}
+                            max={1}
+                            step={0.01}
+                            onValueChange={handleVolumeChange}
+                            className="w-24"
+                            aria-label="Volume"
+                          />
+                        </div>
                       </div>
                     </div>
+
+                    {/* Keyboard shortcuts */}
+                    <div className="mt-3 text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+                      <span className="flex items-center">
+                        <kbd className="px-1 bg-muted rounded text-[10px] mr-1">Space</kbd> Play/Pause
+                      </span>
+                      <span className="flex items-center">
+                        <kbd className="px-1 bg-muted rounded text-[10px] mr-1">←</kbd> Rewind 10s
+                      </span>
+                      <span className="flex items-center">
+                        <kbd className="px-1 bg-muted rounded text-[10px] mr-1">→</kbd> Forward 10s
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="h-full flex items-center justify-center p-8 text-center border-dashed">
+                  <div className="flex flex-col items-center max-w-sm">
+                    <FileAudio className="h-10 w-10 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium mb-2">No Audio Selected</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Please select an audio file from the dropdown above to begin your evaluation.
+                    </p>
                   </div>
+                </Card>
+              )}
+            </div>
+
+            {/* Evaluation Form Section - Only show if both audio and template are selected */}
+            <div className="lg:col-span-7">
+              {selectedAudioFileDetails && selectedTemplateDetails ? (
+                <div className="space-y-5">
+                  <Card className="border-primary/10">
+                    <CardHeader className="bg-primary/5 border-b border-primary/10 pb-3">
+                      <div className="flex justify-between items-center">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <ClipboardCheck className="h-5 w-5 text-primary" />
+                          <span>Evaluation Form</span>
+                        </CardTitle>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="font-normal">
+                            Final Score: {calculateScore()}%
+                          </Badge>
+                        </div>
+                      </div>
+                      <CardDescription>
+                        {selectedTemplateDetails.description ||
+                          "Please complete all required fields below for a thorough evaluation"}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="text-sm px-4 py-3 bg-muted/30 border-b">
+                        <strong className="font-medium">Instructions:</strong> Evaluate the audio recording using the criteria below. Mark N/A for criteria that don't apply.
+                      </div>
+                      <div className="p-4 max-h-[calc(100vh-20rem)] overflow-y-auto">
+                        <Accordion
+                          type="multiple"
+                          defaultValue={selectedTemplateDetails.pillars.map((p: any) => p.id.toString())}
+                          className="space-y-4"
+                        >
+                          {selectedTemplateDetails.pillars.map((pillar: any) => (
+                            <AccordionItem
+                              key={pillar.id}
+                              value={pillar.id.toString()}
+                              className="border rounded-lg overflow-hidden"
+                            >
+                              <AccordionTrigger className="px-4 py-3 hover:no-underline bg-muted/20 hover:bg-muted/30">
+                                <div className="flex items-center gap-2 text-left">
+                                  <span className="font-medium">{pillar.name}</span>
+                                  <Badge variant="outline" className="ml-2 font-normal">
+                                    {pillar.weightage}%
+                                  </Badge>
+                                </div>
+                              </AccordionTrigger>
+                              <AccordionContent className="p-4 pt-2">
+                                <div className="text-sm text-muted-foreground mb-4">
+                                  {pillar.description}
+                                </div>
+                                <div className="space-y-5">
+                                  {pillar.parameters.map((param: any) => (
+                                    <div
+                                      key={param.id}
+                                      className="border rounded-md overflow-hidden"
+                                    >
+                                      <div className="p-3 bg-muted/10 border-b">
+                                        <div className="flex justify-between items-start">
+                                          <div className="flex items-start gap-2">
+                                            <div>
+                                              <h4 className="font-medium text-sm flex items-center gap-2">
+                                                {param.name}
+                                                {param.isFatal && (
+                                                  <Badge variant="destructive" className="ml-1 text-[10px] py-0 h-4">
+                                                    Fatal
+                                                  </Badge>
+                                                )}
+                                              </h4>
+                                              <p className="text-xs text-muted-foreground mt-1">
+                                                {param.description}
+                                              </p>
+                                            </div>
+                                          </div>
+                                          {param.weightageEnabled && (
+                                            <Badge variant="outline" className="font-normal">
+                                              {param.weightage}%
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        {param.guidelines && (
+                                          <div className="mt-2 text-xs bg-muted/30 p-2 rounded">
+                                            <strong>Guidelines:</strong> {param.guidelines}
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="p-3 space-y-3">
+                                        {param.ratingType === "yes_no_na" ? (
+                                          <div className="space-y-3">
+                                            <Select
+                                              onValueChange={(value) =>
+                                                handleScoreChange(param.id, value)
+                                              }
+                                              value={scores[param.id]?.score}
+                                            >
+                                              <SelectTrigger>
+                                                <SelectValue placeholder="Select Rating" />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                <SelectItem value="yes">Yes</SelectItem>
+                                                <SelectItem value="no">No</SelectItem>
+                                                <SelectItem value="na">N/A</SelectItem>
+                                              </SelectContent>
+                                            </Select>
+
+                                            {scores[param.id]?.score === "no" &&
+                                              param.noReasons && (
+                                                <Select
+                                                  onValueChange={(value) =>
+                                                    handleNoReasonSelect(param.id, value)
+                                                  }
+                                                >
+                                                  <SelectTrigger>
+                                                    <SelectValue placeholder="Select Reason" />
+                                                  </SelectTrigger>
+                                                  <SelectContent>
+                                                    {param.noReasons.map(
+                                                      (reason: string, idx: number) => (
+                                                        <SelectItem key={idx} value={reason}>
+                                                          {reason}
+                                                        </SelectItem>
+                                                      ),
+                                                    )}
+                                                  </SelectContent>
+                                                </Select>
+                                              )}
+                                          </div>
+                                        ) : param.ratingType === "numeric" ? (
+                                          <div className="space-y-2">
+                                            <div className="flex items-center justify-between">
+                                              <Label htmlFor={`numeric-score-${param.id}`}>
+                                                Score (1-5)
+                                              </Label>
+                                              <span className="text-sm font-medium">
+                                                {scores[param.id]?.score || "-"}
+                                              </span>
+                                            </div>
+                                            <Input
+                                              id={`numeric-score-${param.id}`}
+                                              type="number"
+                                              min="1"
+                                              max="5"
+                                              placeholder="Score (1-5)"
+                                              value={scores[param.id]?.score || ""}
+                                              onChange={(e) =>
+                                                handleScoreChange(param.id, e.target.value)
+                                              }
+                                            />
+                                          </div>
+                                        ) : (
+                                          <Select
+                                            onValueChange={(value) =>
+                                              handleScoreChange(param.id, value)
+                                            }
+                                            value={scores[param.id]?.score}
+                                          >
+                                            <SelectTrigger>
+                                              <SelectValue placeholder="Select Rating" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {param.customRatingOptions?.map(
+                                                (option: string, idx: number) => (
+                                                  <SelectItem key={idx} value={option}>
+                                                    {option}
+                                                  </SelectItem>
+                                                ),
+                                              )}
+                                            </SelectContent>
+                                          </Select>
+                                        )}
+
+                                        {(param.requiresComment ||
+                                          scores[param.id]?.score === "no") && (
+                                          <div className="space-y-1.5">
+                                            <Label htmlFor={`comment-${param.id}`} className="text-xs">
+                                              Comments
+                                            </Label>
+                                            <Textarea
+                                              id={`comment-${param.id}`}
+                                              placeholder="Add comments..."
+                                              value={scores[param.id]?.comment || ""}
+                                              onChange={(e) =>
+                                                handleCommentChange(param.id, e.target.value)
+                                              }
+                                              rows={3}
+                                            />
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </AccordionContent>
+                            </AccordionItem>
+                          ))}
+                        </Accordion>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="border-t p-4 flex justify-between bg-muted/10">
+                      <div className="flex items-center">
+                        <span className="text-sm text-muted-foreground">
+                          Final Score: <strong>{calculateScore()}%</strong>
+                        </span>
+                      </div>
+                      <Button
+                        onClick={handleAudioSubmit}
+                        disabled={
+                          !selectedAudioFile ||
+                          !selectedTemplate ||
+                          submitEvaluationMutation.isPending
+                        }
+                        className="flex items-center gap-2"
+                      >
+                        {submitEvaluationMutation.isPending ? (
+                          <Spinner className="h-4 w-4" />
+                        ) : (
+                          <Check className="h-4 w-4" />
+                        )}
+                        Submit Evaluation
+                      </Button>
+                    </CardFooter>
+                  </Card>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              ) : selectedAudioFileDetails ? (
+                <Card className="h-full flex items-center justify-center p-8 text-center border-dashed">
+                  <div className="flex flex-col items-center max-w-sm">
+                    <ClipboardList className="h-10 w-10 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium mb-2">No Template Selected</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Please select an evaluation template to begin scoring this audio file.
+                    </p>
+                  </div>
+                </Card>
+              ) : (
+                <Card className="h-full flex items-center justify-center p-8 text-center border-dashed">
+                  <div className="flex flex-col items-center max-w-sm">
+                    <ClipboardList className="h-10 w-10 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium mb-2">Select Audio to Begin</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      First select an audio file, then choose an evaluation template to proceed.
+                    </p>
+                  </div>
+                </Card>
+              )}
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
 
