@@ -508,7 +508,7 @@ export default function ConductEvaluation() {
                     {assignedAudioFiles && assignedAudioFiles.length > 0 ? 
                       assignedAudioFiles.map((file: any) => (
                         <SelectItem key={file.audioFileId || file.id} value={(file.audioFileId || file.id).toString()}>
-                          {file.audioFile?.originalFilename || file.originalFilename || `File #${file.audioFileId || file.id}`}
+                          {file.audioFile?.originalFilename || file.originalFilename || file.filename || `Audio File #${file.audioFileId || file.id}`}
                         </SelectItem>
                       )) : 
                       <SelectItem value="no-files" disabled>No audio files assigned</SelectItem>
@@ -545,7 +545,7 @@ export default function ConductEvaluation() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <FileAudio className="h-5 w-5" />
-                  {selectedAudioFileDetails.originalFilename || `Audio File #${selectedAudioFileDetails.id}`}
+                  {selectedAudioFileDetails.originalFilename || selectedAudioFileDetails.filename || `Audio File #${selectedAudioFileDetails.id}`}
                 </CardTitle>
                 <CardDescription>
                   Duration: {selectedAudioFileDetails.duration || 'Unknown'} | 
