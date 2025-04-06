@@ -623,11 +623,27 @@ export class DatabaseStorage implements IStorage {
 
   async getAudioFileAllocation(id: number): Promise<AudioFileAllocation | undefined> {
     try {
+      // First get the basic allocation data
       const [allocation] = await db
         .select()
         .from(audioFileAllocations)
         .where(eq(audioFileAllocations.id, id)) as AudioFileAllocation[];
-      return allocation;
+      
+      if (!allocation) return undefined;
+      
+      // Now get the audio file data
+      const [audioFile] = await db
+        .select()
+        .from(audioFiles)
+        .where(eq(audioFiles.id, allocation.audioFileId));
+        
+      if (!audioFile) return undefined;
+      
+      // Return the combined data
+      return {
+        ...allocation,
+        audioFile: audioFile
+      } as AudioFileAllocation;
     } catch (error) {
       console.error('Error getting audio file allocation:', error);
       throw error;

@@ -19,7 +19,7 @@ import { Progress } from '@/components/ui/progress';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ChevronDown, ChevronRight, FileAudio, PlayCircle, PauseCircle, SkipForward, Save, CheckCircle2, XCircle, AlertCircle, Info } from 'lucide-react';
+import { ChevronDown, ChevronRight, FileAudio, PlayCircle, PauseCircle, SkipForward, Save, CheckCircle2, XCircle, AlertCircle, Info, ClipboardList } from 'lucide-react';
 
 // Type definitions
 interface AudioFileAllocation {
