@@ -1163,8 +1163,14 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
             qaMaxAssignments.set(parsedQaId, maxCount);
           });
           
-          // Create a copy of prepared files to distribute and shuffle them for randomness
+          // Create a copy of prepared files (which are already filtered) to distribute
+          // and shuffle them for randomness
           const filesToAssign = [...preparedFiles];
+          
+          // Calculate the total available count from the filtered files
+          const totalFilteredCount = filesToAssign.length;
+          console.log(`Total filtered files available for assignment: ${totalFilteredCount}`);
+          
           // Fisher-Yates shuffle algorithm for random distribution
           for (let i = filesToAssign.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -1220,7 +1226,7 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
           }
           
           // Log assignment results
-          console.log(`Distributed ${assignedFileCount} files out of ${preparedFiles.length} prepared files`);
+          console.log(`Distributed ${assignedFileCount} files out of ${totalFilteredCount} filtered files`);
           console.log(`${filesToAssign.length} files left unassigned due to QA capacity limits`);
           
           // Second pass: insert assigned files into database and create allocations
