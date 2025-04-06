@@ -129,18 +129,30 @@ export default function ConductEvaluation() {
   });
   
   // Fetch SAS URL for audio file
-  const { data: audioSasData } = useQuery({
+  const sasUrlQuery = useQuery({
     queryKey: [`/api/azure-audio-sas/${selectedAudioFile}`],
     enabled: !!selectedAudioFile,
     onSuccess: (data) => {
       console.log("Audio SAS URL generated:", data);
       if (data && data.sasUrl) {
         console.log("Setting audio URL to SAS URL:", data.sasUrl);
-        setAudioUrl(data.sasUrl);
         
-        // Force audio element to reload with new URL if it exists
+        // Clear previous audio state first
         if (audioRef.current) {
-          audioRef.current.load();
+          // First pause any current playback
+          audioRef.current.pause();
+          
+          // Set the new URL and load it
+          setAudioUrl(data.sasUrl);
+          
+          // Use a small timeout to ensure state updates before loading the audio
+          setTimeout(() => {
+            if (audioRef.current) {
+              audioRef.current.load();
+            }
+          }, 100);
+        } else {
+          setAudioUrl(data.sasUrl);
         }
       }
     },
@@ -335,15 +347,77 @@ export default function ConductEvaluation() {
     setScores({});
   };
 
-  // Audio player controls
-  const handlePlayPause = () => {
-    if (audioRef.current) {
+  // Audio player controls with better error handling
+  const handlePlayPause = async () => {
+    if (!audioRef.current || !audioUrl) {
+      toast({
+        variant: "destructive",
+        title: "Playback Error",
+        description: "Audio file not loaded or unavailable. Please try selecting a different file."
+      });
+      return;
+    }
+    
+    try {
       if (isPlaying) {
+        // Handle pause - this operation is generally safe
         audioRef.current.pause();
+        setIsPlaying(false);
       } else {
-        audioRef.current.play();
+        // Set a timeout flag to detect if the play promise takes too long
+        let timeoutFlag = true;
+        
+        // Start a timeout to detect if the play operation is hanging
+        const timeoutId = setTimeout(() => {
+          if (timeoutFlag) {
+            // If we reach here, the play promise hasn't resolved in time
+            console.warn("Play operation timed out, refreshing audio source");
+            if (audioRef.current) {
+              // Force a reload of the audio element with the current URL
+              const currentUrl = audioUrl;
+              setAudioUrl(null);
+              
+              // Short delay before setting the URL again
+              setTimeout(() => setAudioUrl(currentUrl), 100);
+            }
+            
+            toast({
+              title: "Playback Issue",
+              description: "The audio is taking too long to start. Refreshing the player...",
+              duration: 3000,
+            });
+          }
+        }, 3000); // 3 second timeout
+        
+        // Attempt to play the audio
+        await audioRef.current.play();
+        
+        // If we get here, play was successful
+        timeoutFlag = false;
+        clearTimeout(timeoutId);
+        setIsPlaying(true);
       }
-      setIsPlaying(!isPlaying);
+    } catch (error) {
+      console.error("Error handling audio playback:", error);
+      
+      // Attempt to recover from common errors
+      if (audioRef.current) {
+        // Force reload the audio element
+        try {
+          audioRef.current.load();
+        } catch (reloadError) {
+          console.error("Failed to reload audio element:", reloadError);
+        }
+      }
+      
+      toast({
+        variant: "destructive",
+        title: "Playback Error",
+        description: "There was a problem playing this audio file. The SAS URL may have expired. Try selecting the file again."
+      });
+      
+      // Always ensure we're in a non-playing state after an error
+      setIsPlaying(false);
     }
   };
 
@@ -377,15 +451,32 @@ export default function ConductEvaluation() {
 
   // Audio file selection handler
   const handleAudioFileSelect = (audioFileId: string) => {
-    setSelectedAudioFile(parseInt(audioFileId));
-    setScores({});
-    setAudioUrl(null); // Clear previous audio URL
+    // First reset all audio-related states
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
+    setScores({});
+    setAudioUrl(null); // Clear previous audio URL
     
-    // Log the selection process
-    console.log("Selected audio file ID:", audioFileId);
+    // Ensure any current audio is properly stopped first
+    if (audioRef.current) {
+      try {
+        // Stop playback
+        audioRef.current.pause();
+        
+        // Reset source and reload to clear any existing buffered data
+        audioRef.current.src = "";
+        audioRef.current.load();
+      } catch (error) {
+        console.error("Error resetting audio player:", error);
+      }
+    }
+    
+    // Only after cleanup, set the new audio file ID
+    setTimeout(() => {
+      setSelectedAudioFile(parseInt(audioFileId));
+      console.log("Selected audio file ID:", audioFileId);
+    }, 100);
   };
 
   // Audio evaluation submission
@@ -555,7 +646,7 @@ export default function ConductEvaluation() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {/* Hidden audio element */}
+                  {/* Hidden audio element with enhanced error handling */}
                   <audio 
                     ref={audioRef}
                     onTimeUpdate={handleTimeUpdate}
@@ -563,11 +654,40 @@ export default function ConductEvaluation() {
                     onEnded={() => setIsPlaying(false)}
                     onError={(e) => {
                       console.error("Audio player error:", e);
-                      toast({
-                        variant: "destructive",
-                        title: "Audio Error",
-                        description: "Could not play the audio file. The file may be damaged or in an unsupported format."
-                      });
+                      
+                      // Handle error more specifically, checking for common error patterns
+                      const errorEvent = e as ErrorEvent;
+                      const target = e.currentTarget as HTMLAudioElement;
+                      
+                      // Try to determine if this is a SAS URL expiration issue
+                      const isSasError = target.error?.code === MediaError.MEDIA_ERR_NETWORK ||
+                                       target.error?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED;
+                      
+                      if (isSasError && selectedAudioFile) {
+                        // If it looks like a SAS issue, trigger a refresh of the SAS URL
+                        toast({
+                          title: "Audio Access Expired",
+                          description: "The secure access link has expired. Refreshing audio access...",
+                          duration: 3000,
+                        });
+                        
+                        // Force refresh the query to get a new SAS URL
+                        setTimeout(() => {
+                          queryClient.invalidateQueries({
+                            queryKey: [`/api/azure-audio-sas/${selectedAudioFile}`],
+                          });
+                        }, 500);
+                      } else {
+                        // Generic error message for other issues
+                        toast({
+                          variant: "destructive",
+                          title: "Audio Error",
+                          description: "Could not play the audio file. The file may be damaged or in an unsupported format."
+                        });
+                      }
+                      
+                      // Always ensure we're in a non-playing state after an error
+                      setIsPlaying(false);
                     }}
                     controls
                     style={{ display: 'none' }}
