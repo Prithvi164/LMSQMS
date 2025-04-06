@@ -21,7 +21,7 @@ import EvaluationTemplates from "@/pages/evaluation-templates";
 import AudioFileManagement from "@/pages/audio-file-management";
 import AudioFileAllocation from "@/pages/audio-file-allocation";
 import AudioAssignmentDashboard from "@/pages/audio-assignment-dashboard";
-import ConductEvaluation from "@/pages/conduct-evaluation-new";
+import ConductEvaluation from "@/pages/conduct-evaluation";
 import AzureStorageBrowser from "@/pages/azure-storage-browser";
 import { ProtectedRoute } from "./lib/protected-route";
 import { SidebarNav } from "./components/sidebar-nav";

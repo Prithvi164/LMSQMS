@@ -944,7 +944,7 @@ export default function ConductEvaluation() {
         </TabsContent>
 
         <TabsContent value="audio" className="space-y-6">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold">Conduct Audio Evaluation</h1>
             <div className="flex gap-4">
               {/* Audio File Selection */}
@@ -1007,25 +1007,22 @@ export default function ConductEvaluation() {
 
           {/* Audio Player */}
           {selectedAudioFileDetails && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Audio Player Column - Takes 4/12 of the width on large screens */}
-              <div className="lg:col-span-4">
-                <Card className="sticky top-4">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <FileAudio className="h-5 w-5" />
-                      {selectedAudioFileDetails.originalFilename ||
-                        selectedAudioFileDetails.filename ||
-                        `Audio File #${selectedAudioFileDetails.id}`}
-                    </CardTitle>
-                    <CardDescription>
-                      Duration: {selectedAudioFileDetails.duration || "Unknown"} |
-                      Language: {selectedAudioFileDetails.language || "Unknown"} |
-                      Version: {selectedAudioFileDetails.version || "N/A"}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileAudio className="h-5 w-5" />
+                  {selectedAudioFileDetails.originalFilename ||
+                    selectedAudioFileDetails.filename ||
+                    `Audio File #${selectedAudioFileDetails.id}`}
+                </CardTitle>
+                <CardDescription>
+                  Duration: {selectedAudioFileDetails.duration || "Unknown"} |
+                  Language: {selectedAudioFileDetails.language || "Unknown"} |
+                  Version: {selectedAudioFileDetails.version || "N/A"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
                   {/* Hidden audio element with comprehensive MIME type support and enhanced error handling */}
                   <audio
                     ref={audioRef}
@@ -1274,12 +1271,12 @@ export default function ConductEvaluation() {
               </CardContent>
             </Card>
           )}
-              
-              {/* Evaluation Form Column - Takes 8/12 of the width on large screens */}
-              {selectedTemplateDetails && (
-                <div className="lg:col-span-8">
-                  <div className="space-y-6">
-                    {selectedTemplateDetails.pillars.map((pillar: any) => (
+        </TabsContent>
+      </Tabs>
+
+      {selectedTemplateDetails && (
+        <div className="space-y-6">
+          {selectedTemplateDetails.pillars.map((pillar: any) => (
             <Card key={pillar.id}>
               <CardHeader>
                 <CardTitle className="flex justify-between items-center">
