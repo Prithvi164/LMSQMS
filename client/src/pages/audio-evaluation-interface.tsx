@@ -172,13 +172,14 @@ const AudioEvaluationInterface = () => {
       allocationId: allocationId || 0,
       evaluatorId: user?.id || 0,
       finalScore: 0,
-      scores: selectedTemplate?.pillars.flatMap(pillar => 
-        pillar.parameters.map(param => ({
-          parameterId: param.id,
-          score: '',
-          comment: '',
-        }))
-      ) || [],
+      scores: selectedTemplate ? 
+        selectedTemplate.pillars.flatMap(pillar => 
+          pillar.parameters.map(param => ({
+            parameterId: param.id,
+            score: '',
+            comment: '',
+          }))
+        ) : [],
     },
   });
   
@@ -359,10 +360,7 @@ const AudioEvaluationInterface = () => {
   // Submit evaluation mutation
   const submitEvaluation = useMutation({
     mutationFn: (data: EvaluationData) => 
-      apiRequest(`/api/evaluations`, {
-        method: 'POST',
-        data,
-      }),
+      apiRequest('POST', `/api/evaluations`, data),
     onSuccess: () => {
       toast({
         title: 'Evaluation Submitted',
