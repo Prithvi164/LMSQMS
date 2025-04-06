@@ -6878,6 +6878,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  app.get("/api/organizations/:organizationId/audio-files/:id", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const orgId = parseInt(req.params.organizationId);
+      const audioFileId = parseInt(req.params.id);
+      
+      // Check organization access
+      if (orgId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const audioFile = await storage.getAudioFile(audioFileId);
+      
+      if (!audioFile) {
+        return res.status(404).json({ message: "Audio file not found" });
+      }
+      
+      // Double check organization access
+      if (audioFile.organizationId !== req.user.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      res.json(audioFile);
+    } catch (error: any) {
+      console.error(`Error fetching audio file ${req.params.id} in org ${req.params.organizationId}:`, error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
   app.get("/api/audio-files/:id", async (req, res) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
     
@@ -6997,6 +7027,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(allocations);
     } catch (error: any) {
       console.error("Error fetching audio file allocations:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // Get audio files allocated to the current user
+  app.get("/api/organizations/:organizationId/audio-file-allocations/assigned-to-me", async (req, res) => {
+    console.log('Endpoint called: audio-file-allocations/assigned-to-me');
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    try {
+      const orgId = parseInt(req.params.organizationId);
+      if (!orgId || req.user.organizationId !== orgId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Only quality analysts can access this endpoint
+      if (req.user.role !== 'quality_analyst') {
+        return res.status(403).json({ message: "Access denied. Only quality analysts can access this endpoint." });
+      }
+      
+      console.log(`Fetching audio files allocated to user ${req.user.id} in organization ${orgId}`);
+      console.log(`User details: ${JSON.stringify({
+        id: req.user.id,
+        username: req.user.username,
+        role: req.user.role,
+        organization: req.user.organizationId
+      })}`);
+      
+      // Check if we have allocations in the database for this user
+      const checkQuery = await db.execute(sql`
+        SELECT COUNT(*) FROM audio_file_allocations 
+        WHERE quality_analyst_id = ${req.user.id} 
+        AND organization_id = ${orgId}
+      `);
+      console.log(`Database check: ${JSON.stringify(checkQuery.rows[0])}`);
+      
+      const allocations = await storage.listAudioFileAllocations({
+        organizationId: orgId,
+        qualityAnalystId: req.user.id
+      });
+      
+      console.log(`Found ${allocations.length} allocated audio files for user ${req.user.id}`);
+      
+      // If allocations query returned empty but we know allocations exist
+      if (allocations.length === 0 && checkQuery.rows[0].count > 0) {
+        console.log("Warning: Allocation query inconsistency - DB shows allocations exist but none returned");
+      }
+      
+      res.json(allocations);
+    } catch (error: any) {
+      console.error("Error fetching assigned audio files:", error);
       res.status(500).json({ message: error.message });
     }
   });

@@ -99,15 +99,37 @@ export default function ConductEvaluation() {
     queryKey: [`/api/organizations/${user?.organizationId}/audio-file-allocations/assigned-to-me`],
     enabled: !!user?.organizationId && user?.role === 'quality_analyst',
   });
+  
+  // Log the assigned audio files to help with debugging
+  console.log("Assigned audio files:", assignedAudioFiles);
 
   // Get audio file details when selected
   const { data: selectedAudioFileDetails } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/audio-files/${selectedAudioFile}`],
     enabled: !!selectedAudioFile && !!user?.organizationId,
     onSuccess: (data) => {
+      console.log("Audio file details loaded:", data);
       if (data && data.fileUrl) {
         setAudioUrl(data.fileUrl);
       }
+    },
+    onError: (error) => {
+      console.error("Error fetching audio file details:", error);
+      // Fallback to legacy endpoint if the organization-specific endpoint fails
+      queryClient.fetchQuery({
+        queryKey: [`/api/audio-files/${selectedAudioFile}`],
+        queryFn: async () => {
+          const response = await fetch(`/api/audio-files/${selectedAudioFile}`);
+          if (!response.ok) {
+            throw new Error('Failed to fetch audio file details');
+          }
+          const data = await response.json();
+          if (data && data.fileUrl) {
+            setAudioUrl(data.fileUrl);
+          }
+          return data;
+        }
+      });
     }
   });
 
@@ -455,11 +477,14 @@ export default function ConductEvaluation() {
                     <SelectValue placeholder="Select Audio File" />
                   </SelectTrigger>
                   <SelectContent>
-                    {assignedAudioFiles?.filter((file: any) => file.status === 'allocated').map((file: any) => (
-                      <SelectItem key={file.audioFileId} value={file.audioFileId.toString()}>
-                        {file.audioFile?.originalFilename || `File #${file.audioFileId}`}
-                      </SelectItem>
-                    ))}
+                    {assignedAudioFiles && assignedAudioFiles.length > 0 ? 
+                      assignedAudioFiles.map((file: any) => (
+                        <SelectItem key={file.audioFileId || file.id} value={(file.audioFileId || file.id).toString()}>
+                          {file.audioFile?.originalFilename || file.originalFilename || `File #${file.audioFileId || file.id}`}
+                        </SelectItem>
+                      )) : 
+                      <SelectItem value="no-files" disabled>No audio files assigned</SelectItem>
+                    }
                   </SelectContent>
                 </Select>
               </div>
