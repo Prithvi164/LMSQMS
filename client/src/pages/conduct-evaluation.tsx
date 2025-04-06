@@ -644,26 +644,67 @@ export default function ConductEvaluation() {
             console.log(
               "Detected potential SAS token issue, requesting new token",
             );
-            // Get a fresh SAS URL
-            queryClient.invalidateQueries({
-              queryKey: [`/api/azure-audio-sas/${selectedAudioFile}`],
-              exact: true,
-            });
-
+            
+            // Inform user we're refreshing the token
             toast({
               title: "Refreshing Audio Access",
               description:
                 "Audio access may have expired. Refreshing connection...",
               duration: 5000,
             });
-
-            // Wait a moment and try to reload the audio
+            
+            // Clear current audio URL first
+            setAudioUrl(null);
+            
+            // Allow state update to complete
             setTimeout(() => {
-              if (audioRef.current) {
-                audioRef.current.load();
-                console.log("Reloaded audio after token refresh");
-              }
-            }, 2000);
+              console.log("Requesting fresh SAS token for file:", selectedAudioFile);
+              
+              // Force refresh the query to get a new SAS URL
+              queryClient.invalidateQueries({
+                queryKey: [`/api/azure-audio-sas/${selectedAudioFile}`],
+                exact: true,
+              });
+              
+              // After invalidating, manually refetch to ensure we get a new token
+              queryClient.fetchQuery({
+                queryKey: [`/api/azure-audio-sas/${selectedAudioFile}`],
+                staleTime: 0,
+              })
+              .then((response: any) => {
+                console.log("Successfully refreshed SAS token");
+                // Handle successful token refresh
+                if (response && response.sasUrl) {
+                  // Set the new URL
+                  setAudioUrl(response.sasUrl);
+                  
+                  // Wait for state update then load and play
+                  setTimeout(() => {
+                    if (audioRef.current) {
+                      audioRef.current.load();
+                      console.log("Audio element reloaded with fresh token");
+                      
+                      // Try to play after a brief delay to allow loading
+                      setTimeout(() => {
+                        if (audioRef.current) {
+                          audioRef.current.play()
+                            .then(() => console.log("Auto-play after token refresh succeeded"))
+                            .catch(err => console.warn("Auto-play after token refresh failed:", err));
+                        }
+                      }, 1000);
+                    }
+                  }, 200);
+                }
+              })
+              .catch(error => {
+                console.error("Failed to fetch new SAS token:", error);
+                toast({
+                  variant: "destructive",
+                  title: "Token Refresh Failed",
+                  description: "Could not refresh audio access. Please try again.",
+                });
+              });
+            }, 500);
           } else {
             // Try to provide more specific error messaging
             const errorMessage =
@@ -1031,6 +1072,8 @@ export default function ConductEvaluation() {
                         console.log(
                           "Detected potential SAS token expiration for file:",
                           selectedAudioFile,
+                          "Error type:",
+                          errorType
                         );
 
                         // Inform user we're refreshing the audio access
@@ -1041,16 +1084,58 @@ export default function ConductEvaluation() {
                           duration: 3000,
                         });
 
-                        // Clear current audio URL
+                        // Clear current audio URL first
                         setAudioUrl(null);
-
-                        // Force refresh the query to get a new SAS URL with short delay
+                        
+                        // Allow state update to complete
                         setTimeout(() => {
+                          console.log("Requesting fresh SAS token for file:", selectedAudioFile);
+                          
+                          // Force refresh the query to get a new SAS URL
                           queryClient.invalidateQueries({
                             queryKey: [
                               `/api/azure-audio-sas/${selectedAudioFile}`,
                             ],
                             exact: true,
+                          });
+                          
+                          // After invalidating, manually refetch to ensure we get a new token
+                          queryClient.fetchQuery({
+                            queryKey: [`/api/azure-audio-sas/${selectedAudioFile}`],
+                            staleTime: 0,
+                          })
+                          .then((response: any) => {
+                            console.log("Successfully refreshed SAS token");
+                            // Handle successful token refresh
+                            if (response && response.sasUrl) {
+                              // Set the new URL
+                              setAudioUrl(response.sasUrl);
+                              
+                              // Wait for state update then load and play
+                              setTimeout(() => {
+                                if (audioRef.current) {
+                                  audioRef.current.load();
+                                  console.log("Audio element reloaded with fresh token");
+                                  
+                                  // Try to play after a brief delay to allow loading
+                                  setTimeout(() => {
+                                    if (audioRef.current) {
+                                      audioRef.current.play()
+                                        .then(() => console.log("Auto-play after token refresh succeeded"))
+                                        .catch(err => console.warn("Auto-play after token refresh failed:", err));
+                                    }
+                                  }, 1000);
+                                }
+                              }, 200);
+                            }
+                          })
+                          .catch(error => {
+                            console.error("Failed to fetch new SAS token:", error);
+                            toast({
+                              variant: "destructive",
+                              title: "Token Refresh Failed",
+                              description: "Could not refresh audio access. Please try again.",
+                            });
                           });
                         }, 500);
                       } else if (
