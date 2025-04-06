@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/use-auth';
-import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -12,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Spinner } from '@/components/ui/spinner';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { BarChart3, ChevronDown, ChevronRight, FileAudio, Filter, Info, PieChart, RefreshCw, Calendar, ClipboardList, CheckSquare } from 'lucide-react';
+import { BarChart3, ChevronDown, ChevronRight, FileAudio, Filter, Info, PieChart, RefreshCw, Calendar, ClipboardList } from 'lucide-react';
 import { format, isSameDay, isThisWeek, isThisMonth, parseISO } from 'date-fns';
 
 // Define types for the components
@@ -65,7 +64,6 @@ const formatDate = (dateString: string) => {
 
 const AudioAssignmentDashboard = () => {
   const { user } = useAuth();
-  const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState('today');
   const [dateFilter, setDateFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -384,18 +382,6 @@ const AudioAssignmentDashboard = () => {
                                 <Info className="h-4 w-4 mr-1" />
                                 View Details
                               </Button>
-                              
-                              {allocation.status === 'allocated' && (
-                                <Button
-                                  size="sm"
-                                  variant="default"
-                                  className="h-8"
-                                  onClick={() => navigate(`/audio-evaluation?allocationId=${allocation.id}`)}
-                                >
-                                  <CheckSquare className="h-4 w-4 mr-1" />
-                                  Evaluate
-                                </Button>
-                              )}
                             </div>
                           </TableCell>
                         </TableRow>

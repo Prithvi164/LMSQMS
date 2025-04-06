@@ -7006,19 +7006,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       const allocationId = parseInt(req.params.id);
-      console.log('DEBUG - Getting allocation with ID:', allocationId);
-      console.log('DEBUG - User requesting allocation:', req.user.id, req.user.username);
-      
       const allocation = await storage.getAudioFileAllocation(allocationId);
-      console.log('DEBUG - Allocation result:', allocation ? 'Found' : 'Not found');
       
       if (!allocation) {
         return res.status(404).json({ message: "Allocation not found" });
       }
-      
-      console.log('DEBUG - Allocation organization ID:', allocation.organizationId);
-      console.log('DEBUG - User organization ID:', req.user.organizationId);
-      console.log('DEBUG - Allocation has audioFile?', !!allocation.audioFile);
       
       // Check organization access
       if (allocation.organizationId !== req.user.organizationId) {
@@ -7028,7 +7020,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(allocation);
     } catch (error: any) {
       console.error("Error fetching audio file allocation:", error);
-      console.error("Error stack:", error.stack);
       res.status(500).json({ message: error.message });
     }
   });
