@@ -214,11 +214,16 @@ export class AzureStorageService {
         throw new Error('Azure Storage credentials not properly configured');
       }
 
-      // Calculate expiry date
-      const expiryTime = new Date();
+      // Calculate expiry date - ensure it's properly formatted for Azure
+      const startTime = new Date();
+      const expiryTime = new Date(startTime);
       expiryTime.setMinutes(expiryTime.getMinutes() + expiryMinutes);
       
-      console.log(`SAS token will expire at: ${expiryTime.toISOString()}`);
+      // Round to seconds to avoid precision issues
+      startTime.setMilliseconds(0);
+      expiryTime.setMilliseconds(0);
+      
+      console.log(`SAS token start: ${startTime.toISOString()}, will expire at: ${expiryTime.toISOString()}`);
 
       // Determine appropriate content type based on file extension if not provided
       let detectedContentType = contentType || "audio/mpeg"; // Default to audio/mpeg
@@ -254,6 +259,12 @@ export class AzureStorageService {
       
       console.log(`Using content type: ${detectedContentType} for blob: ${blobName}`);
 
+      // Create a shared key credential with precise validation
+      const sharedKeyCredential = new StorageSharedKeyCredential(
+        this.accountName,
+        this.accountKey
+      );
+
       // Set permissions for the SAS URL with more explicit options
       const sasOptions = {
         containerName,
@@ -261,16 +272,10 @@ export class AzureStorageService {
         permissions: BlobSASPermissions.parse('r'), // Read only access
         expiresOn: expiryTime,
         protocol: SASProtocol.Https, // Force HTTPS for security
-        startsOn: new Date(), // Start time is now
+        startsOn: startTime,
         contentDisposition: "inline", // Make it playable in browser
         contentType: detectedContentType, // Use the detected or provided content type
       };
-
-      // Create a shared key credential
-      const sharedKeyCredential = new StorageSharedKeyCredential(
-        this.accountName,
-        this.accountKey
-      );
 
       // Generate SAS query parameters using the shared key credential
       const sasToken = generateBlobSASQueryParameters(
