@@ -144,15 +144,33 @@ const AudioEvaluationInterface = () => {
   const allocationId = searchParams.get('allocationId') ? parseInt(searchParams.get('allocationId')!, 10) : null;
   
   // Fetch allocation data
-  const { data: allocation, isLoading: loadingAllocation } = useQuery<AudioFileAllocation>({
+  const { data: allocation, isLoading: loadingAllocation, error: allocationError } = useQuery<AudioFileAllocation>({
     queryKey: [`/api/audio-file-allocations/${allocationId}`],
     enabled: !!allocationId && !!user?.organizationId,
+    retry: 3,
+    onError: (error) => {
+      console.error("Error fetching allocation:", error);
+      toast({
+        title: "Error loading audio file",
+        description: "Could not load the audio file allocation data. Please try again or contact support.",
+        variant: "destructive",
+      });
+    }
   });
   
   // Fetch templates
-  const { data: templates, isLoading: loadingTemplates } = useQuery<EvaluationTemplate[]>({
+  const { data: templates, isLoading: loadingTemplates, error: templatesError } = useQuery<EvaluationTemplate[]>({
     queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
     enabled: !!user?.organizationId,
+    retry: 3,
+    onError: (error) => {
+      console.error("Error fetching templates:", error);
+      toast({
+        title: "Error loading templates",
+        description: "Could not load evaluation templates. Please try again or contact support.",
+        variant: "destructive",
+      });
+    }
   });
 
   // Use the first template by default
@@ -414,14 +432,37 @@ const AudioEvaluationInterface = () => {
       <div className="container mx-auto py-12">
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl">Audio File Not Found</CardTitle>
-            <CardDescription>
-              The requested audio file allocation could not be found or you don't have permission to access it.
+            <CardTitle className="flex items-center text-xl">
+              <FileAudio className="mr-2 h-5 w-5" />
+              Audio File Not Found
+            </CardTitle>
+            <CardDescription className="mt-2">
+              {allocationId ? 
+                "The requested audio file allocation could not be found or you don't have permission to access it." :
+                "No allocation ID was provided. Please select an audio file to evaluate from the dashboard."
+              }
             </CardDescription>
           </CardHeader>
-          <CardFooter>
+          <CardContent className="text-muted-foreground">
+            <p className="mb-4">
+              To evaluate audio files, you need to:
+            </p>
+            <ol className="list-decimal list-inside space-y-2 ml-2">
+              <li>Go to the Audio Assignment Dashboard</li>
+              <li>Find an allocated audio file with "Pending" or "Allocated" status</li>
+              <li>Click the "Evaluate" button next to the file</li>
+            </ol>
+            <p className="mt-4">
+              If you don't see any audio files, contact your administrator to allocate audio files 
+              to your account for evaluation.
+            </p>
+          </CardContent>
+          <CardFooter className="flex justify-between">
             <Button onClick={() => navigate('/audio-assignment-dashboard')}>
-              Return to Dashboard
+              Go to Assignment Dashboard
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/audio-file-allocation')}>
+              View Allocation Interface
             </Button>
           </CardFooter>
         </Card>
@@ -435,15 +476,37 @@ const AudioEvaluationInterface = () => {
       <div className="container mx-auto py-12">
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl">No Evaluation Templates</CardTitle>
-            <CardDescription>
-              No evaluation templates are available. Please contact your administrator.
+            <CardTitle className="flex items-center text-xl">
+              <ClipboardList className="mr-2 h-5 w-5" />
+              No Evaluation Templates
+            </CardTitle>
+            <CardDescription className="mt-2">
+              No evaluation templates are available for audio evaluation.
             </CardDescription>
           </CardHeader>
-          <CardFooter>
+          <CardContent className="text-muted-foreground">
+            <p className="mb-4">
+              To evaluate an audio file, you need an evaluation template with defined:
+            </p>
+            <ol className="list-decimal list-inside space-y-2 ml-2">
+              <li>Evaluation pillars (categories for assessment)</li>
+              <li>Evaluation parameters for each pillar</li>
+              <li>Scoring criteria and weightages</li>
+            </ol>
+            <p className="mt-4">
+              Please contact your administrator to create or assign evaluation templates
+              to your organization before attempting to evaluate audio files.
+            </p>
+          </CardContent>
+          <CardFooter className="flex justify-between">
             <Button onClick={() => navigate('/audio-assignment-dashboard')}>
               Return to Dashboard
             </Button>
+            {(user?.role === 'admin' || user?.role === 'owner') && (
+              <Button variant="outline" onClick={() => navigate('/evaluation-templates')}>
+                Manage Templates
+              </Button>
+            )}
           </CardFooter>
         </Card>
       </div>
