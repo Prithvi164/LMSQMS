@@ -5,9 +5,10 @@ import { Card } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Check, ChevronRight, Lightbulb, Target, Users } from "lucide-react";
+import { Check, ChevronRight, Lightbulb, Target, Users, FileAudio, Search, CheckSquare } from "lucide-react";
 
-const slides = [
+// Define slides for different user roles
+const generalSlides = [
   {
     title: "Welcome to Your Learning Journey",
     description: "Let's get you started with our intelligent learning management system.",
@@ -28,9 +29,34 @@ const slides = [
   }
 ];
 
+// Slides for quality analyst role
+const qaSlides = [
+  {
+    title: "Welcome to Quality Analysis",
+    description: "Let's get you started with our audio evaluation platform.",
+    Icon: FileAudio,
+    color: "bg-blue-500"
+  },
+  {
+    title: "Evaluate Audio Files",
+    description: "Review and analyze call recordings with our structured evaluation forms.",
+    Icon: CheckSquare,
+    color: "bg-green-500"
+  },
+  {
+    title: "Browse Assignments",
+    description: "Access your assigned audio files and track completed evaluations.",
+    Icon: Search,
+    color: "bg-purple-500"
+  }
+];
+
 export function OnboardingFlow() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const { user, updateUser } = useAuth();
+
+  // Select appropriate slides based on user role
+  const slides = user?.role === "quality_analyst" ? qaSlides : generalSlides;
 
   const completeMutation = useMutation({
     mutationFn: async () => {
@@ -56,7 +82,9 @@ export function OnboardingFlow() {
     }
   };
 
-  const CurrentIcon = slides[currentSlide].Icon;
+  // Safety check: ensure current slide exists before accessing
+  const currentSlideData = slides[currentSlide] || slides[0];
+  const CurrentIcon = currentSlideData.Icon;
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -75,7 +103,7 @@ export function OnboardingFlow() {
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.2 }}
-                className={`p-3 rounded-full ${slides[currentSlide].color}`}
+                className={`p-3 rounded-full ${currentSlideData.color}`}
               >
                 <CurrentIcon className="w-8 h-8 text-white" />
               </motion.div>
@@ -86,7 +114,7 @@ export function OnboardingFlow() {
                 transition={{ delay: 0.3 }}
                 className="text-2xl font-bold"
               >
-                {slides[currentSlide].title}
+                {currentSlideData.title}
               </motion.h2>
 
               <motion.p
@@ -95,7 +123,7 @@ export function OnboardingFlow() {
                 transition={{ delay: 0.4 }}
                 className="text-muted-foreground"
               >
-                {slides[currentSlide].description}
+                {currentSlideData.description}
               </motion.p>
             </div>
 
