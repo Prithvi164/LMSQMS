@@ -31,7 +31,7 @@ interface AudioFileAllocation {
   createdAt: string;
   organizationId: number;
   evaluationId?: number;
-  audioFile: AudioFile;
+  audioFile?: AudioFile; // Make this optional since it may not always be included
 }
 
 interface AudioFile {
@@ -143,13 +143,22 @@ const AudioEvaluationInterface = () => {
   const searchParams = new URLSearchParams(location.split('?')[1]);
   const allocationId = searchParams.get('allocationId') ? parseInt(searchParams.get('allocationId')!, 10) : null;
   
+  console.log('DEBUG - Current location:', location);
+  console.log('DEBUG - Allocation ID from URL:', allocationId);
+  console.log('DEBUG - Current user:', user);
+  
   // Fetch allocation data
   const { data: allocation, isLoading: loadingAllocation, error: allocationError } = useQuery<AudioFileAllocation>({
     queryKey: [`/api/audio-file-allocations/${allocationId}`],
     enabled: !!allocationId && !!user?.organizationId,
     retry: 3,
+    onSuccess: (data) => {
+      console.log('DEBUG - Allocation data received:', data);
+      console.log('DEBUG - Audio file data:', data?.audioFile);
+    },
     onError: (error) => {
       console.error("Error fetching allocation:", error);
+      console.error("Error details:", JSON.stringify(error));
       toast({
         title: "Error loading audio file",
         description: "Could not load the audio file allocation data. Please try again or contact support.",
@@ -180,6 +189,12 @@ const AudioEvaluationInterface = () => {
   const audioFileUrl = allocation?.audioFile 
     ? `/api/azure-storage/download/${allocation.audioFile.containerName}/${allocation.audioFile.blobName}` 
     : '';
+    
+  // Log allocation data for debugging
+  useEffect(() => {
+    console.log('DEBUG - Allocation data:', allocation);
+    console.log('DEBUG - Audio file URL:', audioFileUrl);
+  }, [allocation, audioFileUrl]);
   
   // Setup form
   const form = useForm<z.infer<typeof evaluationScoreSchema>>({
@@ -426,20 +441,22 @@ const AudioEvaluationInterface = () => {
     );
   }
   
-  // Show error if allocation doesn't exist
-  if (!allocation) {
+  // Show error if allocation doesn't exist or has no audio file data
+  if (!allocation || !allocation.audioFile) {
     return (
       <div className="container mx-auto py-12">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center text-xl">
               <FileAudio className="mr-2 h-5 w-5" />
-              Audio File Not Found
+              {!allocation ? "Audio File Not Found" : "Audio File Data Missing"}
             </CardTitle>
             <CardDescription className="mt-2">
-              {allocationId ? 
+              {!allocation && allocationId ? 
                 "The requested audio file allocation could not be found or you don't have permission to access it." :
-                "No allocation ID was provided. Please select an audio file to evaluate from the dashboard."
+                !allocation && !allocationId ? 
+                "No allocation ID was provided. Please select an audio file to evaluate from the dashboard." :
+                "The audio file data is missing or incomplete. This allocation cannot be evaluated."
               }
             </CardDescription>
           </CardHeader>
@@ -456,6 +473,15 @@ const AudioEvaluationInterface = () => {
               If you don't see any audio files, contact your administrator to allocate audio files 
               to your account for evaluation.
             </p>
+            {allocation && !allocation.audioFile && (
+              <div className="mt-6 p-4 bg-amber-50 text-amber-800 rounded-md">
+                <h3 className="font-semibold flex items-center"><AlertCircle className="w-4 h-4 mr-2" /> Debugging Information</h3>
+                <p className="mt-1 text-sm">
+                  Allocation found with ID: {allocation.id}, but the audio file data is missing.
+                  Please contact your administrator and provide this error message.
+                </p>
+              </div>
+            )}
           </CardContent>
           <CardFooter className="flex justify-between">
             <Button onClick={() => navigate('/audio-assignment-dashboard')}>
@@ -591,22 +617,22 @@ const AudioEvaluationInterface = () => {
             <CardContent className="space-y-4">
               <div>
                 <Label className="text-muted-foreground">Filename</Label>
-                <p className="font-medium">{allocation.audioFile.filename}</p>
+                <p className="font-medium">{allocation.audioFile?.filename || 'Unknown'}</p>
               </div>
               <div>
                 <Label className="text-muted-foreground">Duration</Label>
-                <p className="font-medium">{formatTime(allocation.audioFile.duration)}</p>
+                <p className="font-medium">{allocation.audioFile ? formatTime(allocation.audioFile.duration) : 'Unknown'}</p>
               </div>
               <div>
                 <Label className="text-muted-foreground">Call Type</Label>
-                <p className="font-medium">{allocation.audioFile.callType || 'Not specified'}</p>
+                <p className="font-medium">{allocation.audioFile?.callType || 'Not specified'}</p>
               </div>
               <div>
                 <Label className="text-muted-foreground">Language</Label>
-                <p className="font-medium">{allocation.audioFile.language || 'Not specified'}</p>
+                <p className="font-medium">{allocation.audioFile?.language || 'Not specified'}</p>
               </div>
               
-              {allocation.audioFile.callMetrics && (
+              {allocation.audioFile?.callMetrics && (
                 <>
                   <Separator />
                   <div>
