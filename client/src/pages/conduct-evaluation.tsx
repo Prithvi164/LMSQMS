@@ -104,14 +104,13 @@ export default function ConductEvaluation() {
   console.log("Assigned audio files:", assignedAudioFiles);
 
   // Get audio file details when selected
+  // Fetch audio file details
   const { data: selectedAudioFileDetails } = useQuery({
     queryKey: [`/api/organizations/${user?.organizationId}/audio-files/${selectedAudioFile}`],
     enabled: !!selectedAudioFile && !!user?.organizationId,
     onSuccess: (data) => {
       console.log("Audio file details loaded:", data);
-      if (data && data.fileUrl) {
-        setAudioUrl(data.fileUrl);
-      }
+      // We'll get the SAS URL separately, not using data.fileUrl directly
     },
     onError: (error) => {
       console.error("Error fetching audio file details:", error);
@@ -123,12 +122,28 @@ export default function ConductEvaluation() {
           if (!response.ok) {
             throw new Error('Failed to fetch audio file details');
           }
-          const data = await response.json();
-          if (data && data.fileUrl) {
-            setAudioUrl(data.fileUrl);
-          }
-          return data;
+          return response.json();
         }
+      });
+    }
+  });
+  
+  // Fetch SAS URL for audio file
+  const { data: audioSasData } = useQuery({
+    queryKey: [`/api/azure-audio-sas/${selectedAudioFile}`],
+    enabled: !!selectedAudioFile,
+    onSuccess: (data) => {
+      console.log("Audio SAS URL generated:", data);
+      if (data && data.sasUrl) {
+        setAudioUrl(data.sasUrl);
+      }
+    },
+    onError: (error) => {
+      console.error("Error fetching SAS URL:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load audio file. Please try again.",
       });
     }
   });
