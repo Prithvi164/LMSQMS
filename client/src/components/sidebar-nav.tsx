@@ -12,7 +12,8 @@ import {
   CheckSquare,
   FileSpreadsheet,
   Cloud,
-  CalendarDays
+  CalendarDays,
+  FileAudio
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useQuery } from '@tanstack/react-query';
@@ -45,6 +46,7 @@ export function SidebarNav() {
     { href: '/evaluation-templates', label: 'Evaluation Forms', icon: CheckSquare },
     { href: '/conduct-evaluation', label: 'Conduct Evaluation', icon: FileSpreadsheet },
     { href: '/audio-assignment-dashboard', label: 'Assignment Dashboard', icon: CalendarDays },
+    { href: '/audio-evaluation', label: 'Audio Evaluation', icon: FileAudio },
     { href: '/azure-storage', label: 'Azure Storage', icon: Cloud },
   ];
 
