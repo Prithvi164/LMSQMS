@@ -10,7 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { BarChart3, ChevronDown, ChevronRight, FileAudio, Filter, PieChart, RefreshCw, Calendar, ClipboardList } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { BarChart3, ChevronDown, ChevronRight, FileAudio, Filter, Info, PieChart, RefreshCw, Calendar, ClipboardList } from 'lucide-react';
 import { format, isSameDay, isThisWeek, isThisMonth, parseISO } from 'date-fns';
 
 // Define types for the components
@@ -69,6 +70,8 @@ const AudioAssignmentDashboard = () => {
   const [analyticFilter, setAnalyticFilter] = useState('all');
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
+  const [viewDetailsOpen, setViewDetailsOpen] = useState(false);
+  const [selectedAllocation, setSelectedAllocation] = useState<AudioFileAllocation | null>(null);
 
   // Query for fetching allocations
   const { data: allocations = [], isLoading: loadingAllocations, refetch: refetchAllocations } = useQuery<AudioFileAllocation[]>({
@@ -371,8 +374,12 @@ const AudioAssignmentDashboard = () => {
                                 size="sm"
                                 variant="outline"
                                 className="h-8"
-                                onClick={() => window.location.href = `/audio-file-details/${allocation.audioFileId}`}
+                                onClick={() => {
+                                  setSelectedAllocation(allocation);
+                                  setViewDetailsOpen(true);
+                                }}
                               >
+                                <Info className="h-4 w-4 mr-1" />
                                 View Details
                               </Button>
                             </div>
@@ -387,6 +394,71 @@ const AudioAssignmentDashboard = () => {
           ))}
         </div>
       )}
+      
+      {/* Details Dialog */}
+      <Dialog open={viewDetailsOpen} onOpenChange={setViewDetailsOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>Audio Assignment Details</DialogTitle>
+            <DialogDescription>
+              Complete information for the selected audio assignment
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedAllocation && (
+            <div className="grid gap-4 py-2">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                <div>
+                  <h3 className="font-semibold">Audio File Information</h3>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <div className="text-sm text-muted-foreground">Filename:</div>
+                    <div className="text-sm font-medium">{selectedAllocation.audioFileName}</div>
+                    
+                    <div className="text-sm text-muted-foreground">ID:</div>
+                    <div className="text-sm font-medium">{selectedAllocation.audioFileId}</div>
+                    
+                    <div className="text-sm text-muted-foreground">Status:</div>
+                    <div className="text-sm font-medium">
+                      <Badge className={getStatusColor(selectedAllocation.status)}>
+                        {selectedAllocation.status.charAt(0).toUpperCase() + selectedAllocation.status.slice(1)}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="font-semibold">Assignment Information</h3>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <div className="text-sm text-muted-foreground">Assigned To:</div>
+                    <div className="text-sm font-medium">{selectedAllocation.qualityAnalystName}</div>
+                    
+                    <div className="text-sm text-muted-foreground">Assigned By:</div>
+                    <div className="text-sm font-medium">{selectedAllocation.allocatedByName}</div>
+                    
+                    <div className="text-sm text-muted-foreground">Allocation Date:</div>
+                    <div className="text-sm font-medium">
+                      {format(new Date(selectedAllocation.allocationDate), 'MMM dd, yyyy HH:mm')}
+                    </div>
+                    
+                    {selectedAllocation.dueDate && (
+                      <>
+                        <div className="text-sm text-muted-foreground">Due Date:</div>
+                        <div className="text-sm font-medium">
+                          {format(new Date(selectedAllocation.dueDate), 'MMM dd, yyyy')}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewDetailsOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
