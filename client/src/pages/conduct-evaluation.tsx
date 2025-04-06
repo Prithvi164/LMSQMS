@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
+  CardFooter,
 } from "@/components/ui/card";
 import {
   Select,
@@ -21,6 +22,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Spinner } from "@/components/ui/spinner";
+import { Play, Pause, SkipBack, SkipForward, Headphones, Volume2, FileAudio } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 
 export default function ConductEvaluation() {
   const { user } = useAuth();
@@ -30,7 +35,17 @@ export default function ConductEvaluation() {
   const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
   const [selectedTrainee, setSelectedTrainee] = useState<number | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<number | null>(null);
+  const [selectedAudioFile, setSelectedAudioFile] = useState<number | null>(null);
   const [scores, setScores] = useState<Record<number, any>>({});
+  const [evaluationType, setEvaluationType] = useState<'standard' | 'audio'>('standard');
+  
+  // Audio player states
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(0.7);
   
   // Parse URL parameters
   useEffect(() => {
@@ -79,6 +94,23 @@ export default function ConductEvaluation() {
     enabled: !!selectedTemplate,
   });
 
+  // Query for fetching assigned audio files for the quality analyst
+  const { data: assignedAudioFiles, isLoading: loadingAudioFiles } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/audio-file-allocations/assigned-to-me`],
+    enabled: !!user?.organizationId && user?.role === 'quality_analyst',
+  });
+
+  // Get audio file details when selected
+  const { data: selectedAudioFileDetails } = useQuery({
+    queryKey: [`/api/organizations/${user?.organizationId}/audio-files/${selectedAudioFile}`],
+    enabled: !!selectedAudioFile && !!user?.organizationId,
+    onSuccess: (data) => {
+      if (data && data.fileUrl) {
+        setAudioUrl(data.fileUrl);
+      }
+    }
+  });
+
   // Submit evaluation
   const submitEvaluationMutation = useMutation({
     mutationFn: async (evaluation: any) => {
@@ -97,18 +129,71 @@ export default function ConductEvaluation() {
 
       return response.json();
     },
+    onSuccess: (data) => {
+      // If we're evaluating an audio file, update its status to 'evaluated'
+      if (evaluationType === 'audio' && selectedAudioFile) {
+        updateAudioFileStatusMutation.mutate({
+          audioFileId: selectedAudioFile,
+          status: 'evaluated',
+          evaluationId: data.id
+        });
+      } else {
+        // For standard evaluations
+        queryClient.invalidateQueries({
+          queryKey: [`/api/organizations/${user?.organizationId}/evaluations`],
+        });
+        toast({
+          title: "Success",
+          description: "Evaluation submitted successfully",
+        });
+        setScores({});
+        setSelectedBatch(null);
+        setSelectedTrainee(null);
+        setSelectedTemplate(null);
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
+  // Update audio file status mutation
+  const updateAudioFileStatusMutation = useMutation({
+    mutationFn: async ({ audioFileId, status, evaluationId }: { audioFileId: number, status: string, evaluationId: number }) => {
+      const response = await fetch(`/api/audio-files/${audioFileId}/status`, {
+        method: "PATCH",
+        headers: { 
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ status, evaluationId }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to update audio file status");
+      }
+
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [`/api/organizations/${user?.organizationId}/evaluations`],
+        queryKey: [`/api/organizations/${user?.organizationId}/audio-file-allocations/assigned-to-me`],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/organizations/${user?.organizationId}/audio-files`],
       });
       toast({
         title: "Success",
-        description: "Evaluation submitted successfully",
+        description: "Audio evaluation submitted successfully",
       });
       setScores({});
-      setSelectedBatch(null);
-      setSelectedTrainee(null);
+      setSelectedAudioFile(null);
       setSelectedTemplate(null);
+      setAudioUrl(null);
     },
     onError: (error: Error) => {
       toast({
@@ -207,68 +292,295 @@ export default function ConductEvaluation() {
     setScores({});
   };
 
+  // Audio player controls
+  const handlePlayPause = () => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+      } else {
+        audioRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      setDuration(audioRef.current.duration);
+    }
+  };
+
+  const handleVolumeChange = (newValue: number[]) => {
+    const value = newValue[0];
+    setVolume(value);
+    if (audioRef.current) {
+      audioRef.current.volume = value;
+    }
+  };
+
+  const handleSliderChange = (newValue: number[]) => {
+    const value = newValue[0];
+    setCurrentTime(value);
+    if (audioRef.current) {
+      audioRef.current.currentTime = value;
+    }
+  };
+
+  // Audio file selection handler
+  const handleAudioFileSelect = (audioFileId: string) => {
+    setSelectedAudioFile(parseInt(audioFileId));
+    setScores({});
+  };
+
+  // Audio evaluation submission
+  const handleAudioSubmit = () => {
+    if (!selectedAudioFile || !selectedTemplate) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please select an audio file and template",
+      });
+      return;
+    }
+
+    const evaluation = {
+      templateId: selectedTemplate,
+      audioFileId: selectedAudioFile,
+      evaluatorId: user?.id,
+      scores: Object.entries(scores).map(([parameterId, value]) => ({
+        parameterId: parseInt(parameterId),
+        ...value,
+      })),
+      finalScore: calculateScore(),
+    };
+
+    submitEvaluationMutation.mutate(evaluation);
+  };
+
+  // Format time display for audio player
+  const formatTime = (time: number) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  };
+
   return (
     <div className="container mx-auto py-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Conduct Evaluation</h1>
-        <div className="flex gap-4">
-          {/* Batch Selection */}
-          <div className="w-[200px]">
-            <Select onValueChange={handleBatchChange} value={selectedBatch?.toString()}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select Batch" />
-              </SelectTrigger>
-              <SelectContent>
-                {batches?.map((batch: any) => (
-                  <SelectItem key={batch.id} value={batch.id.toString()}>
-                    {batch.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      <Tabs defaultValue="standard" onValueChange={(value) => setEvaluationType(value as 'standard' | 'audio')}>
+        <TabsList className="mb-4">
+          <TabsTrigger value="standard">Standard Evaluation</TabsTrigger>
+          <TabsTrigger value="audio">Audio Evaluation</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="standard" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold">Conduct Standard Evaluation</h1>
+            <div className="flex gap-4">
+              {/* Batch Selection */}
+              <div className="w-[200px]">
+                <Select onValueChange={handleBatchChange} value={selectedBatch?.toString()}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Batch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {batches?.map((batch: any) => (
+                      <SelectItem key={batch.id} value={batch.id.toString()}>
+                        {batch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Trainee Selection - Only enabled if batch is selected */}
+              <div className="w-[200px]">
+                <Select 
+                  onValueChange={(value) => setSelectedTrainee(parseInt(value))}
+                  value={selectedTrainee?.toString()}
+                  disabled={!selectedBatch}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Trainee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {trainees?.map((trainee: any) => (
+                      <SelectItem key={trainee.id} value={trainee.id.toString()}>
+                        {trainee.fullName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Template Selection - Only enabled if trainee is selected */}
+              <div className="w-[200px]">
+                <Select 
+                  onValueChange={(value) => setSelectedTemplate(parseInt(value))}
+                  value={selectedTemplate?.toString()}
+                  disabled={!selectedTrainee}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Template" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {templates?.map((template: any) => (
+                      <SelectItem key={template.id} value={template.id.toString()}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="audio" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold">Conduct Audio Evaluation</h1>
+            <div className="flex gap-4">
+              {/* Audio File Selection */}
+              <div className="w-[250px]">
+                <Select 
+                  onValueChange={handleAudioFileSelect}
+                  value={selectedAudioFile?.toString()}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Audio File" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {assignedAudioFiles?.filter((file: any) => file.status === 'allocated').map((file: any) => (
+                      <SelectItem key={file.audioFileId} value={file.audioFileId.toString()}>
+                        {file.audioFile?.originalFilename || `File #${file.audioFileId}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Template Selection */}
+              <div className="w-[200px]">
+                <Select 
+                  onValueChange={(value) => setSelectedTemplate(parseInt(value))}
+                  value={selectedTemplate?.toString()}
+                  disabled={!selectedAudioFile}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Template" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {templates?.map((template: any) => (
+                      <SelectItem key={template.id} value={template.id.toString()}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
 
-          {/* Trainee Selection - Only enabled if batch is selected */}
-          <div className="w-[200px]">
-            <Select 
-              onValueChange={(value) => setSelectedTrainee(parseInt(value))}
-              value={selectedTrainee?.toString()}
-              disabled={!selectedBatch}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select Trainee" />
-              </SelectTrigger>
-              <SelectContent>
-                {trainees?.map((trainee: any) => (
-                  <SelectItem key={trainee.id} value={trainee.id.toString()}>
-                    {trainee.fullName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Template Selection - Only enabled if trainee is selected */}
-          <div className="w-[200px]">
-            <Select 
-              onValueChange={(value) => setSelectedTemplate(parseInt(value))}
-              value={selectedTemplate?.toString()}
-              disabled={!selectedTrainee}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select Template" />
-              </SelectTrigger>
-              <SelectContent>
-                {templates?.map((template: any) => (
-                  <SelectItem key={template.id} value={template.id.toString()}>
-                    {template.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
+          {/* Audio Player */}
+          {selectedAudioFileDetails && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileAudio className="h-5 w-5" />
+                  {selectedAudioFileDetails.originalFilename || `Audio File #${selectedAudioFileDetails.id}`}
+                </CardTitle>
+                <CardDescription>
+                  Duration: {selectedAudioFileDetails.duration || 'Unknown'} | 
+                  Language: {selectedAudioFileDetails.language || 'Unknown'} | 
+                  Version: {selectedAudioFileDetails.version || 'N/A'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {/* Hidden audio element */}
+                  <audio 
+                    ref={audioRef}
+                    src={audioUrl || ''} 
+                    onTimeUpdate={handleTimeUpdate}
+                    onLoadedMetadata={handleLoadedMetadata}
+                    onEnded={() => setIsPlaying(false)}
+                  />
+                  
+                  {/* Custom audio player UI */}
+                  <div className="flex flex-col space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">{formatTime(currentTime)}</span>
+                      <span className="text-sm">{formatTime(duration)}</span>
+                    </div>
+                    
+                    <Slider
+                      value={[currentTime]}
+                      max={duration || 100}
+                      step={0.1}
+                      onValueChange={handleSliderChange}
+                      className="w-full"
+                    />
+                    
+                    <div className="flex justify-center items-center gap-4 mt-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => {
+                          if (audioRef.current) {
+                            audioRef.current.currentTime = Math.max(0, currentTime - 10);
+                          }
+                        }}
+                      >
+                        <SkipBack className="h-4 w-4" />
+                      </Button>
+                      
+                      <Button
+                        variant="default"
+                        size="icon"
+                        onClick={handlePlayPause}
+                      >
+                        {isPlaying ? (
+                          <Pause className="h-4 w-4" />
+                        ) : (
+                          <Play className="h-4 w-4" />
+                        )}
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => {
+                          if (audioRef.current) {
+                            audioRef.current.currentTime = Math.min(duration, currentTime + 10);
+                          }
+                        }}
+                      >
+                        <SkipForward className="h-4 w-4" />
+                      </Button>
+                      
+                      <div className="flex items-center gap-2 ml-4">
+                        <Volume2 className="h-4 w-4" />
+                        <Slider
+                          value={[volume]}
+                          max={1}
+                          step={0.01}
+                          onValueChange={handleVolumeChange}
+                          className="w-24"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
 
       {selectedTemplateDetails && (
         <div className="space-y-6">
@@ -409,14 +721,25 @@ export default function ConductEvaluation() {
           </Card>
 
           <div className="flex justify-end">
-            <Button
-              onClick={handleSubmit}
-              disabled={submitEvaluationMutation.isPending}
-            >
-              {submitEvaluationMutation.isPending
-                ? "Submitting..."
-                : "Submit Evaluation"}
-            </Button>
+            {evaluationType === 'audio' ? (
+              <Button
+                onClick={handleAudioSubmit}
+                disabled={submitEvaluationMutation.isPending || updateAudioFileStatusMutation.isPending}
+              >
+                {submitEvaluationMutation.isPending || updateAudioFileStatusMutation.isPending
+                  ? "Submitting..."
+                  : "Submit Audio Evaluation"}
+              </Button>
+            ) : (
+              <Button
+                onClick={handleSubmit}
+                disabled={submitEvaluationMutation.isPending}
+              >
+                {submitEvaluationMutation.isPending
+                  ? "Submitting..."
+                  : "Submit Evaluation"}
+              </Button>
+            )}
           </div>
         </div>
       )}
