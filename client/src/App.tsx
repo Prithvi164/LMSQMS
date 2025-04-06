@@ -49,7 +49,7 @@ function Router() {
   return (
     <div className="flex">
       {user && !isAuthPage && !isSettingsPage && <SidebarNav />}
-      <main className={`${user && !isSettingsPage ? "flex-1" : "w-full"}`}>
+      <main className={`transition-all duration-300 ${user && !isSettingsPage ? "flex-1" : "w-full"}`}>
         {user && !isAuthPage && !isSettingsPage && (
           <div className="p-4 border-b flex justify-end">
             <UserProfile />

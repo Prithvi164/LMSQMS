@@ -12,14 +12,34 @@ import {
   CheckSquare,
   FileSpreadsheet,
   Cloud,
-  CalendarDays
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Menu
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 
 export function SidebarNav() {
   const [location] = useLocation();
-  const { logout, user } = useAuth(); 
+  const { logout, user } = useAuth();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  
+  // Load collapsed state from localStorage
+  useEffect(() => {
+    const savedState = localStorage.getItem('sidebarCollapsed');
+    if (savedState !== null) {
+      setIsCollapsed(savedState === 'true');
+    }
+  }, []);
+  
+  // Save collapsed state to localStorage
+  const toggleSidebar = () => {
+    const newState = !isCollapsed;
+    setIsCollapsed(newState);
+    localStorage.setItem('sidebarCollapsed', String(newState));
+  };
 
   // Query organization settings to get feature type
   const { data: settings } = useQuery({
@@ -82,9 +102,23 @@ export function SidebarNav() {
   };
 
   return (
-    <div className="h-screen w-64 bg-sidebar border-r border-sidebar-border p-4 flex flex-col">
-      <div className="mb-8">
-        <h2 className="text-xl font-bold text-sidebar-foreground">{getAppName()}</h2>
+    <div className={cn(
+      "h-screen bg-sidebar border-r border-sidebar-border p-4 flex flex-col transition-all duration-300 ease-in-out",
+      isCollapsed ? "w-[70px]" : "w-64"
+    )}>
+      <div className="flex items-center justify-between mb-8">
+        {!isCollapsed && (
+          <h2 className="text-xl font-bold text-sidebar-foreground">{getAppName()}</h2>
+        )}
+        <Button 
+          variant="ghost" 
+          size="sm"
+          className="ml-auto text-sidebar-foreground hover:bg-sidebar-accent/50 p-1 h-8 w-8"
+          onClick={toggleSidebar}
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+        </Button>
       </div>
 
       <nav className="space-y-2 flex-1">
@@ -100,11 +134,13 @@ export function SidebarNav() {
                   "w-full justify-start",
                   isActive 
                     ? "bg-sidebar-accent text-sidebar-accent-foreground" 
-                    : "text-sidebar-foreground hover:bg-sidebar-accent/50"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent/50",
+                  isCollapsed && "px-2 justify-center"
                 )}
+                title={isCollapsed ? item.label : undefined}
               >
-                <Icon className="h-4 w-4 mr-3" />
-                {item.label}
+                <Icon className={cn("h-4 w-4", isCollapsed ? "mr-0" : "mr-3")} />
+                {!isCollapsed && item.label}
               </Button>
             </Link>
           );
@@ -113,11 +149,15 @@ export function SidebarNav() {
 
       <Button 
         variant="ghost" 
-        className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent/50"
+        className={cn(
+          "text-sidebar-foreground hover:bg-sidebar-accent/50",
+          isCollapsed ? "px-2 justify-center w-full" : "w-full justify-start"
+        )}
         onClick={() => logout()}
+        title={isCollapsed ? "Logout" : undefined}
       >
-        <LogOut className="h-4 w-4 mr-3" />
-        Logout
+        <LogOut className={cn("h-4 w-4", isCollapsed ? "mr-0" : "mr-3")} />
+        {!isCollapsed && "Logout"}
       </Button>
     </div>
   );
