@@ -6,19 +6,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Download, FileAudio, Filter, RefreshCw, Calendar } from 'lucide-react';
+import { BarChart3, ChevronDown, ChevronRight, Download, FileAudio, Filter, PieChart, RefreshCw, Calendar, ClipboardList } from 'lucide-react';
 import { format, isSameDay, isThisWeek, isThisMonth, parseISO } from 'date-fns';
 
 // Define types for the components
 type AudioFileAllocation = {
   id: number;
-  name: string;
-  description: string;
   allocationDate: string;
   dueDate: string | null;
   status: 'pending' | 'allocated' | 'evaluated' | 'archived';
@@ -28,34 +25,40 @@ type AudioFileAllocation = {
   qualityAnalystName: string;
   audioFileId: number;
   audioFileName: string;
-  evaluatedCount: number;
-  totalFiles: number;
-  allocatedCount: number;
   createdAt: string;
   organizationId: number;
 };
 
-// Helper functions
-const formatDuration = (seconds: number) => {
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-};
-
+// Status color mapping
 const getStatusColor = (status: string) => {
   switch (status) {
-    case 'pending': return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200';
-    case 'allocated': return 'bg-blue-100 text-blue-800 hover:bg-blue-200';
-    case 'evaluated': return 'bg-green-100 text-green-800 hover:bg-green-200';
-    case 'archived': return 'bg-gray-100 text-gray-800 hover:bg-gray-200';
-    default: return 'bg-gray-100 text-gray-800 hover:bg-gray-200';
+    case 'pending': return 'bg-yellow-100 text-yellow-800';
+    case 'allocated': return 'bg-blue-100 text-blue-800';
+    case 'evaluated': return 'bg-green-100 text-green-800';
+    case 'archived': return 'bg-gray-100 text-gray-800';
+    default: return 'bg-gray-100 text-gray-800';
   }
 };
 
-const getAllocationStatusColor = (allocatedCount: number, totalCount: number) => {
-  if (allocatedCount === 0) return 'bg-red-100 text-red-800';
-  if (allocatedCount < totalCount) return 'bg-yellow-100 text-yellow-800';
-  return 'bg-green-100 text-green-800';
+// Status background colors for cards
+const getStatusBgColor = (status: string) => {
+  switch (status) {
+    case 'pending': return 'bg-yellow-50';
+    case 'allocated': return 'bg-blue-50';
+    case 'evaluated': return 'bg-green-50';
+    case 'archived': return 'bg-gray-50';
+    default: return 'bg-gray-50';
+  }
+};
+
+// Format date to readable format
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString(undefined, { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
 };
 
 const AudioAssignmentDashboard = () => {
@@ -65,6 +68,7 @@ const AudioAssignmentDashboard = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [analyticFilter, setAnalyticFilter] = useState('all');
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [expandedDate, setExpandedDate] = useState<string | null>(null);
 
   // Query for fetching allocations
   const { data: allocations = [], isLoading: loadingAllocations, refetch: refetchAllocations } = useQuery<AudioFileAllocation[]>({
@@ -93,8 +97,6 @@ const AudioAssignmentDashboard = () => {
         return false;
       }
       
-      // Add more filters as needed
-      
       return true;
     });
   };
@@ -115,6 +117,40 @@ const AudioAssignmentDashboard = () => {
   const sortedDates = Object.keys(groupedAllocations).sort((a, b) => 
     new Date(b).getTime() - new Date(a).getTime()
   );
+
+  // Calculate overall statistics
+  const totalAssignments = filteredAllocations.length;
+  const statusCounts = filteredAllocations.reduce((counts: Record<string, number>, allocation) => {
+    counts[allocation.status] = (counts[allocation.status] || 0) + 1;
+    return counts;
+  }, {});
+
+  // Toggle expanded date view
+  const toggleDateExpansion = (date: string) => {
+    if (expandedDate === date) {
+      setExpandedDate(null);
+    } else {
+      setExpandedDate(date);
+    }
+  };
+
+  // Generate status count UI for a specific date
+  const generateStatusCountsForDate = (allocations: AudioFileAllocation[]) => {
+    const statusCounts = allocations.reduce((counts: Record<string, number>, allocation) => {
+      counts[allocation.status] = (counts[allocation.status] || 0) + 1;
+      return counts;
+    }, {});
+
+    return (
+      <div className="flex space-x-2 mt-1">
+        {Object.entries(statusCounts).map(([status, count]) => (
+          <Badge key={status} className={getStatusColor(status)}>
+            {status.charAt(0).toUpperCase() + status.slice(1)}: {count}
+          </Badge>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="container mx-auto py-6">
@@ -217,6 +253,43 @@ const AudioAssignmentDashboard = () => {
         </TabsList>
       </Tabs>
       
+      {/* Overall Statistics Summary */}
+      {!loadingAllocations && filteredAllocations.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-6">
+              <ClipboardList className="h-8 w-8 text-primary mb-2" />
+              <p className="text-2xl font-bold">{totalAssignments}</p>
+              <p className="text-sm text-muted-foreground">Total Assignments</p>
+            </CardContent>
+          </Card>
+          
+          <Card className={getStatusBgColor('pending')}>
+            <CardContent className="flex flex-col items-center justify-center py-6">
+              <Badge className={getStatusColor('pending')}>Pending</Badge>
+              <p className="text-2xl font-bold mt-2">{statusCounts['pending'] || 0}</p>
+              <p className="text-sm text-muted-foreground">Pending Assignments</p>
+            </CardContent>
+          </Card>
+          
+          <Card className={getStatusBgColor('allocated')}>
+            <CardContent className="flex flex-col items-center justify-center py-6">
+              <Badge className={getStatusColor('allocated')}>Allocated</Badge>
+              <p className="text-2xl font-bold mt-2">{statusCounts['allocated'] || 0}</p>
+              <p className="text-sm text-muted-foreground">Allocated Assignments</p>
+            </CardContent>
+          </Card>
+          
+          <Card className={getStatusBgColor('evaluated')}>
+            <CardContent className="flex flex-col items-center justify-center py-6">
+              <Badge className={getStatusColor('evaluated')}>Evaluated</Badge>
+              <p className="text-2xl font-bold mt-2">{statusCounts['evaluated'] || 0}</p>
+              <p className="text-sm text-muted-foreground">Evaluated Assignments</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      
       {/* Main Content */}
       {loadingAllocations ? (
         <div className="flex justify-center items-center py-12">
@@ -236,93 +309,95 @@ const AudioAssignmentDashboard = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
+          {/* Date-wise summary cards */}
           {sortedDates.map(date => (
-            <Card key={date} className="mb-6">
-              <CardHeader className="pb-2">
-                <div className="flex items-center">
-                  <Calendar className="h-5 w-5 mr-2 text-primary" />
-                  <CardTitle>{new Date(date).toLocaleDateString(undefined, { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  })}</CardTitle>
+            <Card key={date} className="mb-4">
+              <CardHeader className="pb-2 cursor-pointer" onClick={() => toggleDateExpansion(date)}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Calendar className="h-5 w-5 mr-2 text-primary" />
+                    <div>
+                      <CardTitle className="text-lg">{formatDate(date)}</CardTitle>
+                      <div className="flex items-center">
+                        <CardDescription className="mt-1">
+                          {groupedAllocations[date].length} audio assignment{groupedAllocations[date].length > 1 ? 's' : ''}
+                        </CardDescription>
+                        {generateStatusCountsForDate(groupedAllocations[date])}
+                      </div>
+                    </div>
+                  </div>
+                  {expandedDate === date ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
                 </div>
-                <CardDescription>
-                  {groupedAllocations[date].length} audio assignment{groupedAllocations[date].length > 1 ? 's' : ''}
-                </CardDescription>
               </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Audio File</TableHead>
-                      <TableHead>Assigned To</TableHead>
-                      <TableHead>Assigned By</TableHead>
-                      <TableHead>Due Date</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {groupedAllocations[date].map((allocation: AudioFileAllocation) => (
-                      <TableRow key={allocation.id}>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{allocation.audioFileName}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <p>{allocation.qualityAnalystName}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <p>{allocation.allocatedByName}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {allocation.dueDate ? format(new Date(allocation.dueDate), 'MMM dd, yyyy') : 'No due date'}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={getStatusColor(allocation.status)}>
-                            {allocation.status.charAt(0).toUpperCase() + allocation.status.slice(1)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <Button 
-                              size="sm"
-                              variant="outline"
-                              className="h-8"
-                              asChild
-                            >
-                              <a 
-                                href={`/api/audio-files/${allocation.audioFileId}/download`} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                              >
-                                <Download className="h-4 w-4 mr-1" />
-                                Download
-                              </a>
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-8"
-                              onClick={() => window.location.href = `/audio-file-details/${allocation.audioFileId}`}
-                            >
-                              View Details
-                            </Button>
-                          </div>
-                        </TableCell>
+              
+              {/* Expanded view with details */}
+              {expandedDate === date && (
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Audio File</TableHead>
+                        <TableHead>Assigned To</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Due Date</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
+                    </TableHeader>
+                    <TableBody>
+                      {groupedAllocations[date].map((allocation: AudioFileAllocation) => (
+                        <TableRow key={allocation.id}>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{allocation.audioFileName || `File #${allocation.audioFileId}`}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p>{allocation.qualityAnalystName}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={getStatusColor(allocation.status)}>
+                              {allocation.status.charAt(0).toUpperCase() + allocation.status.slice(1)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {allocation.dueDate ? format(new Date(allocation.dueDate), 'MMM dd, yyyy') : 'No due date'}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex space-x-2">
+                              <Button 
+                                size="sm"
+                                variant="outline"
+                                className="h-8"
+                                asChild
+                              >
+                                <a 
+                                  href={`/api/audio-files/${allocation.audioFileId}/download`} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                >
+                                  <Download className="h-4 w-4 mr-1" />
+                                  Download
+                                </a>
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8"
+                                onClick={() => window.location.href = `/audio-file-details/${allocation.audioFileId}`}
+                              >
+                                View Details
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              )}
             </Card>
           ))}
         </div>
