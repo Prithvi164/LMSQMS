@@ -698,7 +698,7 @@ export class DatabaseStorage implements IStorage {
         return {
           ...allocation,
           allocationDate: allocation.createdAt,
-          audioFileName: audioFile?.name || `Audio File #${allocation.audioFileId}`,
+          audioFileName: audioFile?.originalFilename || audioFile?.filename || `Audio File #${allocation.audioFileId}`,
           qualityAnalystName: qualityAnalyst?.fullName || `QA #${allocation.qualityAnalystId}`,
           allocatedByName: allocator?.fullName || `User #${allocation.allocatedBy}`,
           // Add other useful fields
