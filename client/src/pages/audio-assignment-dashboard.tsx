@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { BarChart3, ChevronDown, ChevronRight, Download, FileAudio, Filter, PieChart, RefreshCw, Calendar, ClipboardList } from 'lucide-react';
+import { BarChart3, ChevronDown, ChevronRight, FileAudio, Filter, PieChart, RefreshCw, Calendar, ClipboardList } from 'lucide-react';
 import { format, isSameDay, isThisWeek, isThisMonth, parseISO } from 'date-fns';
 
 // Define types for the components
@@ -367,21 +367,6 @@ const AudioAssignmentDashboard = () => {
                           </TableCell>
                           <TableCell>
                             <div className="flex space-x-2">
-                              <Button 
-                                size="sm"
-                                variant="outline"
-                                className="h-8"
-                                asChild
-                              >
-                                <a 
-                                  href={`/api/audio-files/${allocation.audioFileId}/download`} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                >
-                                  <Download className="h-4 w-4 mr-1" />
-                                  Download
-                                </a>
-                              </Button>
                               <Button
                                 size="sm"
                                 variant="outline"
