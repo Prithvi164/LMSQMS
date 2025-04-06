@@ -135,7 +135,13 @@ export default function ConductEvaluation() {
     onSuccess: (data) => {
       console.log("Audio SAS URL generated:", data);
       if (data && data.sasUrl) {
+        console.log("Setting audio URL to SAS URL:", data.sasUrl);
         setAudioUrl(data.sasUrl);
+        
+        // Force audio element to reload with new URL if it exists
+        if (audioRef.current) {
+          audioRef.current.load();
+        }
       }
     },
     onError: (error) => {
@@ -373,6 +379,13 @@ export default function ConductEvaluation() {
   const handleAudioFileSelect = (audioFileId: string) => {
     setSelectedAudioFile(parseInt(audioFileId));
     setScores({});
+    setAudioUrl(null); // Clear previous audio URL
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    
+    // Log the selection process
+    console.log("Selected audio file ID:", audioFileId);
   };
 
   // Audio evaluation submission
@@ -545,11 +558,30 @@ export default function ConductEvaluation() {
                   {/* Hidden audio element */}
                   <audio 
                     ref={audioRef}
-                    src={audioUrl || ''} 
                     onTimeUpdate={handleTimeUpdate}
                     onLoadedMetadata={handleLoadedMetadata}
                     onEnded={() => setIsPlaying(false)}
-                  />
+                    onError={(e) => {
+                      console.error("Audio player error:", e);
+                      toast({
+                        variant: "destructive",
+                        title: "Audio Error",
+                        description: "Could not play the audio file. The file may be damaged or in an unsupported format."
+                      });
+                    }}
+                    controls
+                    style={{ display: 'none' }}
+                  >
+                    {audioUrl && (
+                      <>
+                        <source src={audioUrl} type="audio/mpeg" />
+                        <source src={audioUrl} type="audio/mp3" />
+                        <source src={audioUrl} type="audio/wav" />
+                        <source src={audioUrl} type="audio/ogg" />
+                        <p>Your browser doesn't support HTML5 audio. Here is a <a href={audioUrl} target="_blank" rel="noopener noreferrer">link to the audio</a> instead.</p>
+                      </>
+                    )}
+                  </audio>
                   
                   {/* Custom audio player UI */}
                   <div className="flex flex-col space-y-2">
