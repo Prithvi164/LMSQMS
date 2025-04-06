@@ -340,7 +340,7 @@ const AudioAssignmentDashboard = () => {
                         <TableHead>Audio File</TableHead>
                         <TableHead>Assigned To</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Due Date</TableHead>
+                        <TableHead>Allocation Date</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -363,7 +363,7 @@ const AudioAssignmentDashboard = () => {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {allocation.dueDate ? format(new Date(allocation.dueDate), 'MMM dd, yyyy') : 'No due date'}
+                            {format(new Date(allocation.allocationDate), 'MMM dd, yyyy HH:mm')}
                           </TableCell>
                           <TableCell>
                             <div className="flex space-x-2">
