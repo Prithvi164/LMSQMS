@@ -12,9 +12,7 @@ import {
   CheckSquare,
   FileSpreadsheet,
   Cloud,
-  FileAudio,
-  CalendarDays,
-  ListChecks
+  CalendarDays
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useQuery } from '@tanstack/react-query';
@@ -46,8 +44,6 @@ export function SidebarNav() {
   const qmsFeatures = [
     { href: '/evaluation-templates', label: 'Evaluation Forms', icon: CheckSquare },
     { href: '/conduct-evaluation', label: 'Conduct Evaluation', icon: FileSpreadsheet },
-    { href: '/audio-file-management', label: 'Audio Files', icon: FileAudio },
-    { href: '/audio-file-allocation', label: 'Audio Allocation', icon: ListChecks },
     { href: '/audio-assignment-dashboard', label: 'Assignment Dashboard', icon: CalendarDays },
     { href: '/azure-storage', label: 'Azure Storage', icon: Cloud },
   ];
