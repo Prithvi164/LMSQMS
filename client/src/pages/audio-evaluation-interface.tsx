@@ -172,20 +172,20 @@ const AudioEvaluationInterface = () => {
       allocationId: allocationId || 0,
       evaluatorId: user?.id || 0,
       finalScore: 0,
-      scores: selectedTemplate ? 
+      scores: selectedTemplate && selectedTemplate.pillars ? 
         selectedTemplate.pillars.flatMap(pillar => 
-          pillar.parameters.map(param => ({
+          pillar.parameters ? pillar.parameters.map(param => ({
             parameterId: param.id,
             score: '',
             comment: '',
-          }))
+          })) : []
         ) : [],
     },
   });
   
   // Update form values when data is loaded
   useEffect(() => {
-    if (selectedTemplate && allocation) {
+    if (selectedTemplate && selectedTemplate.pillars && allocation) {
       form.reset({
         templateId: selectedTemplate.id,
         audioFileId: allocation.audioFileId,
@@ -193,11 +193,11 @@ const AudioEvaluationInterface = () => {
         evaluatorId: user?.id || 0,
         finalScore: 0,
         scores: selectedTemplate.pillars.flatMap(pillar => 
-          pillar.parameters.map(param => ({
+          pillar.parameters ? pillar.parameters.map(param => ({
             parameterId: param.id,
             score: '',
             comment: '',
-          }))
+          })) : []
         ),
       });
     }
@@ -275,12 +275,14 @@ const AudioEvaluationInterface = () => {
   
   // Calculate progress
   const calculateProgress = () => {
-    if (!selectedTemplate) return 0;
+    if (!selectedTemplate || !selectedTemplate.pillars) return 0;
     
     const totalParameters = selectedTemplate.pillars.reduce(
-      (acc, pillar) => acc + pillar.parameters.length, 
+      (acc, pillar) => acc + (pillar.parameters ? pillar.parameters.length : 0), 
       0
     );
+    
+    if (totalParameters === 0) return 0;
     
     const completedScores = form.getValues().scores.filter(
       score => score.score !== ''
@@ -294,9 +296,11 @@ const AudioEvaluationInterface = () => {
     const scores = form.getValues().scores;
     const missingScores = [];
     
-    if (!selectedTemplate) return false;
+    if (!selectedTemplate || !selectedTemplate.pillars) return false;
     
     for (const pillar of selectedTemplate.pillars) {
+      if (!pillar.parameters) continue;
+      
       for (const param of pillar.parameters) {
         const score = scores.find(s => s.parameterId === param.id);
         
@@ -315,7 +319,7 @@ const AudioEvaluationInterface = () => {
   
   // Calculate final score
   const calculateFinalScore = () => {
-    if (!selectedTemplate) return 0;
+    if (!selectedTemplate || !selectedTemplate.pillars) return 0;
     
     let totalScore = 0;
     let totalWeightage = 0;
@@ -324,6 +328,8 @@ const AudioEvaluationInterface = () => {
     const scores = form.getValues().scores;
     
     for (const pillar of selectedTemplate.pillars) {
+      if (!pillar.parameters) continue;
+      
       let pillarScore = 0;
       let pillarMaxScore = 0;
       
@@ -584,7 +590,7 @@ const AudioEvaluationInterface = () => {
               <form onSubmit={form.handleSubmit(onSubmit)}>
                 <TabsContent value="evaluation" className="p-6 pt-2">
                   <ScrollArea className="h-[60vh]">
-                    {selectedTemplate.pillars.map((pillar) => (
+                    {selectedTemplate.pillars && selectedTemplate.pillars.map((pillar) => (
                       <div key={pillar.id} className="mb-6">
                         <div 
                           className="flex items-center justify-between bg-muted p-3 rounded-md cursor-pointer"
@@ -603,7 +609,7 @@ const AudioEvaluationInterface = () => {
                           )}
                         </div>
                         
-                        {expandedPillar === pillar.id && (
+                        {expandedPillar === pillar.id && pillar.parameters && (
                           <div className="mt-3 pl-3 border-l-2 border-muted space-y-6">
                             {pillar.parameters.map((parameter) => {
                               const parameterIndex = form.getValues().scores.findIndex(
@@ -787,11 +793,11 @@ const AudioEvaluationInterface = () => {
             <TabsContent value="preview" className="p-6 pt-2">
               <ScrollArea className="h-[60vh]">
                 <div className="space-y-6">
-                  {selectedTemplate.pillars.map((pillar) => (
+                  {selectedTemplate.pillars && selectedTemplate.pillars.map((pillar) => (
                     <div key={pillar.id} className="mb-6">
                       <h3 className="text-lg font-medium bg-muted p-3 rounded-md">{pillar.name}</h3>
                       <div className="mt-3 pl-3 border-l-2 border-muted space-y-4">
-                        {pillar.parameters.map((parameter) => (
+                        {pillar.parameters && pillar.parameters.map((parameter) => (
                           <div key={parameter.id} className="bg-card p-4 rounded-md border">
                             <div className="flex justify-between items-start mb-2">
                               <div>
