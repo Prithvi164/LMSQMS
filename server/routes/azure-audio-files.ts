@@ -1306,40 +1306,134 @@ router.post('/azure-audio-import/:containerName', excelUpload.single('metadataFi
 
 // Generate SAS URL for a specific file (used by auditors when playing)
 router.get('/azure-audio-sas/:id', async (req, res) => {
-  if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
-  if (!azureService) return res.status(503).json({ message: 'Azure service not available' });
+  console.log(`SAS URL request received for audio file ID: ${req.params.id}`);
+  
+  // Authentication check
+  if (!req.user) {
+    console.error('SAS URL generation failed: User not authenticated');
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+  
+  // Azure service availability check
+  if (!azureService) {
+    console.error('SAS URL generation failed: Azure service not initialized');
+    return res.status(503).json({ 
+      message: 'Azure storage service not available',
+      details: 'The Azure storage service is not properly configured. Please check your environment variables.'
+    });
+  }
   
   const { id } = req.params;
+  console.log(`Processing SAS URL request for audio file ID: ${id} by user ID: ${req.user.id}`);
   
   try {
-    // Get the audio file record
+    // Get the audio file record with more detailed error handling
+    if (!id || isNaN(parseInt(id))) {
+      console.error(`Invalid audio file ID provided: ${id}`);
+      return res.status(400).json({ message: 'Invalid audio file ID' });
+    }
+    
+    const audioFileId = parseInt(id);
+    console.log(`Fetching audio file record for ID: ${audioFileId}`);
+    
     const [audioFile] = await db
       .select()
       .from(audioFiles)
-      .where(eq(audioFiles.id, parseInt(id)));
+      .where(eq(audioFiles.id, audioFileId));
     
     if (!audioFile) {
+      console.error(`Audio file with ID ${audioFileId} not found in database`);
       return res.status(404).json({ message: 'Audio file not found' });
     }
     
-    // Check org access
+    // Organization access check
     if (audioFile.organizationId !== req.user.organizationId) {
-      return res.status(403).json({ message: 'Access denied' });
+      console.error(`Access denied: User from org ${req.user.organizationId} tried to access file from org ${audioFile.organizationId}`);
+      return res.status(403).json({ message: 'Access denied: You do not have permission to access this file' });
     }
     
-    // Extract container and filename from fileUrl
-    const url = new URL(audioFile.fileUrl);
-    const pathParts = url.pathname.split('/');
-    const containerName = pathParts[1];
-    const blobName = pathParts.slice(2).join('/');
+    // Validate file URL format
+    if (!audioFile.fileUrl) {
+      console.error(`Audio file ${audioFileId} has no fileUrl`);
+      return res.status(500).json({ message: 'Audio file URL is missing' });
+    }
     
-    // Generate a fresh SAS URL (existing one may have expired)
-    const sasUrl = await azureService.generateBlobSasUrl(containerName, blobName, 60); // 60 minute expiry
+    // Parse the URL into container and blob name
+    let containerName, blobName;
+    try {
+      console.log(`Parsing file URL: ${audioFile.fileUrl}`);
+      const url = new URL(audioFile.fileUrl);
+      const pathParts = url.pathname.split('/');
+      
+      if (pathParts.length < 3) {
+        throw new Error('Invalid file URL path format');
+      }
+      
+      containerName = pathParts[1];
+      blobName = pathParts.slice(2).join('/');
+      
+      console.log(`Extracted container: ${containerName}, blob: ${blobName}`);
+      
+      if (!containerName || !blobName) {
+        throw new Error('Failed to extract container or blob name');
+      }
+    } catch (urlError) {
+      console.error(`Error parsing file URL: ${audioFile.fileUrl}`, urlError);
+      return res.status(500).json({ 
+        message: 'Invalid file URL format',
+        details: urlError instanceof Error ? urlError.message : 'Unknown URL parsing error'
+      });
+    }
     
-    res.json({ sasUrl });
+    // Generate a fresh SAS URL with extended expiry
+    console.log(`Generating SAS URL for container: ${containerName}, blob: ${blobName}`);
+    
+    // Determine the most appropriate MIME type based on the filename
+    let contentType = 'audio/mpeg'; // Default MIME type
+    const filename = audioFile.originalFilename || audioFile.filename || '';
+    
+    if (filename.toLowerCase().endsWith('.wav')) {
+      contentType = 'audio/wav';
+    } else if (filename.toLowerCase().endsWith('.ogg')) {
+      contentType = 'audio/ogg';
+    } else if (filename.toLowerCase().endsWith('.m4a')) {
+      contentType = 'audio/mp4';
+    } else if (filename.toLowerCase().endsWith('.aac')) {
+      contentType = 'audio/aac';
+    } else if (filename.toLowerCase().endsWith('.flac')) {
+      contentType = 'audio/flac';
+    } else if (filename.toLowerCase().endsWith('.webm')) {
+      contentType = 'audio/webm';
+    }
+    
+    console.log(`Using content type ${contentType} for generating SAS URL`);
+    const sasUrl = await azureService.generateBlobSasUrl(containerName, blobName, 120, contentType); // Extended to 2 hours with content type
+    
+    if (!sasUrl) {
+      console.error(`Failed to generate SAS URL for container: ${containerName}, blob: ${blobName}`);
+      return res.status(500).json({ message: 'Failed to generate access URL' });
+    }
+    
+    console.log(`Successfully generated SAS URL for audio file ${audioFileId}`);
+    
+    // Return the SAS URL to the client with enhanced file info
+    res.json({ 
+      sasUrl,
+      fileInfo: {
+        name: audioFile.originalFilename || audioFile.filename,
+        type: contentType,
+        size: audioFile.fileSize,
+        duration: audioFile.duration,
+        language: audioFile.language
+      }
+    });
   } catch (error) {
     console.error(`Error generating SAS URL for audio file ${id}:`, error);
-    res.status(500).json({ message: error instanceof Error ? error.message : 'Unknown error occurred' });
+    res.status(500).json({ 
+      message: 'Failed to generate audio file access URL',
+      details: error instanceof Error ? error.message : 'Unknown error occurred',
+      errorType: error instanceof Error ? error.name : 'Unknown'
+    });
   }
 });
 

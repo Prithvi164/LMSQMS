@@ -128,42 +128,150 @@ export default function ConductEvaluation() {
     }
   });
   
-  // Fetch SAS URL for audio file
-  const sasUrlQuery = useQuery({
+  // Define interface for SAS URL response
+  interface SasUrlResponse {
+    sasUrl: string;
+    fileInfo?: {
+      name: string;
+      type: string;
+      size?: number;
+      duration?: number;
+    };
+  }
+
+  // Fetch SAS URL for audio file with enhanced error handling and typing
+  const sasUrlQuery = useQuery<SasUrlResponse, Error>({
     queryKey: [`/api/azure-audio-sas/${selectedAudioFile}`],
     enabled: !!selectedAudioFile,
     onSuccess: (data) => {
-      console.log("Audio SAS URL generated:", data);
-      if (data && data.sasUrl) {
-        console.log("Setting audio URL to SAS URL:", data.sasUrl);
-        
-        // Clear previous audio state first
-        if (audioRef.current) {
+      console.log("Audio SAS URL generated for file ID:", selectedAudioFile);
+      
+      if (!data) {
+        console.error("SAS URL response is empty or undefined");
+        toast({
+          variant: "destructive",
+          title: "Audio Access Error",
+          description: "Received an empty response when requesting audio access. Please try again."
+        });
+        return;
+      }
+      
+      if (!data.sasUrl) {
+        console.error("SAS URL is missing in response:", data);
+        toast({
+          variant: "destructive",
+          title: "Audio Access Error",
+          description: "The secure access URL is missing or invalid. Please select the file again."
+        });
+        return;
+      }
+      
+      console.log("Setting audio URL to SAS URL for file ID:", selectedAudioFile);
+      
+      // Get file info if available from the enhanced API response
+      if (data.fileInfo) {
+        console.log("Received file info with SAS URL:", data.fileInfo);
+        // If the API provided a duration, we can set it directly
+        if (data.fileInfo.duration) {
+          setDuration(data.fileInfo.duration);
+        }
+      }
+      
+      // Clear previous audio state first
+      if (audioRef.current) {
+        try {
           // First pause any current playback
           audioRef.current.pause();
           
-          // Set the new URL and load it
+          // Set the new URL 
           setAudioUrl(data.sasUrl);
+          
+          // Configure audio element with content type if available
+          if (data.fileInfo?.type) {
+            console.log(`Setting audio content type: ${data.fileInfo.type}`);
+            try {
+              // Some browsers need this for proper MIME type recognition
+              audioRef.current.setAttribute('type', data.fileInfo.type);
+            } catch (typeError) {
+              console.warn("Error setting audio type attribute:", typeError);
+              // Non-critical error, continue
+            }
+          }
+          
+          // Configure error handling for the audio element
+          audioRef.current.onerror = (e) => {
+            const error = audioRef.current?.error;
+            const errorMessage = error ? 
+              `Code: ${error.code}, Message: ${error.message}` : 
+              'Unknown audio error';
+            
+            console.error("Audio error:", errorMessage, e);
+            
+            // Log detailed error information for debugging
+            if (error) {
+              switch(error.code) {
+                case MediaError.MEDIA_ERR_ABORTED:
+                  console.error("Audio loading aborted by the user");
+                  break;
+                case MediaError.MEDIA_ERR_NETWORK:
+                  console.error("Network error while loading audio");
+                  break;
+                case MediaError.MEDIA_ERR_DECODE:
+                  console.error("Audio decoding error - file may be corrupted");
+                  break;
+                case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+                  console.error("Audio format not supported by the browser");
+                  break;
+              }
+            }
+            
+            toast({
+              variant: "destructive",
+              title: "Audio Playback Error",
+              description: `There was a problem playing this audio file. Please try again.`
+            });
+          };
           
           // Use a small timeout to ensure state updates before loading the audio
           setTimeout(() => {
             if (audioRef.current) {
-              audioRef.current.load();
+              try {
+                audioRef.current.load();
+                console.log("Audio element loaded with new SAS URL for file ID:", selectedAudioFile);
+              } catch (loadError) {
+                console.error("Error loading audio with new SAS URL:", loadError);
+                toast({
+                  variant: "destructive",
+                  title: "Audio Loading Error",
+                  description: "Error loading the audio file. Please try selecting it again."
+                });
+              }
             }
-          }, 100);
-        } else {
+          }, 200); // Increased timeout to ensure DOM updates
+        } catch (pauseError) {
+          console.error("Error pausing audio before setting new SAS URL:", pauseError);
+          // Continue anyway since we're replacing the URL
           setAudioUrl(data.sasUrl);
         }
+      } else {
+        console.log("Audio ref not available, just setting the URL state");
+        setAudioUrl(data.sasUrl);
       }
     },
     onError: (error) => {
-      console.error("Error fetching SAS URL:", error);
+      console.error("Error generating SAS URL for file ID:", selectedAudioFile, error);
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "Failed to load audio file. Please try again.",
+        title: "Audio Access Error",
+        description: `Could not generate secure access URL for the audio file: ${error.message}. Please try selecting a different file.`
       });
-    }
+      // Reset audio URL state on error
+      setAudioUrl(null);
+    },
+    retry: 1, // Retry once if failed
+    retryDelay: 1000, // Wait 1 second between retries
+    staleTime: 5 * 60 * 1000, // 5 minutes - SAS tokens typically last longer than this
+    cacheTime: 10 * 60 * 1000, // 10 minutes
   });
 
   // Submit evaluation
@@ -347,9 +455,14 @@ export default function ConductEvaluation() {
     setScores({});
   };
 
-  // Audio player controls with better error handling
+  // Enhanced audio player controls with better error handling and auto-recovery
   const handlePlayPause = async () => {
     if (!audioRef.current || !audioUrl) {
+      console.warn("Play attempted without audio reference or URL:", {
+        hasAudioRef: !!audioRef.current,
+        hasAudioUrl: !!audioUrl
+      });
+      
       toast({
         variant: "destructive",
         title: "Playback Error",
@@ -361,9 +474,36 @@ export default function ConductEvaluation() {
     try {
       if (isPlaying) {
         // Handle pause - this operation is generally safe
+        console.log("Pausing audio playback");
         audioRef.current.pause();
         setIsPlaying(false);
       } else {
+        console.log("Attempting to start audio playback", {
+          selected: selectedAudioFile,
+          currentTime: audioRef.current.currentTime,
+          duration: audioRef.current.duration,
+          readyState: audioRef.current.readyState
+        });
+        
+        // MEDIA_ELEMENT_READY_STATE reference:
+        // 0 = HAVE_NOTHING - no information available
+        // 1 = HAVE_METADATA - metadata loaded but no data available
+        // 2 = HAVE_CURRENT_DATA - data for current position available
+        // 3 = HAVE_FUTURE_DATA - data for current and future position available
+        // 4 = HAVE_ENOUGH_DATA - enough data available to start playing
+        
+        // Check if we need to reload the audio element first
+        if (audioRef.current.readyState < 2) {
+          console.log("Audio not sufficiently loaded, reloading first");
+          try {
+            audioRef.current.load();
+            // Wait a moment for loading
+            await new Promise(resolve => setTimeout(resolve, 500));
+          } catch (loadError) {
+            console.error("Error pre-loading audio:", loadError);
+          }
+        }
+        
         // Set a timeout flag to detect if the play promise takes too long
         let timeoutFlag = true;
         
@@ -372,13 +512,25 @@ export default function ConductEvaluation() {
           if (timeoutFlag) {
             // If we reach here, the play promise hasn't resolved in time
             console.warn("Play operation timed out, refreshing audio source");
+            
             if (audioRef.current) {
-              // Force a reload of the audio element with the current URL
+              // Attempt to force a reload by cycling the URL
               const currentUrl = audioUrl;
               setAudioUrl(null);
               
               // Short delay before setting the URL again
-              setTimeout(() => setAudioUrl(currentUrl), 100);
+              setTimeout(() => {
+                setAudioUrl(currentUrl);
+                setTimeout(() => {
+                  if (audioRef.current) {
+                    try {
+                      audioRef.current.load();
+                    } catch (e) {
+                      console.error("Failed to reload audio after timeout:", e);
+                    }
+                  }
+                }, 200);
+              }, 200);
             }
             
             toast({
@@ -390,12 +542,51 @@ export default function ConductEvaluation() {
         }, 3000); // 3 second timeout
         
         // Attempt to play the audio
-        await audioRef.current.play();
-        
-        // If we get here, play was successful
-        timeoutFlag = false;
-        clearTimeout(timeoutId);
-        setIsPlaying(true);
+        try {
+          const playPromise = audioRef.current.play();
+          // Modern browsers return a promise from play()
+          if (playPromise !== undefined) {
+            await playPromise;
+            console.log("Audio playback started successfully");
+          }
+          
+          // If we get here, play was successful
+          timeoutFlag = false;
+          clearTimeout(timeoutId);
+          setIsPlaying(true);
+        } catch (playError) {
+          // Specific handling for play errors which can be caused by:
+          // 1. User interaction requirements not being met
+          // 2. Network errors
+          // 3. Audio format errors
+          console.error("Error during audio play() operation:", playError);
+          clearTimeout(timeoutId);
+          
+          // Check if this might be an expired SAS URL
+          if (selectedAudioFile && audioUrl && audioUrl.includes('sig=')) {
+            console.log("Detected potential SAS token issue, requesting new token");
+            // Get a fresh SAS URL
+            queryClient.invalidateQueries({
+              queryKey: [`/api/azure-audio-sas/${selectedAudioFile}`],
+              exact: true
+            });
+            
+            toast({
+              title: "Refreshing Audio Access",
+              description: "Audio access token may have expired. Refreshing access...",
+              duration: 3000,
+            });
+          } else {
+            // Generic play error
+            toast({
+              variant: "destructive",
+              title: "Playback Error",
+              description: "Could not play the audio file. Try selecting it again or refresh the page."
+            });
+          }
+          
+          throw playError; // Re-throw to be caught by outer catch
+        }
       }
     } catch (error) {
       console.error("Error handling audio playback:", error);
@@ -404,17 +595,14 @@ export default function ConductEvaluation() {
       if (audioRef.current) {
         // Force reload the audio element
         try {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
           audioRef.current.load();
+          console.log("Attempted recovery by reloading audio element");
         } catch (reloadError) {
-          console.error("Failed to reload audio element:", reloadError);
+          console.error("Failed to reload audio element during recovery:", reloadError);
         }
       }
-      
-      toast({
-        variant: "destructive",
-        title: "Playback Error",
-        description: "There was a problem playing this audio file. The SAS URL may have expired. Try selecting the file again."
-      });
       
       // Always ensure we're in a non-playing state after an error
       setIsPlaying(false);
@@ -646,58 +834,107 @@ export default function ConductEvaluation() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {/* Hidden audio element with enhanced error handling */}
+                  {/* Hidden audio element with comprehensive MIME type support and enhanced error handling */}
                   <audio 
                     ref={audioRef}
                     onTimeUpdate={handleTimeUpdate}
                     onLoadedMetadata={handleLoadedMetadata}
                     onEnded={() => setIsPlaying(false)}
                     onError={(e) => {
-                      console.error("Audio player error:", e);
-                      
-                      // Handle error more specifically, checking for common error patterns
-                      const errorEvent = e as ErrorEvent;
+                      // Log detailed error information for debugging
                       const target = e.currentTarget as HTMLAudioElement;
+                      const errorCode = target.error?.code;
+                      const errorMessage = target.error?.message;
                       
-                      // Try to determine if this is a SAS URL expiration issue
-                      const isSasError = target.error?.code === MediaError.MEDIA_ERR_NETWORK ||
-                                       target.error?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED;
+                      console.error("Audio player error:", {
+                        code: errorCode,
+                        message: errorMessage,
+                        audioUrl: audioUrl?.substring(0, 100) + '...',
+                        selectedAudioFile
+                      });
+                      
+                      // Error code reference:
+                      // MEDIA_ERR_ABORTED (1): Fetching process aborted by user
+                      // MEDIA_ERR_NETWORK (2): Error occurred when downloading
+                      // MEDIA_ERR_DECODE (3): Error occurred when decoding
+                      // MEDIA_ERR_SRC_NOT_SUPPORTED (4): Audio not supported
+                      
+                      // Determine error type for better user feedback
+                      let errorType = "unknown";
+                      if (errorCode === MediaError.MEDIA_ERR_NETWORK) {
+                        errorType = "network";
+                      } else if (errorCode === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
+                        errorType = "format";
+                      } else if (errorCode === MediaError.MEDIA_ERR_DECODE) {
+                        errorType = "decode";
+                      }
+                      
+                      // Is this likely a SAS token expiration issue?
+                      const isSasError = (
+                        errorType === "network" || 
+                        errorType === "format" || 
+                        (audioUrl && audioUrl.includes('sig=') && audioUrl.includes('se='))
+                      );
                       
                       if (isSasError && selectedAudioFile) {
-                        // If it looks like a SAS issue, trigger a refresh of the SAS URL
+                        console.log("Detected potential SAS token expiration for file:", selectedAudioFile);
+                        
+                        // Inform user we're refreshing the audio access
                         toast({
                           title: "Audio Access Expired",
                           description: "The secure access link has expired. Refreshing audio access...",
                           duration: 3000,
                         });
                         
-                        // Force refresh the query to get a new SAS URL
+                        // Clear current audio URL
+                        setAudioUrl(null);
+                        
+                        // Force refresh the query to get a new SAS URL with short delay
                         setTimeout(() => {
                           queryClient.invalidateQueries({
                             queryKey: [`/api/azure-audio-sas/${selectedAudioFile}`],
+                            exact: true
                           });
                         }, 500);
+                      } else if (errorType === "format" || errorType === "decode") {
+                        // This is likely a file format issue
+                        toast({
+                          variant: "destructive",
+                          title: "Audio Format Error",
+                          description: "This audio file format is not supported by your browser. Try using a different browser or contact support."
+                        });
                       } else {
                         // Generic error message for other issues
                         toast({
                           variant: "destructive",
-                          title: "Audio Error",
-                          description: "Could not play the audio file. The file may be damaged or in an unsupported format."
+                          title: "Audio Playback Error",
+                          description: "Could not play the audio file. Try selecting it again or contact support if the issue persists."
                         });
                       }
                       
                       // Always ensure we're in a non-playing state after an error
                       setIsPlaying(false);
                     }}
+                    preload="auto"
                     controls
                     style={{ display: 'none' }}
                   >
                     {audioUrl && (
                       <>
+                        {/* Comprehensive list of MIME types for maximum browser compatibility */}
                         <source src={audioUrl} type="audio/mpeg" />
                         <source src={audioUrl} type="audio/mp3" />
                         <source src={audioUrl} type="audio/wav" />
+                        <source src={audioUrl} type="audio/wave" />
+                        <source src={audioUrl} type="audio/x-wav" />
+                        <source src={audioUrl} type="audio/webm" />
                         <source src={audioUrl} type="audio/ogg" />
+                        <source src={audioUrl} type="audio/mp4" />
+                        <source src={audioUrl} type="audio/x-m4a" />
+                        <source src={audioUrl} type="audio/aac" />
+                        <source src={audioUrl} type="audio/x-ms-wma" />
+                        <source src={audioUrl} type="audio/flac" />
+                        {/* Fallback message for browsers without audio support */}
                         <p>Your browser doesn't support HTML5 audio. Here is a <a href={audioUrl} target="_blank" rel="noopener noreferrer">link to the audio</a> instead.</p>
                       </>
                     )}

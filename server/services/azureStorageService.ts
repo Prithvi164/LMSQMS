@@ -1,4 +1,4 @@
-import { BlobServiceClient, StorageSharedKeyCredential, ContainerClient, BlobItem, BlobSASPermissions, generateBlobSASQueryParameters } from '@azure/storage-blob';
+import { BlobServiceClient, StorageSharedKeyCredential, ContainerClient, BlobItem, BlobSASPermissions, generateBlobSASQueryParameters, SASProtocol } from '@azure/storage-blob';
 import { Readable } from 'stream';
 import * as XLSX from 'xlsx';
 import * as mm from 'music-metadata';
@@ -192,42 +192,107 @@ export class AzureStorageService {
   async generateBlobSasUrl(
     containerName: string,
     blobName: string,
-    expiryMinutes: number = 60 // Default to 1 hour
+    expiryMinutes: number = 60, // Default to 1 hour
+    contentType?: string // Optional content type parameter
   ): Promise<string> {
-    const containerClient = this.getContainerClient(containerName);
-    const blobClient = containerClient.getBlobClient(blobName);
+    try {
+      console.log(`Generating SAS URL for container: ${containerName}, blob: ${blobName}, expiry: ${expiryMinutes} minutes, contentType: ${contentType || 'not specified'}`);
+      
+      // Verify all inputs are valid
+      if (!containerName || !blobName) {
+        console.error('Invalid container or blob name:', { containerName, blobName });
+        throw new Error('Container name and blob name are required');
+      }
+      
+      const containerClient = this.getContainerClient(containerName);
+      const blobClient = containerClient.getBlobClient(blobName);
+      
+      console.log(`Blob URL before SAS token: ${blobClient.url}`);
 
-    if (!this.accountName || !this.accountKey) {
-      console.error('Azure Storage credentials not provided. Cannot generate SAS URL.');
-      return '';
+      if (!this.accountName || !this.accountKey) {
+        console.error('Azure Storage credentials not provided. Cannot generate SAS URL.');
+        throw new Error('Azure Storage credentials not properly configured');
+      }
+
+      // Calculate expiry date
+      const expiryTime = new Date();
+      expiryTime.setMinutes(expiryTime.getMinutes() + expiryMinutes);
+      
+      console.log(`SAS token will expire at: ${expiryTime.toISOString()}`);
+
+      // Determine appropriate content type based on file extension if not provided
+      let detectedContentType = contentType || "audio/mpeg"; // Default to audio/mpeg
+      
+      if (!contentType) {
+        const fileExtension = blobName.split('.').pop()?.toLowerCase();
+        if (fileExtension) {
+          switch (fileExtension) {
+            case 'mp3':
+              detectedContentType = 'audio/mpeg';
+              break;
+            case 'wav':
+              detectedContentType = 'audio/wav';
+              break;
+            case 'ogg':
+              detectedContentType = 'audio/ogg';
+              break;
+            case 'm4a':
+              detectedContentType = 'audio/mp4';
+              break;
+            case 'aac':
+              detectedContentType = 'audio/aac';
+              break;
+            case 'flac':
+              detectedContentType = 'audio/flac';
+              break;
+            case 'webm':
+              detectedContentType = 'audio/webm';
+              break;
+          }
+        }
+      }
+      
+      console.log(`Using content type: ${detectedContentType} for blob: ${blobName}`);
+
+      // Set permissions for the SAS URL with more explicit options
+      const sasOptions = {
+        containerName,
+        blobName,
+        permissions: BlobSASPermissions.parse('r'), // Read only access
+        expiresOn: expiryTime,
+        protocol: SASProtocol.Https, // Force HTTPS for security
+        startsOn: new Date(), // Start time is now
+        contentDisposition: "inline", // Make it playable in browser
+        contentType: detectedContentType, // Use the detected or provided content type
+      };
+
+      // Create a shared key credential
+      const sharedKeyCredential = new StorageSharedKeyCredential(
+        this.accountName,
+        this.accountKey
+      );
+
+      // Generate SAS query parameters using the shared key credential
+      const sasToken = generateBlobSASQueryParameters(
+        sasOptions,
+        sharedKeyCredential
+      ).toString();
+      
+      // Construct the SAS URL
+      const sasUrl = `${blobClient.url}?${sasToken}`;
+      
+      // Log a truncated version of the URL for debugging (hide most of the token)
+      const truncatedUrl = sasUrl.substring(0, sasUrl.indexOf('sig=') + 10) + '...';
+      console.log(`Generated SAS URL: ${truncatedUrl}`);
+      
+      return sasUrl;
+    } catch (error) {
+      console.error('Error generating SAS URL:', error);
+      if (error instanceof Error) {
+        throw new Error(`SAS URL generation failed: ${error.message}`);
+      }
+      throw new Error('SAS URL generation failed for unknown reason');
     }
-
-    // Calculate expiry date
-    const expiryTime = new Date();
-    expiryTime.setMinutes(expiryTime.getMinutes() + expiryMinutes);
-
-    // Set permissions for the SAS URL
-    const sasOptions = {
-      containerName,
-      blobName,
-      permissions: BlobSASPermissions.parse('r'), // Read only
-      expiresOn: expiryTime,
-    };
-
-    // Create a shared key credential
-    const sharedKeyCredential = new StorageSharedKeyCredential(
-      this.accountName,
-      this.accountKey
-    );
-
-    // Generate SAS query parameters using the shared key credential
-    const sasToken = generateBlobSASQueryParameters(
-      sasOptions,
-      sharedKeyCredential
-    ).toString();
-
-    // Construct the SAS URL
-    return `${blobClient.url}?${sasToken}`;
   }
 
   /**
