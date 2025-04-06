@@ -1391,23 +1391,32 @@ router.get('/azure-audio-sas/:id', async (req, res) => {
     // Determine the most appropriate MIME type based on the filename
     let contentType = 'audio/mpeg'; // Default MIME type
     const filename = audioFile.originalFilename || audioFile.filename || '';
+    const fileExtension = filename.split('.').pop()?.toLowerCase() || '';
     
-    if (filename.toLowerCase().endsWith('.wav')) {
-      contentType = 'audio/wav';
-    } else if (filename.toLowerCase().endsWith('.ogg')) {
-      contentType = 'audio/ogg';
-    } else if (filename.toLowerCase().endsWith('.m4a')) {
-      contentType = 'audio/mp4';
-    } else if (filename.toLowerCase().endsWith('.aac')) {
-      contentType = 'audio/aac';
-    } else if (filename.toLowerCase().endsWith('.flac')) {
-      contentType = 'audio/flac';
-    } else if (filename.toLowerCase().endsWith('.webm')) {
-      contentType = 'audio/webm';
+    // Map of file extensions to content types with broader support
+    const contentTypeMap: Record<string, string> = {
+      'mp3': 'audio/mpeg',
+      'wav': 'audio/wav',
+      'ogg': 'audio/ogg',
+      'm4a': 'audio/mp4',
+      'aac': 'audio/aac',
+      'flac': 'audio/flac',
+      'webm': 'audio/webm',
+      'mp4': 'audio/mp4', // Some audio files might use mp4 extension
+      '3gp': 'audio/3gpp', // Mobile audio format
+      'amr': 'audio/amr',  // Adaptive Multi-Rate audio codec
+      'wma': 'audio/x-ms-wma' // Windows Media Audio
+    };
+    
+    // Set content type based on file extension
+    if (fileExtension && contentTypeMap[fileExtension]) {
+      contentType = contentTypeMap[fileExtension];
     }
     
     console.log(`Using content type ${contentType} for generating SAS URL`);
-    const sasUrl = await azureService.generateBlobSasUrl(containerName, blobName, 120, contentType); // Extended to 2 hours with content type
+    // Use longer expiry time (4 hours) for better user experience
+    const expiryMinutes = 240;
+    const sasUrl = await azureService.generateBlobSasUrl(containerName, blobName, expiryMinutes, contentType);
     
     if (!sasUrl) {
       console.error(`Failed to generate SAS URL for container: ${containerName}, blob: ${blobName}`);

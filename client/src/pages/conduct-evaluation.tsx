@@ -24,7 +24,15 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
-import { Play, Pause, SkipBack, SkipForward, Headphones, Volume2, FileAudio } from "lucide-react";
+import {
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  Headphones,
+  Volume2,
+  FileAudio,
+} from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 
 export default function ConductEvaluation() {
@@ -35,10 +43,14 @@ export default function ConductEvaluation() {
   const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
   const [selectedTrainee, setSelectedTrainee] = useState<number | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<number | null>(null);
-  const [selectedAudioFile, setSelectedAudioFile] = useState<number | null>(null);
+  const [selectedAudioFile, setSelectedAudioFile] = useState<number | null>(
+    null,
+  );
   const [scores, setScores] = useState<Record<number, any>>({});
-  const [evaluationType, setEvaluationType] = useState<'standard' | 'audio'>('standard');
-  
+  const [evaluationType, setEvaluationType] = useState<"standard" | "audio">(
+    "standard",
+  );
+
   // Audio player states
   const audioRef = useRef<HTMLAudioElement>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -46,22 +58,22 @@ export default function ConductEvaluation() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.7);
-  
+
   // Parse URL parameters
   useEffect(() => {
     if (!user) return;
-    
+
     // Get URL parameters
     const params = new URLSearchParams(window.location.search);
-    const batchId = params.get('batchId');
-    const traineeId = params.get('traineeId');
-    
+    const batchId = params.get("batchId");
+    const traineeId = params.get("traineeId");
+
     // Set batch ID if provided in URL
     if (batchId) {
       const batchIdNum = parseInt(batchId);
       setSelectedBatch(batchIdNum);
     }
-    
+
     // Set trainee ID if provided in URL (but only after trainees are loaded)
     if (traineeId) {
       const traineeIdNum = parseInt(traineeId);
@@ -77,13 +89,17 @@ export default function ConductEvaluation() {
 
   // Fetch trainees for selected batch
   const { data: trainees } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/batches/${selectedBatch}/trainees`],
+    queryKey: [
+      `/api/organizations/${user?.organizationId}/batches/${selectedBatch}/trainees`,
+    ],
     enabled: !!selectedBatch && !!user?.organizationId,
   });
 
   // Fetch active templates
   const { data: templates } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/evaluation-templates`],
+    queryKey: [
+      `/api/organizations/${user?.organizationId}/evaluation-templates`,
+    ],
     select: (data) => data.filter((t: any) => t.status === "active"),
     enabled: !!user?.organizationId,
   });
@@ -96,17 +112,21 @@ export default function ConductEvaluation() {
 
   // Query for fetching assigned audio files for the quality analyst
   const { data: assignedAudioFiles, isLoading: loadingAudioFiles } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/audio-file-allocations/assigned-to-me`],
-    enabled: !!user?.organizationId && user?.role === 'quality_analyst',
+    queryKey: [
+      `/api/organizations/${user?.organizationId}/audio-file-allocations/assigned-to-me`,
+    ],
+    enabled: !!user?.organizationId && user?.role === "quality_analyst",
   });
-  
+
   // Log the assigned audio files to help with debugging
   console.log("Assigned audio files:", assignedAudioFiles);
 
   // Get audio file details when selected
   // Fetch audio file details
   const { data: selectedAudioFileDetails } = useQuery({
-    queryKey: [`/api/organizations/${user?.organizationId}/audio-files/${selectedAudioFile}`],
+    queryKey: [
+      `/api/organizations/${user?.organizationId}/audio-files/${selectedAudioFile}`,
+    ],
     enabled: !!selectedAudioFile && !!user?.organizationId,
     onSuccess: (data) => {
       console.log("Audio file details loaded:", data);
@@ -120,14 +140,14 @@ export default function ConductEvaluation() {
         queryFn: async () => {
           const response = await fetch(`/api/audio-files/${selectedAudioFile}`);
           if (!response.ok) {
-            throw new Error('Failed to fetch audio file details');
+            throw new Error("Failed to fetch audio file details");
           }
           return response.json();
-        }
+        },
       });
-    }
+    },
   });
-  
+
   // Define interface for SAS URL response
   interface SasUrlResponse {
     sasUrl: string;
@@ -145,29 +165,46 @@ export default function ConductEvaluation() {
     enabled: !!selectedAudioFile,
     onSuccess: (data) => {
       console.log("Audio SAS URL generated for file ID:", selectedAudioFile);
-      
+
       if (!data) {
         console.error("SAS URL response is empty or undefined");
         toast({
           variant: "destructive",
           title: "Audio Access Error",
-          description: "Received an empty response when requesting audio access. Please try again."
+          description:
+            "Received an empty response when requesting audio access. Please try again.",
         });
         return;
       }
-      
+
       if (!data.sasUrl) {
         console.error("SAS URL is missing in response:", data);
         toast({
           variant: "destructive",
           title: "Audio Access Error",
-          description: "The secure access URL is missing or invalid. Please select the file again."
+          description:
+            "The secure access URL is missing or invalid. Please select the file again.",
         });
         return;
       }
-      
-      console.log("Setting audio URL to SAS URL for file ID:", selectedAudioFile);
-      
+
+      console.log(
+        "Setting audio URL to SAS URL for file ID:",
+        selectedAudioFile,
+      );
+
+      // Log the received SAS URL (without showing sensitive parts)
+      const sasUrlParts = data.sasUrl.split("?");
+      const baseUrl = sasUrlParts[0];
+      const truncatedToken =
+        sasUrlParts.length > 1
+          ? sasUrlParts[1].substring(0, Math.min(20, sasUrlParts[1].length)) +
+            "..."
+          : "";
+      console.log(
+        `SAS URL contains base: ${baseUrl} and token: ${truncatedToken}`,
+      );
+
       // Get file info if available from the enhanced API response
       if (data.fileInfo) {
         console.log("Received file info with SAS URL:", data.fileInfo);
@@ -176,40 +213,40 @@ export default function ConductEvaluation() {
           setDuration(data.fileInfo.duration);
         }
       }
-      
+
       // Clear previous audio state first
       if (audioRef.current) {
         try {
           // First pause any current playback
           audioRef.current.pause();
-          
-          // Set the new URL 
+
+          // Set the new URL
           setAudioUrl(data.sasUrl);
-          
+
           // Configure audio element with content type if available
           if (data.fileInfo?.type) {
             console.log(`Setting audio content type: ${data.fileInfo.type}`);
             try {
               // Some browsers need this for proper MIME type recognition
-              audioRef.current.setAttribute('type', data.fileInfo.type);
+              audioRef.current.setAttribute("type", data.fileInfo.type);
             } catch (typeError) {
               console.warn("Error setting audio type attribute:", typeError);
               // Non-critical error, continue
             }
           }
-          
+
           // Configure error handling for the audio element
           audioRef.current.onerror = (e) => {
             const error = audioRef.current?.error;
-            const errorMessage = error ? 
-              `Code: ${error.code}, Message: ${error.message}` : 
-              'Unknown audio error';
-            
+            const errorMessage = error
+              ? `Code: ${error.code}, Message: ${error.message}`
+              : "Unknown audio error";
+
             console.error("Audio error:", errorMessage, e);
-            
+
             // Log detailed error information for debugging
             if (error) {
-              switch(error.code) {
+              switch (error.code) {
                 case MediaError.MEDIA_ERR_ABORTED:
                   console.error("Audio loading aborted by the user");
                   break;
@@ -224,32 +261,42 @@ export default function ConductEvaluation() {
                   break;
               }
             }
-            
+
             toast({
               variant: "destructive",
               title: "Audio Playback Error",
-              description: `There was a problem playing this audio file. Please try again.`
+              description: `There was a problem playing this audio file. Please try again.`,
             });
           };
-          
+
           // Use a small timeout to ensure state updates before loading the audio
           setTimeout(() => {
             if (audioRef.current) {
               try {
                 audioRef.current.load();
-                console.log("Audio element loaded with new SAS URL for file ID:", selectedAudioFile);
+                console.log(
+                  "Audio element loaded with new SAS URL for file ID:",
+                  selectedAudioFile,
+                );
               } catch (loadError) {
-                console.error("Error loading audio with new SAS URL:", loadError);
+                console.error(
+                  "Error loading audio with new SAS URL:",
+                  loadError,
+                );
                 toast({
                   variant: "destructive",
                   title: "Audio Loading Error",
-                  description: "Error loading the audio file. Please try selecting it again."
+                  description:
+                    "Error loading the audio file. Please try selecting it again.",
                 });
               }
             }
           }, 200); // Increased timeout to ensure DOM updates
         } catch (pauseError) {
-          console.error("Error pausing audio before setting new SAS URL:", pauseError);
+          console.error(
+            "Error pausing audio before setting new SAS URL:",
+            pauseError,
+          );
           // Continue anyway since we're replacing the URL
           setAudioUrl(data.sasUrl);
         }
@@ -259,11 +306,15 @@ export default function ConductEvaluation() {
       }
     },
     onError: (error) => {
-      console.error("Error generating SAS URL for file ID:", selectedAudioFile, error);
+      console.error(
+        "Error generating SAS URL for file ID:",
+        selectedAudioFile,
+        error,
+      );
       toast({
         variant: "destructive",
         title: "Audio Access Error",
-        description: `Could not generate secure access URL for the audio file: ${error.message}. Please try selecting a different file.`
+        description: `Could not generate secure access URL for the audio file: ${error.message}. Please try selecting a different file.`,
       });
       // Reset audio URL state on error
       setAudioUrl(null);
@@ -279,8 +330,8 @@ export default function ConductEvaluation() {
     mutationFn: async (evaluation: any) => {
       const response = await fetch("/api/evaluations", {
         method: "POST",
-        headers: { 
-          "Content-Type": "application/json"
+        headers: {
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(evaluation),
       });
@@ -294,11 +345,11 @@ export default function ConductEvaluation() {
     },
     onSuccess: (data) => {
       // If we're evaluating an audio file, update its status to 'evaluated'
-      if (evaluationType === 'audio' && selectedAudioFile) {
+      if (evaluationType === "audio" && selectedAudioFile) {
         updateAudioFileStatusMutation.mutate({
           audioFileId: selectedAudioFile,
-          status: 'evaluated',
-          evaluationId: data.id
+          status: "evaluated",
+          evaluationId: data.id,
         });
       } else {
         // For standard evaluations
@@ -326,11 +377,19 @@ export default function ConductEvaluation() {
 
   // Update audio file status mutation
   const updateAudioFileStatusMutation = useMutation({
-    mutationFn: async ({ audioFileId, status, evaluationId }: { audioFileId: number, status: string, evaluationId: number }) => {
+    mutationFn: async ({
+      audioFileId,
+      status,
+      evaluationId,
+    }: {
+      audioFileId: number;
+      status: string;
+      evaluationId: number;
+    }) => {
       const response = await fetch(`/api/audio-files/${audioFileId}/status`, {
         method: "PATCH",
-        headers: { 
-          "Content-Type": "application/json"
+        headers: {
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ status, evaluationId }),
       });
@@ -344,7 +403,9 @@ export default function ConductEvaluation() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [`/api/organizations/${user?.organizationId}/audio-file-allocations/assigned-to-me`],
+        queryKey: [
+          `/api/organizations/${user?.organizationId}/audio-file-allocations/assigned-to-me`,
+        ],
       });
       queryClient.invalidateQueries({
         queryKey: [`/api/organizations/${user?.organizationId}/audio-files`],
@@ -460,17 +521,18 @@ export default function ConductEvaluation() {
     if (!audioRef.current || !audioUrl) {
       console.warn("Play attempted without audio reference or URL:", {
         hasAudioRef: !!audioRef.current,
-        hasAudioUrl: !!audioUrl
+        hasAudioUrl: !!audioUrl,
       });
-      
+
       toast({
         variant: "destructive",
         title: "Playback Error",
-        description: "Audio file not loaded or unavailable. Please try selecting a different file."
+        description:
+          "Audio file not loaded or unavailable. Please try selecting a different file.",
       });
       return;
     }
-    
+
     try {
       if (isPlaying) {
         // Handle pause - this operation is generally safe
@@ -482,42 +544,42 @@ export default function ConductEvaluation() {
           selected: selectedAudioFile,
           currentTime: audioRef.current.currentTime,
           duration: audioRef.current.duration,
-          readyState: audioRef.current.readyState
+          readyState: audioRef.current.readyState,
         });
-        
+
         // MEDIA_ELEMENT_READY_STATE reference:
         // 0 = HAVE_NOTHING - no information available
         // 1 = HAVE_METADATA - metadata loaded but no data available
         // 2 = HAVE_CURRENT_DATA - data for current position available
         // 3 = HAVE_FUTURE_DATA - data for current and future position available
         // 4 = HAVE_ENOUGH_DATA - enough data available to start playing
-        
+
         // Check if we need to reload the audio element first
         if (audioRef.current.readyState < 2) {
           console.log("Audio not sufficiently loaded, reloading first");
           try {
             audioRef.current.load();
             // Wait a moment for loading
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise((resolve) => setTimeout(resolve, 500));
           } catch (loadError) {
             console.error("Error pre-loading audio:", loadError);
           }
         }
-        
+
         // Set a timeout flag to detect if the play promise takes too long
         let timeoutFlag = true;
-        
+
         // Start a timeout to detect if the play operation is hanging
         const timeoutId = setTimeout(() => {
           if (timeoutFlag) {
             // If we reach here, the play promise hasn't resolved in time
             console.warn("Play operation timed out, refreshing audio source");
-            
+
             if (audioRef.current) {
               // Attempt to force a reload by cycling the URL
               const currentUrl = audioUrl;
               setAudioUrl(null);
-              
+
               // Short delay before setting the URL again
               setTimeout(() => {
                 setAudioUrl(currentUrl);
@@ -532,24 +594,39 @@ export default function ConductEvaluation() {
                 }, 200);
               }, 200);
             }
-            
+
             toast({
               title: "Playback Issue",
-              description: "The audio is taking too long to start. Refreshing the player...",
+              description:
+                "The audio is taking too long to start. Refreshing the player...",
               duration: 3000,
             });
           }
         }, 3000); // 3 second timeout
-        
+
         // Attempt to play the audio
         try {
+          console.log(
+            "Attempting to play audio from URL:",
+            audioUrl ? audioUrl.substring(0, 100) + "..." : "No URL available",
+          );
+
+          // Check audio readiness before playing
+          if (audioRef.current.readyState === 0) {
+            console.log("Audio not ready, loading...");
+            // Force load the audio
+            audioRef.current.load();
+            // Wait a moment for loading to initialize
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          }
+
           const playPromise = audioRef.current.play();
           // Modern browsers return a promise from play()
           if (playPromise !== undefined) {
             await playPromise;
             console.log("Audio playback started successfully");
           }
-          
+
           // If we get here, play was successful
           timeoutFlag = false;
           clearTimeout(timeoutId);
@@ -561,36 +638,72 @@ export default function ConductEvaluation() {
           // 3. Audio format errors
           console.error("Error during audio play() operation:", playError);
           clearTimeout(timeoutId);
-          
+
           // Check if this might be an expired SAS URL
-          if (selectedAudioFile && audioUrl && audioUrl.includes('sig=')) {
-            console.log("Detected potential SAS token issue, requesting new token");
+          if (selectedAudioFile && audioUrl && audioUrl.includes("sig=")) {
+            console.log(
+              "Detected potential SAS token issue, requesting new token",
+            );
             // Get a fresh SAS URL
             queryClient.invalidateQueries({
               queryKey: [`/api/azure-audio-sas/${selectedAudioFile}`],
-              exact: true
+              exact: true,
             });
-            
+
             toast({
               title: "Refreshing Audio Access",
-              description: "Audio access token may have expired. Refreshing access...",
-              duration: 3000,
+              description:
+                "Audio access may have expired. Refreshing connection...",
+              duration: 5000,
             });
+
+            // Wait a moment and try to reload the audio
+            setTimeout(() => {
+              if (audioRef.current) {
+                audioRef.current.load();
+                console.log("Reloaded audio after token refresh");
+              }
+            }, 2000);
           } else {
-            // Generic play error
+            // Try to provide more specific error messaging
+            const errorMessage =
+              playError instanceof Error
+                ? playError.message
+                : "Unknown playback error";
+            let specificMessage =
+              "Could not play the audio file. Try selecting it again or refresh the page.";
+
+            // More specific error messaging based on common issues
+            if (
+              errorMessage.includes("network") ||
+              errorMessage.includes("fetch")
+            ) {
+              specificMessage =
+                "Network error loading audio. Check your internet connection and try again.";
+            } else if (
+              errorMessage.includes("format") ||
+              errorMessage.includes("decode")
+            ) {
+              specificMessage =
+                "Audio format error. The file may be corrupted or in an unsupported format.";
+            } else if (errorMessage.includes("aborted")) {
+              specificMessage = "Audio playback was aborted. Please try again.";
+            }
+
+            // Display the error to the user
             toast({
               variant: "destructive",
               title: "Playback Error",
-              description: "Could not play the audio file. Try selecting it again or refresh the page."
+              description: specificMessage,
             });
           }
-          
+
           throw playError; // Re-throw to be caught by outer catch
         }
       }
     } catch (error) {
       console.error("Error handling audio playback:", error);
-      
+
       // Attempt to recover from common errors
       if (audioRef.current) {
         // Force reload the audio element
@@ -600,10 +713,13 @@ export default function ConductEvaluation() {
           audioRef.current.load();
           console.log("Attempted recovery by reloading audio element");
         } catch (reloadError) {
-          console.error("Failed to reload audio element during recovery:", reloadError);
+          console.error(
+            "Failed to reload audio element during recovery:",
+            reloadError,
+          );
         }
       }
-      
+
       // Always ensure we're in a non-playing state after an error
       setIsPlaying(false);
     }
@@ -645,13 +761,13 @@ export default function ConductEvaluation() {
     setDuration(0);
     setScores({});
     setAudioUrl(null); // Clear previous audio URL
-    
+
     // Ensure any current audio is properly stopped first
     if (audioRef.current) {
       try {
         // Stop playback
         audioRef.current.pause();
-        
+
         // Reset source and reload to clear any existing buffered data
         audioRef.current.src = "";
         audioRef.current.load();
@@ -659,7 +775,7 @@ export default function ConductEvaluation() {
         console.error("Error resetting audio player:", error);
       }
     }
-    
+
     // Only after cleanup, set the new audio file ID
     setTimeout(() => {
       setSelectedAudioFile(parseInt(audioFileId));
@@ -696,24 +812,32 @@ export default function ConductEvaluation() {
   const formatTime = (time: number) => {
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
-    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+    return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
   };
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      <Tabs defaultValue="standard" onValueChange={(value) => setEvaluationType(value as 'standard' | 'audio')}>
+      <Tabs
+        defaultValue="standard"
+        onValueChange={(value) =>
+          setEvaluationType(value as "standard" | "audio")
+        }
+      >
         <TabsList className="mb-4">
           <TabsTrigger value="standard">Standard Evaluation</TabsTrigger>
           <TabsTrigger value="audio">Audio Evaluation</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="standard" className="space-y-6">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold">Conduct Standard Evaluation</h1>
             <div className="flex gap-4">
               {/* Batch Selection */}
               <div className="w-[200px]">
-                <Select onValueChange={handleBatchChange} value={selectedBatch?.toString()}>
+                <Select
+                  onValueChange={handleBatchChange}
+                  value={selectedBatch?.toString()}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select Batch" />
                   </SelectTrigger>
@@ -729,7 +853,7 @@ export default function ConductEvaluation() {
 
               {/* Trainee Selection - Only enabled if batch is selected */}
               <div className="w-[200px]">
-                <Select 
+                <Select
                   onValueChange={(value) => setSelectedTrainee(parseInt(value))}
                   value={selectedTrainee?.toString()}
                   disabled={!selectedBatch}
@@ -739,7 +863,10 @@ export default function ConductEvaluation() {
                   </SelectTrigger>
                   <SelectContent>
                     {trainees?.map((trainee: any) => (
-                      <SelectItem key={trainee.id} value={trainee.id.toString()}>
+                      <SelectItem
+                        key={trainee.id}
+                        value={trainee.id.toString()}
+                      >
                         {trainee.fullName}
                       </SelectItem>
                     ))}
@@ -749,8 +876,10 @@ export default function ConductEvaluation() {
 
               {/* Template Selection - Only enabled if trainee is selected */}
               <div className="w-[200px]">
-                <Select 
-                  onValueChange={(value) => setSelectedTemplate(parseInt(value))}
+                <Select
+                  onValueChange={(value) =>
+                    setSelectedTemplate(parseInt(value))
+                  }
                   value={selectedTemplate?.toString()}
                   disabled={!selectedTrainee}
                 >
@@ -759,7 +888,10 @@ export default function ConductEvaluation() {
                   </SelectTrigger>
                   <SelectContent>
                     {templates?.map((template: any) => (
-                      <SelectItem key={template.id} value={template.id.toString()}>
+                      <SelectItem
+                        key={template.id}
+                        value={template.id.toString()}
+                      >
                         {template.name}
                       </SelectItem>
                     ))}
@@ -769,14 +901,14 @@ export default function ConductEvaluation() {
             </div>
           </div>
         </TabsContent>
-        
+
         <TabsContent value="audio" className="space-y-6">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold">Conduct Audio Evaluation</h1>
             <div className="flex gap-4">
               {/* Audio File Selection */}
               <div className="w-[250px]">
-                <Select 
+                <Select
                   onValueChange={handleAudioFileSelect}
                   value={selectedAudioFile?.toString()}
                 >
@@ -784,22 +916,33 @@ export default function ConductEvaluation() {
                     <SelectValue placeholder="Select Audio File" />
                   </SelectTrigger>
                   <SelectContent>
-                    {assignedAudioFiles && assignedAudioFiles.length > 0 ? 
+                    {assignedAudioFiles && assignedAudioFiles.length > 0 ? (
                       assignedAudioFiles.map((file: any) => (
-                        <SelectItem key={file.audioFileId || file.id} value={(file.audioFileId || file.id).toString()}>
-                          {file.audioFile?.originalFilename || file.originalFilename || file.filename || `Audio File #${file.audioFileId || file.id}`}
+                        <SelectItem
+                          key={file.audioFileId || file.id}
+                          value={(file.audioFileId || file.id).toString()}
+                        >
+                          {file.audioFile?.originalFilename ||
+                            file.originalFilename ||
+                            file.filename ||
+                            `Audio File #${file.audioFileId || file.id}`}
                         </SelectItem>
-                      )) : 
-                      <SelectItem value="no-files" disabled>No audio files assigned</SelectItem>
-                    }
+                      ))
+                    ) : (
+                      <SelectItem value="no-files" disabled>
+                        No audio files assigned
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
 
               {/* Template Selection */}
               <div className="w-[200px]">
-                <Select 
-                  onValueChange={(value) => setSelectedTemplate(parseInt(value))}
+                <Select
+                  onValueChange={(value) =>
+                    setSelectedTemplate(parseInt(value))
+                  }
                   value={selectedTemplate?.toString()}
                   disabled={!selectedAudioFile}
                 >
@@ -808,7 +951,10 @@ export default function ConductEvaluation() {
                   </SelectTrigger>
                   <SelectContent>
                     {templates?.map((template: any) => (
-                      <SelectItem key={template.id} value={template.id.toString()}>
+                      <SelectItem
+                        key={template.id}
+                        value={template.id.toString()}
+                      >
                         {template.name}
                       </SelectItem>
                     ))}
@@ -824,18 +970,20 @@ export default function ConductEvaluation() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <FileAudio className="h-5 w-5" />
-                  {selectedAudioFileDetails.originalFilename || selectedAudioFileDetails.filename || `Audio File #${selectedAudioFileDetails.id}`}
+                  {selectedAudioFileDetails.originalFilename ||
+                    selectedAudioFileDetails.filename ||
+                    `Audio File #${selectedAudioFileDetails.id}`}
                 </CardTitle>
                 <CardDescription>
-                  Duration: {selectedAudioFileDetails.duration || 'Unknown'} | 
-                  Language: {selectedAudioFileDetails.language || 'Unknown'} | 
-                  Version: {selectedAudioFileDetails.version || 'N/A'}
+                  Duration: {selectedAudioFileDetails.duration || "Unknown"} |
+                  Language: {selectedAudioFileDetails.language || "Unknown"} |
+                  Version: {selectedAudioFileDetails.version || "N/A"}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {/* Hidden audio element with comprehensive MIME type support and enhanced error handling */}
-                  <audio 
+                  <audio
                     ref={audioRef}
                     onTimeUpdate={handleTimeUpdate}
                     onLoadedMetadata={handleLoadedMetadata}
@@ -845,79 +993,93 @@ export default function ConductEvaluation() {
                       const target = e.currentTarget as HTMLAudioElement;
                       const errorCode = target.error?.code;
                       const errorMessage = target.error?.message;
-                      
+
                       console.error("Audio player error:", {
                         code: errorCode,
                         message: errorMessage,
-                        audioUrl: audioUrl?.substring(0, 100) + '...',
-                        selectedAudioFile
+                        audioUrl: audioUrl?.substring(0, 100) + "...",
+                        selectedAudioFile,
                       });
-                      
+
                       // Error code reference:
                       // MEDIA_ERR_ABORTED (1): Fetching process aborted by user
                       // MEDIA_ERR_NETWORK (2): Error occurred when downloading
                       // MEDIA_ERR_DECODE (3): Error occurred when decoding
                       // MEDIA_ERR_SRC_NOT_SUPPORTED (4): Audio not supported
-                      
+
                       // Determine error type for better user feedback
                       let errorType = "unknown";
                       if (errorCode === MediaError.MEDIA_ERR_NETWORK) {
                         errorType = "network";
-                      } else if (errorCode === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
+                      } else if (
+                        errorCode === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED
+                      ) {
                         errorType = "format";
                       } else if (errorCode === MediaError.MEDIA_ERR_DECODE) {
                         errorType = "decode";
                       }
-                      
+
                       // Is this likely a SAS token expiration issue?
-                      const isSasError = (
-                        errorType === "network" || 
-                        errorType === "format" || 
-                        (audioUrl && audioUrl.includes('sig=') && audioUrl.includes('se='))
-                      );
-                      
+                      const isSasError =
+                        errorType === "network" ||
+                        errorType === "format" ||
+                        (audioUrl &&
+                          audioUrl.includes("sig=") &&
+                          audioUrl.includes("se="));
+
                       if (isSasError && selectedAudioFile) {
-                        console.log("Detected potential SAS token expiration for file:", selectedAudioFile);
-                        
+                        console.log(
+                          "Detected potential SAS token expiration for file:",
+                          selectedAudioFile,
+                        );
+
                         // Inform user we're refreshing the audio access
                         toast({
                           title: "Audio Access Expired",
-                          description: "The secure access link has expired. Refreshing audio access...",
+                          description:
+                            "The secure access link has expired. Refreshing audio access...",
                           duration: 3000,
                         });
-                        
+
                         // Clear current audio URL
                         setAudioUrl(null);
-                        
+
                         // Force refresh the query to get a new SAS URL with short delay
                         setTimeout(() => {
                           queryClient.invalidateQueries({
-                            queryKey: [`/api/azure-audio-sas/${selectedAudioFile}`],
-                            exact: true
+                            queryKey: [
+                              `/api/azure-audio-sas/${selectedAudioFile}`,
+                            ],
+                            exact: true,
                           });
                         }, 500);
-                      } else if (errorType === "format" || errorType === "decode") {
+                      } else if (
+                        errorType === "format" ||
+                        errorType === "decode"
+                      ) {
                         // This is likely a file format issue
                         toast({
                           variant: "destructive",
                           title: "Audio Format Error",
-                          description: "This audio file format is not supported by your browser. Try using a different browser or contact support."
+                          description:
+                            "This audio file format is not supported by your browser. Try using a different browser or contact support.",
                         });
                       } else {
                         // Generic error message for other issues
                         toast({
                           variant: "destructive",
                           title: "Audio Playback Error",
-                          description: "Could not play the audio file. Try selecting it again or contact support if the issue persists."
+                          description:
+                            "Could not play the audio file. Try selecting it again or contact support if the issue persists.",
                         });
                       }
-                      
+
                       // Always ensure we're in a non-playing state after an error
                       setIsPlaying(false);
                     }}
                     preload="auto"
                     controls
-                    style={{ display: 'none' }}
+                    style={{ display: "none" }}
                   >
                     {audioUrl && (
                       <>
@@ -935,18 +1097,28 @@ export default function ConductEvaluation() {
                         <source src={audioUrl} type="audio/x-ms-wma" />
                         <source src={audioUrl} type="audio/flac" />
                         {/* Fallback message for browsers without audio support */}
-                        <p>Your browser doesn't support HTML5 audio. Here is a <a href={audioUrl} target="_blank" rel="noopener noreferrer">link to the audio</a> instead.</p>
+                        <p>
+                          Your browser doesn't support HTML5 audio. Here is a{" "}
+                          <a
+                            href={audioUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            link to the audio
+                          </a>{" "}
+                          instead.
+                        </p>
                       </>
                     )}
                   </audio>
-                  
+
                   {/* Custom audio player UI */}
                   <div className="flex flex-col space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm">{formatTime(currentTime)}</span>
                       <span className="text-sm">{formatTime(duration)}</span>
                     </div>
-                    
+
                     <Slider
                       value={[currentTime]}
                       max={duration || 100}
@@ -954,20 +1126,23 @@ export default function ConductEvaluation() {
                       onValueChange={handleSliderChange}
                       className="w-full"
                     />
-                    
+
                     <div className="flex justify-center items-center gap-4 mt-2">
                       <Button
                         variant="outline"
                         size="icon"
                         onClick={() => {
                           if (audioRef.current) {
-                            audioRef.current.currentTime = Math.max(0, currentTime - 10);
+                            audioRef.current.currentTime = Math.max(
+                              0,
+                              currentTime - 10,
+                            );
                           }
                         }}
                       >
                         <SkipBack className="h-4 w-4" />
                       </Button>
-                      
+
                       <Button
                         variant="default"
                         size="icon"
@@ -979,19 +1154,22 @@ export default function ConductEvaluation() {
                           <Play className="h-4 w-4" />
                         )}
                       </Button>
-                      
+
                       <Button
                         variant="outline"
                         size="icon"
                         onClick={() => {
                           if (audioRef.current) {
-                            audioRef.current.currentTime = Math.min(duration, currentTime + 10);
+                            audioRef.current.currentTime = Math.min(
+                              duration,
+                              currentTime + 10,
+                            );
                           }
                         }}
                       >
                         <SkipForward className="h-4 w-4" />
                       </Button>
-                      
+
                       <div className="flex items-center gap-2 ml-4">
                         <Volume2 className="h-4 w-4" />
                         <Slider
@@ -1079,13 +1257,10 @@ export default function ConductEvaluation() {
                                     <SelectContent>
                                       {param.noReasons.map(
                                         (reason: string, idx: number) => (
-                                          <SelectItem
-                                            key={idx}
-                                            value={reason}
-                                          >
+                                          <SelectItem key={idx} value={reason}>
                                             {reason}
                                           </SelectItem>
-                                        )
+                                        ),
                                       )}
                                     </SelectContent>
                                   </Select>
@@ -1116,7 +1291,7 @@ export default function ConductEvaluation() {
                                     <SelectItem key={idx} value={option}>
                                       {option}
                                     </SelectItem>
-                                  )
+                                  ),
                                 )}
                               </SelectContent>
                             </Select>
@@ -1150,12 +1325,16 @@ export default function ConductEvaluation() {
           </Card>
 
           <div className="flex justify-end">
-            {evaluationType === 'audio' ? (
+            {evaluationType === "audio" ? (
               <Button
                 onClick={handleAudioSubmit}
-                disabled={submitEvaluationMutation.isPending || updateAudioFileStatusMutation.isPending}
+                disabled={
+                  submitEvaluationMutation.isPending ||
+                  updateAudioFileStatusMutation.isPending
+                }
               >
-                {submitEvaluationMutation.isPending || updateAudioFileStatusMutation.isPending
+                {submitEvaluationMutation.isPending ||
+                updateAudioFileStatusMutation.isPending
                   ? "Submitting..."
                   : "Submit Audio Evaluation"}
               </Button>

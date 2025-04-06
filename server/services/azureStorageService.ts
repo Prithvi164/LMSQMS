@@ -192,7 +192,7 @@ export class AzureStorageService {
   async generateBlobSasUrl(
     containerName: string,
     blobName: string,
-    expiryMinutes: number = 60, // Default to 1 hour
+    expiryMinutes: number = 240, // Default to 4 hours for better user experience
     contentType?: string // Optional content type parameter
   ): Promise<string> {
     try {
@@ -214,12 +214,15 @@ export class AzureStorageService {
         throw new Error('Azure Storage credentials not properly configured');
       }
 
-      // Calculate expiry date - ensure it's properly formatted for Azure
+      // Calculate expiry date with a more robust approach
+      // Start time is slightly in the past to account for clock skew
       const startTime = new Date();
-      const expiryTime = new Date(startTime);
+      startTime.setMinutes(startTime.getMinutes() - 5); // 5 minutes in the past
+      
+      const expiryTime = new Date();
       expiryTime.setMinutes(expiryTime.getMinutes() + expiryMinutes);
       
-      // Round to seconds to avoid precision issues
+      // Round to seconds and ensure ISO strings are correctly formatted
       startTime.setMilliseconds(0);
       expiryTime.setMilliseconds(0);
       
@@ -231,35 +234,30 @@ export class AzureStorageService {
       if (!contentType) {
         const fileExtension = blobName.split('.').pop()?.toLowerCase();
         if (fileExtension) {
-          switch (fileExtension) {
-            case 'mp3':
-              detectedContentType = 'audio/mpeg';
-              break;
-            case 'wav':
-              detectedContentType = 'audio/wav';
-              break;
-            case 'ogg':
-              detectedContentType = 'audio/ogg';
-              break;
-            case 'm4a':
-              detectedContentType = 'audio/mp4';
-              break;
-            case 'aac':
-              detectedContentType = 'audio/aac';
-              break;
-            case 'flac':
-              detectedContentType = 'audio/flac';
-              break;
-            case 'webm':
-              detectedContentType = 'audio/webm';
-              break;
+          // Use a more comprehensive mapping of file extensions to content types
+          const contentTypeMap: Record<string, string> = {
+            'mp3': 'audio/mpeg',
+            'wav': 'audio/wav',
+            'ogg': 'audio/ogg',
+            'm4a': 'audio/mp4',
+            'aac': 'audio/aac',
+            'flac': 'audio/flac',
+            'webm': 'audio/webm',
+            'mp4': 'audio/mp4', // Some audio files might use mp4 extension
+            '3gp': 'audio/3gpp', // Mobile audio format
+            'amr': 'audio/amr',  // Adaptive Multi-Rate audio codec
+            'wma': 'audio/x-ms-wma' // Windows Media Audio
+          };
+          
+          if (contentTypeMap[fileExtension]) {
+            detectedContentType = contentTypeMap[fileExtension];
           }
         }
       }
       
       console.log(`Using content type: ${detectedContentType} for blob: ${blobName}`);
 
-      // Create a shared key credential with precise validation
+      // Create a fresh credential for each SAS generation to avoid any staleness
       const sharedKeyCredential = new StorageSharedKeyCredential(
         this.accountName,
         this.accountKey
@@ -275,6 +273,7 @@ export class AzureStorageService {
         startsOn: startTime,
         contentDisposition: "inline", // Make it playable in browser
         contentType: detectedContentType, // Use the detected or provided content type
+        cacheControl: "no-cache" // Prevent caching for better refresh handling
       };
 
       // Generate SAS query parameters using the shared key credential
