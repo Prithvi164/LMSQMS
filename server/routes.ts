@@ -774,13 +774,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Forbidden" });
       }
 
-      // Only allow status changes
-      const { status } = req.body;
-      if (!status || !['draft', 'active', 'archived'].includes(status)) {
+      // Allow status and feedbackThreshold changes
+      const { status, feedbackThreshold } = req.body;
+      
+      // Validate status if provided
+      if (status !== undefined && (!status || !['draft', 'active', 'archived'].includes(status))) {
         return res.status(400).json({ message: "Invalid status" });
       }
+      
+      // Validate feedbackThreshold if provided
+      if (feedbackThreshold !== undefined && feedbackThreshold !== null) {
+        const threshold = parseFloat(feedbackThreshold);
+        if (isNaN(threshold) || threshold < 0 || threshold > 100) {
+          return res.status(400).json({ message: "Feedback threshold must be a number between 0 and 100" });
+        }
+      }
 
-      const updatedTemplate = await storage.updateEvaluationTemplate(templateId, { status });
+      // Prepare updates
+      const updates: Partial<InsertEvaluationTemplate> = {};
+      if (status !== undefined) updates.status = status;
+      if (feedbackThreshold !== undefined) updates.feedbackThreshold = feedbackThreshold === null ? null : parseFloat(feedbackThreshold);
+
+      const updatedTemplate = await storage.updateEvaluationTemplate(templateId, updates);
       res.json(updatedTemplate);
     } catch (error: any) {
       console.error("Error updating evaluation template:", error);
@@ -812,6 +827,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Get the template to fetch the feedback threshold
+      const template = await storage.getEvaluationTemplate(evaluation.templateId);
+      if (!template) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+      
       // Create evaluation record
       const result = await storage.createEvaluation({
         templateId: evaluation.templateId,
@@ -822,6 +843,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         organizationId: req.user.organizationId,
         finalScore,
         status: 'completed',
+        feedbackThreshold: template.feedbackThreshold, // Pass the template's feedback threshold
         scores: evaluation.scores.map((score: any) => ({
           parameterId: score.parameterId,
           score: score.score,
@@ -874,6 +896,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Get the template to fetch the feedback threshold
+      const template = await storage.getEvaluationTemplate(evaluation.templateId);
+      if (!template) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+      
       // Create evaluation record
       const result = await storage.createEvaluation({
         templateId: evaluation.templateId,
@@ -884,6 +912,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         organizationId: req.user.organizationId,
         finalScore,
         status: 'completed',
+        feedbackThreshold: template.feedbackThreshold, // Pass the template's feedback threshold
         scores: evaluation.scores.map((score: any) => ({
           parameterId: score.parameterId,
           score: score.score,
@@ -918,6 +947,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         message: error.message || "Failed to create audio evaluation" 
       });
+    }
+  });
+
+  // Add routes for handling evaluation feedback
+  app.get("/api/evaluation-feedback", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const userId = req.user.id;
+      const organizationId = req.user.organizationId;
+      const role = req.user.role;
+      
+      let feedbackItems;
+      
+      // Depending on the role, fetch different feedback lists
+      if (['quality_analyst', 'manager', 'admin', 'owner'].includes(role)) {
+        // Get all feedback for reporting heads in the organization
+        feedbackItems = await storage.getPendingApprovalEvaluationFeedback(userId);
+      } else {
+        // For agents/trainees, get only their feedback
+        feedbackItems = await storage.getPendingEvaluationFeedback(userId);
+      }
+      
+      res.json(feedbackItems);
+    } catch (error: any) {
+      console.error("Error fetching evaluation feedback:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  app.patch("/api/evaluation-feedback/:feedbackId", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const feedbackId = parseInt(req.params.feedbackId);
+      if (!feedbackId) {
+        return res.status(400).json({ message: "Invalid feedback ID" });
+      }
+
+      // Get the feedback to check access rights
+      const feedback = await storage.getEvaluationFeedback(feedbackId);
+      if (!feedback) {
+        return res.status(404).json({ message: "Feedback not found" });
+      }
+
+      // Verify the user has permission to update this feedback
+      const userId = req.user.id;
+      const role = req.user.role;
+      
+      if (feedback.agentId !== userId && feedback.reportingHeadId !== userId && 
+          !['admin', 'owner'].includes(role)) {
+        return res.status(403).json({ message: "Forbidden - You don't have permission to update this feedback" });
+      }
+
+      const { status, agentResponse, reportingHeadResponse, rejectionReason } = req.body;
+      
+      // Validate the status if provided
+      if (status && !['pending', 'accepted', 'rejected'].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+      
+      // Require rejection reason if status is rejected
+      if (status === 'rejected' && !rejectionReason) {
+        return res.status(400).json({ message: "Rejection reason is required when rejecting feedback" });
+      }
+
+      // Prepare updates based on who is updating
+      const updates: any = {};
+      
+      if (status) updates.status = status;
+      
+      // If agent is updating
+      if (feedback.agentId === userId) {
+        if (agentResponse !== undefined) updates.agentResponse = agentResponse;
+      }
+      
+      // If reporting head is updating
+      if (feedback.reportingHeadId === userId) {
+        if (reportingHeadResponse !== undefined) updates.reportingHeadResponse = reportingHeadResponse;
+      }
+      
+      // Only add rejection reason if status is rejected
+      if (status === 'rejected' && rejectionReason) {
+        updates.rejectionReason = rejectionReason;
+      }
+
+      const updatedFeedback = await storage.updateEvaluationFeedback(feedbackId, updates);
+      res.json(updatedFeedback);
+    } catch (error: any) {
+      console.error("Error updating evaluation feedback:", error);
+      res.status(500).json({ message: error.message });
     }
   });
 

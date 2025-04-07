@@ -63,6 +63,7 @@ const formSchema = z.object({
   description: z.string().optional(),
   processId: z.number().min(1, "Process is required"),
   status: z.enum(["draft", "active", "archived"]).default("draft"),
+  feedbackThreshold: z.number().min(0).max(100).optional().nullable(),
 });
 
 export default function EvaluationTemplatesPage() {
@@ -386,6 +387,32 @@ export default function EvaluationTemplatesPage() {
                         </SelectContent>
                       </Select>
                       <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="feedbackThreshold"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Feedback Threshold</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="100"
+                          placeholder="E.g., 75"
+                          {...field}
+                          onChange={(e) => {
+                            const value = e.target.value === "" ? null : Number(e.target.value);
+                            field.onChange(value);
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <p className="text-xs text-muted-foreground">
+                        When an evaluation score falls below this threshold, the system will automatically trigger a feedback process.
+                      </p>
                     </FormItem>
                   )}
                 />

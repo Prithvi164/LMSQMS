@@ -1732,6 +1732,7 @@ export const evaluationTemplates = pgTable("evaluation_templates", {
   createdBy: integer("created_by")
     .references(() => users.id)
     .notNull(),
+  feedbackThreshold: numeric("feedback_threshold", { precision: 5, scale: 2 }), // Threshold below which feedback is triggered 
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -1845,6 +1846,8 @@ export const insertEvaluationTemplateSchema = createInsertSchema(evaluationTempl
     organizationId: z.number().int().positive("Organization is required"),
     createdBy: z.number().int().positive("Creator is required"),
     status: z.enum(['draft', 'active', 'archived']).default('draft'),
+    feedbackThreshold: z.number().min(0).max(100).optional()
+      .transform(val => val === undefined ? null : Number(val.toFixed(2))),
   });
 
 export const insertEvaluationPillarSchema = createInsertSchema(evaluationPillars)
@@ -2106,6 +2109,8 @@ export const evaluationFeedback = pgTable("evaluation_feedback", {
     .references(() => users.id)
     .notNull(),
   status: evaluationFeedbackStatusEnum("status").default('pending').notNull(),
+  agentResponse: text("agent_response"),
+  reportingHeadResponse: text("reporting_head_response"),
   agentResponseDate: timestamp("agent_response_date"),
   reportingHeadResponseDate: timestamp("reporting_head_response_date"),
   rejectionReason: text("rejection_reason"),
@@ -2126,6 +2131,8 @@ export const insertEvaluationFeedbackSchema = createInsertSchema(evaluationFeedb
     agentId: z.number().int().positive("Agent ID is required"),
     reportingHeadId: z.number().int().positive("Reporting Head ID is required"),
     status: z.enum(['pending', 'accepted', 'rejected']).default('pending'),
+    agentResponse: z.string().optional(),
+    reportingHeadResponse: z.string().optional(),
     agentResponseDate: z.date().optional(),
     reportingHeadResponseDate: z.date().optional(),
     rejectionReason: z.string().optional(),
