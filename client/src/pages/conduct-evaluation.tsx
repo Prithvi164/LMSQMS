@@ -957,11 +957,7 @@ export default function ConductEvaluation() {
                           key={file.audioFileId || file.id}
                           value={(file.audioFileId || file.id).toString()}
                         >
-                          {file.audioFile?.originalFilename ||
-                            file.originalFilename ||
-                            file.filename ||
-                            (file.audioFile?.filename ? `File: ${file.audioFile.filename}` : 
-                            `Audio File #${file.audioFileId || file.id}`)}
+                          Audio File #{file.audioFileId || file.id}
                         </SelectItem>
                       ))
                     ) : (
@@ -1013,11 +1009,7 @@ export default function ConductEvaluation() {
                     <CardTitle className="flex items-center gap-2 text-lg">
                       <FileAudio className="h-5 w-5 text-primary" />
                       <span className="truncate">
-                        {selectedAudioFileDetails.originalFilename ||
-                          selectedAudioFileDetails.filename ||
-                          (selectedAudioFileDetails.audioFile?.filename ? 
-                            `File: ${selectedAudioFileDetails.audioFile.filename}` : 
-                            `Audio File #${selectedAudioFileDetails.id}`)}
+                        Audio File #{selectedAudioFileDetails.id}
                       </span>
                     </CardTitle>
                     <CardDescription className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
