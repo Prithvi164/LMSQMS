@@ -73,9 +73,9 @@ const AudioAssignmentDashboard = () => {
   const [viewDetailsOpen, setViewDetailsOpen] = useState(false);
   const [selectedAllocation, setSelectedAllocation] = useState<AudioFileAllocation | null>(null);
 
-  // Query for fetching allocations
+  // Query for fetching allocations assigned to the current user only
   const { data: allocations = [], isLoading: loadingAllocations, refetch: refetchAllocations } = useQuery<AudioFileAllocation[]>({
-    queryKey: ['/api/organizations/' + user?.organizationId + '/audio-file-allocations', dateFilter, statusFilter, analyticFilter],
+    queryKey: ['/api/organizations/' + user?.organizationId + '/audio-file-allocations/assigned-to-me', dateFilter, statusFilter, analyticFilter],
     enabled: !!user?.organizationId,
   });
 
