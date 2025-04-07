@@ -929,6 +929,240 @@ export default function ConductEvaluation() {
               </div>
             </div>
           </div>
+
+          {/* Standard Evaluation Form - Only show after selections */}
+          {selectedBatch && selectedTrainee && selectedTemplate && selectedTemplateDetails && (
+            <div className="mt-6">
+              <Card className="border-primary/10">
+                <CardHeader className="bg-primary/5 border-b border-primary/10 pb-3">
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <ClipboardCheck className="h-5 w-5 text-primary" />
+                      <span>Evaluation Form</span>
+                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="font-normal">
+                        Final Score: {calculateScore()}%
+                      </Badge>
+                    </div>
+                  </div>
+                  <CardDescription>
+                    {selectedTemplateDetails.description ||
+                      "Please complete all required fields below for a thorough evaluation"}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="text-sm px-4 py-3 bg-muted/30 border-b">
+                    <strong>Template:</strong> {selectedTemplateDetails.name}
+                  </div>
+                  <div className="p-4">
+                    <Accordion type="multiple" className="space-y-4">
+                      {selectedTemplateDetails.pillars.map((pillar: any) => (
+                        <AccordionItem
+                          key={pillar.id}
+                          value={pillar.id.toString()}
+                          className="border border-border rounded-md overflow-hidden"
+                        >
+                          <AccordionTrigger className="px-4 py-3 hover:bg-muted/50 [&[data-state=open]]:bg-muted/30">
+                            <div className="flex gap-2 items-center">
+                              <span className="font-medium">{pillar.name}</span>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="pt-0 mt-0">
+                            <div className="divide-y border-t">
+                              {pillar.parameters.map((param: any) => (
+                                <div
+                                  key={param.id}
+                                  className="p-4 grid grid-cols-1 lg:grid-cols-12 gap-4"
+                                >
+                                  <div className="lg:col-span-5 space-y-1">
+                                    <div className="font-medium">{param.name}</div>
+                                    <div className="text-sm text-muted-foreground">
+                                      {param.description}
+                                    </div>
+                                    {param.weightageEnabled && (
+                                      <Badge variant="outline" className="mt-1">
+                                        Weightage: {param.weightage}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="lg:col-span-7 space-y-3">
+                                    {param.ratingType === "yes_no_na" ? (
+                                      <div className="flex gap-3 flex-wrap">
+                                        <div className="flex items-center gap-2">
+                                          <input
+                                            type="radio"
+                                            id={`${param.id}-yes`}
+                                            name={`param-${param.id}`}
+                                            value="yes"
+                                            className="h-4 w-4 accent-primary"
+                                            onChange={() =>
+                                              handleScoreChange(param.id, "yes")
+                                            }
+                                            checked={scores[param.id]?.score === "yes"}
+                                          />
+                                          <label
+                                            htmlFor={`${param.id}-yes`}
+                                            className="text-sm font-medium"
+                                          >
+                                            Yes
+                                          </label>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <input
+                                            type="radio"
+                                            id={`${param.id}-no`}
+                                            name={`param-${param.id}`}
+                                            value="no"
+                                            className="h-4 w-4 accent-primary"
+                                            onChange={() =>
+                                              handleScoreChange(param.id, "no")
+                                            }
+                                            checked={scores[param.id]?.score === "no"}
+                                          />
+                                          <label
+                                            htmlFor={`${param.id}-no`}
+                                            className="text-sm font-medium"
+                                          >
+                                            No
+                                          </label>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <input
+                                            type="radio"
+                                            id={`${param.id}-na`}
+                                            name={`param-${param.id}`}
+                                            value="na"
+                                            className="h-4 w-4 accent-primary"
+                                            onChange={() =>
+                                              handleScoreChange(param.id, "na")
+                                            }
+                                            checked={scores[param.id]?.score === "na"}
+                                          />
+                                          <label
+                                            htmlFor={`${param.id}-na`}
+                                            className="text-sm font-medium"
+                                          >
+                                            N/A
+                                          </label>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="flex gap-3 flex-wrap">
+                                        {[1, 2, 3, 4, 5].map((score) => (
+                                          <div
+                                            key={score}
+                                            className="flex items-center gap-2"
+                                          >
+                                            <input
+                                              type="radio"
+                                              id={`${param.id}-${score}`}
+                                              name={`param-${param.id}`}
+                                              value={score.toString()}
+                                              className="h-4 w-4 accent-primary"
+                                              onChange={() =>
+                                                handleScoreChange(
+                                                  param.id,
+                                                  score.toString()
+                                                )
+                                              }
+                                              checked={
+                                                scores[param.id]?.score ===
+                                                score.toString()
+                                              }
+                                            />
+                                            <label
+                                              htmlFor={`${param.id}-${score}`}
+                                              className="text-sm font-medium"
+                                            >
+                                              {score}
+                                            </label>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+
+                                    {/* "No" Reason Selection */}
+                                    {param.ratingType === "yes_no_na" &&
+                                      scores[param.id]?.score === "no" && (
+                                        <div className="pt-3 space-y-2">
+                                          <Label
+                                            htmlFor={`${param.id}-no-reason`}
+                                            className="text-sm"
+                                          >
+                                            Reason for "No":
+                                          </Label>
+                                          <Select
+                                            onValueChange={(value) =>
+                                              handleNoReasonSelect(param.id, value)
+                                            }
+                                            value={scores[param.id]?.noReason}
+                                          >
+                                            <SelectTrigger id={`${param.id}-no-reason`}>
+                                              <SelectValue placeholder="Select reason" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="missed">
+                                                Missed requirement
+                                              </SelectItem>
+                                              <SelectItem value="incorrect">
+                                                Incorrect implementation
+                                              </SelectItem>
+                                              <SelectItem value="incomplete">
+                                                Incomplete implementation
+                                              </SelectItem>
+                                              <SelectItem value="other">
+                                                Other (specify in comments)
+                                              </SelectItem>
+                                            </SelectContent>
+                                          </Select>
+                                        </div>
+                                      )}
+
+                                    <div className="space-y-2">
+                                      <Label
+                                        htmlFor={`${param.id}-comment`}
+                                        className="text-sm"
+                                      >
+                                        Comments:
+                                      </Label>
+                                      <Textarea
+                                        id={`${param.id}-comment`}
+                                        placeholder="Enter your comments here"
+                                        value={scores[param.id]?.comment || ""}
+                                        onChange={(e) =>
+                                          handleCommentChange(param.id, e.target.value)
+                                        }
+                                        className="h-20 resize-none"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-end gap-2 border-t bg-muted/20 py-3">
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={submitEvaluationMutation.isPending}
+                    className="gap-2"
+                  >
+                    {submitEvaluationMutation.isPending ? (
+                      <Spinner size="sm" />
+                    ) : (
+                      <Check className="h-4 w-4" />
+                    )}
+                    Submit Evaluation
+                  </Button>
+                </CardFooter>
+              </Card>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="audio" className="space-y-6">
