@@ -342,6 +342,16 @@ export interface IStorage {
 
   // Evaluation operations
   createEvaluation(evaluation: InsertEvaluation & { scores: Array<{ parameterId: number; score: string; comment?: string; noReason?: string; }> }): Promise<Evaluation>;
+  getEvaluation(id: number): Promise<Evaluation | undefined>;
+  getEvaluationWithScores(id: number): Promise<Evaluation & { scores: EvaluationScore[] } | undefined>;
+  listEvaluations(filters: { organizationId: number, traineeId?: number, evaluatorId?: number, batchId?: number }): Promise<Evaluation[]>;
+  
+  // Evaluation Feedback operations
+  createEvaluationFeedback(feedback: InsertEvaluationFeedback): Promise<EvaluationFeedback>;
+  getEvaluationFeedback(evaluationId: number): Promise<EvaluationFeedback | undefined>;
+  updateEvaluationFeedback(id: number, feedback: Partial<InsertEvaluationFeedback>): Promise<EvaluationFeedback>;
+  getPendingEvaluationFeedback(agentId: number): Promise<(EvaluationFeedback & { evaluation: Evaluation })[]>;
+  getPendingApprovalEvaluationFeedback(reportingHeadId: number): Promise<(EvaluationFeedback & { evaluation: Evaluation })[]>;
 
   // Organization Settings operations
   getOrganizationSettings(organizationId: number): Promise<OrganizationSettings | undefined>;
@@ -1286,6 +1296,7 @@ export class DatabaseStorage implements IStorage {
             organizationId: evaluation.organizationId,
             finalScore,
             status: evaluation.status,
+            feedbackThreshold: evaluation.feedbackThreshold,
           })
           .returning() as Evaluation[];
 
@@ -1306,10 +1317,214 @@ export class DatabaseStorage implements IStorage {
 
         console.log('Created evaluation scores');
 
+        // If the final score is below the feedback threshold, create a feedback record
+        if (evaluation.feedbackThreshold && finalScore < evaluation.feedbackThreshold) {
+          console.log(`Final score ${finalScore} is below threshold ${evaluation.feedbackThreshold}, creating feedback record`);
+          
+          // Get reporting head for the trainee if possible
+          let reportingHeadId = evaluation.evaluatorId; // Default to evaluator if no reporting head found
+          
+          if (evaluation.traineeId) {
+            try {
+              const trainee = await tx
+                .select()
+                .from(schema.users)
+                .where(eq(schema.users.id, evaluation.traineeId))
+                .limit(1);
+              
+              if (trainee.length > 0 && trainee[0].reportingTo) {
+                reportingHeadId = trainee[0].reportingTo;
+              }
+            } catch (err) {
+              console.error('Error getting trainee reporting head, using evaluator instead:', err);
+            }
+          }
+          
+          // Create feedback record
+          await tx
+            .insert(evaluationFeedback)
+            .values({
+              evaluationId: newEvaluation.id,
+              agentId: evaluation.traineeId as number,
+              reportingHeadId,
+              status: 'pending',
+            });
+            
+          console.log('Created evaluation feedback record');
+        }
+
         return newEvaluation;
       });
     } catch (error) {
       console.error('Error creating evaluation:', error);
+      throw error;
+    }
+  }
+
+  async getEvaluation(id: number): Promise<Evaluation | undefined> {
+    try {
+      const [evaluation] = await db
+        .select()
+        .from(evaluations)
+        .where(eq(evaluations.id, id)) as Evaluation[];
+      
+      return evaluation;
+    } catch (error) {
+      console.error('Error getting evaluation:', error);
+      throw error;
+    }
+  }
+  
+  async getEvaluationWithScores(id: number): Promise<Evaluation & { scores: EvaluationScore[] } | undefined> {
+    try {
+      const evaluation = await this.getEvaluation(id);
+      
+      if (!evaluation) {
+        return undefined;
+      }
+      
+      const scores = await db
+        .select()
+        .from(evaluationScores)
+        .where(eq(evaluationScores.evaluationId, id)) as EvaluationScore[];
+      
+      return {
+        ...evaluation,
+        scores
+      };
+    } catch (error) {
+      console.error('Error getting evaluation with scores:', error);
+      throw error;
+    }
+  }
+  
+  async listEvaluations(filters: { 
+    organizationId: number, 
+    traineeId?: number, 
+    evaluatorId?: number, 
+    batchId?: number 
+  }): Promise<Evaluation[]> {
+    try {
+      let query = db
+        .select()
+        .from(evaluations)
+        .where(eq(evaluations.organizationId, filters.organizationId))
+        .orderBy(desc(evaluations.createdAt));
+      
+      if (filters.traineeId) {
+        query = query.where(eq(evaluations.traineeId, filters.traineeId));
+      }
+      
+      if (filters.evaluatorId) {
+        query = query.where(eq(evaluations.evaluatorId, filters.evaluatorId));
+      }
+      
+      if (filters.batchId) {
+        query = query.where(eq(evaluations.batchId, filters.batchId));
+      }
+      
+      return query as Promise<Evaluation[]>;
+    } catch (error) {
+      console.error('Error listing evaluations:', error);
+      throw error;
+    }
+  }
+  
+  async createEvaluationFeedback(feedback: InsertEvaluationFeedback): Promise<EvaluationFeedback> {
+    try {
+      const [newFeedback] = await db
+        .insert(evaluationFeedback)
+        .values(feedback)
+        .returning() as EvaluationFeedback[];
+      
+      return newFeedback;
+    } catch (error) {
+      console.error('Error creating evaluation feedback:', error);
+      throw error;
+    }
+  }
+  
+  async getEvaluationFeedback(evaluationId: number): Promise<EvaluationFeedback | undefined> {
+    try {
+      const [feedback] = await db
+        .select()
+        .from(evaluationFeedback)
+        .where(eq(evaluationFeedback.evaluationId, evaluationId)) as EvaluationFeedback[];
+      
+      return feedback;
+    } catch (error) {
+      console.error('Error getting evaluation feedback:', error);
+      throw error;
+    }
+  }
+  
+  async updateEvaluationFeedback(id: number, feedback: Partial<InsertEvaluationFeedback>): Promise<EvaluationFeedback> {
+    try {
+      const [updatedFeedback] = await db
+        .update(evaluationFeedback)
+        .set({
+          ...feedback,
+          updatedAt: new Date()
+        })
+        .where(eq(evaluationFeedback.id, id))
+        .returning() as EvaluationFeedback[];
+      
+      if (!updatedFeedback) {
+        throw new Error('Evaluation feedback not found');
+      }
+      
+      return updatedFeedback;
+    } catch (error) {
+      console.error('Error updating evaluation feedback:', error);
+      throw error;
+    }
+  }
+  
+  async getPendingEvaluationFeedback(agentId: number): Promise<(EvaluationFeedback & { evaluation: Evaluation })[]> {
+    try {
+      const feedbackList = await db
+        .select({
+          feedback: evaluationFeedback,
+          evaluation: evaluations
+        })
+        .from(evaluationFeedback)
+        .innerJoin(evaluations, eq(evaluationFeedback.evaluationId, evaluations.id))
+        .where(and(
+          eq(evaluationFeedback.agentId, agentId),
+          eq(evaluationFeedback.status, 'pending')
+        ));
+      
+      return feedbackList.map(item => ({
+        ...item.feedback,
+        evaluation: item.evaluation
+      }));
+    } catch (error) {
+      console.error('Error getting pending evaluation feedback for agent:', error);
+      throw error;
+    }
+  }
+  
+  async getPendingApprovalEvaluationFeedback(reportingHeadId: number): Promise<(EvaluationFeedback & { evaluation: Evaluation })[]> {
+    try {
+      const feedbackList = await db
+        .select({
+          feedback: evaluationFeedback,
+          evaluation: evaluations
+        })
+        .from(evaluationFeedback)
+        .innerJoin(evaluations, eq(evaluationFeedback.evaluationId, evaluations.id))
+        .where(and(
+          eq(evaluationFeedback.reportingHeadId, reportingHeadId),
+          eq(evaluationFeedback.status, 'pending'),
+          isNotNull(evaluationFeedback.agentResponseDate) // Only show feedback that the agent has already reviewed
+        ));
+      
+      return feedbackList.map(item => ({
+        ...item.feedback,
+        evaluation: item.evaluation
+      }));
+    } catch (error) {
+      console.error('Error getting pending approval evaluation feedback for reporting head:', error);
       throw error;
     }
   }

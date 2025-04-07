@@ -10,6 +10,12 @@ export const questionTypeEnum = pgEnum('question_type', [
   'short_answer'
 ]);
 
+export const evaluationFeedbackStatusEnum = pgEnum('evaluation_feedback_status', [
+  'pending',
+  'accepted',
+  'rejected'
+]);
+
 export const quizStatusEnum = pgEnum('quiz_status', [
   'active',
   'completed',
@@ -2028,6 +2034,7 @@ export const evaluations = pgTable("evaluations", {
     .notNull(),
   finalScore: numeric("final_score", { precision: 5, scale: 2 }).notNull(),
   status: text("status").notNull(),
+  feedbackThreshold: numeric("feedback_threshold", { precision: 5, scale: 2 }), // Threshold below which feedback is triggered
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -2066,6 +2073,7 @@ export const insertEvaluationSchema = createInsertSchema(evaluations)
     organizationId: z.number().int().positive("Organization ID is required"),
     finalScore: z.number().min(0).max(100).transform(score => Number(score.toFixed(2))),
     status: z.string().min(1, "Status is required"),
+    feedbackThreshold: z.number().min(0).max(100).transform(score => Number(score.toFixed(2))).optional(),
   });
 
 export const insertEvaluationScoreSchema = createInsertSchema(evaluationScores)
@@ -2085,6 +2093,61 @@ export type InsertEvaluation = z.infer<typeof insertEvaluationSchema>;
 export type InsertEvaluationScore = z.infer<typeof insertEvaluationScoreSchema>;
 
 // Relations
+// Evaluation feedback table to track feedback on evaluations
+export const evaluationFeedback = pgTable("evaluation_feedback", {
+  id: serial("id").primaryKey(),
+  evaluationId: integer("evaluation_id")
+    .references(() => evaluations.id)
+    .notNull(),
+  agentId: integer("agent_id")
+    .references(() => users.id)
+    .notNull(),
+  reportingHeadId: integer("reporting_head_id")
+    .references(() => users.id)
+    .notNull(),
+  status: evaluationFeedbackStatusEnum("status").default('pending').notNull(),
+  agentResponseDate: timestamp("agent_response_date"),
+  reportingHeadResponseDate: timestamp("reporting_head_response_date"),
+  rejectionReason: text("rejection_reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type EvaluationFeedback = InferSelectModel<typeof evaluationFeedback>;
+
+export const insertEvaluationFeedbackSchema = createInsertSchema(evaluationFeedback)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    evaluationId: z.number().int().positive("Evaluation ID is required"),
+    agentId: z.number().int().positive("Agent ID is required"),
+    reportingHeadId: z.number().int().positive("Reporting Head ID is required"),
+    status: z.enum(['pending', 'accepted', 'rejected']).default('pending'),
+    agentResponseDate: z.date().optional(),
+    reportingHeadResponseDate: z.date().optional(),
+    rejectionReason: z.string().optional(),
+  });
+
+export type InsertEvaluationFeedback = z.infer<typeof insertEvaluationFeedbackSchema>;
+
+export const evaluationFeedbackRelations = relations(evaluationFeedback, ({ one }) => ({
+  evaluation: one(evaluations, {
+    fields: [evaluationFeedback.evaluationId],
+    references: [evaluations.id],
+  }),
+  agent: one(users, {
+    fields: [evaluationFeedback.agentId],
+    references: [users.id],
+  }),
+  reportingHead: one(users, {
+    fields: [evaluationFeedback.reportingHeadId],
+    references: [users.id],
+  }),
+}));
+
 export const evaluationsRelations = relations(evaluations, ({ one, many }) => ({
   template: one(evaluationTemplates, {
     fields: [evaluations.templateId],
@@ -2108,6 +2171,7 @@ export const evaluationsRelations = relations(evaluations, ({ one, many }) => ({
   }),
   audioFiles: many(audioFiles),
   audioFileAllocations: many(audioFileAllocations),
+  feedback: many(evaluationFeedback),
 }));
 
 export const evaluationScoresRelations = relations(evaluationScores, ({ one }) => ({
