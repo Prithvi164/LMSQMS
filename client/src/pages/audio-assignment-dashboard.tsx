@@ -77,6 +77,13 @@ const AudioAssignmentDashboard = () => {
   const { data: allocations = [], isLoading: loadingAllocations, refetch: refetchAllocations } = useQuery<AudioFileAllocation[]>({
     queryKey: ['/api/organizations/' + user?.organizationId + '/audio-file-allocations/assigned-to-me', user?.id, dateFilter, statusFilter, analyticFilter],
     enabled: !!user?.organizationId && !!user?.id,
+    onSuccess: (data) => {
+      console.log("Raw allocation data:", data);
+      console.log("Status breakdown:", data.reduce((acc, item) => {
+        acc[item.status] = (acc[item.status] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>));
+    }
   });
 
   // Filter allocations based on active tab and filters
@@ -124,6 +131,7 @@ const AudioAssignmentDashboard = () => {
   // Calculate overall statistics
   const totalAssignments = filteredAllocations.length;
   const statusCounts = filteredAllocations.reduce((counts: Record<string, number>, allocation) => {
+    // Use the allocation status to increment the appropriate counter
     counts[allocation.status] = (counts[allocation.status] || 0) + 1;
     return counts;
   }, {
