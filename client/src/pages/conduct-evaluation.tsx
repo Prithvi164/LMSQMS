@@ -341,7 +341,14 @@ export default function ConductEvaluation() {
   // Submit evaluation
   const submitEvaluationMutation = useMutation({
     mutationFn: async (evaluation: any) => {
-      const response = await fetch("/api/evaluations", {
+      // Use different endpoints based on evaluation type
+      const endpoint = evaluationType === "audio" 
+        ? "/api/audio-evaluations" 
+        : "/api/evaluations";
+        
+      console.log(`Submitting ${evaluationType} evaluation to ${endpoint}`);
+      
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -357,13 +364,25 @@ export default function ConductEvaluation() {
       return response.json();
     },
     onSuccess: (data) => {
-      // If we're evaluating an audio file, update its status to 'evaluated'
-      if (evaluationType === "audio" && selectedAudioFile) {
-        updateAudioFileStatusMutation.mutate({
-          audioFileId: selectedAudioFile,
-          status: "evaluated",
-          evaluationId: data.id,
+      if (evaluationType === "audio") {
+        // For audio evaluations, the endpoint already updates the audio file status
+        // Just invalidate the queries
+        queryClient.invalidateQueries({
+          queryKey: [
+            `/api/organizations/${user?.organizationId}/audio-file-allocations/assigned-to-me`,
+          ],
         });
+        queryClient.invalidateQueries({
+          queryKey: [`/api/organizations/${user?.organizationId}/audio-files`],
+        });
+        toast({
+          title: "Success",
+          description: "Audio evaluation submitted successfully",
+        });
+        setScores({});
+        setSelectedAudioFile(null);
+        setSelectedTemplate(null);
+        setAudioUrl(null);
       } else {
         // For standard evaluations
         queryClient.invalidateQueries({
@@ -388,58 +407,9 @@ export default function ConductEvaluation() {
     },
   });
 
-  // Update audio file status mutation
-  const updateAudioFileStatusMutation = useMutation({
-    mutationFn: async ({
-      audioFileId,
-      status,
-      evaluationId,
-    }: {
-      audioFileId: number;
-      status: string;
-      evaluationId: number;
-    }) => {
-      const response = await fetch(`/api/audio-files/${audioFileId}/status`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ status, evaluationId }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to update audio file status");
-      }
-
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: [
-          `/api/organizations/${user?.organizationId}/audio-file-allocations/assigned-to-me`,
-        ],
-      });
-      queryClient.invalidateQueries({
-        queryKey: [`/api/organizations/${user?.organizationId}/audio-files`],
-      });
-      toast({
-        title: "Success",
-        description: "Audio evaluation submitted successfully",
-      });
-      setScores({});
-      setSelectedAudioFile(null);
-      setSelectedTemplate(null);
-      setAudioUrl(null);
-    },
-    onError: (error: Error) => {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
-    },
-  });
+  // This mutation is no longer needed as we're using the audio-evaluations endpoint
+  // which already updates the audio file status
+  // Keeping reference here but it's not used anymore
 
   const handleScoreChange = (parameterId: number, value: any) => {
     setScores((prev) => ({
@@ -848,6 +818,8 @@ export default function ConductEvaluation() {
       return;
     }
 
+    console.log("Submitting audio evaluation");
+    
     const evaluation = {
       templateId: selectedTemplate,
       audioFileId: selectedAudioFile,
@@ -858,6 +830,9 @@ export default function ConductEvaluation() {
       })),
       finalScore: calculateScore(),
     };
+
+    // Log the evaluation data for debugging
+    console.log("Audio evaluation data:", evaluation);
 
     submitEvaluationMutation.mutate(evaluation);
   };
