@@ -245,17 +245,43 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/logout", (req, res) => {
-    if (!req.session) {
-      return res.status(200).json({ message: "Already logged out" });
-    }
-    req.session.destroy((err) => {
-      if (err) {
-        console.error("Logout error:", err);
-        return res.status(500).json({ message: "Logout failed" });
+    try {
+      if (!req.session) {
+        return res.status(200).json({ message: "Already logged out" });
       }
-      res.clearCookie('connect.sid');
-      res.status(200).json({ message: "Logged out successfully" });
-    });
+
+      if (!req.isAuthenticated()) {
+        req.logout(() => {
+          res.clearCookie('connect.sid');
+          return res.status(200).json({ message: "Already logged out" });
+        });
+        return;
+      }
+
+      req.logout((err) => {
+        if (err) {
+          console.error("Logout error during req.logout:", err);
+          return res.status(500).json({ message: `Logout failed: ${err.message}` });
+        }
+        
+        if (req.session) {
+          req.session.destroy((err) => {
+            if (err) {
+              console.error("Logout error during session.destroy:", err);
+              return res.status(500).json({ message: `Logout failed: ${err.message}` });
+            }
+            res.clearCookie('connect.sid');
+            return res.status(200).json({ message: "Logged out successfully" });
+          });
+        } else {
+          res.clearCookie('connect.sid');
+          return res.status(200).json({ message: "Logged out successfully" });
+        }
+      });
+    } catch (error) {
+      console.error("Unexpected error during logout:", error);
+      return res.status(500).json({ message: `Logout failed: ${error instanceof Error ? error.message : 'Unknown error'}` });
+    }
   });
 
   app.get("/api/user", (req, res) => {

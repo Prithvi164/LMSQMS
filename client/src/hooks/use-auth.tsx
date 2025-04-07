@@ -96,6 +96,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           credentials: "include"
         });
         
+        // Special case for 503 Service Unavailable - force logout on client side
+        if (response.status === 503) {
+          console.warn("Server unavailable during logout, forcing client-side logout");
+          return { forced: true };
+        }
+        
         if (!response.ok) {
           let errorMessage: string;
           try {
@@ -107,21 +113,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw new Error(`${response.status}: ${errorMessage}`);
         }
         
-        return true; // Return something to indicate success
+        return { success: true }; // Return something to indicate success
       } catch (error) {
         console.error("Logout error:", error);
+        // If the error is a network error or the server is unreachable,
+        // we'll force a client-side logout
+        if (error instanceof Error && 
+            (error.message.includes("Failed to fetch") || 
+             error.message.includes("NetworkError") ||
+             error.message.includes("503"))) {
+          console.warn("Network error during logout, forcing client-side logout");
+          return { forced: true };
+        }
         throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      // Clear the user data from the cache regardless of how logout happened
       queryClient.setQueryData(["/api/user"], null);
+      
+      // Clear all queries from cache to ensure fresh data on next login
+      queryClient.clear();
+      
+      // Show a toast for forced logout if needed
+      if (result.forced) {
+        toast({
+          title: "Logged out",
+          description: "You've been logged out. The server may be temporarily unavailable.",
+          duration: 5000,
+        });
+      }
     },
     onError: (error: Error) => {
+      console.error("Logout mutation error:", error);
       toast({
         title: "Logout failed",
         description: error.message,
         variant: "destructive",
       });
+      
+      // If we get a serious error, we could still force a client-side logout as a fallback
+      queryClient.setQueryData(["/api/user"], null);
     },
   });
 
