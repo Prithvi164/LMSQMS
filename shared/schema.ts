@@ -826,8 +826,6 @@ export const organizationSettings = pgTable("organization_settings", {
     .notNull(),
   featureType: featureTypeEnum("feature_type").default('BOTH').notNull(),
   weeklyOffDays: text("weekly_off_days").array().notNull().default(['Saturday', 'Sunday']),
-  // Threshold percentage below which evaluation feedback is required
-  evaluationFeedbackThreshold: integer("evaluation_feedback_threshold").default(70).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -842,8 +840,7 @@ export const insertOrganizationSettingsSchema = createInsertSchema(organizationS
   })
   .extend({
     organizationId: z.number().int().positive("Organization is required"),
-    featureType: z.enum(['LMS', 'QMS', 'BOTH']).default('BOTH'),
-    evaluationFeedbackThreshold: z.number().int().min(0).max(100).default(70),
+    featureType: z.enum(['LMS', 'QMS', 'BOTH']).default('BOTH')
   });
 
 export type InsertOrganizationSettings = z.infer<typeof insertOrganizationSettingsSchema>;
@@ -2012,13 +2009,6 @@ export type InsertEvaluationParameterResult = z.infer<typeof insertEvaluationPar
 // Evaluation type enum
 export const evaluationTypeEnum = pgEnum('evaluation_type', ['audio', 'standard']);
 
-// Evaluation feedback status enum
-export const evaluationFeedbackStatusEnum = pgEnum('evaluation_feedback_status', [
-  'pending',
-  'accepted',
-  'rejected'
-]);
-
 // Evaluation-related tables
 export const evaluations = pgTable("evaluations", {
   id: serial("id").primaryKey(),
@@ -2095,78 +2085,6 @@ export type InsertEvaluation = z.infer<typeof insertEvaluationSchema>;
 export type InsertEvaluationScore = z.infer<typeof insertEvaluationScoreSchema>;
 
 // Relations
-// Evaluation Feedback table
-export const evaluationFeedbacks = pgTable("evaluation_feedbacks", {
-  id: serial("id").primaryKey(),
-  evaluationId: integer("evaluation_id")
-    .references(() => evaluations.id)
-    .notNull(),
-  // Who is providing the feedback (the agent or their manager)
-  providedById: integer("provided_by_id")
-    .references(() => users.id)
-    .notNull(),
-  // The agent whose evaluation is being reviewed
-  agentId: integer("agent_id")
-    .references(() => users.id)
-    .notNull(),
-  // The manager responsible for reviewing
-  managerId: integer("manager_id")
-    .references(() => users.id)
-    .notNull(),
-  // Current status of feedback
-  status: evaluationFeedbackStatusEnum("status").default('pending').notNull(),
-  // Comments provided with the feedback
-  comments: text("comments"),
-  organizationId: integer("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export type EvaluationFeedback = InferSelectModel<typeof evaluationFeedbacks>;
-
-export const insertEvaluationFeedbackSchema = createInsertSchema(evaluationFeedbacks)
-  .omit({
-    id: true,
-    createdAt: true,
-    updatedAt: true,
-  })
-  .extend({
-    evaluationId: z.number().int().positive("Evaluation ID is required"),
-    providedById: z.number().int().positive("Provider ID is required"),
-    agentId: z.number().int().positive("Agent ID is required"),
-    managerId: z.number().int().positive("Manager ID is required"),
-    status: z.enum(['pending', 'accepted', 'rejected']).default('pending'),
-    comments: z.string().optional(),
-    organizationId: z.number().int().positive("Organization ID is required"),
-  });
-
-export type InsertEvaluationFeedback = z.infer<typeof insertEvaluationFeedbackSchema>;
-
-export const evaluationFeedbacksRelations = relations(evaluationFeedbacks, ({ one }) => ({
-  evaluation: one(evaluations, {
-    fields: [evaluationFeedbacks.evaluationId],
-    references: [evaluations.id],
-  }),
-  providedBy: one(users, {
-    fields: [evaluationFeedbacks.providedById],
-    references: [users.id],
-  }),
-  agent: one(users, {
-    fields: [evaluationFeedbacks.agentId],
-    references: [users.id],
-  }),
-  manager: one(users, {
-    fields: [evaluationFeedbacks.managerId],
-    references: [users.id],
-  }),
-  organization: one(organizations, {
-    fields: [evaluationFeedbacks.organizationId],
-    references: [organizations.id],
-  }),
-}));
-
 export const evaluationsRelations = relations(evaluations, ({ one, many }) => ({
   template: one(evaluationTemplates, {
     fields: [evaluations.templateId],
@@ -2190,7 +2108,6 @@ export const evaluationsRelations = relations(evaluations, ({ one, many }) => ({
   }),
   audioFiles: many(audioFiles),
   audioFileAllocations: many(audioFileAllocations),
-  feedbacks: many(evaluationFeedbacks),
 }));
 
 export const evaluationScoresRelations = relations(evaluationScores, ({ one }) => ({

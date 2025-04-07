@@ -76,7 +76,6 @@ type OrganizationSettings = {
   organizationId: number;
   featureType: 'LMS' | 'QMS' | 'BOTH';
   weeklyOffDays: string[];
-  evaluationFeedbackThreshold: number;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -111,15 +110,8 @@ const featureTypeSchema = z.object({
   featureType: z.enum(['LMS', 'QMS', 'BOTH'])
 });
 
-const feedbackThresholdSchema = z.object({
-  evaluationFeedbackThreshold: z.coerce.number()
-    .min(0, "Threshold must be at least 0%")
-    .max(100, "Threshold cannot exceed 100%")
-});
-
 type HolidayForm = z.infer<typeof holidaySchema>;
 type FeatureTypeForm = z.infer<typeof featureTypeSchema>;
-type FeedbackThresholdForm = z.infer<typeof feedbackThresholdSchema>;
 
 export default function OrganizationSettings() {
   const { user } = useAuth();
@@ -144,14 +136,6 @@ export default function OrganizationSettings() {
     resolver: zodResolver(featureTypeSchema),
     defaultValues: {
       featureType: 'BOTH'
-    }
-  });
-  
-  // Feedback threshold form setup
-  const feedbackThresholdForm = useForm<FeedbackThresholdForm>({
-    resolver: zodResolver(feedbackThresholdSchema),
-    defaultValues: {
-      evaluationFeedbackThreshold: 70
     }
   });
 
@@ -188,10 +172,7 @@ export default function OrganizationSettings() {
     if (settings?.featureType) {
       featureTypeForm.setValue('featureType', settings.featureType);
     }
-    if (settings?.evaluationFeedbackThreshold) {
-      feedbackThresholdForm.setValue('evaluationFeedbackThreshold', settings.evaluationFeedbackThreshold);
-    }
-  }, [settings, featureTypeForm, feedbackThresholdForm]);
+  }, [settings, featureTypeForm]);
   
   // Update feature type mutation
   const updateFeatureTypeMutation = useMutation({
@@ -207,31 +188,6 @@ export default function OrganizationSettings() {
       toast({
         title: "Settings updated",
         description: "The feature type has been updated successfully.",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error updating settings",
-        description: error.message || "An error occurred while updating settings. Please try again.",
-        variant: "destructive"
-      });
-    }
-  });
-  
-  // Update feedback threshold mutation
-  const updateFeedbackThresholdMutation = useMutation({
-    mutationFn: async (data: FeedbackThresholdForm) => {
-      return apiRequest(
-        "PATCH",
-        `/api/organizations/${user?.organizationId}/settings`,
-        data
-      );
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/settings`] });
-      toast({
-        title: "Settings updated",
-        description: "The evaluation feedback threshold has been updated successfully.",
       });
     },
     onError: (error: Error) => {
