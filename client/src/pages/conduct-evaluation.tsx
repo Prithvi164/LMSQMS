@@ -134,10 +134,17 @@ export default function ConductEvaluation() {
       if (!data) return [];
       // Only show files with status "allocated" for evaluation in the dropdown
       // Files with status "evaluated" or "archived" are filtered out here
-      return data.filter((file: any) => 
-        file.status === "allocated" || 
-        (file.audioFile && file.audioFile.status === "allocated")
-      );
+      // Need to check BOTH allocation and file status to be "allocated"
+      return data.filter((file: any) => {
+        // Check allocation status
+        const allocationStatus = file.status === "allocated";
+        
+        // Check audio file status - require it to also be "allocated"
+        const fileStatus = file.audioFile && file.audioFile.status === "allocated";
+        
+        // Must satisfy BOTH conditions (allocation AND file must be allocated)
+        return allocationStatus && fileStatus;
+      });
     }
   });
 
